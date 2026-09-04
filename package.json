@@ -9,7 +9,7 @@
     "dev": "vinext dev",
     "build": "vinext build && node scripts/fix-pages-paths.mjs",
     "start": "wrangler dev --config dist/server/wrangler.json",
-    "lint": "oxlint app components/capiblocks-app.tsx components/blockly-workspace.tsx lib vite.config.ts next.config.ts",
+    "lint": "oxlint app components/capiblocks-app.tsx components/blockly-workspace.tsx components/scene-builder.tsx components/scene-stage.tsx lib vite.config.ts next.config.ts",
     "typecheck": "tsc --noEmit",
     "test:smoke": "node --experimental-strip-types scripts/smoke.mjs",
     "format": "oxfmt"

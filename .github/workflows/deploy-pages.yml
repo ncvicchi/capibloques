@@ -33,6 +33,12 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
+      - name: Verificar tipos, estilo y comportamiento
+        run: |
+          npm run typecheck
+          npm run lint
+          npm run test:smoke
+
       - name: Construir sitio estático
         run: npm run build
 

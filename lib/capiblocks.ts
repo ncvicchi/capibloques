@@ -1,22 +1,44 @@
-export type SceneId = 'traffic' | 'robot' | 'wifi' | 'counter';
+import {
+  addDeviceToScene,
+  cloneScene,
+  createEmptyScene,
+  createSceneFromTemplate,
+  isLegacySceneId,
+  isSceneDefinition,
+  migrateSceneDefinition,
+  pinLabel,
+  sceneComponentCatalog,
+  validateScene,
+  wemosD1R32Pins,
+  type LegacySceneId,
+  type SceneDefinition,
+  type SceneDevice,
+  type SceneDeviceKind,
+  // @ts-expect-error Node's type-stripping smoke runner needs the explicit suffix.
+} from './scene-model.ts';
+
+export type SceneId = LegacySceneId;
+
+export type CompareOperator = 'EQ' | 'NEQ' | 'LT' | 'LTE' | 'GT' | 'GTE';
 
 export type Condition =
   | {
       kind: 'counter';
-      operator: 'EQ' | 'NEQ' | 'LT' | 'LTE' | 'GT' | 'GTE';
+      operator: CompareOperator;
       value: number;
     }
   | {
       kind: 'compare';
-      operator: 'EQ' | 'NEQ' | 'LT' | 'LTE' | 'GT' | 'GTE';
+      operator: CompareOperator;
       left: number;
       right: number;
     }
-  | { kind: 'buttonPressed' }
+  | { kind: 'buttonPressed'; deviceId: string }
   | {
       kind: 'sensor';
+      deviceId: string;
       sensor: 'LIGHT' | 'POTENTIOMETER';
-      operator: 'LT' | 'LTE' | 'GT' | 'GTE';
+      operator: Exclude<CompareOperator, 'EQ' | 'NEQ'>;
       value: number;
     }
   | { kind: 'wifiConnected' }
@@ -26,20 +48,30 @@ export type ProgramNode =
   | { op: 'wait'; ms: number; blockId: string }
   | {
       op: 'traffic';
+      deviceId: string;
       color: 'RED' | 'YELLOW' | 'GREEN' | 'OFF';
       blockId: string;
     }
-  | { op: 'led'; brightness: number; blockId: string }
+  | { op: 'led'; deviceId: string; brightness: number; blockId: string }
   | { op: 'pin'; pin: number; value: boolean; blockId: string }
   | {
       op: 'robot';
+      deviceId: string;
       action: 'FORWARD' | 'BACKWARD' | 'LEFT' | 'RIGHT' | 'STOP';
       speed: number;
       blockId: string;
     }
-  | { op: 'servo'; angle: number; blockId: string }
+  | {
+      op: 'motor';
+      deviceId: string;
+      direction: 'FORWARD' | 'BACKWARD' | 'STOP';
+      power: number;
+      blockId: string;
+    }
+  | { op: 'servo'; deviceId: string; angle: number; blockId: string }
   | {
       op: 'buzzer';
+      deviceId: string;
       kind: 'ACTIVE' | 'PASSIVE';
       frequency: number;
       durationMs: number;
@@ -49,7 +81,13 @@ export type ProgramNode =
   | { op: 'counterSet'; value: number; blockId: string }
   | { op: 'counterChange'; delta: number; blockId: string }
   | { op: 'serial'; text: string; blockId: string }
-  | { op: 'tone'; frequency: number; durationMs: number; blockId: string }
+  | {
+      op: 'tone';
+      deviceId: string;
+      frequency: number;
+      durationMs: number;
+      blockId: string;
+    }
   | { op: 'repeat'; count: number; body: ProgramNode[]; blockId: string }
   | {
       op: 'if';
@@ -59,43 +97,66 @@ export type ProgramNode =
       blockId: string;
     };
 
+export interface ProgramThread {
+  id: string;
+  startBlockId: string;
+  nodes: ProgramNode[];
+}
+
+export interface CompiledProgram {
+  version: 2;
+  threads: ProgramThread[];
+}
+
+export interface ProjectTarget {
+  family: 'esp32';
+  framework: 'arduino';
+  coreMajor: 3;
+  coreVersion: '3.3.11';
+  boardProfile: 'wemos-d1-r32';
+  fqbn: 'esp32:esp32:d1_uno32';
+}
+
 export interface ProjectFile {
   application: 'CapiBloques';
-  schemaVersion: 1;
+  schemaVersion: 2;
   metadata: {
     title: string;
     locale: 'es-AR';
     updatedAt: string;
+    migratedFrom?: 1;
   };
-  target: {
-    family: 'esp32';
-    framework: 'arduino';
-    coreMajor: 3;
-    coreVersion: '3.3.11';
-    boardProfile: 'wemos-d1-r32';
-    fqbn: 'esp32:esp32:d1_uno32';
-    pinAssignments: {
-      trafficRed: 26;
-      trafficYellow: 25;
-      trafficGreen: 27;
-      robotLeftIn1: 17;
-      robotLeftIn2: 16;
-      robotRightIn1: 23;
-      robotRightIn2: 19;
-      ledPwm: 18;
-      activeBuzzer: 13;
-      passiveBuzzer: 13;
-      servo: 14;
-      button: 4;
-      lightSensor: 35;
-      potentiometer: 34;
-    };
-  };
+  target: ProjectTarget;
+  scene: SceneDefinition;
+  /** `scene` is retained as a template hint for transitional UI clients. */
   simulation: {
     scene: SceneId;
     speed: number;
   };
   workspace: Record<string, unknown>;
+}
+
+interface LegacyProjectFile {
+  application: 'CapiBloques';
+  schemaVersion: 1;
+  metadata?: {
+    title?: unknown;
+    locale?: unknown;
+    updatedAt?: unknown;
+  };
+  target?: {
+    boardProfile?: unknown;
+    pinAssignments?: Record<string, unknown>;
+  };
+  simulation?: { scene?: unknown; speed?: unknown };
+  workspace?: unknown;
+}
+
+export interface ProjectDecodeResult {
+  project: ProjectFile | null;
+  migrated: boolean;
+  warnings: string[];
+  diagnostics: CapiDiagnostic[];
 }
 
 export interface ExampleDefinition {
@@ -105,8 +166,93 @@ export interface ExampleDefinition {
   description: string;
   icon: string;
   level: 'Inicial' | 'Intermedio' | 'Avanzado';
+  scene: SceneDefinition;
   workspace: Record<string, unknown>;
 }
+
+export type DiagnosticSeverity = 'error' | 'warning';
+
+export interface CapiDiagnostic {
+  severity: DiagnosticSeverity;
+  code: string;
+  message: string;
+  deviceId?: string;
+  blockId?: string;
+  pin?: number;
+}
+
+export type WifiRuntimeState =
+  | 'disconnected'
+  | 'connecting'
+  | 'connected'
+  | 'error';
+
+export type RuntimeDeviceState =
+  | {
+      kind: 'trafficLight';
+      color: 'RED' | 'YELLOW' | 'GREEN' | 'OFF';
+    }
+  | { kind: 'led'; brightness: number }
+  | {
+      kind: 'robot';
+      x: number;
+      y: number;
+      angle: number;
+      left: number;
+      right: number;
+    }
+  | { kind: 'motor'; power: number }
+  | { kind: 'servo'; angle: number }
+  | {
+      kind: 'activeBuzzer';
+      playing: boolean;
+      frequency: number;
+      stopAt: number;
+    }
+  | {
+      kind: 'passiveBuzzer';
+      playing: boolean;
+      frequency: number;
+      stopAt: number;
+    }
+  | { kind: 'button'; pressed: boolean }
+  | { kind: 'lightSensor'; value: number }
+  | { kind: 'potentiometer'; value: number }
+  | { kind: 'wifiNode'; status: WifiRuntimeState };
+
+export interface SimulatorState {
+  now: number;
+  status: 'idle' | 'running' | 'paused' | 'done' | 'stopped';
+  devices: Record<string, RuntimeDeviceState>;
+  wifi: WifiRuntimeState;
+  wifiAvailable: boolean;
+  counter: number;
+  pins: Record<number, boolean>;
+  console: string[];
+  activeBlockIds: Record<string, string | undefined>;
+  /** Compatibility projections for the original four fixed scenes. */
+  traffic: 'RED' | 'YELLOW' | 'GREEN' | 'OFF';
+  ledBrightness: number;
+  servoAngle: number;
+  buzzer: 'off' | 'active' | 'passive';
+  robot: { x: number; y: number; angle: number; left: number; right: number };
+  inputs: {
+    button: boolean;
+    light: number;
+    potentiometer: number;
+    wifiAvailable: boolean;
+  };
+  activeBlockId?: string;
+}
+
+const projectTarget: ProjectTarget = {
+  family: 'esp32',
+  framework: 'arduino',
+  coreMajor: 3,
+  coreVersion: '3.3.11',
+  boardProfile: 'wemos-d1-r32',
+  fqbn: 'esp32:esp32:d1_uno32',
+};
 
 const next = (
   block: Record<string, unknown>,
@@ -142,18 +288,26 @@ const trafficWorkspace = startWorkspace({
   inputs: {
     DO: {
       block: chain(
-        { type: 'capi_traffic', id: 'traffic-red', fields: { COLOR: 'RED' } },
+        {
+          type: 'capi_traffic',
+          id: 'traffic-red',
+          fields: { DEVICE_ID: 'traffic-light-1', COLOR: 'RED' },
+        },
         { type: 'capi_wait', id: 'traffic-wait-red', fields: { SECONDS: 3 } },
         {
           type: 'capi_traffic',
           id: 'traffic-green',
-          fields: { COLOR: 'GREEN' },
+          fields: { DEVICE_ID: 'traffic-light-1', COLOR: 'GREEN' },
         },
-        { type: 'capi_wait', id: 'traffic-wait-green', fields: { SECONDS: 3 } },
+        {
+          type: 'capi_wait',
+          id: 'traffic-wait-green',
+          fields: { SECONDS: 3 },
+        },
         {
           type: 'capi_traffic',
           id: 'traffic-yellow',
-          fields: { COLOR: 'YELLOW' },
+          fields: { DEVICE_ID: 'traffic-light-1', COLOR: 'YELLOW' },
         },
         {
           type: 'capi_wait',
@@ -174,15 +328,27 @@ const robotWorkspace = startWorkspace({
         {
           type: 'capi_robot',
           id: 'robot-forward',
-          fields: { ACTION: 'FORWARD', SPEED: 70 },
+          fields: {
+            DEVICE_ID: 'robot-1',
+            ACTION: 'FORWARD',
+            SPEED: 70,
+          },
         },
-        { type: 'capi_wait', id: 'robot-wait-forward', fields: { SECONDS: 2 } },
+        {
+          type: 'capi_wait',
+          id: 'robot-wait-forward',
+          fields: { SECONDS: 2 },
+        },
         {
           type: 'capi_robot',
           id: 'robot-right',
-          fields: { ACTION: 'RIGHT', SPEED: 65 },
+          fields: { DEVICE_ID: 'robot-1', ACTION: 'RIGHT', SPEED: 65 },
         },
-        { type: 'capi_wait', id: 'robot-wait-turn', fields: { SECONDS: 0.6 } },
+        {
+          type: 'capi_wait',
+          id: 'robot-wait-turn',
+          fields: { SECONDS: 0.6 },
+        },
       ),
     },
   },
@@ -201,9 +367,14 @@ const wifiWorkspace = startWorkspace(
         DO: {
           block: chain(
             {
-              type: 'capi_traffic',
-              id: 'wifi-green',
-              fields: { COLOR: 'GREEN' },
+              type: 'capi_led',
+              id: 'wifi-red-off',
+              fields: { DEVICE_ID: 'led-1', BRIGHTNESS: 0 },
+            },
+            {
+              type: 'capi_led',
+              id: 'wifi-green-on',
+              fields: { DEVICE_ID: 'led-2', BRIGHTNESS: 100 },
             },
             {
               type: 'capi_serial',
@@ -214,7 +385,16 @@ const wifiWorkspace = startWorkspace(
         },
         ELSE: {
           block: chain(
-            { type: 'capi_traffic', id: 'wifi-red', fields: { COLOR: 'RED' } },
+            {
+              type: 'capi_led',
+              id: 'wifi-green-off',
+              fields: { DEVICE_ID: 'led-2', BRIGHTNESS: 0 },
+            },
+            {
+              type: 'capi_led',
+              id: 'wifi-red-on',
+              fields: { DEVICE_ID: 'led-1', BRIGHTNESS: 100 },
+            },
             {
               type: 'capi_serial',
               id: 'wifi-failure',
@@ -245,7 +425,11 @@ const counterWorkspace = startWorkspace(
             {
               type: 'capi_tone',
               id: 'counter-tone',
-              fields: { FREQUENCY: 660, DURATION: 120 },
+              fields: {
+                DEVICE_ID: 'passive-buzzer-1',
+                FREQUENCY: 660,
+                DURATION: 120,
+              },
             },
             {
               type: 'capi_wait',
@@ -268,18 +452,11 @@ const counterWorkspace = startWorkspace(
           },
         },
         DO: {
-          block: chain(
-            {
-              type: 'capi_traffic',
-              id: 'counter-green',
-              fields: { COLOR: 'GREEN' },
-            },
-            {
-              type: 'capi_serial',
-              id: 'counter-done',
-              fields: { TEXT: '¡Llegamos a cinco!' },
-            },
-          ),
+          block: {
+            type: 'capi_serial',
+            id: 'counter-done',
+            fields: { TEXT: '¡Llegamos a cinco!' },
+          },
         },
       },
     },
@@ -290,11 +467,11 @@ export const examples: ExampleDefinition[] = [
   {
     id: 'traffic',
     title: 'Semáforo de la plaza',
-    mission:
-      'Enciende rojo, verde y amarillo sin detener el resto del programa.',
+    mission: 'Enciende rojo, verde y amarillo sin detener los demás programas.',
     description: 'Aprende secuencias, tiempos y bucles.',
     icon: '🚦',
     level: 'Inicial',
+    scene: createSceneFromTemplate('traffic'),
     workspace: trafficWorkspace,
   },
   {
@@ -304,6 +481,7 @@ export const examples: ExampleDefinition[] = [
     description: 'Usa contador, repetición y comparación.',
     icon: '🐸',
     level: 'Inicial',
+    scene: createSceneFromTemplate('counter'),
     workspace: counterWorkspace,
   },
   {
@@ -313,6 +491,7 @@ export const examples: ExampleDefinition[] = [
     description: 'Combina movimiento, velocidad y espera.',
     icon: '🤖',
     level: 'Intermedio',
+    scene: createSceneFromTemplate('robot'),
     workspace: robotWorkspace,
   },
   {
@@ -322,10 +501,12 @@ export const examples: ExampleDefinition[] = [
     description: 'Prueba estados, timeout y condicionales.',
     icon: '📶',
     level: 'Avanzado',
+    scene: createSceneFromTemplate('wifi'),
     workspace: wifiWorkspace,
   },
 ];
 
+/** Legacy export kept for callers that show the original kit table. */
 export const defaultPinAssignments = {
   trafficRed: 26,
   trafficYellow: 25,
@@ -343,142 +524,917 @@ export const defaultPinAssignments = {
   potentiometer: 34,
 } as const;
 
-export const componentCatalog = [
-  {
-    id: 'traffic',
-    icon: '🚦',
-    name: 'Semáforo (3 LED)',
-    control: 'Encendido o brillo (PWM)',
-    pins: 'D2, D3, D6',
-    status: 'ready',
-  },
-  {
-    id: 'led',
-    icon: '💡',
-    name: 'LED',
-    control: 'Brillo 0–100% (PWM)',
-    pins: 'D13',
-    status: 'ready',
-  },
-  {
-    id: 'buzzer-active',
-    icon: '📣',
-    name: 'Buzzer activo',
-    control: 'Encender / apagar',
-    pins: 'D9',
-    status: 'ready',
-  },
-  {
-    id: 'buzzer-passive',
-    icon: '🎵',
-    name: 'Buzzer pasivo',
-    control: 'Nota y duración (PWM)',
-    pins: 'D9',
-    status: 'ready',
-  },
-  {
-    id: 'motor',
-    icon: '⚙️',
-    name: 'Motor DC + DRV8833',
-    control: 'Velocidad −100 a 100%',
-    pins: 'D4, D5',
-    status: 'ready',
-  },
-  {
-    id: 'servo',
-    icon: '🦾',
-    name: 'Servo',
-    control: 'Ángulo 0–180°',
-    pins: 'D7',
-    status: 'ready',
-  },
-  {
-    id: 'button',
-    icon: '🔘',
-    name: 'Botón',
-    control: 'Presionado / libre',
-    pins: 'A1',
-    status: 'ready',
-  },
-  {
-    id: 'light',
-    icon: '☀️',
-    name: 'Sensor de luz (LDR)',
-    control: 'Lectura 0–4095 (ADC1)',
-    pins: 'A2',
-    status: 'ready',
-  },
-  {
-    id: 'pot',
-    icon: '🎚️',
-    name: 'Potenciómetro',
-    control: 'Lectura 0–4095 (ADC1)',
-    pins: 'A3',
-    status: 'ready',
-  },
-  {
-    id: 'distance',
-    icon: '📏',
-    name: 'Distancia ultrasónica',
-    control: 'Centímetros',
-    pins: 'Por configurar',
-    status: 'planned',
-  },
-  {
-    id: 'relay',
-    icon: '🔌',
-    name: 'Relé',
-    control: 'Encender / apagar',
-    pins: 'Por configurar',
-    status: 'planned',
-  },
-  {
-    id: 'display',
-    icon: '🔢',
-    name: 'Pantalla I²C',
-    control: 'Texto y números',
-    pins: 'SDA / SCL',
-    status: 'planned',
-  },
-] as const;
+export const componentCatalog = sceneComponentCatalog.map((component) => ({
+  id: component.kind,
+  icon: component.icon,
+  name: component.name,
+  control: component.childFriendlyControl,
+  pins: component.pinRequirements.length
+    ? component.pinRequirements.map((pin) => pin.label).join(', ')
+    : 'Integrado en la placa',
+  status: 'ready' as const,
+}));
+
+function finiteNumber(value: unknown, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function projectTitle(value: unknown) {
+  if (typeof value !== 'string') return 'Mi aventura';
+  const cleaned = value.trim().slice(0, 80);
+  return cleaned || 'Mi aventura';
+}
+
+function cloneWorkspace(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object') return {};
+  try {
+    return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+function templateHint(scene: SceneDefinition): SceneId {
+  return scene.sourceTemplate ?? 'traffic';
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
 
 export function makeProject(
   title: string,
-  scene: SceneId,
+  scene: SceneId | SceneDefinition,
   workspace: Record<string, unknown>,
   speed = 1,
 ): ProjectFile {
+  const sceneDefinition = isLegacySceneId(scene)
+    ? createSceneFromTemplate(scene)
+    : cloneScene(scene);
   return {
     application: 'CapiBloques',
-    schemaVersion: 1,
-    metadata: { title, locale: 'es-AR', updatedAt: new Date().toISOString() },
-    target: {
-      family: 'esp32',
-      framework: 'arduino',
-      coreMajor: 3,
-      coreVersion: '3.3.11',
-      boardProfile: 'wemos-d1-r32',
-      fqbn: 'esp32:esp32:d1_uno32',
-      pinAssignments: defaultPinAssignments,
+    schemaVersion: 2,
+    metadata: {
+      title: projectTitle(title),
+      locale: 'es-AR',
+      updatedAt: new Date().toISOString(),
     },
-    simulation: { scene, speed },
-    workspace,
+    target: { ...projectTarget },
+    scene: sceneDefinition,
+    simulation: {
+      scene: templateHint(sceneDefinition),
+      speed: Math.max(0.25, Math.min(4, finiteNumber(speed, 1))),
+    },
+    workspace: cloneWorkspace(workspace),
   };
 }
 
-export function isProjectFile(value: unknown): value is ProjectFile {
+function isProjectV2(value: unknown): value is ProjectFile {
   if (!value || typeof value !== 'object') return false;
-  const project = value as Partial<ProjectFile>;
+  const candidate = value as Partial<ProjectFile>;
   return (
-    project.application === 'CapiBloques' &&
-    project.schemaVersion === 1 &&
-    project.target?.boardProfile === 'wemos-d1-r32' &&
-    !!project.workspace &&
-    typeof project.workspace === 'object' &&
-    !!project.simulation &&
-    ['traffic', 'robot', 'wifi', 'counter'].includes(
-      project.simulation.scene as string,
-    )
+    candidate.application === 'CapiBloques' &&
+    candidate.schemaVersion === 2 &&
+    typeof candidate.metadata?.title === 'string' &&
+    candidate.metadata.locale === 'es-AR' &&
+    typeof candidate.metadata.updatedAt === 'string' &&
+    candidate.target?.family === 'esp32' &&
+    candidate.target.framework === 'arduino' &&
+    candidate.target.coreMajor === 3 &&
+    candidate.target.coreVersion === '3.3.11' &&
+    candidate.target?.boardProfile === 'wemos-d1-r32' &&
+    candidate.target.fqbn === 'esp32:esp32:d1_uno32' &&
+    isSceneDefinition(candidate.scene) &&
+    isObjectRecord(candidate.workspace) &&
+    !!candidate.simulation &&
+    Number.isFinite(candidate.simulation.speed)
+  );
+}
+
+function isLegacyProject(value: unknown): value is LegacyProjectFile {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as LegacyProjectFile;
+  return (
+    candidate.application === 'CapiBloques' &&
+    candidate.schemaVersion === 1 &&
+    candidate.target?.boardProfile === 'wemos-d1-r32' &&
+    isObjectRecord(candidate.workspace)
+  );
+}
+
+export function isProjectFile(value: unknown): value is ProjectFile {
+  const decoded = decodeProject(value);
+  return decoded.project !== null && !decoded.migrated;
+}
+
+const blockKind = (block: Record<string, unknown>): SceneDeviceKind | null => {
+  const type = block.type;
+  const fields =
+    block.fields && typeof block.fields === 'object'
+      ? (block.fields as Record<string, unknown>)
+      : {};
+  switch (type) {
+    case 'capi_traffic':
+      return 'trafficLight';
+    case 'capi_led':
+      return 'led';
+    case 'capi_robot':
+      return 'robot';
+    case 'capi_motor':
+      return 'motor';
+    case 'capi_servo':
+      return 'servo';
+    case 'capi_buzzer':
+      return fields.KIND === 'PASSIVE' ? 'passiveBuzzer' : 'activeBuzzer';
+    case 'capi_tone':
+      return 'passiveBuzzer';
+    case 'capi_button_pressed':
+      return 'button';
+    case 'capi_sensor_compare':
+      return fields.SENSOR === 'POTENTIOMETER'
+        ? 'potentiometer'
+        : 'lightSensor';
+    default:
+      return null;
+  }
+};
+
+function walkWorkspace(
+  value: unknown,
+  visitor: (block: Record<string, unknown>) => void,
+) {
+  if (!value || typeof value !== 'object') return;
+  if (Array.isArray(value)) {
+    value.forEach((item) => walkWorkspace(item, visitor));
+    return;
+  }
+  const record = value as Record<string, unknown>;
+  if (typeof record.type === 'string' && record.type.startsWith('capi_')) {
+    visitor(record);
+  }
+  Object.values(record).forEach((item) => walkWorkspace(item, visitor));
+}
+
+function legacyPins(
+  kind: SceneDeviceKind,
+  assignments: Record<string, unknown>,
+): Record<string, number | null> | undefined {
+  const pin = (name: string, fallback: number) =>
+    Math.trunc(finiteNumber(assignments[name], fallback));
+  switch (kind) {
+    case 'trafficLight':
+      return {
+        red: pin('trafficRed', 26),
+        yellow: pin('trafficYellow', 25),
+        green: pin('trafficGreen', 27),
+      };
+    case 'robot':
+      return {
+        leftIn1: pin('robotLeftIn1', 17),
+        leftIn2: pin('robotLeftIn2', 16),
+        rightIn1: pin('robotRightIn1', 23),
+        rightIn2: pin('robotRightIn2', 19),
+      };
+    case 'led':
+      return { signal: pin('ledPwm', 18) };
+    case 'servo':
+      return { signal: pin('servo', 14) };
+    case 'activeBuzzer':
+      return { signal: pin('activeBuzzer', 13) };
+    case 'passiveBuzzer':
+      return { signal: pin('passiveBuzzer', 13) };
+    case 'button':
+      return { signal: pin('button', 4) };
+    case 'lightSensor':
+      return { signal: pin('lightSensor', 35) };
+    case 'potentiometer':
+      return { signal: pin('potentiometer', 34) };
+    default:
+      return undefined;
+  }
+}
+
+function enrichLegacySceneAndWorkspace(
+  sourceScene: SceneDefinition,
+  sourceWorkspace: unknown,
+  assignments: Record<string, unknown>,
+) {
+  let scene = cloneScene(sourceScene);
+  const workspace = cloneWorkspace(sourceWorkspace);
+  const requiredKinds: SceneDeviceKind[] = [];
+  walkWorkspace(workspace, (block) => {
+    const kind = blockKind(block);
+    if (kind && !requiredKinds.includes(kind)) requiredKinds.push(kind);
+  });
+
+  const warnings: string[] = [];
+  for (const kind of requiredKinds) {
+    if (scene.devices.some((device) => device.kind === kind)) continue;
+    const added = addDeviceToScene(scene, kind, {
+      pins: legacyPins(kind, assignments) as never,
+    });
+    scene = added.scene;
+    warnings.push(...added.warnings);
+  }
+
+  const firstDeviceByKind = new Map<SceneDeviceKind, string>();
+  for (const device of scene.devices) {
+    if (!firstDeviceByKind.has(device.kind)) {
+      firstDeviceByKind.set(device.kind, device.id);
+    }
+  }
+  walkWorkspace(workspace, (block) => {
+    const kind = blockKind(block);
+    if (!kind) return;
+    const deviceId = firstDeviceByKind.get(kind);
+    if (!deviceId) return;
+    const fields =
+      block.fields && typeof block.fields === 'object'
+        ? (block.fields as Record<string, unknown>)
+        : {};
+    block.fields = { ...fields, DEVICE_ID: deviceId };
+  });
+  return { scene, workspace, warnings };
+}
+
+function decodeProjectUnsafe(value: unknown): ProjectDecodeResult {
+  if (isProjectV2(value)) {
+    const scene = cloneScene(value.scene);
+    const validation = validateScene(scene);
+    return {
+      project: {
+        ...value,
+        metadata: { ...value.metadata },
+        target: { ...value.target },
+        scene,
+        simulation: {
+          scene: isLegacySceneId(value.simulation.scene)
+            ? value.simulation.scene
+            : templateHint(scene),
+          speed: Math.max(
+            0.25,
+            Math.min(4, finiteNumber(value.simulation.speed, 1)),
+          ),
+        },
+        workspace: cloneWorkspace(value.workspace),
+      },
+      migrated: false,
+      warnings: validation.issues.map((issue) => issue.message),
+      diagnostics: validation.issues.map((issue) => ({
+        severity: issue.severity,
+        code: `scene-${issue.code}`,
+        message: issue.message,
+        deviceId: issue.deviceId,
+        pin: issue.pin,
+      })),
+    };
+  }
+
+  if (!isLegacyProject(value)) {
+    return {
+      project: null,
+      migrated: false,
+      warnings: [],
+      diagnostics: [
+        {
+          severity: 'error',
+          code: 'invalid-project',
+          message: 'No es un proyecto CapiBloques compatible.',
+        },
+      ],
+    };
+  }
+
+  const legacyScene = isLegacySceneId(value.simulation?.scene)
+    ? value.simulation.scene
+    : 'traffic';
+  const migratedScene = migrateSceneDefinition(value, legacyScene);
+  const enriched = enrichLegacySceneAndWorkspace(
+    migratedScene.scene,
+    value.workspace,
+    value.target?.pinAssignments ?? {},
+  );
+  const project = makeProject(
+    projectTitle(value.metadata?.title),
+    enriched.scene,
+    enriched.workspace,
+    finiteNumber(value.simulation?.speed, 1),
+  );
+  project.metadata.updatedAt =
+    typeof value.metadata?.updatedAt === 'string'
+      ? value.metadata.updatedAt
+      : new Date().toISOString();
+  project.metadata.migratedFrom = 1;
+  project.simulation.scene = legacyScene;
+  const validation = validateScene(project.scene);
+  const warnings = [
+    ...migratedScene.warnings,
+    ...enriched.warnings,
+    ...validation.issues.map((issue) => issue.message),
+  ];
+  return {
+    project,
+    migrated: true,
+    warnings: [...new Set(warnings)],
+    diagnostics: validation.issues.map((issue) => ({
+      severity: issue.severity,
+      code: `scene-${issue.code}`,
+      message: issue.message,
+      deviceId: issue.deviceId,
+      pin: issue.pin,
+    })),
+  };
+}
+
+export function decodeProject(value: unknown): ProjectDecodeResult {
+  try {
+    return decodeProjectUnsafe(value);
+  } catch {
+    return {
+      project: null,
+      migrated: false,
+      warnings: [],
+      diagnostics: [
+        {
+          severity: 'error',
+          code: 'invalid-project-structure',
+          message:
+            'El archivo dice ser de CapiBloques, pero su estructura interna está dañada.',
+        },
+      ],
+    };
+  }
+}
+
+const compatibleKindsForNode = (
+  node: Record<string, unknown>,
+): SceneDeviceKind[] => {
+  switch (node.op) {
+    case 'traffic':
+      return ['trafficLight'];
+    case 'led':
+      return ['led'];
+    case 'robot':
+      return ['robot'];
+    case 'motor':
+      return ['motor'];
+    case 'servo':
+      return ['servo'];
+    case 'buzzer':
+      return node.kind === 'PASSIVE' ? ['passiveBuzzer'] : ['activeBuzzer'];
+    case 'tone':
+      return ['passiveBuzzer'];
+    default:
+      return [];
+  }
+};
+
+const compatibleKindsForCondition = (
+  condition: Record<string, unknown>,
+): SceneDeviceKind[] => {
+  if (condition.kind === 'buttonPressed') return ['button'];
+  if (condition.kind === 'sensor') {
+    return condition.sensor === 'POTENTIOMETER'
+      ? ['potentiometer']
+      : ['lightSensor'];
+  }
+  return [];
+};
+
+function firstCompatibleDevice(
+  scene: SceneDefinition,
+  kinds: readonly SceneDeviceKind[],
+) {
+  return scene.devices.find((device) => kinds.includes(device.kind));
+}
+
+function normalizeCondition(raw: unknown, scene: SceneDefinition): Condition {
+  const condition =
+    raw && typeof raw === 'object'
+      ? (raw as Record<string, unknown>)
+      : ({ kind: 'boolean', value: false } as Record<string, unknown>);
+  const operator = (
+    typeof condition.operator === 'string' &&
+    ['EQ', 'NEQ', 'LT', 'LTE', 'GT', 'GTE'].includes(condition.operator)
+      ? condition.operator
+      : 'EQ'
+  ) as CompareOperator;
+  switch (condition.kind) {
+    case 'counter':
+      return {
+        kind: 'counter',
+        operator,
+        value: finiteNumber(condition.value, 0),
+      };
+    case 'compare':
+      return {
+        kind: 'compare',
+        operator,
+        left: finiteNumber(condition.left, 0),
+        right: finiteNumber(condition.right, 0),
+      };
+    case 'buttonPressed': {
+      const target = firstCompatibleDevice(
+        scene,
+        compatibleKindsForCondition(condition),
+      );
+      return {
+        kind: 'buttonPressed',
+        deviceId:
+          typeof condition.deviceId === 'string'
+            ? condition.deviceId
+            : (target?.id ?? 'missing-button'),
+      };
+    }
+    case 'sensor': {
+      const sensor =
+        condition.sensor === 'POTENTIOMETER' ? 'POTENTIOMETER' : 'LIGHT';
+      const target = firstCompatibleDevice(
+        scene,
+        compatibleKindsForCondition({ ...condition, sensor }),
+      );
+      const sensorOperator = ['LT', 'LTE', 'GT', 'GTE'].includes(operator)
+        ? (operator as 'LT' | 'LTE' | 'GT' | 'GTE')
+        : 'GT';
+      return {
+        kind: 'sensor',
+        sensor,
+        deviceId:
+          typeof condition.deviceId === 'string'
+            ? condition.deviceId
+            : (target?.id ?? `missing-${sensor.toLowerCase()}`),
+        operator: sensorOperator,
+        value: finiteNumber(condition.value, 2000),
+      };
+    }
+    case 'wifiConnected':
+      return { kind: 'wifiConnected' };
+    case 'boolean':
+      return { kind: 'boolean', value: Boolean(condition.value) };
+    default:
+      return { kind: 'boolean', value: false };
+  }
+}
+
+function normalizeNodes(
+  rawNodes: unknown,
+  scene: SceneDefinition,
+): ProgramNode[] {
+  if (!Array.isArray(rawNodes)) return [];
+  const result: ProgramNode[] = [];
+  for (const item of rawNodes) {
+    if (!item || typeof item !== 'object') continue;
+    const node = item as Record<string, unknown>;
+    const blockId =
+      typeof node.blockId === 'string'
+        ? node.blockId
+        : `legacy-${result.length}`;
+    const target = firstCompatibleDevice(scene, compatibleKindsForNode(node));
+    const deviceId =
+      typeof node.deviceId === 'string'
+        ? node.deviceId
+        : (target?.id ?? `missing-${String(node.op)}`);
+    switch (node.op) {
+      case 'wait':
+        result.push({ op: 'wait', ms: finiteNumber(node.ms, 0), blockId });
+        break;
+      case 'traffic':
+        result.push({
+          op: 'traffic',
+          deviceId,
+          color: ['RED', 'YELLOW', 'GREEN', 'OFF'].includes(String(node.color))
+            ? (node.color as 'RED' | 'YELLOW' | 'GREEN' | 'OFF')
+            : 'OFF',
+          blockId,
+        });
+        break;
+      case 'led':
+        result.push({
+          op: 'led',
+          deviceId,
+          brightness: finiteNumber(node.brightness, 0),
+          blockId,
+        });
+        break;
+      case 'pin':
+        result.push({
+          op: 'pin',
+          pin: Math.trunc(finiteNumber(node.pin, -1)),
+          value: Boolean(node.value),
+          blockId,
+        });
+        break;
+      case 'robot':
+        result.push({
+          op: 'robot',
+          deviceId,
+          action: ['FORWARD', 'BACKWARD', 'LEFT', 'RIGHT', 'STOP'].includes(
+            String(node.action),
+          )
+            ? (node.action as
+                | 'FORWARD'
+                | 'BACKWARD'
+                | 'LEFT'
+                | 'RIGHT'
+                | 'STOP')
+            : 'STOP',
+          speed: finiteNumber(node.speed, 0),
+          blockId,
+        });
+        break;
+      case 'motor':
+        result.push({
+          op: 'motor',
+          deviceId,
+          direction: ['FORWARD', 'BACKWARD', 'STOP'].includes(
+            String(node.direction),
+          )
+            ? (node.direction as 'FORWARD' | 'BACKWARD' | 'STOP')
+            : 'FORWARD',
+          power: finiteNumber(node.power, 0),
+          blockId,
+        });
+        break;
+      case 'servo':
+        result.push({
+          op: 'servo',
+          deviceId,
+          angle: finiteNumber(node.angle, 90),
+          blockId,
+        });
+        break;
+      case 'buzzer':
+        result.push({
+          op: 'buzzer',
+          deviceId,
+          kind: node.kind === 'PASSIVE' ? 'PASSIVE' : 'ACTIVE',
+          frequency: finiteNumber(node.frequency, 660),
+          durationMs: finiteNumber(node.durationMs, 250),
+          blockId,
+        });
+        break;
+      case 'tone':
+        result.push({
+          op: 'tone',
+          deviceId,
+          frequency: finiteNumber(node.frequency, 660),
+          durationMs: finiteNumber(node.durationMs, 180),
+          blockId,
+        });
+        break;
+      case 'wifi':
+        result.push({
+          op: 'wifi',
+          timeoutMs: finiteNumber(node.timeoutMs, 10_000),
+          blockId,
+        });
+        break;
+      case 'counterSet':
+        result.push({
+          op: 'counterSet',
+          value: finiteNumber(node.value, 0),
+          blockId,
+        });
+        break;
+      case 'counterChange':
+        result.push({
+          op: 'counterChange',
+          delta: finiteNumber(node.delta, 1),
+          blockId,
+        });
+        break;
+      case 'serial':
+        result.push({
+          op: 'serial',
+          text: typeof node.text === 'string' ? node.text : '',
+          blockId,
+        });
+        break;
+      case 'repeat':
+        result.push({
+          op: 'repeat',
+          count: finiteNumber(node.count, 0),
+          body: normalizeNodes(node.body, scene),
+          blockId,
+        });
+        break;
+      case 'if':
+        result.push({
+          op: 'if',
+          condition: normalizeCondition(node.condition, scene),
+          consequent: normalizeNodes(node.consequent, scene),
+          otherwise: normalizeNodes(node.otherwise, scene),
+          blockId,
+        });
+        break;
+    }
+  }
+  return result;
+}
+
+function collectRequiredKindsFromNodes(
+  rawNodes: unknown,
+  result: SceneDeviceKind[],
+) {
+  if (!Array.isArray(rawNodes)) return;
+  for (const raw of rawNodes) {
+    if (!raw || typeof raw !== 'object') continue;
+    const node = raw as Record<string, unknown>;
+    for (const kind of compatibleKindsForNode(node)) {
+      if (!result.includes(kind)) result.push(kind);
+    }
+    if (node.op === 'if') {
+      const condition =
+        node.condition && typeof node.condition === 'object'
+          ? (node.condition as Record<string, unknown>)
+          : {};
+      for (const kind of compatibleKindsForCondition(condition)) {
+        if (!result.includes(kind)) result.push(kind);
+      }
+      collectRequiredKindsFromNodes(node.consequent, result);
+      collectRequiredKindsFromNodes(node.otherwise, result);
+    }
+    if (node.op === 'repeat') collectRequiredKindsFromNodes(node.body, result);
+  }
+}
+
+export function inferSceneForProgram(input: unknown): SceneDefinition {
+  const required: SceneDeviceKind[] = [];
+  if (Array.isArray(input)) {
+    collectRequiredKindsFromNodes(input, required);
+  } else if (input && typeof input === 'object') {
+    const threads = (input as { threads?: unknown }).threads;
+    if (Array.isArray(threads)) {
+      for (const thread of threads) {
+        collectRequiredKindsFromNodes(
+          thread && typeof thread === 'object'
+            ? (thread as { nodes?: unknown }).nodes
+            : [],
+          required,
+        );
+      }
+    }
+  }
+  let scene = createEmptyScene('Escena inferida');
+  for (const kind of required) scene = addDeviceToScene(scene, kind).scene;
+  return scene;
+}
+
+export function normalizeCompiledProgram(
+  input: unknown,
+  sourceScene?: SceneDefinition,
+): CompiledProgram {
+  const scene = sourceScene ?? inferSceneForProgram(input);
+  if (Array.isArray(input)) {
+    return {
+      version: 2,
+      threads: [
+        {
+          id: 'main',
+          startBlockId: 'start-main',
+          nodes: normalizeNodes(input, scene),
+        },
+      ],
+    };
+  }
+  if (!input || typeof input !== 'object') return { version: 2, threads: [] };
+  const candidate = input as { threads?: unknown };
+  if (!Array.isArray(candidate.threads)) return { version: 2, threads: [] };
+  const usedIds = new Set<string>();
+  return {
+    version: 2,
+    threads: candidate.threads.map((raw, index) => {
+      const thread =
+        raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+      const proposedId =
+        typeof thread.id === 'string' && thread.id.trim()
+          ? thread.id
+          : `thread-${index + 1}`;
+      let id = proposedId;
+      let suffix = 2;
+      while (usedIds.has(id)) id = `${proposedId}-${suffix++}`;
+      usedIds.add(id);
+      const startBlockId =
+        typeof thread.startBlockId === 'string'
+          ? thread.startBlockId
+          : `start-${index + 1}`;
+      return {
+        id,
+        startBlockId,
+        nodes: normalizeNodes(thread.nodes, scene),
+      };
+    }),
+  };
+}
+
+function visitProgram(
+  program: CompiledProgram,
+  visitor: (node: ProgramNode) => void,
+) {
+  const visit = (nodes: ProgramNode[]) => {
+    for (const node of nodes) {
+      visitor(node);
+      if (node.op === 'repeat') visit(node.body);
+      if (node.op === 'if') {
+        visit(node.consequent);
+        visit(node.otherwise);
+      }
+    }
+  };
+  program.threads.forEach((thread) => visit(thread.nodes));
+}
+
+function expectedKinds(node: ProgramNode): SceneDeviceKind[] {
+  return compatibleKindsForNode(node as unknown as Record<string, unknown>);
+}
+
+function validateConditionTarget(
+  condition: Condition,
+  blockId: string,
+  deviceMap: Map<string, SceneDevice>,
+  diagnostics: CapiDiagnostic[],
+) {
+  if (condition.kind !== 'buttonPressed' && condition.kind !== 'sensor') return;
+  const device = deviceMap.get(condition.deviceId);
+  const expected = compatibleKindsForCondition(
+    condition as unknown as Record<string, unknown>,
+  );
+  if (!device) {
+    diagnostics.push({
+      severity: 'error',
+      code: 'target-missing',
+      message: `El bloque apunta a un componente que ya no existe (${condition.deviceId}).`,
+      deviceId: condition.deviceId,
+      blockId,
+    });
+  } else if (!expected.includes(device.kind)) {
+    diagnostics.push({
+      severity: 'error',
+      code: 'target-kind-mismatch',
+      message: `${device.name} no es compatible con esta condición.`,
+      deviceId: device.id,
+      blockId,
+    });
+  }
+}
+
+export function validateProgramForScene(
+  input: CompiledProgram | ProgramNode[],
+  scene: SceneDefinition,
+): CapiDiagnostic[] {
+  const program = normalizeCompiledProgram(input, scene);
+  const diagnostics: CapiDiagnostic[] = [];
+  const deviceMap = new Map(scene.devices.map((device) => [device.id, device]));
+  const sceneValidation = validateScene(scene);
+  diagnostics.push(
+    ...sceneValidation.issues.map((issue) => ({
+      severity: ['missing-pin', 'unsupported-pin', 'pin-conflict'].includes(
+        issue.code,
+      )
+        ? ('error' as const)
+        : issue.severity,
+      code: `scene-${issue.code}`,
+      message: issue.message,
+      deviceId: issue.deviceId,
+      pin: issue.pin,
+    })),
+  );
+  const pwmChannels = scene.devices.reduce((total, device) => {
+    switch (device.kind) {
+      case 'robot':
+        return total + 4;
+      case 'motor':
+        return total + 2;
+      case 'led':
+      case 'servo':
+      case 'activeBuzzer':
+      case 'passiveBuzzer':
+        return total + 1;
+      default:
+        return total;
+    }
+  }, 0);
+  if (pwmChannels > 16) {
+    diagnostics.push({
+      severity: 'error',
+      code: 'pwm-channel-limit',
+      message: `La escena necesita ${pwmChannels} canales PWM y el ESP32 de este perfil dispone de 16.`,
+    });
+  }
+  for (const device of scene.devices) {
+    if (device.kind === 'robot' || device.kind === 'motor') {
+      diagnostics.push({
+        severity: 'warning',
+        code: 'external-motor-power',
+        message: `${device.name} necesita un DRV8833, alimentación externa y masa común con la Wemos.`,
+        deviceId: device.id,
+      });
+    }
+    if (device.kind === 'servo') {
+      diagnostics.push({
+        severity: 'warning',
+        code: 'external-servo-power',
+        message: `${device.name} debe usar una alimentación adecuada y masa común; no lo alimentes desde un GPIO.`,
+        deviceId: device.id,
+      });
+    }
+    if (device.kind === 'led' || device.kind === 'trafficLight') {
+      diagnostics.push({
+        severity: 'warning',
+        code: 'led-resistor-required',
+        message: `${device.name} necesita una resistencia limitadora por cada LED físico.`,
+        deviceId: device.id,
+      });
+    }
+    if (
+      device.kind === 'button' &&
+      device.config.pullup &&
+      [34, 35, 36, 39].includes(device.pins.signal ?? -1)
+    ) {
+      diagnostics.push({
+        severity: 'error',
+        code: 'button-pullup-unavailable',
+        message: `${device.name} usa una entrada sin pull-up interno; asigna A1 u otra entrada compatible, o agrega una resistencia externa.`,
+        deviceId: device.id,
+        pin: device.pins.signal ?? undefined,
+      });
+    }
+  }
+  if (program.threads.length > 16) {
+    diagnostics.push({
+      severity: 'error',
+      code: 'too-many-threads',
+      message:
+        'La placa admite hasta 16 programas “al comenzar” en este perfil.',
+    });
+  }
+  visitProgram(program, (node) => {
+    const kinds = expectedKinds(node);
+    if (kinds.length) {
+      const deviceId = 'deviceId' in node ? node.deviceId : '';
+      const device = deviceMap.get(deviceId);
+      if (!device) {
+        diagnostics.push({
+          severity: 'error',
+          code: 'target-missing',
+          message: `El bloque ${node.blockId} apunta a un componente inexistente (${deviceId}).`,
+          deviceId,
+          blockId: node.blockId,
+        });
+      } else if (!kinds.includes(device.kind)) {
+        diagnostics.push({
+          severity: 'error',
+          code: 'target-kind-mismatch',
+          message: `${device.name} no acepta la acción de este bloque.`,
+          deviceId,
+          blockId: node.blockId,
+        });
+      }
+    }
+    if (node.op === 'pin') {
+      const definition = wemosD1R32Pins.find((pin) => pin.gpio === node.pin);
+      if (!definition?.capabilities.includes('pwmOutput')) {
+        diagnostics.push({
+          severity: 'error',
+          code: 'raw-pin-not-output',
+          message: `GPIO ${node.pin} no es una salida segura del perfil Wemos.`,
+          blockId: node.blockId,
+          pin: node.pin,
+        });
+      }
+      const owner = scene.devices.find((device) =>
+        Object.values(device.pins).includes(node.pin),
+      );
+      if (owner) {
+        diagnostics.push({
+          severity: 'error',
+          code: 'raw-pin-conflict',
+          message: `GPIO ${node.pin} ya pertenece a ${owner.name}.`,
+          deviceId: owner.id,
+          blockId: node.blockId,
+          pin: node.pin,
+        });
+      }
+    }
+    if (node.op === 'if') {
+      validateConditionTarget(
+        node.condition,
+        node.blockId,
+        deviceMap,
+        diagnostics,
+      );
+    }
+  });
+  return diagnostics.filter(
+    (diagnostic, index, all) =>
+      all.findIndex(
+        (candidate) =>
+          candidate.code === diagnostic.code &&
+          candidate.blockId === diagnostic.blockId &&
+          candidate.deviceId === diagnostic.deviceId &&
+          candidate.pin === diagnostic.pin,
+      ) === index,
   );
 }
 
@@ -499,7 +1455,6 @@ type FlatInstruction =
 function flattenProgram(nodes: ProgramNode[]) {
   const output: FlatInstruction[] = [];
   let loopSlot = 0;
-
   const visit = (items: ProgramNode[]) => {
     for (const node of items) {
       if (node.op === 'repeat') {
@@ -562,7 +1517,6 @@ function flattenProgram(nodes: ProgramNode[]) {
       }
     }
   };
-
   visit(nodes);
   output.push({ op: 'halt', blockId: 'program-end' });
   return { output, loopSlots: Math.max(1, loopSlot) };
@@ -571,7 +1525,40 @@ function flattenProgram(nodes: ProgramNode[]) {
 const cppString = (value: string) =>
   `"${value.replaceAll('\\', '\\\\').replaceAll('"', '\\"').replaceAll('\n', '\\n')}"`;
 
-function conditionToCpp(condition: Condition) {
+function hashId(value: string) {
+  let hash = 2_166_136_261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16_777_619);
+  }
+  return (hash >>> 0).toString(16).slice(0, 6).toUpperCase();
+}
+
+function cppIdentifier(value: string) {
+  const base = value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .toUpperCase();
+  return `${base || 'DEVICE'}_${hashId(value)}`;
+}
+
+interface GeneratorContext {
+  scene: SceneDefinition;
+  symbols: Map<string, string>;
+  threadIndex: number;
+}
+
+function deviceSymbol(context: GeneratorContext, deviceId: string) {
+  return context.symbols.get(deviceId) ?? cppIdentifier(deviceId);
+}
+
+function pinConstant(context: GeneratorContext, deviceId: string) {
+  return `PIN_${deviceSymbol(context, deviceId)}`;
+}
+
+function conditionToCpp(condition: Condition, context: GeneratorContext) {
   const operators = {
     EQ: '==',
     NEQ: '!=',
@@ -583,11 +1570,9 @@ function conditionToCpp(condition: Condition) {
   if (condition.kind === 'wifiConnected')
     return 'WiFi.status() == WL_CONNECTED';
   if (condition.kind === 'buttonPressed')
-    return 'digitalRead(PIN_BUTTON) == LOW';
+    return `digitalRead(${pinConstant(context, condition.deviceId)}) == LOW`;
   if (condition.kind === 'sensor') {
-    const pin =
-      condition.sensor === 'LIGHT' ? 'PIN_LIGHT_SENSOR' : 'PIN_POTENTIOMETER';
-    return `analogRead(${pin}) ${operators[condition.operator]} ${Math.max(0, Math.min(4095, Math.round(condition.value)))}`;
+    return `analogRead(${pinConstant(context, condition.deviceId)}) ${operators[condition.operator]} ${Math.max(0, Math.min(4095, Math.round(condition.value)))}`;
   }
   if (condition.kind === 'boolean') return condition.value ? 'true' : 'false';
   if (condition.kind === 'counter')
@@ -595,22 +1580,31 @@ function conditionToCpp(condition: Condition) {
   return `${condition.left} ${operators[condition.operator]} ${condition.right}`;
 }
 
-function instructionToCpp(instruction: FlatInstruction, index: number) {
+function instructionToCpp(
+  instruction: FlatInstruction,
+  index: number,
+  context: GeneratorContext,
+) {
   const nextPc = index + 1;
+  const suffix = `T${context.threadIndex}`;
+  const pc = `pc_${suffix}`;
+  const waiting = `waiting_${suffix}`;
+  const waitStarted = `waitStarted_${suffix}`;
+  const loops = `loopCounters_${suffix}`;
   const comment = `        // bloque: ${instruction.blockId}`;
   switch (instruction.op) {
     case 'traffic':
-      return `${comment}\n        setTraffic(TrafficColor::${instruction.color});\n        pc = ${nextPc};\n        break;`;
+      return `${comment}\n        setTraffic(DEV_${deviceSymbol(context, instruction.deviceId)}, TrafficColor::${instruction.color});\n        ${pc} = ${nextPc};\n        break;`;
     case 'led': {
       const duty = Math.round(
         (Math.max(0, Math.min(100, instruction.brightness)) / 100) * 255,
       );
-      return `${comment}\n        ledcWrite(PIN_LED_PWM, ${duty}); // ${Math.round(instruction.brightness)}% de brillo\n        pc = ${nextPc};\n        break;`;
+      return `${comment}\n        ledcWrite(${pinConstant(context, instruction.deviceId)}, ${duty});\n        ${pc} = ${nextPc};\n        break;`;
     }
     case 'pin':
-      return `${comment}\n        pinMode(${instruction.pin}, OUTPUT);\n        digitalWrite(${instruction.pin}, ${instruction.value ? 'HIGH' : 'LOW'});\n        pc = ${nextPc};\n        break;`;
+      return `${comment}\n        pinMode(${instruction.pin}, OUTPUT);\n        digitalWrite(${instruction.pin}, ${instruction.value ? 'HIGH' : 'LOW'});\n        ${pc} = ${nextPc};\n        break;`;
     case 'wait':
-      return `${comment}\n        if (!waiting) { waitStarted = now; waiting = true; return; }\n        if ((uint32_t)(now - waitStarted) < ${Math.max(0, Math.round(instruction.ms))}U) return;\n        waiting = false;\n        pc = ${nextPc};\n        break;`;
+      return `${comment}\n        if (!${waiting}) { ${waitStarted} = now; ${waiting} = true; return; }\n        if ((uint32_t)(now - ${waitStarted}) < ${Math.max(0, Math.round(instruction.ms))}U) return;\n        ${waiting} = false;\n        ${pc} = ${nextPc};\n        break;`;
     case 'robot': {
       const speed = Math.max(0, Math.min(100, Math.round(instruction.speed)));
       const motorPairs = {
@@ -620,106 +1614,309 @@ function instructionToCpp(instruction: FlatInstruction, index: number) {
         RIGHT: `${speed}, ${-speed}`,
         STOP: '0, 0',
       };
-      return `${comment}\n        driveRobot(${motorPairs[instruction.action]});\n        pc = ${nextPc};\n        break;`;
+      return `${comment}\n        driveRobot(DEV_${deviceSymbol(context, instruction.deviceId)}, ${motorPairs[instruction.action]});\n        ${pc} = ${nextPc};\n        break;`;
     }
-    case 'servo': {
-      const angle = Math.max(0, Math.min(180, Math.round(instruction.angle)));
-      return `${comment}\n        setServoAngle(${angle});\n        pc = ${nextPc};\n        break;`;
+    case 'motor': {
+      const power = Math.max(0, Math.min(100, Math.round(instruction.power)));
+      const signedPower =
+        instruction.direction === 'BACKWARD'
+          ? -power
+          : instruction.direction === 'STOP'
+            ? 0
+            : power;
+      return `${comment}\n        driveMotor(DEV_${deviceSymbol(context, instruction.deviceId)}, ${signedPower});\n        ${pc} = ${nextPc};\n        break;`;
     }
-    case 'buzzer':
-      if (instruction.kind === 'ACTIVE') {
-        return `${comment}\n        ledcWrite(PIN_BUZZER, 255);\n        buzzerStopAt = now + ${Math.max(10, Math.round(instruction.durationMs))}U;\n        pc = ${nextPc};\n        break;`;
-      }
-      return `${comment}\n        ledcWriteTone(PIN_BUZZER, ${Math.max(20, Math.round(instruction.frequency))});\n        buzzerStopAt = now + ${Math.max(10, Math.round(instruction.durationMs))}U;\n        pc = ${nextPc};\n        break;`;
+    case 'servo':
+      return `${comment}\n        setServoAngle(${pinConstant(context, instruction.deviceId)}, ${Math.max(0, Math.min(180, Math.round(instruction.angle)))});\n        ${pc} = ${nextPc};\n        break;`;
+    case 'buzzer': {
+      const pin = pinConstant(context, instruction.deviceId);
+      const stop = `BUZZER_STOP_${deviceSymbol(context, instruction.deviceId)}`;
+      const start =
+        instruction.kind === 'ACTIVE'
+          ? `ledcWrite(${pin}, 255);`
+          : `ledcWriteTone(${pin}, ${Math.max(20, Math.round(instruction.frequency))});`;
+      return `${comment}\n        ${start}\n        ${stop} = now + ${Math.max(10, Math.round(instruction.durationMs))}U;\n        ${pc} = ${nextPc};\n        break;`;
+    }
+    case 'tone': {
+      const pin = pinConstant(context, instruction.deviceId);
+      const stop = `BUZZER_STOP_${deviceSymbol(context, instruction.deviceId)}`;
+      return `${comment}\n        ledcWriteTone(${pin}, ${Math.max(20, Math.round(instruction.frequency))});\n        ${stop} = now + ${Math.max(10, Math.round(instruction.durationMs))}U;\n        ${pc} = ${nextPc};\n        break;`;
+    }
     case 'wifi':
-      return `${comment}\n        if (!wifiAttemptActive) {\n          WiFi.mode(WIFI_STA);\n          WiFi.begin(WIFI_SSID, WIFI_PASSWORD);\n          wifiAttemptStarted = now;\n          wifiAttemptActive = true;\n          return;\n        }\n        if (WiFi.status() == WL_CONNECTED || (uint32_t)(now - wifiAttemptStarted) >= ${Math.max(1000, Math.round(instruction.timeoutMs))}U) {\n          wifiAttemptActive = false;\n          pc = ${nextPc};\n          break;\n        }\n        return;`;
+      return `${comment}\n        if (!wifiAttemptActive_${suffix}) {\n          WiFi.mode(WIFI_STA);\n          WiFi.begin(WIFI_SSID, WIFI_PASSWORD);\n          wifiAttemptStarted_${suffix} = now;\n          wifiAttemptActive_${suffix} = true;\n          return;\n        }\n        if (WiFi.status() == WL_CONNECTED || (uint32_t)(now - wifiAttemptStarted_${suffix}) >= ${Math.max(1000, Math.round(instruction.timeoutMs))}U) {\n          wifiAttemptActive_${suffix} = false;\n          ${pc} = ${nextPc};\n          break;\n        }\n        return;`;
     case 'counterSet':
-      return `${comment}\n        counterValue = ${Math.trunc(instruction.value)};\n        pc = ${nextPc};\n        break;`;
+      return `${comment}\n        counterValue = ${Math.trunc(instruction.value)};\n        ${pc} = ${nextPc};\n        break;`;
     case 'counterChange':
-      return `${comment}\n        counterValue += ${Math.trunc(instruction.delta)};\n        pc = ${nextPc};\n        break;`;
+      return `${comment}\n        counterValue += ${Math.trunc(instruction.delta)};\n        ${pc} = ${nextPc};\n        break;`;
     case 'serial':
-      return `${comment}\n        Serial.println(${cppString(instruction.text)});\n        pc = ${nextPc};\n        break;`;
-    case 'tone':
-      return `${comment}\n        ledcWriteTone(PIN_BUZZER, ${Math.max(20, Math.round(instruction.frequency))});\n        buzzerStopAt = now + ${Math.max(10, Math.round(instruction.durationMs))}U;\n        pc = ${nextPc};\n        break;`;
+      return `${comment}\n        Serial.println(${cppString(instruction.text)});\n        ${pc} = ${nextPc};\n        break;`;
     case 'repeatStart':
-      return `${comment}\n        if (loopCounters[${instruction.slot}] < 0) loopCounters[${instruction.slot}] = ${instruction.count};\n        if (loopCounters[${instruction.slot}] == 0) { loopCounters[${instruction.slot}] = -1; pc = ${instruction.end}; }\n        else { pc = ${nextPc}; }\n        break;`;
+      return `${comment}\n        if (${loops}[${instruction.slot}] < 0) ${loops}[${instruction.slot}] = ${instruction.count};\n        if (${loops}[${instruction.slot}] == 0) { ${loops}[${instruction.slot}] = -1; ${pc} = ${instruction.end}; }\n        else { ${pc} = ${nextPc}; }\n        break;`;
     case 'repeatNext':
-      return `${comment}\n        --loopCounters[${instruction.slot}];\n        pc = ${instruction.target};\n        return; // cede al ESP32 al terminar cada vuelta`;
+      return `${comment}\n        --${loops}[${instruction.slot}];\n        if (${loops}[${instruction.slot}] > 0) { ${pc} = ${instruction.target}; }\n        else { ${loops}[${instruction.slot}] = -1; ${pc} = ${nextPc}; }\n        return;`;
     case 'jumpIfFalse':
-      return `${comment}\n        pc = (${conditionToCpp(instruction.condition)}) ? ${nextPc} : ${instruction.target};\n        break;`;
+      return `${comment}\n        ${pc} = (${conditionToCpp(instruction.condition, context)}) ? ${nextPc} : ${instruction.target};\n        break;`;
     case 'jump':
-      return `${comment}\n        pc = ${instruction.target};\n        ${instruction.yieldAfter ? 'return; // bucle cooperativo: cede en cada vuelta' : 'break;'}`;
+      return `${comment}\n        ${pc} = ${instruction.target};\n        ${instruction.yieldAfter ? 'return;' : 'break;'}`;
     case 'halt':
-      return `${comment}\n        active = false;\n        return;`;
+      return `${comment}\n        active_${suffix} = false;\n        return;`;
   }
 }
 
-export function generateEsp32Code(nodes: ProgramNode[], title: string) {
-  const { output, loopSlots } = flattenProgram(nodes);
-  const usesWifi = nodes.some(function hasWifi(node): boolean {
-    if (node.op === 'wifi') return true;
-    if (node.op === 'if')
-      return (
-        node.condition.kind === 'wifiConnected' ||
-        node.consequent.some(hasWifi) ||
-        node.otherwise.some(hasWifi)
-      );
-    if (node.op === 'repeat') return node.body.some(hasWifi);
-    return false;
+function programUsesWifi(program: CompiledProgram) {
+  let usesWifi = false;
+  visitProgram(program, (node) => {
+    if (node.op === 'wifi') usesWifi = true;
+    if (node.op === 'if' && node.condition.kind === 'wifiConnected') {
+      usesWifi = true;
+    }
   });
+  return usesWifi;
+}
 
-  const cases = output
-    .map(
-      (instruction, index) =>
-        `      case ${index}: {\n${instructionToCpp(instruction, index)}\n      }`,
+function gpioOrPlaceholder(value: number | null) {
+  return value ?? 255;
+}
+
+function deviceDeclarations(
+  scene: SceneDefinition,
+  symbols: Map<string, string>,
+) {
+  return scene.devices
+    .map((device) => {
+      const symbol = symbols.get(device.id) ?? cppIdentifier(device.id);
+      const label = (pin: number | null) =>
+        `${gpioOrPlaceholder(pin)}; // ${pinLabel(pin)}`;
+      switch (device.kind) {
+        case 'trafficLight':
+          return `constexpr TrafficDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.red)}, ${gpioOrPlaceholder(device.pins.yellow)}, ${gpioOrPlaceholder(device.pins.green)}}; // ${device.name}`;
+        case 'robot':
+          return `constexpr RobotDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.leftIn1)}, ${gpioOrPlaceholder(device.pins.leftIn2)}, ${gpioOrPlaceholder(device.pins.rightIn1)}, ${gpioOrPlaceholder(device.pins.rightIn2)}}; // ${device.name}`;
+        case 'motor':
+          return `constexpr MotorDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.in1)}, ${gpioOrPlaceholder(device.pins.in2)}}; // ${device.name}`;
+        case 'wifiNode':
+          return `// ${device.name}: radio Wi-Fi integrada, sin GPIO externo.`;
+        default:
+          return `constexpr uint8_t PIN_${symbol} = ${label(device.pins.signal)}`;
+      }
+    })
+    .join('\n');
+}
+
+function buzzerDeclarations(
+  scene: SceneDefinition,
+  symbols: Map<string, string>,
+) {
+  return scene.devices
+    .filter(
+      (device) =>
+        device.kind === 'activeBuzzer' || device.kind === 'passiveBuzzer',
     )
-    .join('\n\n');
+    .map(
+      (device) =>
+        `uint32_t BUZZER_STOP_${symbols.get(device.id) ?? cppIdentifier(device.id)} = 0;`,
+    )
+    .join('\n');
+}
 
+function setupLines(scene: SceneDefinition, symbols: Map<string, string>) {
+  const lines: string[] = [];
+  for (const device of scene.devices) {
+    const symbol = symbols.get(device.id) ?? cppIdentifier(device.id);
+    switch (device.kind) {
+      case 'trafficLight':
+        lines.push(
+          `  pinMode(DEV_${symbol}.red, OUTPUT);`,
+          `  pinMode(DEV_${symbol}.yellow, OUTPUT);`,
+          `  pinMode(DEV_${symbol}.green, OUTPUT);`,
+          `  setTraffic(DEV_${symbol}, TrafficColor::OFF);`,
+        );
+        break;
+      case 'robot':
+        lines.push(
+          `  ledcAttach(DEV_${symbol}.leftIn1, 20000, 8);`,
+          `  ledcAttach(DEV_${symbol}.leftIn2, 20000, 8);`,
+          `  ledcAttach(DEV_${symbol}.rightIn1, 20000, 8);`,
+          `  ledcAttach(DEV_${symbol}.rightIn2, 20000, 8);`,
+          `  driveRobot(DEV_${symbol}, 0, 0);`,
+        );
+        break;
+      case 'motor':
+        lines.push(
+          `  ledcAttach(DEV_${symbol}.in1, 20000, 8);`,
+          `  ledcAttach(DEV_${symbol}.in2, 20000, 8);`,
+          `  driveMotor(DEV_${symbol}, 0);`,
+        );
+        break;
+      case 'led':
+        lines.push(
+          `  ledcAttach(PIN_${symbol}, 5000, 8);`,
+          `  ledcWrite(PIN_${symbol}, 0);`,
+        );
+        break;
+      case 'servo':
+        lines.push(`  ledcAttach(PIN_${symbol}, 50, 16);`);
+        break;
+      case 'activeBuzzer':
+      case 'passiveBuzzer':
+        lines.push(
+          `  ledcAttach(PIN_${symbol}, 1000, 8);`,
+          `  ledcWrite(PIN_${symbol}, 0);`,
+        );
+        break;
+      case 'button':
+        lines.push(
+          `  pinMode(PIN_${symbol}, ${device.config.pullup ? 'INPUT_PULLUP' : 'INPUT'});`,
+        );
+        break;
+      case 'lightSensor':
+      case 'potentiometer':
+      case 'wifiNode':
+        break;
+    }
+  }
+  if (
+    scene.devices.some(
+      (device) =>
+        device.kind === 'lightSensor' || device.kind === 'potentiometer',
+    )
+  ) {
+    lines.push('  analogReadResolution(12);');
+  }
+  return lines.join('\n');
+}
+
+function serviceBuzzerLines(
+  scene: SceneDefinition,
+  symbols: Map<string, string>,
+) {
+  return scene.devices
+    .filter(
+      (device) =>
+        device.kind === 'activeBuzzer' || device.kind === 'passiveBuzzer',
+    )
+    .map((device) => {
+      const symbol = symbols.get(device.id) ?? cppIdentifier(device.id);
+      return `  if (BUZZER_STOP_${symbol} != 0 && (int32_t)(now - BUZZER_STOP_${symbol}) >= 0) {
+    ledcWriteTone(PIN_${symbol}, 0);
+    ledcWrite(PIN_${symbol}, 0);
+    BUZZER_STOP_${symbol} = 0;
+  }`;
+    })
+    .join('\n');
+}
+
+export interface CodeGenerationResult {
+  code: string;
+  diagnostics: CapiDiagnostic[];
+  program: CompiledProgram;
+  scene: SceneDefinition;
+}
+
+export function generateEsp32CodeResult(
+  input: CompiledProgram | ProgramNode[],
+  title: string,
+  sourceScene?: SceneDefinition,
+): CodeGenerationResult {
+  const scene = sourceScene
+    ? cloneScene(sourceScene)
+    : inferSceneForProgram(input);
+  const program = normalizeCompiledProgram(input, scene);
+  const diagnostics = validateProgramForScene(program, scene);
+  const symbols = new Map(
+    scene.devices.map((device) => [device.id, cppIdentifier(device.id)]),
+  );
+  const usesWifi = programUsesWifi(program);
   const wifiHeader = usesWifi
     ? `#include <WiFi.h>
 
-// Completa estas credenciales sólo en tu copia local.
 const char* WIFI_SSID = "TU_RED";
 const char* WIFI_PASSWORD = "TU_CLAVE";
 `
     : '';
+  const errors = diagnostics.filter((item) => item.severity === 'error');
+  const diagnosticHeader = diagnostics.length
+    ? `// Diagnóstico de configuración:\n${diagnostics
+        .map(
+          (item) =>
+            `// [${item.severity.toUpperCase()} ${item.code}] ${item.message}`,
+        )
+        .join('\n')}\n${errors
+        .map((item) => `#error ${cppString(`CapiBloques: ${item.message}`)}`)
+        .join('\n')}\n`
+    : '';
 
-  return `// ${title}
+  const flattened = program.threads.map((thread) =>
+    flattenProgram(thread.nodes),
+  );
+  const threadGlobals = flattened
+    .map(({ loopSlots }, index) => {
+      const suffix = `T${index}`;
+      return `uint16_t pc_${suffix} = 0;
+bool active_${suffix} = true;
+bool waiting_${suffix} = false;
+uint32_t waitStarted_${suffix} = 0;
+int32_t loopCounters_${suffix}[${loopSlots}] = { ${Array.from(
+        { length: loopSlots },
+        () => '-1',
+      ).join(', ')} };
+${usesWifi ? `bool wifiAttemptActive_${suffix} = false;\nuint32_t wifiAttemptStarted_${suffix} = 0;` : ''}`;
+    })
+    .join('\n\n');
+  const threadFunctions = flattened
+    .map(({ output }, threadIndex) => {
+      const context: GeneratorContext = { scene, symbols, threadIndex };
+      const cases = output
+        .map(
+          (instruction, index) =>
+            `      case ${index}: {\n${instructionToCpp(instruction, index, context)}\n      }`,
+        )
+        .join('\n\n');
+      return `void runThread${threadIndex}(uint32_t now, uint8_t budgetLimit) {
+  if (!active_T${threadIndex}) return;
+  for (uint8_t budget = 0; budget < budgetLimit; ++budget) {
+    switch (pc_T${threadIndex}) {
+${cases}
+      default:
+        active_T${threadIndex} = false;
+        return;
+    }
+  }
+}`;
+    })
+    .join('\n\n');
+  const threadBudget = Math.max(
+    1,
+    Math.floor(32 / Math.max(1, program.threads.length)),
+  );
+  const runThreads = program.threads.length
+    ? program.threads
+        .map((_, index) => `  runThread${index}(now, ${threadBudget});`)
+        .join('\n')
+    : '  // No hay programas “al comenzar”.';
+
+  const code = `// ${projectTitle(title)}
 // Generado por CapiBloques para WEMOS D1 R32
 // Arduino-ESP32 3.3.11 | FQBN: esp32:esp32:d1_uno32
-// Cooperativo: sin esperas bloqueantes y con cesión en cada bucle.
+// Scheduler cooperativo con ${program.threads.length} programa(s) y esperas no bloqueantes.
 
 #include <Arduino.h>
-${wifiHeader}
-// Aliases físicos de la variante oficial WEMOS D1 R32.
-constexpr uint8_t PIN_RED = D2;          // GPIO26
-constexpr uint8_t PIN_YELLOW = D3;       // GPIO25
-constexpr uint8_t PIN_GREEN = D6;        // GPIO27
-constexpr uint8_t PIN_LEFT_IN1 = D4;     // GPIO17, DRV8833
-constexpr uint8_t PIN_LEFT_IN2 = D5;     // GPIO16, DRV8833
-constexpr uint8_t PIN_RIGHT_IN1 = D11;   // GPIO23, DRV8833
-constexpr uint8_t PIN_RIGHT_IN2 = D12;   // GPIO19, DRV8833
-constexpr uint8_t PIN_LED_PWM = D13;     // GPIO18
-constexpr uint8_t PIN_SERVO = D7;        // GPIO14
-constexpr uint8_t PIN_BUZZER = D9;       // GPIO13
-constexpr uint8_t PIN_BUTTON = A1;       // GPIO4
-constexpr uint8_t PIN_LIGHT_SENSOR = A2; // GPIO35, sólo entrada ADC1
-constexpr uint8_t PIN_POTENTIOMETER = A3;// GPIO34, sólo entrada ADC1
-
+${wifiHeader}${diagnosticHeader}
+struct TrafficDevice { uint8_t red; uint8_t yellow; uint8_t green; };
+struct RobotDevice { uint8_t leftIn1; uint8_t leftIn2; uint8_t rightIn1; uint8_t rightIn2; };
+struct MotorDevice { uint8_t in1; uint8_t in2; };
 enum class TrafficColor { RED, YELLOW, GREEN, OFF };
 
-uint16_t pc = 0;
-bool active = true;
-bool waiting = false;
-uint32_t waitStarted = 0;
+${deviceDeclarations(scene, symbols)}
+
 int32_t counterValue = 0;
-int32_t loopCounters[${loopSlots}] = { ${Array.from({ length: loopSlots }, () => '-1').join(', ')} };
-uint32_t buzzerStopAt = 0;
-${usesWifi ? 'bool wifiAttemptActive = false;\nuint32_t wifiAttemptStarted = 0;\n' : ''}
-void setTraffic(TrafficColor color) {
-  digitalWrite(PIN_RED, color == TrafficColor::RED ? HIGH : LOW);
-  digitalWrite(PIN_YELLOW, color == TrafficColor::YELLOW ? HIGH : LOW);
-  digitalWrite(PIN_GREEN, color == TrafficColor::GREEN ? HIGH : LOW);
+${buzzerDeclarations(scene, symbols)}
+${threadGlobals}
+
+void setTraffic(const TrafficDevice& device, TrafficColor color) {
+  digitalWrite(device.red, color == TrafficColor::RED ? HIGH : LOW);
+  digitalWrite(device.yellow, color == TrafficColor::YELLOW ? HIGH : LOW);
+  digitalWrite(device.green, color == TrafficColor::GREEN ? HIGH : LOW);
 }
 
 void motorWrite(uint8_t in1, uint8_t in2, int speedPercent) {
@@ -734,62 +1931,45 @@ void motorWrite(uint8_t in1, uint8_t in2, int speedPercent) {
   }
 }
 
-void driveRobot(int leftSpeed, int rightSpeed) {
-  // Se requiere un puente H DRV8833 y una fuente de motor separada.
-  motorWrite(PIN_LEFT_IN1, PIN_LEFT_IN2, leftSpeed);
-  motorWrite(PIN_RIGHT_IN1, PIN_RIGHT_IN2, rightSpeed);
+void driveRobot(const RobotDevice& device, int leftSpeed, int rightSpeed) {
+  motorWrite(device.leftIn1, device.leftIn2, leftSpeed);
+  motorWrite(device.rightIn1, device.rightIn2, rightSpeed);
 }
 
-void setServoAngle(int angle) {
+void driveMotor(const MotorDevice& device, int power) {
+  motorWrite(device.in1, device.in2, power);
+}
+
+void setServoAngle(uint8_t pin, int angle) {
   angle = constrain(angle, 0, 180);
   const uint32_t pulseMicros = 500U + ((uint32_t)angle * 2000U) / 180U;
   const uint32_t duty = (pulseMicros * 65535U) / 20000U;
-  ledcWrite(PIN_SERVO, duty);
+  ledcWrite(pin, duty);
 }
 
-void runProgram(uint32_t now) {
-  if (!active) return;
-
-  for (uint8_t budget = 0; budget < 32; ++budget) {
-    switch (pc) {
-${cases}
-
-      default:
-        active = false;
-        return;
-    }
-  }
-  // Las acciones restantes continúan en el siguiente loop().
-}
+${threadFunctions}
 
 void setup() {
   Serial.begin(115200);
-  pinMode(PIN_RED, OUTPUT);
-  pinMode(PIN_YELLOW, OUTPUT);
-  pinMode(PIN_GREEN, OUTPUT);
-  pinMode(PIN_BUTTON, INPUT_PULLUP);
-  analogReadResolution(12);
-  ledcAttach(PIN_LEFT_IN1, 20000, 8);
-  ledcAttach(PIN_LEFT_IN2, 20000, 8);
-  ledcAttach(PIN_RIGHT_IN1, 20000, 8);
-  ledcAttach(PIN_RIGHT_IN2, 20000, 8);
-  ledcAttach(PIN_LED_PWM, 5000, 8);
-  ledcAttach(PIN_SERVO, 50, 16);
-  ledcAttach(PIN_BUZZER, 1000, 8);
-  setTraffic(TrafficColor::OFF);
+${setupLines(scene, symbols)}
 }
 
 void loop() {
   const uint32_t now = millis();
-  if (buzzerStopAt != 0 && (int32_t)(now - buzzerStopAt) >= 0) {
-    ledcWriteTone(PIN_BUZZER, 0);
-    ledcWrite(PIN_BUZZER, 0);
-    buzzerStopAt = 0;
-  }
-  runProgram(now);
+${serviceBuzzerLines(scene, symbols)}
+${runThreads}
   yield();
 }
 `;
+  return { code, diagnostics, program, scene };
+}
+
+export function generateEsp32Code(
+  input: CompiledProgram | ProgramNode[],
+  title: string,
+  scene?: SceneDefinition,
+) {
+  return generateEsp32CodeResult(input, title, scene).code;
 }
 
 export function downloadText(filename: string, contents: string, type: string) {
@@ -801,6 +1981,7 @@ export function downloadText(filename: string, contents: string, type: string) {
   anchor.click();
   URL.revokeObjectURL(url);
 }
+
 export function safeFilename(value: string) {
   const simplified = value
     .normalize('NFD')
@@ -808,5 +1989,5 @@ export function safeFilename(value: string) {
     .replace(/[^a-zA-Z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '')
     .toLowerCase();
-  return simplified || 'mi-proyecto';
+  return simplified || 'mi-aventura';
 }

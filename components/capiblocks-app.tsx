@@ -21,12 +21,12 @@ import {
   Upload,
   Volume2,
   VolumeX,
-  Wifi,
-  Wrench,
 } from 'lucide-react';
 import BlocklyWorkspace, {
   type BlocklyWorkspaceHandle,
 } from '@/components/blockly-workspace';
+import SceneBuilder from '@/components/scene-builder';
+import SceneStage from '@/components/scene-stage';
 import {
   Dialog,
   DialogContent,
@@ -47,61 +47,33 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  componentCatalog,
+  decodeProject,
   downloadText,
   examples,
-  generateEsp32Code,
-  isProjectFile,
+  generateEsp32CodeResult,
   makeProject,
   safeFilename,
-  type ProgramNode,
+  type CompiledProgram,
   type ProjectFile,
+  type RuntimeDeviceState,
   type SceneId,
+  type SimulatorState,
 } from '@/lib/capiblocks';
+import {
+  addDeviceToScene,
+  cloneScene,
+  sceneDeviceKinds,
+  type SceneDefinition,
+  type SceneDevice,
+  type SceneDeviceKind,
+} from '@/lib/scene-model';
 // Vite convierte el sufijo `?worker` en un constructor durante el build.
 // oxlint-disable-next-line import/default
 import SimulatorWorker from '@/lib/simulator.worker.ts?worker';
 
-type SimState = {
-  now: number;
-  status: 'idle' | 'running' | 'paused' | 'done' | 'stopped';
-  traffic: 'RED' | 'YELLOW' | 'GREEN' | 'OFF';
-  ledBrightness: number;
-  servoAngle: number;
-  buzzer: 'off' | 'active' | 'passive';
-  robot: { x: number; y: number; angle: number; left: number; right: number };
-  wifi: 'disconnected' | 'connecting' | 'connected' | 'error';
-  counter: number;
-  pins: Record<number, boolean>;
-  console: string[];
-  inputs: {
-    button: boolean;
-    light: number;
-    potentiometer: number;
-    wifiAvailable: boolean;
-  };
-  activeBlockId?: string;
-};
-
-const initialState: SimState = {
-  now: 0,
-  status: 'idle',
-  traffic: 'OFF',
-  ledBrightness: 0,
-  servoAngle: 90,
-  buzzer: 'off',
-  robot: { x: 50, y: 72, angle: -90, left: 0, right: 0 },
-  wifi: 'disconnected',
-  counter: 0,
-  pins: {},
-  console: [],
-  inputs: {
-    button: false,
-    light: 2500,
-    potentiometer: 2000,
-    wifiAvailable: true,
-  },
-};
+const PROJECT_STORAGE_KEY = 'capibloques-project-v2';
+const LEGACY_STORAGE_KEY = 'capibloques-project-v1';
+const emptyProgram = (): CompiledProgram => ({ version: 2, threads: [] });
 
 let sharedAudioContext: AudioContext | null = null;
 
@@ -127,7 +99,108 @@ function sound(
   oscillator.stop(sharedAudioContext.currentTime + durationMs / 1000);
 }
 
-function statusText(status: SimState['status']) {
+function runtimeFromDevice(
+  device: SceneDevice,
+  scene: SceneDefinition,
+): RuntimeDeviceState {
+  switch (device.kind) {
+    case 'trafficLight':
+      return { kind: device.kind, color: 'OFF' };
+    case 'led':
+      return { kind: device.kind, brightness: device.config.brightness };
+    case 'robot':
+      return {
+        kind: device.kind,
+        x: (device.position.x / scene.canvas.width) * 100,
+        y: (device.position.y / scene.canvas.height) * 100,
+        angle: device.config.heading,
+        left: 0,
+        right: 0,
+      };
+    case 'motor':
+      return { kind: device.kind, power: 0 };
+    case 'servo':
+      return { kind: device.kind, angle: device.config.angle };
+    case 'activeBuzzer':
+    case 'passiveBuzzer':
+      return {
+        kind: device.kind,
+        playing: false,
+        frequency:
+          device.kind === 'passiveBuzzer' ? device.config.frequency : 0,
+        stopAt: 0,
+      };
+    case 'button':
+      return { kind: device.kind, pressed: device.config.pressed };
+    case 'lightSensor':
+    case 'potentiometer':
+      return { kind: device.kind, value: device.config.value };
+    case 'wifiNode':
+      return {
+        kind: device.kind,
+        status:
+          device.config.status === 'idle' ? 'disconnected' : device.config.status,
+      };
+  }
+}
+
+function makeInitialState(scene: SceneDefinition): SimulatorState {
+  const devices = Object.fromEntries(
+    scene.devices.map((device) => [device.id, runtimeFromDevice(device, scene)]),
+  );
+  const traffic = Object.values(devices).find(
+    (device): device is Extract<RuntimeDeviceState, { kind: 'trafficLight' }> =>
+      device.kind === 'trafficLight',
+  );
+  const led = Object.values(devices).find(
+    (device): device is Extract<RuntimeDeviceState, { kind: 'led' }> =>
+      device.kind === 'led',
+  );
+  const servo = Object.values(devices).find(
+    (device): device is Extract<RuntimeDeviceState, { kind: 'servo' }> =>
+      device.kind === 'servo',
+  );
+  const robot = Object.values(devices).find(
+    (device): device is Extract<RuntimeDeviceState, { kind: 'robot' }> =>
+      device.kind === 'robot',
+  );
+  const button = Object.values(devices).find(
+    (device): device is Extract<RuntimeDeviceState, { kind: 'button' }> =>
+      device.kind === 'button',
+  );
+  const light = Object.values(devices).find(
+    (device): device is Extract<RuntimeDeviceState, { value: number }> =>
+      device.kind === 'lightSensor',
+  );
+  const potentiometer = Object.values(devices).find(
+    (device): device is Extract<RuntimeDeviceState, { value: number }> =>
+      device.kind === 'potentiometer',
+  );
+  return {
+    now: 0,
+    status: 'idle',
+    devices,
+    wifi: 'disconnected',
+    wifiAvailable: true,
+    counter: 0,
+    pins: {},
+    console: [],
+    activeBlockIds: {},
+    traffic: traffic?.color ?? 'OFF',
+    ledBrightness: led?.brightness ?? 0,
+    servoAngle: servo?.angle ?? 90,
+    buzzer: 'off',
+    robot: robot ?? { x: 50, y: 50, angle: 0, left: 0, right: 0 },
+    inputs: {
+      button: button?.pressed ?? false,
+      light: light?.value ?? 2048,
+      potentiometer: potentiometer?.value ?? 2048,
+      wifiAvailable: true,
+    },
+  };
+}
+
+function statusText(status: SimulatorState['status']) {
   const labels = {
     idle: 'Listo para probar',
     running: 'Programa en marcha',
@@ -144,34 +217,117 @@ function normalizeWorkspace(value: unknown): Record<string, unknown> {
     : {};
 }
 
+function hasExecutableNodes(program: CompiledProgram) {
+  return program.threads.some((thread) => thread.nodes.length > 0);
+}
+
+function deviceReading(device: RuntimeDeviceState | undefined) {
+  if (!device) return 'Listo';
+  switch (device.kind) {
+    case 'trafficLight':
+      return device.color === 'OFF' ? 'Apagado' : device.color;
+    case 'led':
+      return `${Math.round(device.brightness)}%`;
+    case 'robot':
+      return `L ${Math.round(device.left)}% · R ${Math.round(device.right)}%`;
+    case 'motor':
+      return `${Math.round(device.power)}%`;
+    case 'servo':
+      return `${Math.round(device.angle)}°`;
+    case 'activeBuzzer':
+    case 'passiveBuzzer':
+      return device.playing ? `${Math.round(device.frequency)} Hz` : 'Apagado';
+    case 'button':
+      return device.pressed ? 'Presionado' : 'Libre';
+    case 'lightSensor':
+    case 'potentiometer':
+      return String(Math.round(device.value));
+    case 'wifiNode':
+      return device.status === 'connected'
+        ? 'Conectado'
+        : device.status === 'connecting'
+          ? 'Buscando…'
+          : device.status === 'error'
+            ? 'Sin red'
+            : 'Listo';
+  }
+}
+
+function DeviceStateCard({
+  device,
+  runtime,
+}: {
+  device: SceneDevice;
+  runtime?: RuntimeDeviceState;
+}) {
+  const icons: Record<SceneDeviceKind, string> = {
+    trafficLight: '🚦',
+    robot: '🤖',
+    motor: '⚙️',
+    led: '💡',
+    servo: '🦾',
+    activeBuzzer: '📣',
+    passiveBuzzer: '🎵',
+    button: '🔘',
+    lightSensor: '☀️',
+    potentiometer: '🎚️',
+    wifiNode: '📶',
+  };
+  return (
+    <article>
+      <span>
+        {icons[device.kind]} {device.name}
+      </span>
+      <strong>{deviceReading(runtime)}</strong>
+      {runtime?.kind === 'led' && (
+        <div className="brightness-track">
+          <i style={{ width: `${runtime.brightness}%` }} />
+        </div>
+      )}
+      {runtime?.kind === 'servo' && (
+        <div className="servo-dial">
+          <i style={{ transform: `rotate(${runtime.angle - 90}deg)` }} />
+        </div>
+      )}
+    </article>
+  );
+}
+
 export default function CapiBlocksApp() {
+  const currentExample = examples[0];
+  const initialScene = useMemo(
+    () => cloneScene(currentExample.scene),
+    [currentExample.scene],
+  );
   const editorRef = useRef<BlocklyWorkspaceHandle>(null);
   const workerRef = useRef<Worker | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const hydratedRef = useRef(false);
-  const currentExample = examples[0];
+  const mutedRef = useRef(false);
+  const [hydrated, setHydrated] = useState(false);
   const [projectName, setProjectName] = useState(currentExample.title);
-  const [scene, setScene] = useState<SceneId>(currentExample.id);
+  const [scene, setScene] = useState<SceneDefinition>(initialScene);
   const [workspace, setWorkspace] = useState<Record<string, unknown>>(
     currentExample.workspace,
   );
   const [workspaceRevision, setWorkspaceRevision] = useState(0);
-  const [sim, setSim] = useState<SimState>(initialState);
+  const [sim, setSim] = useState<SimulatorState>(() =>
+    makeInitialState(initialScene),
+  );
   const [speed, setSpeed] = useState(1);
   const [muted, setMuted] = useState(false);
-  const mutedRef = useRef(muted);
   const [examplesOpen, setExamplesOpen] = useState(false);
-  const [componentsOpen, setComponentsOpen] = useState(false);
+  const [sceneBuilderOpen, setSceneBuilderOpen] = useState(false);
   const [codeOpen, setCodeOpen] = useState(false);
   const [code, setCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [notice, setNotice] = useState('Guardado automático activo');
   const [activeTab, setActiveTab] = useState('scene');
-  const [lastProgram, setLastProgram] = useState<ProgramNode[]>([]);
+  const [lastProgram, setLastProgram] = useState<CompiledProgram>(emptyProgram);
 
-  const selectedExample = useMemo(
-    () => examples.find((example) => example.id === scene) ?? examples[0],
-    [scene],
+  const sourceExample = useMemo(
+    () =>
+      examples.find((example) => example.id === scene.sourceTemplate) ?? null,
+    [scene.sourceTemplate],
   );
 
   const postToWorker = useCallback((message: Record<string, unknown>) => {
@@ -182,10 +338,8 @@ export default function CapiBlocksApp() {
     const worker = new SimulatorWorker();
     workerRef.current = worker;
     worker.addEventListener('message', (event) => {
-      if (event.data.type === 'SNAPSHOT') {
-        const next = event.data.state as SimState;
-        setSim(next);
-      }
+      if (event.data.type === 'SNAPSHOT')
+        setSim(event.data.state as SimulatorState);
       if (event.data.type === 'BLOCK_ACTIVE')
         editorRef.current?.highlight(event.data.blockId);
       if (event.data.type === 'SOUND')
@@ -197,7 +351,7 @@ export default function CapiBlocksApp() {
         );
       if (event.data.type === 'DONE') {
         sound(980, 140, mutedRef.current);
-        setTimeout(() => sound(1320, 180, mutedRef.current), 100);
+        window.setTimeout(() => sound(1320, 180, mutedRef.current), 100);
       }
     });
     return () => worker.terminate();
@@ -206,59 +360,83 @@ export default function CapiBlocksApp() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       try {
-        const saved = localStorage.getItem('capibloques-project-v1');
+        const saved =
+          localStorage.getItem(PROJECT_STORAGE_KEY) ??
+          localStorage.getItem(LEGACY_STORAGE_KEY);
         const soundSetting = localStorage.getItem('capibloques-muted');
         if (soundSetting) setMuted(soundSetting === 'true');
         if (saved) {
-          const parsed = JSON.parse(saved) as unknown;
-          if (isProjectFile(parsed)) {
-            setProjectName(parsed.metadata.title);
-            setScene(parsed.simulation.scene);
-            setSpeed(parsed.simulation.speed);
-            setWorkspace(parsed.workspace);
+          const decoded = decodeProject(JSON.parse(saved) as unknown);
+          if (decoded.project) {
+            setProjectName(decoded.project.metadata.title);
+            setScene(cloneScene(decoded.project.scene));
+            setSim(makeInitialState(decoded.project.scene));
+            setSpeed(decoded.project.simulation.speed);
+            setWorkspace(normalizeWorkspace(decoded.project.workspace));
             setWorkspaceRevision((value) => value + 1);
-            setNotice('Recuperamos tu último proyecto');
+            setNotice(
+              decoded.migrated
+                ? 'Convertimos tu proyecto anterior al editor de escenas'
+                : 'Recuperamos tu último proyecto',
+            );
+          } else {
+            setNotice(
+              decoded.diagnostics[0]?.message ??
+                'El proyecto guardado no era compatible; empezamos uno nuevo',
+            );
           }
         }
       } catch {
         setNotice('Empezamos con un proyecto nuevo');
       } finally {
-        hydratedRef.current = true;
+        setHydrated(true);
       }
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    if (!hydratedRef.current) return;
-    const project = makeProject(projectName, scene, workspace, speed);
-    localStorage.setItem('capibloques-project-v1', JSON.stringify(project));
-  }, [projectName, scene, speed, workspace]);
+    if (!hydrated) return;
+    const timer = window.setTimeout(() => {
+      const project = makeProject(projectName, scene, workspace, speed);
+      localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(project));
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [hydrated, projectName, scene, speed, workspace]);
 
   useEffect(() => {
     mutedRef.current = muted;
     localStorage.setItem('capibloques-muted', String(muted));
   }, [muted]);
 
+  const onBlockSnap = useCallback(
+    () => sound(420, 45, mutedRef.current, 0.025),
+    [],
+  );
+
   const compile = useCallback(() => {
-    const program = editorRef.current?.compile() ?? [];
+    const program = editorRef.current?.compile() ?? emptyProgram();
     setLastProgram(program);
     return program;
   }, []);
 
   const run = useCallback(() => {
     const program = compile();
-    if (!program.length) {
-      setNotice('Agrega un bloque “al comenzar” para ejecutar tu idea');
+    if (!hasExecutableNodes(program)) {
+      setNotice('Agrega un bloque “al comenzar” con acciones para ejecutar');
       sound(210, 180, muted);
       return;
     }
-    postToWorker({ type: 'LOAD', program });
+    postToWorker({ type: 'LOAD', program, scene });
     postToWorker({ type: 'SET_SPEED', speed });
     postToWorker({ type: 'RUN' });
-    setNotice('Simulación de comportamiento iniciada');
+    setNotice(
+      program.threads.length > 1
+        ? `${program.threads.length} programas comenzaron a la vez`
+        : 'Simulación de comportamiento iniciada',
+    );
     sound(620, 90, muted);
-  }, [compile, muted, postToWorker, speed]);
+  }, [compile, muted, postToWorker, scene, speed]);
 
   const step = useCallback(() => {
     if (
@@ -267,27 +445,74 @@ export default function CapiBlocksApp() {
       sim.status === 'stopped'
     ) {
       const program = compile();
-      if (!program.length) {
+      if (!hasExecutableNodes(program)) {
         setNotice('Agrega un bloque “al comenzar” para avanzar paso a paso');
         return;
       }
-      postToWorker({ type: 'LOAD', program });
+      postToWorker({ type: 'LOAD', program, scene });
+      postToWorker({ type: 'SET_SPEED', speed });
     }
     postToWorker({ type: 'STEP' });
-    setNotice('Avanzamos una acción del programa');
-  }, [compile, postToWorker, sim.status]);
+    setNotice('Avanzamos una acción del próximo programa listo');
+  }, [compile, postToWorker, scene, sim.status, speed]);
+
+  const reset = useCallback(() => {
+    postToWorker({ type: 'RESET' });
+    editorRef.current?.highlight();
+    setSim(makeInitialState(scene));
+    setNotice('Escena reiniciada');
+  }, [postToWorker, scene]);
+
+  const changeScene = useCallback(
+    (nextScene: SceneDefinition) => {
+      const customizedScene = cloneScene(nextScene);
+      delete customizedScene.sourceTemplate;
+      setScene(customizedScene);
+      setNotice('Escena actualizada; los bloques ya ven sus componentes');
+    },
+    [],
+  );
+
+  const toggleSceneBuilder = useCallback(
+    (nextOpen: boolean) => {
+      if (nextOpen) {
+        postToWorker({ type: 'STOP' });
+      } else {
+        setSim(makeInitialState(scene));
+        editorRef.current?.highlight();
+      }
+      setSceneBuilderOpen(nextOpen);
+    },
+    [postToWorker, scene],
+  );
 
   const loadExample = useCallback(
     (id: SceneId) => {
       const example = examples.find((item) => item.id === id) ?? examples[0];
+      const nextScene = cloneScene(example.scene);
       postToWorker({ type: 'STOP' });
       setProjectName(example.title);
-      setScene(example.id);
+      setScene(nextScene);
+      setSim(makeInitialState(nextScene));
       setWorkspace(example.workspace);
       setWorkspaceRevision((value) => value + 1);
       setExamplesOpen(false);
       setActiveTab('scene');
       setNotice(`Ejemplo cargado: ${example.title}`);
+    },
+    [postToWorker],
+  );
+
+  const addSceneComponent = useCallback(
+    (kind: SceneDeviceKind) => {
+      postToWorker({ type: 'STOP' });
+      setScene((current) => {
+        const result = addDeviceToScene(current, kind);
+        delete result.scene.sourceTemplate;
+        setSim(makeInitialState(result.scene));
+        setNotice(`${result.device.name} agregado a la escena`);
+        return result.scene;
+      });
     },
     [postToWorker],
   );
@@ -304,16 +529,24 @@ export default function CapiBlocksApp() {
       JSON.stringify(project, null, 2),
       'application/json',
     );
-    setNotice('Proyecto JSON exportado');
+    setNotice('Proyecto JSON exportado con escena, bloques y conexiones');
     sound(860, 100, muted);
   }, [currentProject, muted, projectName]);
 
   const buildCode = useCallback(() => {
     const program = compile();
-    const generated = generateEsp32Code(program, projectName);
-    setCode(generated);
-    return generated;
-  }, [compile, projectName]);
+    const result = generateEsp32CodeResult(program, projectName, scene);
+    setCode(result.code);
+    const errors = result.diagnostics.filter(
+      (diagnostic) => diagnostic.severity === 'error',
+    );
+    const warnings = result.diagnostics.length - errors.length;
+    if (errors.length)
+      setNotice(`${errors.length} problema(s) impiden completar el código`);
+    else if (warnings)
+      setNotice(`Código generado con ${warnings} aviso(s) de cableado`);
+    return result;
+  }, [compile, projectName, scene]);
 
   const openCode = useCallback(() => {
     buildCode();
@@ -322,29 +555,48 @@ export default function CapiBlocksApp() {
 
   const exportCode = useCallback(() => {
     const generated = buildCode();
+    const errors = generated.diagnostics.filter(
+      (diagnostic) => diagnostic.severity === 'error',
+    );
+    if (errors.length) {
+      setNotice(
+        `Corrige ${errors.length} problema(s) antes de descargar a la Wemos`,
+      );
+      sound(190, 160, muted, 0.035);
+      return;
+    }
     downloadText(
       `${safeFilename(projectName)}.ino`,
-      generated,
+      generated.code,
       'text/x-c++src',
     );
-    setNotice('Código .ino descargado');
-  }, [buildCode, projectName]);
+    setNotice('Código .ino descargado para la Wemos D1 R32');
+  }, [buildCode, muted, projectName]);
 
   const importProject = useCallback(
     async (file: File) => {
       try {
         if (file.size > 2_000_000)
           throw new Error('El archivo supera el límite de 2 MB');
-        const parsed = JSON.parse(await file.text()) as unknown;
-        if (!isProjectFile(parsed))
-          throw new Error('No es un proyecto CapiBloques compatible');
+        const decoded = decodeProject(JSON.parse(await file.text()) as unknown);
+        if (!decoded.project)
+          throw new Error(
+            decoded.diagnostics[0]?.message ??
+              'No es un proyecto CapiBloques compatible',
+          );
+        const nextScene = cloneScene(decoded.project.scene);
         postToWorker({ type: 'STOP' });
-        setProjectName(parsed.metadata.title);
-        setScene(parsed.simulation.scene);
-        setSpeed(parsed.simulation.speed);
-        setWorkspace(normalizeWorkspace(parsed.workspace));
+        setProjectName(decoded.project.metadata.title);
+        setScene(nextScene);
+        setSim(makeInitialState(nextScene));
+        setSpeed(decoded.project.simulation.speed);
+        setWorkspace(normalizeWorkspace(decoded.project.workspace));
         setWorkspaceRevision((value) => value + 1);
-        setNotice('Proyecto importado correctamente');
+        setNotice(
+          decoded.migrated
+            ? 'Proyecto anterior convertido y abierto correctamente'
+            : 'Proyecto importado correctamente',
+        );
         sound(880, 120, muted);
       } catch (error) {
         setNotice(
@@ -358,9 +610,16 @@ export default function CapiBlocksApp() {
     [muted, postToWorker],
   );
 
-  const setInput = useCallback(
-    (name: keyof SimState['inputs'], value: boolean | number) => {
-      postToWorker({ type: 'SET_INPUT', name, value });
+  const setDeviceInput = useCallback(
+    (deviceId: string, value: boolean | number) => {
+      postToWorker({ type: 'SET_INPUT', deviceId, value });
+    },
+    [postToWorker],
+  );
+
+  const setWifiAvailable = useCallback(
+    (value: boolean) => {
+      postToWorker({ type: 'SET_INPUT', name: 'wifiAvailable', value });
     },
     [postToWorker],
   );
@@ -378,13 +637,13 @@ export default function CapiBlocksApp() {
     ).modelContext;
     if (!modelContext?.registerTool) return;
     const lifecycle = new AbortController();
-    void Promise.resolve(
+    const registrations = [
       modelContext.registerTool(
         {
           name: 'load_capiblocks_example',
           title: 'Cargar ejemplo de CapiBloques',
           description:
-            'Carga un ejemplo visible de semáforo, contador, robot o Wi-Fi en el editor.',
+            'Carga un ejemplo visible de semáforo, contador, robot o Wi-Fi.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -407,14 +666,46 @@ export default function CapiBlocksApp() {
         },
         { signal: lifecycle.signal },
       ),
-    ).catch(() => undefined);
+      modelContext.registerTool(
+        {
+          name: 'add_capiblocks_component',
+          title: 'Agregar componente a la escena',
+          description:
+            'Agrega un semáforo, robot, motor, LED, servo, buzzer, sensor o Wi-Fi a la escena actual.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              component: { type: 'string', enum: sceneDeviceKinds },
+            },
+            required: ['component'],
+            additionalProperties: false,
+          },
+          annotations: { readOnlyHint: false, untrustedContentHint: false },
+          execute(input: unknown) {
+            const component = (input as { component?: SceneDeviceKind })
+              ?.component;
+            if (!component || !sceneDeviceKinds.includes(component))
+              throw new Error('Componente no válido');
+            addSceneComponent(component);
+            return { added: component };
+          },
+        },
+        { signal: lifecycle.signal },
+      ),
+    ];
+    void Promise.all(registrations.map((value) => Promise.resolve(value))).catch(
+      () => undefined,
+    );
     return () => lifecycle.abort();
-  }, [loadExample]);
+  }, [addSceneComponent, loadExample]);
 
-  const trafficClass = (color: SimState['traffic']) =>
-    sim.traffic === color
-      ? `light ${color.toLowerCase()} on`
-      : `light ${color.toLowerCase()}`;
+  const inputDevices = scene.devices.filter((device) =>
+    ['button', 'lightSensor', 'potentiometer'].includes(device.kind),
+  );
+  const programNodeCount = lastProgram.threads.reduce(
+    (total, thread) => total + thread.nodes.length,
+    0,
+  );
 
   return (
     <main className="app-shell">
@@ -438,10 +729,10 @@ export default function CapiBlocksApp() {
         </label>
         <nav className="header-actions" aria-label="Acciones del proyecto">
           <button
-            className="header-text-button"
-            onClick={() => setComponentsOpen(true)}
+            className="header-text-button scene-builder-button"
+            onClick={() => toggleSceneBuilder(true)}
           >
-            <Blocks size={18} /> Componentes
+            <Blocks size={18} /> Armar escena
           </button>
           <button
             className="icon-button"
@@ -498,14 +789,18 @@ export default function CapiBlocksApp() {
           🦫
         </span>
         <div>
-          <strong>Misión: {selectedExample.title}</strong>
-          <span>{selectedExample.mission}</span>
+          <strong>Escena: {scene.name}</strong>
+          <span>
+            {scene.description ||
+              sourceExample?.mission ||
+              'Combina componentes y crea tu propia aventura.'}
+          </span>
         </div>
         <button
           className="mission-button"
-          onClick={() => setExamplesOpen(true)}
+          onClick={() => toggleSceneBuilder(true)}
         >
-          Cambiar misión
+          Editar escena
         </button>
       </section>
 
@@ -535,7 +830,7 @@ export default function CapiBlocksApp() {
         <button onClick={() => postToWorker({ type: 'STOP' })}>
           <CircleStop size={18} /> Detener
         </button>
-        <button onClick={() => postToWorker({ type: 'RESET' })}>
+        <button onClick={reset}>
           <RotateCcw size={18} /> Reiniciar
         </button>
         <span className="toolbar-separator" />
@@ -568,7 +863,7 @@ export default function CapiBlocksApp() {
           <div className="canvas-header">
             <div>
               <span>Programa visual</span>
-              <strong>Arrastra y encaja los bloques</strong>
+              <strong>Arrastra, encaja y elige qué objeto controlas</strong>
             </div>
             <button
               onClick={() => editorRef.current?.zoomToFit()}
@@ -581,8 +876,9 @@ export default function CapiBlocksApp() {
             ref={editorRef}
             initialWorkspace={workspace}
             revision={workspaceRevision}
+            devices={scene.devices}
             onChange={setWorkspace}
-            onBlockSnap={() => sound(420, 45, muted, 0.025)}
+            onBlockSnap={onBlockSnap}
           />
         </section>
 
@@ -601,178 +897,106 @@ export default function CapiBlocksApp() {
               <TabsTrigger value="console">Consola</TabsTrigger>
             </TabsList>
             <TabsContent value="scene" className="sim-content">
-              {scene === 'traffic' && (
-                <div className="sim-stage traffic-scene">
-                  <div className="sky-decor">
-                    <span>☁️</span>
-                    <span>☁️</span>
-                  </div>
-                  <div className="traffic-light">
-                    <span className={trafficClass('RED')} />
-                    <span className={trafficClass('YELLOW')} />
-                    <span className={trafficClass('GREEN')} />
-                  </div>
-                  <div className="road">
-                    <span />
-                    <span />
-                    <span />
-                  </div>
-                  <div className="sim-character" aria-label="Capi, tu guía">
-                    🦫
-                  </div>
-                </div>
-              )}
-              {scene === 'robot' && (
-                <div className="sim-stage robot-scene">
-                  <div className="robot-grid" />
-                  <div className="obstacle one">🪨</div>
-                  <div className="obstacle two">🌵</div>
-                  <div
-                    className="robot-sprite"
-                    style={{
-                      left: `${sim.robot.x}%`,
-                      top: `${sim.robot.y}%`,
-                      transform: `translate(-50%, -50%) rotate(${sim.robot.angle}deg)`,
-                    }}
-                  >
-                    🤖<span />
-                  </div>
-                  <div className="scene-label">
-                    Velocidad L {Math.round(sim.robot.left)}% · R{' '}
-                    {Math.round(sim.robot.right)}%
-                  </div>
-                </div>
-              )}
-              {scene === 'wifi' && (
-                <div className={`sim-stage wifi-scene ${sim.wifi}`}>
-                  <div className="wifi-house">🏡</div>
-                  <div className="wifi-router">
-                    <Wifi size={55} />
-                    <span>
-                      {sim.wifi === 'connected'
-                        ? 'Conectado'
-                        : sim.wifi === 'connecting'
-                          ? 'Buscando…'
-                          : sim.wifi === 'error'
-                            ? 'Sin señal'
-                            : 'Listo'}
-                    </span>
-                  </div>
-                  <div className="wifi-leds">
-                    <span className={trafficClass('RED')} />
-                    <span className={trafficClass('GREEN')} />
-                  </div>
-                  <div className="sim-character">🦫</div>
-                </div>
-              )}
-              {scene === 'counter' && (
-                <div className="sim-stage counter-scene">
-                  <div className="counter-number">{sim.counter}</div>
-                  <div
-                    className={
-                      sim.status === 'running' ? 'frog hopping' : 'frog'
-                    }
-                  >
-                    🐸
-                  </div>
-                  <div className="lily-pads">
-                    <span>🍃</span>
-                    <span>🍃</span>
-                    <span>🍃</span>
-                  </div>
-                </div>
-              )}
+              <div className="sim-stage composed-scene">
+                <SceneStage
+                  scene={scene}
+                  runtimeDevices={sim.devices}
+                  counter={sim.counter}
+                />
+                <button
+                  type="button"
+                  className="edit-scene-fab"
+                  onClick={() => toggleSceneBuilder(true)}
+                >
+                  <Blocks size={15} /> Editar
+                </button>
+              </div>
             </TabsContent>
             <TabsContent value="state" className="sim-content state-content">
-              <div className="state-grid">
-                <article>
-                  <span>💡 LED</span>
-                  <strong>{Math.round(sim.ledBrightness)}%</strong>
-                  <div className="brightness-track">
-                    <i style={{ width: `${sim.ledBrightness}%` }} />
-                  </div>
-                </article>
-                <article>
-                  <span>🦾 Servo</span>
-                  <strong>{Math.round(sim.servoAngle)}°</strong>
-                  <div className="servo-dial">
-                    <i
-                      style={{ transform: `rotate(${sim.servoAngle - 90}deg)` }}
+              {scene.devices.length ? (
+                <div className="state-grid device-state-grid">
+                  {scene.devices.map((device) => (
+                    <DeviceStateCard
+                      key={device.id}
+                      device={device}
+                      runtime={sim.devices[device.id]}
                     />
-                  </div>
-                </article>
-                <article>
-                  <span>📣 Buzzer</span>
-                  <strong>
-                    {sim.buzzer === 'off'
-                      ? 'Apagado'
-                      : sim.buzzer === 'active'
-                        ? 'Beep activo'
-                        : 'Nota pasiva'}
-                  </strong>
-                </article>
-                <article>
-                  <span>🔢 Contador</span>
-                  <strong>{sim.counter}</strong>
-                </article>
-              </div>
-              <div className="input-lab">
-                <h3>Entradas para probar</h3>
-                <div className="switch-row">
-                  <span>🔘 Botón presionado</span>
-                  <Switch
-                    aria-label="Simular botón presionado"
-                    checked={sim.inputs.button}
-                    onCheckedChange={(checked) => setInput('button', checked)}
-                  />
+                  ))}
+                  <article>
+                    <span>🔢 Contador global</span>
+                    <strong>{sim.counter}</strong>
+                  </article>
                 </div>
-                <div className="switch-row">
-                  <span>📶 Red disponible</span>
-                  <Switch
-                    aria-label="Simular red Wi-Fi disponible"
-                    checked={sim.inputs.wifiAvailable}
-                    onCheckedChange={(checked) =>
-                      setInput('wifiAvailable', checked)
+              ) : (
+                <div className="state-empty">
+                  <span>🧰</span>
+                  <strong>No hay componentes todavía</strong>
+                  <button onClick={() => toggleSceneBuilder(true)}>
+                    Armar escena
+                  </button>
+                </div>
+              )}
+              {(inputDevices.length > 0 ||
+                scene.devices.some((device) => device.kind === 'wifiNode')) && (
+                <div className="input-lab">
+                  <h3>Entradas para probar</h3>
+                  {inputDevices.map((device) => {
+                    const runtime = sim.devices[device.id];
+                    if (device.kind === 'button') {
+                      const checked =
+                        runtime?.kind === 'button' ? runtime.pressed : false;
+                      return (
+                        <div className="switch-row" key={device.id}>
+                          <span>🔘 {device.name}</span>
+                          <Switch
+                            aria-label={`Simular ${device.name}`}
+                            checked={checked}
+                            onCheckedChange={(value) =>
+                              setDeviceInput(device.id, value)
+                            }
+                          />
+                        </div>
+                      );
                     }
-                  />
+                    const value =
+                      runtime?.kind === 'lightSensor' ||
+                      runtime?.kind === 'potentiometer'
+                        ? runtime.value
+                        : 2048;
+                    return (
+                      <div className="range-row" key={device.id}>
+                        <span>
+                          {device.kind === 'lightSensor' ? '☀️' : '🎚️'}{' '}
+                          {device.name} <b>{Math.round(value)}</b>
+                        </span>
+                        <Slider
+                          aria-label={`Valor simulado de ${device.name}`}
+                          min={0}
+                          max={4095}
+                          step={1}
+                          value={[value]}
+                          onValueChange={(values) =>
+                            setDeviceInput(
+                              device.id,
+                              Array.isArray(values) ? values[0] : values,
+                            )
+                          }
+                        />
+                      </div>
+                    );
+                  })}
+                  {scene.devices.some((device) => device.kind === 'wifiNode') && (
+                    <div className="switch-row">
+                      <span>📶 Red Wi-Fi disponible</span>
+                      <Switch
+                        aria-label="Simular red Wi-Fi disponible"
+                        checked={sim.wifiAvailable}
+                        onCheckedChange={setWifiAvailable}
+                      />
+                    </div>
+                  )}
                 </div>
-                <div className="range-row">
-                  <span>
-                    ☀️ Luz <b>{sim.inputs.light}</b>
-                  </span>
-                  <Slider
-                    aria-label="Nivel de luz simulado"
-                    min={0}
-                    max={4095}
-                    step={1}
-                    value={[sim.inputs.light]}
-                    onValueChange={(values) =>
-                      setInput(
-                        'light',
-                        Array.isArray(values) ? values[0] : values,
-                      )
-                    }
-                  />
-                </div>
-                <div className="range-row">
-                  <span>
-                    🎚️ Potenciómetro <b>{sim.inputs.potentiometer}</b>
-                  </span>
-                  <Slider
-                    aria-label="Valor simulado del potenciómetro"
-                    min={0}
-                    max={4095}
-                    step={1}
-                    value={[sim.inputs.potentiometer]}
-                    onValueChange={(values) =>
-                      setInput(
-                        'potentiometer',
-                        Array.isArray(values) ? values[0] : values,
-                      )
-                    }
-                  />
-                </div>
-              </div>
+              )}
             </TabsContent>
             <TabsContent
               value="console"
@@ -799,10 +1023,12 @@ export default function CapiBlocksApp() {
             <div>
               <strong>{statusText(sim.status)}</strong>
               <span>
-                {(sim.now / 1000).toFixed(1)} s de tiempo simulado ·{' '}
-                {sim.status === 'running'
-                  ? 'puedes detenerlo cuando quieras'
-                  : 'la placa real puede reaccionar distinto'}
+                {(sim.now / 1000).toFixed(1)} s simulados ·{' '}
+                {lastProgram.threads.length > 1
+                  ? `${lastProgram.threads.length} programas independientes`
+                  : sim.status === 'running'
+                    ? 'puedes detenerlo cuando quieras'
+                    : 'la placa real puede reaccionar distinto'}
               </span>
             </div>
           </div>
@@ -818,8 +1044,8 @@ export default function CapiBlocksApp() {
           <DialogHeader>
             <DialogTitle>Elige una misión</DialogTitle>
             <DialogDescription>
-              Cada ejemplo combina bloques reales y una escena que puedes
-              manipular.
+              Empieza con un ejemplo y luego combínalo con otros en el editor de
+              escenas.
             </DialogDescription>
           </DialogHeader>
           <div className="example-grid">
@@ -840,59 +1066,32 @@ export default function CapiBlocksApp() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={componentsOpen} onOpenChange={setComponentsOpen}>
-        <DialogContent className="components-dialog">
-          <DialogHeader>
-            <DialogTitle>Kit de componentes Wemos</DialogTitle>
-            <DialogDescription>
-              Los bloques usan nombres sencillos; el perfil técnico se ocupa de
-              GPIO, PWM y ADC.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="safety-banner">
-            <Wrench size={20} />
-            <p>
-              <strong>La placa usa lógica de 3,3 V.</strong> Motores y servos
-              necesitan alimentación adecuada; los motores además necesitan un
-              driver. La simulación no puede comprobar el cableado.
-            </p>
-          </div>
-          <div className="component-table" aria-label="Componentes compatibles">
-            {componentCatalog.map((component) => (
-              <div className="component-row" key={component.id}>
-                <span className="component-icon">{component.icon}</span>
-                <span>
-                  <strong>{component.name}</strong>
-                  <small>{component.control}</small>
-                </span>
-                <code>{component.pins}</code>
-                <em className={component.status}>
-                  {component.status === 'ready'
-                    ? 'Disponible'
-                    : 'Siguiente fase'}
-                </em>
-              </div>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <SceneBuilder
+        open={sceneBuilderOpen}
+        onOpenChange={toggleSceneBuilder}
+        scene={scene}
+        onSceneChange={changeScene}
+      />
 
       <Dialog open={codeOpen} onOpenChange={setCodeOpen}>
         <DialogContent className="code-dialog">
           <DialogHeader>
             <DialogTitle>Código para WEMOS D1 R32</DialogTitle>
             <DialogDescription>
-              Selecciona “WEMOS D1 R32” con Arduino-ESP32 3.x. Las esperas se
-              generan con millis(), sin delay().
+              Usa cada componente y pin de tu escena. Las tareas avanzan juntas
+              con millis(), sin delay().
             </DialogDescription>
           </DialogHeader>
           <div className="code-actions">
-            <span>{lastProgram.length} acciones visuales compiladas</span>
+            <span>
+              {lastProgram.threads.length} programa(s) · {programNodeCount}{' '}
+              acciones principales
+            </span>
             <button
               onClick={async () => {
                 await navigator.clipboard.writeText(code);
                 setCopied(true);
-                setTimeout(() => setCopied(false), 1400);
+                window.setTimeout(() => setCopied(false), 1400);
               }}
             >
               <Clipboard size={16} /> {copied ? 'Copiado' : 'Copiar'}

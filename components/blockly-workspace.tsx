@@ -2,21 +2,25 @@
 
 import {
   forwardRef,
+  memo,
   useEffect,
   useImperativeHandle,
   useRef,
   useState,
 } from 'react';
-import type { Condition, ProgramNode } from '@/lib/capiblocks';
+import type { CompiledProgram, Condition, ProgramNode } from '@/lib/capiblocks';
+import type { SceneDevice, SceneDeviceKind } from '@/lib/scene-model';
 
 type BlocklyApi = typeof import('blockly');
 type BlocklyWorkspaceSvg = import('blockly').WorkspaceSvg;
 type BlocklyBlock = import('blockly').Block;
+type BlocklyFieldDropdown = import('blockly').FieldDropdown;
+type BlocklyMenuOption = import('blockly').MenuOption;
 
 export interface BlocklyWorkspaceHandle {
   save(): Record<string, unknown>;
   load(data: Record<string, unknown>): void;
-  compile(): ProgramNode[];
+  compile(): CompiledProgram;
   highlight(blockId?: string): void;
   zoomToFit(): void;
 }
@@ -24,8 +28,220 @@ export interface BlocklyWorkspaceHandle {
 interface BlocklyWorkspaceProps {
   initialWorkspace: Record<string, unknown>;
   revision: number;
+  devices: readonly SceneDevice[];
   onChange: (workspace: Record<string, unknown>) => void;
   onBlockSnap?: () => void;
+}
+
+const DEVICE_FIELD = 'DEVICE_ID';
+const DEVICE_EXTENSION = 'capi_device_target_v2';
+const DEVICE_WARNING = 'capi-device-target';
+const MISSING_DEVICE_PREFIX = '__missing__:';
+
+const workspaceDevices = new WeakMap<
+  BlocklyWorkspaceSvg,
+  readonly SceneDevice[]
+>();
+const serializedDeviceIds = new WeakMap<
+  BlocklyWorkspaceSvg,
+  Map<string, string>
+>();
+const registeredBlocklies = new WeakSet<object>();
+
+const deviceLabels: Record<SceneDeviceKind, string> = {
+  trafficLight: 'un semáforo',
+  robot: 'un robot',
+  motor: 'un motor',
+  led: 'un LED',
+  servo: 'un servo',
+  activeBuzzer: 'un buzzer activo',
+  passiveBuzzer: 'un buzzer pasivo',
+  button: 'un botón',
+  lightSensor: 'un sensor de luz',
+  potentiometer: 'un potenciómetro',
+  wifiNode: 'una conexión Wi-Fi',
+};
+
+function targetWorkspaceForBlock(block: BlocklyBlock) {
+  const workspace = block.workspace as BlocklyWorkspaceSvg;
+  return workspace.targetWorkspace ?? workspace;
+}
+
+function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
+  switch (block.type) {
+    case 'capi_traffic':
+      return ['trafficLight'];
+    case 'capi_led':
+      return ['led'];
+    case 'capi_robot':
+      return ['robot'];
+    case 'capi_motor':
+      return ['motor'];
+    case 'capi_servo':
+      return ['servo'];
+    case 'capi_buzzer':
+      return block.getFieldValue('KIND') === 'PASSIVE'
+        ? ['passiveBuzzer']
+        : ['activeBuzzer'];
+    case 'capi_tone':
+      return ['passiveBuzzer'];
+    case 'capi_button_pressed':
+      return ['button'];
+    case 'capi_sensor_compare':
+      return block.getFieldValue('SENSOR') === 'POTENTIOMETER'
+        ? ['potentiometer']
+        : ['lightSensor'];
+    default:
+      return [];
+  }
+}
+
+function missingDeviceValue(block: BlocklyBlock) {
+  return `${MISSING_DEVICE_PREFIX}${block.type}`;
+}
+
+function isMissingDeviceValue(value: string | null | undefined) {
+  return !value || value.startsWith(MISSING_DEVICE_PREFIX);
+}
+
+function devicesForBlock(block: BlocklyBlock) {
+  const workspace = targetWorkspaceForBlock(block);
+  const kinds = acceptedDeviceKinds(block);
+  return (workspaceDevices.get(workspace) ?? []).filter((device) =>
+    kinds.includes(device.kind),
+  );
+}
+
+function deviceOptions(
+  block: BlocklyBlock,
+  currentValue?: string | null,
+): BlocklyMenuOption[] {
+  const workspace = targetWorkspaceForBlock(block);
+  const compatible = devicesForBlock(block);
+  const options: BlocklyMenuOption[] = compatible.map((device) => [
+    device.name,
+    device.id,
+  ]);
+  const restoredValue =
+    serializedDeviceIds.get(workspace)?.get(block.id) ?? currentValue;
+
+  if (
+    restoredValue &&
+    !isMissingDeviceValue(restoredValue) &&
+    !options.some((option) => option[1] === restoredValue)
+  ) {
+    const existing = (workspaceDevices.get(workspace) ?? []).find(
+      (device) => device.id === restoredValue,
+    );
+    options.push([
+      existing
+        ? `⚠️ ${existing.name} (tipo incompatible)`
+        : `⚠️ Dispositivo eliminado (${restoredValue})`,
+      restoredValue,
+    ]);
+  }
+
+  if (options.length) return options;
+  const firstKind = acceptedDeviceKinds(block)[0];
+  return [
+    [
+      firstKind ? `⚠️ Agrega ${deviceLabels[firstKind]}` : '⚠️ Sin dispositivo',
+      missingDeviceValue(block),
+    ],
+  ];
+}
+
+function deviceMenuGenerator(this: BlocklyFieldDropdown) {
+  const block = this.getSourceBlock();
+  return block
+    ? deviceOptions(block, this.getValue())
+    : ([
+        ['⚠️ Sin dispositivo', `${MISSING_DEVICE_PREFIX}unknown`],
+      ] as BlocklyMenuOption[]);
+}
+
+function updateDeviceWarning(block: BlocklyBlock) {
+  const value = String(block.getFieldValue(DEVICE_FIELD) ?? '');
+  const compatible = devicesForBlock(block).some(
+    (device) => device.id === value,
+  );
+  block.setWarningText(
+    compatible ? null : 'Elige un dispositivo que esté colocado en la escena.',
+    DEVICE_WARNING,
+  );
+}
+
+function refreshDeviceField(block: BlocklyBlock) {
+  const field = block.getField(DEVICE_FIELD);
+  if (!field || !('setOptions' in field)) return false;
+  const dropdown = field as BlocklyFieldDropdown;
+  const previous = dropdown.getValue();
+  const workspace = targetWorkspaceForBlock(block);
+  const compatible = devicesForBlock(block).some(
+    (device) => device.id === previous,
+  );
+  if (previous && !isMissingDeviceValue(previous) && !compatible) {
+    const orphaned = serializedDeviceIds.get(workspace) ?? new Map();
+    orphaned.set(block.id, previous);
+    serializedDeviceIds.set(workspace, orphaned);
+  }
+
+  dropdown.setOptions(deviceMenuGenerator);
+  const options = dropdown.getOptions(false);
+  const nextValue = options.some((option) => option[1] === previous)
+    ? previous
+    : options[0][1];
+  dropdown.setValue(nextValue);
+  dropdown.forceRerender();
+  updateDeviceWarning(block);
+  return previous !== nextValue;
+}
+
+function refreshDeviceFields(
+  Blockly: BlocklyApi,
+  workspace: BlocklyWorkspaceSvg,
+) {
+  let changed = false;
+  Blockly.Events.disable();
+  try {
+    for (const block of workspace.getAllBlocks(false)) {
+      changed = refreshDeviceField(block) || changed;
+    }
+  } finally {
+    Blockly.Events.enable();
+  }
+  workspace.getToolbox()?.refreshSelection();
+  return changed;
+}
+
+function collectSerializedDeviceIds(value: unknown) {
+  const result = new Map<string, string>();
+  const visit = (candidate: unknown) => {
+    if (Array.isArray(candidate)) {
+      candidate.forEach(visit);
+      return;
+    }
+    if (!candidate || typeof candidate !== 'object') return;
+    const record = candidate as Record<string, unknown>;
+    const fields = record.fields;
+    if (
+      typeof record.id === 'string' &&
+      fields &&
+      typeof fields === 'object' &&
+      typeof (fields as Record<string, unknown>)[DEVICE_FIELD] === 'string'
+    ) {
+      result.set(record.id, (fields as Record<string, string>)[DEVICE_FIELD]);
+    }
+    Object.values(record).forEach(visit);
+  };
+  visit(value);
+  return result;
+}
+
+function selectedDeviceId(block: BlocklyBlock) {
+  const selected = String(block.getFieldValue(DEVICE_FIELD) ?? '');
+  if (!isMissingDeviceValue(selected)) return selected;
+  return devicesForBlock(block)[0]?.id ?? missingDeviceValue(block);
 }
 
 const toolbox = {
@@ -94,6 +310,7 @@ const toolbox = {
       colour: '#328BDD',
       contents: [
         { kind: 'block', type: 'capi_robot' },
+        { kind: 'block', type: 'capi_motor' },
         { kind: 'block', type: 'capi_servo' },
       ],
     },
@@ -116,7 +333,26 @@ const toolbox = {
 };
 
 function registerBlocks(Blockly: BlocklyApi) {
-  if (Blockly.Blocks.capi_start) return;
+  if (!Blockly.Extensions.isRegistered(DEVICE_EXTENSION)) {
+    Blockly.Extensions.register(
+      DEVICE_EXTENSION,
+      function (this: BlocklyBlock) {
+        const field = this.getField(
+          DEVICE_FIELD,
+        ) as BlocklyFieldDropdown | null;
+        field?.setOptions(deviceMenuGenerator);
+        updateDeviceWarning(this);
+      },
+    );
+  }
+  if (registeredBlocklies.has(Blockly)) return;
+
+  const deviceField = (label: string) => ({
+    type: 'field_dropdown',
+    name: DEVICE_FIELD,
+    options: [[label, `${MISSING_DEVICE_PREFIX}initial`]],
+  });
+
   Blockly.common.defineBlocksWithJsonArray([
     {
       type: 'capi_start',
@@ -253,8 +489,9 @@ function registerBlocks(Blockly: BlocklyApi) {
     },
     {
       type: 'capi_traffic',
-      message0: '🚦 poner semáforo en %1',
+      message0: '🚦 poner %1 en %2',
       args0: [
+        deviceField('⚠️ agrega un semáforo'),
         {
           type: 'field_dropdown',
           name: 'COLOR',
@@ -270,11 +507,13 @@ function registerBlocks(Blockly: BlocklyApi) {
       nextStatement: null,
       colour: '#12AA8C',
       tooltip: 'Controla los tres LED del semáforo.',
+      extensions: [DEVICE_EXTENSION],
     },
     {
       type: 'capi_led',
-      message0: '💡 LED con brillo %1 %%',
+      message0: '💡 %1 con brillo %2 %%',
       args0: [
+        deviceField('⚠️ agrega un LED'),
         {
           type: 'field_number',
           name: 'BRIGHTNESS',
@@ -288,6 +527,7 @@ function registerBlocks(Blockly: BlocklyApi) {
       nextStatement: null,
       colour: '#12AA8C',
       tooltip: 'Cambia el brillo con PWM. Usa una resistencia con el LED.',
+      extensions: [DEVICE_EXTENSION],
     },
     {
       type: 'capi_pin_write',
@@ -325,8 +565,9 @@ function registerBlocks(Blockly: BlocklyApi) {
     },
     {
       type: 'capi_robot',
-      message0: '🤖 robot %1 a %2 %%',
+      message0: '🤖 %1: %2 a %3 %%',
       args0: [
+        deviceField('⚠️ agrega un robot'),
         {
           type: 'field_dropdown',
           name: 'ACTION',
@@ -351,20 +592,62 @@ function registerBlocks(Blockly: BlocklyApi) {
       nextStatement: null,
       colour: '#328BDD',
       tooltip: 'Controla dos motores mediante un puente H.',
+      extensions: [DEVICE_EXTENSION],
+    },
+    {
+      type: 'capi_motor',
+      message0: '⚙️ %1: %2 con potencia %3 %%',
+      args0: [
+        deviceField('⚠️ agrega un motor'),
+        {
+          type: 'field_dropdown',
+          name: 'DIRECTION',
+          options: [
+            ['avanzar', 'FORWARD'],
+            ['retroceder', 'BACKWARD'],
+            ['detener', 'STOP'],
+          ],
+        },
+        {
+          type: 'field_number',
+          name: 'POWER',
+          value: 70,
+          min: 0,
+          max: 100,
+          precision: 1,
+        },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#328BDD',
+      tooltip: 'Controla un motor DC conectado a un puente H.',
+      extensions: [DEVICE_EXTENSION],
     },
     {
       type: 'capi_servo',
-      message0: '🦾 servo a %1 grados',
-      args0: [{ type: 'field_angle', name: 'ANGLE', angle: 90 }],
+      message0: '🦾 %1 a %2 grados',
+      args0: [
+        deviceField('⚠️ agrega un servo'),
+        {
+          type: 'field_number',
+          name: 'ANGLE',
+          value: 90,
+          min: 0,
+          max: 180,
+          precision: 1,
+        },
+      ],
       previousStatement: null,
       nextStatement: null,
       colour: '#328BDD',
       tooltip: 'Mueve el servo a una posición entre 0 y 180 grados.',
+      extensions: [DEVICE_EXTENSION],
     },
     {
       type: 'capi_buzzer',
-      message0: '📣 buzzer %1 durante %2 ms',
+      message0: '📣 %1: %2 durante %3 ms',
       args0: [
+        deviceField('⚠️ agrega un buzzer'),
         {
           type: 'field_dropdown',
           name: 'KIND',
@@ -397,11 +680,13 @@ function registerBlocks(Blockly: BlocklyApi) {
       nextStatement: null,
       colour: '#EF5F88',
       tooltip: 'El activo sólo hace beep; el pasivo puede tocar notas.',
+      extensions: [DEVICE_EXTENSION],
     },
     {
       type: 'capi_tone',
-      message0: '🎵 tocar %1 Hz durante %2 ms',
+      message0: '🎵 tocar en %1 a %2 Hz durante %3 ms',
       args0: [
+        deviceField('⚠️ agrega un buzzer pasivo'),
         {
           type: 'field_number',
           name: 'FREQUENCY',
@@ -423,17 +708,20 @@ function registerBlocks(Blockly: BlocklyApi) {
       nextStatement: null,
       colour: '#EF5F88',
       tooltip: 'Toca una nota con un buzzer pasivo.',
+      extensions: [DEVICE_EXTENSION],
     },
     {
       type: 'capi_button_pressed',
-      message0: '🔘 botón presionado',
+      message0: '🔘 %1 presionado',
+      args0: [deviceField('⚠️ agrega un botón')],
       output: 'Boolean',
       colour: '#CF4EB9',
       tooltip: 'Responde sí cuando el botón está presionado.',
+      extensions: [DEVICE_EXTENSION],
     },
     {
       type: 'capi_sensor_compare',
-      message0: '%1 %2 %3',
+      message0: '%1 %2 %3 %4',
       args0: [
         {
           type: 'field_dropdown',
@@ -443,6 +731,7 @@ function registerBlocks(Blockly: BlocklyApi) {
             ['🎚️ potenciómetro', 'POTENTIOMETER'],
           ],
         },
+        deviceField('⚠️ agrega un sensor'),
         {
           type: 'field_dropdown',
           name: 'OPERATOR',
@@ -465,6 +754,7 @@ function registerBlocks(Blockly: BlocklyApi) {
       output: 'Boolean',
       colour: '#CF4EB9',
       tooltip: 'Compara la lectura analógica de un sensor.',
+      extensions: [DEVICE_EXTENSION],
     },
     {
       type: 'capi_wifi_connect',
@@ -503,6 +793,7 @@ function registerBlocks(Blockly: BlocklyApi) {
         'Escribe un mensaje en el monitor serial y en la consola simulada.',
     },
   ]);
+  registeredBlocklies.add(Blockly);
 }
 
 const numberField = (block: BlocklyBlock, name: string, fallback = 0) => {
@@ -529,10 +820,11 @@ function compileCondition(block: BlocklyBlock | null): Condition {
     case 'capi_wifi_connected':
       return { kind: 'wifiConnected' };
     case 'capi_button_pressed':
-      return { kind: 'buttonPressed' };
+      return { kind: 'buttonPressed', deviceId: selectedDeviceId(block) };
     case 'capi_sensor_compare':
       return {
         kind: 'sensor',
+        deviceId: selectedDeviceId(block),
         sensor: block.getFieldValue('SENSOR'),
         operator: block.getFieldValue('OPERATOR'),
         value: numberField(block, 'VALUE', 2000),
@@ -600,6 +892,7 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
       case 'capi_traffic':
         result.push({
           op: 'traffic',
+          deviceId: selectedDeviceId(block),
           color: block.getFieldValue('COLOR'),
           blockId,
         });
@@ -607,6 +900,7 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
       case 'capi_led':
         result.push({
           op: 'led',
+          deviceId: selectedDeviceId(block),
           brightness: numberField(block, 'BRIGHTNESS', 75),
           blockId,
         });
@@ -622,14 +916,25 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
       case 'capi_robot':
         result.push({
           op: 'robot',
+          deviceId: selectedDeviceId(block),
           action: block.getFieldValue('ACTION'),
           speed: numberField(block, 'SPEED', 70),
+          blockId,
+        });
+        break;
+      case 'capi_motor':
+        result.push({
+          op: 'motor',
+          deviceId: selectedDeviceId(block),
+          direction: block.getFieldValue('DIRECTION'),
+          power: numberField(block, 'POWER', 70),
           blockId,
         });
         break;
       case 'capi_servo':
         result.push({
           op: 'servo',
+          deviceId: selectedDeviceId(block),
           angle: numberField(block, 'ANGLE', 90),
           blockId,
         });
@@ -637,6 +942,7 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
       case 'capi_buzzer':
         result.push({
           op: 'buzzer',
+          deviceId: selectedDeviceId(block),
           kind: block.getFieldValue('KIND'),
           frequency: numberField(block, 'FREQUENCY', 660),
           durationMs: numberField(block, 'DURATION', 250),
@@ -646,6 +952,7 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
       case 'capi_tone':
         result.push({
           op: 'tone',
+          deviceId: selectedDeviceId(block),
           frequency: numberField(block, 'FREQUENCY', 660),
           durationMs: numberField(block, 'DURATION', 180),
           blockId,
@@ -671,30 +978,75 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
   return result;
 }
 
+function compileWorkspace(workspace: BlocklyWorkspaceSvg): CompiledProgram {
+  const starts = workspace
+    .getTopBlocks(true)
+    .filter((block) => block.type === 'capi_start');
+  return {
+    version: 2,
+    threads: starts.map((start) => ({
+      id: start.id,
+      startBlockId: start.id,
+      nodes: compileStack(start),
+    })),
+  };
+}
+
+function loadWorkspaceData(
+  Blockly: BlocklyApi,
+  workspace: BlocklyWorkspaceSvg,
+  data: Record<string, unknown>,
+) {
+  serializedDeviceIds.set(workspace, collectSerializedDeviceIds(data));
+  Blockly.Events.disable();
+  workspace.setResizesEnabled(false);
+  try {
+    workspace.clear();
+    Blockly.serialization.workspaces.load(data, workspace);
+  } finally {
+    workspace.setResizesEnabled(true);
+    Blockly.Events.enable();
+  }
+  refreshDeviceFields(Blockly, workspace);
+  workspace.cleanUp();
+  workspace.zoomToFit();
+  Blockly.svgResize(workspace);
+}
+
 const BlocklyWorkspace = forwardRef<
   BlocklyWorkspaceHandle,
   BlocklyWorkspaceProps
 >(function BlocklyWorkspace(
-  { initialWorkspace, revision, onChange, onBlockSnap },
+  { initialWorkspace, revision, devices, onChange, onBlockSnap },
   ref,
 ) {
   const hostRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<BlocklyWorkspaceSvg | null>(null);
   const blocklyRef = useRef<BlocklyApi | null>(null);
   const changeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const firstWorkspaceRef = useRef(initialWorkspace);
+  const initialWorkspaceRef = useRef(initialWorkspace);
+  const revisionRef = useRef(revision);
+  const appliedRevisionRef = useRef<number | null>(null);
+  const devicesRef = useRef(devices);
   const onChangeRef = useRef(onChange);
   const onBlockSnapRef = useRef(onBlockSnap);
   const [ready, setReady] = useState(false);
+  const deviceSignature = JSON.stringify(
+    devices.map(({ id, kind, name }) => [id, kind, name]),
+  );
 
   useEffect(() => {
+    initialWorkspaceRef.current = initialWorkspace;
+    revisionRef.current = revision;
+    devicesRef.current = devices;
     onChangeRef.current = onChange;
     onBlockSnapRef.current = onBlockSnap;
-  }, [onBlockSnap, onChange]);
+  }, [devices, initialWorkspace, onBlockSnap, onChange, revision]);
 
   useEffect(() => {
     let disposed = false;
     let resizeObserver: ResizeObserver | undefined;
+    let resizeFrame: number | undefined;
     void import('blockly').then((Blockly) => {
       if (disposed || !hostRef.current) return;
       blocklyRef.current = Blockly;
@@ -739,14 +1091,41 @@ const BlocklyWorkspace = forwardRef<
         sounds: false,
       });
       workspaceRef.current = workspace;
-      Blockly.serialization.workspaces.load(
-        firstWorkspaceRef.current,
-        workspace,
+      workspaceDevices.set(workspace, devicesRef.current);
+      loadWorkspaceData(Blockly, workspace, initialWorkspaceRef.current);
+      appliedRevisionRef.current = revisionRef.current;
+      onChangeRef.current(
+        Blockly.serialization.workspaces.save(workspace) as Record<
+          string,
+          unknown
+        >,
       );
       workspace.addChangeListener((event) => {
         if (event.isUiEvent) return;
         if (event.type === Blockly.Events.BLOCK_MOVE && event.recordUndo)
           onBlockSnapRef.current?.();
+        if (event.type === Blockly.Events.BLOCK_CHANGE) {
+          const change = event as typeof event & {
+            blockId?: string;
+            element?: string;
+            name?: string;
+          };
+          if (
+            change.element === 'field' &&
+            change.name === DEVICE_FIELD &&
+            change.blockId
+          ) {
+            serializedDeviceIds.get(workspace)?.delete(change.blockId);
+            const block = workspace.getBlockById(change.blockId);
+            if (block) updateDeviceWarning(block);
+          }
+          if (
+            change.element === 'field' &&
+            (change.name === 'KIND' || change.name === 'SENSOR')
+          ) {
+            refreshDeviceFields(Blockly, workspace);
+          }
+        }
         if (changeTimerRef.current) clearTimeout(changeTimerRef.current);
         changeTimerRef.current = setTimeout(() => {
           if (!workspaceRef.current) return;
@@ -757,13 +1136,20 @@ const BlocklyWorkspace = forwardRef<
           );
         }, 180);
       });
-      resizeObserver = new ResizeObserver(() => Blockly.svgResize(workspace));
+      resizeObserver = new ResizeObserver(() => {
+        if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
+        resizeFrame = requestAnimationFrame(() => {
+          resizeFrame = undefined;
+          if (!disposed) Blockly.svgResize(workspace);
+        });
+      });
       resizeObserver.observe(hostRef.current);
       setReady(true);
     });
     return () => {
       disposed = true;
       resizeObserver?.disconnect();
+      if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
       if (changeTimerRef.current) clearTimeout(changeTimerRef.current);
       workspaceRef.current?.dispose();
       workspaceRef.current = null;
@@ -774,61 +1160,68 @@ const BlocklyWorkspace = forwardRef<
     if (
       !ready ||
       revision === 0 ||
+      appliedRevisionRef.current === revision ||
       !workspaceRef.current ||
       !blocklyRef.current
     )
       return;
-    const Blockly = blocklyRef.current;
-    Blockly.Events.disable();
-    try {
-      workspaceRef.current.clear();
-      Blockly.serialization.workspaces.load(
-        initialWorkspace,
-        workspaceRef.current,
-      );
-    } finally {
-      Blockly.Events.enable();
-    }
-    workspaceRef.current.cleanUp();
-    workspaceRef.current.zoomToFit();
-    onChange(
-      Blockly.serialization.workspaces.save(workspaceRef.current) as Record<
-        string,
-        unknown
-      >,
+    workspaceDevices.set(workspaceRef.current, devicesRef.current);
+    loadWorkspaceData(
+      blocklyRef.current,
+      workspaceRef.current,
+      initialWorkspaceRef.current,
     );
-  }, [initialWorkspace, onChange, ready, revision]);
+    appliedRevisionRef.current = revision;
+    onChangeRef.current(
+      blocklyRef.current.serialization.workspaces.save(
+        workspaceRef.current,
+      ) as Record<string, unknown>,
+    );
+  }, [ready, revision]);
 
-  useImperativeHandle(ref, () => ({
-    save() {
-      if (!workspaceRef.current || !blocklyRef.current) return {};
-      return blocklyRef.current.serialization.workspaces.save(
-        workspaceRef.current,
-      ) as Record<string, unknown>;
-    },
-    load(data) {
-      if (!workspaceRef.current || !blocklyRef.current) return;
-      workspaceRef.current.clear();
-      blocklyRef.current.serialization.workspaces.load(
-        data,
-        workspaceRef.current,
+  useEffect(() => {
+    if (!ready || !workspaceRef.current || !blocklyRef.current) return;
+    workspaceDevices.set(workspaceRef.current, devicesRef.current);
+    if (refreshDeviceFields(blocklyRef.current, workspaceRef.current)) {
+      onChangeRef.current(
+        blocklyRef.current.serialization.workspaces.save(
+          workspaceRef.current,
+        ) as Record<string, unknown>,
       );
-      workspaceRef.current.zoomToFit();
-    },
-    compile() {
-      if (!workspaceRef.current) return [];
-      const start = workspaceRef.current
-        .getTopBlocks(true)
-        .find((block) => block.type === 'capi_start');
-      return start ? compileStack(start) : [];
-    },
-    highlight(blockId) {
-      workspaceRef.current?.highlightBlock(blockId ?? null);
-    },
-    zoomToFit() {
-      workspaceRef.current?.zoomToFit();
-    },
-  }));
+    }
+  }, [deviceSignature, ready]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      save() {
+        if (!workspaceRef.current || !blocklyRef.current) return {};
+        return blocklyRef.current.serialization.workspaces.save(
+          workspaceRef.current,
+        ) as Record<string, unknown>;
+      },
+      load(data) {
+        if (!workspaceRef.current || !blocklyRef.current) return;
+        loadWorkspaceData(blocklyRef.current, workspaceRef.current, data);
+        onChangeRef.current(
+          blocklyRef.current.serialization.workspaces.save(
+            workspaceRef.current,
+          ) as Record<string, unknown>,
+        );
+      },
+      compile() {
+        if (!workspaceRef.current) return { version: 2, threads: [] };
+        return compileWorkspace(workspaceRef.current);
+      },
+      highlight(blockId) {
+        workspaceRef.current?.highlightBlock(blockId ?? null);
+      },
+      zoomToFit() {
+        workspaceRef.current?.zoomToFit();
+      },
+    }),
+    [],
+  );
 
   return (
     <div className="blockly-shell">
@@ -842,4 +1235,4 @@ const BlocklyWorkspace = forwardRef<
   );
 });
 
-export default BlocklyWorkspace;
+export default memo(BlocklyWorkspace);
