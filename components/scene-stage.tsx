@@ -3,6 +3,7 @@
 import {
   useEffect,
   useRef,
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
@@ -36,8 +37,12 @@ interface SceneStageProps {
   counter?: number;
   selectedId?: string;
   editing?: boolean;
-  onSelect?: (deviceId: string) => void;
+  onSelect?: (deviceId: string) => boolean | void;
   onMove?: (deviceId: string, position: ScenePosition) => void;
+  onMoveStart?: (deviceId: string) => void;
+  onMoveEnd?: (deviceId: string) => void;
+  onDelete?: (deviceId: string) => void;
+  onDuplicate?: (deviceId: string) => void;
 }
 
 const icons: Record<SceneDevice['kind'], string> = {
@@ -97,13 +102,19 @@ function DeviceVisual({
     const right = Math.round(runtime?.right ?? 0);
     return (
       <span className="stage-robot" aria-hidden="true">
-        🤖<small>{left}/{right}%</small>
+        🤖
+        <small>
+          {left}/{right}%
+        </small>
       </span>
     );
   }
   if (device.kind === 'motor') {
     return (
-      <span className={(runtime?.power ?? 0) ? 'stage-motor active' : 'stage-motor'}>
+      <span
+        className={(runtime?.power ?? 0) ? 'stage-motor active' : 'stage-motor'}
+        aria-hidden="true"
+      >
         ⚙️<small>{Math.round(runtime?.power ?? 0)}%</small>
       </span>
     );
@@ -111,14 +122,17 @@ function DeviceVisual({
   if (device.kind === 'servo') {
     const angle = Math.round(runtime?.angle ?? device.config.angle);
     return (
-      <span className="stage-servo">
+      <span className="stage-servo" aria-hidden="true">
         🦾<small>{angle}°</small>
       </span>
     );
   }
   if (device.kind === 'activeBuzzer' || device.kind === 'passiveBuzzer') {
     return (
-      <span className={runtime?.playing ? 'stage-buzzer playing' : 'stage-buzzer'}>
+      <span
+        className={runtime?.playing ? 'stage-buzzer playing' : 'stage-buzzer'}
+        aria-hidden="true"
+      >
         {icons[device.kind]}
         <small>{runtime?.playing ? 'sonando' : 'listo'}</small>
       </span>
@@ -126,23 +140,36 @@ function DeviceVisual({
   }
   if (device.kind === 'button') {
     return (
-      <span className={runtime?.pressed ? 'stage-button pressed' : 'stage-button'}>
+      <span
+        className={runtime?.pressed ? 'stage-button pressed' : 'stage-button'}
+        aria-hidden="true"
+      >
         🔘<small>{runtime?.pressed ? 'pulsado' : 'libre'}</small>
       </span>
     );
   }
   if (device.kind === 'lightSensor' || device.kind === 'potentiometer') {
     return (
-      <span className="stage-sensor">
-        {icons[device.kind]}<small>{Math.round(runtime?.value ?? device.config.value)}</small>
+      <span className="stage-sensor" aria-hidden="true">
+        {icons[device.kind]}
+        <small>{Math.round(runtime?.value ?? device.config.value)}</small>
       </span>
     );
   }
   if (device.kind === 'wifiNode') {
     const status = runtime?.status ?? device.config.status;
     return (
-      <span className={`stage-wifi ${status}`}>
-        📶<small>{status === 'connected' ? 'conectado' : status === 'connecting' ? 'buscando' : status === 'error' ? 'sin red' : 'listo'}</small>
+      <span className={`stage-wifi ${status}`} aria-hidden="true">
+        📶
+        <small>
+          {status === 'connected'
+            ? 'conectado'
+            : status === 'connecting'
+              ? 'buscando'
+              : status === 'error'
+                ? 'sin red'
+                : 'listo'}
+        </small>
       </span>
     );
   }
@@ -157,8 +184,12 @@ export default function SceneStage({
   editing = false,
   onSelect,
   onMove,
+  onMoveStart,
+  onMoveEnd,
+  onDelete,
+  onDuplicate,
 }: SceneStageProps) {
-  const stageRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLElement>(null);
   const dragRef = useRef<{
     pointerId: number;
     deviceId: string;
@@ -170,6 +201,7 @@ export default function SceneStage({
     position: ScenePosition;
   } | null>(null);
   const moveFrameRef = useRef<number | null>(null);
+  const keyboardMoveRef = useRef<string | null>(null);
 
   useEffect(
     () => () => {
@@ -179,11 +211,21 @@ export default function SceneStage({
     [],
   );
 
+  const flushPendingMove = () => {
+    if (moveFrameRef.current !== null) {
+      window.cancelAnimationFrame(moveFrameRef.current);
+      moveFrameRef.current = null;
+    }
+    const pending = pendingMoveRef.current;
+    pendingMoveRef.current = null;
+    if (pending) onMove?.(pending.deviceId, pending.position);
+  };
+
   const pointerDown = (
     event: ReactPointerEvent<HTMLButtonElement>,
     item: MovableSceneItem,
   ) => {
-    onSelect?.(item.id);
+    if (onSelect?.(item.id) === false) return;
     if (!editing || !onMove || !stageRef.current) return;
     const rect = stageRef.current.getBoundingClientRect();
     const currentX = (item.position.x / scene.canvas.width) * rect.width;
@@ -194,6 +236,7 @@ export default function SceneStage({
       offsetX: event.clientX - rect.left - currentX,
       offsetY: event.clientY - rect.top - currentY,
     };
+    onMoveStart?.(item.id);
     event.currentTarget.setPointerCapture(event.pointerId);
     event.preventDefault();
   };
@@ -201,10 +244,15 @@ export default function SceneStage({
   const pointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const drag = dragRef.current;
     const stage = stageRef.current;
-    if (!drag || !stage || drag.pointerId !== event.pointerId || !onMove) return;
+    if (!drag || !stage || drag.pointerId !== event.pointerId || !onMove)
+      return;
     const rect = stage.getBoundingClientRect();
-    let x = ((event.clientX - rect.left - drag.offsetX) / rect.width) * scene.canvas.width;
-    let y = ((event.clientY - rect.top - drag.offsetY) / rect.height) * scene.canvas.height;
+    let x =
+      ((event.clientX - rect.left - drag.offsetX) / rect.width) *
+      scene.canvas.width;
+    let y =
+      ((event.clientY - rect.top - drag.offsetY) / rect.height) *
+      scene.canvas.height;
     if (scene.canvas.snapToGrid) {
       x = Math.round(x / scene.canvas.gridSize) * scene.canvas.gridSize;
       y = Math.round(y / scene.canvas.gridSize) * scene.canvas.gridSize;
@@ -212,8 +260,8 @@ export default function SceneStage({
     pendingMoveRef.current = {
       deviceId: drag.deviceId,
       position: {
-      x: clamp(x, 24, scene.canvas.width - 24),
-      y: clamp(y, 24, scene.canvas.height - 24),
+        x: clamp(x, 24, scene.canvas.width - 24),
+        y: clamp(y, 24, scene.canvas.height - 24),
       },
     };
     if (moveFrameRef.current === null) {
@@ -228,18 +276,38 @@ export default function SceneStage({
   };
 
   const pointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (dragRef.current?.pointerId !== event.pointerId) return;
+    const drag = dragRef.current;
+    if (drag?.pointerId !== event.pointerId) return;
+    flushPendingMove();
     dragRef.current = null;
     if (event.currentTarget.hasPointerCapture(event.pointerId))
       event.currentTarget.releasePointerCapture(event.pointerId);
+    onMoveEnd?.(drag.deviceId);
   };
 
   const moveWithKeyboard = (
     event: ReactKeyboardEvent<HTMLButtonElement>,
     item: MovableSceneItem,
   ) => {
-    if (!editing || !onMove) return;
-    const step = event.shiftKey ? scene.canvas.gridSize : 5;
+    if (!editing) return;
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'd') {
+      if (onSelect?.(item.id) === false) return;
+      onDuplicate?.(item.id);
+      event.preventDefault();
+      return;
+    }
+    if (event.key === 'Delete' || event.key === 'Backspace') {
+      if (onSelect?.(item.id) === false) return;
+      onDelete?.(item.id);
+      event.preventDefault();
+      return;
+    }
+    if (!onMove) return;
+    const step = scene.canvas.snapToGrid
+      ? scene.canvas.gridSize
+      : event.shiftKey
+        ? 20
+        : 5;
     const delta = {
       ArrowLeft: { x: -step, y: 0 },
       ArrowRight: { x: step, y: 0 },
@@ -247,45 +315,121 @@ export default function SceneStage({
       ArrowDown: { x: 0, y: step },
     }[event.key];
     if (!delta) return;
+    if (onSelect?.(item.id) === false) return;
+    if (keyboardMoveRef.current !== item.id) {
+      if (keyboardMoveRef.current) onMoveEnd?.(keyboardMoveRef.current);
+      keyboardMoveRef.current = item.id;
+      onMoveStart?.(item.id);
+    }
+    const nextX = item.position.x + delta.x;
+    const nextY = item.position.y + delta.y;
     onMove(item.id, {
-      x: clamp(item.position.x + delta.x, 24, scene.canvas.width - 24),
-      y: clamp(item.position.y + delta.y, 24, scene.canvas.height - 24),
+      x: clamp(
+        scene.canvas.snapToGrid
+          ? Math.round(nextX / scene.canvas.gridSize) * scene.canvas.gridSize
+          : nextX,
+        24,
+        scene.canvas.width - 24,
+      ),
+      y: clamp(
+        scene.canvas.snapToGrid
+          ? Math.round(nextY / scene.canvas.gridSize) * scene.canvas.gridSize
+          : nextY,
+        24,
+        scene.canvas.height - 24,
+      ),
     });
     event.preventDefault();
   };
 
+  const finishKeyboardMove = (
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    item: MovableSceneItem,
+  ) => {
+    if (!event.key.startsWith('Arrow') || keyboardMoveRef.current !== item.id)
+      return;
+    keyboardMoveRef.current = null;
+    onMoveEnd?.(item.id);
+  };
+
+  const finishKeyboardMoveOnBlur = (item: MovableSceneItem) => {
+    if (keyboardMoveRef.current !== item.id) return;
+    keyboardMoveRef.current = null;
+    onMoveEnd?.(item.id);
+  };
+
+  const gridStyle = {
+    aspectRatio: `${scene.canvas.width} / ${scene.canvas.height}`,
+    '--scene-grid-x': `${(scene.canvas.gridSize / scene.canvas.width) * 100}%`,
+    '--scene-grid-y': `${(scene.canvas.gridSize / scene.canvas.height) * 100}%`,
+  } as CSSProperties;
+
   return (
-    <div
+    <section
       ref={stageRef}
       className={`scene-stage scene-background-${scene.canvas.background}${editing ? ' editing' : ''}`}
-      style={{ aspectRatio: `${scene.canvas.width} / ${scene.canvas.height}` }}
+      style={gridStyle}
       data-testid="scene-stage"
+      aria-label={
+        editing ? 'Objetos de la escena editable' : 'Simulación de la escena'
+      }
+      aria-describedby={editing ? 'scene-stage-keyboard-help' : undefined}
     >
+      {editing && (
+        <p id="scene-stage-keyboard-help" className="sr-only">
+          Selecciona un objeto con Tab. Muévelo con las flechas, elimínalo con
+          Suprimir y duplica componentes con Control o Comando más D. El
+          contador global es único.
+        </p>
+      )}
       <div className="scene-grid" aria-hidden="true" />
-      {scene.widgets.map((widget) => (
-        <button
-          type="button"
-          className={`scene-widget${selectedId === widget.id ? ' selected' : ''}`}
-          key={widget.id}
-          style={{
-            left: `${(widget.position.x / scene.canvas.width) * 100}%`,
-            top: `${(widget.position.y / scene.canvas.height) * 100}%`,
-          }}
-          aria-label={`${editing ? 'Mover' : 'Ver'} ${widget.name}`}
-          tabIndex={editing ? 0 : -1}
-          onPointerDown={(event) => pointerDown(event, widget)}
-          onPointerMove={pointerMove}
-          onPointerUp={pointerUp}
-          onPointerCancel={pointerUp}
-          onFocus={() => editing && onSelect?.(widget.id)}
-          onClick={() => editing && onSelect?.(widget.id)}
-          onKeyDown={(event) => moveWithKeyboard(event, widget)}
-        >
-          <strong>{counter}</strong>
-          <span>{widget.config.mascot}</span>
-          <small>{widget.name}</small>
-        </button>
-      ))}
+      {scene.widgets.map((widget) => {
+        const style = {
+          left: `${(widget.position.x / scene.canvas.width) * 100}%`,
+          top: `${(widget.position.y / scene.canvas.height) * 100}%`,
+        };
+        const contents = (
+          <>
+            <strong>{counter}</strong>
+            <span>{widget.config.mascot}</span>
+            <small>{widget.name}</small>
+          </>
+        );
+        if (!editing) {
+          return (
+            <article
+              className="scene-widget"
+              key={widget.id}
+              style={style}
+              aria-label={`${widget.name}: contador en ${counter}`}
+            >
+              {contents}
+            </article>
+          );
+        }
+        return (
+          <button
+            type="button"
+            className={`scene-widget${selectedId === widget.id ? ' selected' : ''}`}
+            key={widget.id}
+            style={style}
+            aria-label={`Mover ${widget.name}`}
+            aria-pressed={selectedId === widget.id}
+            aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Delete Control+D Meta+D"
+            onPointerDown={(event) => pointerDown(event, widget)}
+            onPointerMove={pointerMove}
+            onPointerUp={pointerUp}
+            onPointerCancel={pointerUp}
+            onLostPointerCapture={pointerUp}
+            onClick={() => onSelect?.(widget.id)}
+            onKeyDown={(event) => moveWithKeyboard(event, widget)}
+            onKeyUp={(event) => finishKeyboardMove(event, widget)}
+            onBlur={() => finishKeyboardMoveOnBlur(widget)}
+          >
+            {contents}
+          </button>
+        );
+      })}
       {scene.devices.map((device) => {
         const runtime = runtimeDevices[device.id];
         const runtimeX = device.kind === 'robot' ? runtime?.x : undefined;
@@ -301,33 +445,56 @@ export default function SceneStage({
               : device.position.y,
         };
         const rotation =
-          device.rotation +
-          (device.kind === 'robot' && typeof runtime?.angle === 'number'
-            ? runtime.angle
-            : 0);
+          device.kind === 'robot'
+            ? typeof runtime?.angle === 'number'
+              ? runtime.angle
+              : device.rotation + device.config.heading
+            : device.rotation;
+        const style = {
+          left: `${(position.x / scene.canvas.width) * 100}%`,
+          top: `${(position.y / scene.canvas.height) * 100}%`,
+          transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+        };
+        const contents = (
+          <>
+            <DeviceVisual device={device} runtime={runtime} />
+            <span className="scene-device-name">{device.name}</span>
+          </>
+        );
+        if (!editing) {
+          return (
+            <article
+              key={device.id}
+              data-device-id={device.id}
+              className={`scene-device scene-device-${device.kind}`}
+              style={style}
+              aria-label={device.name}
+            >
+              {contents}
+            </article>
+          );
+        }
         return (
           <button
             type="button"
             key={device.id}
             data-device-id={device.id}
             className={`scene-device scene-device-${device.kind}${selectedId === device.id ? ' selected' : ''}`}
-            style={{
-              left: `${(position.x / scene.canvas.width) * 100}%`,
-              top: `${(position.y / scene.canvas.height) * 100}%`,
-              transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
-            }}
-            aria-label={`${editing ? 'Mover' : 'Ver'} ${device.name}`}
-            tabIndex={editing ? 0 : -1}
-            onFocus={() => editing && onSelect?.(device.id)}
-            onClick={() => editing && onSelect?.(device.id)}
+            style={style}
+            aria-label={`Mover ${device.name}`}
+            aria-pressed={selectedId === device.id}
+            aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Delete Control+D Meta+D"
+            onClick={() => onSelect?.(device.id)}
             onPointerDown={(event) => pointerDown(event, device)}
             onPointerMove={pointerMove}
             onPointerUp={pointerUp}
             onPointerCancel={pointerUp}
+            onLostPointerCapture={pointerUp}
             onKeyDown={(event) => moveWithKeyboard(event, device)}
+            onKeyUp={(event) => finishKeyboardMove(event, device)}
+            onBlur={() => finishKeyboardMoveOnBlur(device)}
           >
-            <DeviceVisual device={device} runtime={runtime} />
-            <span className="scene-device-name">{device.name}</span>
+            {contents}
           </button>
         );
       })}
@@ -338,6 +505,6 @@ export default function SceneStage({
           <small>Agrega un componente desde la biblioteca.</small>
         </div>
       )}
-    </div>
+    </section>
   );
 }

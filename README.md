@@ -14,7 +14,7 @@ Una escena ya no es una pantalla fija. El editor permite partir de cero, repetir
 - entradas como botones, sensores de luz y potenciómetros;
 - un nodo Wi-Fi y widgets visuales de contador.
 
-Cada componente se puede agregar, seleccionar, mover, rotar, renombrar, duplicar o eliminar. También se pueden elegir sus GPIO manualmente o usar la asignación automática de pines seguros. El validador señala pines repetidos, incompatibles o faltantes antes de generar el sketch.
+Cada componente se puede agregar, seleccionar, mover, rotar, renombrar, duplicar o eliminar. El editor trabaja sobre un borrador: permite deshacer y rehacer, guardar cambios de un objeto, cancelarlos y salir sin alterar la escena original. También se pueden elegir los GPIO manualmente o usar la asignación automática de pines seguros. El validador señala pines repetidos, incompatibles o faltantes antes de generar el sketch.
 
 Las plantillas prácticas incluidas —semáforo, robot, Wi-Fi y contador— son puntos de partida, no límites. Se pueden añadir varias veces a la misma escena y después personalizarla.
 
@@ -34,13 +34,13 @@ El editor Blockly incluye:
 
 Cuando hay más de un componente del mismo tipo, el bloque muestra un selector con el nombre de la instancia. Así, “Semáforo norte” y “Semáforo sur” pueden ejecutar acciones distintas. Si se elimina un componente usado por un bloque, el editor conserva la referencia para poder corregirla y el generador informa el problema.
 
-Se pueden colocar varios bloques de inicio. Cada uno se convierte en un programa independiente y todos avanzan de forma concurrente.
+Se pueden colocar varios bloques de inicio. Cada uno se convierte en un programa independiente y todos avanzan de forma concurrente. El simulador y el sketch generado usan el mismo orden cooperativo y el mismo presupuesto de instrucciones para que una condición no cambie de resultado al pasar del navegador a la placa.
 
 ## Simulación en el navegador
 
 La simulación representa cada instancia de la escena por separado: luces, brillo, motores, robots, servos, buzzers, sensores y estado de Wi-Fi. Los controles permiten ejecutar, pausar, avanzar un paso, detener y cambiar la velocidad.
 
-El motor de simulación corre en un Web Worker con un planificador cooperativo. Las esperas y los distintos programas no bloquean la interfaz, y se aplican límites de instrucciones y tiempo por ciclo para que un bucle infinito no congele la página. Se simula el algoritmo y su comportamiento visible; no se emulan la CPU, el radio, la corriente ni los tiempos eléctricos del ESP32.
+El motor de simulación corre en un Web Worker con un planificador cooperativo. Las esperas y los distintos programas no bloquean la interfaz, y se aplican límites de instrucciones, mensajes y tiempo por ciclo para que un bucle infinito no congele la página. Las entradas simuladas de sensores, botones y Wi-Fi se conservan al ejecutar o reiniciar. Los sonidos se administran por dispositivo y se detienen al pausar, detener o reiniciar. Se simula el algoritmo y su comportamiento visible; no se emulan la CPU, el radio, la corriente ni los tiempos eléctricos del ESP32.
 
 ## Proyectos JSON
 
@@ -51,9 +51,9 @@ Un proyecto exportado usa el esquema JSON v2 e incluye:
 - el workspace Blockly y los identificadores de sus bloques;
 - la velocidad elegida para la simulación.
 
-El programa intermedio y el Arduino C++ se regeneran a partir de esos datos. La aplicación importa proyectos v2 y migra automáticamente los JSON v1 anteriores, incluyendo las escenas predefinidas y las referencias de bloques a su primera instancia compatible. Conviene revisar los avisos de migración y la asignación de pines antes de usar el hardware.
+El programa intermedio y el Arduino C++ se regeneran a partir de esos datos. La aplicación importa proyectos v2 y migra automáticamente los JSON v1 anteriores, incluyendo las escenas predefinidas y las referencias de bloques a su primera instancia compatible. Antes de reemplazar el proyecto, valida el esquema, los tipos e identificadores de bloques, la profundidad y la cantidad de nodos. Una importación dañada se rechaza sin borrar el trabajo abierto.
 
-El guardado automático queda solamente en el almacenamiento local del navegador. Las credenciales Wi-Fi no se guardan en el proyecto: el sketch generado utiliza los marcadores `TU_RED` y `TU_CLAVE`.
+El guardado automático y el botón **Guardar** quedan solamente en el almacenamiento local del navegador. La exportación JSON sigue siendo la copia transportable. Las credenciales Wi-Fi no se guardan en el proyecto: el sketch generado utiliza los marcadores `TU_RED` y `TU_CLAVE`.
 
 ## Ejecutar localmente
 
@@ -72,6 +72,7 @@ Comprobaciones disponibles:
 npm run typecheck
 npm run lint
 npm run test:smoke
+npm run test:e2e
 npm run build
 ```
 
@@ -91,7 +92,7 @@ FQBN: esp32:esp32:d1_uno32
 
 El generador toma los GPIO de cada instancia de la escena, emite diagnósticos de cableado y crea un sketch `.ino` con un planificador cooperativo. No usa `delay()` para las esperas de los bloques, por lo que un semáforo puede esperar mientras el robot u otro programa continúa avanzando.
 
-La vista previa del código siempre queda disponible para aprender y corregir problemas. La descarga del `.ino` se habilita sólo cuando no quedan errores de pines o referencias a componentes; las advertencias eléctricas de seguridad siguen visibles.
+La vista previa del código siempre queda disponible para aprender y corregir problemas. La descarga del `.ino` se habilita sólo cuando no quedan errores de pines o referencias a componentes y se completó la revisión guiada del cableado. La guía reúne en una sola tabla la placa, todos los GPIO, resistencias, drivers, alimentación externa y masa común.
 
 La asignación automática usa un conjunto conservador de pines de la Wemos y evita pines de arranque conflictivos para las salidas. Como referencia, el kit original utilizaba:
 
@@ -120,6 +121,7 @@ La WEMOS D1 R32 usa lógica de **3,3 V**. No conectes una señal de 5 V directam
 - Si se usa una fuente externa para motores o servos, su masa (`GND`) debe estar unida a la masa de la Wemos.
 - Verifica tensión, corriente, polaridad y datasheet de cada módulo antes de conectarlo.
 - La simulación valida el comportamiento lógico y algunos conflictos de pines, pero no puede certificar que el circuito sea eléctricamente seguro.
+- El editor admite un buzzer pasivo por sketch. Generar tonos independientes en varios buzzers requiere una asignación explícita de temporizadores LEDC y queda bloqueado para evitar un resultado engañoso.
 
 ## Publicar en GitHub Pages
 
@@ -130,7 +132,7 @@ El repositorio incluye el workflow `.github/workflows/deploy-pages.yml`.
 3. En **Source**, elige **GitHub Actions**.
 4. Haz un push a `main` o ejecuta manualmente el workflow **Publicar CapiBloques en GitHub Pages**.
 
-La acción instala las dependencias, ejecuta `npm run build` y publica `dist/client`. La construcción corrige las rutas para que funcionen desde el subdirectorio asignado al repositorio en Pages.
+La acción instala las dependencias, ejecuta pruebas de núcleo y navegador en Chromium, compila un sketch representativo para `esp32:esp32:d1_uno32`, construye el sitio y publica `dist/client`. La construcción corrige las rutas para que funcionen desde el subdirectorio asignado al repositorio en Pages.
 
 ## Arquitectura
 
@@ -153,3 +155,4 @@ La escena describe **qué existe y cómo está conectado**; los bloques describe
 - El perfil de motor generado está pensado para un puente H DRV8833; otros drivers pueden requerir cambios de cableado y código.
 - Un servo se controla por posición entre 0° y 180°; la interfaz simplifica los motores y LED a potencia o brillo porcentual.
 - La disponibilidad física de GPIO impone un límite: una escena puede simularse aunque todavía tenga conflictos o pines sin asignar, pero no estará lista para descargar al hardware hasta corregirlos.
+- El contador es una variable global del programa y la escena admite un único marcador visual para evitar dos pantallas que aparenten ser contadores independientes.

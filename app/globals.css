@@ -32,7 +32,7 @@
   --bg: #f4f6ff;
   --purple: #6257e8;
   --purple-dark: #4d42c9;
-  --teal: #10ad94;
+  --teal: #087768;
   --orange: #ff7d3b;
   --radius: 0.75rem;
 }
@@ -77,6 +77,22 @@ select:focus-visible {
   border: 0;
 }
 
+/* Blockly usa capas altas para su toolbox; los diálogos siempre deben quedar encima. */
+[data-slot='dialog-overlay'],
+[data-slot='alert-dialog-overlay'] {
+  z-index: 100 !important;
+}
+[data-slot='dialog-content'] {
+  z-index: 101 !important;
+}
+[data-slot='alert-dialog-content'] {
+  z-index: 102 !important;
+}
+[data-slot='dialog-close'] {
+  min-width: 44px;
+  min-height: 44px;
+}
+
 .app-shell {
   height: 100vh;
   min-height: 680px;
@@ -91,8 +107,8 @@ select:focus-visible {
   background: var(--paper);
   border-bottom: 1px solid var(--line);
   display: grid;
-  grid-template-columns: minmax(210px, 1fr) minmax(240px, 410px) minmax(
-      380px,
+  grid-template-columns: minmax(210px, 1fr) minmax(240px, 360px) minmax(
+      540px,
       1fr
     );
   align-items: center;
@@ -156,16 +172,19 @@ select:focus-visible {
   border-radius: 8px;
 }
 .header-actions {
+  min-width: 0;
   display: flex;
   justify-content: flex-end;
   gap: 7px;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 .header-actions > button,
 .header-actions [data-slot='dropdown-menu-trigger'],
 .header-text-button {
   border: 1px solid var(--line);
   background: #fff;
-  min-height: 42px;
+  min-height: 44px;
   border-radius: 12px;
   display: inline-flex;
   align-items: center;
@@ -173,9 +192,12 @@ select:focus-visible {
   gap: 7px;
   font-weight: 740;
   cursor: pointer;
+  flex: 0 0 auto;
 }
 .icon-button {
-  width: 42px;
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
 }
 .header-text-button {
@@ -255,11 +277,15 @@ select:focus-visible {
   background: #fafbff;
   border-bottom: 1px solid var(--line);
   overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-color: #858eaf #eef0f8;
+  scrollbar-width: auto;
+  box-shadow: inset -18px 0 16px -18px rgb(32 41 77 / 55%);
 }
 .toolbar button {
   border: 1px solid var(--line);
   background: #fff;
-  min-height: 42px;
+  min-height: 44px;
   padding: 0 13px;
   border-radius: 11px;
   display: inline-flex;
@@ -268,6 +294,7 @@ select:focus-visible {
   gap: 7px;
   font-weight: 730;
   cursor: pointer;
+  flex: 0 0 auto;
   white-space: nowrap;
 }
 .toolbar .run-button,
@@ -275,12 +302,12 @@ select:focus-visible {
   color: #fff;
   border-color: var(--teal);
   background: var(--teal);
-  box-shadow: 0 4px 0 #078b79;
+  box-shadow: 0 4px 0 #055f53;
 }
 .toolbar .pause-button {
-  background: #e0792d;
-  border-color: #e0792d;
-  box-shadow: 0 4px 0 #ad581a;
+  background: #a84f12;
+  border-color: #a84f12;
+  box-shadow: 0 4px 0 #773307;
 }
 .toolbar-separator {
   width: 1px;
@@ -290,7 +317,7 @@ select:focus-visible {
   flex: 0 0 auto;
 }
 .speed-control {
-  min-height: 42px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -355,6 +382,10 @@ select:focus-visible {
   display: flex;
   flex-direction: column;
 }
+.canvas-header .canvas-header-actions {
+  flex-direction: row;
+  gap: 6px;
+}
 .canvas-header span {
   color: var(--muted);
   font-size: 10px;
@@ -378,6 +409,17 @@ select:focus-visible {
   font-size: 12px;
   font-weight: 760;
   cursor: pointer;
+}
+.canvas-header button:disabled,
+.code-actions button:disabled,
+.wiring-confirm:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+.capi-block-active > .blocklyPath {
+  filter: drop-shadow(0 0 7px rgb(255 189 55 / 95%));
+  stroke: #ffbd37;
+  stroke-width: 3px;
 }
 .blockly-shell {
   min-height: 0;
@@ -951,7 +993,7 @@ select:focus-visible {
 }
 .sim-status div span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -964,7 +1006,7 @@ select:focus-visible {
 
 .notice {
   position: fixed;
-  z-index: 20;
+  z-index: 90;
   left: 18px;
   bottom: 17px;
   max-width: min(420px, calc(100vw - 36px));
@@ -979,12 +1021,39 @@ select:focus-visible {
   box-shadow: 0 8px 24px rgb(36 45 87 / 14%);
   font-size: 12px;
   font-weight: 670;
-  pointer-events: none;
+  pointer-events: auto;
+}
+.notice.warning {
+  border-color: #e8c865;
+  background: rgb(255 249 224 / 97%);
+  color: #6f5709;
+}
+.notice.error {
+  border-color: #ec9cac;
+  background: rgb(255 239 242 / 97%);
+  color: #99243b;
+}
+.notice > span {
+  min-width: 0;
+}
+.notice button {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  background: #fff;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .example-dialog,
 .components-dialog,
-.code-dialog {
+.code-dialog,
+.problems-dialog,
+.wiring-dialog {
   width: min(920px, calc(100vw - 32px));
   max-width: 920px;
   max-height: calc(100vh - 34px);
@@ -995,7 +1064,9 @@ select:focus-visible {
 }
 .example-dialog [data-slot='dialog-title'],
 .components-dialog [data-slot='dialog-title'],
-.code-dialog [data-slot='dialog-title'] {
+.code-dialog [data-slot='dialog-title'],
+.problems-dialog [data-slot='dialog-title'],
+.wiring-dialog [data-slot='dialog-title'] {
   font-size: 22px;
   font-weight: 820;
   letter-spacing: -0.025em;
@@ -1184,6 +1255,279 @@ select:focus-visible {
   color: var(--purple-dark);
   font-weight: 750;
 }
+.code-diagnostics-button {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #e6c65d;
+  border-radius: 11px;
+  background: #fff8dc;
+  color: #725a0d;
+  font-size: 13px;
+  font-weight: 780;
+  cursor: pointer;
+}
+
+.problems-dialog {
+  width: min(680px, calc(100vw - 28px));
+  max-width: 680px;
+}
+.diagnostic-list {
+  display: grid;
+  gap: 8px;
+  max-height: min(560px, 66vh);
+  overflow: auto;
+}
+.diagnostic-item {
+  width: 100%;
+  min-height: 68px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #fff;
+  text-align: left;
+  cursor: default;
+}
+.diagnostic-item:has(em) {
+  cursor: pointer;
+}
+.diagnostic-item.error {
+  border-color: #f0bec8;
+  background: #fff6f7;
+}
+.diagnostic-item.warning {
+  border-color: #ead785;
+  background: #fffbeb;
+}
+.diagnostic-item > span:nth-child(2) {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.diagnostic-item strong {
+  font-size: 14px;
+}
+.diagnostic-item small {
+  color: #555f80;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.diagnostic-item em {
+  color: var(--purple-dark);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+.diagnostic-empty {
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--teal);
+}
+.diagnostic-empty span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.wiring-dialog {
+  width: min(1040px, calc(100vw - 28px));
+  max-width: 1040px;
+}
+.wiring-layout {
+  display: grid;
+  gap: 14px;
+}
+.wiring-board {
+  min-height: 104px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  border: 2px solid #33415d;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #176c67, #164a5f);
+  color: #fff;
+  box-shadow: inset 0 0 0 5px rgb(255 255 255 / 10%);
+}
+.wiring-board > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+.wiring-board strong {
+  font-size: 19px;
+}
+.wiring-board small {
+  color: #d9fff7;
+  font-size: 13px;
+}
+.wiring-usb,
+.wiring-ground {
+  padding: 7px 9px;
+  border: 1px solid rgb(255 255 255 / 42%);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 850;
+}
+.wiring-status {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 13px;
+  border: 1px solid #b6e5d9;
+  border-radius: 13px;
+  background: #effbf7;
+  color: #176e5e;
+}
+.wiring-status > div {
+  display: flex;
+  flex-direction: column;
+}
+.wiring-status strong {
+  font-size: 14px;
+}
+.wiring-status span {
+  color: #416d65;
+  font-size: 13px;
+}
+.wiring-table-section h3,
+.wiring-issues h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.wiring-table-wrap {
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  overflow: auto;
+}
+.wiring-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.wiring-table th,
+.wiring-table td {
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+}
+.wiring-table th {
+  background: #f3f5fb;
+  color: #596281;
+  font-size: 12px;
+}
+.wiring-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.wiring-empty {
+  margin: 0;
+  padding: 18px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+.device-advice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.device-advice-grid article {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+.device-advice-grid strong {
+  font-size: 13px;
+}
+.device-advice-grid span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.wiring-issues {
+  padding: 12px 14px;
+  border: 1px solid #ead785;
+  border-radius: 13px;
+  background: #fffbeb;
+}
+.wiring-issues ul {
+  margin: 0;
+  padding-left: 20px;
+}
+.wiring-issues li {
+  margin-top: 5px;
+  color: #675b34;
+  font-size: 13px;
+}
+.safety-checklist {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 13px 15px;
+  border: 1px solid #cfd5e8;
+  border-radius: 13px;
+}
+.safety-checklist legend {
+  padding: 0 6px;
+  font-size: 14px;
+  font-weight: 850;
+}
+.safety-checklist label {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #4e5878;
+  font-size: 13px;
+  cursor: pointer;
+}
+.safety-checklist input {
+  width: 19px;
+  height: 19px;
+  accent-color: var(--teal);
+}
+.wiring-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.wiring-footer > span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.wiring-confirm {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--teal);
+  color: #fff;
+  font-weight: 820;
+  cursor: pointer;
+}
 
 /* Editor de escenas: una mesa de robótica componible, no cuatro decorados fijos. */
 .scene-builder-dialog {
@@ -1236,7 +1580,7 @@ select:focus-visible {
 .scene-builder-status span {
   padding: 7px 10px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -1268,7 +1612,7 @@ select:focus-visible {
   flex-direction: column;
   gap: 5px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
 }
 .scene-builder-toolbar > label:first-child {
@@ -1298,6 +1642,15 @@ select:focus-visible {
 .scene-builder-toolbar > button {
   margin-left: auto;
 }
+.auto-connect-label {
+  display: inline;
+}
+.field-error {
+  color: #a4263c;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.3;
+}
 .scene-builder-grid {
   min-height: 0;
   display: grid;
@@ -1321,13 +1674,13 @@ select:focus-visible {
 .pin-editor h4,
 .scene-validation h4 {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 850;
 }
 .scene-library section > p {
   margin: 4px 0 10px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
 }
 .template-palette {
@@ -1356,11 +1709,11 @@ select:focus-visible {
   font-size: 23px;
 }
 .template-palette strong {
-  font-size: 12px;
+  font-size: 13px;
 }
 .template-palette small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 .component-palette {
   display: grid;
@@ -1389,12 +1742,12 @@ select:focus-visible {
   flex-direction: column;
 }
 .component-palette strong {
-  font-size: 11px;
+  font-size: 13px;
 }
 .component-palette small {
   overflow: hidden;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1419,12 +1772,12 @@ select:focus-visible {
   gap: 12px;
 }
 .canvas-label span {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 850;
 }
 .canvas-label small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 .scene-stage {
   isolation: isolate;
@@ -1450,7 +1803,10 @@ select:focus-visible {
     linear-gradient(90deg, rgb(93 100 133 / 8%) 1px, transparent 1px),
     linear-gradient(rgb(93 100 133 / 8%) 1px, transparent 1px),
     linear-gradient(#f7e8c4 0 70%, #bd8b5d 70%);
-  background-size: 32px 32px, 32px 32px, auto;
+  background-size:
+    32px 32px,
+    32px 32px,
+    auto;
 }
 .scene-stage.scene-background-home {
   background:
@@ -1471,7 +1827,7 @@ select:focus-visible {
   background-image:
     linear-gradient(rgb(58 68 106 / 14%) 1px, transparent 1px),
     linear-gradient(90deg, rgb(58 68 106 / 14%) 1px, transparent 1px);
-  background-size: 20px 20px;
+  background-size: var(--scene-grid-x, 20px) var(--scene-grid-y, 20px);
   transition: opacity 0.15s;
 }
 .scene-stage.editing .scene-grid {
@@ -1623,7 +1979,9 @@ select:focus-visible {
   outline-offset: 3px;
 }
 .scene-widget strong {
-  font: 800 28px/1 'Cascadia Code', monospace;
+  font:
+    800 28px/1 'Cascadia Code',
+    monospace;
 }
 .scene-widget span {
   font-size: 25px;
@@ -1695,13 +2053,13 @@ select:focus-visible {
 }
 .inspector-title small {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
 }
 .inspector-title strong {
   overflow: hidden;
-  font-size: 13px;
+  font-size: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1728,7 +2086,7 @@ select:focus-visible {
 }
 .pin-editor > p {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.45;
 }
 .inspector-actions {
@@ -1745,17 +2103,17 @@ select:focus-visible {
   background: #f7f8ff;
 }
 .widget-help strong {
-  font-size: 11px;
+  font-size: 13px;
 }
 .widget-help p {
   margin: 5px 0 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.45;
 }
 .inspector-actions button {
   padding-inline: 8px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .inspector-empty {
   min-height: 200px;
@@ -1774,7 +2132,7 @@ select:focus-visible {
 }
 .inspector-empty p {
   max-width: 190px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .scene-validation {
   margin-top: 17px;
@@ -1791,7 +2149,7 @@ select:focus-visible {
 .scene-validation li {
   margin-top: 5px;
   color: #685e3d;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.35;
 }
 .scene-validation small {
@@ -1809,7 +2167,7 @@ select:focus-visible {
 .scene-builder-footer > span {
   margin-right: auto;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 750;
 }
 @keyframes motor-turn {
@@ -1836,12 +2194,19 @@ select:focus-visible {
     display: none;
   }
   .header-text-button {
-    display: none;
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+    font-size: 0;
+  }
+  .header-text-button svg {
+    width: 20px;
+    height: 20px;
   }
   .workspace-grid.functional {
     grid-template-columns: minmax(520px, 1fr) 350px;
   }
-  .board-badge {
+  .toolbar .board-badge {
     display: none;
   }
   .scene-builder-grid {
@@ -1865,8 +2230,14 @@ select:focus-visible {
   .header-actions .export-button {
     font-size: 0;
   }
+  .header-actions {
+    max-width: calc(100vw - 145px);
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
   .header-actions .export-button {
-    width: 42px;
+    width: 44px;
+    min-width: 44px;
     padding: 0;
   }
   .mission-strip {
@@ -1876,12 +2247,12 @@ select:focus-visible {
     position: sticky;
     top: 72px;
     z-index: 4;
+    flex-wrap: wrap;
     padding-inline: 12px;
+    overflow: visible;
+    box-shadow: none;
   }
-  .toolbar-separator,
-  .speed-control,
-  .toolbar button:nth-of-type(4),
-  .toolbar button:last-of-type {
+  .toolbar-separator {
     display: none;
   }
   .workspace-grid.functional {
@@ -1920,10 +2291,18 @@ select:focus-visible {
 }
 
 @media (max-width: 620px) {
-  .mission-strip div span,
-  .mission-button,
-  .header-actions .icon-button:first-of-type {
+  .mission-strip div span {
     display: none;
+  }
+  .mission-button {
+    min-width: 44px;
+    min-height: 44px;
+    padding-inline: 8px;
+    font-size: 0;
+  }
+  .mission-button::before {
+    content: '✏️';
+    font-size: 17px;
   }
   .toolbar button {
     min-width: 44px;
@@ -1934,11 +2313,36 @@ select:focus-visible {
     width: 20px;
     height: 20px;
   }
+  .speed-control {
+    min-width: max-content;
+    font-size: 0;
+  }
+  .speed-control select {
+    min-height: 44px;
+    font-size: 13px;
+  }
   .workspace-grid.functional {
     grid-template-rows: 620px 520px;
   }
   .canvas-header {
+    height: 52px;
+    padding-inline: 9px;
+  }
+  .canvas-header > div:first-child strong {
     display: none;
+  }
+  .canvas-header .canvas-header-actions {
+    margin-left: auto;
+  }
+  .canvas-header-actions button {
+    min-width: 44px;
+    min-height: 44px;
+    padding-inline: 8px;
+    font-size: 0;
+  }
+  .canvas-header-actions button svg {
+    width: 18px;
+    height: 18px;
   }
   .blocklyTreeRow {
     margin-inline: 3px !important;
@@ -1952,7 +2356,9 @@ select:focus-visible {
   }
   .example-dialog,
   .components-dialog,
-  .code-dialog {
+  .code-dialog,
+  .problems-dialog,
+  .wiring-dialog {
     padding: 16px;
   }
   .component-row {
@@ -1965,30 +2371,76 @@ select:focus-visible {
     grid-template-columns: 1fr;
   }
   .scene-builder-heading {
-    padding: 15px;
+    min-height: 52px;
+    align-items: center;
+    padding: 8px 10px;
+    gap: 8px;
   }
-  .scene-builder-status,
-  .scene-snap-control,
-  .scene-builder-toolbar > label:nth-child(2) {
+  .scene-builder-heading .eyebrow,
+  .scene-builder-heading [data-slot='dialog-description'] {
     display: none;
   }
-  .scene-builder-toolbar {
+  .scene-builder-heading [data-slot='dialog-title'] {
+    font-size: 19px;
+  }
+  .scene-builder-status {
+    flex-wrap: nowrap;
     align-items: center;
-    padding: 8px 12px;
+    padding-right: 0;
+  }
+  .scene-builder-status > span:not(:last-of-type) {
+    display: none;
+  }
+  .scene-builder-status span {
+    padding: 5px 7px;
+    font-size: 10px;
+  }
+  .scene-builder-toolbar {
+    min-height: 64px;
+    align-items: center;
+    padding: 6px 10px;
   }
   .scene-builder-toolbar > label:first-child {
     min-width: 170px;
   }
   .scene-builder-toolbar > button {
-    font-size: 0;
+    min-width: 44px;
+    min-height: 44px;
+    padding-inline: 10px;
   }
-  .scene-builder-toolbar > button::before {
-    content: '✨';
+  .scene-builder-toolbar > button > span[aria-hidden='true'] {
     font-size: 16px;
+  }
+  .auto-connect-label {
+    display: none;
   }
   .scene-builder-grid {
     display: flex;
     flex-direction: column;
+    min-height: 0;
+    overflow: auto;
+  }
+  .scene-builder-canvas {
+    order: 1;
+    min-height: 240px;
+    flex: 0 0 auto;
+    padding: 10px;
+  }
+  .scene-inspector {
+    order: 2;
+    flex: 0 0 auto;
+  }
+  .scene-library {
+    order: 3;
+  }
+  .scene-builder-grid.empty .scene-library {
+    order: 1;
+  }
+  .scene-builder-grid.empty .scene-builder-canvas {
+    order: 2;
+  }
+  .scene-builder-grid.empty .scene-inspector {
+    order: 3;
   }
   .scene-library {
     flex: 0 0 auto;
@@ -1996,17 +2448,109 @@ select:focus-visible {
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
-  .component-palette {
-    grid-template-columns: 1fr 1fr;
+  .template-palette {
+    grid-template-columns: repeat(4, minmax(108px, 1fr));
+    overflow-x: auto;
+    padding-bottom: 4px;
   }
-  .scene-builder-canvas {
-    flex: 0 0 auto;
+  .component-palette {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(168px, 1fr);
+    grid-template-rows: repeat(2, minmax(52px, auto));
+    overflow-x: auto;
+    padding-bottom: 4px;
   }
   .scene-stage.editing {
-    min-height: 280px;
+    min-height: 200px;
   }
-  .scene-inspector {
-    flex: 0 0 auto;
+  .scene-builder-footer {
+    min-height: 54px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+  }
+  .scene-builder-footer > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .scene-builder-footer button {
+    min-height: 42px;
+    padding-inline: 9px;
+  }
+  .device-advice-grid {
+    grid-template-columns: 1fr;
+  }
+  .wiring-board {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+  .wiring-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .notice {
+    right: 12px;
+    max-width: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .scene-builder-footer {
+    min-height: 86px;
+    flex-wrap: wrap;
+  }
+  .scene-builder-footer > span {
+    order: -1;
+    flex: 1 0 100%;
+    margin: 0;
+    text-align: center;
+  }
+  .scene-builder-footer button {
+    flex: 1 1 30%;
+  }
+}
+
+@media (max-height: 500px) {
+  .scene-builder-heading {
+    min-height: 48px;
+    align-items: center;
+    padding: 6px 10px;
+  }
+  .scene-builder-heading .eyebrow,
+  .scene-builder-heading [data-slot='dialog-description'] {
+    display: none;
+  }
+  .scene-builder-heading [data-slot='dialog-title'] {
+    font-size: 18px;
+  }
+  .scene-builder-status {
+    flex-wrap: nowrap;
+    align-items: center;
+    padding-right: 0;
+  }
+  .scene-builder-status > span:not(:last-of-type) {
+    display: none;
+  }
+  .scene-builder-toolbar {
+    min-height: 58px;
+    padding-block: 5px;
+    overflow-x: auto;
+  }
+  .scene-builder-grid {
+    min-height: 120px;
+    overflow: auto;
+  }
+  .scene-builder-footer {
+    min-height: 50px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    padding-block: 5px;
   }
 }
 

@@ -172,6 +172,15 @@ export interface SceneDefinition {
   canvas: SceneCanvas;
   devices: SceneDevice[];
   widgets: SceneWidget[];
+  /**
+   * Device identities that were removed from this scene. They are kept in the
+   * project file so an orphan Blockly block can never start controlling a new
+   * physical component merely because its old id was recycled.
+   *
+   * Optional for backwards compatibility with scene schema v1 files created
+   * before identity tombstones were introduced.
+   */
+  retiredDeviceIds?: string[];
   sourceTemplate?: LegacySceneId;
 }
 
@@ -498,25 +507,36 @@ export function cloneScene(
     canvas: { ...scene.canvas },
     devices: scene.devices.map(cloneDevice),
     widgets: scene.widgets.map(cloneWidget),
+    retiredDeviceIds: [...(scene.retiredDeviceIds ?? [])],
   };
+}
+
+const MAX_SCENE_ITEMS = 256;
+const MAX_RETIRED_DEVICE_IDS = 4096;
+const MAX_GENERATED_ID_SEQUENCE = MAX_SCENE_ITEMS + MAX_RETIRED_DEVICE_IDS + 1;
+
+function createUnusedId(base: string, usedIds: Iterable<string>) {
+  const used = new Set(usedIds);
+  // A valid scene contains at most MAX_SCENE_ITEMS live items. Even after many
+  // deletions this bounded search cannot freeze the editor on hostile input.
+  for (let sequence = 1; sequence <= MAX_GENERATED_ID_SEQUENCE; sequence += 1) {
+    const candidate = `${base}-${sequence}`;
+    if (!used.has(candidate)) return candidate;
+  }
+  throw new Error(
+    'La escena agotó sus identificadores seguros. Guarda una copia y crea una escena nueva.',
+  );
 }
 
 export function createStableDeviceId(
   kind: SceneDeviceKind,
   usedIds: Iterable<string>,
 ) {
-  const used = new Set(usedIds);
-  const base = kindIdBases[kind];
-  let sequence = 1;
-  while (used.has(`${base}-${sequence}`)) sequence += 1;
-  return `${base}-${sequence}`;
+  return createUnusedId(kindIdBases[kind], usedIds);
 }
 
 function createStableId(base: string, usedIds: Iterable<string>) {
-  const used = new Set(usedIds);
-  let sequence = 1;
-  while (used.has(`${base}-${sequence}`)) sequence += 1;
-  return `${base}-${sequence}`;
+  return createUnusedId(base, usedIds);
 }
 
 function visibleNameKey(name: string) {
@@ -552,14 +572,27 @@ function createUniqueVisibleName(
     hasSafeSuffix ? (match?.[1] ?? preferred) : preferred,
     fallback,
   );
-  let sequence = hasSafeSuffix ? parsedSuffix + 1 : 2;
+  let sequence =
+    hasSafeSuffix && parsedSuffix < Number.MAX_SAFE_INTEGER - MAX_SCENE_ITEMS
+      ? parsedSuffix + 1
+      : 2;
 
-  while (true) {
+  // There are more candidates than live scene items, so a valid scene always
+  // finds a free name. The explicit bound also makes this safe for malformed
+  // programmatic callers and numbers at JavaScript's precision limit.
+  const attemptLimit = Math.min(
+    MAX_GENERATED_ID_SEQUENCE,
+    Math.max(MAX_SCENE_ITEMS + 1, used.size + 1),
+  );
+  for (let attempt = 0; attempt < attemptLimit; attempt += 1) {
     const suffix = ` ${sequence}`;
     const candidate = `${stem.slice(0, 60 - suffix.length).trimEnd()}${suffix}`;
     if (!used.has(visibleNameKey(candidate))) return candidate;
     sequence += 1;
   }
+  throw new Error(
+    'No se pudo crear un nombre único. Cambia el nombre de algún componente.',
+  );
 }
 
 function sceneItemNames(scene: SceneDefinition) {
@@ -888,6 +921,7 @@ export function createEmptyScene(
     canvas: { ...defaultCanvas, ...options.canvas },
     devices: [],
     widgets: [],
+    retiredDeviceIds: [],
   };
 }
 
@@ -901,7 +935,20 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
   options: DeviceCreationOptions<K> = {},
 ): AddDeviceResult {
   const scene = cloneScene(source);
-  const device = createSceneDevice(kind, scene.devices, options);
+  if (scene.devices.length + scene.widgets.length >= MAX_SCENE_ITEMS) {
+    throw new Error(
+      `Una escena admite hasta ${MAX_SCENE_ITEMS} componentes para mantener el editor fluido.`,
+    );
+  }
+  const reservedIds = [
+    ...scene.devices.map((item) => item.id),
+    ...scene.widgets.map((item) => item.id),
+    ...(scene.retiredDeviceIds ?? []),
+  ];
+  const device = createSceneDevice(kind, scene.devices, {
+    ...options,
+    id: options.id ?? createStableDeviceId(kind, reservedIds),
+  });
   device.name = createUniqueVisibleName(
     device.name,
     sceneItemNames(scene),
@@ -951,25 +998,10 @@ export function duplicateSceneWidget(
   const original = source.widgets.find((widget) => widget.id === widgetId);
   if (!original) return null;
 
-  const scene = cloneScene(source);
-  const widget: SceneWidget = {
-    ...cloneWidget(original),
-    id: createStableId(
-      original.kind,
-      scene.widgets.map((item) => item.id),
-    ),
-    name: createUniqueVisibleName(
-      original.name,
-      sceneItemNames(scene),
-      'Contador',
-    ),
-    position: {
-      x: clamp(original.position.x + offset.x, 0, source.canvas.width),
-      y: clamp(original.position.y + offset.y, 0, source.canvas.height),
-    },
-  };
-  scene.widgets.push(widget);
-  return { scene, widget };
+  // The program model intentionally has one global counter. Rendering a second
+  // counter made two controls look independent while showing the same value.
+  void offset;
+  return null;
 }
 
 export function removeDeviceFromScene(
@@ -977,7 +1009,16 @@ export function removeDeviceFromScene(
   deviceId: string,
 ) {
   const scene = cloneScene(source);
+  const removed = scene.devices.find((device) => device.id === deviceId);
   scene.devices = scene.devices.filter((device) => device.id !== deviceId);
+  if (removed && !(scene.retiredDeviceIds ?? []).includes(removed.id)) {
+    scene.retiredDeviceIds = [...(scene.retiredDeviceIds ?? []), removed.id];
+    if (scene.retiredDeviceIds.length > MAX_RETIRED_DEVICE_IDS) {
+      throw new Error(
+        'La escena alcanzó el límite de componentes eliminados. Guarda una copia y crea una escena nueva para continuar.',
+      );
+    }
+  }
   return scene;
 }
 
@@ -1131,12 +1172,40 @@ export function appendTemplateToScene(
   const template = sceneTemplates[templateId];
   const offset = options.offset ?? { x: 40, y: 40 };
   const addedDeviceIds: string[] = [];
+  const warnings: string[] = [];
+
+  if (
+    template.widgets.some((widget) => widget.kind === 'counter') &&
+    scene.widgets.some((widget) => widget.kind === 'counter')
+  ) {
+    const assigned = assignSafePins(scene);
+    return {
+      ...assigned,
+      warnings: [
+        'La escena ya tiene el contador global; la plantilla no se agregó otra vez.',
+        ...assigned.warnings,
+      ],
+      addedDeviceIds,
+    };
+  }
 
   for (const templateItem of template.devices) {
+    if (scene.devices.length + scene.widgets.length >= MAX_SCENE_ITEMS) {
+      warnings.push(
+        `No se agregaron más componentes: la escena alcanzó el límite de ${MAX_SCENE_ITEMS}.`,
+      );
+      break;
+    }
     const pins = Object.fromEntries(
       Object.keys(templateItem.pins).map((key) => [key, null]),
     );
+    const reservedIds = [
+      ...scene.devices.map((item) => item.id),
+      ...scene.widgets.map((item) => item.id),
+      ...(scene.retiredDeviceIds ?? []),
+    ];
     const device = createSceneDevice(templateItem.kind, scene.devices, {
+      id: createStableDeviceId(templateItem.kind, reservedIds),
       name: createUniqueVisibleName(
         templateItem.name,
         sceneItemNames(scene),
@@ -1156,12 +1225,28 @@ export function appendTemplateToScene(
   }
 
   for (const widget of template.widgets) {
+    if (
+      widget.kind === 'counter' &&
+      scene.widgets.some((item) => item.kind === 'counter')
+    ) {
+      warnings.push(
+        'La escena ya tiene el contador global; no se agregó un segundo indicador idéntico.',
+      );
+      continue;
+    }
+    if (scene.devices.length + scene.widgets.length >= MAX_SCENE_ITEMS) {
+      warnings.push(
+        `No se agregaron más componentes: la escena alcanzó el límite de ${MAX_SCENE_ITEMS}.`,
+      );
+      break;
+    }
     scene.widgets.push({
       ...cloneWidget(widget),
-      id: createStableId(
-        widget.kind,
-        scene.widgets.map((item) => item.id),
-      ),
+      id: createStableId(widget.kind, [
+        ...scene.devices.map((item) => item.id),
+        ...scene.widgets.map((item) => item.id),
+        ...(scene.retiredDeviceIds ?? []),
+      ]),
       name: createUniqueVisibleName(
         widget.name,
         sceneItemNames(scene),
@@ -1175,7 +1260,11 @@ export function appendTemplateToScene(
   }
 
   const assigned = assignSafePins(scene);
-  return { ...assigned, addedDeviceIds };
+  return {
+    ...assigned,
+    warnings: [...new Set([...warnings, ...assigned.warnings])],
+    addedDeviceIds,
+  };
 }
 
 export function composeSceneTemplates(
@@ -1200,18 +1289,36 @@ export function composeSceneTemplates(
 
 export type SceneValidationIssueCode =
   | 'invalid-scene-name'
+  | 'invalid-scene-id'
+  | 'too-many-items'
+  | 'invalid-device-id'
   | 'invalid-device-name'
   | 'duplicate-device-id'
+  | 'invalid-widget-id'
+  | 'invalid-widget-name'
+  | 'duplicate-item-id'
+  | 'duplicate-item-name'
+  | 'multiple-counter-widgets'
+  | 'invalid-retired-device-id'
+  | 'active-id-is-retired'
   | 'invalid-position'
+  | 'invalid-rotation'
   | 'missing-pin'
   | 'unsupported-pin'
-  | 'pin-conflict';
+  | 'pin-conflict'
+  | 'pwm-channel-limit'
+  | 'passive-buzzer-limit'
+  | 'button-pullup-unavailable'
+  | 'external-motor-power'
+  | 'external-servo-power'
+  | 'led-resistor-required';
 
 export interface SceneValidationIssue {
   code: SceneValidationIssueCode;
   severity: 'error' | 'warning';
   message: string;
   deviceId?: string;
+  itemId?: string;
   pin?: number;
 }
 
@@ -1231,12 +1338,58 @@ function nameIsValid(name: string) {
   );
 }
 
+function itemIdIsValid(id: string) {
+  const trimmed = id.trim();
+  return (
+    trimmed.length > 0 &&
+    trimmed.length <= 128 &&
+    !trimmed.split('').some(isControlCharacter)
+  );
+}
+
+function positionIsInsideCanvas(position: ScenePosition, canvas: SceneCanvas) {
+  return (
+    Number.isFinite(position.x) &&
+    Number.isFinite(position.y) &&
+    position.x >= 0 &&
+    position.x <= canvas.width &&
+    position.y >= 0 &&
+    position.y <= canvas.height
+  );
+}
+
+function pwmChannelCount(devices: readonly SceneDevice[]) {
+  return devices.reduce((total, device) => {
+    switch (device.kind) {
+      case 'robot':
+        return total + 4;
+      case 'motor':
+        return total + 2;
+      case 'led':
+      case 'servo':
+      case 'activeBuzzer':
+      case 'passiveBuzzer':
+        return total + 1;
+      default:
+        return total;
+    }
+  }, 0);
+}
+
 /**
  * Validates both editor identity and physical wiring. Missing/conflicting pins
  * are warnings: they disable hardware readiness, never browser simulation.
  */
 export function validateScene(scene: SceneDefinition): SceneValidationResult {
   const issues: SceneValidationIssue[] = [];
+  if (!itemIdIsValid(scene.id)) {
+    issues.push({
+      code: 'invalid-scene-id',
+      severity: 'error',
+      message: 'La identidad interna de la escena está dañada.',
+      itemId: scene.id,
+    });
+  }
   if (!nameIsValid(scene.name)) {
     issues.push({
       code: 'invalid-scene-name',
@@ -1245,9 +1398,26 @@ export function validateScene(scene: SceneDefinition): SceneValidationResult {
     });
   }
 
+  if (scene.devices.length + scene.widgets.length > MAX_SCENE_ITEMS) {
+    issues.push({
+      code: 'too-many-items',
+      severity: 'error',
+      message: `La escena tiene demasiados elementos. El máximo es ${MAX_SCENE_ITEMS}.`,
+    });
+  }
+
   const ids = new Set<string>();
+  const visibleNames = new Map<string, string>();
   const occupied = new Map<number, PinSlot>();
   for (const device of scene.devices) {
+    if (!itemIdIsValid(device.id)) {
+      issues.push({
+        code: 'invalid-device-id',
+        severity: 'error',
+        message: `${device.name}: su identidad interna no es válida.`,
+        deviceId: device.id,
+      });
+    }
     if (!nameIsValid(device.name)) {
       issues.push({
         code: 'invalid-device-name',
@@ -1265,21 +1435,184 @@ export function validateScene(scene: SceneDefinition): SceneValidationResult {
       });
     }
     ids.add(device.id);
-    if (
-      !Number.isFinite(device.position.x) ||
-      !Number.isFinite(device.position.y) ||
-      device.position.x < 0 ||
-      device.position.x > scene.canvas.width ||
-      device.position.y < 0 ||
-      device.position.y > scene.canvas.height
-    ) {
+    const nameKey = visibleNameKey(device.name);
+    const previousNameOwner = visibleNames.get(nameKey);
+    if (previousNameOwner) {
+      issues.push({
+        code: 'duplicate-item-name',
+        severity: 'error',
+        message: `“${device.name}” está repetido. Usa nombres distintos para reconocer cada componente en los bloques.`,
+        deviceId: device.id,
+      });
+    } else {
+      visibleNames.set(nameKey, device.id);
+    }
+    if (!positionIsInsideCanvas(device.position, scene.canvas)) {
       issues.push({
         code: 'invalid-position',
-        severity: 'warning',
-        message: `${device.name} está fuera del lienzo y puede reubicarse.`,
+        severity: 'error',
+        message: `${device.name} está fuera del lienzo. Reubícalo antes de guardar la escena.`,
         deviceId: device.id,
       });
     }
+    if (
+      !Number.isFinite(device.rotation) ||
+      device.rotation < 0 ||
+      device.rotation >= 360
+    ) {
+      issues.push({
+        code: 'invalid-rotation',
+        severity: 'error',
+        message: `${device.name} tiene un giro no válido. Usa un ángulo entre 0 y 359 grados.`,
+        deviceId: device.id,
+      });
+    }
+
+    if (device.kind === 'robot' || device.kind === 'motor') {
+      issues.push({
+        code: 'external-motor-power',
+        severity: 'warning',
+        message: `${device.name} necesita un DRV8833, alimentación externa y masa común con la Wemos.`,
+        deviceId: device.id,
+      });
+    }
+    if (device.kind === 'servo') {
+      issues.push({
+        code: 'external-servo-power',
+        severity: 'warning',
+        message: `${device.name} debe usar una alimentación adecuada y masa común; no lo alimentes desde un GPIO.`,
+        deviceId: device.id,
+      });
+    }
+    if (device.kind === 'led' || device.kind === 'trafficLight') {
+      issues.push({
+        code: 'led-resistor-required',
+        severity: 'warning',
+        message: `${device.name} necesita una resistencia limitadora por cada LED físico.`,
+        deviceId: device.id,
+      });
+    }
+    if (
+      device.kind === 'button' &&
+      device.config.pullup &&
+      [34, 35, 36, 39].includes(device.pins.signal ?? -1)
+    ) {
+      issues.push({
+        code: 'button-pullup-unavailable',
+        severity: 'warning',
+        message: `${device.name} usa una entrada sin pull-up interno; elige otro GPIO o agrega una resistencia externa.`,
+        deviceId: device.id,
+        pin: device.pins.signal ?? undefined,
+      });
+    }
+  }
+
+  let counterCount = 0;
+  for (const widget of scene.widgets) {
+    if (!itemIdIsValid(widget.id)) {
+      issues.push({
+        code: 'invalid-widget-id',
+        severity: 'error',
+        message: `${widget.name}: la identidad interna del indicador no es válida.`,
+        itemId: widget.id,
+      });
+    }
+    if (!nameIsValid(widget.name)) {
+      issues.push({
+        code: 'invalid-widget-name',
+        severity: 'error',
+        message: `${widget.id}: el nombre debe tener entre 1 y 60 caracteres.`,
+        itemId: widget.id,
+      });
+    }
+    if (ids.has(widget.id)) {
+      issues.push({
+        code: 'duplicate-item-id',
+        severity: 'error',
+        message: `El identificador ${widget.id} está repetido entre los elementos de la escena.`,
+        itemId: widget.id,
+      });
+    }
+    ids.add(widget.id);
+    const nameKey = visibleNameKey(widget.name);
+    if (visibleNames.has(nameKey)) {
+      issues.push({
+        code: 'duplicate-item-name',
+        severity: 'error',
+        message: `“${widget.name}” está repetido. Usa nombres distintos para cada elemento.`,
+        itemId: widget.id,
+      });
+    } else {
+      visibleNames.set(nameKey, widget.id);
+    }
+    if (!positionIsInsideCanvas(widget.position, scene.canvas)) {
+      issues.push({
+        code: 'invalid-position',
+        severity: 'error',
+        message: `${widget.name} está fuera del lienzo. Reubícalo antes de guardar la escena.`,
+        itemId: widget.id,
+      });
+    }
+    if (widget.kind === 'counter') counterCount += 1;
+  }
+
+  if (counterCount > 1) {
+    issues.push({
+      code: 'multiple-counter-widgets',
+      severity: 'error',
+      message:
+        'Hay más de un indicador de contador, pero el programa tiene un solo contador global. Conserva únicamente uno.',
+    });
+  }
+
+  const retiredIds = new Set<string>();
+  if ((scene.retiredDeviceIds?.length ?? 0) > MAX_RETIRED_DEVICE_IDS) {
+    issues.push({
+      code: 'invalid-retired-device-id',
+      severity: 'error',
+      message: `El historial de identidades eliminadas supera el máximo de ${MAX_RETIRED_DEVICE_IDS}.`,
+    });
+  }
+  for (const retiredId of scene.retiredDeviceIds ?? []) {
+    if (!itemIdIsValid(retiredId) || retiredIds.has(retiredId)) {
+      issues.push({
+        code: 'invalid-retired-device-id',
+        severity: 'error',
+        message: 'El historial de identidades eliminadas está dañado.',
+        itemId: retiredId,
+      });
+      continue;
+    }
+    retiredIds.add(retiredId);
+    if (ids.has(retiredId)) {
+      issues.push({
+        code: 'active-id-is-retired',
+        severity: 'error',
+        message: `La identidad ${retiredId} pertenece a un componente eliminado y no puede reutilizarse.`,
+        itemId: retiredId,
+      });
+    }
+  }
+
+  const requiredPwmChannels = pwmChannelCount(scene.devices);
+  if (requiredPwmChannels > 16) {
+    issues.push({
+      code: 'pwm-channel-limit',
+      severity: 'warning',
+      message: `La escena necesita ${requiredPwmChannels} canales PWM; la Wemos D1 R32 dispone de 16.`,
+    });
+  }
+
+  const passiveBuzzers = scene.devices.filter(
+    (device) => device.kind === 'passiveBuzzer',
+  );
+  if (passiveBuzzers.length > 1) {
+    issues.push({
+      code: 'passive-buzzer-limit',
+      severity: 'warning',
+      message:
+        'Esta versión admite un solo buzzer pasivo por placa para garantizar que cada nota conserve su frecuencia.',
+    });
   }
 
   for (const slot of collectPinSlots(scene.devices)) {
@@ -1316,9 +1649,25 @@ export function validateScene(scene: SceneDefinition): SceneValidationResult {
     }
   }
 
+  const hardwareBlockingCodes: readonly SceneValidationIssueCode[] = [
+    'missing-pin',
+    'unsupported-pin',
+    'pin-conflict',
+    'pwm-channel-limit',
+    'passive-buzzer-limit',
+    'button-pullup-unavailable',
+  ];
+  issues.sort((left, right) => {
+    const priority = (issue: SceneValidationIssue) => {
+      if (issue.severity === 'error') return 0;
+      if (hardwareBlockingCodes.includes(issue.code)) return 1;
+      return 2;
+    };
+    return priority(left) - priority(right);
+  });
   const hasErrors = issues.some((issue) => issue.severity === 'error');
   const hasHardwareIssues = issues.some((issue) =>
-    ['missing-pin', 'unsupported-pin', 'pin-conflict'].includes(issue.code),
+    hardwareBlockingCodes.includes(issue.code),
   );
   return {
     valid: !hasErrors,
@@ -1338,55 +1687,127 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
+function hasOnlyKeys(
+  record: Record<string, unknown>,
+  allowedKeys: readonly string[],
+) {
+  const allowed = new Set(allowedKeys);
+  return Object.keys(record).every((key) => allowed.has(key));
+}
+
 function hasFiniteNumber(record: Record<string, unknown>, key: string) {
   return typeof record[key] === 'number' && Number.isFinite(record[key]);
 }
 
-function validDeviceConfig(kind: SceneDeviceKind, config: Record<string, unknown>) {
+function validDeviceConfig(
+  kind: SceneDeviceKind,
+  config: Record<string, unknown>,
+) {
   switch (kind) {
     case 'trafficLight':
-      return ['redBrightness', 'yellowBrightness', 'greenBrightness'].every(
-        (key) => hasFiniteNumber(config, key),
+      return (
+        hasOnlyKeys(config, [
+          'redBrightness',
+          'yellowBrightness',
+          'greenBrightness',
+        ]) &&
+        ['redBrightness', 'yellowBrightness', 'greenBrightness'].every(
+          (key) =>
+            hasFiniteNumber(config, key) &&
+            Number(config[key]) >= 0 &&
+            Number(config[key]) <= 100,
+        )
       );
     case 'robot':
       return (
+        hasOnlyKeys(config, ['speed', 'heading', 'color']) &&
         hasFiniteNumber(config, 'speed') &&
+        Number(config.speed) >= 0 &&
+        Number(config.speed) <= 100 &&
         hasFiniteNumber(config, 'heading') &&
-        typeof config.color === 'string'
+        Math.abs(Number(config.heading)) <= 360_000 &&
+        typeof config.color === 'string' &&
+        config.color.length <= 64
       );
     case 'motor':
-      return hasFiniteNumber(config, 'power') && config.driver === 'DRV8833';
+      return (
+        hasOnlyKeys(config, ['power', 'driver']) &&
+        hasFiniteNumber(config, 'power') &&
+        Number(config.power) >= 0 &&
+        Number(config.power) <= 100 &&
+        config.driver === 'DRV8833'
+      );
     case 'led':
       return (
-        hasFiniteNumber(config, 'brightness') && typeof config.color === 'string'
+        hasOnlyKeys(config, ['brightness', 'color']) &&
+        hasFiniteNumber(config, 'brightness') &&
+        Number(config.brightness) >= 0 &&
+        Number(config.brightness) <= 100 &&
+        typeof config.color === 'string' &&
+        config.color.length <= 64
       );
     case 'servo':
-      return hasFiniteNumber(config, 'angle');
+      return (
+        hasOnlyKeys(config, ['angle']) &&
+        hasFiniteNumber(config, 'angle') &&
+        Number(config.angle) >= 0 &&
+        Number(config.angle) <= 180
+      );
     case 'activeBuzzer':
-      return typeof config.enabled === 'boolean';
+      return (
+        hasOnlyKeys(config, ['enabled']) && typeof config.enabled === 'boolean'
+      );
     case 'passiveBuzzer':
       return (
+        hasOnlyKeys(config, ['frequency', 'durationMs']) &&
         hasFiniteNumber(config, 'frequency') &&
-        hasFiniteNumber(config, 'durationMs')
+        Number(config.frequency) >= 20 &&
+        Number(config.frequency) <= 20_000 &&
+        hasFiniteNumber(config, 'durationMs') &&
+        Number(config.durationMs) >= 10 &&
+        Number(config.durationMs) <= 60_000
       );
     case 'button':
       return (
-        typeof config.pressed === 'boolean' && typeof config.pullup === 'boolean'
+        hasOnlyKeys(config, ['pressed', 'pullup']) &&
+        typeof config.pressed === 'boolean' &&
+        typeof config.pullup === 'boolean'
       );
     case 'lightSensor':
     case 'potentiometer':
-      return hasFiniteNumber(config, 'value');
+      return (
+        hasOnlyKeys(config, ['value']) &&
+        hasFiniteNumber(config, 'value') &&
+        Number(config.value) >= 0 &&
+        Number(config.value) <= 4095
+      );
     case 'wifiNode':
       return (
+        hasOnlyKeys(config, ['status', 'ssid']) &&
         ['idle', 'connecting', 'connected', 'error'].includes(
           String(config.status),
-        ) && typeof config.ssid === 'string'
+        ) &&
+        typeof config.ssid === 'string' &&
+        config.ssid.length <= 64
       );
   }
 }
 
 function isSceneDevice(value: unknown): value is SceneDevice {
   if (!isRecord(value)) return false;
+  if (
+    !hasOnlyKeys(value, [
+      'schemaVersion',
+      'id',
+      'kind',
+      'name',
+      'position',
+      'rotation',
+      'pins',
+      'config',
+    ])
+  )
+    return false;
   const kind = value.kind;
   if (
     typeof kind !== 'string' ||
@@ -1395,6 +1816,7 @@ function isSceneDevice(value: unknown): value is SceneDevice {
     typeof value.id !== 'string' ||
     typeof value.name !== 'string' ||
     !isRecord(value.position) ||
+    !hasOnlyKeys(value.position, ['x', 'y']) ||
     !hasFiniteNumber(value.position, 'x') ||
     !hasFiniteNumber(value.position, 'y') ||
     !hasFiniteNumber(value, 'rotation') ||
@@ -1404,6 +1826,13 @@ function isSceneDevice(value: unknown): value is SceneDevice {
     return false;
   const typedKind = kind as SceneDeviceKind;
   const pins = value.pins;
+  if (
+    !hasOnlyKeys(
+      pins,
+      requirementsByKind[typedKind].map((requirement) => requirement.key),
+    )
+  )
+    return false;
   const pinsAreValid = requirementsByKind[typedKind].every((requirement) => {
     const pin = pins[requirement.key];
     return pin === null || (typeof pin === 'number' && Number.isInteger(pin));
@@ -1414,6 +1843,20 @@ function isSceneDevice(value: unknown): value is SceneDevice {
 export function isSceneDefinition(value: unknown): value is SceneDefinition {
   if (!isRecord(value)) return false;
   const candidate = value as Record<string, unknown>;
+  if (
+    !hasOnlyKeys(candidate, [
+      'schemaVersion',
+      'id',
+      'name',
+      'description',
+      'canvas',
+      'devices',
+      'widgets',
+      'retiredDeviceIds',
+      'sourceTemplate',
+    ])
+  )
+    return false;
   const canvas = candidate.canvas;
   const devices = candidate.devices;
   const widgets = candidate.widgets;
@@ -1423,33 +1866,62 @@ export function isSceneDefinition(value: unknown): value is SceneDefinition {
     typeof candidate.name === 'string' &&
     typeof candidate.description === 'string' &&
     isRecord(canvas) &&
+    hasOnlyKeys(canvas, [
+      'width',
+      'height',
+      'background',
+      'gridSize',
+      'snapToGrid',
+    ]) &&
     hasFiniteNumber(canvas, 'width') &&
     hasFiniteNumber(canvas, 'height') &&
     Number(canvas.width) > 0 &&
+    Number(canvas.width) <= 4096 &&
     Number(canvas.height) > 0 &&
+    Number(canvas.height) <= 4096 &&
     ['park', 'workshop', 'home', 'pond', 'blank'].includes(
       String(canvas.background),
     ) &&
     hasFiniteNumber(canvas, 'gridSize') &&
     Number(canvas.gridSize) > 0 &&
+    Number(canvas.gridSize) <= 512 &&
     typeof canvas.snapToGrid === 'boolean' &&
     Array.isArray(devices) &&
+    devices.length <= MAX_SCENE_ITEMS &&
     devices.every(isSceneDevice) &&
     Array.isArray(widgets) &&
+    widgets.length <= MAX_SCENE_ITEMS &&
     widgets.every(
       (widget) =>
         isRecord(widget) &&
+        hasOnlyKeys(widget, [
+          'schemaVersion',
+          'id',
+          'kind',
+          'name',
+          'position',
+          'config',
+        ]) &&
         widget.schemaVersion === SCENE_SCHEMA_VERSION &&
         widget.kind === 'counter' &&
         typeof widget.id === 'string' &&
         typeof widget.name === 'string' &&
         isRecord(widget.position) &&
+        hasOnlyKeys(widget.position, ['x', 'y']) &&
         hasFiniteNumber(widget.position, 'x') &&
         hasFiniteNumber(widget.position, 'y') &&
         isRecord(widget.config) &&
+        hasOnlyKeys(widget.config, ['value', 'mascot']) &&
         hasFiniteNumber(widget.config, 'value') &&
-        typeof widget.config.mascot === 'string',
+        typeof widget.config.mascot === 'string' &&
+        widget.config.mascot.length <= 32,
     ) &&
+    (candidate.retiredDeviceIds === undefined ||
+      (Array.isArray(candidate.retiredDeviceIds) &&
+        candidate.retiredDeviceIds.length <= MAX_RETIRED_DEVICE_IDS &&
+        candidate.retiredDeviceIds.every(
+          (id) => typeof id === 'string' && id.length <= 128,
+        ))) &&
     (candidate.sourceTemplate === undefined ||
       isLegacySceneId(candidate.sourceTemplate))
   );

@@ -540,19 +540,412 @@ function finiteNumber(value: unknown, fallback: number) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function unsafeTextCharacter(character: string, includeBidi = false) {
+  const code = character.charCodeAt(0);
+  return (
+    code <= 31 ||
+    code === 127 ||
+    code === 0x2028 ||
+    code === 0x2029 ||
+    (includeBidi &&
+      ((code >= 0x202a && code <= 0x202e) ||
+        (code >= 0x2066 && code <= 0x2069)))
+  );
+}
+
+function replaceUnsafeText(value: string, includeBidi = false) {
+  return Array.from(value, (character) =>
+    unsafeTextCharacter(character, includeBidi) ? ' ' : character,
+  ).join('');
+}
+
 function projectTitle(value: unknown) {
   if (typeof value !== 'string') return 'Mi aventura';
-  const cleaned = value.trim().slice(0, 80);
+  const cleaned = replaceUnsafeText(value)
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 80);
   return cleaned || 'Mi aventura';
 }
 
-function cloneWorkspace(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== 'object') return {};
-  try {
-    return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
-  } catch {
-    return {};
+function projectTimestamp(value: unknown) {
+  if (typeof value !== 'string' || value.length > 64) {
+    return new Date().toISOString();
   }
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp)
+    ? new Date(timestamp).toISOString()
+    : new Date().toISOString();
+}
+
+export const PROJECT_IMPORT_LIMITS = {
+  workspaceBytes: 1_500_000,
+  workspaceDepth: 128,
+  workspaceNodes: 20_000,
+  workspaceBlocks: 2_000,
+  stringLength: 16_384,
+  objectProperties: 512,
+} as const;
+
+const supportedBlocklyBlockTypes = new Set([
+  'capi_start',
+  'capi_forever',
+  'capi_repeat',
+  'capi_wait',
+  'capi_if',
+  'capi_compare',
+  'capi_counter_compare',
+  'capi_counter_set',
+  'capi_counter_change',
+  'capi_traffic',
+  'capi_led',
+  'capi_pin_write',
+  'capi_robot',
+  'capi_motor',
+  'capi_servo',
+  'capi_buzzer',
+  'capi_tone',
+  'capi_button_pressed',
+  'capi_sensor_compare',
+  'capi_wifi_connect',
+  'capi_wifi_connected',
+  'capi_serial',
+]);
+
+interface WorkspaceDecodeResult {
+  workspace: Record<string, unknown> | null;
+  diagnostics: CapiDiagnostic[];
+}
+
+type JsonContainer = Record<string, unknown> | unknown[];
+
+function workspaceError(
+  code: string,
+  message: string,
+  blockId?: string,
+): WorkspaceDecodeResult {
+  return {
+    workspace: null,
+    diagnostics: [{ severity: 'error', code, message, blockId }],
+  };
+}
+
+function validBlocklyId(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.trim().length > 0 &&
+    value.length <= 128 &&
+    !Array.from(value).some((character) => unsafeTextCharacter(character))
+  );
+}
+
+/**
+ * Clones only JSON data with explicit complexity bounds. This intentionally
+ * avoids JSON.parse(JSON.stringify(...)): deeply nested input must be rejected,
+ * never converted silently into an empty program.
+ */
+function decodeWorkspace(value: unknown): WorkspaceDecodeResult {
+  if (!isObjectRecord(value)) {
+    return workspaceError(
+      'workspace-root-invalid',
+      'El área de bloques debe ser un objeto de Blockly.',
+    );
+  }
+
+  const root: Record<string, unknown> = {};
+  const seen = new WeakSet<object>([value]);
+  const stack: Array<{
+    source: JsonContainer;
+    target: JsonContainer;
+    depth: number;
+  }> = [{ source: value, target: root, depth: 0 }];
+  let nodeCount = 1;
+  let estimatedBytes = 2;
+  const textEncoder = new TextEncoder();
+
+  while (stack.length) {
+    const current = stack.pop();
+    if (!current) break;
+    if (current.depth > PROJECT_IMPORT_LIMITS.workspaceDepth) {
+      return workspaceError(
+        'workspace-too-deep',
+        `El proyecto supera ${PROJECT_IMPORT_LIMITS.workspaceDepth} niveles de anidación.`,
+      );
+    }
+    const entries = Object.entries(current.source);
+    if (
+      Array.isArray(current.source) &&
+      (entries.length !== current.source.length ||
+        entries.some(([key], index) => key !== String(index)))
+    ) {
+      return workspaceError(
+        'workspace-array-invalid',
+        'El proyecto contiene una lista incompleta o con propiedades no permitidas.',
+      );
+    }
+    if (
+      !Array.isArray(current.source) &&
+      entries.length > PROJECT_IMPORT_LIMITS.objectProperties
+    ) {
+      return workspaceError(
+        'workspace-object-too-large',
+        `Una sección del proyecto contiene más de ${PROJECT_IMPORT_LIMITS.objectProperties} propiedades.`,
+      );
+    }
+
+    for (const [key, item] of entries) {
+      estimatedBytes += textEncoder.encode(key).byteLength + 4;
+      if (typeof item === 'string') {
+        estimatedBytes += textEncoder.encode(item).byteLength + 2;
+      } else {
+        estimatedBytes += 8;
+      }
+      if (estimatedBytes > PROJECT_IMPORT_LIMITS.workspaceBytes) {
+        return workspaceError(
+          'workspace-too-large',
+          `El área de bloques supera ${Math.floor(PROJECT_IMPORT_LIMITS.workspaceBytes / 1000)} KB.`,
+        );
+      }
+      if (
+        key === '__proto__' ||
+        key === 'prototype' ||
+        key === 'constructor' ||
+        key.length > 128 ||
+        Array.from(key).some((character) => unsafeTextCharacter(character))
+      ) {
+        return workspaceError(
+          'workspace-property-invalid',
+          'El proyecto contiene una propiedad interna no permitida.',
+        );
+      }
+
+      const assign = (nextValue: unknown) => {
+        if (Array.isArray(current.target)) {
+          current.target[Number(key)] = nextValue;
+        } else {
+          current.target[key] = nextValue;
+        }
+      };
+
+      if (item === null || typeof item === 'boolean') {
+        assign(item);
+        continue;
+      }
+      if (typeof item === 'number') {
+        if (!Number.isFinite(item)) {
+          return workspaceError(
+            'workspace-number-invalid',
+            'El proyecto contiene un número no válido.',
+          );
+        }
+        assign(item);
+        continue;
+      }
+      if (typeof item === 'string') {
+        if (item.length > PROJECT_IMPORT_LIMITS.stringLength) {
+          return workspaceError(
+            'workspace-string-too-long',
+            `Un texto del proyecto supera ${PROJECT_IMPORT_LIMITS.stringLength} caracteres.`,
+          );
+        }
+        assign(item);
+        continue;
+      }
+      if (!item || typeof item !== 'object') {
+        return workspaceError(
+          'workspace-value-invalid',
+          'El proyecto contiene un valor que JSON no puede guardar.',
+        );
+      }
+      const prototype = Object.getPrototypeOf(item);
+      if (
+        !Array.isArray(item) &&
+        prototype !== Object.prototype &&
+        prototype !== null
+      ) {
+        return workspaceError(
+          'workspace-object-invalid',
+          'El proyecto contiene un objeto que no pertenece al formato JSON.',
+        );
+      }
+      if (seen.has(item)) {
+        return workspaceError(
+          'workspace-cycle',
+          'El proyecto contiene una referencia circular o compartida y no puede importarse.',
+        );
+      }
+      seen.add(item);
+      nodeCount += 1;
+      if (nodeCount > PROJECT_IMPORT_LIMITS.workspaceNodes) {
+        return workspaceError(
+          'workspace-too-complex',
+          `El proyecto supera el límite de ${PROJECT_IMPORT_LIMITS.workspaceNodes} secciones internas.`,
+        );
+      }
+      const child: JsonContainer = Array.isArray(item) ? [] : {};
+      assign(child);
+      stack.push({
+        source: item as JsonContainer,
+        target: child,
+        depth: current.depth + 1,
+      });
+    }
+  }
+
+  const serialized = JSON.stringify(root);
+  if (
+    textEncoder.encode(serialized).byteLength >
+    PROJECT_IMPORT_LIMITS.workspaceBytes
+  ) {
+    return workspaceError(
+      'workspace-too-large',
+      `El área de bloques supera ${Math.floor(PROJECT_IMPORT_LIMITS.workspaceBytes / 1000)} KB.`,
+    );
+  }
+
+  const blocksSection = root.blocks;
+  if (blocksSection === undefined) return { workspace: root, diagnostics: [] };
+  if (!isObjectRecord(blocksSection)) {
+    return workspaceError(
+      'workspace-blocks-invalid',
+      'La lista principal de bloques está dañada.',
+    );
+  }
+  if (blocksSection.languageVersion !== 0) {
+    return workspaceError(
+      'workspace-version-unsupported',
+      'El proyecto usa una versión de bloques que CapiBloques todavía no admite.',
+    );
+  }
+  if (!Array.isArray(blocksSection.blocks)) {
+    return workspaceError(
+      'workspace-block-list-invalid',
+      'La lista principal de bloques no es válida.',
+    );
+  }
+
+  const blockStack: unknown[] = [...blocksSection.blocks];
+  const blockIds = new Set<string>();
+  let blockCount = 0;
+  while (blockStack.length) {
+    const block = blockStack.pop();
+    if (!isObjectRecord(block)) {
+      return workspaceError(
+        'workspace-block-invalid',
+        'Hay un bloque vacío o dañado en el proyecto.',
+      );
+    }
+    blockCount += 1;
+    if (blockCount > PROJECT_IMPORT_LIMITS.workspaceBlocks) {
+      return workspaceError(
+        'workspace-too-many-blocks',
+        `El proyecto supera el máximo de ${PROJECT_IMPORT_LIMITS.workspaceBlocks} bloques.`,
+      );
+    }
+    if (
+      typeof block.type !== 'string' ||
+      !supportedBlocklyBlockTypes.has(block.type)
+    ) {
+      const typeDescription =
+        typeof block.type === 'string' ||
+        typeof block.type === 'number' ||
+        typeof block.type === 'boolean'
+          ? String(block.type)
+          : 'sin tipo válido';
+      return workspaceError(
+        'workspace-block-type-unsupported',
+        `El proyecto contiene un bloque desconocido (${typeDescription}).`,
+      );
+    }
+    if (!validBlocklyId(block.id)) {
+      return workspaceError(
+        'workspace-block-id-invalid',
+        `El bloque ${block.type} no tiene una identidad segura.`,
+      );
+    }
+    if (blockIds.has(block.id)) {
+      return workspaceError(
+        'workspace-block-id-duplicate',
+        `El identificador de bloque ${block.id} está repetido.`,
+        block.id,
+      );
+    }
+    blockIds.add(block.id);
+
+    if (block.fields !== undefined && !isObjectRecord(block.fields)) {
+      return workspaceError(
+        'workspace-fields-invalid',
+        `Los valores del bloque ${block.id} están dañados.`,
+        block.id,
+      );
+    }
+    for (const coordinate of ['x', 'y'] as const) {
+      if (
+        block[coordinate] !== undefined &&
+        (typeof block[coordinate] !== 'number' ||
+          !Number.isFinite(block[coordinate]))
+      ) {
+        return workspaceError(
+          'workspace-coordinate-invalid',
+          `La posición del bloque ${block.id} no es válida.`,
+          block.id,
+        );
+      }
+    }
+
+    if (block.inputs !== undefined) {
+      if (!isObjectRecord(block.inputs)) {
+        return workspaceError(
+          'workspace-inputs-invalid',
+          `Las conexiones del bloque ${block.id} están dañadas.`,
+          block.id,
+        );
+      }
+      for (const connection of Object.values(block.inputs)) {
+        if (!isObjectRecord(connection)) {
+          return workspaceError(
+            'workspace-input-invalid',
+            `Una conexión del bloque ${block.id} está dañada.`,
+            block.id,
+          );
+        }
+        for (const key of ['block', 'shadow'] as const) {
+          if (connection[key] !== undefined) {
+            if (!isObjectRecord(connection[key])) {
+              return workspaceError(
+                'workspace-connected-block-invalid',
+                `Una conexión del bloque ${block.id} apunta a un bloque vacío.`,
+                block.id,
+              );
+            }
+            blockStack.push(connection[key]);
+          }
+        }
+      }
+    }
+    if (block.next !== undefined) {
+      if (!isObjectRecord(block.next) || !isObjectRecord(block.next.block)) {
+        return workspaceError(
+          'workspace-next-invalid',
+          `La secuencia que sigue al bloque ${block.id} está dañada.`,
+          block.id,
+        );
+      }
+      blockStack.push(block.next.block);
+    }
+  }
+
+  return { workspace: root, diagnostics: [] };
+}
+
+function cloneWorkspace(value: unknown): Record<string, unknown> {
+  const decoded = decodeWorkspace(value);
+  if (!decoded.workspace) {
+    throw new Error(
+      decoded.diagnostics[0]?.message ?? 'El área de bloques no es válida.',
+    );
+  }
+  return decoded.workspace;
 }
 
 function templateHint(scene: SceneDefinition): SceneId {
@@ -572,6 +965,14 @@ export function makeProject(
   const sceneDefinition = isLegacySceneId(scene)
     ? createSceneFromTemplate(scene)
     : cloneScene(scene);
+  const sceneErrors = validateScene(sceneDefinition).issues.filter(
+    (issue) => issue.severity === 'error',
+  );
+  if (sceneErrors.length) {
+    throw new Error(
+      `La escena no se puede guardar:\n${sceneErrors.map(({ message }) => `- ${message}`).join('\n')}`,
+    );
+  }
   return {
     application: 'CapiBloques',
     schemaVersion: 2,
@@ -760,13 +1161,47 @@ function enrichLegacySceneAndWorkspace(
 
 function decodeProjectUnsafe(value: unknown): ProjectDecodeResult {
   if (isProjectV2(value)) {
+    const decodedWorkspace = decodeWorkspace(value.workspace);
+    if (!decodedWorkspace.workspace) {
+      return {
+        project: null,
+        migrated: false,
+        warnings: [],
+        diagnostics: decodedWorkspace.diagnostics,
+      };
+    }
     const scene = cloneScene(value.scene);
     const validation = validateScene(scene);
+    const sceneDiagnostics: CapiDiagnostic[] = validation.issues.map(
+      (issue) => ({
+        severity: issue.severity,
+        code: `scene-${issue.code}`,
+        message: issue.message,
+        deviceId: issue.deviceId ?? issue.itemId,
+        pin: issue.pin,
+      }),
+    );
+    if (
+      sceneDiagnostics.some((diagnostic) => diagnostic.severity === 'error')
+    ) {
+      return {
+        project: null,
+        migrated: false,
+        warnings: validation.issues.map((issue) => issue.message),
+        diagnostics: sceneDiagnostics,
+      };
+    }
     return {
       project: {
-        ...value,
-        metadata: { ...value.metadata },
-        target: { ...value.target },
+        application: 'CapiBloques',
+        schemaVersion: 2,
+        metadata: {
+          title: projectTitle(value.metadata.title),
+          locale: 'es-AR',
+          updatedAt: projectTimestamp(value.metadata.updatedAt),
+          ...(value.metadata.migratedFrom === 1 ? { migratedFrom: 1 } : {}),
+        },
+        target: { ...projectTarget },
         scene,
         simulation: {
           scene: isLegacySceneId(value.simulation.scene)
@@ -777,17 +1212,60 @@ function decodeProjectUnsafe(value: unknown): ProjectDecodeResult {
             Math.min(4, finiteNumber(value.simulation.speed, 1)),
           ),
         },
-        workspace: cloneWorkspace(value.workspace),
+        workspace: decodedWorkspace.workspace,
       },
       migrated: false,
       warnings: validation.issues.map((issue) => issue.message),
-      diagnostics: validation.issues.map((issue) => ({
-        severity: issue.severity,
-        code: `scene-${issue.code}`,
-        message: issue.message,
-        deviceId: issue.deviceId,
-        pin: issue.pin,
-      })),
+      diagnostics: sceneDiagnostics,
+    };
+  }
+
+  if (
+    isObjectRecord(value) &&
+    value.application === 'CapiBloques' &&
+    value.schemaVersion === 2
+  ) {
+    if (!isObjectRecord(value.workspace)) {
+      return {
+        project: null,
+        migrated: false,
+        warnings: [],
+        diagnostics: [
+          {
+            severity: 'error',
+            code: 'workspace-root-invalid',
+            message: 'El área de bloques debe ser un objeto de Blockly.',
+          },
+        ],
+      };
+    }
+    if (!isSceneDefinition(value.scene)) {
+      return {
+        project: null,
+        migrated: false,
+        warnings: [],
+        diagnostics: [
+          {
+            severity: 'error',
+            code: 'scene-structure-invalid',
+            message:
+              'La escena contiene componentes, valores o propiedades que no pertenecen al formato CapiBloques.',
+          },
+        ],
+      };
+    }
+    return {
+      project: null,
+      migrated: false,
+      warnings: [],
+      diagnostics: [
+        {
+          severity: 'error',
+          code: 'project-settings-invalid',
+          message:
+            'Los metadatos o el perfil de placa del proyecto están dañados o no son compatibles.',
+        },
+      ],
     };
   }
 
@@ -806,13 +1284,23 @@ function decodeProjectUnsafe(value: unknown): ProjectDecodeResult {
     };
   }
 
+  const decodedWorkspace = decodeWorkspace(value.workspace);
+  if (!decodedWorkspace.workspace) {
+    return {
+      project: null,
+      migrated: false,
+      warnings: [],
+      diagnostics: decodedWorkspace.diagnostics,
+    };
+  }
+
   const legacyScene = isLegacySceneId(value.simulation?.scene)
     ? value.simulation.scene
     : 'traffic';
   const migratedScene = migrateSceneDefinition(value, legacyScene);
   const enriched = enrichLegacySceneAndWorkspace(
     migratedScene.scene,
-    value.workspace,
+    decodedWorkspace.workspace,
     value.target?.pinAssignments ?? {},
   );
   const project = makeProject(
@@ -828,6 +1316,21 @@ function decodeProjectUnsafe(value: unknown): ProjectDecodeResult {
   project.metadata.migratedFrom = 1;
   project.simulation.scene = legacyScene;
   const validation = validateScene(project.scene);
+  const sceneDiagnostics: CapiDiagnostic[] = validation.issues.map((issue) => ({
+    severity: issue.severity,
+    code: `scene-${issue.code}`,
+    message: issue.message,
+    deviceId: issue.deviceId ?? issue.itemId,
+    pin: issue.pin,
+  }));
+  if (sceneDiagnostics.some((diagnostic) => diagnostic.severity === 'error')) {
+    return {
+      project: null,
+      migrated: true,
+      warnings: validation.issues.map((issue) => issue.message),
+      diagnostics: sceneDiagnostics,
+    };
+  }
   const warnings = [
     ...migratedScene.warnings,
     ...enriched.warnings,
@@ -837,13 +1340,7 @@ function decodeProjectUnsafe(value: unknown): ProjectDecodeResult {
     project,
     migrated: true,
     warnings: [...new Set(warnings)],
-    diagnostics: validation.issues.map((issue) => ({
-      severity: issue.severity,
-      code: `scene-${issue.code}`,
-      message: issue.message,
-      deviceId: issue.deviceId,
-      pin: issue.pin,
-    })),
+    diagnostics: sceneDiagnostics,
   };
 }
 
@@ -1287,80 +1784,25 @@ export function validateProgramForScene(
   const diagnostics: CapiDiagnostic[] = [];
   const deviceMap = new Map(scene.devices.map((device) => [device.id, device]));
   const sceneValidation = validateScene(scene);
+  const hardwareBlockingSceneCodes = new Set([
+    'missing-pin',
+    'unsupported-pin',
+    'pin-conflict',
+    'pwm-channel-limit',
+    'passive-buzzer-limit',
+    'button-pullup-unavailable',
+  ]);
   diagnostics.push(
     ...sceneValidation.issues.map((issue) => ({
-      severity: ['missing-pin', 'unsupported-pin', 'pin-conflict'].includes(
-        issue.code,
-      )
+      severity: hardwareBlockingSceneCodes.has(issue.code)
         ? ('error' as const)
         : issue.severity,
       code: `scene-${issue.code}`,
       message: issue.message,
-      deviceId: issue.deviceId,
+      deviceId: issue.deviceId ?? issue.itemId,
       pin: issue.pin,
     })),
   );
-  const pwmChannels = scene.devices.reduce((total, device) => {
-    switch (device.kind) {
-      case 'robot':
-        return total + 4;
-      case 'motor':
-        return total + 2;
-      case 'led':
-      case 'servo':
-      case 'activeBuzzer':
-      case 'passiveBuzzer':
-        return total + 1;
-      default:
-        return total;
-    }
-  }, 0);
-  if (pwmChannels > 16) {
-    diagnostics.push({
-      severity: 'error',
-      code: 'pwm-channel-limit',
-      message: `La escena necesita ${pwmChannels} canales PWM y el ESP32 de este perfil dispone de 16.`,
-    });
-  }
-  for (const device of scene.devices) {
-    if (device.kind === 'robot' || device.kind === 'motor') {
-      diagnostics.push({
-        severity: 'warning',
-        code: 'external-motor-power',
-        message: `${device.name} necesita un DRV8833, alimentación externa y masa común con la Wemos.`,
-        deviceId: device.id,
-      });
-    }
-    if (device.kind === 'servo') {
-      diagnostics.push({
-        severity: 'warning',
-        code: 'external-servo-power',
-        message: `${device.name} debe usar una alimentación adecuada y masa común; no lo alimentes desde un GPIO.`,
-        deviceId: device.id,
-      });
-    }
-    if (device.kind === 'led' || device.kind === 'trafficLight') {
-      diagnostics.push({
-        severity: 'warning',
-        code: 'led-resistor-required',
-        message: `${device.name} necesita una resistencia limitadora por cada LED físico.`,
-        deviceId: device.id,
-      });
-    }
-    if (
-      device.kind === 'button' &&
-      device.config.pullup &&
-      [34, 35, 36, 39].includes(device.pins.signal ?? -1)
-    ) {
-      diagnostics.push({
-        severity: 'error',
-        code: 'button-pullup-unavailable',
-        message: `${device.name} usa una entrada sin pull-up interno; asigna A1 u otra entrada compatible, o agrega una resistencia externa.`,
-        deviceId: device.id,
-        pin: device.pins.signal ?? undefined,
-      });
-    }
-  }
   if (program.threads.length > 16) {
     diagnostics.push({
       severity: 'error',
@@ -1523,7 +1965,28 @@ function flattenProgram(nodes: ProgramNode[]) {
 }
 
 const cppString = (value: string) =>
-  `"${value.replaceAll('\\', '\\\\').replaceAll('"', '\\"').replaceAll('\n', '\\n')}"`;
+  `"${Array.from(value, (character) => {
+    const code = character.charCodeAt(0);
+    if (character === '\r' || character === '\n' || character === '\t') {
+      return character;
+    }
+    return code <= 31 || code === 127 || code === 0x2028 || code === 0x2029
+      ? ' '
+      : character;
+  })
+    .join('')
+    .replaceAll('\\', '\\\\')
+    .replaceAll('"', '\\"')
+    .replaceAll('\r', '\\r')
+    .replaceAll('\n', '\\n')
+    .replaceAll('\t', '\\t')}"`;
+
+const cppLineComment = (value: unknown) =>
+  replaceUnsafeText(String(value), true)
+    .replaceAll('\\', '/')
+    .replaceAll('??/', '? /')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 function hashId(value: string) {
   let hash = 2_166_136_261;
@@ -1531,7 +1994,7 @@ function hashId(value: string) {
     hash ^= value.charCodeAt(index);
     hash = Math.imul(hash, 16_777_619);
   }
-  return (hash >>> 0).toString(16).slice(0, 6).toUpperCase();
+  return (hash >>> 0).toString(16).padStart(8, '0').toUpperCase();
 }
 
 function cppIdentifier(value: string) {
@@ -1541,7 +2004,31 @@ function cppIdentifier(value: string) {
     .replace(/[^a-zA-Z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '')
     .toUpperCase();
-  return `${base || 'DEVICE'}_${hashId(value)}`;
+  return `${(base || 'DEVICE').slice(0, 48)}_${hashId(value)}`;
+}
+
+function createCppSymbols(scene: SceneDefinition) {
+  const symbols = new Map<string, string>();
+  const owners = new Map<string, string>();
+  const collisions: Array<{ deviceId: string; ownerId: string }> = [];
+  for (const device of scene.devices) {
+    const original = cppIdentifier(device.id);
+    let symbol = original;
+    let sequence = 2;
+    while (owners.has(symbol) && owners.get(symbol) !== device.id) {
+      if (sequence === 2) {
+        collisions.push({
+          deviceId: device.id,
+          ownerId: owners.get(symbol) ?? '',
+        });
+      }
+      symbol = `${original}_${sequence}`;
+      sequence += 1;
+    }
+    owners.set(symbol, device.id);
+    symbols.set(device.id, symbol);
+  }
+  return { symbols, collisions };
 }
 
 interface GeneratorContext {
@@ -1591,7 +2078,7 @@ function instructionToCpp(
   const waiting = `waiting_${suffix}`;
   const waitStarted = `waitStarted_${suffix}`;
   const loops = `loopCounters_${suffix}`;
-  const comment = `        // bloque: ${instruction.blockId}`;
+  const comment = `        // bloque: ${cppLineComment(instruction.blockId)}`;
   switch (instruction.op) {
     case 'traffic':
       return `${comment}\n        setTraffic(DEV_${deviceSymbol(context, instruction.deviceId)}, TrafficColor::${instruction.color});\n        ${pc} = ${nextPc};\n        break;`;
@@ -1689,13 +2176,13 @@ function deviceDeclarations(
         `${gpioOrPlaceholder(pin)}; // ${pinLabel(pin)}`;
       switch (device.kind) {
         case 'trafficLight':
-          return `constexpr TrafficDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.red)}, ${gpioOrPlaceholder(device.pins.yellow)}, ${gpioOrPlaceholder(device.pins.green)}}; // ${device.name}`;
+          return `constexpr TrafficDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.red)}, ${gpioOrPlaceholder(device.pins.yellow)}, ${gpioOrPlaceholder(device.pins.green)}}; // ${cppLineComment(device.name)}`;
         case 'robot':
-          return `constexpr RobotDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.leftIn1)}, ${gpioOrPlaceholder(device.pins.leftIn2)}, ${gpioOrPlaceholder(device.pins.rightIn1)}, ${gpioOrPlaceholder(device.pins.rightIn2)}}; // ${device.name}`;
+          return `constexpr RobotDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.leftIn1)}, ${gpioOrPlaceholder(device.pins.leftIn2)}, ${gpioOrPlaceholder(device.pins.rightIn1)}, ${gpioOrPlaceholder(device.pins.rightIn2)}}; // ${cppLineComment(device.name)}`;
         case 'motor':
-          return `constexpr MotorDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.in1)}, ${gpioOrPlaceholder(device.pins.in2)}}; // ${device.name}`;
+          return `constexpr MotorDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.in1)}, ${gpioOrPlaceholder(device.pins.in2)}}; // ${cppLineComment(device.name)}`;
         case 'wifiNode':
-          return `// ${device.name}: radio Wi-Fi integrada, sin GPIO externo.`;
+          return `// ${cppLineComment(device.name)}: radio Wi-Fi integrada, sin GPIO externo.`;
         default:
           return `constexpr uint8_t PIN_${symbol} = ${label(device.pins.signal)}`;
       }
@@ -1758,9 +2245,16 @@ function setupLines(scene: SceneDefinition, symbols: Map<string, string>) {
         lines.push(`  ledcAttach(PIN_${symbol}, 50, 16);`);
         break;
       case 'activeBuzzer':
-      case 'passiveBuzzer':
         lines.push(
           `  ledcAttach(PIN_${symbol}, 1000, 8);`,
+          `  ledcWrite(PIN_${symbol}, 0);`,
+        );
+        break;
+      case 'passiveBuzzer':
+        lines.push(
+          // Keep the passive tone on a timer that is not shared with active
+          // buzzers. ledcWriteTone reconfigures its timer at runtime.
+          `  ledcAttach(PIN_${symbol}, 1100, 8);`,
           `  ledcWrite(PIN_${symbol}, 0);`,
         );
         break;
@@ -1823,8 +2317,14 @@ export function generateEsp32CodeResult(
     : inferSceneForProgram(input);
   const program = normalizeCompiledProgram(input, scene);
   const diagnostics = validateProgramForScene(program, scene);
-  const symbols = new Map(
-    scene.devices.map((device) => [device.id, cppIdentifier(device.id)]),
+  const { symbols, collisions } = createCppSymbols(scene);
+  diagnostics.push(
+    ...collisions.map(({ deviceId, ownerId }) => ({
+      severity: 'warning' as const,
+      code: 'cpp-symbol-collision-resolved',
+      message: `Las identidades ${ownerId} y ${deviceId} producían el mismo nombre interno; el generador las separó de forma segura.`,
+      deviceId,
+    })),
   );
   const usesWifi = programUsesWifi(program);
   const wifiHeader = usesWifi
@@ -1839,7 +2339,7 @@ const char* WIFI_PASSWORD = "TU_CLAVE";
     ? `// Diagnóstico de configuración:\n${diagnostics
         .map(
           (item) =>
-            `// [${item.severity.toUpperCase()} ${item.code}] ${item.message}`,
+            `// [${item.severity.toUpperCase()} ${cppLineComment(item.code)}] ${cppLineComment(item.message)}`,
         )
         .join('\n')}\n${errors
         .map((item) => `#error ${cppString(`CapiBloques: ${item.message}`)}`)
@@ -1852,12 +2352,13 @@ const char* WIFI_PASSWORD = "TU_CLAVE";
   const threadGlobals = flattened
     .map(({ loopSlots }, index) => {
       const suffix = `T${index}`;
+      const loopSlotCount = Math.max(1, loopSlots);
       return `uint16_t pc_${suffix} = 0;
 bool active_${suffix} = true;
 bool waiting_${suffix} = false;
 uint32_t waitStarted_${suffix} = 0;
-int32_t loopCounters_${suffix}[${loopSlots}] = { ${Array.from(
-        { length: loopSlots },
+int32_t loopCounters_${suffix}[${loopSlotCount}] = { ${Array.from(
+        { length: loopSlotCount },
         () => '-1',
       ).join(', ')} };
 ${usesWifi ? `bool wifiAttemptActive_${suffix} = false;\nuint32_t wifiAttemptStarted_${suffix} = 0;` : ''}`;
@@ -1895,7 +2396,7 @@ ${cases}
         .join('\n')
     : '  // No hay programas “al comenzar”.';
 
-  const code = `// ${projectTitle(title)}
+  const code = `// ${cppLineComment(projectTitle(title))}
 // Generado por CapiBloques para WEMOS D1 R32
 // Arduino-ESP32 3.3.11 | FQBN: esp32:esp32:d1_uno32
 // Scheduler cooperativo con ${program.threads.length} programa(s) y esperas no bloqueantes.

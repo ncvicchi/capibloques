@@ -16,6 +16,7 @@ import {
   createSceneFromTemplate,
   duplicateSceneDevice,
   duplicateSceneWidget,
+  removeDeviceFromScene,
   validateScene,
 } from '../lib/scene-model.ts';
 
@@ -51,11 +52,11 @@ assert.deepEqual(
   repeatedComposition.devices
     .filter((device) => device.kind === 'passiveBuzzer')
     .map((device) => device.name),
-  ['Buzzer de celebración', 'Buzzer de celebración 2'],
+  ['Buzzer de celebración'],
 );
 assert.deepEqual(
   repeatedComposition.widgets.map((widget) => widget.name),
-  ['Contador de saltos', 'Contador de saltos 2'],
+  ['Contador de saltos'],
 );
 assert.equal(
   new Set([
@@ -75,7 +76,32 @@ const duplicatedCounter = duplicateSceneWidget(
   duplicatedTraffic.scene,
   duplicatedTraffic.scene.widgets[0].id,
 );
-assert.equal(duplicatedCounter?.widget.name, 'Contador de saltos 3');
+assert.equal(
+  duplicatedCounter,
+  null,
+  'El contador es global y no debe parecer independiente al duplicarlo',
+);
+
+let identityScene = createEmptyScene('Identidades estables');
+identityScene = addDeviceToScene(identityScene, 'led').scene;
+const firstLedId = identityScene.devices[0].id;
+identityScene = removeDeviceFromScene(identityScene, firstLedId);
+identityScene = addDeviceToScene(identityScene, 'led').scene;
+assert.notEqual(identityScene.devices[0].id, firstLedId);
+assert.deepEqual(identityScene.retiredDeviceIds, [firstLedId]);
+
+const precisionName = 'X 9007199254740991';
+let precisionScene = createEmptyScene('Nombres seguros');
+precisionScene = addDeviceToScene(precisionScene, 'led', {
+  name: precisionName,
+}).scene;
+precisionScene = addDeviceToScene(precisionScene, 'led', {
+  name: 'X 9007199254740992',
+}).scene;
+precisionScene = addDeviceToScene(precisionScene, 'led', {
+  name: precisionName,
+}).scene;
+assert.equal(new Set(precisionScene.devices.map(({ name }) => name)).size, 3);
 
 const program = {
   version: 2,
@@ -143,6 +169,7 @@ assert.match(generated.code, /runThread0\(now, 16\)/);
 assert.match(generated.code, /runThread1\(now, 16\)/);
 assert.match(generated.code, /driveRobot\(DEV_ROBOT_1_/);
 assert.doesNotMatch(generated.code, /delay\s*\(/);
+assert.doesNotMatch(generated.code, /loopCounters_T\d+\[0\]/);
 assert.doesNotMatch(generated.code, /#error/);
 assert.equal(
   generated.code,
@@ -207,6 +234,39 @@ const decodedV2 = decodeProject(roundTrip);
 assert.equal(decodedV2.project?.schemaVersion, 2);
 assert.equal(decodedV2.project?.scene.devices.length, 3);
 assert.equal(decodedV2.project?.simulation.speed, 2);
+for (const example of examples) {
+  const decodedExample = decodeProject(
+    JSON.parse(
+      JSON.stringify(
+        makeProject(example.title, example.scene, example.workspace, 1),
+      ),
+    ),
+  );
+  assert.ok(
+    decodedExample.project,
+    `El ejemplo ${example.id} debe conservar compatibilidad JSON v2`,
+  );
+}
+
+const persistedIdentity = decodeProject(
+  JSON.parse(JSON.stringify(makeProject('IDs', identityScene, {}, 1))),
+);
+assert.deepEqual(persistedIdentity.project?.scene.retiredDeviceIds, [
+  firstLedId,
+]);
+const identityAfterImport = addDeviceToScene(
+  removeDeviceFromScene(
+    persistedIdentity.project.scene,
+    persistedIdentity.project.scene.devices[0].id,
+  ),
+  'led',
+).scene;
+assert.equal(new Set(identityAfterImport.retiredDeviceIds).size, 2);
+assert.ok(
+  !identityAfterImport.retiredDeviceIds.includes(
+    identityAfterImport.devices[0].id,
+  ),
+);
 
 const legacyProject = {
   application: 'CapiBloques',
@@ -254,6 +314,128 @@ assert.equal(
   'Un proyecto v2 sin metadatos no debe aceptarse',
 );
 
+const unknownBlockProject = {
+  ...roundTrip,
+  workspace: {
+    blocks: {
+      languageVersion: 0,
+      blocks: [{ type: 'bloque_que_no_existe', id: 'unknown-1' }],
+    },
+  },
+};
+const unknownBlockDecode = decodeProject(unknownBlockProject);
+assert.equal(unknownBlockDecode.project, null);
+assert.equal(
+  unknownBlockDecode.diagnostics[0]?.code,
+  'workspace-block-type-unsupported',
+);
+
+const nullBlockDecode = decodeProject({
+  ...roundTrip,
+  workspace: {
+    blocks: { languageVersion: 0, blocks: [null] },
+  },
+});
+assert.equal(nullBlockDecode.project, null);
+assert.equal(nullBlockDecode.diagnostics[0]?.code, 'workspace-block-invalid');
+
+const missingWorkspaceVersion = decodeProject({
+  ...roundTrip,
+  workspace: { blocks: { blocks: [] } },
+});
+assert.equal(missingWorkspaceVersion.project, null);
+assert.equal(
+  missingWorkspaceVersion.diagnostics[0]?.code,
+  'workspace-version-unsupported',
+);
+
+const cyclicWorkspace = {};
+cyclicWorkspace.self = cyclicWorkspace;
+const cycleDecode = decodeProject({ ...roundTrip, workspace: cyclicWorkspace });
+assert.equal(cycleDecode.project, null);
+assert.equal(cycleDecode.diagnostics[0]?.code, 'workspace-cycle');
+
+assert.throws(
+  () =>
+    makeProject(
+      'Workspace inválido',
+      createEmptyScene('Vacía'),
+      {
+        blocks: { languageVersion: 0, blocks: [null] },
+      },
+      1,
+    ),
+  /bloque vacío o dañado/,
+  'Exportar nunca debe reemplazar un workspace inválido por {}',
+);
+
+const deepWorkspace = {};
+let deepCursor = deepWorkspace;
+for (let depth = 0; depth < 140; depth += 1) {
+  deepCursor.child = {};
+  deepCursor = deepCursor.child;
+}
+const deepDecode = decodeProject({ ...roundTrip, workspace: deepWorkspace });
+assert.equal(deepDecode.project, null);
+assert.equal(deepDecode.diagnostics[0]?.code, 'workspace-too-deep');
+
+const injectedProject = decodeProject({
+  ...roundTrip,
+  metadata: {
+    ...roundTrip.metadata,
+    title: 'Clase\nint payload = 42;',
+  },
+});
+assert.equal(
+  injectedProject.project?.metadata.title,
+  'Clase int payload = 42;',
+);
+
+const injectedCode = generateEsp32Code(
+  [
+    {
+      op: 'counterSet',
+      value: 1,
+      blockId: 'uno\\\nint payload = 42;',
+    },
+  ],
+  'Clase\\\nint payload = 42;',
+  createEmptyScene('Comentarios seguros'),
+);
+assert.doesNotMatch(injectedCode, /^int payload = 42;/m);
+assert.match(injectedCode, /\/\/ Clase\/ int payload = 42;/);
+assert.match(injectedCode, /\/\/ bloque: uno\/ int payload = 42;/);
+
+const counterProject = makeProject(
+  'Contador único',
+  createSceneFromTemplate('counter'),
+  examples.find((example) => example.id === 'counter').workspace,
+  1,
+);
+const duplicateCounterProject = JSON.parse(JSON.stringify(counterProject));
+duplicateCounterProject.scene.widgets.push({
+  ...duplicateCounterProject.scene.widgets[0],
+  id: 'counter-2',
+  name: 'Segundo contador',
+});
+const duplicateCounterDecode = decodeProject(duplicateCounterProject);
+assert.equal(duplicateCounterDecode.project, null);
+assert.ok(
+  duplicateCounterDecode.diagnostics.some(
+    (diagnostic) => diagnostic.code === 'scene-multiple-counter-widgets',
+  ),
+);
+
+const offCanvasWidgetProject = JSON.parse(JSON.stringify(counterProject));
+offCanvasWidgetProject.scene.widgets[0].position.x = 1e100;
+const offCanvasWidgetDecode = decodeProject(offCanvasWidgetProject);
+assert.equal(offCanvasWidgetDecode.project, null);
+assert.ok(
+  offCanvasWidgetDecode.diagnostics.some(
+    (diagnostic) => diagnostic.code === 'scene-invalid-position',
+  ),
+);
+
 const wifiCode = generateEsp32Code(
   [{ op: 'wifi', timeoutMs: 5000, blockId: 'wifi-connect' }],
   'Wi-Fi',
@@ -294,11 +476,75 @@ const buzzerCode = generateEsp32CodeResult(
   buzzerScene,
 );
 assert.equal(
-  buzzerCode.diagnostics.filter((item) => item.severity === 'error').length,
-  0,
+  buzzerCode.diagnostics.some(
+    (item) => item.code === 'scene-passive-buzzer-limit',
+  ),
+  true,
+  'No se debe generar firmware engañoso para dos tonos que compartirían timer',
 );
 assert.equal((buzzerCode.code.match(/uint32_t BUZZER_STOP_/g) ?? []).length, 2);
+assert.match(buzzerCode.code, /#error/);
+
+let unsafeButtonScene = createEmptyScene('Botón sin pull-up');
+unsafeButtonScene = addDeviceToScene(unsafeButtonScene, 'button', {
+  pins: { signal: 35 },
+  autoAssignPins: false,
+}).scene;
+assert.equal(validateScene(unsafeButtonScene).hardwareReady, false);
+assert.ok(
+  validateProgramForScene([], unsafeButtonScene).some(
+    (diagnostic) => diagnostic.code === 'scene-button-pullup-unavailable',
+  ),
+);
+
+let pwmOverflowScene = createEmptyScene('Demasiado PWM');
+for (let index = 0; index < 5; index += 1) {
+  pwmOverflowScene = addDeviceToScene(pwmOverflowScene, 'robot').scene;
+}
+assert.equal(validateScene(pwmOverflowScene).hardwareReady, false);
+assert.ok(
+  validateProgramForScene([], pwmOverflowScene).some(
+    (diagnostic) => diagnostic.code === 'scene-pwm-channel-limit',
+  ),
+);
+
+let duplicateNameScene = createEmptyScene('Nombres duplicados');
+duplicateNameScene = addDeviceToScene(duplicateNameScene, 'led').scene;
+duplicateNameScene = addDeviceToScene(duplicateNameScene, 'servo').scene;
+duplicateNameScene.devices[1].name = duplicateNameScene.devices[0].name;
+assert.equal(validateScene(duplicateNameScene).valid, false);
+assert.ok(
+  validateScene(duplicateNameScene).issues.some(
+    (issue) => issue.code === 'duplicate-item-name',
+  ),
+);
+
+let collisionScene = createEmptyScene('Símbolos C++');
+collisionScene = addDeviceToScene(collisionScene, 'led', {
+  id: 'a,($%*&;}@&b',
+  name: 'LED A',
+}).scene;
+collisionScene = addDeviceToScene(collisionScene, 'led', {
+  id: 'a@(?#?%?#[:b',
+  name: 'LED B',
+}).scene;
+const collisionResult = generateEsp32CodeResult(
+  [],
+  'Colisiones',
+  collisionScene,
+);
+const collisionCode = collisionResult.code;
+const pinSymbols = [
+  ...collisionCode.matchAll(/constexpr uint8_t PIN_([A-Z0-9_]+) =/g),
+].map((match) => match[1]);
+assert.equal(pinSymbols.length, 2);
+assert.equal(new Set(pinSymbols).size, 2);
+assert.ok(
+  collisionResult.diagnostics.some(
+    (diagnostic) => diagnostic.code === 'cpp-symbol-collision-resolved',
+  ),
+);
 
 console.log(
-  'Smoke test correcto: multi-instancia, scheduler, JSON v2, migración y generador validados.',
+  'Smoke test correcto: identidades, JSON robusto, validación Wemos y generador seguro validados.',
 );

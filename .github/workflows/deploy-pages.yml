@@ -33,11 +33,31 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
+      - name: Instalar Chromium para pruebas reales
+        run: npx playwright install --with-deps chromium
+
       - name: Verificar tipos, estilo y comportamiento
         run: |
           npm run typecheck
           npm run lint
           npm run test:smoke
+          npm audit --audit-level=high
+
+      - name: Probar la interfaz en Chromium
+        run: npm run test:e2e
+
+      - name: Preparar Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+
+      - name: Instalar soporte ESP32 3.3.11
+        run: |
+          arduino-cli core update-index --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core install esp32:esp32@3.3.11 --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+
+      - name: Compilar el código generado para Wemos D1 R32
+        run: |
+          node --experimental-strip-types scripts/generate-arduino-fixture.mjs .arduino-ci/capibloques-ci/capibloques-ci.ino
+          arduino-cli compile --fqbn esp32:esp32:d1_uno32 .arduino-ci/capibloques-ci
 
       - name: Construir sitio estático
         run: npm run build

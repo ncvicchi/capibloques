@@ -1,9 +1,19 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import {
+  AlertTriangle,
   Blocks,
   Braces,
+  Cable,
   Check,
   CircleStop,
   Clipboard,
@@ -15,17 +25,21 @@ import {
   Maximize2,
   Pause,
   Play,
+  Redo2,
   RotateCcw,
+  Save,
   Settings2,
+  ShieldCheck,
   StepForward,
+  Undo2,
   Upload,
   Volume2,
   VolumeX,
 } from 'lucide-react';
 import BlocklyWorkspace, {
+  type BlocklyHistoryState,
   type BlocklyWorkspaceHandle,
 } from '@/components/blockly-workspace';
-import SceneBuilder from '@/components/scene-builder';
 import SceneStage from '@/components/scene-stage';
 import {
   Dialog,
@@ -53,6 +67,8 @@ import {
   generateEsp32CodeResult,
   makeProject,
   safeFilename,
+  validateProgramForScene,
+  type CapiDiagnostic,
   type CompiledProgram,
   type ProjectFile,
   type RuntimeDeviceState,
@@ -71,20 +87,54 @@ import {
 // oxlint-disable-next-line import/default
 import SimulatorWorker from '@/lib/simulator.worker.ts?worker';
 
+const SceneBuilder = lazy(() => import('@/components/scene-builder'));
+const WiringGuide = lazy(() => import('@/components/wiring-guide'));
+
 const PROJECT_STORAGE_KEY = 'capibloques-project-v2';
 const LEGACY_STORAGE_KEY = 'capibloques-project-v1';
 const emptyProgram = (): CompiledProgram => ({ version: 2, threads: [] });
 
 let sharedAudioContext: AudioContext | null = null;
+const activeSounds = new Map<
+  string,
+  { oscillator: OscillatorNode; gain: GainNode }
+>();
+
+function stopSound(key?: string) {
+  const entries = key
+    ? ([[key, activeSounds.get(key)]] as const)
+    : [...activeSounds.entries()];
+  for (const [soundKey, nodes] of entries) {
+    if (!nodes) continue;
+    try {
+      nodes.gain.gain.cancelScheduledValues(
+        sharedAudioContext?.currentTime ?? 0,
+      );
+      nodes.gain.gain.setValueAtTime(
+        0.0001,
+        sharedAudioContext?.currentTime ?? 0,
+      );
+      nodes.oscillator.stop();
+    } catch {
+      // El navegador puede haber finalizado el oscilador entre eventos.
+    }
+    activeSounds.delete(soundKey);
+  }
+}
 
 function sound(
   frequency: number,
   durationMs: number,
   muted: boolean,
   volume = 0.055,
+  key = 'interface',
 ) {
   if (muted || typeof window === 'undefined') return;
   sharedAudioContext ??= new AudioContext();
+  if (sharedAudioContext.state === 'suspended') {
+    void sharedAudioContext.resume().catch(() => undefined);
+  }
+  stopSound(key);
   const oscillator = sharedAudioContext.createOscillator();
   const gain = sharedAudioContext.createGain();
   oscillator.type = 'sine';
@@ -95,6 +145,12 @@ function sound(
     sharedAudioContext.currentTime + durationMs / 1000,
   );
   oscillator.connect(gain).connect(sharedAudioContext.destination);
+  activeSounds.set(key, { oscillator, gain });
+  oscillator.addEventListener('ended', () => {
+    if (activeSounds.get(key)?.oscillator === oscillator) {
+      activeSounds.delete(key);
+    }
+  });
   oscillator.start();
   oscillator.stop(sharedAudioContext.currentTime + durationMs / 1000);
 }
@@ -113,7 +169,7 @@ function runtimeFromDevice(
         kind: device.kind,
         x: (device.position.x / scene.canvas.width) * 100,
         y: (device.position.y / scene.canvas.height) * 100,
-        angle: device.config.heading,
+        angle: device.rotation + device.config.heading,
         left: 0,
         right: 0,
       };
@@ -139,14 +195,19 @@ function runtimeFromDevice(
       return {
         kind: device.kind,
         status:
-          device.config.status === 'idle' ? 'disconnected' : device.config.status,
+          device.config.status === 'idle'
+            ? 'disconnected'
+            : device.config.status,
       };
   }
 }
 
 function makeInitialState(scene: SceneDefinition): SimulatorState {
   const devices = Object.fromEntries(
-    scene.devices.map((device) => [device.id, runtimeFromDevice(device, scene)]),
+    scene.devices.map((device) => [
+      device.id,
+      runtimeFromDevice(device, scene),
+    ]),
   );
   const traffic = Object.values(devices).find(
     (device): device is Extract<RuntimeDeviceState, { kind: 'trafficLight' }> =>
@@ -303,6 +364,9 @@ export default function CapiBlocksApp() {
   const workerRef = useRef<Worker | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mutedRef = useRef(false);
+  const speedRef = useRef(1);
+  const pendingHighlightFrameRef = useRef<number | null>(null);
+  const pendingActiveBlocksRef = useRef(new Map<string, string>());
   const [hydrated, setHydrated] = useState(false);
   const [projectName, setProjectName] = useState(currentExample.title);
   const [scene, setScene] = useState<SceneDefinition>(initialScene);
@@ -317,10 +381,21 @@ export default function CapiBlocksApp() {
   const [muted, setMuted] = useState(false);
   const [examplesOpen, setExamplesOpen] = useState(false);
   const [sceneBuilderOpen, setSceneBuilderOpen] = useState(false);
+  const [wiringOpen, setWiringOpen] = useState(false);
+  const [wiringAcknowledged, setWiringAcknowledged] = useState(false);
   const [codeOpen, setCodeOpen] = useState(false);
+  const [problemsOpen, setProblemsOpen] = useState(false);
   const [code, setCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [notice, setNotice] = useState('Guardado automático activo');
+  const [noticeTone, setNoticeTone] = useState<'ok' | 'warning' | 'error'>(
+    'ok',
+  );
+  const [diagnostics, setDiagnostics] = useState<CapiDiagnostic[]>([]);
+  const [blockHistory, setBlockHistory] = useState<BlocklyHistoryState>({
+    canUndo: false,
+    canRedo: false,
+  });
   const [activeTab, setActiveTab] = useState('scene');
   const [lastProgram, setLastProgram] = useState<CompiledProgram>(emptyProgram);
 
@@ -337,57 +412,134 @@ export default function CapiBlocksApp() {
   useEffect(() => {
     const worker = new SimulatorWorker();
     workerRef.current = worker;
+    const flushHighlights = () => {
+      pendingHighlightFrameRef.current = null;
+      editorRef.current?.highlight([
+        ...pendingActiveBlocksRef.current.values(),
+      ]);
+    };
+    const scheduleHighlight = () => {
+      if (pendingHighlightFrameRef.current !== null) return;
+      pendingHighlightFrameRef.current = requestAnimationFrame(flushHighlights);
+    };
     worker.addEventListener('message', (event) => {
-      if (event.data.type === 'SNAPSHOT')
-        setSim(event.data.state as SimulatorState);
-      if (event.data.type === 'BLOCK_ACTIVE')
-        editorRef.current?.highlight(event.data.blockId);
-      if (event.data.type === 'SOUND')
+      if (event.data.type === 'SNAPSHOT') {
+        const nextState = event.data.state as SimulatorState;
+        setSim(nextState);
+        pendingActiveBlocksRef.current = new Map(
+          Object.entries(nextState.activeBlockIds).filter(
+            (entry): entry is [string, string] => typeof entry[1] === 'string',
+          ),
+        );
+        scheduleHighlight();
+      }
+      if (event.data.type === 'BLOCK_ACTIVE') {
+        pendingActiveBlocksRef.current.set(
+          String(event.data.threadId ?? 'main'),
+          String(event.data.blockId ?? ''),
+        );
+        scheduleHighlight();
+      }
+      if (event.data.type === 'SOUND') {
         sound(
           event.data.frequency,
-          event.data.durationMs,
+          event.data.durationMs / speedRef.current,
           mutedRef.current,
           0.035,
+          `device:${String(event.data.deviceId ?? 'unknown')}`,
         );
+      }
+      if (event.data.type === 'SOUND_STOP') {
+        const deviceId =
+          typeof event.data.deviceId === 'string'
+            ? `device:${event.data.deviceId}`
+            : undefined;
+        stopSound(deviceId);
+      }
+      if (event.data.type === 'DIAGNOSTICS') {
+        const received = Array.isArray(event.data.diagnostics)
+          ? (event.data.diagnostics as CapiDiagnostic[])
+          : [];
+        setDiagnostics(received);
+        if (event.data.simulationBlocked) {
+          setNoticeTone('error');
+          setNotice('Hay bloques que necesitan una corrección antes de probar');
+        } else if (received.length) {
+          setNoticeTone('warning');
+          setNotice(
+            'La simulación puede continuar; revisá estos avisos antes de conectar la placa',
+          );
+        }
+      }
       if (event.data.type === 'DONE') {
         sound(980, 140, mutedRef.current);
         window.setTimeout(() => sound(1320, 180, mutedRef.current), 100);
       }
     });
-    return () => worker.terminate();
+    return () => {
+      if (pendingHighlightFrameRef.current !== null) {
+        cancelAnimationFrame(pendingHighlightFrameRef.current);
+      }
+      stopSound();
+      worker.terminate();
+    };
   }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       try {
-        const saved =
-          localStorage.getItem(PROJECT_STORAGE_KEY) ??
-          localStorage.getItem(LEGACY_STORAGE_KEY);
+        const currentSaved = localStorage.getItem(PROJECT_STORAGE_KEY);
+        const legacySaved = localStorage.getItem(LEGACY_STORAGE_KEY);
         const soundSetting = localStorage.getItem('capibloques-muted');
-        if (soundSetting) setMuted(soundSetting === 'true');
-        if (saved) {
-          const decoded = decodeProject(JSON.parse(saved) as unknown);
-          if (decoded.project) {
-            setProjectName(decoded.project.metadata.title);
-            setScene(cloneScene(decoded.project.scene));
-            setSim(makeInitialState(decoded.project.scene));
-            setSpeed(decoded.project.simulation.speed);
-            setWorkspace(normalizeWorkspace(decoded.project.workspace));
-            setWorkspaceRevision((value) => value + 1);
-            setNotice(
-              decoded.migrated
-                ? 'Convertimos tu proyecto anterior al editor de escenas'
-                : 'Recuperamos tu último proyecto',
-            );
-          } else {
-            setNotice(
-              decoded.diagnostics[0]?.message ??
-                'El proyecto guardado no era compatible; empezamos uno nuevo',
-            );
+        if (soundSetting !== null) setMuted(soundSetting === 'true');
+
+        let recovered: ReturnType<typeof decodeProject> | null = null;
+        let recoveredFromLegacy = false;
+        let recoveryMessage = '';
+        for (const [index, saved] of [currentSaved, legacySaved].entries()) {
+          if (!saved) continue;
+          try {
+            const decoded = decodeProject(JSON.parse(saved) as unknown);
+            if (decoded.project) {
+              recovered = decoded;
+              recoveredFromLegacy = index === 1;
+              break;
+            }
+            recoveryMessage ||= decoded.diagnostics[0]?.message ?? '';
+          } catch (error) {
+            recoveryMessage ||=
+              error instanceof Error ? error.message : 'JSON no válido';
           }
         }
-      } catch {
-        setNotice('Empezamos con un proyecto nuevo');
+
+        if (recovered?.project) {
+          setProjectName(recovered.project.metadata.title);
+          setScene(cloneScene(recovered.project.scene));
+          setSim(makeInitialState(recovered.project.scene));
+          setSpeed(recovered.project.simulation.speed);
+          speedRef.current = recovered.project.simulation.speed;
+          setWorkspace(normalizeWorkspace(recovered.project.workspace));
+          setWorkspaceRevision((value) => value + 1);
+          setNotice(
+            recoveredFromLegacy || recovered.migrated
+              ? 'Recuperamos y actualizamos tu proyecto anterior'
+              : 'Recuperamos tu último proyecto',
+          );
+          setNoticeTone('ok');
+        } else if (currentSaved || legacySaved) {
+          setNotice(
+            recoveryMessage ||
+              'El proyecto guardado no era compatible; empezamos uno nuevo',
+          );
+          setNoticeTone('warning');
+        }
+      } catch (error) {
+        setNotice(
+          error instanceof Error
+            ? `No pudimos usar el guardado del navegador: ${error.message}`
+            : 'No pudimos usar el guardado del navegador',
+        );
+        setNoticeTone('warning');
       } finally {
         setHydrated(true);
       }
@@ -398,19 +550,47 @@ export default function CapiBlocksApp() {
   useEffect(() => {
     if (!hydrated) return;
     const timer = window.setTimeout(() => {
-      const project = makeProject(projectName, scene, workspace, speed);
-      localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(project));
+      try {
+        const project = makeProject(projectName, scene, workspace, speed);
+        localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(project));
+      } catch (error) {
+        setNotice(
+          error instanceof Error
+            ? `No pudimos guardar en este navegador: ${error.message}`
+            : 'No pudimos guardar en este navegador',
+        );
+        setNoticeTone('error');
+      }
     }, 350);
     return () => window.clearTimeout(timer);
   }, [hydrated, projectName, scene, speed, workspace]);
 
   useEffect(() => {
     mutedRef.current = muted;
-    localStorage.setItem('capibloques-muted', String(muted));
-  }, [muted]);
+    if (muted) stopSound();
+    if (!hydrated) return;
+    try {
+      localStorage.setItem('capibloques-muted', String(muted));
+    } catch {
+      // Silenciar sigue funcionando aunque el navegador bloquee preferencias.
+    }
+  }, [hydrated, muted]);
+
+  useEffect(() => {
+    speedRef.current = speed;
+  }, [speed]);
 
   const onBlockSnap = useCallback(
     () => sound(420, 45, mutedRef.current, 0.025),
+    [],
+  );
+
+  const onWorkspaceChange = useCallback(
+    (nextWorkspace: Record<string, unknown>) => {
+      setWorkspace(nextWorkspace);
+      setDiagnostics([]);
+      setNoticeTone('ok');
+    },
     [],
   );
 
@@ -424,6 +604,25 @@ export default function CapiBlocksApp() {
     const program = compile();
     if (!hasExecutableNodes(program)) {
       setNotice('Agrega un bloque “al comenzar” con acciones para ejecutar');
+      setNoticeTone('warning');
+      sound(210, 180, muted);
+      return;
+    }
+    const programDiagnostics = validateProgramForScene(program, scene);
+    const blockingDiagnostics = programDiagnostics.filter(
+      (item) =>
+        item.severity === 'error' &&
+        ['target-missing', 'target-kind-mismatch', 'too-many-threads'].includes(
+          item.code,
+        ),
+    );
+    setDiagnostics(programDiagnostics);
+    if (blockingDiagnostics.length) {
+      setNoticeTone('error');
+      setNotice(
+        'Hay bloques sin componente. Abrí los problemas para corregirlos.',
+      );
+      setProblemsOpen(true);
       sound(210, 180, muted);
       return;
     }
@@ -435,6 +634,7 @@ export default function CapiBlocksApp() {
         ? `${program.threads.length} programas comenzaron a la vez`
         : 'Simulación de comportamiento iniciada',
     );
+    setNoticeTone('ok');
     sound(620, 90, muted);
   }, [compile, muted, postToWorker, scene, speed]);
 
@@ -447,6 +647,7 @@ export default function CapiBlocksApp() {
       const program = compile();
       if (!hasExecutableNodes(program)) {
         setNotice('Agrega un bloque “al comenzar” para avanzar paso a paso');
+        setNoticeTone('warning');
         return;
       }
       postToWorker({ type: 'LOAD', program, scene });
@@ -454,29 +655,34 @@ export default function CapiBlocksApp() {
     }
     postToWorker({ type: 'STEP' });
     setNotice('Avanzamos una acción del próximo programa listo');
+    setNoticeTone('ok');
   }, [compile, postToWorker, scene, sim.status, speed]);
 
   const reset = useCallback(() => {
     postToWorker({ type: 'RESET' });
+    stopSound();
+    pendingActiveBlocksRef.current.clear();
     editorRef.current?.highlight();
     setSim(makeInitialState(scene));
     setNotice('Escena reiniciada');
+    setNoticeTone('ok');
   }, [postToWorker, scene]);
 
-  const changeScene = useCallback(
-    (nextScene: SceneDefinition) => {
-      const customizedScene = cloneScene(nextScene);
-      delete customizedScene.sourceTemplate;
-      setScene(customizedScene);
-      setNotice('Escena actualizada; los bloques ya ven sus componentes');
-    },
-    [],
-  );
+  const changeScene = useCallback((nextScene: SceneDefinition) => {
+    const customizedScene = cloneScene(nextScene);
+    delete customizedScene.sourceTemplate;
+    setScene(customizedScene);
+    setWiringAcknowledged(false);
+    setDiagnostics([]);
+    setNotice('Escena actualizada; los bloques ya ven sus componentes');
+    setNoticeTone('ok');
+  }, []);
 
   const toggleSceneBuilder = useCallback(
     (nextOpen: boolean) => {
       if (nextOpen) {
         postToWorker({ type: 'STOP' });
+        stopSound();
       } else {
         setSim(makeInitialState(scene));
         editorRef.current?.highlight();
@@ -491,14 +697,18 @@ export default function CapiBlocksApp() {
       const example = examples.find((item) => item.id === id) ?? examples[0];
       const nextScene = cloneScene(example.scene);
       postToWorker({ type: 'STOP' });
+      stopSound();
       setProjectName(example.title);
       setScene(nextScene);
       setSim(makeInitialState(nextScene));
       setWorkspace(example.workspace);
       setWorkspaceRevision((value) => value + 1);
+      setWiringAcknowledged(false);
+      setDiagnostics([]);
       setExamplesOpen(false);
       setActiveTab('scene');
       setNotice(`Ejemplo cargado: ${example.title}`);
+      setNoticeTone('ok');
     },
     [postToWorker],
   );
@@ -510,6 +720,8 @@ export default function CapiBlocksApp() {
         const result = addDeviceToScene(current, kind);
         delete result.scene.sourceTemplate;
         setSim(makeInitialState(result.scene));
+        setWiringAcknowledged(false);
+        setDiagnostics([]);
         setNotice(`${result.device.name} agregado a la escena`);
         return result.scene;
       });
@@ -522,29 +734,65 @@ export default function CapiBlocksApp() {
     return makeProject(projectName, scene, savedWorkspace, speed);
   }, [projectName, scene, speed, workspace]);
 
+  const saveToBrowser = useCallback(() => {
+    try {
+      localStorage.setItem(
+        PROJECT_STORAGE_KEY,
+        JSON.stringify(currentProject()),
+      );
+      setNotice('Proyecto guardado en este navegador');
+      setNoticeTone('ok');
+      sound(760, 80, muted);
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? `No pudimos guardar: ${error.message}`
+          : 'No pudimos guardar el proyecto',
+      );
+      setNoticeTone('error');
+    }
+  }, [currentProject, muted]);
+
   const exportJson = useCallback(() => {
-    const project = currentProject();
-    downloadText(
-      `${safeFilename(projectName)}.capibloques.json`,
-      JSON.stringify(project, null, 2),
-      'application/json',
-    );
-    setNotice('Proyecto JSON exportado con escena, bloques y conexiones');
-    sound(860, 100, muted);
+    try {
+      const project = currentProject();
+      downloadText(
+        `${safeFilename(projectName)}.capibloques.json`,
+        JSON.stringify(project, null, 2),
+        'application/json',
+      );
+      setNotice('Proyecto JSON exportado con escena, bloques y conexiones');
+      setNoticeTone('ok');
+      sound(860, 100, muted);
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : 'No pudimos exportar el proyecto',
+      );
+      setNoticeTone('error');
+    }
   }, [currentProject, muted, projectName]);
 
   const buildCode = useCallback(() => {
     const program = compile();
     const result = generateEsp32CodeResult(program, projectName, scene);
     setCode(result.code);
+    setDiagnostics(result.diagnostics);
     const errors = result.diagnostics.filter(
       (diagnostic) => diagnostic.severity === 'error',
     );
     const warnings = result.diagnostics.length - errors.length;
-    if (errors.length)
+    if (errors.length) {
       setNotice(`${errors.length} problema(s) impiden completar el código`);
-    else if (warnings)
+      setNoticeTone('error');
+    } else if (warnings) {
       setNotice(`Código generado con ${warnings} aviso(s) de cableado`);
+      setNoticeTone('warning');
+    } else {
+      setNotice('Código listo para revisar y descargar');
+      setNoticeTone('ok');
+    }
     return result;
   }, [compile, projectName, scene]);
 
@@ -562,7 +810,17 @@ export default function CapiBlocksApp() {
       setNotice(
         `Corrige ${errors.length} problema(s) antes de descargar a la Wemos`,
       );
+      setProblemsOpen(true);
+      setNoticeTone('error');
       sound(190, 160, muted, 0.035);
+      return;
+    }
+    if (scene.devices.length > 0 && !wiringAcknowledged) {
+      setNotice(
+        'Antes de descargar, revisá el cableado y la seguridad de la placa',
+      );
+      setNoticeTone('warning');
+      setWiringOpen(true);
       return;
     }
     downloadText(
@@ -571,7 +829,8 @@ export default function CapiBlocksApp() {
       'text/x-c++src',
     );
     setNotice('Código .ino descargado para la Wemos D1 R32');
-  }, [buildCode, muted, projectName]);
+    setNoticeTone('ok');
+  }, [buildCode, muted, projectName, scene.devices.length, wiringAcknowledged]);
 
   const importProject = useCallback(
     async (file: File) => {
@@ -586,17 +845,21 @@ export default function CapiBlocksApp() {
           );
         const nextScene = cloneScene(decoded.project.scene);
         postToWorker({ type: 'STOP' });
+        stopSound();
         setProjectName(decoded.project.metadata.title);
         setScene(nextScene);
         setSim(makeInitialState(nextScene));
         setSpeed(decoded.project.simulation.speed);
         setWorkspace(normalizeWorkspace(decoded.project.workspace));
         setWorkspaceRevision((value) => value + 1);
+        setWiringAcknowledged(false);
+        setDiagnostics(decoded.diagnostics);
         setNotice(
           decoded.migrated
             ? 'Proyecto anterior convertido y abierto correctamente'
             : 'Proyecto importado correctamente',
         );
+        setNoticeTone(decoded.diagnostics.length ? 'warning' : 'ok');
         sound(880, 120, muted);
       } catch (error) {
         setNotice(
@@ -604,6 +867,7 @@ export default function CapiBlocksApp() {
             ? error.message
             : 'No pudimos abrir ese archivo',
         );
+        setNoticeTone('error');
         sound(190, 180, muted);
       }
     },
@@ -693,9 +957,9 @@ export default function CapiBlocksApp() {
         { signal: lifecycle.signal },
       ),
     ];
-    void Promise.all(registrations.map((value) => Promise.resolve(value))).catch(
-      () => undefined,
-    );
+    void Promise.all(
+      registrations.map((value) => Promise.resolve(value)),
+    ).catch(() => undefined);
     return () => lifecycle.abort();
   }, [addSceneComponent, loadExample]);
 
@@ -723,16 +987,29 @@ export default function CapiBlocksApp() {
           <span>Proyecto</span>
           <input
             value={projectName}
+            maxLength={80}
             onChange={(event) => setProjectName(event.target.value)}
             aria-label="Nombre del proyecto"
           />
         </label>
         <nav className="header-actions" aria-label="Acciones del proyecto">
           <button
+            className="header-text-button save-project-button"
+            onClick={saveToBrowser}
+          >
+            <Save size={18} /> Guardar
+          </button>
+          <button
             className="header-text-button scene-builder-button"
             onClick={() => toggleSceneBuilder(true)}
           >
             <Blocks size={18} /> Armar escena
+          </button>
+          <button
+            className="header-text-button wiring-button"
+            onClick={() => setWiringOpen(true)}
+          >
+            <Cable size={18} /> Conectar
           </button>
           <button
             className="icon-button"
@@ -756,7 +1033,9 @@ export default function CapiBlocksApp() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="export-menu">
               <DropdownMenuGroup>
-                <DropdownMenuLabel>Guarda o lleva tu proyecto</DropdownMenuLabel>
+                <DropdownMenuLabel>
+                  Guarda o lleva tu proyecto
+                </DropdownMenuLabel>
                 <DropdownMenuItem onClick={exportJson}>
                   <FileJson /> Proyecto editable JSON
                 </DropdownMenuItem>
@@ -772,8 +1051,10 @@ export default function CapiBlocksApp() {
           </DropdownMenu>
           <input
             ref={fileInputRef}
-            className="visually-hidden"
             type="file"
+            hidden
+            tabIndex={-1}
+            aria-hidden="true"
             accept=".json,.capibloques.json,application/json"
             onChange={(event) => {
               const file = event.target.files?.[0];
@@ -808,7 +1089,10 @@ export default function CapiBlocksApp() {
         {sim.status === 'running' ? (
           <button
             className="pause-button"
-            onClick={() => postToWorker({ type: 'PAUSE' })}
+            onClick={() => {
+              postToWorker({ type: 'PAUSE' });
+              stopSound();
+            }}
           >
             <Pause size={18} fill="currentColor" /> Pausar
           </button>
@@ -827,7 +1111,14 @@ export default function CapiBlocksApp() {
         <button onClick={step}>
           <StepForward size={18} /> Paso
         </button>
-        <button onClick={() => postToWorker({ type: 'STOP' })}>
+        <button
+          onClick={() => {
+            postToWorker({ type: 'STOP' });
+            stopSound();
+            pendingActiveBlocksRef.current.clear();
+            editorRef.current?.highlight();
+          }}
+        >
           <CircleStop size={18} /> Detener
         </button>
         <button onClick={reset}>
@@ -853,9 +1144,14 @@ export default function CapiBlocksApp() {
         <button onClick={openCode}>
           <Code2 size={18} /> Ver código ESP32
         </button>
-        <span className="board-badge">
+        <button
+          type="button"
+          className="board-badge"
+          onClick={() => setWiringOpen(true)}
+          title="Abrir guía de conexiones"
+        >
           <span /> WEMOS D1 R32 · Arduino-ESP32 3.3.11
-        </span>
+        </button>
       </section>
 
       <div className="workspace-grid functional">
@@ -865,20 +1161,52 @@ export default function CapiBlocksApp() {
               <span>Programa visual</span>
               <strong>Arrastra, encaja y elige qué objeto controlas</strong>
             </div>
-            <button
-              onClick={() => editorRef.current?.zoomToFit()}
-              title="Centrar todos los bloques"
+            <div
+              className="canvas-header-actions"
+              aria-label="Historial de bloques"
             >
-              <Maximize2 size={17} /> Centrar
-            </button>
+              <button
+                onClick={() => editorRef.current?.undo()}
+                title="Deshacer cambio en los bloques"
+                disabled={!blockHistory.canUndo}
+              >
+                <Undo2 size={17} /> Deshacer
+              </button>
+              <button
+                onClick={() => editorRef.current?.redo()}
+                title="Rehacer cambio en los bloques"
+                disabled={!blockHistory.canRedo}
+              >
+                <Redo2 size={17} /> Rehacer
+              </button>
+              <button
+                onClick={() => editorRef.current?.zoomToFit()}
+                title="Centrar todos los bloques"
+              >
+                <Maximize2 size={17} /> Centrar
+              </button>
+            </div>
           </div>
           <BlocklyWorkspace
             ref={editorRef}
             initialWorkspace={workspace}
             revision={workspaceRevision}
             devices={scene.devices}
-            onChange={setWorkspace}
+            onChange={onWorkspaceChange}
             onBlockSnap={onBlockSnap}
+            onHistoryChange={setBlockHistory}
+            onError={(message) => {
+              setNotice(message);
+              setNoticeTone('error');
+              setDiagnostics([
+                {
+                  severity: 'error',
+                  code: 'workspace-load',
+                  message,
+                },
+              ]);
+              setProblemsOpen(true);
+            }}
           />
         </section>
 
@@ -985,7 +1313,9 @@ export default function CapiBlocksApp() {
                       </div>
                     );
                   })}
-                  {scene.devices.some((device) => device.kind === 'wifiNode') && (
+                  {scene.devices.some(
+                    (device) => device.kind === 'wifiNode',
+                  ) && (
                     <div className="switch-row">
                       <span>📶 Red Wi-Fi disponible</span>
                       <Switch
@@ -1028,15 +1358,26 @@ export default function CapiBlocksApp() {
                   ? `${lastProgram.threads.length} programas independientes`
                   : sim.status === 'running'
                     ? 'puedes detenerlo cuando quieras'
-                    : 'la placa real puede reaccionar distinto'}
+                    : 'misma lógica cooperativa que el código ESP32'}
               </span>
             </div>
           </div>
         </aside>
       </div>
 
-      <output className="notice" aria-live="polite">
-        <Check size={15} /> {notice}
+      <output className={`notice ${noticeTone}`} aria-live="polite">
+        {noticeTone === 'ok' ? (
+          <Check size={15} />
+        ) : (
+          <AlertTriangle size={15} />
+        )}{' '}
+        <span>{notice}</span>
+        {diagnostics.length > 0 && (
+          <button type="button" onClick={() => setProblemsOpen(true)}>
+            Ver {diagnostics.length}{' '}
+            {diagnostics.length === 1 ? 'detalle' : 'detalles'}
+          </button>
+        )}
       </output>
 
       <Dialog open={examplesOpen} onOpenChange={setExamplesOpen}>
@@ -1066,12 +1407,82 @@ export default function CapiBlocksApp() {
         </DialogContent>
       </Dialog>
 
-      <SceneBuilder
-        open={sceneBuilderOpen}
-        onOpenChange={toggleSceneBuilder}
-        scene={scene}
-        onSceneChange={changeScene}
-      />
+      {sceneBuilderOpen && (
+        <Suspense fallback={null}>
+          <SceneBuilder
+            open={sceneBuilderOpen}
+            onOpenChange={toggleSceneBuilder}
+            scene={scene}
+            onSceneChange={changeScene}
+          />
+        </Suspense>
+      )}
+
+      {wiringOpen && (
+        <Suspense fallback={null}>
+          <WiringGuide
+            open={wiringOpen}
+            onOpenChange={setWiringOpen}
+            scene={scene}
+            acknowledged={wiringAcknowledged}
+            onAcknowledgedChange={setWiringAcknowledged}
+          />
+        </Suspense>
+      )}
+
+      <Dialog open={problemsOpen} onOpenChange={setProblemsOpen}>
+        <DialogContent className="problems-dialog">
+          <DialogHeader>
+            <DialogTitle>Qué hay que revisar</DialogTitle>
+            <DialogDescription>
+              Cada mensaje indica el objeto o bloque que necesita atención.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="diagnostic-list">
+            {diagnostics.length ? (
+              diagnostics.map((diagnostic, index) => (
+                <button
+                  type="button"
+                  className={`diagnostic-item ${diagnostic.severity}`}
+                  key={`${diagnostic.code}-${diagnostic.deviceId ?? diagnostic.blockId ?? index}`}
+                  onClick={() => {
+                    if (diagnostic.blockId) {
+                      editorRef.current?.highlight(diagnostic.blockId);
+                      setProblemsOpen(false);
+                    } else if (diagnostic.deviceId) {
+                      setProblemsOpen(false);
+                      toggleSceneBuilder(true);
+                    }
+                  }}
+                >
+                  <span aria-hidden="true">
+                    {diagnostic.severity === 'error' ? '⛔' : '⚠️'}
+                  </span>
+                  <span>
+                    <strong>
+                      {diagnostic.severity === 'error'
+                        ? 'Hay que corregirlo'
+                        : 'Consejo de conexión'}
+                    </strong>
+                    <small>{diagnostic.message}</small>
+                  </span>
+                  {(diagnostic.blockId || diagnostic.deviceId) && (
+                    <em>
+                      {diagnostic.blockId ? 'Mostrar bloque' : 'Abrir escena'}
+                    </em>
+                  )}
+                </button>
+              ))
+            ) : (
+              <div className="diagnostic-empty">
+                <ShieldCheck size={34} />
+                <strong>Todo está listo</strong>
+                <span>No encontramos problemas en este momento.</span>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={codeOpen} onOpenChange={setCodeOpen}>
         <DialogContent className="code-dialog">
@@ -1096,10 +1507,32 @@ export default function CapiBlocksApp() {
             >
               <Clipboard size={16} /> {copied ? 'Copiado' : 'Copiar'}
             </button>
-            <button onClick={exportCode}>
+            <button
+              onClick={exportCode}
+              disabled={diagnostics.some((item) => item.severity === 'error')}
+              title={
+                diagnostics.some((item) => item.severity === 'error')
+                  ? 'Corregí los problemas antes de descargar'
+                  : 'Descargar código Arduino'
+              }
+            >
               <Download size={16} /> Descargar .ino
             </button>
           </div>
+          {diagnostics.length > 0 && (
+            <button
+              type="button"
+              className="code-diagnostics-button"
+              onClick={() => {
+                setCodeOpen(false);
+                setProblemsOpen(true);
+              }}
+            >
+              <AlertTriangle size={17} /> Revisar {diagnostics.length}{' '}
+              {diagnostics.length === 1 ? 'mensaje' : 'mensajes'} antes de usar
+              la placa
+            </button>
+          )}
           <pre className="code-view">
             <code>{code}</code>
           </pre>
