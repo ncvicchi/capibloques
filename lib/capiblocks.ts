@@ -540,6 +540,20 @@ function finiteNumber(value: unknown, fallback: number) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+export const COUNTER_MIN = -2_147_483_648;
+export const COUNTER_MAX = 2_147_483_647;
+
+export function normalizeCounterValue(value: unknown, fallback = 0) {
+  const rounded = Math.round(finiteNumber(value, fallback));
+  return Math.max(COUNTER_MIN, Math.min(COUNTER_MAX, rounded));
+}
+
+export function addCounterValues(current: number, delta: number) {
+  return normalizeCounterValue(
+    normalizeCounterValue(current) + normalizeCounterValue(delta),
+  );
+}
+
 function unsafeTextCharacter(character: string, includeBidi = false) {
   const code = character.charCodeAt(0);
   return (
@@ -1422,7 +1436,7 @@ function normalizeCondition(raw: unknown, scene: SceneDefinition): Condition {
       return {
         kind: 'counter',
         operator,
-        value: finiteNumber(condition.value, 0),
+        value: normalizeCounterValue(condition.value),
       };
     case 'compare':
       return {
@@ -1590,14 +1604,14 @@ function normalizeNodes(
       case 'counterSet':
         result.push({
           op: 'counterSet',
-          value: finiteNumber(node.value, 0),
+          value: normalizeCounterValue(node.value),
           blockId,
         });
         break;
       case 'counterChange':
         result.push({
           op: 'counterChange',
-          delta: finiteNumber(node.delta, 1),
+          delta: normalizeCounterValue(node.delta, 1),
           blockId,
         });
         break;
@@ -1742,6 +1756,18 @@ function visitProgram(
   program.threads.forEach((thread) => visit(thread.nodes));
 }
 
+export function collectRawOutputPins(
+  input: CompiledProgram | ProgramNode[],
+  scene?: SceneDefinition,
+) {
+  const program = normalizeCompiledProgram(input, scene);
+  const pins = new Set<number>();
+  visitProgram(program, (node) => {
+    if (node.op === 'pin') pins.add(node.pin);
+  });
+  return [...pins].sort((left, right) => left - right);
+}
+
 function expectedKinds(node: ProgramNode): SceneDeviceKind[] {
   return compatibleKindsForNode(node as unknown as Record<string, unknown>);
 }
@@ -1791,6 +1817,7 @@ export function validateProgramForScene(
     'pwm-channel-limit',
     'passive-buzzer-limit',
     'button-pullup-unavailable',
+    'button-external-bias-required',
   ]);
   diagnostics.push(
     ...sceneValidation.issues.map((issue) => ({
@@ -1854,6 +1881,14 @@ export function validateProgramForScene(
           code: 'raw-pin-conflict',
           message: `GPIO ${node.pin} ya pertenece a ${owner.name}.`,
           deviceId: owner.id,
+          blockId: node.blockId,
+          pin: node.pin,
+        });
+      } else if (definition?.capabilities.includes('pwmOutput')) {
+        diagnostics.push({
+          severity: 'warning',
+          code: 'raw-pin-load-review',
+          message: `GPIO ${node.pin} es una salida avanzada: revisá resistencia, transistor o driver según la carga conectada.`,
           blockId: node.blockId,
           pin: node.pin,
         });
@@ -2063,7 +2098,7 @@ function conditionToCpp(condition: Condition, context: GeneratorContext) {
   }
   if (condition.kind === 'boolean') return condition.value ? 'true' : 'false';
   if (condition.kind === 'counter')
-    return `counterValue ${operators[condition.operator]} ${Math.trunc(condition.value)}`;
+    return `counterValue ${operators[condition.operator]} ${normalizeCounterValue(condition.value)}`;
   return `${condition.left} ${operators[condition.operator]} ${condition.right}`;
 }
 
@@ -2132,9 +2167,9 @@ function instructionToCpp(
     case 'wifi':
       return `${comment}\n        if (!wifiAttemptActive_${suffix}) {\n          WiFi.mode(WIFI_STA);\n          WiFi.begin(WIFI_SSID, WIFI_PASSWORD);\n          wifiAttemptStarted_${suffix} = now;\n          wifiAttemptActive_${suffix} = true;\n          return;\n        }\n        if (WiFi.status() == WL_CONNECTED || (uint32_t)(now - wifiAttemptStarted_${suffix}) >= ${Math.max(1000, Math.round(instruction.timeoutMs))}U) {\n          wifiAttemptActive_${suffix} = false;\n          ${pc} = ${nextPc};\n          break;\n        }\n        return;`;
     case 'counterSet':
-      return `${comment}\n        counterValue = ${Math.trunc(instruction.value)};\n        ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        counterValue = ${normalizeCounterValue(instruction.value)};\n        ${pc} = ${nextPc};\n        break;`;
     case 'counterChange':
-      return `${comment}\n        counterValue += ${Math.trunc(instruction.delta)};\n        ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        counterValue = addCounter(counterValue, ${normalizeCounterValue(instruction.delta)});\n        ${pc} = ${nextPc};\n        break;`;
     case 'serial':
       return `${comment}\n        Serial.println(${cppString(instruction.text)});\n        ${pc} = ${nextPc};\n        break;`;
     case 'repeatStart':
@@ -2242,7 +2277,10 @@ function setupLines(scene: SceneDefinition, symbols: Map<string, string>) {
         );
         break;
       case 'servo':
-        lines.push(`  ledcAttach(PIN_${symbol}, 50, 16);`);
+        lines.push(
+          `  ledcAttach(PIN_${symbol}, 50, 16);`,
+          `  setServoAngle(PIN_${symbol}, ${Math.max(0, Math.min(180, Math.round(device.config.angle)))});`,
+        );
         break;
       case 'activeBuzzer':
         lines.push(
@@ -2411,6 +2449,8 @@ enum class TrafficColor { RED, YELLOW, GREEN, OFF };
 ${deviceDeclarations(scene, symbols)}
 
 int32_t counterValue = 0;
+uint32_t lastSchedulerTick = 0;
+constexpr uint32_t SCHEDULER_QUANTUM_MS = 16;
 ${buzzerDeclarations(scene, symbols)}
 ${threadGlobals}
 
@@ -2418,6 +2458,13 @@ void setTraffic(const TrafficDevice& device, TrafficColor color) {
   digitalWrite(device.red, color == TrafficColor::RED ? HIGH : LOW);
   digitalWrite(device.yellow, color == TrafficColor::YELLOW ? HIGH : LOW);
   digitalWrite(device.green, color == TrafficColor::GREEN ? HIGH : LOW);
+}
+
+int32_t addCounter(int32_t current, int32_t delta) {
+  const int64_t result = (int64_t)current + (int64_t)delta;
+  if (result > INT32_MAX) return INT32_MAX;
+  if (result < INT32_MIN) return INT32_MIN;
+  return (int32_t)result;
 }
 
 void motorWrite(uint8_t in1, uint8_t in2, int speedPercent) {
@@ -2458,6 +2505,11 @@ ${setupLines(scene, symbols)}
 void loop() {
   const uint32_t now = millis();
 ${serviceBuzzerLines(scene, symbols)}
+  if ((uint32_t)(now - lastSchedulerTick) < SCHEDULER_QUANTUM_MS) {
+    yield();
+    return;
+  }
+  lastSchedulerTick = now;
 ${runThreads}
   yield();
 }

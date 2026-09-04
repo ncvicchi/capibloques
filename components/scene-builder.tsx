@@ -346,9 +346,14 @@ function SceneBuilderSession({
   useEffect(() => {
     if (!open) return;
     const handleShortcut = (event: KeyboardEvent) => {
-      if (deleteTarget || pendingSelectionId || discardSceneOpen) return;
       if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
       const key = event.key.toLowerCase();
+      if (deleteTarget || pendingSelectionId || discardSceneOpen) {
+        // Browsers can undo the last edited input even when a button has focus.
+        // A confirmation must not mutate the scene hidden underneath it.
+        if (['s', 'z', 'y'].includes(key)) event.preventDefault();
+        return;
+      }
       if (key === 's') {
         event.preventDefault();
         saveAndClose();
@@ -1174,88 +1179,87 @@ function SceneBuilderSession({
             </Button>
           </DialogFooter>
         </DialogContent>
+        <AlertDialog
+          open={deleteTarget !== null}
+          onOpenChange={(nextOpen) => !nextOpen && setDeleteTarget(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {deleteTarget?.kind === 'all'
+                  ? '¿Vaciar toda la escena?'
+                  : deleteTarget?.kind === 'widget'
+                    ? '¿Quitar este marcador?'
+                    : '¿Quitar este componente?'}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteTarget?.kind === 'all'
+                  ? 'Se quitarán todos los objetos y widgets. Los bloques no se borrarán. Puedes deshacer después.'
+                  : deleteTarget?.kind === 'widget'
+                    ? 'Se quitará el marcador visual. El contador y sus bloques no se borrarán. Puedes deshacer después.'
+                    : 'Los bloques que apunten a este objeto pedirán otro destino. Puedes deshacer después.'}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Volver</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDelete}>
+                Sí, quitar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog
+          open={pendingSelectionId !== null}
+          onOpenChange={(nextOpen) => !nextOpen && setPendingSelectionId(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Hay cambios en este objeto</AlertDialogTitle>
+              <AlertDialogDescription>
+                Antes de elegir otro, decide si quieres guardar o descartar los
+                cambios del objeto actual.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Seguir editando</AlertDialogCancel>
+              <AlertDialogAction
+                variant="outline"
+                onClick={discardInspectorAndSelect}
+              >
+                Descartar
+              </AlertDialogAction>
+              <AlertDialogAction onClick={applyInspectorAndSelect}>
+                Guardar y cambiar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={discardSceneOpen} onOpenChange={setDiscardSceneOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Salir sin guardar la escena?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Se descartarán todos los cambios hechos desde que abriste el
+                editor. Esta acción no se puede deshacer después de salir.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Seguir editando</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                onClick={() => {
+                  setDiscardSceneOpen(false);
+                  onOpenChange(false);
+                }}
+              >
+                Salir sin guardar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </Dialog>
-
-      <AlertDialog
-        open={deleteTarget !== null}
-        onOpenChange={(nextOpen) => !nextOpen && setDeleteTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {deleteTarget?.kind === 'all'
-                ? '¿Vaciar toda la escena?'
-                : deleteTarget?.kind === 'widget'
-                  ? '¿Quitar este marcador?'
-                  : '¿Quitar este componente?'}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteTarget?.kind === 'all'
-                ? 'Se quitarán todos los objetos y widgets. Los bloques no se borrarán. Puedes deshacer después.'
-                : deleteTarget?.kind === 'widget'
-                  ? 'Se quitará el marcador visual. El contador y sus bloques no se borrarán. Puedes deshacer después.'
-                  : 'Los bloques que apunten a este objeto pedirán otro destino. Puedes deshacer después.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Volver</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>
-              Sí, quitar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog
-        open={pendingSelectionId !== null}
-        onOpenChange={(nextOpen) => !nextOpen && setPendingSelectionId(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Hay cambios en este objeto</AlertDialogTitle>
-            <AlertDialogDescription>
-              Antes de elegir otro, decide si quieres guardar o descartar los
-              cambios del objeto actual.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Seguir editando</AlertDialogCancel>
-            <AlertDialogAction
-              variant="outline"
-              onClick={discardInspectorAndSelect}
-            >
-              Descartar
-            </AlertDialogAction>
-            <AlertDialogAction onClick={applyInspectorAndSelect}>
-              Guardar y cambiar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={discardSceneOpen} onOpenChange={setDiscardSceneOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Salir sin guardar la escena?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Se descartarán todos los cambios hechos desde que abriste el
-              editor. Esta acción no se puede deshacer después de salir.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Seguir editando</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => {
-                setDiscardSceneOpen(false);
-                onOpenChange(false);
-              }}
-            >
-              Salir sin guardar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }

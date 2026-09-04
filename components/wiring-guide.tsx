@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Cable, Check, ShieldAlert, ShieldCheck } from 'lucide-react';
 import {
   Dialog,
@@ -16,11 +16,14 @@ import {
   type SceneDefinition,
   type SceneDevice,
 } from '@/lib/scene-model';
+import type { CapiDiagnostic } from '@/lib/capiblocks';
 
 interface WiringGuideProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   scene: SceneDefinition;
+  rawPins: number[];
+  diagnostics: CapiDiagnostic[];
   acknowledged: boolean;
   onAcknowledgedChange: (value: boolean) => void;
 }
@@ -41,20 +44,23 @@ const deviceAdvice: Record<SceneDevice['kind'], string> = {
   wifiNode: 'No necesita cables: Wi-Fi está integrado en el ESP32.',
 };
 
-function sceneSignature(scene: SceneDefinition) {
-  return JSON.stringify(
+function sceneSignature(scene: SceneDefinition, rawPins: number[]) {
+  return JSON.stringify([
     scene.devices.map((device) => [device.id, device.kind, device.pins]),
-  );
+    rawPins,
+  ]);
 }
 
 export default function WiringGuide({
   open,
   onOpenChange,
   scene,
+  rawPins,
+  diagnostics,
   acknowledged,
   onAcknowledgedChange,
 }: WiringGuideProps) {
-  const signature = sceneSignature(scene);
+  const signature = sceneSignature(scene, rawPins);
   const needsLedSafety = scene.devices.some((device) =>
     ['led', 'trafficLight'].includes(device.kind),
   );
@@ -88,20 +94,35 @@ export default function WiringGuide({
             },
           ]
         : []),
+      ...(rawPins.length
+        ? [
+            {
+              id: 'advanced-outputs',
+              label:
+                'Cada salida avanzada usa la resistencia, transistor o driver que requiere su carga.',
+            },
+          ]
+        : []),
       {
         id: 'adult',
         label: 'Una persona adulta revisó polaridad, alimentación y cables.',
       },
     ],
-    [needsExternalPower, needsLedSafety],
+    [needsExternalPower, needsLedSafety, rawPins.length],
   );
-  const [checks, setChecks] = useState<Record<string, boolean>>({});
-
-  useEffect(() => {
-    setChecks({});
-  }, [signature]);
+  const [review, setReview] = useState<{
+    signature: string;
+    checks: Record<string, boolean>;
+  }>({ signature, checks: {} });
+  const checks = review.signature === signature ? review.checks : {};
 
   const validation = validateScene(scene);
+  const rawDiagnostics = diagnostics.filter((item) =>
+    item.code.startsWith('raw-pin-'),
+  );
+  const hardwareReady =
+    validation.hardwareReady &&
+    !rawDiagnostics.some((item) => item.severity === 'error');
   const connectionRows = scene.devices.flatMap((device) => {
     const catalog = sceneComponentCatalog.find(
       (entry) => entry.kind === device.kind,
@@ -113,13 +134,22 @@ export default function WiringGuide({
       const boardPin = wemosD1R32Pins.find((item) => item.gpio === pin);
       return {
         id: `${device.id}-${requirement.key}`,
-        device,
+        deviceName: device.name,
         signal: requirement.label,
         pin,
         boardLabel: boardPin?.label,
       };
     });
   });
+  connectionRows.push(
+    ...rawPins.map((pin) => ({
+      id: `raw-output-${pin}`,
+      deviceName: 'Salida avanzada (bloque)',
+      signal: 'Salida digital',
+      pin,
+      boardLabel: wemosD1R32Pins.find((item) => item.gpio === pin)?.label,
+    })),
+  );
   const allChecked = checklist.every((item) => checks[item.id]);
 
   return (
@@ -128,8 +158,8 @@ export default function WiringGuide({
         <DialogHeader>
           <DialogTitle>Conectar la Wemos sin adivinar</DialogTitle>
           <DialogDescription>
-            Esta hoja reúne todos los GPIO de la escena. La simulación no puede
-            comprobar cables, tensión ni corriente reales.
+            Esta hoja reúne los GPIO de la escena y de los bloques avanzados. La
+            simulación no puede comprobar cables, tensión ni corriente reales.
           </DialogDescription>
         </DialogHeader>
 
@@ -145,14 +175,14 @@ export default function WiringGuide({
           </section>
 
           <section className="wiring-status">
-            {validation.hardwareReady ? (
+            {hardwareReady ? (
               <ShieldCheck aria-hidden="true" />
             ) : (
               <ShieldAlert aria-hidden="true" />
             )}
             <div>
               <strong>
-                {validation.hardwareReady
+                {hardwareReady
                   ? 'GPIO asignados sin conflictos'
                   : 'Hay GPIO que necesitan atención'}
               </strong>
@@ -179,7 +209,7 @@ export default function WiringGuide({
                   <tbody>
                     {connectionRows.map((row) => (
                       <tr key={row.id}>
-                        <td>{row.device.name}</td>
+                        <td>{row.deviceName}</td>
                         <td>{row.signal}</td>
                         <td>{row.boardLabel ?? 'Sin asignar'}</td>
                         <td>{row.pin ?? '—'}</td>
@@ -195,7 +225,7 @@ export default function WiringGuide({
             )}
           </section>
 
-          {scene.devices.length > 0 && (
+          {(scene.devices.length > 0 || rawPins.length > 0) && (
             <section className="device-advice-grid">
               {scene.devices.map((device) => (
                 <article key={device.id}>
@@ -203,6 +233,16 @@ export default function WiringGuide({
                   <span>{deviceAdvice[device.kind]}</span>
                 </article>
               ))}
+              {rawPins.length > 0 && (
+                <article>
+                  <strong>Salidas avanzadas</strong>
+                  <span>
+                    Definí la carga de cada GPIO: LED con resistencia; motor,
+                    relé o carga de mayor corriente mediante transistor o
+                    driver. Nunca alimentes una carga desde el GPIO.
+                  </span>
+                </article>
+              )}
             </section>
           )}
 
@@ -224,6 +264,22 @@ export default function WiringGuide({
             </section>
           )}
 
+          {rawDiagnostics.length > 0 && (
+            <section className="wiring-issues">
+              <h3>Salidas de bloques avanzados</h3>
+              <ul>
+                {rawDiagnostics.map((issue, index) => (
+                  <li key={`${issue.code}-${issue.pin ?? index}`}>
+                    <span aria-hidden="true">
+                      {issue.severity === 'error' ? '⛔' : '⚠️'}
+                    </span>{' '}
+                    {issue.message}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           <fieldset className="safety-checklist">
             <legend>Chequeo con una persona adulta</legend>
             {checklist.map((item) => (
@@ -233,9 +289,14 @@ export default function WiringGuide({
                   checked={Boolean(checks[item.id]) || acknowledged}
                   disabled={acknowledged}
                   onChange={(event) =>
-                    setChecks((current) => ({
-                      ...current,
-                      [item.id]: event.target.checked,
+                    setReview((current) => ({
+                      signature,
+                      checks: {
+                        ...(current.signature === signature
+                          ? current.checks
+                          : {}),
+                        [item.id]: event.target.checked,
+                      },
                     }))
                   }
                 />

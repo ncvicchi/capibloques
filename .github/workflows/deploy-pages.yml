@@ -58,6 +58,8 @@ jobs:
         run: |
           node --experimental-strip-types scripts/generate-arduino-fixture.mjs .arduino-ci/capibloques-ci/capibloques-ci.ino
           arduino-cli compile --fqbn esp32:esp32:d1_uno32 .arduino-ci/capibloques-ci
+          node --experimental-strip-types scripts/generate-arduino-fixture.mjs .arduino-ci/auxiliary/auxiliary.ino auxiliary
+          arduino-cli compile --fqbn esp32:esp32:d1_uno32 .arduino-ci/auxiliary
 
       - name: Construir sitio estático
         run: npm run build

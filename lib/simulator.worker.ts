@@ -1,5 +1,7 @@
 import {
+  addCounterValues,
   inferSceneForProgram,
+  normalizeCounterValue,
   normalizeCompiledProgram,
   validateProgramForScene,
   type CapiDiagnostic,
@@ -77,6 +79,7 @@ let running = false;
 let doneEmitted = false;
 let speed = 1;
 let virtualNow = 0;
+let schedulerDebtMs = 0;
 let lastRealTime = performance.now();
 let lastSnapshotRealTime = 0;
 let lastBlockActivityRealTime = Number.NEGATIVE_INFINITY;
@@ -93,6 +96,7 @@ const SNAPSHOT_INTERVAL_MS = 32;
 const BLOCK_ACTIVITY_INTERVAL_MS = 40;
 const SOUND_INTERVAL_MS = 32;
 const GENERATED_LOOP_BUDGET = 32;
+const SCHEDULER_QUANTUM_MS = 16;
 const HARDWARE_ONLY_ERROR_CODES = new Set([
   'scene-missing-pin',
   'scene-unsupported-pin',
@@ -100,6 +104,7 @@ const HARDWARE_ONLY_ERROR_CODES = new Set([
   'scene-pwm-channel-limit',
   'scene-passive-buzzer-limit',
   'scene-button-pullup-unavailable',
+  'scene-button-external-bias-required',
   'raw-pin-not-output',
   'raw-pin-conflict',
 ]);
@@ -426,6 +431,7 @@ function resetExecution(status: SimulatorState['status'] = 'idle') {
   applyInputOverrides();
   state.status = status;
   virtualNow = 0;
+  schedulerDebtMs = 0;
   executions = createExecutions();
   schedulerCursor = 0;
   running = false;
@@ -741,11 +747,11 @@ function executeOne(
       setBuzzer(node.deviceId, node.frequency, node.durationMs);
       break;
     case 'counterSet':
-      state.counter = Math.trunc(node.value);
+      state.counter = normalizeCounterValue(node.value);
       appendConsole(`Contador = ${state.counter}`);
       break;
     case 'counterChange':
-      state.counter += Math.trunc(node.delta);
+      state.counter = addCounterValues(state.counter, node.delta);
       appendConsole(`Contador = ${state.counter}`);
       break;
     case 'serial':
@@ -841,9 +847,28 @@ function tick() {
   if (!running && !continueFinishedPhysics) return;
   const previousStatus = state.status;
   const logicalDelta = realDelta * speed;
-  virtualNow += logicalDelta;
-  updatePhysics(logicalDelta);
-  if (running) runScheduler();
+  if (running) {
+    let remaining = logicalDelta;
+    while (remaining > 0) {
+      const slice = Math.min(remaining, SCHEDULER_QUANTUM_MS - schedulerDebtMs);
+      virtualNow += slice;
+      updatePhysics(slice);
+      schedulerDebtMs += slice;
+      remaining -= slice;
+      if (schedulerDebtMs + Number.EPSILON >= SCHEDULER_QUANTUM_MS) {
+        schedulerDebtMs = Math.max(0, schedulerDebtMs - SCHEDULER_QUANTUM_MS);
+        runScheduler();
+        if (!running) {
+          virtualNow += remaining;
+          updatePhysics(remaining);
+          remaining = 0;
+        }
+      }
+    }
+  } else {
+    virtualNow += logicalDelta;
+    updatePhysics(logicalDelta);
+  }
   flushBlockActivity();
   flushSounds();
   const justFinished = previousStatus !== 'done' && state.status === 'done';

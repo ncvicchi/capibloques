@@ -23,6 +23,14 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
+    ...(process.env.PLAYWRIGHT_CHROME === '1'
+      ? [
+          {
+            name: 'chrome',
+            use: { ...devices['Desktop Chrome'], channel: 'chrome' },
+          },
+        ]
+      : []),
     ...(process.env.PLAYWRIGHT_EDGE === '1'
       ? [
           {

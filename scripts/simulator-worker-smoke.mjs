@@ -278,6 +278,7 @@ const activityMessages = messages.filter(
   (message) => message.type === 'BLOCK_ACTIVE' && message.blockId,
 );
 assert.ok(activityMessages.length > 0);
+assert.equal(latestState().counter, 63);
 assert.ok(
   activityMessages.length <= 26,
   `se emitieron demasiados resaltados: ${activityMessages.length}`,
@@ -288,6 +289,36 @@ for (let index = 0; index < 10; index += 1) advance(16);
 assert.equal(latestState().counter, counterAtPause);
 send({ type: 'STOP' });
 assert.equal(latestState().status, 'stopped');
+
+// El contador comparte redondeo y saturación int32 con el sketch generado.
+resetMessages();
+send({
+  type: 'LOAD',
+  scene: baseScene([]),
+  program: {
+    version: 2,
+    threads: [
+      {
+        id: 'counter-bounds',
+        startBlockId: 'counter-bounds-start',
+        nodes: [
+          { op: 'counterSet', value: 2147483647, blockId: 'set-max' },
+          { op: 'counterChange', delta: 1, blockId: 'overflow-max' },
+          { op: 'counterSet', value: -2147483648, blockId: 'set-min' },
+          { op: 'counterChange', delta: -1, blockId: 'overflow-min' },
+        ],
+      },
+    ],
+  },
+});
+send({ type: 'STEP' });
+assert.equal(latestState().counter, 2147483647);
+send({ type: 'STEP' });
+assert.equal(latestState().counter, 2147483647);
+send({ type: 'STEP' });
+assert.equal(latestState().counter, -2147483648);
+send({ type: 'STEP' });
+assert.equal(latestState().counter, -2147483648);
 
 // Un objetivo inexistente bloquea la simulación, pero las advertencias de
 // cableado (como los pines nulos del robot de esta escena) no lo hacen.

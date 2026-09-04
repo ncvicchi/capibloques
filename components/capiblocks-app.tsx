@@ -61,6 +61,7 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
+  collectRawOutputPins,
   decodeProject,
   downloadText,
   examples,
@@ -93,6 +94,26 @@ const WiringGuide = lazy(() => import('@/components/wiring-guide'));
 const PROJECT_STORAGE_KEY = 'capibloques-project-v2';
 const LEGACY_STORAGE_KEY = 'capibloques-project-v1';
 const emptyProgram = (): CompiledProgram => ({ version: 2, threads: [] });
+
+function wiringReviewSignature(
+  scene: SceneDefinition,
+  program: CompiledProgram,
+) {
+  return JSON.stringify([
+    scene.devices.map((device) => [device.id, device.kind, device.pins]),
+    collectRawOutputPins(program, scene),
+  ]);
+}
+
+function hasPhysicalConnections(
+  scene: SceneDefinition,
+  program: CompiledProgram,
+) {
+  return (
+    scene.devices.some((device) => device.kind !== 'wifiNode') ||
+    collectRawOutputPins(program, scene).length > 0
+  );
+}
 
 let sharedAudioContext: AudioContext | null = null;
 const activeSounds = new Map<
@@ -382,7 +403,8 @@ export default function CapiBlocksApp() {
   const [examplesOpen, setExamplesOpen] = useState(false);
   const [sceneBuilderOpen, setSceneBuilderOpen] = useState(false);
   const [wiringOpen, setWiringOpen] = useState(false);
-  const [wiringAcknowledged, setWiringAcknowledged] = useState(false);
+  const [wiringAcknowledgedSignature, setWiringAcknowledgedSignature] =
+    useState<string | null>(null);
   const [codeOpen, setCodeOpen] = useState(false);
   const [problemsOpen, setProblemsOpen] = useState(false);
   const [code, setCode] = useState('');
@@ -551,7 +573,12 @@ export default function CapiBlocksApp() {
     if (!hydrated) return;
     const timer = window.setTimeout(() => {
       try {
-        const project = makeProject(projectName, scene, workspace, speed);
+        const project = makeProject(
+          projectName,
+          scene,
+          editorRef.current?.save() ?? workspace,
+          speed,
+        );
         localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(project));
       } catch (error) {
         setNotice(
@@ -672,7 +699,7 @@ export default function CapiBlocksApp() {
     const customizedScene = cloneScene(nextScene);
     delete customizedScene.sourceTemplate;
     setScene(customizedScene);
-    setWiringAcknowledged(false);
+    setWiringAcknowledgedSignature(null);
     setDiagnostics([]);
     setNotice('Escena actualizada; los bloques ya ven sus componentes');
     setNoticeTone('ok');
@@ -703,7 +730,7 @@ export default function CapiBlocksApp() {
       setSim(makeInitialState(nextScene));
       setWorkspace(example.workspace);
       setWorkspaceRevision((value) => value + 1);
-      setWiringAcknowledged(false);
+      setWiringAcknowledgedSignature(null);
       setDiagnostics([]);
       setExamplesOpen(false);
       setActiveTab('scene');
@@ -720,7 +747,7 @@ export default function CapiBlocksApp() {
         const result = addDeviceToScene(current, kind);
         delete result.scene.sourceTemplate;
         setSim(makeInitialState(result.scene));
-        setWiringAcknowledged(false);
+        setWiringAcknowledgedSignature(null);
         setDiagnostics([]);
         setNotice(`${result.device.name} agregado a la escena`);
         return result.scene;
@@ -801,6 +828,11 @@ export default function CapiBlocksApp() {
     setCodeOpen(true);
   }, [buildCode]);
 
+  const openWiring = useCallback(() => {
+    buildCode();
+    setWiringOpen(true);
+  }, [buildCode]);
+
   const exportCode = useCallback(() => {
     const generated = buildCode();
     const errors = generated.diagnostics.filter(
@@ -815,11 +847,16 @@ export default function CapiBlocksApp() {
       sound(190, 160, muted, 0.035);
       return;
     }
-    if (scene.devices.length > 0 && !wiringAcknowledged) {
+    const reviewSignature = wiringReviewSignature(scene, generated.program);
+    if (
+      hasPhysicalConnections(scene, generated.program) &&
+      wiringAcknowledgedSignature !== reviewSignature
+    ) {
       setNotice(
         'Antes de descargar, revisá el cableado y la seguridad de la placa',
       );
       setNoticeTone('warning');
+      setCodeOpen(false);
       setWiringOpen(true);
       return;
     }
@@ -830,7 +867,7 @@ export default function CapiBlocksApp() {
     );
     setNotice('Código .ino descargado para la Wemos D1 R32');
     setNoticeTone('ok');
-  }, [buildCode, muted, projectName, scene.devices.length, wiringAcknowledged]);
+  }, [buildCode, muted, projectName, scene, wiringAcknowledgedSignature]);
 
   const importProject = useCallback(
     async (file: File) => {
@@ -852,7 +889,7 @@ export default function CapiBlocksApp() {
         setSpeed(decoded.project.simulation.speed);
         setWorkspace(normalizeWorkspace(decoded.project.workspace));
         setWorkspaceRevision((value) => value + 1);
-        setWiringAcknowledged(false);
+        setWiringAcknowledgedSignature(null);
         setDiagnostics(decoded.diagnostics);
         setNotice(
           decoded.migrated
@@ -970,6 +1007,10 @@ export default function CapiBlocksApp() {
     (total, thread) => total + thread.nodes.length,
     0,
   );
+  const rawOutputPins = collectRawOutputPins(lastProgram, scene);
+  const currentWiringSignature = wiringReviewSignature(scene, lastProgram);
+  const wiringAcknowledged =
+    wiringAcknowledgedSignature === currentWiringSignature;
 
   return (
     <main className="app-shell">
@@ -1007,7 +1048,7 @@ export default function CapiBlocksApp() {
           </button>
           <button
             className="header-text-button wiring-button"
-            onClick={() => setWiringOpen(true)}
+            onClick={openWiring}
           >
             <Cable size={18} /> Conectar
           </button>
@@ -1147,7 +1188,7 @@ export default function CapiBlocksApp() {
         <button
           type="button"
           className="board-badge"
-          onClick={() => setWiringOpen(true)}
+          onClick={openWiring}
           title="Abrir guía de conexiones"
         >
           <span /> WEMOS D1 R32 · Arduino-ESP32 3.3.11
@@ -1187,27 +1228,29 @@ export default function CapiBlocksApp() {
               </button>
             </div>
           </div>
-          <BlocklyWorkspace
-            ref={editorRef}
-            initialWorkspace={workspace}
-            revision={workspaceRevision}
-            devices={scene.devices}
-            onChange={onWorkspaceChange}
-            onBlockSnap={onBlockSnap}
-            onHistoryChange={setBlockHistory}
-            onError={(message) => {
-              setNotice(message);
-              setNoticeTone('error');
-              setDiagnostics([
-                {
-                  severity: 'error',
-                  code: 'workspace-load',
-                  message,
-                },
-              ]);
-              setProblemsOpen(true);
-            }}
-          />
+          {hydrated && (
+            <BlocklyWorkspace
+              ref={editorRef}
+              initialWorkspace={workspace}
+              revision={workspaceRevision}
+              devices={scene.devices}
+              onChange={onWorkspaceChange}
+              onBlockSnap={onBlockSnap}
+              onHistoryChange={setBlockHistory}
+              onError={(message) => {
+                setNotice(message);
+                setNoticeTone('error');
+                setDiagnostics([
+                  {
+                    severity: 'error',
+                    code: 'workspace-load',
+                    message,
+                  },
+                ]);
+                setProblemsOpen(true);
+              }}
+            />
+          )}
         </section>
 
         <aside
@@ -1424,8 +1467,14 @@ export default function CapiBlocksApp() {
             open={wiringOpen}
             onOpenChange={setWiringOpen}
             scene={scene}
+            rawPins={rawOutputPins}
+            diagnostics={diagnostics}
             acknowledged={wiringAcknowledged}
-            onAcknowledgedChange={setWiringAcknowledged}
+            onAcknowledgedChange={(value) =>
+              setWiringAcknowledgedSignature(
+                value ? currentWiringSignature : null,
+              )
+            }
           />
         </Suspense>
       )}

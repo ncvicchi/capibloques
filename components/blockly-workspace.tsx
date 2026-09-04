@@ -472,7 +472,14 @@ function registerBlocks(Blockly: BlocklyApi) {
             ['≥', 'GTE'],
           ],
         },
-        { type: 'field_number', name: 'VALUE', value: 5 },
+        {
+          type: 'field_number',
+          name: 'VALUE',
+          value: 5,
+          min: -2147483648,
+          max: 2147483647,
+          precision: 1,
+        },
       ],
       output: 'Boolean',
       colour: '#6759DF',
@@ -481,7 +488,16 @@ function registerBlocks(Blockly: BlocklyApi) {
     {
       type: 'capi_counter_set',
       message0: '🔢 poner contador en %1',
-      args0: [{ type: 'field_number', name: 'VALUE', value: 0, precision: 1 }],
+      args0: [
+        {
+          type: 'field_number',
+          name: 'VALUE',
+          value: 0,
+          min: -2147483648,
+          max: 2147483647,
+          precision: 1,
+        },
+      ],
       previousStatement: null,
       nextStatement: null,
       colour: '#6759DF',
@@ -490,7 +506,16 @@ function registerBlocks(Blockly: BlocklyApi) {
     {
       type: 'capi_counter_change',
       message0: '➕ cambiar contador en %1',
-      args0: [{ type: 'field_number', name: 'DELTA', value: 1, precision: 1 }],
+      args0: [
+        {
+          type: 'field_number',
+          name: 'DELTA',
+          value: 1,
+          min: -2147483648,
+          max: 2147483647,
+          precision: 1,
+        },
+      ],
       previousStatement: null,
       nextStatement: null,
       colour: '#6759DF',
@@ -1350,7 +1375,8 @@ const BlocklyWorkspace = forwardRef<
     ref,
     () => ({
       save() {
-        if (!workspaceRef.current || !blocklyRef.current) return {};
+        if (!workspaceRef.current || !blocklyRef.current)
+          return initialWorkspaceRef.current;
         return blocklyRef.current.serialization.workspaces.save(
           workspaceRef.current,
         ) as Record<string, unknown>;

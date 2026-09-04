@@ -107,10 +107,7 @@ select:focus-visible {
   background: var(--paper);
   border-bottom: 1px solid var(--line);
   display: grid;
-  grid-template-columns: minmax(210px, 1fr) minmax(240px, 360px) minmax(
-      540px,
-      1fr
-    );
+  grid-template-columns: minmax(175px, 1fr) minmax(160px, 280px) max-content;
   align-items: center;
   gap: 18px;
   padding: 0 22px;
@@ -162,6 +159,8 @@ select:focus-visible {
   letter-spacing: 0.09em;
 }
 .project-name input {
+  min-width: 0;
+  max-width: 100%;
   width: 100%;
   border: 0;
   background: transparent;
@@ -174,7 +173,7 @@ select:focus-visible {
 .header-actions {
   min-width: 0;
   display: flex;
-  justify-content: flex-end;
+  justify-content: safe flex-end;
   gap: 7px;
   overflow-x: auto;
   scrollbar-width: thin;

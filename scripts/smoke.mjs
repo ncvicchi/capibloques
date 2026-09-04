@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
 import {
+  addCounterValues,
+  collectRawOutputPins,
   decodeProject,
   examples,
   generateEsp32Code,
   generateEsp32CodeResult,
   isProjectFile,
   makeProject,
+  normalizeCounterValue,
   normalizeCompiledProgram,
   validateProgramForScene,
 } from '../lib/capiblocks.ts';
@@ -33,6 +36,11 @@ const robot = scene.devices.find((device) => device.kind === 'robot');
 assert.equal(trafficLights.length, 2);
 assert.ok(robot);
 assert.equal(validateScene(scene).hardwareReady, true);
+assert.equal(normalizeCounterValue(5.5), 6);
+assert.equal(normalizeCounterValue(-2.5), -2);
+assert.equal(normalizeCounterValue(Number.MAX_SAFE_INTEGER), 2_147_483_647);
+assert.equal(addCounterValues(2_147_483_647, 1), 2_147_483_647);
+assert.equal(addCounterValues(-2_147_483_648, -1), -2_147_483_648);
 assert.deepEqual(
   trafficLights.map((device) => device.name),
   ['Semáforo principal', 'Semáforo principal 2'],
@@ -405,6 +413,49 @@ const injectedCode = generateEsp32Code(
 assert.doesNotMatch(injectedCode, /^int payload = 42;/m);
 assert.match(injectedCode, /\/\/ Clase\/ int payload = 42;/);
 assert.match(injectedCode, /\/\/ bloque: uno\/ int payload = 42;/);
+
+const normalizedFractionalCounter = normalizeCompiledProgram(
+  [
+    { op: 'counterSet', value: 5.5, blockId: 'set-fraction' },
+    {
+      op: 'if',
+      condition: { kind: 'counter', operator: 'LT', value: 5.5 },
+      consequent: [],
+      otherwise: [],
+      blockId: 'compare-fraction',
+    },
+  ],
+  createEmptyScene('Contador entero'),
+);
+assert.equal(normalizedFractionalCounter.threads[0].nodes[0].value, 6);
+assert.equal(
+  normalizedFractionalCounter.threads[0].nodes[1].condition.value,
+  6,
+);
+const fractionalCounterCode = generateEsp32Code(
+  normalizedFractionalCounter,
+  'Contador entero',
+  createEmptyScene('Contador entero'),
+);
+assert.match(fractionalCounterCode, /counterValue = 6;/);
+assert.match(fractionalCounterCode, /counterValue < 6/);
+assert.match(fractionalCounterCode, /uint32_t lastSchedulerTick = 0;/);
+assert.match(
+  fractionalCounterCode,
+  /\(uint32_t\)\(now - lastSchedulerTick\) < SCHEDULER_QUANTUM_MS/,
+);
+
+const rawPinProgram = normalizeCompiledProgram(
+  [{ op: 'pin', pin: 26, value: true, blockId: 'raw-output' }],
+  createEmptyScene('GPIO avanzado'),
+);
+assert.deepEqual(collectRawOutputPins(rawPinProgram), [26]);
+assert.ok(
+  validateProgramForScene(
+    rawPinProgram,
+    createEmptyScene('GPIO avanzado'),
+  ).some((diagnostic) => diagnostic.code === 'raw-pin-load-review'),
+);
 
 const counterProject = makeProject(
   'Contador único',

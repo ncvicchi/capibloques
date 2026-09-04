@@ -357,7 +357,8 @@ export const sceneComponentCatalog: readonly SceneComponentCatalogEntry[] = [
     kind: 'trafficLight',
     icon: '🚦',
     name: 'Semáforo',
-    description: 'Tres luces que pueden encenderse y regular su brillo.',
+    description:
+      'Tres luces que cambian entre rojo, amarillo, verde y apagado.',
     childFriendlyControl: 'Rojo, amarillo, verde o apagado',
     pinRequirements: requirementsByKind.trafficLight,
   },
@@ -1309,6 +1310,7 @@ export type SceneValidationIssueCode =
   | 'pwm-channel-limit'
   | 'passive-buzzer-limit'
   | 'button-pullup-unavailable'
+  | 'button-external-bias-required'
   | 'external-motor-power'
   | 'external-servo-power'
   | 'led-resistor-required';
@@ -1505,6 +1507,15 @@ export function validateScene(scene: SceneDefinition): SceneValidationResult {
         pin: device.pins.signal ?? undefined,
       });
     }
+    if (device.kind === 'button' && !device.config.pullup) {
+      issues.push({
+        code: 'button-external-bias-required',
+        severity: 'warning',
+        message: `${device.name} tiene desactivado el pull-up interno. Para hardware hace falta definir una resistencia externa y la polaridad; la simulación puede continuar.`,
+        deviceId: device.id,
+        pin: device.pins.signal ?? undefined,
+      });
+    }
   }
 
   let counterCount = 0;
@@ -1656,6 +1667,7 @@ export function validateScene(scene: SceneDefinition): SceneValidationResult {
     'pwm-channel-limit',
     'passive-buzzer-limit',
     'button-pullup-unavailable',
+    'button-external-bias-required',
   ];
   issues.sort((left, right) => {
     const priority = (issue: SceneValidationIssue) => {

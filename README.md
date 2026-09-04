@@ -92,7 +92,11 @@ FQBN: esp32:esp32:d1_uno32
 
 El generador toma los GPIO de cada instancia de la escena, emite diagnósticos de cableado y crea un sketch `.ino` con un planificador cooperativo. No usa `delay()` para las esperas de los bloques, por lo que un semáforo puede esperar mientras el robot u otro programa continúa avanzando.
 
+El simulador y el sketch avanzan los programas en intervalos lógicos de 16 ms, con un presupuesto acotado de instrucciones por turno para mantener la interfaz y la placa disponibles. El contador usa enteros de 32 bits: al llegar a −2.147.483.648 o 2.147.483.647 se mantiene en el límite, sin desbordarse ni cambiar de signo. La posición inicial configurada del servo también se aplica al encender la placa.
+
 La vista previa del código siempre queda disponible para aprender y corregir problemas. La descarga del `.ino` se habilita sólo cuando no quedan errores de pines o referencias a componentes y se completó la revisión guiada del cableado. La guía reúne en una sola tabla la placa, todos los GPIO, resistencias, drivers, alimentación externa y masa común.
+
+Los bloques de salida digital avanzada también aparecen en la guía, incluso sin componentes en la escena. Agregar o cambiar sus GPIO exige revisar nuevamente las conexiones. Los botones deben usar pull-up interna; los proyectos importados con otra polaridad pueden simularse, pero se bloquea la descarga hasta resolver esa configuración.
 
 La asignación automática usa un conjunto conservador de pines de la Wemos y evita pines de arranque conflictivos para las salidas. Como referencia, el kit original utilizaba:
 
@@ -132,7 +136,15 @@ El repositorio incluye el workflow `.github/workflows/deploy-pages.yml`.
 3. En **Source**, elige **GitHub Actions**.
 4. Haz un push a `main` o ejecuta manualmente el workflow **Publicar CapiBloques en GitHub Pages**.
 
-La acción instala las dependencias, ejecuta pruebas de núcleo y navegador en Chromium, compila un sketch representativo para `esp32:esp32:d1_uno32`, construye el sitio y publica `dist/client`. La construcción corrige las rutas para que funcionen desde el subdirectorio asignado al repositorio en Pages.
+La acción instala las dependencias, ejecuta pruebas de núcleo y navegador en Chromium, compila dos circuitos de prueba para `esp32:esp32:d1_uno32` que ejercitan todas las operaciones y condiciones del generador, construye el sitio y publica `dist/client`. La construcción corrige las rutas para que funcionen desde el subdirectorio asignado al repositorio en Pages.
+
+Las pruebas de interfaz cubren arrastre de bloques y objetos, guardar/recargar, importación JSON, revisión previa a la descarga, confirmaciones y deshacer/rehacer. Incluyen pantallas de 390×844 y 568×320. Para ejecutar también en Chrome y Edge instalados, en PowerShell:
+
+```powershell
+$env:PLAYWRIGHT_CHROME = '1'
+$env:PLAYWRIGHT_EDGE = '1'
+npm run test:e2e -- --workers=3
+```
 
 ## Arquitectura
 
