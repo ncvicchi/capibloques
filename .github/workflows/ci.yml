@@ -30,6 +30,9 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
+      - name: Validar configuración del entorno de desarrollo
+        run: docker compose -f compose.dev.yaml config --quiet
+
       - name: Instalar Chromium para pruebas reales
         run: npx playwright install --with-deps chromium
 

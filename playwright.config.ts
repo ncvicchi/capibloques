@@ -1,7 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 3000);
-const baseURL = `http://localhost:${port}`;
+// Un destino explícito nunca debe caer silenciosamente en un servidor local.
+const externalBaseURL = process.env.PLAYWRIGHT_BASE_URL;
+const baseURL = externalBaseURL ?? `http://localhost:${port}`;
 
 export default defineConfig({
   testDir: './tests',
@@ -40,7 +42,7 @@ export default defineConfig({
         ]
       : []),
   ],
-  webServer: {
+  webServer: externalBaseURL ? undefined : {
     command: `npm run dev -- --port ${port}`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,

@@ -1,0 +1,54 @@
+name: capibloques-dev
+
+# Sólo desarrollo en Linux. No publicar este servidor en LAN/Internet.
+services:
+  editor:
+    image: node:22.23.2-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5
+    user: "1000:1000"
+    working_dir: /workspace
+    init: true
+    command: ["npm", "run", "dev", "--", "--hostname", "0.0.0.0", "--port", "3000"]
+    environment:
+      NODE_ENV: development
+      NODE_OPTIONS: --max-old-space-size=768
+      NPM_CONFIG_CACHE: /workspace/.cache/npm
+      NPM_CONFIG_UPDATE_NOTIFIER: "false"
+      WRANGLER_SEND_METRICS: "false"
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      # Checkout propio de la VM, incluidos sus node_modules Linux.
+      # No montar /home/capi, .ssh ni el socket de Docker.
+      - type: bind
+        source: .
+        target: /workspace
+        bind:
+          create_host_path: false
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=128m,mode=1777
+      - /home/node:rw,nosuid,nodev,size=32m,uid=1000,gid=1000,mode=0700
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    cpus: 1.0
+    mem_limit: 1280m
+    memswap_limit: 1536m
+    pids_limit: 256
+    restart: unless-stopped
+    stop_grace_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/', {method: 'HEAD', signal: AbortSignal.timeout(8000)}).then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 3
