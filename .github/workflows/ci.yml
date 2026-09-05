@@ -1,24 +1,21 @@
-name: Publicar CapiBloques en GitHub Pages
+name: Verificar CapiBloques
 
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  verify:
     runs-on: ubuntu-latest
     steps:
       - name: Descargar el proyecto
@@ -63,12 +60,3 @@ jobs:
 
       - name: Construir sitio estático
         run: npm run build
-
-      - name: Preparar artefacto de Pages
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist/client
-
-      - name: Publicar
-        id: deployment
-        uses: actions/deploy-pages@v4

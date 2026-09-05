@@ -2,7 +2,9 @@
 
 CapiBloques es un entorno visual educativo para que chicos de 8 a 12 años armen una escena, programen sus componentes con bloques, prueben el comportamiento en el navegador y descarguen Arduino C++ compatible con una WEMOS D1 R32.
 
-Es una aplicación completamente estática: no necesita backend, cuentas ni base de datos y se puede publicar en GitHub Pages.
+La versión actual de la aplicación sigue siendo estática: todavía no necesita backend, cuentas ni base de datos. El alojamiento elegido para la siguiente etapa es Proxmox; GitHub Pages deja de utilizarse. Las funciones multiusuario y ESP-IDF están planificadas, no implementadas aún.
+
+El alcance está en [el plan de implementación](docs/PLAN_MULTIUSUARIO_PROXMOX.md) y el estado de preparación en [fase 0: servidores](docs/FASE_0_SERVIDORES.md). Trabajamos una fase por vez, con pruebas, commit/push y aprobación del propietario antes de avanzar.
 
 ## Qué se puede construir
 
@@ -127,16 +129,13 @@ La WEMOS D1 R32 usa lógica de **3,3 V**. No conectes una señal de 5 V directam
 - La simulación valida el comportamiento lógico y algunos conflictos de pines, pero no puede certificar que el circuito sea eléctricamente seguro.
 - El editor admite un buzzer pasivo por sketch. Generar tonos independientes en varios buzzers requiere una asignación explícita de temporizadores LEDC y queda bloqueado para evitar un resultado engañoso.
 
-## Publicar en GitHub Pages
+## Integración continua y alojamiento
 
-El repositorio incluye el workflow `.github/workflows/deploy-pages.yml`.
+El workflow `.github/workflows/ci.yml`, **Verificar CapiBloques**, se ejecuta en pushes y pull requests a `main`, y permite ejecución manual.
 
-1. Sube el proyecto a un repositorio con rama `main`.
-2. En GitHub abre **Settings → Pages**.
-3. En **Source**, elige **GitHub Actions**.
-4. Haz un push a `main` o ejecuta manualmente el workflow **Publicar CapiBloques en GitHub Pages**.
+Verifica tipos, lint, pruebas de núcleo e interfaz en Chromium, auditoría de dependencias, compilación real de dos circuitos Arduino para Wemos D1 R32 y construcción del frontend. Conserva el core Arduino-ESP32 3.3.11.
 
-La acción instala las dependencias, ejecuta pruebas de núcleo y navegador en Chromium, compila dos circuitos de prueba para `esp32:esp32:d1_uno32` que ejercitan todas las operaciones y condiciones del generador, construye el sitio y publica `dist/client`. La construcción corrige las rutas para que funcionen desde el subdirectorio asignado al repositorio en Pages.
+Este workflow **no publica en GitHub Pages ni en Proxmox** y sólo solicita lectura del repositorio. La despublicación de Pages también se verifica en la configuración de GitHub; retirar los pasos del workflow por sí solo no elimina un sitio ya publicado. El despliegue propio se hará en su fase aprobada. Se conserva por ahora la corrección de rutas relativas del build, sin reestructurar la aplicación durante la preparación de servidores.
 
 Las pruebas de interfaz cubren arrastre de bloques y objetos, guardar/recargar, importación JSON, revisión previa a la descarga, confirmaciones y deshacer/rehacer. Incluyen pantallas de 390×844 y 568×320. Para ejecutar también en Chrome y Edge instalados, en PowerShell:
 
