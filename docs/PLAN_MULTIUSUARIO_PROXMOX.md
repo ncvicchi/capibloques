@@ -1,8 +1,8 @@
 # Plan de CapiBloques: multiusuario, enseñanza y programación de Wemos
 
-Estado: implementación iniciada sólo en fase 0 (preparación base). Funciones de aplicación todavía pendientes. Evidencia y límites en `FASE_0_SERVIDORES.md`.
+Estado: fases 0A y 0B completadas; entorno DEV probado desde la PC por túnel SSH. Funciones nuevas de aplicación todavía pendientes. Evidencia, incidencias de las pruebas y límites en `FASE_0_SERVIDORES.md` y `FASE_0B_DESARROLLO.md`. Esperar OK antes de fase 1.
 Fecha de actualización: 5 de septiembre de 2026.
-Actualización: reglas por fase, retiro de Pages, topología confirmada y preparación de las dos VMs. Se mantienen Arduino + ESP-IDF, binarios/carga USB, logo institucional y concurrencia configurable.
+Actualización: entorno Docker/Node del editor en desarrollo, acceso por túnel SSH y pruebas dirigidas a la VM. Producción no activada. Se mantienen Arduino + ESP-IDF, binarios/carga USB, logo institucional y concurrencia configurable.
 
 ## 1. Decisiones acordadas
 

@@ -68,6 +68,8 @@ npm run dev
 
 Abre `http://localhost:3000`. El servidor de desarrollo actualiza la página al guardar cambios.
 
+Para trabajar en la VM `capi-dev`, el entorno y su recuperación están en [fase 0B: desarrollo remoto](docs/FASE_0B_DESARROLLO.md). Usa `compose.dev.yaml` y un túnel SSH privado; no exige instalar Node en Ubuntu ni expone DEV en Internet. Desde la PC ya configurada, `.\scripts\connect-dev.ps1` permite abrir el mismo `http://localhost:3000` con la aplicación ejecutándose en la VM. El guardado sigue siendo local a ese navegador/origen; exportar JSON para trasladar proyectos.
+
 Comprobaciones disponibles:
 
 ```bash
@@ -135,7 +137,7 @@ El workflow `.github/workflows/ci.yml`, **Verificar CapiBloques**, se ejecuta en
 
 Verifica tipos, lint, pruebas de núcleo e interfaz en Chromium, auditoría de dependencias, compilación real de dos circuitos Arduino para Wemos D1 R32 y construcción del frontend. Conserva el core Arduino-ESP32 3.3.11.
 
-Este workflow **no publica en GitHub Pages ni en Proxmox** y sólo solicita lectura del repositorio. La despublicación de Pages también se verifica en la configuración de GitHub; retirar los pasos del workflow por sí solo no elimina un sitio ya publicado. El despliegue propio se hará en su fase aprobada. Se conserva por ahora la corrección de rutas relativas del build, sin reestructurar la aplicación durante la preparación de servidores.
+Este workflow **no publica en GitHub Pages ni en Proxmox** y sólo solicita lectura del repositorio. También valida la configuración Compose de desarrollo. La despublicación de Pages se verifica en la configuración de GitHub; retirar los pasos del workflow por sí solo no elimina un sitio ya publicado. El entorno DEV se ejecuta en la VM autorizada y producción permanece pendiente de su fase. Se conserva por ahora la corrección de rutas relativas del build, sin reestructurar la aplicación durante la preparación de servidores.
 
 Las pruebas de interfaz cubren arrastre de bloques y objetos, guardar/recargar, importación JSON, revisión previa a la descarga, confirmaciones y deshacer/rehacer. Incluyen pantallas de 390×844 y 568×320. Para ejecutar también en Chrome y Edge instalados, en PowerShell:
 

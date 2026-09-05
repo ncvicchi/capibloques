@@ -84,6 +84,8 @@ Ambas VMs tenían `/var/run/reboot-required` después de las actualizaciones pre
 
 La preparación base está comprobada y Git SSH ya fue validado en ambas VMs. Detenerse aquí antes de 0B; el propietario debe aprobar continuar.
 
+Actualización posterior: el propietario aprobó 0B. Su entorno, pruebas y recuperación se documentan por separado en [FASE_0B_DESARROLLO.md](FASE_0B_DESARROLLO.md). Los resultados anteriores corresponden al cierre de 0A y se conservan como registro histórico.
+
 Pendiente de la siguiente subfase o de su fase correspondiente:
 
 1. Checkout remoto y configuración de identidad Git de desarrollo según el propietario; no copiar credenciales a producción ni dar por probado permiso de escritura remota.
