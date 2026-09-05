@@ -12,7 +12,10 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'list',
-  expect: { timeout: 10_000 },
+  // DEV sin empaquetar sobre SSH tiene mayor latencia que el runner local.
+  // No relajar los límites originales del CI ni ocultar fallos con reintentos.
+  timeout: externalBaseURL ? 90_000 : 30_000,
+  expect: { timeout: externalBaseURL ? 30_000 : 10_000 },
   use: {
     baseURL,
     locale: 'es-AR',

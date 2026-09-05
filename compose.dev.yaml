@@ -28,6 +28,9 @@ services:
     tmpfs:
       - /tmp:rw,nosuid,nodev,size=128m,mode=1777
       - /home/node:rw,nosuid,nodev,size=32m,uid=1000,gid=1000,mode=0700
+      # Los PID del contenedor se reutilizan al reiniciar. El lock de Vinext
+      # debe morir con él, no persistir en el checkout y simular otro servidor.
+      - /workspace/.vinext:rw,nosuid,nodev,size=32m,uid=1000,gid=1000,mode=0755
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
