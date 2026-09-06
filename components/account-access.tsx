@@ -143,8 +143,10 @@ export default function AccountAccess() {
             <p className="account-help">¿Olvidaste tu contraseña? Pedile ayuda al administrador. No hay registro público.</p>
           </> : <>
             <div className="account-identity"><ShieldCheck aria-hidden="true" /><div><strong>{user.displayName}</strong><span>@{user.alias} · {user.roles.join(' y ')}</span></div></div>
-            {!user.mustChangePassword && user.roles.includes('administrador') && <Link className="account-back" href="/gestion/usuarios/" prefetch={false}>Gestionar usuarios →</Link>}
-            {!user.mustChangePassword && user.roles.includes('administrador') && <Link className="account-back" href="/gestion/colegio/" prefetch={false}>Configurar colegio →</Link>}
+            {!user.mustChangePassword && user.roles.includes('administrador') && <nav className="account-actions" aria-label="Administración">
+              <Link className="account-back" href="/gestion/usuarios/" prefetch={false}>Gestionar usuarios →</Link>
+              <Link className="account-back" href="/gestion/colegio/" prefetch={false}>Configurar colegio →</Link>
+            </nav>}
             {changing ? <form onSubmit={event => { event.preventDefault(); void submit('password', { currentPassword: password, newPassword, confirmation }); }}>
               <h2>{user.mustChangePassword ? 'Elegí tu contraseña' : 'Cambiar contraseña'}</h2>
               <p id="password-help">Usá 10 caracteres o más. Una frase que recuerdes es una buena opción. No uses sólo números ni tu alias.</p>
