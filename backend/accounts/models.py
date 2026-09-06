@@ -89,6 +89,13 @@ class User(AbstractUser):
             fields = {"password", "is_active", "is_administrator", "is_teacher", "is_student", "is_staff", "is_superuser", "must_change_password", "username"}
             written = set(kwargs.get("update_fields") or fields)
             if previous:
+                # Retirar explícitamente las asignaciones incompatibles antes de
+                # cambiar de rol, también en cursos archivados. Nunca cascadas.
+                teacher = self.is_teacher if "is_teacher" in written else previous.is_teacher
+                student = self.is_student if "is_student" in written else previous.is_student
+                if ((not teacher and previous.is_teacher and self.course_memberships.filter(role="docente").exists())
+                        or (not student and previous.is_student and self.course_memberships.filter(role="alumno").exists())):
+                    raise ValidationError("Retirá primero sus asignaciones de cursos (incluidos los archivados) antes de cambiar ese rol.")
                 active = self.is_active if "is_active" in written else previous.is_active
                 admin = self.is_administrator if "is_administrator" in written else previous.is_administrator
                 if previous.is_active and previous.is_administrator and not (active and admin):
@@ -108,6 +115,8 @@ class User(AbstractUser):
     def delete(self, *args, **kwargs):
         with access_lock():
             current = type(self).objects.get(pk=self.pk)
+            if current.course_memberships.exists():
+                raise ValidationError("Esta cuenta pertenece a cursos. Retirá primero sus membresías en Gestionar cursos, incluidos los archivados, o desactivá la cuenta.")
             if current.is_administrator and current.is_active:
                 current._require_other_admin()
             return super().delete(*args, **kwargs)

@@ -2653,3 +2653,27 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
   .management-page [data-slot='table-cell'], .management-page [data-slot='table-head'] { padding: 10px 6px; }
   .management-dialog { padding: 18px; }
 }
+/* Cursos: extiende los controles administrativos, sin cambiar el editor. */
+.course-filters { display: flex; align-items: end; flex-wrap: wrap; gap: 16px; margin: 24px 0; }
+.course-filters label { display: grid; gap: 8px; min-width: 180px; }
+.course-filters [data-slot="select-trigger"] { min-height: 40px; width: 100%; }
+.course-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 18px; }
+.course-card { display: flex; flex-direction: column; align-items: start; gap: 12px; overflow-wrap: anywhere; }
+.course-card h2 { font-size: 1.3rem; }
+.course-card p { flex: 1; }
+.course-status { font-size: .875rem; color: var(--purple-dark); border: 1px solid var(--line); padding: 4px 10px; border-radius: 8px; }
+.course-paging { margin: 24px 0; align-items: center; }
+.management-dialog.course-dialog { width: min(760px, calc(100vw - 32px)); max-width: none; }
+.course-form, .course-form > label { display: grid; gap: 12px; }
+.course-form { gap: 22px; min-width: 0; }
+.course-form h2, .course-dialog section h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; }
+.course-form input, .course-form textarea { font-size: 1rem; }
+.course-member-list { list-style: none; margin: 12px 0; padding: 0; max-height: 260px; overflow: auto; }
+.course-member-list li { display: flex; gap: 12px; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); padding: 10px 2px; }
+.course-member-list li > div { min-width: 0; overflow-wrap: anywhere; }
+.course-member-list span { display: block; color: var(--muted); font-size: .875rem; }
+.course-member-list button { flex-shrink: 0; min-height: 40px; }
+.course-add { border-top: 1px solid var(--line); padding-top: 20px; }
+.course-add > button { margin-top: 12px; }
+.course-save { position: sticky; bottom: -24px; background: var(--paper); padding: 16px 0; border-top: 1px solid var(--line); z-index: 1; }
+@media (max-width: 520px) { .course-dialog { padding: 18px; } .course-filters > label { width: 100%; } .course-save { bottom: -18px; } }

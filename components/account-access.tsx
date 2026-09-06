@@ -143,9 +143,11 @@ export default function AccountAccess() {
             <p className="account-help">¿Olvidaste tu contraseña? Pedile ayuda al administrador. No hay registro público.</p>
           </> : <>
             <div className="account-identity"><ShieldCheck aria-hidden="true" /><div><strong>{user.displayName}</strong><span>@{user.alias} · {user.roles.join(' y ')}</span></div></div>
+            {!user.mustChangePassword && <Link className="account-back" href="/cursos/" prefetch={false}>Mis cursos →</Link>}
             {!user.mustChangePassword && user.roles.includes('administrador') && <nav className="account-actions" aria-label="Administración">
               <Link className="account-back" href="/gestion/usuarios/" prefetch={false}>Gestionar usuarios →</Link>
               <Link className="account-back" href="/gestion/colegio/" prefetch={false}>Configurar colegio →</Link>
+              <Link className="account-back" href="/gestion/cursos/" prefetch={false}>Gestionar cursos →</Link>
             </nav>}
             {changing ? <form onSubmit={event => { event.preventDefault(); void submit('password', { currentPassword: password, newPassword, confirmation }); }}>
               <h2>{user.mustChangePassword ? 'Elegí tu contraseña' : 'Cambiar contraseña'}</h2>
