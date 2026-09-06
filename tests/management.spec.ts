@@ -50,12 +50,15 @@ async function mockManagement(page: Page) {
 test('usuarios: crear, guardar y buscar con filtro de rol', async ({ page }) => {
   const state = await mockManagement(page);
   await page.goto('/gestion/usuarios/');
+  await expect(page.getByRole('button', { name: 'Crear usuario', exact: true })).toHaveCSS('color', 'rgb(255, 255, 255)');
+  await expect(page.getByRole('region', { name: 'Listado de usuarios' })).toHaveCSS('background-color', 'rgb(255, 255, 255)');
   await page.getByRole('button', { name: 'Crear usuario', exact: true }).click();
   await page.getByLabel('Alias', { exact: true }).fill('sol');
   await page.getByLabel('Nombre visible').fill('Sol');
   await page.getByRole('dialog').getByRole('radio', { name: 'Docente', exact: true }).check();
   await page.getByLabel('Contraseña temporal', { exact: true }).fill(password);
   await page.getByLabel('Repetir contraseña temporal').fill(password);
+  await expect(page.getByRole('button', { name: 'Guardar', exact: true })).toHaveCSS('color', 'rgb(255, 255, 255)');
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByText('Cuenta creada.', { exact: false })).toBeVisible();

@@ -2,7 +2,7 @@
 
 CapiBloques es un entorno visual educativo para que chicos de 8 a 12 años armen una escena, programen sus componentes con bloques, prueben el comportamiento en el navegador y descarguen Arduino C++ compatible con una WEMOS D1 R32.
 
-El editor exige ingreso con alias y contraseña y conserva un borrador local por cuenta. En la VM de desarrollo corren Django + PostgreSQL y el [acceso y sesiones de fase 2A](docs/FASE_2A_ACCESO.md), en `/cuenta/`. Todavía no hay ABM web, cursos ni guardado de proyectos en el servidor. El alojamiento elegido es Proxmox; GitHub Pages deja de utilizarse. El frontend permite exportación estática, pero necesita la API de autenticación del mismo origen para abrir el editor. El resto de las funciones multiusuario y ESP-IDF están planificadas, no implementadas aún.
+El editor exige ingreso con alias y contraseña y conserva un borrador local por cuenta. En la VM de desarrollo corren Django + PostgreSQL, el [acceso y sesiones de fase 2A](docs/FASE_2A_ACCESO.md) en `/cuenta/` y el [ABM de usuarios de fase 2B.1](docs/FASE_2B1_USUARIOS.md) en `/gestion/usuarios/`, exclusivo del administrador. Permite crear, buscar, editar roles/estado, restablecer contraseñas y eliminar con confirmación. Todavía no hay cursos ni guardado de proyectos en el servidor. El alojamiento elegido es Proxmox; GitHub Pages deja de utilizarse. El frontend permite exportación estática, pero necesita la API de autenticación del mismo origen para abrir el editor. El resto de las funciones multiusuario y ESP-IDF están planificadas, no implementadas aún.
 
 El alcance está en [el plan de implementación](docs/PLAN_MULTIUSUARIO_PROXMOX.md) y el estado de preparación en [fase 0: servidores](docs/FASE_0_SERVIDORES.md). Trabajamos una fase por vez, con pruebas, commit/push y aprobación del propietario antes de avanzar.
 
@@ -69,6 +69,8 @@ npm run dev
 Con la API disponible, definir `CAPIBLOQUES_API_TARGET` con su URL interna antes de iniciar el frontend; Vite expone `/api/` en el mismo origen. Abrir `http://localhost:3000`. El servidor de desarrollo actualiza la página al guardar cambios. No activar bypass de autenticación para probar; las pruebas de contratos UI interceptan la red sólo dentro de Playwright.
 
 Para trabajar en la VM `capi-dev`, seguir [fase 1: entorno completo y recuperación](docs/FASE_1_BASE_REPRODUCIBLE.md). Usa **ambos** archivos `compose.dev.yaml` y `compose.backend.dev.yaml`, más un túnel SSH privado; no exige instalar Node en Ubuntu ni expone DEV en Internet. Desde la PC ya configurada, `.\scripts\connect-dev.ps1` permite abrir el mismo `http://localhost:3000` con la aplicación ejecutándose en la VM. El guardado sigue siendo local a ese navegador/origen; exportar JSON para trasladar proyectos. La [fase 0B](docs/FASE_0B_DESARROLLO.md) conserva las instrucciones del túnel y la evidencia histórica del editor solo.
+
+Si la PC está en la misma LAN que DEV, usar `.\scripts\connect-dev.ps1 -DirectLan`: omite el gateway sin abrir puertos web en la LAN. No iniciar un segundo túnel en un puerto ya ocupado. El procedimiento de actualización de la VM limitada está en [fase 2B.1](docs/FASE_2B1_USUARIOS.md#operación-en-dev).
 
 Comprobaciones disponibles:
 

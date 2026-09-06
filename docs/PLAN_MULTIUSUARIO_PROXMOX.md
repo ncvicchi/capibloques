@@ -1,8 +1,8 @@
 # Plan de CapiBloques: multiusuario, enseñanza y programación de Wemos
 
-Estado: fases 0A, 0B, 1 y **2A implementadas**. [Fase 2A y evidencia de validación](FASE_2A_ACCESO.md): modelo propio, ingreso, contraseña y sesiones. El propietario informó que completó el bootstrap de su administrador. Ampliación autorizada: ingreso obligatorio al editor, cierre visible entre pestañas y borradores locales separados por UUID, conservando los anteriores sin dueño. **2B pendiente de OK:** ABM, colegio, cursos y membresías. Biblioteca/guardado servidor siguen pendientes. Evidencia previa en `FASE_0_SERVIDORES.md`, `FASE_0B_DESARROLLO.md` y [fase 1](FASE_1_BASE_REPRODUCIBLE.md).
+Estado: fases 0A, 0B, 1, **2A y 2B.1 implementadas**. [Fase 2A](FASE_2A_ACCESO.md): acceso, sesiones y editor con borradores locales por UUID. El propietario confirmó que recuperó el acceso. [Fase 2B.1 y validación](FASE_2B1_USUARIOS.md): ABM de usuarios exclusivo del administrador, probado en DEV por LAN. **Resto de 2B pendiente de nuevo OK:** colegio/logo, cursos y membresías. Biblioteca/guardado servidor siguen pendientes. Evidencia previa en `FASE_0_SERVIDORES.md`, `FASE_0B_DESARROLLO.md` y [fase 1](FASE_1_BASE_REPRODUCIBLE.md).
 Fecha de actualización: 6 de septiembre de 2026.
-Actualización: acceso DEV en `/cuenta/`, sesiones revocables, protección del último administrador y recuperación local. Editor conservado, proyectos aún locales. Producción no activada. Se mantienen Arduino + ESP-IDF, binarios/carga USB, logo institucional y concurrencia configurable.
+Actualización: ABM en `/gestion/usuarios/`, sesiones revocables, protección del último administrador, detección de ediciones desactualizadas y auditoría administrativa. Editor conservado, proyectos aún locales. Producción no activada. Se mantienen Arduino + ESP-IDF, binarios/carga USB, logo institucional y concurrencia configurable.
 
 ## 1. Decisiones acordadas
 
@@ -75,7 +75,7 @@ Administración: PC remota ── SSH gateway sólo salto ──> VM destino
 - Supuesto de prueba inicial: 30 alumnos y 2 docentes concurrentes. El tamaño de los proyectos y la frecuencia de guardado también forman parte de la carga.
 - La compilación sí requiere una cola persistente y un planificador separado de las peticiones web. Reutilizar PostgreSQL para evitar un servicio adicional inicialmente; no son obligatorios Kubernetes, Redis ni WebSockets. El navegador consulta estados sin bloquear el editor. Las tareas de mantenimiento pueden ejecutarse con un temporizador del sistema dentro de cada VM.
 
-Topología confirmada: Proxmox es el host físico; las dos VMs y la VM Nginx están en la misma LAN. La PC de trabajo está fuera. Reutilizar para la web el HTTPS de Nginx y dominios dedicados; no abrir más reglas del router, cuya tabla está llena. El acceso SSH a ambas VMs ya fue probado mediante el gateway exclusivamente como reenvío TCP, no mediante el proxy HTTP. DNS/certificados y nombres de sitio siguen pendientes de configuración autorizada. Desarrollo queda restringido. Los detalles de acceso y claves no se versionan. [Proxy inverso Nginx](https://docs.nginx.com/nginx/admin-guide/web-server/reverse-proxy/), [DNS en GoDaddy](https://www.godaddy.com/help/add-an-a-record-19238).
+Topología confirmada: Proxmox es el host físico; las dos VMs y la VM Nginx están en la misma LAN. La PC de trabajo estuvo fuera y ahora está en la misma LAN: se verificó SSH directo a DEV y el túnel loopback sin gateway. Reutilizar para la futura web pública el HTTPS de Nginx y dominios dedicados; no abrir más reglas del router, cuya tabla está llena. El acceso SSH a ambas VMs también fue probado mediante el gateway exclusivamente como reenvío TCP, no mediante el proxy HTTP. DNS/certificados y nombres de sitio siguen pendientes de configuración autorizada. Desarrollo queda restringido. Los detalles de acceso y claves no se versionan. [Proxy inverso Nginx](https://docs.nginx.com/nginx/admin-guide/web-server/reverse-proxy/), [DNS en GoDaddy](https://www.godaddy.com/help/add-an-a-record-19238).
 
 ## 4. Identidad y permisos
 
@@ -284,6 +284,8 @@ El backup lógico de PostgreSQL está documentado como copia consistente mientra
 | 5D. Compilación y descarga | Cola durable, ejecutores restringidos, firmware y ajuste de simultaneidad en admin | Se respetan límites globales y por usuario incluso con varios workers; cambios/reinicios no duplican trabajos; se descarga el firmware de la instantánea correcta; ni artefactos ni logs filtran datos de otros usuarios. |
 | 5E. USB desde la web | Monitor Serial y carga autónoma en Chrome/Edge | Se graban físicamente programas de ambos frameworks en Wemos, se verifican y ejecutan sin depender de la pestaña; errores y cortes tienen recuperación; detener la simulación no se presenta como detener hardware. |
 | 6. Piloto en Proxmox | Configuración de producción, HTTPS, backups y carga | Se restaura una copia en entorno aislado, se prueba la carga acordada, no se exponen servicios internos y se valida el flujo completo con administrador, docente y alumnos de prueba. |
+
+División de la fase 2 para entregas acotadas: 2A (acceso/editor) y 2B.1 (ABM de usuarios) entregadas. Siguiente propuesta: 2B.2, nombre y logo institucional antes del ingreso; después, 2B.3, cursos y membresías con permisos por curso. Cada una requiere un nuevo OK. La baja de cuentas deberá ampliarse antes de incorporar proyectos: la ficha administrativa de 2B.1 no es el respaldo de proyectos previsto en el alcance final.
 
 Pruebas obligatorias adicionales:
 

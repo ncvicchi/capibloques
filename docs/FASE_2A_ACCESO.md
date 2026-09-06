@@ -2,6 +2,8 @@
 
 Fecha: 6 de septiembre de 2026. Primer paso de la fase 2 autorizada: modelo propio de usuario, ingreso por alias, cambio de contraseña y sesiones revocables. **No es la fase 2 completa**: ABM web, colegio/logo, cursos y membresías se entregarán en 2B, con nuevo OK.
 
+Actualización posterior: el propietario confirmó acceso recuperado y autorizó continuar. El ABM web ya está entregado en [fase 2B.1](FASE_2B1_USUARIOS.md). Las referencias de este documento al ABM futuro describen el cierre histórico de 2A; colegio/logo y cursos siguen pendientes.
+
 ## Qué se puede probar
 
 Abrir `http://localhost:3000/cuenta/` con el túnel dedicado activo. El enlace «Mi cuenta» del editor abre una pestaña aparte para no interrumpir el proyecto en edición. La pantalla permite ingresar, mostrar/ocultar contraseña, ver la identidad y roles propios, cambiar contraseña con Guardar/Cancelar, cerrar esta sesión o todas las sesiones.

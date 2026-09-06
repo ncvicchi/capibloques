@@ -2603,15 +2603,20 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .management-page { max-width: 1140px; margin: 0 auto; padding: 28px 24px; font-size: 1rem; }
 .management-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
 .management-header h1 { display: flex; align-items: center; gap: 12px; font-size: 2rem; font-weight: 800; margin: 12px 0 4px; }
-.management-header p { color: var(--muted-foreground); }
-.management-panel { border: 1px solid var(--border); border-radius: 20px; background: var(--card); padding: 24px; margin: 16px 0; }
+.management-header p { color: #505b7e; }
+.management-panel { border: 1px solid var(--line); border-radius: 20px; background: var(--paper); padding: 24px; margin: 16px 0; }
+/* La regla global button { color: inherit } precede a las utilidades por capas.
+   Fijar el contraste de las acciones primarias sin cambiar los componentes UI. */
+:is(.management-page, .management-dialog, .account-card) .bg-primary { color: #fff; background: var(--purple); }
+:is(.management-page, .management-dialog, .account-card) .bg-primary:hover { background: var(--purple-dark); }
+.management-page .account-action { min-height: 44px; height: auto; white-space: normal; }
 .management-search { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }
 .management-search-input { display: grid; gap: 6px; flex: 1 1 240px; }
 .management-filters { flex: 1 1 100%; }
 .management-filters [data-slot='radio-group'] { display: flex; flex-wrap: wrap; gap: 24px; padding: 10px 0; }
 .management-roles { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 6px 0; }
 .management-filters label, .management-roles label, .management-check { display: flex; align-items: center; gap: 10px; min-height: 36px; }
-.management-alias, .management-status { display: block; margin-top: 5px; color: var(--muted-foreground); font-size: .875rem; }
+.management-alias, .management-status { display: block; margin-top: 5px; color: #505b7e; font-size: .875rem; }
 .management-status.inactive, .management-danger { color: #a22438; }
 .management-page [data-slot='table'] { font-size: 1rem; }
 .management-page [data-slot='table-cell'], .management-page [data-slot='table-head'] { white-space: normal; overflow-wrap: anywhere; padding: 16px 10px; }
