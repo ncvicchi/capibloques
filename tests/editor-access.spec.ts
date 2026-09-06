@@ -101,12 +101,16 @@ test('editor: fallo de sesión bloquea y reintento conserva el mismo borrador', 
   await sessionRoutes(page, () => student, () => failed);
   await page.goto('/');
   await page.getByLabel('Nombre del proyecto').fill('No perder al reconectar');
+  await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
   failed = true;
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(page.getByRole('alert')).toContainText('No pudimos verificar');
   await expect(page.getByLabel('Nombre del proyecto')).not.toBeVisible();
   failed = false;
   await page.getByRole('button', { name: 'Reintentar', exact: true }).click();
+  await expect(page.getByRole('dialog')).not.toContainText('Verificamos tu acceso');
+  await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await expect(page.getByLabel('Nombre del proyecto')).toHaveValue('No perder al reconectar');
 });
 

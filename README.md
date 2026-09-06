@@ -2,7 +2,7 @@
 
 CapiBloques es un entorno visual educativo para que chicos de 8 a 12 años armen una escena, programen sus componentes con bloques, prueben el comportamiento en el navegador y descarguen Arduino C++ compatible con una WEMOS D1 R32.
 
-El editor sigue funcionando de forma independiente y permite exportación estática. En la VM de desarrollo corren Django + PostgreSQL y el [acceso por alias y sesiones de fase 2A](docs/FASE_2A_ACCESO.md), en `/cuenta/`. Todavía no hay ABM web, cursos ni guardado de proyectos en el servidor. El alojamiento elegido es Proxmox; GitHub Pages deja de utilizarse. El resto de las funciones multiusuario y ESP-IDF están planificadas, no implementadas aún.
+El editor exige ingreso con alias y contraseña y conserva un borrador local por cuenta. En la VM de desarrollo corren Django + PostgreSQL y el [acceso y sesiones de fase 2A](docs/FASE_2A_ACCESO.md), en `/cuenta/`. Todavía no hay ABM web, cursos ni guardado de proyectos en el servidor. El alojamiento elegido es Proxmox; GitHub Pages deja de utilizarse. El frontend permite exportación estática, pero necesita la API de autenticación del mismo origen para abrir el editor. El resto de las funciones multiusuario y ESP-IDF están planificadas, no implementadas aún.
 
 El alcance está en [el plan de implementación](docs/PLAN_MULTIUSUARIO_PROXMOX.md) y el estado de preparación en [fase 0: servidores](docs/FASE_0_SERVIDORES.md). Trabajamos una fase por vez, con pruebas, commit/push y aprobación del propietario antes de avanzar.
 
@@ -55,18 +55,18 @@ Un proyecto exportado usa el esquema JSON v2 e incluye:
 
 El programa intermedio y el Arduino C++ se regeneran a partir de esos datos. La aplicación importa proyectos v2 y migra automáticamente los JSON v1 anteriores, incluyendo las escenas predefinidas y las referencias de bloques a su primera instancia compatible. Antes de reemplazar el proyecto, valida el esquema, los tipos e identificadores de bloques, la profundidad y la cantidad de nodos. Una importación dañada se rechaza sin borrar el trabajo abierto.
 
-El guardado automático y el botón **Guardar** quedan solamente en el almacenamiento local del navegador. La exportación JSON sigue siendo la copia transportable. Las credenciales Wi-Fi no se guardan en el proyecto: el sketch generado utiliza los marcadores `TU_RED` y `TU_CLAVE`.
+El guardado automático y el botón **Guardar** quedan solamente en el almacenamiento local del navegador, separados por UUID de cuenta. No se sincronizan con el servidor ni ofrecen protección contra acceso al perfil local del navegador. La exportación JSON sigue siendo la copia transportable. Los borradores anteriores a las cuentas se conservan sin asignar: el administrador puede recuperar una copia desde Mi cuenta. Las credenciales Wi-Fi no se guardan en el proyecto: el sketch generado utiliza los marcadores `TU_RED` y `TU_CLAVE`.
 
 ## Ejecutar localmente
 
-Requisitos: Node.js 22.13 o posterior y npm.
+Para el frontend: Node.js 22.13 o posterior y npm. Para ingresar también se necesita Django + PostgreSQL, preparados según la guía de fase 1. Un frontend solo no permite abrir el editor.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Abre `http://localhost:3000`. El servidor de desarrollo actualiza la página al guardar cambios.
+Con la API disponible, definir `CAPIBLOQUES_API_TARGET` con su URL interna antes de iniciar el frontend; Vite expone `/api/` en el mismo origen. Abrir `http://localhost:3000`. El servidor de desarrollo actualiza la página al guardar cambios. No activar bypass de autenticación para probar; las pruebas de contratos UI interceptan la red sólo dentro de Playwright.
 
 Para trabajar en la VM `capi-dev`, seguir [fase 1: entorno completo y recuperación](docs/FASE_1_BASE_REPRODUCIBLE.md). Usa **ambos** archivos `compose.dev.yaml` y `compose.backend.dev.yaml`, más un túnel SSH privado; no exige instalar Node en Ubuntu ni expone DEV en Internet. Desde la PC ya configurada, `.\scripts\connect-dev.ps1` permite abrir el mismo `http://localhost:3000` con la aplicación ejecutándose en la VM. El guardado sigue siendo local a ese navegador/origen; exportar JSON para trasladar proyectos. La [fase 0B](docs/FASE_0B_DESARROLLO.md) conserva las instrucciones del túnel y la evidencia histórica del editor solo.
 

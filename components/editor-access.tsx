@@ -2,6 +2,7 @@
 
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { announceSessionChange, createAccountDraftStore, sessionChangePending, watchSessionChange, type AccountDraftStore, type EditorSession } from '@/lib/account-session';
 
 const CapiBlocksApp = lazy(() => import('@/components/capiblocks-app'));
@@ -120,13 +121,20 @@ export default function EditorAccess() {
     }
   }, [lock]);
 
-  return <>
-    {(locked || !editor) && <main className="account-page session-cover"><section className="account-card" aria-label="Acceso al editor">
-      <header className="account-heading"><span className="brand-mark" aria-hidden="true">🐾</span><h1>CapiBloques</h1></header>
-      {error ? <><p role="alert" className="account-error">{error}</p><Button className="account-action" onClick={() => {
+  const feedback = error ? <><p role="alert" className="account-error">{error}</p><Button className="account-action" onClick={() => {
         if (leaving.current) { leaving.current = false; void logout(); } else void check();
-      }}>Reintentar</Button></> : <output>Comprobando tu sesión…</output>}
+      }}>Reintentar</Button></> : <output>Comprobando tu sesión…</output>;
+
+  return <>
+    {!editor && <main className="account-page session-cover"><section className="account-card" aria-label="Acceso al editor">
+      <header className="account-heading"><span className="brand-mark" aria-hidden="true">🐾</span><h1>CapiBloques</h1></header>{feedback}
     </section></main>}
+    {editor && <Dialog open={locked}>
+      <DialogContent className="session-cover session-dialog account-card" showCloseButton={false}>
+        <DialogHeader><DialogTitle>CapiBloques</DialogTitle><DialogDescription>Verificamos tu acceso antes de continuar.</DialogDescription></DialogHeader>
+        {feedback}
+      </DialogContent>
+    </Dialog>}
     {editor && <div className="authenticated-editor" inert={locked} aria-hidden={locked || undefined}>
       <Suspense fallback={<div className="account-page"><output>Abriendo tu editor…</output></div>}>
         <CapiBlocksApp key={`${editor.session.user.id}:${editor.session.context}`} account={editor.session.user} draftStore={editor.store} checkpointRef={checkpoint} onLogout={logout} />

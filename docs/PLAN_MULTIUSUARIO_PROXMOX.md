@@ -1,6 +1,6 @@
 # Plan de CapiBloques: multiusuario, enseñanza y programación de Wemos
 
-Estado: fases 0A, 0B, 1 y **2A implementadas y verificadas**. [Fase 2A](FASE_2A_ACCESO.md): modelo propio, ingreso, contraseña y sesiones; 28 pruebas backend y 12 casos Chrome/Edge aprobados. El propietario debe elegir su contraseña con el bootstrap local para crear la primera cuenta. **2B pendiente de OK:** ABM, colegio, cursos y membresías. Biblioteca/guardado servidor siguen pendientes. Evidencia previa en `FASE_0_SERVIDORES.md`, `FASE_0B_DESARROLLO.md` y [fase 1](FASE_1_BASE_REPRODUCIBLE.md).
+Estado: fases 0A, 0B, 1 y **2A implementadas**. [Fase 2A y evidencia de validación](FASE_2A_ACCESO.md): modelo propio, ingreso, contraseña y sesiones. El propietario informó que completó el bootstrap de su administrador. Ampliación autorizada: ingreso obligatorio al editor, cierre visible entre pestañas y borradores locales separados por UUID, conservando los anteriores sin dueño. **2B pendiente de OK:** ABM, colegio, cursos y membresías. Biblioteca/guardado servidor siguen pendientes. Evidencia previa en `FASE_0_SERVIDORES.md`, `FASE_0B_DESARROLLO.md` y [fase 1](FASE_1_BASE_REPRODUCIBLE.md).
 Fecha de actualización: 6 de septiembre de 2026.
 Actualización: acceso DEV en `/cuenta/`, sesiones revocables, protección del último administrador y recuperación local. Editor conservado, proyectos aún locales. Producción no activada. Se mantienen Arduino + ESP-IDF, binarios/carga USB, logo institucional y concurrencia configurable.
 

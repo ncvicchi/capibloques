@@ -2596,5 +2596,6 @@ html[data-editor-locked='true'] body * { visibility: hidden !important; }
 html[data-editor-locked='true'] .session-cover,
 html[data-editor-locked='true'] .session-cover * { visibility: visible !important; }
 .session-cover { position: fixed; inset: 0; z-index: 10000; background: var(--background); }
+.session-cover.session-dialog { inset: 50% auto auto 50%; width: min(520px, calc(100% - 32px)); transform: translate(-50%, -50%); }
 .brand > div { min-width: 0; }
 .brand > div > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

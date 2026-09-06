@@ -5,18 +5,19 @@ import { expect, test, type Page } from '@playwright/test';
 const student = { id: 'student-fixture', alias: 'luna', displayName: 'Luna', roles: ['alumno'], mustChangePassword: false };
 const token = 'browser-contract-test-only';
 
-async function mockSession(page: Page, user: typeof student | null) {
-  await page.route('**/api/auth/session/', route => route.fulfill({ json: { user, csrfToken: token } }));
+async function mockSession(page: Page, user: typeof student | null | (() => typeof student | null)) {
+  await page.route('**/api/auth/session/', route => route.fulfill({ json: { user: typeof user === 'function' ? user() : user, csrfToken: token } }));
 }
 
 test('cuenta: error de acceso, contraseña visible y reintento conservan alias', async ({ page }) => {
-  await mockSession(page, null);
+  let currentUser: typeof student | null = null;
+  await mockSession(page, () => currentUser);
   let requests = 0;
   await page.route('**/api/auth/login/', async route => {
     requests++;
     expect(route.request().headers()['x-csrftoken']).toBe(token);
     if (requests === 1) await route.fulfill({ status: 401, json: { error: 'Revisá tu alias y contraseña.', code: 'invalid_credentials' } });
-    else await route.fulfill({ json: { user: student, csrfToken: token } });
+    else { currentUser = student; await route.fulfill({ json: { user: student, csrfToken: token } }); }
   });
   await page.goto('/cuenta/');
   await page.getByLabel('Alias', { exact: true }).fill('luna');
@@ -50,9 +51,10 @@ test('cuenta: cancelar contraseña no envía ni conserva el borrador', async ({ 
 });
 
 test('cuenta: contraseña temporal, guardar y cerrar sesión', async ({ page }) => {
-  await mockSession(page, { ...student, mustChangePassword: true });
-  await page.route('**/api/auth/password/', route => route.fulfill({ json: { user: student, csrfToken: token } }));
-  await page.route('**/api/auth/logout/', route => route.fulfill({ json: { user: null, csrfToken: token } }));
+  let currentUser: typeof student | null = { ...student, mustChangePassword: true };
+  await mockSession(page, () => currentUser);
+  await page.route('**/api/auth/password/', route => { currentUser = student; return route.fulfill({ json: { user: student, csrfToken: token } }); });
+  await page.route('**/api/auth/logout/', route => { currentUser = null; return route.fulfill({ json: { user: null, csrfToken: token } }); });
   await page.goto('/cuenta/');
   await expect(page.getByRole('heading', { name: 'Elegí tu contraseña' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Cancelar', exact: true })).toHaveCount(0);
