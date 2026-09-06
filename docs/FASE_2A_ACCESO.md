@@ -24,6 +24,8 @@ El script usa la configuración SSH privada preexistente, sin reenviar agente ni
 
 Requiere al menos diez caracteres; no puede ser sólo numérica, muy común o similar a alias/nombre. Una frase es válida; no se obliga a símbolos arbitrarios. La creación es única y transaccional: repetir el comando no reemplaza al administrador ni cambia su contraseña. El administrador cotidiano no es un superusuario técnico de Django.
 
+Corrección del asistente: muestra las reglas antes de pedir la contraseña y explica cada rechazo. Permite reintentar sin volver a ingresar alias/nombre, también si falla la confirmación; Ctrl+C cancela sin guardar nada. Valida un máximo de 256 caracteres, coherente con el ingreso web. El mismo flujo se usa al restablecer una contraseña: no se modifica la cuenta ni se revocan sesiones hasta confirmar una contraseña válida. Si no puede ocultar la escritura en la terminal, se detiene sin pedirla con eco.
+
 Equivalente desde una sesión SSH en `capi-dev`:
 
 ```bash

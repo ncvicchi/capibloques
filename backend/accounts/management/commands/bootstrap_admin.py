@@ -1,10 +1,8 @@
-from getpass import getpass
-
-from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
 
 from accounts.models import AccessEvent, User, access_lock, normalize_alias
+from accounts.password_prompt import prompt_password
 
 
 class Command(BaseCommand):
@@ -18,10 +16,7 @@ class Command(BaseCommand):
             name = input("Nombre visible: ").strip()
             user = User(username=alias, display_name=name, is_administrator=True, is_student=False, must_change_password=False)
             user.full_clean(exclude=["password"])
-            password = getpass("Contraseña (no se muestra): ")
-            if password != getpass("Repetir contraseña: "):
-                raise CommandError("Las contraseñas no coinciden.")
-            validate_password(password, user)
+            password = prompt_password(self, user)
             with access_lock():
                 if User.objects.filter(is_administrator=True).exists():
                     raise CommandError("Otro proceso ya creó el administrador.")

@@ -1,10 +1,8 @@
-from getpass import getpass
-
-from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
 
 from accounts.models import AccessEvent, User, access_lock, normalize_alias
+from accounts.password_prompt import prompt_password
 
 
 class Command(BaseCommand):
@@ -16,10 +14,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         try:
             user = User.objects.get(username=normalize_alias(options["alias"]))
-            password = getpass("Nueva contraseña temporal (no se muestra): ")
-            if password != getpass("Repetir contraseña: "):
-                raise CommandError("Las contraseñas no coinciden.")
-            validate_password(password, user)
+            password = prompt_password(self, user, label="Nueva contraseña temporal (no se muestra): ")
             with access_lock():
                 user = User.objects.get(pk=user.pk)
                 user.set_password(password)

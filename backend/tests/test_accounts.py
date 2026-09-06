@@ -173,7 +173,7 @@ class AccountTests(TestCase):
 
     def test_bootstrap_is_local_once_no_default_password_or_superuser(self):
         out = StringIO()
-        with patch("builtins.input", side_effect=["Administrador", "Administrador"]), patch("accounts.management.commands.bootstrap_admin.getpass", return_value=PASSWORD):
+        with patch("builtins.input", side_effect=["Administrador", "Administrador"]), patch("accounts.password_prompt.getpass", return_value=PASSWORD):
             call_command("bootstrap_admin", stdout=out)
         admin = User.objects.get(username="administrador")
         self.assertTrue(admin.is_administrator)
@@ -190,12 +190,85 @@ class AccountTests(TestCase):
 
     def test_local_recovery_revokes_sessions_without_changing_roles(self):
         self.sign_in()
-        with patch("accounts.management.commands.reset_account_password.getpass", return_value=NEW_PASSWORD):
+        with patch("accounts.password_prompt.getpass", return_value=NEW_PASSWORD):
             call_command("reset_account_password", "LUNA", stdout=StringIO())
         self.assertIsNone(self.state()["user"])
         response = self.sign_in(password=NEW_PASSWORD)
         self.assertTrue(response.json()["user"]["mustChangePassword"])
         self.assertEqual(response.json()["user"]["roles"], ["alumno"])
+
+    def test_bootstrap_retries_weak_password_without_reentering_identity(self):
+        out, err = StringIO(), StringIO()
+        entries = iter(["Ab3!", PASSWORD, PASSWORD])
+
+        def read_password(label):
+            self.assertFalse(User.objects.filter(is_administrator=True).exists())
+            self.assertFalse(AccessEvent.objects.filter(action="bootstrap_admin").exists())
+            return next(entries)
+
+        with patch("builtins.input", side_effect=["Administrador", "Administrador"]) as identity, patch("accounts.password_prompt.getpass", side_effect=read_password):
+            call_command("bootstrap_admin", stdout=out, stderr=err)
+        self.assertEqual(identity.call_count, 2)
+        self.assertTrue(User.objects.get(username="administrador").check_password(PASSWORD))
+        self.assertEqual(AccessEvent.objects.filter(action="bootstrap_admin").count(), 1)
+        self.assertIn("Contraseña no aceptada", err.getvalue())
+        self.assertIn("10", err.getvalue())
+        self.assertNotIn(PASSWORD, out.getvalue() + err.getvalue())
+        self.assertNotIn("Ab3!", out.getvalue() + err.getvalue())
+
+    def test_bootstrap_retries_confirmation_mismatch(self):
+        out, err = StringIO(), StringIO()
+        with patch("builtins.input", side_effect=["Administrador", "Administrador"]), patch("accounts.password_prompt.getpass", side_effect=[PASSWORD, NEW_PASSWORD, PASSWORD, PASSWORD]):
+            call_command("bootstrap_admin", stdout=out, stderr=err)
+        self.assertIn("no coinciden", err.getvalue())
+        self.assertEqual(User.objects.filter(is_administrator=True).count(), 1)
+        self.assertNotIn(PASSWORD, out.getvalue() + err.getvalue())
+        self.assertNotIn(NEW_PASSWORD, out.getvalue() + err.getvalue())
+
+    def test_bootstrap_rejects_password_too_long_for_web_login(self):
+        out, err = StringIO(), StringIO()
+        with patch("builtins.input", side_effect=["Administrador", "Administrador"]), patch("accounts.password_prompt.getpass", side_effect=["x" * 257, PASSWORD, PASSWORD]):
+            call_command("bootstrap_admin", stdout=out, stderr=err)
+        self.assertIn("hasta 256 caracteres", err.getvalue())
+        self.assertTrue(User.objects.get(username="administrador").check_password(PASSWORD))
+
+    def test_cancel_after_rejected_password_leaves_no_administrator(self):
+        for cancellation in (KeyboardInterrupt, EOFError):
+            with self.subTest(cancellation=cancellation.__name__):
+                with patch("builtins.input", side_effect=["Administrador", "Administrador"]), patch("accounts.password_prompt.getpass", side_effect=["123", cancellation]):
+                    with self.assertRaisesMessage(CommandError, "Creación cancelada"):
+                        call_command("bootstrap_admin", stdout=StringIO(), stderr=StringIO())
+                self.assertFalse(User.objects.filter(is_administrator=True).exists())
+                self.assertFalse(AccessEvent.objects.filter(action="bootstrap_admin").exists())
+
+    def test_recovery_retries_and_only_changes_password_after_valid_confirmation(self):
+        old_epoch = self.student.session_epoch
+        entries = iter(["123", NEW_PASSWORD, NEW_PASSWORD])
+
+        def read_password(label):
+            self.student.refresh_from_db()
+            self.assertTrue(self.student.check_password(PASSWORD))
+            self.assertEqual(self.student.session_epoch, old_epoch)
+            self.assertFalse(AccessEvent.objects.filter(action="local_password_reset").exists())
+            return next(entries)
+
+        with patch("accounts.password_prompt.getpass", side_effect=read_password):
+            call_command("reset_account_password", "luna", stdout=StringIO(), stderr=StringIO())
+        self.student.refresh_from_db()
+        self.assertTrue(self.student.check_password(NEW_PASSWORD))
+        self.assertGreater(self.student.session_epoch, old_epoch)
+
+    def test_cancel_recovery_keeps_password_and_sessions(self):
+        self.sign_in()
+        old_epoch = self.student.session_epoch
+        with patch("accounts.password_prompt.getpass", side_effect=["123", KeyboardInterrupt]):
+            with self.assertRaisesMessage(CommandError, "Recuperación cancelada"):
+                call_command("reset_account_password", "luna", stdout=StringIO(), stderr=StringIO())
+        self.student.refresh_from_db()
+        self.assertTrue(self.student.check_password(PASSWORD))
+        self.assertEqual(self.student.session_epoch, old_epoch)
+        self.assertIsNotNone(self.state()["user"])
+        self.assertFalse(AccessEvent.objects.filter(action="local_password_reset").exists())
 
 
 class ProductionHashTests(TestCase):
