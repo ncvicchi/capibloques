@@ -2,7 +2,7 @@
 # Pruebas de integración; sólo DEV/CI. Requiere api y db ya migrados.
 set -eu
 cd "$(dirname "$0")/.."
-dc() { docker compose -f compose.dev.yaml -f compose.backend.dev.yaml "$@"; }
+dc() { docker compose --ansi never -f compose.dev.yaml -f compose.backend.dev.yaml "$@"; }
 
 dc exec -T api python manage.py check
 dc exec -T api python manage.py migrate --check

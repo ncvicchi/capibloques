@@ -2,7 +2,7 @@
 
 CapiBloques es un entorno visual educativo para que chicos de 8 a 12 años armen una escena, programen sus componentes con bloques, prueben el comportamiento en el navegador y descarguen Arduino C++ compatible con una WEMOS D1 R32.
 
-La versión actual de la aplicación sigue siendo estática: todavía no necesita backend, cuentas ni base de datos. El alojamiento elegido para la siguiente etapa es Proxmox; GitHub Pages deja de utilizarse. Las funciones multiusuario y ESP-IDF están planificadas, no implementadas aún.
+El editor sigue funcionando de forma independiente y permite exportación estática. En la VM de desarrollo ya corre la base Django + PostgreSQL, accesible por el mismo origen del editor; todavía no hay cuentas ni guardado de proyectos en el servidor. El alojamiento elegido es Proxmox; GitHub Pages deja de utilizarse. Las funciones multiusuario y ESP-IDF están planificadas, no implementadas aún.
 
 El alcance está en [el plan de implementación](docs/PLAN_MULTIUSUARIO_PROXMOX.md) y el estado de preparación en [fase 0: servidores](docs/FASE_0_SERVIDORES.md). Trabajamos una fase por vez, con pruebas, commit/push y aprobación del propietario antes de avanzar.
 
@@ -68,7 +68,7 @@ npm run dev
 
 Abre `http://localhost:3000`. El servidor de desarrollo actualiza la página al guardar cambios.
 
-Para trabajar en la VM `capi-dev`, el entorno y su recuperación están en [fase 0B: desarrollo remoto](docs/FASE_0B_DESARROLLO.md). Usa `compose.dev.yaml` y un túnel SSH privado; no exige instalar Node en Ubuntu ni expone DEV en Internet. Desde la PC ya configurada, `.\scripts\connect-dev.ps1` permite abrir el mismo `http://localhost:3000` con la aplicación ejecutándose en la VM. El guardado sigue siendo local a ese navegador/origen; exportar JSON para trasladar proyectos.
+Para trabajar en la VM `capi-dev`, seguir [fase 1: entorno completo y recuperación](docs/FASE_1_BASE_REPRODUCIBLE.md). Usa **ambos** archivos `compose.dev.yaml` y `compose.backend.dev.yaml`, más un túnel SSH privado; no exige instalar Node en Ubuntu ni expone DEV en Internet. Desde la PC ya configurada, `.\scripts\connect-dev.ps1` permite abrir el mismo `http://localhost:3000` con la aplicación ejecutándose en la VM. El guardado sigue siendo local a ese navegador/origen; exportar JSON para trasladar proyectos. La [fase 0B](docs/FASE_0B_DESARROLLO.md) conserva las instrucciones del túnel y la evidencia histórica del editor solo.
 
 Comprobaciones disponibles:
 

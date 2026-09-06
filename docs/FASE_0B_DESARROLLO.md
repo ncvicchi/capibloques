@@ -3,6 +3,8 @@
 Fecha: 5 de septiembre de 2026.
 Alcance: ejecutar y probar el editor existente en la VM de desarrollo. No habilita cuentas, base de datos, compilación remota ni producción.
 
+**Guía histórica del editor solo.** Desde el 6 de septiembre, el entorno DEV incluye API y PostgreSQL: usar [fase 1](FASE_1_BASE_REPRODUCIBLE.md) para arrancar, actualizar o recuperar con **ambos** archivos Compose. Las recetas de un solo archivo de esta página no conservan el proxy de API del entorno completo. La sección del túnel SSH sigue vigente.
+
 ## Entorno
 
 - VM autorizada: `capi-dev`. Checkout: `/home/capi/capibloques`, propiedad de `capi` (UID/GID 1000).

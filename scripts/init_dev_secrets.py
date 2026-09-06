@@ -11,14 +11,23 @@ def main():
     args = parser.parse_args()
     directory = args.directory.resolve()
     repo = Path(__file__).resolve().parents[1]
-    if directory == repo or repo in directory.parents:
+    if directory == repo or repo in directory.parents or directory in repo.parents:
         parser.error("El directorio de secretos debe estar fuera del repositorio")
+    paths = [directory / name for name in ("django_key", "db_admin_password", "db_app_password")]
+    # Validar el conjunto antes de escribir: un archivo faltante no autoriza
+    # regenerar una contraseña que PostgreSQL ya pudo haber almacenado.
+    if any(path.is_symlink() for path in paths):
+        parser.error("No se permiten enlaces como archivos de secretos")
+    existing = [path for path in paths if path.exists()]
+    if existing and len(existing) != len(paths):
+        parser.error("Conjunto de secretos incompleto; restaurar la copia, no regenerar")
+    if any(not path.is_file() or len(path.read_text(encoding="utf-8").strip()) < 64 for path in existing):
+        parser.error("Existe un secreto inválido; no se sobrescribió")
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     if os.name == "posix":
         directory.chmod(0o700)
     created = 0
-    for name in ("django_key", "db_admin_password", "db_app_password"):
-        path = directory / name
+    for path in paths:
         if path.is_symlink():
             parser.error("No se permiten enlaces como archivos de secretos")
         try:

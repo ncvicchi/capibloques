@@ -6,7 +6,8 @@
 - Implementar, probar y entregar el resultado de la fase. No avanzar a la siguiente sin el OK del propietario. Informar pendientes o fallos sin presentarlos como completados.
 - Hacer commit y push de los cambios versionables verificados de cada entrega. Si no se puede publicar, comunicarlo. No incluir cambios ajenos ni secretos.
 - El plan principal es `docs/PLAN_MULTIUSUARIO_PROXMOX.md`; el estado de preparación está en `docs/FASE_0_SERVIDORES.md`. El plan no demuestra que las funciones estén implementadas.
-- El entorno DEV y su recuperación están en `docs/FASE_0B_DESARROLLO.md`: Compose sólo en desarrollo, puerto loopback y túnel SSH dedicado. No mezclar el túnel de navegación con la sesión de administración ni arrancar un servidor alternativo para validar la VM.
+- El entorno DEV completo y su recuperación están en `docs/FASE_1_BASE_REPRODUCIBLE.md`; usar ambos archivos Compose. `docs/FASE_0B_DESARROLLO.md` conserva la guía del túnel. Compose sólo en desarrollo, puerto loopback y túnel SSH dedicado. No mezclar el túnel de navegación con la sesión de administración ni arrancar un servidor alternativo para validar la VM.
+- Secretos DEV fuera del checkout; no regenerarlos ante una pérdida ni borrar volúmenes para recuperar la base. El volumen persistente no sustituye un respaldo. No instalar `auth/admin` ni migrar `auth.User` antes de definir el modelo propio de cuentas en fase 2.
 
 ## Infraestructura y límites estrictos
 

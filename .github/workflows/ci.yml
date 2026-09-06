@@ -23,7 +23,9 @@ jobs:
       - name: Descargar el proyecto
         uses: actions/checkout@v4
       - name: Preparar secretos efímeros fuera del checkout
-        run: python3 scripts/init_dev_secrets.py "$CAPIBLOQUES_SECRETS_DIR"
+        run: |
+          python3 scripts/test_init_dev_secrets.py
+          python3 scripts/init_dev_secrets.py "$CAPIBLOQUES_SECRETS_DIR"
       - name: Validar y construir backend
         run: |
           docker compose -f compose.dev.yaml -f compose.backend.dev.yaml config --quiet
