@@ -2630,6 +2630,20 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .management-dialog input, .management-search input { font-size: 1rem; min-height: 44px; }
 .management-dialog button { white-space: normal; height: auto; min-height: 40px; max-width: 100%; }
 .management-dialog { overflow-wrap: anywhere; }
+.school-identity { display: flex; align-items: center; gap: 18px; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+.school-identity img { flex: 0 0 80px; width: 80px; height: 80px; object-fit: contain; }
+.school-identity strong { min-width: 0; font-size: 1.15rem; line-height: 1.4; overflow-wrap: anywhere; }
+.school-columns { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.school-management h2 { font-size: 1.25rem; margin: 0 0 20px; }
+.school-management fieldset { display: grid; gap: 14px; min-width: 0; }
+.school-management input { min-height: 44px; font-size: 1rem; }
+.school-management input[type='file'] { height: auto; white-space: normal; font-size: .875rem; padding: 10px; }
+.school-file, .school-management p { overflow-wrap: anywhere; }
+.school-preview-card { padding: 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--bg); }
+.school-preview-card h3 { font-size: 1.5rem; margin: 12px 0; }
+.school-management .account-notice { display: block; }
+@media (max-width: 800px) { .school-columns { grid-template-columns: minmax(0, 1fr); gap: 0; } }
+@media (max-width: 540px) { .school-identity { gap: 12px; } .school-identity img { flex-basis: 64px; width: 64px; height: 64px; } }
 @media (max-width: 600px) {
   .management-page { padding: 16px 12px; }
   .management-header { align-items: flex-start; flex-direction: column; }

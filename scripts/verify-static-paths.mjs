@@ -23,4 +23,5 @@ async function verify(directory) {
 await verify(root);
 await access(join(root, 'cuenta', 'index.html'));
 await access(join(root, 'gestion', 'usuarios', 'index.html'));
-console.log(`${pages} páginas estáticas verificadas: assets desde raíz, incluidas /cuenta/ y /gestion/usuarios/.`);
+await access(join(root, 'gestion', 'colegio', 'index.html'));
+console.log(`${pages} páginas estáticas verificadas: assets desde raíz, incluidas /cuenta/, /gestion/usuarios/ y /gestion/colegio/.`);

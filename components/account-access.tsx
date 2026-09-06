@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { announceSessionChange, watchSessionChange, type Session } from '@/lib/account-session';
 import { downloadText } from '@/lib/capiblocks';
+import SchoolBrand from '@/components/school-brand';
 
 export default function AccountAccess() {
   const [session, setSession] = useState<Session | null>(null);
@@ -119,6 +120,7 @@ export default function AccountAccess() {
     <main className="account-page">
       {user && !user.mustChangePassword && <Link className="account-back" href="/" prefetch={false}><ArrowLeft size={18} /> Entrar al editor</Link>}
       <section className="account-card" aria-labelledby="account-title" aria-busy={loading || busy}>
+        <SchoolBrand />
         <header className="account-heading">
           <span className="brand-mark" aria-hidden="true">🐾</span>
           <div><span className="account-brand">CapiBloques</span><h1 id="account-title">{user ? 'Mi cuenta' : 'Ingresar'}</h1></div>
@@ -142,6 +144,7 @@ export default function AccountAccess() {
           </> : <>
             <div className="account-identity"><ShieldCheck aria-hidden="true" /><div><strong>{user.displayName}</strong><span>@{user.alias} · {user.roles.join(' y ')}</span></div></div>
             {!user.mustChangePassword && user.roles.includes('administrador') && <Link className="account-back" href="/gestion/usuarios/" prefetch={false}>Gestionar usuarios →</Link>}
+            {!user.mustChangePassword && user.roles.includes('administrador') && <Link className="account-back" href="/gestion/colegio/" prefetch={false}>Configurar colegio →</Link>}
             {changing ? <form onSubmit={event => { event.preventDefault(); void submit('password', { currentPassword: password, newPassword, confirmation }); }}>
               <h2>{user.mustChangePassword ? 'Elegí tu contraseña' : 'Cambiar contraseña'}</h2>
               <p id="password-help">Usá 10 caracteres o más. Una frase que recuerdes es una buena opción. No uses sólo números ni tu alias.</p>
