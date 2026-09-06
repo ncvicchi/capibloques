@@ -18,7 +18,7 @@ jobs:
   backend:
     runs-on: ubuntu-latest
     env:
-      CAPIBLOQUES_SECRETS_DIR: ${{ runner.temp }}/capibloques-ci-secrets
+      CAPIBLOQUES_SECRETS_DIR: ${{ github.workspace }}/../capibloques-ci-secrets
     steps:
       - name: Descargar el proyecto
         uses: actions/checkout@v4
