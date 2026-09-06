@@ -154,6 +154,32 @@ test('editor: si falla el guardado permite exportar antes de una salida voluntar
   expect(logouts).toBe(0);
 });
 
+for (const changeAccount of [false, true]) {
+  test(`editor: importación durante verificación ${changeAccount ? 'no pasa a otra cuenta' : 'continúa en la misma cuenta'}`, async ({ page }) => {
+    let user = student;
+    let hold = false;
+    let release!: () => void;
+    const pending = new Promise<void>(resolve => { release = resolve; });
+    await sessionRoutes(page, () => user);
+    await page.route('**/api/auth/editor-session/', async route => {
+      if (hold) await pending;
+      await route.fulfill({ json: { user, csrfToken: token, context: `context-${user.id}` } });
+    });
+    await page.goto('/');
+    await expect(page.getByLabel('Editor visual de bloques')).toBeVisible();
+    hold = true;
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(page.getByText('Comprobando tu sesión…')).toBeVisible();
+    await page.locator('input[type="file"]').setInputFiles({ name: 'importado.json', mimeType: 'application/json', buffer: Buffer.from(project('Importación de Luna')) });
+    await expect(page.locator('.notice')).toContainText('Esperando verificar tu sesión');
+    if (changeAccount) user = other;
+    release();
+    await expect(page.getByLabel('Nombre del proyecto')).toBeVisible();
+    if (changeAccount) await expect(page.getByLabel('Nombre del proyecto')).not.toHaveValue('Importación de Luna');
+    else await expect(page.getByLabel('Nombre del proyecto')).toHaveValue('Importación de Luna');
+  });
+}
+
 test('editor: borrador anónimo intacto y recuperación sólo explícita del administrador', async ({ page }) => {
   let user = student;
   const raw = project('Anterior sin dueño');

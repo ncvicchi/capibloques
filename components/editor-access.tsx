@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { announceSessionChange, createAccountDraftStore, sessionChangePending, watchSessionChange, type AccountDraftStore, type EditorSession } from '@/lib/account-session';
 
 const CapiBlocksApp = lazy(() => import('@/components/capiblocks-app'));
-export type EditorCheckpoint = { suspend: () => boolean };
+export type EditorCheckpoint = { suspend: () => boolean; resume: () => void };
 type OpenEditor = { session: EditorSession; store: AccountDraftStore };
 
 export default function EditorAccess() {
@@ -51,6 +51,7 @@ export default function EditorAccess() {
       } else {
         previous.session = body;
         previous.store.active = true;
+        if (document.visibilityState === 'visible') checkpoint.current?.resume();
       }
       setEditor({ ...current.current! });
       // Una respuesta iniciada antes de ocultar la pestaña no vuelve a mostrarla.

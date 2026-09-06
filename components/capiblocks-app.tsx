@@ -392,6 +392,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const editorRef = useRef<BlocklyWorkspaceHandle>(null);
   const workerRef = useRef<Worker | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingImportRef = useRef<(() => void) | null>(null);
   const mutedRef = useRef(false);
   const speedRef = useRef(1);
   const pendingHighlightFrameRef = useRef<number | null>(null);
@@ -618,8 +619,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   }, [speed]);
 
   const onBlockSnap = useCallback(
-    () => sound(420, 45, mutedRef.current, 0.025),
-    [],
+    () => sound(420, 45, mutedRef.current || !draftStore.active, 0.025),
+    [draftStore],
   );
 
   const onWorkspaceChange = useCallback(
@@ -782,6 +783,10 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         catch { setNotice('No pudimos guardar el último cambio. Exportá una copia JSON antes de cerrar sesión.'); setNoticeTone('error'); return false; }
       }
       return true;
+    }, resume: () => {
+      const pending = pendingImportRef.current;
+      pendingImportRef.current = null;
+      pending?.();
     } };
     return () => { checkpointRef.current = null; };
   }, [checkpointRef, currentProject, draftStore, hydrated, postToWorker]);
@@ -897,20 +902,21 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         if (file.size > 2_000_000)
           throw new Error('El archivo supera el límite de 2 MB');
         const decoded = decodeProject(JSON.parse(await file.text()) as unknown);
-        if (!draftStore.active) return;
         if (!decoded.project)
           throw new Error(
             decoded.diagnostics[0]?.message ??
               'No es un proyecto CapiBloques compatible',
           );
-        const nextScene = cloneScene(decoded.project.scene);
+        const imported = decoded.project;
+        const apply = () => {
+        const nextScene = cloneScene(imported.scene);
         postToWorker({ type: 'STOP' });
         stopSound();
-        setProjectName(decoded.project.metadata.title);
+        setProjectName(imported.metadata.title);
         setScene(nextScene);
         setSim(makeInitialState(nextScene));
-        setSpeed(decoded.project.simulation.speed);
-        setWorkspace(normalizeWorkspace(decoded.project.workspace));
+        setSpeed(imported.simulation.speed);
+        setWorkspace(normalizeWorkspace(imported.workspace));
         setWorkspaceRevision((value) => value + 1);
         setWiringAcknowledgedSignature(null);
         setDiagnostics(decoded.diagnostics);
@@ -921,6 +927,13 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         );
         setNoticeTone(decoded.diagnostics.length ? 'warning' : 'ok');
         sound(880, 120, muted);
+        };
+        // El selector de archivos puede devolver foco antes de que la verificación
+        // termine. Esperar la misma sesión; nunca transferir la importación a otra.
+        if (draftStore.active) apply(); else {
+          pendingImportRef.current = apply;
+          setNotice('Archivo leído. Esperando verificar tu sesión para importarlo.');
+        }
       } catch (error) {
         setNotice(
           error instanceof Error
@@ -928,7 +941,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             : 'No pudimos abrir ese archivo',
         );
         setNoticeTone('error');
-        sound(190, 180, muted);
+        sound(190, 180, muted || !draftStore.active);
       }
     },
     [draftStore, muted, postToWorker],
