@@ -123,3 +123,12 @@ class AccessEvent(models.Model):
     user = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
     action = models.CharField(max_length=32)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+
+class ManagementEvent(models.Model):
+    actor = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name="management_actions")
+    actor_id_snapshot = models.UUIDField()
+    target_id_snapshot = models.UUIDField()
+    action = models.CharField(max_length=32)
+    changed_fields = models.JSONField(default=list)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)

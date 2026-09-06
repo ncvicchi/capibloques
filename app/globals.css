@@ -2599,3 +2599,38 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .session-cover.session-dialog { inset: 50% auto auto 50%; width: min(520px, calc(100% - 32px)); transform: translate(-50%, -50%); }
 .brand > div { min-width: 0; }
 .brand > div > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.management-page { max-width: 1140px; margin: 0 auto; padding: 28px 24px; font-size: 1rem; }
+.management-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
+.management-header h1 { display: flex; align-items: center; gap: 12px; font-size: 2rem; font-weight: 800; margin: 12px 0 4px; }
+.management-header p { color: var(--muted-foreground); }
+.management-panel { border: 1px solid var(--border); border-radius: 20px; background: var(--card); padding: 24px; margin: 16px 0; }
+.management-search { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }
+.management-search-input { display: grid; gap: 6px; flex: 1 1 240px; }
+.management-filters { flex: 1 1 100%; }
+.management-filters [data-slot='radio-group'] { display: flex; flex-wrap: wrap; gap: 24px; padding: 10px 0; }
+.management-roles { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 6px 0; }
+.management-filters label, .management-roles label, .management-check { display: flex; align-items: center; gap: 10px; min-height: 36px; }
+.management-alias, .management-status { display: block; margin-top: 5px; color: var(--muted-foreground); font-size: .875rem; }
+.management-status.inactive, .management-danger { color: #a22438; }
+.management-page [data-slot='table'] { font-size: 1rem; }
+.management-page [data-slot='table-cell'], .management-page [data-slot='table-head'] { white-space: normal; overflow-wrap: anywhere; padding: 16px 10px; }
+.management-row-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.management-row-actions button { font-size: .875rem; min-height: 40px; }
+.management-pagination, .management-form-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.management-dialog { width: min(600px, calc(100% - 24px)); max-width: 600px !important; max-height: calc(100dvh - 24px); overflow-y: auto; padding: 24px; font-size: 1rem; }
+.management-dialog fieldset { display: grid; gap: 10px; min-width: 0; }
+.management-dialog [data-slot='dialog-title'], .management-dialog [data-slot='alert-dialog-title'] { font-size: 1.4rem; line-height: 1.3; }
+.management-dialog [data-slot='dialog-description'], .management-dialog [data-slot='alert-dialog-description'] { font-size: 1rem; line-height: 1.5; }
+.management-dialog input, .management-search input { font-size: 1rem; min-height: 44px; }
+.management-dialog button { white-space: normal; height: auto; min-height: 40px; max-width: 100%; }
+.management-dialog { overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  .management-page { padding: 16px 12px; }
+  .management-header { align-items: flex-start; flex-direction: column; }
+  .management-panel { padding: 12px; }
+  .management-roles { grid-template-columns: 1fr; }
+  .management-row-actions { flex-direction: column; }
+  .management-page [data-slot='table-cell'], .management-page [data-slot='table-head'] { padding: 10px 6px; }
+  .management-dialog { padding: 18px; }
+}

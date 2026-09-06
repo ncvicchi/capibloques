@@ -1,6 +1,7 @@
 param(
     [ValidateRange(1024, 65535)]
     [int]$LocalPort = 3000,
+    [switch]$DirectLan,
     [string]$SshConfig = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.ssh/capibloques-dev.conf')
 )
 
@@ -18,9 +19,13 @@ $capiSshArgs = @(
     '-o', 'UpdateHostKeys=no',
     '-o', 'ServerAliveInterval=30',
     '-o', 'ServerAliveCountMax=3',
-    '-L', "127.0.0.1:${LocalPort}:127.0.0.1:3000",
-    'capibloques-dev'
+    '-L', "127.0.0.1:${LocalPort}:127.0.0.1:3000"
 )
+if ($DirectLan) {
+    $capiSshArgs += @('-o', 'ProxyCommand=none', '-o', 'ProxyJump=none', '-o', 'ConnectTimeout=8')
+    Write-Host 'Modo LAN: conexión directa a DEV, sin utilizar el gateway.'
+}
+$capiSshArgs += 'capibloques-dev'
 
 Write-Host "Al conectar SSH, abrí http://localhost:${LocalPort}/ en Chrome o Edge."
 Write-Host 'Dejá esta terminal abierta. Ctrl+C cierra sólo el túnel, no el servidor.'
