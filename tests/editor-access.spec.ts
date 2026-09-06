@@ -131,6 +131,29 @@ test('editor: cierre fallido no afirma éxito ni vuelve a mostrar el proyecto', 
   await expect(page.getByRole('heading', { name: 'Ingresar', exact: true })).toBeVisible();
 });
 
+test('editor: si falla el guardado permite exportar antes de una salida voluntaria', async ({ page }) => {
+  await sessionRoutes(page, () => student);
+  let logouts = 0;
+  await page.route('**/api/auth/logout/', route => { logouts++; return route.fulfill({ json: { user: null, csrfToken: token } }); });
+  await page.goto('/');
+  await page.getByLabel('Nombre del proyecto').fill('Conservar aunque no haya espacio');
+  await page.evaluate(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (key.startsWith('capibloques-account:')) throw new DOMException('Quota', 'QuotaExceededError');
+      return original.call(this, key, value);
+    };
+  });
+  await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
+  await expect(page.locator('.notice')).toContainText('Exportá una copia JSON antes de cerrar sesión');
+  await expect(page.getByLabel('Nombre del proyecto')).toHaveValue('Conservar aunque no haya espacio');
+  await page.getByRole('button', { name: 'Exportar', exact: true }).click();
+  const download = page.waitForEvent('download');
+  await page.getByRole('menuitem', { name: 'Proyecto editable JSON' }).click();
+  await download;
+  expect(logouts).toBe(0);
+});
+
 test('editor: borrador anónimo intacto y recuperación sólo explícita del administrador', async ({ page }) => {
   let user = student;
   const raw = project('Anterior sin dueño');

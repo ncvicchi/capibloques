@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { announceSessionChange, createAccountDraftStore, sessionChangePending, watchSessionChange, type AccountDraftStore, type EditorSession } from '@/lib/account-session';
 
 const CapiBlocksApp = lazy(() => import('@/components/capiblocks-app'));
-export type EditorCheckpoint = { suspend: () => void };
+export type EditorCheckpoint = { suspend: () => boolean };
 type OpenEditor = { session: EditorSession; store: AccountDraftStore };
 
 export default function EditorAccess() {
@@ -96,6 +96,9 @@ export default function EditorAccess() {
 
   const logout = useCallback(async () => {
     if (leaving.current || !current.current) return;
+    // Una salida voluntaria no debe ocultar un fallo al guardar. El editor muestra
+    // el error y permite exportar; una revocación externa sí bloquea el acceso.
+    if (checkpoint.current?.suspend() === false) return;
     leaving.current = true; ++generation.current;
     lock(); announceSessionChange(true); setError('');
     try {
@@ -110,6 +113,8 @@ export default function EditorAccess() {
         method: 'POST', headers: { 'X-CSRFToken': session.csrfToken }, signal: AbortSignal.timeout(15000),
       });
       if (!response.ok) throw new Error();
+      const result = await response.json() as { user?: unknown; csrfToken?: unknown } | null;
+      if (result?.user !== null || typeof result.csrfToken !== 'string') throw new Error();
       setEditor(null); current.current = null;
       window.location.replace('/cuenta/?editor=1');
     } catch {

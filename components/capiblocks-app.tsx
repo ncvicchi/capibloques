@@ -779,8 +779,9 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       // de Armar escena permanece en memoria al verificar la misma sesión.
       if (hydrated && draftStore.active) {
         try { draftStore.write(JSON.stringify(currentProject())); }
-        catch { setNotice('No pudimos guardar el último cambio. Exportá una copia JSON cuando vuelvas a ingresar.'); setNoticeTone('error'); }
+        catch { setNotice('No pudimos guardar el último cambio. Exportá una copia JSON antes de cerrar sesión.'); setNoticeTone('error'); return false; }
       }
+      return true;
     } };
     return () => { checkpointRef.current = null; };
   }, [checkpointRef, currentProject, draftStore, hydrated, postToWorker]);
