@@ -5,6 +5,7 @@ cd "$(dirname "$0")/.."
 dc() { docker compose --ansi never -f compose.dev.yaml -f compose.backend.dev.yaml "$@"; }
 
 dc exec -T api python manage.py check
+dc exec -T api python manage.py makemigrations --check --dry-run
 dc exec -T api python manage.py migrate --check
 # La API no tiene CREATEDB. Sólo el administrador prepara esta base de TEST.
 if ! dc exec -T db psql -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='test_capibloques'" | grep -q 1; then

@@ -1,6 +1,6 @@
 # Plan de CapiBloques: multiusuario, enseñanza y programación de Wemos
 
-Estado: fases 0A, 0B y 1 completadas. DEV ejecuta editor, Django y PostgreSQL privado, con pruebas desde Chrome/Edge por túnel SSH. Cuentas y guardado servidor todavía pendientes. Evidencia y límites en `FASE_0_SERVIDORES.md`, `FASE_0B_DESARROLLO.md` y [fase 1](FASE_1_BASE_REPRODUCIBLE.md). Esperar OK antes de fase 2.
+Estado: fases 0A, 0B y 1 completadas. Fase 2 autorizada; se divide para entregar pasos acotados. **2A en implementación:** modelo propio, ingreso, contraseña y sesiones. **2B pendiente:** ABM, colegio, cursos y membresías. Biblioteca/guardado servidor siguen pendientes. Evidencia previa en `FASE_0_SERVIDORES.md`, `FASE_0B_DESARROLLO.md` y [fase 1](FASE_1_BASE_REPRODUCIBLE.md). Detenerse al entregar 2A y esperar OK.
 Fecha de actualización: 6 de septiembre de 2026.
 Actualización: API mínima del mismo origen, secretos externos, rol de base limitado, migraciones y persistencia verificadas tras recrear contenedores. Producción no activada. Se mantienen Arduino + ESP-IDF, binarios/carga USB, logo institucional y concurrencia configurable.
 

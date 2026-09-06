@@ -1034,6 +1034,7 @@ export default function CapiBlocksApp() {
           />
         </label>
         <nav className="header-actions" aria-label="Acciones del proyecto">
+          <a className="header-text-button" href="/cuenta/" target="_blank" rel="noopener">Mi cuenta ↗</a>
           <button
             className="header-text-button save-project-button"
             onClick={saveToBrowser}

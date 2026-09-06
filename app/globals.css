@@ -37,6 +37,32 @@
   --radius: 0.75rem;
 }
 
+.account-page { min-height: 100vh; padding: 24px; }
+.account-back { display: inline-flex; align-items: center; gap: 8px; color: var(--purple-dark); min-height: 44px; text-decoration: underline; }
+.account-card { width: min(100%, 520px); margin: 24px auto; padding: 32px; border: 1px solid var(--line); border-radius: 22px; background: var(--paper); box-shadow: 0 8px 32px #20294d0a; }
+.account-heading { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+.account-heading h1 { font-size: 1.8rem; margin: 0; line-height: 1.2; }
+.account-brand { font-size: 1rem; color: var(--purple-dark); font-weight: 700; }
+.account-card p { line-height: 1.6; }
+.account-card h2 { font-size: 1.25rem; margin-top: 24px; }
+.account-card fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 10px; }
+.account-card label { font-weight: 650; margin-top: 10px; }
+.account-card input { min-height: 46px; font-size: 1rem; }
+.account-card .account-action { min-height: 46px; height: auto; white-space: normal; padding: 10px 16px; font-size: 1rem; }
+.account-card .account-reveal { min-height: 44px; justify-self: start; font-size: .9rem; }
+.account-help { font-size: .9rem; color: #505b7e; }
+.account-error { padding: 12px 16px; border: 1px solid #c94755; border-radius: 10px; background: #fff0f1; color: #8c1f2a; }
+.account-notice { padding: 12px 16px; border: 1px solid #218b70; border-radius: 10px; background: #edfff7; color: #075c48; }
+.account-identity { display: flex; gap: 12px; align-items: center; margin: 24px 0; }
+.account-identity div { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.account-identity span { font-size: .9rem; color: #505b7e; }
+.account-actions, .account-session-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.account-session-actions { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--line); }
+.account-local-note { margin-top: 28px; padding: 16px; border-radius: 12px; background: #f1f3fb; font-size: .9rem; }
+.account-local-note p { margin-bottom: 0; }
+.header-actions > a.header-text-button { text-decoration: none; font-size: .9rem; white-space: nowrap; }
+@media (max-width: 540px) { .account-page { padding: 12px; } .account-card { padding: 22px; margin: 16px auto; } }
+
 * {
   box-sizing: border-box;
 }
