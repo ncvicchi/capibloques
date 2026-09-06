@@ -1,0 +1,90 @@
+# Añadir a compose.dev.yaml; nunca es una configuración de producción.
+services:
+  editor:
+    environment:
+      CAPIBLOQUES_API_TARGET: http://api:8000
+
+  api:
+    build:
+      context: ./backend
+    image: capibloques-api-dev:local
+    user: "1000:1000"
+    init: true
+    read_only: true
+    volumes:
+      - ./backend:/app:ro
+    secrets:
+      - django_key
+      - db_app_password
+    environment:
+      DJANGO_SECRET_KEY_FILE: /run/secrets/django_key
+      DB_PASSWORD_FILE: /run/secrets/db_app_password
+    networks: [default, database]
+    depends_on:
+      db:
+        condition: service_healthy
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=32m,mode=1777
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    cpus: 0.5
+    mem_limit: 256m
+    memswap_limit: 320m
+    pids_limit: 64
+    restart: unless-stopped
+    stop_grace_period: 20s
+    logging:
+      driver: json-file
+      options: {max-size: "5m", max-file: "2"}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health/ready/', timeout=8)"]
+      interval: 20s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+
+  db:
+    image: postgres:17-bookworm@sha256:051f7b7b3abdd564d5d1bd1e8c4b9c1b6e77087d1dd22020ede611c096a272e0
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: capibloques
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_admin_password
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    command: ["postgres", "-c", "shared_buffers=32MB", "-c", "work_mem=2MB", "-c", "maintenance_work_mem=32MB", "-c", "max_connections=20"]
+    secrets:
+      - db_admin_password
+      - db_app_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./ops/postgres/10-app-role.sh:/docker-entrypoint-initdb.d/10-app-role.sh:ro
+    networks: [database]
+    # Sin ports: ni el host ni la LAN publican PostgreSQL.
+    shm_size: 64m
+    cpus: 0.5
+    mem_limit: 256m
+    memswap_limit: 256m
+    pids_limit: 64
+    restart: unless-stopped
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options: {max-size: "5m", max-file: "2"}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d capibloques"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+
+networks:
+  database:
+    internal: true
+volumes:
+  pgdata:
+secrets:
+  django_key:
+    file: ${CAPIBLOQUES_SECRETS_DIR:-/home/capi/.config/capibloques-dev}/django_key
+  db_admin_password:
+    file: ${CAPIBLOQUES_SECRETS_DIR:-/home/capi/.config/capibloques-dev}/db_admin_password
+  db_app_password:
+    file: ${CAPIBLOQUES_SECRETS_DIR:-/home/capi/.config/capibloques-dev}/db_app_password

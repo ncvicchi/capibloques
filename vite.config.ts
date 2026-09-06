@@ -48,9 +48,25 @@ export default defineConfig(async () => {
     // Rutas relativas para funcionar en cualquier subdirectorio de GitHub Pages.
     base: '',
     css: { postcss: { plugins: [tailwindcss()] } },
-    server: isCodexSeatbeltSandbox
-      ? { watch: { useFsEvents: false, usePolling: true } }
-      : undefined,
+    server: {
+      ...(isCodexSeatbeltSandbox
+        ? { watch: { useFsEvents: false, usePolling: true } }
+        : {}),
+      // Sólo DEV. La API comparte origen con el editor; ninguna credencial
+      // de PostgreSQL/Django se expone al bundle ni se necesita CORS abierto.
+      ...(process.env.CAPIBLOQUES_API_TARGET
+        ? {
+            proxy: {
+              '/api/': {
+                target: process.env.CAPIBLOQUES_API_TARGET,
+                changeOrigin: false,
+                timeout: 10_000,
+                proxyTimeout: 10_000,
+              },
+            },
+          }
+        : {}),
+    },
     plugins: [
       vinext(),
       sites(),
