@@ -13,7 +13,8 @@ from config.settings import read_secret
 
 class HealthTests(SimpleTestCase):
     def test_live_does_not_need_database(self):
-        with patch("config.views.connection.cursor", side_effect=AssertionError):
+        with patch("config.views.connection") as database:
+            database.cursor.side_effect = AssertionError
             response = self.client.get("/api/health/live/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"status": "ok"})
@@ -22,7 +23,8 @@ class HealthTests(SimpleTestCase):
         self.assertNotIn("sessionid", response.cookies)
 
     def test_ready_failure_is_generic(self):
-        with patch("config.views.connection.cursor", side_effect=OperationalError("private-detail")):
+        with patch("config.views.connection") as database:
+            database.cursor.side_effect = OperationalError("private-detail")
             response = self.client.get("/api/health/ready/")
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response.json(), {"status": "unavailable"})
