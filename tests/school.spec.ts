@@ -149,6 +149,25 @@ test('colegio: salir por Mi cuenta confirma cambios sin guardar', async ({ page 
   expect(state.writes).toBe(0);
 });
 
+test('colegio: recargar advierte sobre el borrador y descartar no pide doble confirmación', async ({ page }) => {
+  await fixture(page);
+  await page.goto('/gestion/colegio/');
+  await page.getByRole('button', { name: 'Editar colegio', exact: true }).click();
+  await page.getByLabel('Nombre del colegio', { exact: true }).fill('Pendiente');
+  const warning = page.waitForEvent('dialog');
+  const reloading = page.reload().catch(() => {}); // Cancelar beforeunload aborta la navegación.
+  const dialog = await warning;
+  expect(dialog.type()).toBe('beforeunload');
+  await dialog.dismiss(); await reloading;
+  await expect(page.getByLabel('Nombre del colegio', { exact: true })).toHaveValue('Pendiente');
+  let extraPrompts = 0;
+  page.on('dialog', dialog => { extraPrompts++; void dialog.dismiss(); });
+  await page.getByRole('button', { name: 'Mi cuenta', exact: true }).click();
+  await page.getByRole('button', { name: 'Descartar cambios', exact: true }).click();
+  await expect(page).toHaveURL(/cuenta\//);
+  expect(extraPrompts).toBe(0);
+});
+
 test('colegio: nombre largo y carga utilizables a 390 px con texto al 200%', async ({ page }) => {
   await fixture(page);
   await page.setViewportSize({ width: 390, height: 844 });

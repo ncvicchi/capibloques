@@ -26,6 +26,7 @@ export default function SchoolManagement() {
   const [loadAfterDiscard, setLoadAfterDiscard] = useState(false);
   const epoch = useRef(0);
   const inFlight = useRef(false);
+  const confirmedLeave = useRef(false);
   const owner = useRef<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const dirty = Boolean(draft && (draft.name !== draft.original.name || draft.logoAction !== 'keep'));
@@ -89,7 +90,7 @@ export default function SchoolManagement() {
 
   useEffect(() => {
     if (!dirty) return;
-    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
+    const warn = (event: BeforeUnloadEvent) => { if (!confirmedLeave.current) event.preventDefault(); };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
@@ -97,11 +98,13 @@ export default function SchoolManagement() {
   function cancel(leaving = false) {
     if (inFlight.current) return;
     if (dirty) { setLoadAfterDiscard(leaving); setDiscard(true); }
-    else { closeForm(); if (leaving) window.location.assign('/cuenta/'); else void refresh(); }
+    else { closeForm(); if (leaving) { confirmedLeave.current = true; window.location.assign('/cuenta/'); } else void refresh(); }
   }
   function discardChanges() {
     closeForm();
-    if (loadAfterDiscard) window.location.assign('/cuenta/'); else void refresh();
+    // La navegación ocurre antes del cleanup del efecto: no pedir una segunda
+    // confirmación nativa cuando la persona ya decidió descartar explícitamente.
+    if (loadAfterDiscard) { confirmedLeave.current = true; window.location.assign('/cuenta/'); } else void refresh();
   }
   function selectFile(file: File | undefined) {
     if (!file || !draft) return;
