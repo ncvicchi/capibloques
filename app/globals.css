@@ -2654,6 +2654,8 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
   .management-dialog { padding: 18px; }
 }
 /* Cursos: extiende los controles administrativos, sin cambiar el editor. */
+.courses-page .management-header > div { min-width: 0; max-width: 100%; }
+.courses-page .management-header h1 { font-size: clamp(1.6rem, 5vw, 2.1rem); overflow-wrap: anywhere; }
 .course-filters { display: flex; align-items: end; flex-wrap: wrap; gap: 16px; margin: 24px 0; }
 .course-filters label { display: grid; gap: 8px; min-width: 180px; }
 .course-filters [data-slot="select-trigger"] { min-height: 40px; width: 100%; }

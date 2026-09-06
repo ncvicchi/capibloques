@@ -170,7 +170,8 @@ test('cursos: recarga advierte y pantalla pequeña con texto ampliado conserva a
   expect(dialog.type()).toBe('beforeunload'); await dialog.dismiss();
   await expect(page.getByLabel('Nombre del curso', { exact: true })).toHaveValue('Curso con un nombre largo de prueba');
   await page.getByRole('button', { name: 'Guardar curso', exact: true }).scrollIntoViewIfNeeded();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false);
+  const overflow = await page.evaluate(() => ({ width: innerWidth, scroll: document.documentElement.scrollWidth, elements: [...document.querySelectorAll('main *')].filter(node => node.getBoundingClientRect().right > innerWidth + 1).map(node => ({ tag: node.tagName, text: node.textContent?.slice(0, 80), right: node.getBoundingClientRect().right })) }));
+  expect(overflow.scroll, JSON.stringify(overflow)).toBeLessThanOrEqual(overflow.width + 1);
   const modal = page.getByRole('dialog', { name: 'Editar curso', exact: true });
   expect(await modal.evaluate(node => node.scrollWidth > node.clientWidth + 1)).toBe(false);
   await page.screenshot({ path: testInfo.outputPath('courses-mobile.png'), fullPage: true });
