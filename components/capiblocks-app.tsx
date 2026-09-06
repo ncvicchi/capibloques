@@ -5,9 +5,11 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  type RefObject,
 } from 'react';
 import {
   AlertTriangle,
@@ -23,6 +25,7 @@ import {
   FolderOpen,
   Gauge,
   Maximize2,
+  LogOut,
   Pause,
   Play,
   Redo2,
@@ -87,12 +90,12 @@ import {
 // Vite convierte el sufijo `?worker` en un constructor durante el build.
 // oxlint-disable-next-line import/default
 import SimulatorWorker from '@/lib/simulator.worker.ts?worker';
+import type { Account, AccountDraftStore } from '@/lib/account-session';
+import type { EditorCheckpoint } from '@/components/editor-access';
 
 const SceneBuilder = lazy(() => import('@/components/scene-builder'));
 const WiringGuide = lazy(() => import('@/components/wiring-guide'));
 
-const PROJECT_STORAGE_KEY = 'capibloques-project-v2';
-const LEGACY_STORAGE_KEY = 'capibloques-project-v1';
 const emptyProgram = (): CompiledProgram => ({ version: 2, threads: [] });
 
 function wiringReviewSignature(
@@ -375,7 +378,12 @@ function DeviceStateCard({
   );
 }
 
-export default function CapiBlocksApp() {
+export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLogout }: {
+  account: Account;
+  draftStore: AccountDraftStore;
+  checkpointRef: RefObject<EditorCheckpoint | null>;
+  onLogout: () => void;
+}) {
   const currentExample = examples[0];
   const initialScene = useMemo(
     () => cloneScene(currentExample.scene),
@@ -428,10 +436,12 @@ export default function CapiBlocksApp() {
   );
 
   const postToWorker = useCallback((message: Record<string, unknown>) => {
+    if (!draftStore.active && message.type !== 'PAUSE' && message.type !== 'STOP') return;
     workerRef.current?.postMessage(message);
-  }, []);
+  }, [draftStore]);
 
   useEffect(() => {
+    let disposed = false;
     const worker = new SimulatorWorker();
     workerRef.current = worker;
     const flushHighlights = () => {
@@ -463,6 +473,7 @@ export default function CapiBlocksApp() {
         scheduleHighlight();
       }
       if (event.data.type === 'SOUND') {
+        if (!draftStore.active) return;
         sound(
           event.data.frequency,
           event.data.durationMs / speedRef.current,
@@ -494,37 +505,36 @@ export default function CapiBlocksApp() {
         }
       }
       if (event.data.type === 'DONE') {
+        if (!draftStore.active) return;
         sound(980, 140, mutedRef.current);
-        window.setTimeout(() => sound(1320, 180, mutedRef.current), 100);
+        window.setTimeout(() => { if (!disposed && draftStore.active) sound(1320, 180, mutedRef.current); }, 100);
       }
     });
     return () => {
+      disposed = true;
       if (pendingHighlightFrameRef.current !== null) {
         cancelAnimationFrame(pendingHighlightFrameRef.current);
       }
       stopSound();
       worker.terminate();
     };
-  }, []);
+  }, [draftStore]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       try {
-        const currentSaved = localStorage.getItem(PROJECT_STORAGE_KEY);
-        const legacySaved = localStorage.getItem(LEGACY_STORAGE_KEY);
-        const soundSetting = localStorage.getItem('capibloques-muted');
+        const currentSaved = draftStore.read();
+        const soundSetting = localStorage.getItem(draftStore.mutedKey);
         if (soundSetting !== null) setMuted(soundSetting === 'true');
 
         let recovered: ReturnType<typeof decodeProject> | null = null;
-        let recoveredFromLegacy = false;
         let recoveryMessage = '';
-        for (const [index, saved] of [currentSaved, legacySaved].entries()) {
+        for (const saved of [currentSaved]) {
           if (!saved) continue;
           try {
             const decoded = decodeProject(JSON.parse(saved) as unknown);
             if (decoded.project) {
               recovered = decoded;
-              recoveredFromLegacy = index === 1;
               break;
             }
             recoveryMessage ||= decoded.diagnostics[0]?.message ?? '';
@@ -543,12 +553,12 @@ export default function CapiBlocksApp() {
           setWorkspace(normalizeWorkspace(recovered.project.workspace));
           setWorkspaceRevision((value) => value + 1);
           setNotice(
-            recoveredFromLegacy || recovered.migrated
+            recovered.migrated
               ? 'Recuperamos y actualizamos tu proyecto anterior'
               : 'Recuperamos tu último proyecto',
           );
           setNoticeTone('ok');
-        } else if (currentSaved || legacySaved) {
+        } else if (currentSaved) {
           setNotice(
             recoveryMessage ||
               'El proyecto guardado no era compatible; empezamos uno nuevo',
@@ -567,7 +577,7 @@ export default function CapiBlocksApp() {
       }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [draftStore]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -579,7 +589,7 @@ export default function CapiBlocksApp() {
           editorRef.current?.save() ?? workspace,
           speed,
         );
-        localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(project));
+        draftStore.write(JSON.stringify(project));
       } catch (error) {
         setNotice(
           error instanceof Error
@@ -590,18 +600,18 @@ export default function CapiBlocksApp() {
       }
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [hydrated, projectName, scene, speed, workspace]);
+  }, [draftStore, hydrated, projectName, scene, speed, workspace]);
 
   useEffect(() => {
     mutedRef.current = muted;
     if (muted) stopSound();
     if (!hydrated) return;
     try {
-      localStorage.setItem('capibloques-muted', String(muted));
+      if (draftStore.active) localStorage.setItem(draftStore.mutedKey, String(muted));
     } catch {
       // Silenciar sigue funcionando aunque el navegador bloquee preferencias.
     }
-  }, [hydrated, muted]);
+  }, [draftStore, hydrated, muted]);
 
   useEffect(() => {
     speedRef.current = speed;
@@ -761,13 +771,24 @@ export default function CapiBlocksApp() {
     return makeProject(projectName, scene, savedWorkspace, speed);
   }, [projectName, scene, speed, workspace]);
 
+  useLayoutEffect(() => {
+    checkpointRef.current = { suspend: () => {
+      postToWorker({ type: 'PAUSE' });
+      stopSound();
+      // Capturar el proyecto confirmado antes de cancelar el debounce. El borrador
+      // de Armar escena permanece en memoria al verificar la misma sesión.
+      if (hydrated && draftStore.active) {
+        try { draftStore.write(JSON.stringify(currentProject())); }
+        catch { setNotice('No pudimos guardar el último cambio. Exportá una copia JSON cuando vuelvas a ingresar.'); setNoticeTone('error'); }
+      }
+    } };
+    return () => { checkpointRef.current = null; };
+  }, [checkpointRef, currentProject, draftStore, hydrated, postToWorker]);
+
   const saveToBrowser = useCallback(() => {
     try {
-      localStorage.setItem(
-        PROJECT_STORAGE_KEY,
-        JSON.stringify(currentProject()),
-      );
-      setNotice('Proyecto guardado en este navegador');
+      draftStore.write(JSON.stringify(currentProject()));
+      setNotice('Proyecto guardado para tu cuenta en este navegador');
       setNoticeTone('ok');
       sound(760, 80, muted);
     } catch (error) {
@@ -778,7 +799,7 @@ export default function CapiBlocksApp() {
       );
       setNoticeTone('error');
     }
-  }, [currentProject, muted]);
+  }, [currentProject, draftStore, muted]);
 
   const exportJson = useCallback(() => {
     try {
@@ -875,6 +896,7 @@ export default function CapiBlocksApp() {
         if (file.size > 2_000_000)
           throw new Error('El archivo supera el límite de 2 MB');
         const decoded = decodeProject(JSON.parse(await file.text()) as unknown);
+        if (!draftStore.active) return;
         if (!decoded.project)
           throw new Error(
             decoded.diagnostics[0]?.message ??
@@ -908,7 +930,7 @@ export default function CapiBlocksApp() {
         sound(190, 180, muted);
       }
     },
-    [muted, postToWorker],
+    [draftStore, muted, postToWorker],
   );
 
   const setDeviceInput = useCallback(
@@ -958,6 +980,7 @@ export default function CapiBlocksApp() {
           },
           annotations: { readOnlyHint: false, untrustedContentHint: false },
           execute(input: unknown) {
+            if (!draftStore.active) throw new Error('Verificá tu sesión antes de editar');
             const example = (input as { example?: SceneId })?.example;
             if (!example || !examples.some((item) => item.id === example))
               throw new Error('Ejemplo no válido');
@@ -983,6 +1006,7 @@ export default function CapiBlocksApp() {
           },
           annotations: { readOnlyHint: false, untrustedContentHint: false },
           execute(input: unknown) {
+            if (!draftStore.active) throw new Error('Verificá tu sesión antes de editar');
             const component = (input as { component?: SceneDeviceKind })
               ?.component;
             if (!component || !sceneDeviceKinds.includes(component))
@@ -998,7 +1022,7 @@ export default function CapiBlocksApp() {
       registrations.map((value) => Promise.resolve(value)),
     ).catch(() => undefined);
     return () => lifecycle.abort();
-  }, [addSceneComponent, loadExample]);
+  }, [addSceneComponent, loadExample, draftStore]);
 
   const inputDevices = scene.devices.filter((device) =>
     ['button', 'lightSensor', 'potentiometer'].includes(device.kind),
@@ -1021,7 +1045,7 @@ export default function CapiBlocksApp() {
           </span>
           <div>
             <strong>CapiBloques</strong>
-            <span>Laboratorio Wemos D1 R32</span>
+            <span title={`@${account.alias} · Borrador local de esta cuenta`}>{account.displayName} · Wemos D1 R32</span>
           </div>
         </div>
         <label className="project-name">
@@ -1035,6 +1059,7 @@ export default function CapiBlocksApp() {
         </label>
         <nav className="header-actions" aria-label="Acciones del proyecto">
           <a className="header-text-button" href="/cuenta/" target="_blank" rel="noopener">Mi cuenta ↗</a>
+          <button className="icon-button" aria-label="Cerrar sesión" title="Guardar borrador y cerrar sesión" onClick={onLogout}><LogOut size={20} /></button>
           <button
             className="header-text-button save-project-button"
             onClick={saveToBrowser}

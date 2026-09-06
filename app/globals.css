@@ -2590,3 +2590,11 @@ select:focus-visible {
     animation: none !important;
   }
 }
+
+/* Ocultar también los portales de Blockly y los diálogos al verificar acceso. */
+html[data-editor-locked='true'] body * { visibility: hidden !important; }
+html[data-editor-locked='true'] .session-cover,
+html[data-editor-locked='true'] .session-cover * { visibility: visible !important; }
+.session-cover { position: fixed; inset: 0; z-index: 10000; background: var(--background); }
+.brand > div { min-width: 0; }
+.brand > div > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

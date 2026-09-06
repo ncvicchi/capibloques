@@ -4,7 +4,8 @@ import { expect, test } from '@playwright/test';
 if (process.env.PLAYWRIGHT_API === '1') {
   test('base privada: API accesible por el mismo origen del editor', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByLabel('Editor visual de bloques')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Ingresar', exact: true })).toBeVisible();
+    await expect(page.getByLabel('Editor visual de bloques')).toHaveCount(0);
     const result = await page.evaluate(async () => {
       const response = await fetch('/api/health/ready/');
       return { status: response.status, body: await response.json(), url: response.url };
@@ -18,5 +19,6 @@ if (process.env.PLAYWRIGHT_API === '1') {
     expect((await request.get('/api/health/live/')).status()).toBe(200);
     expect((await request.post('/api/health/live/')).status()).toBe(403);
     expect((await request.get('/api/users/')).status()).toBe(404);
+    expect((await request.get('/api/auth/editor-session/')).status()).toBe(401);
   });
 }

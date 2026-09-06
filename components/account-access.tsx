@@ -5,9 +5,9 @@ import Link from 'next/link';
 import { ArrowLeft, Eye, EyeOff, KeyRound, LogOut, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-
-type Account = { id: string; alias: string; displayName: string; roles: string[]; mustChangePassword: boolean };
-type Session = { user: Account | null; csrfToken: string };
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { announceSessionChange, watchSessionChange, type Session } from '@/lib/account-session';
+import { downloadText } from '@/lib/capiblocks';
 
 export default function AccountAccess() {
   const [session, setSession] = useState<Session | null>(null);
@@ -23,8 +23,9 @@ export default function AccountAccess() {
   const [editingPassword, setEditingPassword] = useState(false);
   const epoch = useRef(0);
   const inFlight = useRef(false);
-  const channel = useRef<BroadcastChannel | null>(null);
   const knownSession = useRef<Session | null>(null);
+  const [legacyOpen, setLegacyOpen] = useState(false);
+  const [legacyFiles, setLegacyFiles] = useState<{ version: number; raw: string }[]>([]);
 
   const clearSecrets = useCallback(() => {
     setPassword(''); setNewPassword(''); setConfirmation(''); setShowPassword(false);
@@ -47,7 +48,7 @@ export default function AccountAccess() {
     } catch {
       if (current === epoch.current) {
         knownSession.current = null; setSession(null); clearSecrets();
-        setError('No pudimos conectar con las cuentas. Tu proyecto local sigue disponible en el editor.');
+        setError('No pudimos conectar con las cuentas. Tu borrador se conserva, pero necesitás ingresar para abrir el editor.');
       }
     } finally {
       if (current === epoch.current) setLoading(false);
@@ -61,14 +62,12 @@ export default function AccountAccess() {
     const onFocus = () => { if (!inFlight.current) void refresh(true); };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onFocus);
-    const messages = 'BroadcastChannel' in window ? new BroadcastChannel('capibloques-account-session') : null;
-    channel.current = messages;
-    if (messages) messages.onmessage = () => { void refresh(true); };
+    const stopWatching = watchSessionChange(changing => { if (!changing && !inFlight.current) void refresh(true); });
     return () => {
       disposed = true;
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onFocus);
-      messages?.close();
+      stopWatching();
     };
   }, [refresh]);
 
@@ -77,6 +76,7 @@ export default function AccountAccess() {
     inFlight.current = true;
     setBusy(true); setError(''); setNotice('');
     const current = ++epoch.current;
+    announceSessionChange(true);
     try {
       const response = await fetch(`/api/auth/${path}/`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': session.csrfToken },
@@ -96,7 +96,9 @@ export default function AccountAccess() {
       knownSession.current = body; setSession(body); clearSecrets(); setEditingPassword(false);
       setNotice(path === 'password' ? 'Contraseña guardada. Las otras sesiones quedaron cerradas.'
         : path.startsWith('logout') ? 'Sesión cerrada.' : '¡Ya ingresaste!');
-      channel.current?.postMessage('changed');
+      if (body.user && !body.user.mustChangePassword && new URLSearchParams(window.location.search).get('editor') === '1') {
+        window.location.replace('/');
+      }
     } catch {
       if (current === epoch.current) {
         // La petición pudo completarse aunque se perdiera la respuesta.
@@ -104,6 +106,7 @@ export default function AccountAccess() {
         setError('Se interrumpió la conexión. Actualizamos el estado; verificá el resultado antes de repetir.');
       }
     } finally {
+      announceSessionChange();
       inFlight.current = false; setBusy(false);
     }
   }
@@ -114,7 +117,7 @@ export default function AccountAccess() {
 
   return (
     <main className="account-page">
-      <Link className="account-back" href="/" prefetch={false}><ArrowLeft size={18} /> Volver al editor local</Link>
+      {user && !user.mustChangePassword && <Link className="account-back" href="/" prefetch={false}><ArrowLeft size={18} /> Entrar al editor</Link>}
       <section className="account-card" aria-labelledby="account-title" aria-busy={loading || busy}>
         <header className="account-heading">
           <span className="brand-mark" aria-hidden="true">🐾</span>
@@ -159,10 +162,24 @@ export default function AccountAccess() {
               <Button variant="outline" className="account-action" disabled={busy} onClick={() => void submit('logout')}><LogOut /> Cerrar sesión</Button>
               <Button variant="ghost" className="account-action" disabled={busy} onClick={() => void submit('logout-all')}>Cerrar todas mis sesiones</Button>
             </div>
+            {!user.mustChangePassword && user.roles.includes('administrador') && <Button variant="outline" className="account-action" onClick={() => {
+              try {
+                const files = [2, 1].flatMap(version => {
+                  const raw = localStorage.getItem(`capibloques-project-v${version}`);
+                  return raw ? [{ version, raw }] : [];
+                });
+                setLegacyFiles(files); setLegacyOpen(true);
+              } catch { setError('Este navegador no permite leer el borrador anterior.'); }
+            }}>Recuperar proyecto anterior a las cuentas</Button>}
           </>}
         </>}
-        <aside className="account-local-note"><strong>El editor todavía guarda en esta computadora.</strong><p>Ingresar no sube tus proyectos a la cuenta ni los separa por usuario. Exportá JSON para llevarte una copia; no uses aún este entorno como biblioteca de alumnos.</p></aside>
+        <aside className="account-local-note"><strong>El editor todavía guarda en esta computadora.</strong><p>Cada cuenta tiene su propio borrador en este navegador. Todavía no se guarda en el servidor ni se sincroniza entre computadoras. Exportá JSON para llevarte una copia.</p></aside>
       </section>
+      <Dialog open={legacyOpen && Boolean(user?.roles.includes('administrador'))} onOpenChange={setLegacyOpen}>
+        <DialogContent className="account-card"><DialogHeader><DialogTitle>Recuperar el proyecto anterior</DialogTitle><DialogDescription>El borrador anterior no tiene dueño. Descargá una copia y, sólo si te pertenece, importala desde Exportar → Importar proyecto JSON en tu editor. El original no se borra ni se asigna a ningún alumno.</DialogDescription></DialogHeader>
+          {legacyFiles.length ? legacyFiles.map(file => <Button className="account-action" key={file.version} onClick={() => downloadText(`proyecto-anterior-v${file.version}.capibloques.json`, file.raw, 'application/json')}>Descargar copia anterior (v{file.version})</Button>) : <p>No hay borradores anteriores en este navegador.</p>}
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

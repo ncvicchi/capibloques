@@ -64,6 +64,47 @@ class AccountTests(TestCase):
         self.assertTrue(response.cookies["sessionid"]["httponly"])
         self.assertEqual(response.cookies["sessionid"]["samesite"], "Lax")
 
+    def test_editor_requires_server_session_not_client_identity(self):
+        path = "/api/auth/editor-session/"
+        response = self.client.get(path, {"user": str(self.student.pk)}, HTTP_X_USER_ID=str(self.student.pk))
+        self.assertEqual(response.status_code, 401)
+        self.assertNotIn("user", response.json())
+        self.sign_in()
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["user"]["id"], str(self.student.pk))
+        self.assertIn("no-store", response["Cache-Control"])
+        context = response.json()["context"]
+        self.assertNotEqual(context, self.client.session.session_key)
+        self.assertEqual(context, self.client.get(path).json()["context"])
+        self.post("logout")
+        self.assertEqual(self.client.get(path).status_code, 401)
+        self.sign_in()
+        self.assertNotEqual(context, self.client.get(path).json()["context"])
+
+    def test_editor_rejects_temporary_password_and_revoked_access(self):
+        path = "/api/auth/editor-session/"
+        self.student.must_change_password = True
+        self.student.save(update_fields=["must_change_password"])
+        self.sign_in()
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "password_change_required")
+        self.post("password", {"currentPassword": PASSWORD, "newPassword": NEW_PASSWORD, "confirmation": NEW_PASSWORD})
+        self.assertEqual(self.client.get(path).status_code, 200)
+        self.student.refresh_from_db()
+        self.student.is_active = False
+        self.student.save(update_fields=["is_active"])
+        self.student.is_active = True
+        self.student.save(update_fields=["is_active"])
+        self.assertEqual(self.client.get(path).status_code, 401)
+
+    def test_editor_context_does_not_grant_access_to_another_client(self):
+        self.sign_in()
+        context = self.client.get("/api/auth/editor-session/").json()["context"]
+        other = Client()
+        self.assertEqual(other.get("/api/auth/editor-session/", HTTP_AUTHORIZATION="Bearer " + context).status_code, 401)
+
     def test_failure_does_not_distinguish_missing_inactive_or_wrong_password(self):
         wrong = self.sign_in(password="incorrecta")
         missing = self.sign_in(alias="nobody")

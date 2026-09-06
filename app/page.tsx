@@ -1,5 +1,5 @@
-import CapiBlocksApp from '@/components/capiblocks-app';
+import EditorAccess from '@/components/editor-access';
 
 export default function Home() {
-  return <CapiBlocksApp />;
+  return <EditorAccess />;
 }

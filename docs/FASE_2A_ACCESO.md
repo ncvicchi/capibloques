@@ -8,7 +8,13 @@ Abrir `http://localhost:3000/cuenta/` con el túnel dedicado activo. El enlace �
 
 No pide correo ni ofrece registro público. Sin API disponible muestra error y Reintentar, sin fingir un ingreso. Una contraseña temporal obliga a elegir otra antes de cualquier futura operación protegida de la cuenta. Al recuperar foco o recibir un aviso entre pestañas se consulta nuevamente la sesión; no se comparten credenciales por ese canal.
 
-**El editor todavía es local y compartido por navegador/origen.** Esta pantalla no lo convierte en una biblioteca privada: no sube proyectos ni cambia su almacenamiento. La UI lo advierte explícitamente. Conservar exportación/importación JSON y no introducir todavía trabajo real de alumnos. La separación por cuenta, importación del proyecto local y el guardado servidor pertenecen a fases 3/4.
+**Ampliación 2A autorizada: ingreso obligatorio y borradores locales por cuenta.** `/` verifica una sesión real en Django antes de montar Blockly o leer un proyecto. Sin sesión envía a `/cuenta/?editor=1`; ingresar (y cambiar la contraseña temporal, cuando corresponda) devuelve al editor. Cada cuenta guarda un borrador por UUID, independiente del alias, y mantiene importación/exportación JSON. No sube proyectos al servidor ni sincroniza computadoras: biblioteca, permisos docentes por proyecto y guardado servidor siguen en fases 3/4.
+
+El editor ofrece «Cerrar sesión», pausa el simulador y los sonidos, captura los cambios confirmados antes de cancelar el autoguardado pendiente y retira el proyecto de pantalla. Verifica de nuevo al recuperar visibilidad/foco y cada 15 segundos mientras esté visible. Los cambios de sesión avisan a otras pestañas por BroadcastChannel y evento de storage, sin compartir credenciales. No es revocación instantánea entre equipos: la próxima petición detecta la revocación del servidor. Ante error de red se bloquea la edición y se permite reintentar, sin fingir un cierre exitoso ni perder en memoria el borrador de escena de la misma sesión. Una sesión nueva descarta diálogos sin confirmar: usar Guardar/Cancelar en Armar escena antes de salir.
+
+Los antiguos `capibloques-project-v2/v1` no se cargan ni borran automáticamente. En Mi cuenta, el administrador puede descargar una copia mediante «Recuperar proyecto anterior a las cuentas» e importarla explícitamente si es suya. Un alumno no recibe ese proyecto por ser el primero que entra.
+
+**Límite de privacidad:** los borradores continúan en localStorage, en texto claro. La separación evita mezclas en la interfaz, no protege contra alguien con acceso a las herramientas del navegador o al mismo perfil del sistema operativo. Exportar copias y no usar todavía este DEV como biblioteca definitiva de alumnos.
 
 ## Primera cuenta: intervención del propietario
 
@@ -47,6 +53,7 @@ Pide una contraseña temporal sin mostrarla, revoca las sesiones y obliga a camb
 | Ruta | Método | Comportamiento |
 | --- | --- | --- |
 | `/api/auth/session/` | GET | Identidad propia o `null`, y token CSRF en respuesta no cacheable |
+| `/api/auth/editor-session/` | GET | 401 sin sesión, 403 con contraseña temporal; identidad verificada y marca opaca del ciclo de sesión, nunca una credencial |
 | `/api/auth/login/` | POST | Alias/contraseña, cookie de sesión y rotación de CSRF |
 | `/api/auth/password/` | POST | Contraseña actual, nueva y confirmación; conserva esta sesión, invalida las demás |
 | `/api/auth/logout/` | POST | Cierra sólo esta sesión, también es seguro repetirlo |

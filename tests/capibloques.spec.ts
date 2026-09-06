@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { makeProject } from '../lib/capiblocks';
 import { createEmptyScene } from '../lib/scene-model';
+import { mockEditorSession } from './editor-fixture';
 
 function collectPageErrors(page: Page) {
   const errors: Error[] = [];
@@ -16,6 +17,7 @@ async function openApp(page: Page) {
 }
 
 test.describe('CapiBloques', () => {
+  test.beforeEach(async ({ page }) => { await mockEditorSession(page); });
   test('carga Blockly y ofrece los controles principales en escritorio', async ({
     page,
   }) => {

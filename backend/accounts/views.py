@@ -6,6 +6,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import RequestDataTooBig, ValidationError
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
+from django.utils.crypto import salted_hmac
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_GET, require_POST
@@ -48,6 +49,17 @@ def json_body(fields):
 @require_GET
 def session(request):
     return JsonResponse({"user": user_data(request.user), "csrfToken": get_token(request)})
+
+
+@never_cache
+@require_GET
+@require_account()
+def editor_session(request):
+    # Identifica un ciclo de sesión sin exponer la cookie ni el hash de acceso.
+    # No es una credencial: todas las peticiones siguen autenticándose en Django.
+    context = salted_hmac("capibloques.editor-context",
+                          f"{request.session.session_key}:{request.user.session_epoch}").hexdigest()
+    return JsonResponse({"user": user_data(request.user), "csrfToken": get_token(request), "context": context})
 
 
 @never_cache
