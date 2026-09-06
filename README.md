@@ -2,7 +2,7 @@
 
 CapiBloques es un entorno visual educativo para que chicos de 8 a 12 años armen una escena, programen sus componentes con bloques, prueben el comportamiento en el navegador y descarguen Arduino C++ compatible con una WEMOS D1 R32.
 
-El editor sigue funcionando de forma independiente y permite exportación estática. En la VM de desarrollo ya corre la base Django + PostgreSQL, accesible por el mismo origen del editor; todavía no hay cuentas ni guardado de proyectos en el servidor. El alojamiento elegido es Proxmox; GitHub Pages deja de utilizarse. Las funciones multiusuario y ESP-IDF están planificadas, no implementadas aún.
+El editor sigue funcionando de forma independiente y permite exportación estática. En la VM de desarrollo corren Django + PostgreSQL y el [acceso por alias y sesiones de fase 2A](docs/FASE_2A_ACCESO.md), en `/cuenta/`. Todavía no hay ABM web, cursos ni guardado de proyectos en el servidor. El alojamiento elegido es Proxmox; GitHub Pages deja de utilizarse. El resto de las funciones multiusuario y ESP-IDF están planificadas, no implementadas aún.
 
 El alcance está en [el plan de implementación](docs/PLAN_MULTIUSUARIO_PROXMOX.md) y el estado de preparación en [fase 0: servidores](docs/FASE_0_SERVIDORES.md). Trabajamos una fase por vez, con pruebas, commit/push y aprobación del propietario antes de avanzar.
 

@@ -7,7 +7,8 @@
 - Hacer commit y push de los cambios versionables verificados de cada entrega. Si no se puede publicar, comunicarlo. No incluir cambios ajenos ni secretos.
 - El plan principal es `docs/PLAN_MULTIUSUARIO_PROXMOX.md`; el estado de preparación está en `docs/FASE_0_SERVIDORES.md`. El plan no demuestra que las funciones estén implementadas.
 - El entorno DEV completo y su recuperación están en `docs/FASE_1_BASE_REPRODUCIBLE.md`; usar ambos archivos Compose. `docs/FASE_0B_DESARROLLO.md` conserva la guía del túnel. Compose sólo en desarrollo, puerto loopback y túnel SSH dedicado. No mezclar el túnel de navegación con la sesión de administración ni arrancar un servidor alternativo para validar la VM.
-- Secretos DEV fuera del checkout; no regenerarlos ante una pérdida ni borrar volúmenes para recuperar la base. El volumen persistente no sustituye un respaldo. No instalar `auth/admin` ni migrar `auth.User` antes de definir el modelo propio de cuentas en fase 2.
+- Secretos DEV fuera del checkout; no regenerarlos ante una pérdida ni borrar volúmenes para recuperar la base. El volumen persistente no sustituye un respaldo. El modelo propio es `accounts.User`; no introducir `auth.User` ni habilitar Django admin como sustituto del ABM solicitado.
+- Acceso y operación en `docs/FASE_2A_ACCESO.md`. Las mutaciones de cuentas deben comprobar permisos del actor, usar `access_lock()` y métodos de instancia; no saltar revocación/último administrador mediante actualizaciones o borrados bulk. Identidad/roles no equivalen todavía a permisos por curso/proyecto. El editor sigue local hasta fases 3/4; no presentarlo como biblioteca aislada por cuenta.
 
 ## Infraestructura y límites estrictos
 

@@ -2,6 +2,8 @@
 
 Fecha: 6 de septiembre de 2026. Alcance: editor existente + API Django mínima + PostgreSQL persistente en `capi-dev`. **No implementa cuentas, roles, biblioteca ni guardado servidor.** Producción permanece sin aplicación. Gateway usado sólo como salto TCP SSH; Proxmox, router y Nginx no se modificaron.
 
+Evidencia histórica de fase 1. El acceso y las migraciones de cuentas incorporados después se documentan en [fase 2A](FASE_2A_ACCESO.md); sus comandos operativos extienden esta guía. La receta con ambos Compose sigue vigente.
+
 ## Entorno comprobado
 
 | Servicio | Versión observada | Acceso y límites |
