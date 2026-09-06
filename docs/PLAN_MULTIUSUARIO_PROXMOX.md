@@ -1,8 +1,8 @@
 # Plan de CapiBloques: multiusuario, enseñanza y programación de Wemos
 
-Estado: fases 0A, 0B, 1, **2A y 2B.1 implementadas**. [Fase 2A](FASE_2A_ACCESO.md): acceso, sesiones y editor con borradores locales por UUID. El propietario confirmó que recuperó el acceso. [Fase 2B.1 y validación](FASE_2B1_USUARIOS.md): ABM de usuarios exclusivo del administrador, probado en DEV por LAN. **Resto de 2B pendiente de nuevo OK:** colegio/logo, cursos y membresías. Biblioteca/guardado servidor siguen pendientes. Evidencia previa en `FASE_0_SERVIDORES.md`, `FASE_0B_DESARROLLO.md` y [fase 1](FASE_1_BASE_REPRODUCIBLE.md).
+Estado: fases 0A, 0B, 1, **2A, 2B.1 y 2B.2 implementadas**. [Fase 2A](FASE_2A_ACCESO.md): acceso, sesiones y editor con borradores locales por UUID. El propietario confirmó que recuperó el acceso. [Fase 2B.1](FASE_2B1_USUARIOS.md): ABM de usuarios. [Fase 2B.2](FASE_2B2_COLEGIO.md): nombre/logo institucional previo al ingreso y administración con vista previa. **2B.3 pendiente de nuevo OK:** cursos y membresías. Biblioteca/guardado servidor siguen pendientes. Evidencia previa en `FASE_0_SERVIDORES.md`, `FASE_0B_DESARROLLO.md` y [fase 1](FASE_1_BASE_REPRODUCIBLE.md).
 Fecha de actualización: 6 de septiembre de 2026.
-Actualización: ABM en `/gestion/usuarios/`, sesiones revocables, protección del último administrador, detección de ediciones desactualizadas y auditoría administrativa. Editor conservado, proyectos aún locales. Producción no activada. Se mantienen Arduino + ESP-IDF, binarios/carga USB, logo institucional y concurrencia configurable.
+Actualización: ABM en `/gestion/usuarios/` y marca institucional en `/gestion/colegio/`, ambos con detección de ediciones desactualizadas y auditoría administrativa. Editor conservado, proyectos aún locales. Producción no activada. Se mantienen Arduino + ESP-IDF, binarios/carga USB y concurrencia configurable en sus fases pendientes.
 
 ## 1. Decisiones acordadas
 
@@ -122,6 +122,8 @@ Las restricciones se aplican en el servidor a listas, detalles, revisiones, come
 - Ajustes institucionales sólo para el administrador, con vista previa, Guardar/Cancelar y cambios auditados. La marca debe ser visible sin relegar el formulario fuera de la pantalla; texto alternativo, contraste, teclado y tamaño adaptable según las pautas de accesibilidad del proyecto.
 - Logo suministrado por el propietario/colegio; no inventar una marca sustituta ni usar fotos de alumnos. Propuesta de carga inicial PNG/JPEG/WebP, con validación real de imagen, límite de bytes/dimensiones y recodificación segura; sin SVG/HTML arbitrarios ni descarga de URLs externas. Guardar el recurso en volumen persistente y respaldarlo.
 - La respuesta pública expone únicamente nombre y logo aprobados, no usuarios, cursos, preferencias privadas ni configuración de compilación. Ante logo ausente o inválido, mantener nombre legible y formulario utilizable; error al reemplazarlo conserva el logo anterior.
+
+Implementación 2B.2: un PNG optimizado de hasta 512 × 512 y 1 MiB se almacena con el nombre en PostgreSQL, dentro del volumen persistente existente. Es una decisión acotada para una sola imagen y recursos limitados: permite una escritura y un respaldo coherentes sin añadir almacenamiento de archivos separado. No extenderla automáticamente a adjuntos grandes. [Contrato, límites y pruebas](FASE_2B2_COLEGIO.md).
 
 ### Visibilidad
 
@@ -285,7 +287,7 @@ El backup lógico de PostgreSQL está documentado como copia consistente mientra
 | 5E. USB desde la web | Monitor Serial y carga autónoma en Chrome/Edge | Se graban físicamente programas de ambos frameworks en Wemos, se verifican y ejecutan sin depender de la pestaña; errores y cortes tienen recuperación; detener la simulación no se presenta como detener hardware. |
 | 6. Piloto en Proxmox | Configuración de producción, HTTPS, backups y carga | Se restaura una copia en entorno aislado, se prueba la carga acordada, no se exponen servicios internos y se valida el flujo completo con administrador, docente y alumnos de prueba. |
 
-División de la fase 2 para entregas acotadas: 2A (acceso/editor) y 2B.1 (ABM de usuarios) entregadas. Siguiente propuesta: 2B.2, nombre y logo institucional antes del ingreso; después, 2B.3, cursos y membresías con permisos por curso. Cada una requiere un nuevo OK. La baja de cuentas deberá ampliarse antes de incorporar proyectos: la ficha administrativa de 2B.1 no es el respaldo de proyectos previsto en el alcance final.
+División de la fase 2 para entregas acotadas: 2A (acceso/editor), 2B.1 (ABM de usuarios) y 2B.2 (nombre/logo institucional) entregadas. Siguiente propuesta: 2B.3, cursos y membresías con permisos por curso, con nuevo OK. La baja de cuentas deberá ampliarse antes de incorporar proyectos: la ficha administrativa de 2B.1 no es el respaldo de proyectos previsto en el alcance final.
 
 Pruebas obligatorias adicionales:
 

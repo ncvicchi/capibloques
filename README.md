@@ -6,6 +6,8 @@ El editor exige ingreso con alias y contraseña y conserva un borrador local por
 
 El alcance está en [el plan de implementación](docs/PLAN_MULTIUSUARIO_PROXMOX.md) y el estado de preparación en [fase 0: servidores](docs/FASE_0_SERVIDORES.md). Trabajamos una fase por vez, con pruebas, commit/push y aprobación del propietario antes de avanzar.
 
+La [fase 2B.2](docs/FASE_2B2_COLEGIO.md) incorpora nombre y logo del colegio antes del ingreso. Se configuran desde **Mi cuenta → Configurar colegio**, con vista previa y Guardar/Cancelar, sólo para administradores. Acepta PNG/JPEG/WebP con validación y optimización; nombre e imagen quedan en PostgreSQL y su volumen persistente. No se necesita un logo para ingresar.
+
 ## Qué se puede construir
 
 Una escena ya no es una pantalla fija. El editor permite partir de cero, repetir una plantilla o mezclar varias. Por ejemplo:

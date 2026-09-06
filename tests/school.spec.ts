@@ -155,10 +155,11 @@ test('colegio: recargar advierte sobre el borrador y descartar no pide doble con
   await page.getByRole('button', { name: 'Editar colegio', exact: true }).click();
   await page.getByLabel('Nombre del colegio', { exact: true }).fill('Pendiente');
   const warning = page.waitForEvent('dialog');
-  const reloading = page.reload().catch(() => {}); // Cancelar beforeunload aborta la navegación.
+  // No esperar page.reload(): al cancelar beforeunload nunca habrá un load nuevo.
+  await page.evaluate(() => { window.setTimeout(() => window.location.reload(), 0); });
   const dialog = await warning;
   expect(dialog.type()).toBe('beforeunload');
-  await dialog.dismiss(); await reloading;
+  await dialog.dismiss();
   await expect(page.getByLabel('Nombre del colegio', { exact: true })).toHaveValue('Pendiente');
   let extraPrompts = 0;
   page.on('dialog', dialog => { extraPrompts++; void dialog.dismiss(); });
