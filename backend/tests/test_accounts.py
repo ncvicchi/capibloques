@@ -1,3 +1,4 @@
+import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from io import StringIO
@@ -155,8 +156,9 @@ class AccountTests(TestCase):
         request.user = self.student
         self.assertEqual(protected(request).status_code, 403)
         self.student.must_change_password = True
-        self.assertEqual(protected(request).json()["code"], "password_change_required")
+        self.assertEqual(json.loads(protected(request).content)["code"], "password_change_required")
         self.student.must_change_password = False
+        self.student.is_student = False
         self.student.is_administrator = True
         self.assertEqual(protected(request).status_code, 200)
 
@@ -185,6 +187,15 @@ class AccountTests(TestCase):
         events = list(AccessEvent.objects.values("action", "user_id"))
         self.assertEqual([event["action"] for event in events], ["login", "logout"])
         self.assertNotIn(PASSWORD, str(events))
+
+    def test_local_recovery_revokes_sessions_without_changing_roles(self):
+        self.sign_in()
+        with patch("accounts.management.commands.reset_account_password.getpass", return_value=NEW_PASSWORD):
+            call_command("reset_account_password", "LUNA", stdout=StringIO())
+        self.assertIsNone(self.state()["user"])
+        response = self.sign_in(password=NEW_PASSWORD)
+        self.assertTrue(response.json()["user"]["mustChangePassword"])
+        self.assertEqual(response.json()["user"]["roles"], ["alumno"])
 
 
 class ProductionHashTests(TestCase):

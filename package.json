@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "vinext dev",
-    "build": "vinext build && node scripts/fix-pages-paths.mjs",
+    "build": "vinext build && node scripts/verify-static-paths.mjs",
     "start": "wrangler dev --config dist/server/wrangler.json",
     "lint": "oxlint app components/account-access.tsx components/capiblocks-app.tsx components/blockly-workspace.tsx components/scene-builder.tsx components/scene-stage.tsx components/wiring-guide.tsx lib vite.config.ts next.config.ts",
     "typecheck": "tsc --noEmit",

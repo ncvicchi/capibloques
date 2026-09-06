@@ -45,8 +45,8 @@ export default defineConfig(async () => {
   const { cloudflare } = await import('@cloudflare/vite-plugin');
 
   return {
-    // Rutas relativas para funcionar en cualquier subdirectorio de GitHub Pages.
-    base: '',
+    // Dominio propio en Proxmox: las rutas anidadas comparten assets desde raíz.
+    base: '/',
     css: { postcss: { plugins: [tailwindcss()] } },
     server: {
       ...(isCodexSeatbeltSandbox
