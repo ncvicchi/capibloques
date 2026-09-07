@@ -20,17 +20,25 @@ Migraciones `accounts.0003_preferences` y `0004_empty_favorites` aditivas. La se
 
 Respaldo previo en DEV, privado y fuera del checkout: `pre-phase6-preferences-20260907.dump`; verificada su existencia y catálogo, no se hizo una restauración ni copia externa. No confundir esto con la prueba de restauración de producción de la fase 11.
 
-## Evidencia provisional
+## Evidencia de la implementación
 
 - 162 pruebas backend pasan en DEV; PostgreSQL de prueba separado de los datos reales.
-- Typecheck, lint, smoke y build locales pasan en la implementación integrada.
+- Typecheck, lint, smoke y build locales pasan en la implementación integrada (`20ebe7f`). El build verifica nueve páginas estáticas y sus assets. Sigue la advertencia conocida, no bloqueante, de chunks superiores a 500 kB.
 - Nuevo smoke compara trazas normal/guiado; verifica fork/join, anidación, reuso en bucles, tiempos de programas antiguos, límites, backpressure y cambio de modo.
-- Fixtures Arduino ampliados con fork/join y reinicio de estado de bucles/Wi-Fi; falta confirmar compilación real del cierre.
-- Chrome: selección de avatares, conflictos, cortes, revocación y favoritos ya pasaron. Integración completa/Edge y correcciones de regresión pendientes.
-- CI encontró una marca de edición falsa por persistir la protección del inicio y un desborde móvil del botón de cerrar todas las sesiones. No se dará la fase por terminada hasta verificar las correcciones y la regresión.
+- CI de `20ebe7f`: [ejecución 34165513731](https://github.com/ncvicchi/capibloques/actions/runs/34165513731), correcta. 162 pruebas backend, 138 de interfaz Chromium sin casos flaky; tipos, lint, smoke, auditoría npm y build estático.
+- Compilación real en ese CI de los dos fixtures ampliados con fork/join y reinicio de estado de bucles/Wi-Fi, usando Arduino-ESP32 3.3.11 y `esp32:esp32:d1_uno32`. Memoria de programa: 897707 y 281443 bytes; datos globales: 45700 y 22352 bytes. Son programas de prueba, no una medida de todos los proyectos posibles ni una prueba física en placa.
+- Contra la VM DEV actualizada: 20/20 pruebas de preferencias e inicio/paralelo/pasos, diez en Chrome y diez en Edge, sin reintentos (1,9 min). Incluyen guardar/cancelar/recargar, conflictos y respuesta perdida, revocación, favoritos, arrastre con deshacer/rehacer, conversión de proyectos antiguos y móvil 390 px con texto al 200%.
+- Corregidos y verificados en CI/Chrome/Edge: marca de edición falsa por persistir la protección del inicio, desborde móvil de acciones de cuenta y desplazamiento horizontal de todo el editor al abrir Exportar. El panel distingue Detenido/Terminado y no deja componentes aparentando ejecución. El selector de velocidad normal se deshabilita en Guiado; no cambia el reloj lógico.
+- Las pruebas UI usan identidades y respuestas sintéticas dentro de Playwright; las pruebas backend comprueban permisos, conflictos y persistencia en PostgreSQL real de prueba, separado de los datos de DEV. No se cambiaron credenciales ni proyectos reales como prueba.
 
 ## Validación de entrega
 
-Una vez cerradas las pruebas: probar con una cuenta propia Guardar/Cancelar avatar y favoritos; importar un proyecto antiguo de varios inicios; ejecutar semáforo/robot en paralelo y observar Paso/Guiado; guardar, recargar, exportar y volver a importar. No usar cuentas ni proyectos reales para probar bajas, purgas o pérdida de datos.
+1. En **Mi cuenta → Elegir avatar**, seleccionar un personaje y cancelar; comprobar que no cambió. Repetir con Guardar y recargar.
+2. En la primera categoría **★ Favoritos → ☆ Elegir favoritos**, marcar Semáforo y Esperar. Guardar y comprobar que ambos aparecen allí. Cancelar otra selección no modifica lo guardado.
+3. Usar el único **Al comenzar**. Agregar **En paralelo → Al mismo tiempo** y colocar acciones en sus caminos. Lo conectado debajo sólo corre cuando terminaron todos. Para quitar un camino ocupado primero hay que mover sus bloques.
+4. Elegir **Guiado: ver cada paso**. **Paso** avanza con cada clic; **Ejecutar/Reanudar** presenta los pasos automáticamente. Revisar «Ahora», el estado de los caminos y «Últimos pasos». Activar «Seguir el bloque en pantalla» sólo si se desea mover la vista.
+5. Guardar, recargar, exportar JSON y volver a importarlo. Un archivo antiguo con varios inicios se abre con un solo inicio y sus acciones en caminos; el archivo original no se sobrescribe.
+
+No hace falta conectar una Wemos para validar esta fase. No usar cuentas ni proyectos reales para probar bajas, purgas o pérdida de datos.
 
 No incluye displays nuevos, ESP-IDF, servidor compilador, USB, control físico en vivo ni publicación en producción.
