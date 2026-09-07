@@ -208,7 +208,8 @@ select:focus-visible {
 }
 .cloud-state { font-size: .8rem; color: #274b56; align-self: center; min-width: 145px; max-width: 180px; flex-shrink: 0; }
 .cloud-error { font-size: .85rem; color: #8d2525; min-width: 180px; max-width: 320px; }
-.library-dialog { width: min(920px, calc(100vw - 24px)); max-width: 920px; max-height: calc(100dvh - 24px); overflow-y: auto; }
+.management-dialog.library-dialog { width: min(920px, calc(100vw - 24px)); max-width: 920px !important; max-height: calc(100dvh - 24px); overflow-y: auto; }
+.library-filters select { border: 1px solid #c9d0ee; border-radius: 8px; min-height: 44px; padding: 8px; background: white; color: #173b50; font-size: 1rem; }
 .library-filters { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; }
 .library-filters label { display: grid; gap: 5px; min-width: 150px; flex: 1; }
 .library-list { display: grid; gap: 12px; }

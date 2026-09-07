@@ -41,8 +41,7 @@ test('biblioteca: renombrar y duplicar, cancelar baja, papelera y restauración'
   await page.getByRole('button', { name: 'Eliminar Robot azul', exact: true }).click();
   await page.getByRole('button', { name: 'Enviar a papelera', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Abrir Robot azul', exact: true })).toBeHidden();
-  await page.getByRole('combobox', { name: 'Mostrar' }).click();
-  await page.getByRole('option', { name: 'Papelera', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Mostrar' }).selectOption('trash');
   await page.getByRole('button', { name: 'Restaurar Robot azul', exact: true }).click();
   await expect(page.getByText('La papelera está vacía.')).toBeVisible();
   expect(api.projects.size).toBe(2);

@@ -29,13 +29,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   decodeProject,
   downloadText,
   safeFilename,
@@ -704,20 +697,15 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
               </label>
               <label htmlFor="library-state">
                 Mostrar
-                <Select
+                <select
+                  id="library-state"
+                  disabled={busy}
                   value={filter.state}
-                  onValueChange={(value) => {
-                    if (value) setFilter({ ...filter, state: value, page: 1 });
-                  }}
+                  onChange={event => setFilter({ ...filter, state: event.target.value, page: 1 })}
                 >
-                  <SelectTrigger id="library-state">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Mis proyectos</SelectItem>
-                    <SelectItem value="trash">Papelera</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <option value="active">Mis proyectos</option>
+                  <option value="trash">Papelera</option>
+                </select>
               </label>
               <Button variant="outline" type="submit" disabled={busy}>
                 Buscar
