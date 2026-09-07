@@ -2,9 +2,9 @@
 
 ## Fases y autorización
 
-- Las fases del plan se numeran con enteros consecutivos, sin letras ni fases independientes presentadas como subfases. Fases 0–6 implementadas y verificadas en DEV; pendientes 7–11. Conservar los nombres de archivos históricos para no romper enlaces, pero comunicar progreso y autorización por el número de fase vigente.
+- Las fases del plan se numeran con enteros consecutivos, sin letras ni fases independientes presentadas como subfases. Fases 0–6 implementadas y verificadas en DEV; fase 7 autorizada y en implementación; pendientes 8–11. Conservar los nombres de archivos históricos para no romper enlaces, pero comunicar progreso y autorización por el número de fase vigente.
 
-- Trabajar una fase completa por vez. El propietario autorizó la fase 6 (experiencia y programación) completa el 7 de septiembre de 2026. No pedir OK entre subfases ni iniciar las fases 7–11 sin nueva autorización. Informar alcance al comenzar y dar actualizaciones breves durante el trabajo; no pasar largos períodos sin informar al propietario.
+- Trabajar una fase completa por vez. El propietario autorizó la fase 7 (mensajes y pantallas) completa el 7 de septiembre de 2026: texto directo a una pantalla de caracteres o a componentes de texto dentro de una pantalla gráfica, con arquitectura genérica; no la Waveshare. No pedir OK entre subfases ni iniciar las fases 8–11 ni otros pedidos del backlog sin nueva autorización. Informar alcance al comenzar y dar actualizaciones breves durante el trabajo; no pasar largos períodos sin informar al propietario.
 - Implementar, probar y entregar el resultado de la fase. No avanzar a la siguiente sin el OK del propietario. Informar pendientes o fallos sin presentarlos como completados.
 - Hacer commit y push de los cambios versionables verificados de cada entrega. Si no se puede publicar, comunicarlo. No incluir cambios ajenos ni secretos.
 - El plan principal es `docs/PLAN_MULTIUSUARIO_PROXMOX.md`; el estado de preparación está en `docs/FASE_0_SERVIDORES.md`. El plan no demuestra que las funciones estén implementadas.
