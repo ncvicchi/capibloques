@@ -84,6 +84,9 @@ test('papelera: purga sólo elegible tras treinta días y confirmación exacta',
   const dialog = page.getByRole('dialog', { name: 'Historial de Mi semáforo', exact: true });
   await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
   await expect(dialog).toBeVisible();
+  const titleBox = await dialog.getByRole('heading', { name: 'Historial de Mi semáforo', exact: true }).boundingBox();
+  const closeBox = await dialog.getByRole('button', { name: 'Cerrar', exact: true }).boundingBox();
+  expect(titleBox!.x + titleBox!.width).toBeLessThanOrEqual(closeBox!.x);
   await page.screenshot({ path: info.outputPath('history-mobile.png') });
   await expect(dialog.getByRole('button', { name: 'Eliminar definitivamente…', exact: true })).toBeDisabled();
   row.project.purgeAfter = new Date(Date.now() - 86400000).toISOString();
