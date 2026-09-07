@@ -71,16 +71,20 @@ test('historial: un ACK perdido reintenta la misma operación y borrar versión 
   expect(state.writes).toBe(2);
 });
 
-test('papelera: purga sólo elegible tras treinta días y confirmación exacta', async ({ page }) => {
+test('papelera: purga sólo elegible tras treinta días y confirmación exacta', async ({ page }, info) => {
   const { api, row } = await setup(page);
+  await page.setViewportSize({ width: 390, height: 844 });
   row.project.trashedAt = new Date().toISOString();
   row.project.purgeAfter = new Date(Date.now() + 30 * 86400000).toISOString();
   let purges = 0;
   await page.route(`**/api/projects/${row.project.id}/purge/`, route => { purges++; api.projects.delete(row.project.id); return route.fulfill({ json: { deleted: true } }); });
   await page.getByRole('button', { name: 'Mis proyectos', exact: true }).click();
-  await page.getByLabel('Mostrar', { exact: true }).selectOption('trash');
+  await page.getByRole('combobox', { name: 'Mostrar' }).selectOption('trash');
   await page.getByRole('button', { name: 'Historial de Mi semáforo', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Historial de Mi semáforo', exact: true });
+  await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+  await expect(dialog).toBeVisible();
+  await page.screenshot({ path: info.outputPath('history-mobile.png') });
   await expect(dialog.getByRole('button', { name: 'Eliminar definitivamente…', exact: true })).toBeDisabled();
   row.project.purgeAfter = new Date(Date.now() - 86400000).toISOString();
   await dialog.getByRole('button', { name: 'Actualizar historial' }).click();

@@ -65,6 +65,8 @@ interface SceneBuilderProps {
   onDraft: (draft: SceneDraft | null) => void;
   onFinish: (scene?: SceneDefinition) => Promise<void>;
   onExportDraft: () => void;
+  storageError: string;
+  storageBusy: boolean;
 }
 
 type SceneItem = SceneDevice | SceneWidget;
@@ -210,6 +212,8 @@ function SceneBuilderSession({
   onDraft,
   onFinish,
   onExportDraft,
+  storageError,
+  storageBusy,
 }: SceneBuilderProps) {
   const initialScene = recoveryDraft?.scene ?? savedScene;
   const initialSelectedId = selectedIdForScene(initialScene, recoveryDraft?.selectedId);
@@ -660,8 +664,9 @@ function SceneBuilderSession({
               <DialogTitle>Arma tu mundo</DialogTitle>
               <DialogDescription id="scene-builder-description">
                 Prueba cambios en un borrador. Guarda la escena cuando esté
-                lista o cancela para volver a como estaba.
+                lista o cancela para volver a como estaba. La copia local permite recuperarlo; todavía no forma parte del proyecto guardado en tu cuenta.
               </DialogDescription>
+              {storageError && <p role="alert" className="account-error">{storageError}</p>}
             </div>
             <div className="scene-builder-status" aria-live="polite">
               <span className={validation.canSimulate ? 'ready' : 'problem'}>
@@ -1210,6 +1215,7 @@ function SceneBuilderSession({
             <span aria-live="polite">
               {objectCount} objeto{objectCount === 1 ? '' : 's'} ·{' '}
               {sceneDirty ? 'cambios sin guardar' : 'sin cambios pendientes'}
+              {sceneDirty && ` · ${storageError ? 'copia local sin confirmar' : storageBusy ? 'conservando copia local…' : 'borrador recuperable'}`}
             </span>
             <Button type="button" variant="outline" onClick={requestClose}>
               Cancelar

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { mockEditorSession, student } from './editor-fixture';
+import { mockEditorSession, student, token } from './editor-fixture';
 import { recoveryRows } from './recovery-fixture';
 
 test.beforeEach(async ({ page }) => { await mockEditorSession(page); });
@@ -82,4 +82,21 @@ test('escena: fallo de almacenamiento no cierra ni afirma guardar o descartar', 
   await editor.getByRole('button', { name: 'Guardar escena', exact: true }).click();
   await expect(editor).toBeHidden();
   expect(JSON.parse((await recoveryRows(page, student.id))[0].document).scene.devices).toHaveLength(2);
+});
+
+test('escena: la copia no pasa a otra cuenta tras recargar', async ({ page }) => {
+  await page.goto('/'); await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  await editor.getByRole('button', { name: /^Agregar LED\./ }).click();
+  await editor.locator('#selected-device-name').fill('Privado de Luna');
+  await expect.poll(async () => (await recoveryRows(page, student.id))[0]?.sceneDraft?.inspector?.value.name).toBe('Privado de Luna');
+  page.on('dialog', dialog => dialog.accept());
+  const other = { ...student, id: '530e359f-4960-49ac-82f3-7855105158f6', alias: 'sol' };
+  await page.route('**/api/auth/editor-session/', route => route.fulfill({ json: { user: other, csrfToken: token, context: 'other-scene-user' } }));
+  await page.reload();
+  await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  await expect(editor).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Hay una escena sin terminar' })).toHaveCount(0);
+  await expect(editor.getByText(/^1 objeto ·/)).toBeVisible();
+  expect((await recoveryRows(page, student.id))[0].sceneDraft?.inspector?.value.name).toBe('Privado de Luna');
 });

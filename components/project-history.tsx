@@ -76,7 +76,9 @@ export default function ProjectHistory({ project, request, close, changed }: {
   const expected = target?.action === 'purge' ? data?.project.title : String(target?.version?.revision);
   return <Dialog open onOpenChange={value => { if (!value && !busy && !pending) close(); }}>
     <DialogContent className="management-dialog project-history-dialog" showCloseButton={!busy && !pending}>
-      <DialogHeader><DialogTitle>Historial de {project.title}</DialogTitle><DialogDescription>Hasta 20 versiones recientes, más las referenciadas; 50 MB de historial por cuenta. Guardados manuales y puntos automáticos cada 5 minutos. Las más antiguas no referenciadas se reemplazan al superar 20.</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle>Historial de {project.title}</DialogTitle><DialogDescription>Conservamos las últimas 20 versiones. Restaurar no cambia tu editor abierto.</DialogDescription></DialogHeader>
+      <details><summary>Límites del historial</summary><p>Hasta 20 versiones recientes, más las referenciadas; 50 MB de historial por cuenta. Guardados manuales y puntos automáticos cada 5 minutos. Las más antiguas no referenciadas se reemplazan al superar 20. La versión actual siempre se conserva.</p></details>
+      {!data && !error && <output>Cargando versiones…</output>}
       {error && <p role="alert" className="account-error">{error}</p>}
       {notice && <output>{notice}</output>}
       {target ? <section aria-label="Confirmar cambio de historial">

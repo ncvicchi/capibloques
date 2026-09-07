@@ -419,6 +419,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const [sceneBuilderOpen, setSceneBuilderOpen] = useState(false);
   const sceneCommitRef = useRef<SceneDefinition | null>(null);
   const localSaveTimerRef = useRef<number | undefined>(undefined);
+  const [sceneStorage, setSceneStorage] = useState({ error: draftStore.recoveryError, busy: draftStore.recovering });
+  useEffect(() => draftStore.subscribe(() => setSceneStorage({ error: draftStore.recoveryError, busy: draftStore.recovering })), [draftStore]);
   const [wiringOpen, setWiringOpen] = useState(false);
   const [wiringAcknowledgedSignature, setWiringAcknowledgedSignature] =
     useState<string | null>(null);
@@ -958,11 +960,11 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const importProject = useCallback(
     async (file: File) => {
       try {
-        if (file.size > 4_000_000) throw new Error('El archivo supera el límite de 4 MB para copias con escena pendiente.');
+        if (file.size > 4 * 1024 * 1024) throw new Error('El archivo supera el límite de 4 MiB para copias con escena pendiente.');
         const raw = JSON.parse(await file.text());
         const localCopy = raw?.application === 'CapiBloquesLocalCopy';
         if (!localCopy && file.size > 2_000_000) throw new Error('El proyecto supera el límite de 2 MB');
-        if (localCopy && (raw.version !== 1 || !isSceneDraft(raw.sceneDraft) || JSON.stringify(raw.project).length > 2_000_000)) throw new Error('La copia con escena pendiente no es compatible.');
+        if (localCopy && (raw.version !== 1 || !isSceneDraft(raw.sceneDraft) || new TextEncoder().encode(JSON.stringify(raw.project)).byteLength > 2_000_000)) throw new Error('La copia con escena pendiente no es compatible.');
         const decoded = decodeProject(localCopy ? raw.project : raw);
         if (!decoded.project)
           throw new Error(
@@ -1564,6 +1566,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             recoveryDraft={draftStore.sceneDraft}
             onDraft={persistSceneDraft}
             onFinish={finishScene}
+            storageError={sceneStorage.error}
+            storageBusy={sceneStorage.busy}
             onExportDraft={() => { if (draftStore.active && draftStore.sceneDraft) downloadText(`${safeFilename(projectName)}.capibloques-recovery.json`, exportLocalSceneCopy(JSON.stringify(currentProject()), draftStore.sceneDraft), 'application/json'); }}
           />
         </Suspense>

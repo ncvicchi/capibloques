@@ -7,6 +7,7 @@ from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 
 from projects.models import Project, ProjectRevision, ProjectDeletion, ProjectEvent
+from courses.models import Course, Membership
 from .test_accounts import FAST_HASHERS
 from .test_projects import ProjectTests, EXAMPLES
 
@@ -50,6 +51,26 @@ class HistoryTests(TestCase):
         project = self.save(project, 'Punto periódico', True).json()['project']
         project = self.save(project, 'Siguiente', True).json()['project']
         self.assertEqual([v['revision'] for v in self.versions(project)], [9, 8, 1])
+
+    def test_automatic_replay_cannot_change_save_mode(self):
+        project = self.create()
+        data = {'operationId': str(uuid.uuid4()), 'revision': 1, 'document': EXAMPLES[0]}
+        first = self.client.put(self.url(project), data, content_type='application/json', HTTP_X_CAPI_SAVE_MODE='automatic')
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(self.client.put(self.url(project), data, content_type='application/json').status_code, 409)
+        self.assertEqual(self.client.put(self.url(project), data, content_type='application/json', HTTP_X_CAPI_SAVE_MODE='automatic').json(), first.json())
+
+    def test_restoration_keeps_current_course_and_obeys_archived_course(self):
+        project = self.save(self.create(), 'Antes de compartir').json()['project']
+        course = Course.objects.create(name='Robótica')
+        Membership.objects.create(course=course, user=self.owner, role='alumno')
+        project = self.action(project, 'course', courseId=str(course.pk)).json()['project']
+        result = self.action(project, 'history/1/restore')
+        self.assertEqual(result.status_code, 200, result.content)
+        project = result.json()['project']
+        self.assertEqual(project['course']['id'], str(course.pk))
+        course.is_archived = True; course.save()
+        self.assertEqual(self.action(project, 'history/1/restore').json()['code'], 'course_locked')
 
     def test_retention_preserves_twenty_plus_pinned_and_quota_failure_rolls_back(self):
         project = self.create()

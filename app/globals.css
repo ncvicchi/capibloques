@@ -2713,6 +2713,8 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .scene-recovery-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 20px; border: 1px solid #d5a331; background: #fff6d8; color: #523d0b; }
 .scene-recovery-banner button { text-decoration: underline; font-weight: 700; cursor: pointer; min-height: 40px; }
 .project-history-dialog { max-height: 90dvh; overflow-y: auto; }
+.project-history-dialog [data-slot='dialog-header'] { padding-right: 24px; }
+.project-history-dialog summary { cursor: pointer; min-height: 40px; font-weight: 600; }
 .course-add > button { margin-top: 12px; }
 .course-save { position: sticky; bottom: -24px; background: var(--paper); padding: 16px 0; border-top: 1px solid var(--line); z-index: 1; }
 @media (max-width: 520px) { .course-dialog { padding: 18px; } .course-filters > label { width: 100%; } .course-save { bottom: -18px; } }
