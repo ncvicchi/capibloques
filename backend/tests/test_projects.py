@@ -18,10 +18,10 @@ EXAMPLES = json.loads((Path(__file__).parent / "fixtures/projects-v2.json").read
 @override_settings(PASSWORD_HASHERS=FAST_HASHERS)
 class ProjectTests(TestCase):
     def setUp(self):
-        self.owner = User.objects.create_user("luna", password=PASSWORD, must_change_password=False)
-        self.other = User.objects.create_user("sol", password=PASSWORD, must_change_password=False)
-        self.admin = User.objects.create_user("admin", password=PASSWORD, must_change_password=False, is_administrator=True, is_student=False)
-        self.teacher = User.objects.create_user("profe", password=PASSWORD, must_change_password=False, is_teacher=True, is_student=False)
+        self.owner = User.objects.create_user("luna", display_name="Luna", password=PASSWORD, must_change_password=False)
+        self.other = User.objects.create_user("sol", display_name="Sol", password=PASSWORD, must_change_password=False)
+        self.admin = User.objects.create_user("admin", display_name="Admin", password=PASSWORD, must_change_password=False, is_administrator=True, is_student=False)
+        self.teacher = User.objects.create_user("profe", display_name="Profe", password=PASSWORD, must_change_password=False, is_teacher=True, is_student=False)
         self.client.force_login(self.owner)
         self.client.defaults["HTTP_X_CAPI_ACCOUNT"] = str(self.owner.pk)
         self.root = "/api/projects/"
