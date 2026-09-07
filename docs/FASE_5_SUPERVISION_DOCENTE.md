@@ -1,6 +1,6 @@
 # Fase 5: supervisión docente
 
-Fecha: 7 de septiembre de 2026. Estado: **implementada y verificada en DEV; lista para validación del propietario**. No habilita producción ni las entregas posteriores de favoritos/avatares, programación concurrente, ESP-IDF, compilación o USB.
+Fecha: 7 de septiembre de 2026. Estado: **implementada y verificada en DEV; lista para validación del propietario**. No habilita las fases posteriores 6–11: experiencia/programación, mensajes/pantalla, Arduino/ESP-IDF, compilación, USB y producción/piloto.
 
 ## Recorrido de uso
 
