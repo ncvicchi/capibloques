@@ -27,8 +27,8 @@ class AccountDeletionTests(TestCase):
         self.other = User.objects.create_user("sol", display_name="Sol", password=PASSWORD, must_change_password=False)
         self.course = Course.objects.create(name="Robótica")
         for index in range(2):
-            Project.objects.create(owner=self.target, document=EXAMPLES[index], title=EXAMPLES[index]["metadata"]["title"], size_bytes=document(EXAMPLES[index]), course=self.course if index else None, trashed_at=timezone.now() if index else None)
-        self.unrelated = Project.objects.create(owner=self.other, document=EXAMPLES[0], title="Ajeno", size_bytes=document(EXAMPLES[0]))
+            Project.objects.create(owner=self.target, document=EXAMPLES[index], title=EXAMPLES[index]["metadata"]["title"], size_bytes=document(EXAMPLES[index]), course=self.course if index else None, trashed_at=timezone.now() if index else None, last_operation=uuid.uuid4(), last_digest="fixture")
+        self.unrelated = Project.objects.create(owner=self.other, document=EXAMPLES[0], title="Ajeno", size_bytes=document(EXAMPLES[0]), last_operation=uuid.uuid4(), last_digest="fixture")
         self.client = Client(HTTP_X_CAPI_ACCOUNT=str(self.admin.pk)); self.client.force_login(self.admin)
         self.url = f"/api/management/users/{self.target.pk}/deletion/"
 
