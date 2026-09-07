@@ -96,19 +96,20 @@ export default function EditorAccess() {
     };
   }, [check, lock]);
 
-  const logout = useCallback(async () => {
-    if (leaving.current || preparingExit.current || !current.current) return;
+  const logout = useCallback(async (retry = false) => {
+    const retrying = retry === true && leaving.current;
+    if ((leaving.current && !retrying) || preparingExit.current || !current.current) return;
     const target = current.current;
     // Una salida voluntaria no debe ocultar un fallo al guardar. El editor muestra
     // el error y permite exportar; una revocación externa sí bloquea el acceso.
-    if (checkpoint.current?.suspend() === false) return;
+    if (!retrying && checkpoint.current?.suspend() === false) return;
     preparingExit.current = true;
     try { await target.store.flush(); }
     catch {
       setError('No pudimos conservar el último cambio. Exportá una copia JSON antes de cerrar sesión.');
       return;
     } finally { preparingExit.current = false; }
-    if (current.current !== target || !target.store.active || leaving.current) return;
+    if (current.current !== target || (!retrying && (!target.store.active || leaving.current))) return;
     leaving.current = true; ++generation.current;
     lock(); announceSessionChange(true); setError('');
     try {
@@ -137,7 +138,7 @@ export default function EditorAccess() {
   }, [lock]);
 
   const feedback = error ? <><p role="alert" className="account-error">{error}</p><Button className="account-action" onClick={() => {
-        if (leaving.current) { leaving.current = false; void logout(); } else void check();
+        if (leaving.current) { void logout(true); } else void check();
       }}>Reintentar</Button></> : <output>Comprobando tu sesión…</output>;
 
   return <>
@@ -153,7 +154,7 @@ export default function EditorAccess() {
     </Dialog>}
     {editor && <div className="authenticated-editor" inert={locked} aria-hidden={locked || undefined}>
       <Suspense fallback={<div className="account-page"><output>Abriendo tu editor…</output></div>}>
-        <CapiBlocksApp key={`${editor.session.user.id}:${editor.session.context}`} account={editor.session.user} csrfToken={editor.session.csrfToken} draftStore={editor.store} checkpointRef={checkpoint} onLogout={logout} />
+        <CapiBlocksApp key={`${editor.session.user.id}:${editor.session.context}`} account={editor.session.user} csrfToken={editor.session.csrfToken} draftStore={editor.store} checkpointRef={checkpoint} onLogout={() => void logout()} />
       </Suspense>
     </div>}
   </>;

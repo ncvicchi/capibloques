@@ -425,3 +425,98 @@ test('recuperación durable: un envío almacenado adulterado no se ejecuta', asy
   expect(badRequests).toBe(0);
   expect(api.writes).toBe(1);
 });
+
+test('recuperación durable: ACK confirmado con escritura local fallida se repite sin duplicar', async ({ page }) => {
+  await mockEditorSession(page);
+  const api = await mockLibrary(page);
+  await page.goto('/');
+  await page.getByLabel('Nombre del proyecto').fill('Confirmado sin disco');
+  await page.evaluate(() => {
+    const original = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (...args) {
+      if (this.name === 'drafts' && args[0].remote && !args[0].pending)
+        throw new DOMException('Quota', 'QuotaExceededError');
+      return original.apply(this, args);
+    };
+  });
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(page.locator('.cloud-error').first()).toContainText('Guardado en servidor');
+  expect((await recoveryRows(page, student.id))[0].pending).not.toBeNull();
+  await page.reload();
+  await expect(page.getByLabel('Nombre del proyecto')).toHaveValue('Confirmado sin disco');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(page.locator('.cloud-state')).toContainText('Guardado en tu cuenta');
+  expect(api.writes).toBe(1);
+  expect(api.projects.size).toBe(1);
+  expect((await recoveryRows(page, student.id))[0].pending).toBeNull();
+});
+
+test('recuperación durable: límite local no expulsa copias ni envía sin conservar', async ({ page }) => {
+  await mockEditorSession(page);
+  const api = await mockLibrary(page);
+  await page.goto('/');
+  await page.getByLabel('Nombre del proyecto').fill('Copia intacta');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(page.locator('.cloud-state')).toContainText('Guardado en tu cuenta');
+  await page.goto('/cuenta/');
+  const original = (await recoveryRows(page, student.id))[0];
+  await page.evaluate(({ row, accountId }) => new Promise<void>((resolve, reject) => {
+    const request = indexedDB.open('capibloques-recovery', 1);
+    request.onsuccess = () => {
+      const db = request.result, tx = db.transaction(['drafts', 'accounts'], 'readwrite');
+      for (let index = 1; index < 30; index++) tx.objectStore('drafts').put({ ...row, id: crypto.randomUUID(), updatedAt: row.updatedAt - index });
+      tx.objectStore('accounts').put({ initialized: true, count: 30, bytes: row.bytes * 30, updatedAt: row.updatedAt }, accountId);
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onabort = () => reject(tx.error);
+    };
+  }), { row: original, accountId: student.id });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Mis proyectos', exact: true }).click();
+  await page.getByRole('button', { name: 'Nuevo proyecto', exact: true }).click();
+  await page.getByLabel('Nombre del proyecto').fill('Sin lugar todavía');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(page.locator('.cloud-error').first()).toContainText('límite de 30');
+  const rows = await recoveryRows(page, student.id);
+  expect(rows).toHaveLength(30);
+  expect(rows.every(row => row.title === original.title && row.pending === null)).toBe(true);
+  expect(api.writes).toBe(1);
+});
+
+test('recuperación durable: controles locales a 390px y texto 200%, con baja concurrente protegida', async ({ page }, info) => {
+  await mockEditorSession(page);
+  await mockLibrary(page);
+  await page.goto('/');
+  const title = 'Un semáforo para la escuela y el robot';
+  await page.getByLabel('Nombre del proyecto').fill(title);
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(page.locator('.cloud-state')).toContainText('Guardado en tu cuenta');
+  await page.getByRole('button', { name: 'Mis proyectos', exact: true }).click();
+  await page.getByRole('button', { name: 'Nuevo proyecto', exact: true }).click();
+  await page.getByRole('button', { name: 'Mis proyectos', exact: true }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  const region = page.getByRole('region', { name: 'Copias en esta computadora' });
+  await region.scrollIntoViewIfNeeded();
+  expect(await page.getByRole('dialog').evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+  await page.screenshot({ path: info.outputPath('copias-390.png'), fullPage: true });
+  await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+  await page.getByRole('button', { name: `Quitar copia local de ${title}`, exact: true }).click();
+  const modal = page.getByRole('alertdialog');
+  expect(await modal.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+  const confirm = modal.getByRole('button', { name: 'Quitar sólo esta copia local', exact: true });
+  await confirm.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: info.outputPath('quitar-local-200.png'), fullPage: true });
+  const row = (await recoveryRows(page, student.id)).find(row => row.title === title)!;
+  await page.evaluate(row => new Promise<void>((resolve, reject) => {
+    const request = indexedDB.open('capibloques-recovery', 1);
+    request.onsuccess = () => {
+      const db = request.result, tx = db.transaction('drafts', 'readwrite');
+      tx.objectStore('drafts').put({ ...row, sequence: row.sequence + 1 });
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onabort = () => reject(tx.error);
+    };
+  }), row);
+  await confirm.click();
+  await expect(modal.getByRole('alert')).toContainText('cambió en otra pestaña');
+  expect((await recoveryRows(page, student.id)).some(saved => saved.id === row.id)).toBe(true);
+  await modal.getByRole('button', { name: 'Cancelar', exact: true }).click();
+});

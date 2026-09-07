@@ -26,7 +26,7 @@ test('contexto de curso: respuesta anterior a un guardado no produce un conflict
   release(); await finished;
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   await page.getByRole('button', { name: 'Mis proyectos', exact: true }).click();
-  await expect(page.locator('.library-recovery')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Conservamos tu trabajo del editor', exact: true })).toHaveCount(0);
   expect(api.writes).toBe(2);
 });
 

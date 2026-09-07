@@ -167,7 +167,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
     });
 
     useEffect(() => {
-      if (!link?.id) return;
+      if (!link?.id || busy) return;
       let disposed = false;
       let checks = 0;
       const id = link.id;
@@ -189,7 +189,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
       const timer = window.setInterval(() => void check(), 15000);
       window.addEventListener('focus', check);
       return () => { disposed = true; window.clearInterval(timer); window.removeEventListener('focus', check); };
-    }, [link?.id, store, headers, valid]);
+    }, [link?.id, link?.revision, busy, store, headers, valid]);
 
     useEffect(() => {
       active.current = true;
