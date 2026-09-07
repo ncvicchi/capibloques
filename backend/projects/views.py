@@ -174,7 +174,10 @@ def collection(request, actor):
 
 @endpoint(["GET", "PUT"])
 def detail(request, actor, project_id):
-    project = Project.objects.select_related("course").get(pk=project_id, owner=actor)
+    projects = Project.objects.select_related("course")
+    if request.method == "GET" and request.GET.get("metadata") == "1":
+        projects = projects.defer("document")
+    project = projects.get(pk=project_id, owner=actor)
     if request.method == "GET":
         if request.GET.get("metadata") == "1":
             return response(project)

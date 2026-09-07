@@ -142,3 +142,14 @@ class ProjectCourseTests(TestCase):
         self.assertEqual(client.post(self.url + "course/", {}, content_type="application/json").status_code, 403)
         self.assertEqual(self.client.get(self.shared, HTTP_X_CAPI_ACCOUNT=str(self.peer.pk)).status_code, 409)
         self.assertEqual(Client().get(self.shared).status_code, 401)
+
+    def test_student_in_two_courses_does_not_share_across_teachers(self):
+        Membership.objects.create(course=self.other_course, user=self.owner, role="alumno")
+        self.link()
+        second = self.create()
+        response = self.client.post(f"/api/projects/{second['id']}/course/", {"revision": 1, "operationId": str(uuid.uuid4()), "courseId": str(self.other_course.pk)}, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        for actor, course, visible, hidden in [(self.teacher, self.course, self.project, second), (self.outside, self.other_course, second, self.project)]:
+            client = self.login(actor); path = f"/api/courses/{course.pk}/projects/"
+            self.assertEqual([item["id"] for item in client.get(path).json()["projects"]], [visible["id"]])
+            self.assertEqual(client.get(path + hidden["id"] + "/").status_code, 404)

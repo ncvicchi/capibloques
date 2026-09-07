@@ -2687,6 +2687,9 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .course-member-list li > div { min-width: 0; overflow-wrap: anywhere; }
 .course-member-list span { display: block; color: var(--muted); font-size: .875rem; }
 .course-member-list button { flex-shrink: 0; min-height: 40px; }
+.course-projects h2 { margin-top: 16px; }
+.course-projects .course-member-list li { flex-wrap: wrap; }
+.course-projects .course-member-list button { flex-shrink: 1; }
 .course-add { border-top: 1px solid var(--line); padding-top: 20px; }
 .course-add > button { margin-top: 12px; }
 .course-save { position: sticky; bottom: -24px; background: var(--paper); padding: 16px 0; border-top: 1px solid var(--line); z-index: 1; }

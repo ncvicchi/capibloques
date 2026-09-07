@@ -41,7 +41,11 @@ class AccountDeletionTests(TestCase):
     def receipt(self):
         response = self.backup(); self.assertEqual(response.status_code, 200, getattr(response, "content", None))
         receipt = response["X-Capi-Backup-Receipt"]
-        response.close()
+        # Agotar el wrapper del Client cierra el archivo y preserva la conexión
+        # transaccional de TestCase. close() manual emitiría request_finished dos veces.
+        for _ in response.streaming_content:
+            pass
+        self.assertTrue(response.file_to_stream.closed)
         return receipt
 
     def remove(self, data=None):
@@ -62,7 +66,8 @@ class AccountDeletionTests(TestCase):
     def test_zip_contains_all_portable_projects_hashes_and_can_reimport(self):
         response = self.backup()
         self.assertEqual(response.status_code, 200)
-        contents = b"".join(response.streaming_content); response.close()
+        contents = b"".join(response.streaming_content)
+        self.assertTrue(response.file_to_stream.closed)
         self.assertEqual(hashlib.sha256(contents).hexdigest(), response["X-Capi-Backup-SHA256"])
         with zipfile.ZipFile(io.BytesIO(contents)) as archive:
             manifest = json.loads(archive.read("manifest.json"))
