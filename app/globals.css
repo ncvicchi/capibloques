@@ -2616,14 +2616,14 @@ html[data-editor-locked='true'] body * { visibility: hidden !important; }
 html[data-editor-locked='true'] .session-cover,
 html[data-editor-locked='true'] .session-cover * { visibility: visible !important; }
 .session-cover { position: fixed; inset: 0; z-index: 10000; background: var(--background); }
-.session-cover.session-dialog { inset: 50% auto auto 50%; width: min(520px, calc(100% - 32px)); transform: translate(-50%, -50%); }
+.session-cover.session-dialog { inset: 50% auto auto 50%; width: min(520px, calc(100% - 32px)); margin: 0; translate: none; transform: translate(-50%, -50%); }
 .session-cover.session-exit-dialog { width: min(680px, calc(100vw - 24px)); max-width: 680px; max-height: calc(100dvh - 24px); overflow-y: auto; font-size: 1rem; }
 .session-exit-dialog p, .session-exit-dialog summary, .session-exit-dialog label { font-size: 1rem; overflow-wrap: anywhere; }
 .session-exit-dialog summary { cursor: pointer; font-weight: 700; }
 .session-exit-dialog button { white-space: normal; height: auto; min-height: 44px; max-width: 100%; overflow-wrap: anywhere; }
 .session-exit-dialog .account-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); }
 .session-exit-dialog .exit-confirmation { display: flex; align-items: flex-start; gap: 12px; }
-.exit-confirmation input { margin-top: 4px; width: 22px; height: 22px; flex-shrink: 0; }
+.session-exit-dialog .exit-confirmation input { margin-top: 4px; width: 22px; height: 22px; min-height: 22px; flex-shrink: 0; }
 .brand > div { min-width: 0; }
 .brand > div > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 

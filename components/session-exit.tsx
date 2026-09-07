@@ -25,10 +25,11 @@ export default function SessionExit({ account, all = false, journal, onCancel }:
   const [signalOrigin] = useState(() => crypto.randomUUID());
   const goToAccount = useCallback((result?: string) => window.location.replace(`/cuenta/?editor=1${result ? `&salida=${result}` : ''}`), []);
 
-  const verify = useCallback(async () => {
+  const verify = useCallback(async (hide = true) => {
     if (state.current !== 'choosing') return;
     const ticket = ++generation.current;
-    setVerified(false); setError('');
+    if (hide) setVerified(false);
+    setError('');
     try {
       const response = await fetch('/api/auth/session/', { cache: 'no-store', signal: AbortSignal.timeout(12000) });
       if (!response.ok) throw new Error();
@@ -37,7 +38,7 @@ export default function SessionExit({ account, all = false, journal, onCancel }:
       if (body.user?.id !== account.id || body.user.mustChangePassword !== account.mustChangePassword) { goToAccount(); return; }
       setVerified(true);
     } catch {
-      if (ticket === generation.current) setError('No pudimos verificar tu sesión. Reconectá para revisar las copias y salir.');
+      if (ticket === generation.current) { setVerified(false); setError('No pudimos verificar tu sesión. Reconectá para revisar las copias y salir.'); }
     }
   }, [account.id, account.mustChangePassword, goToAccount]);
 
@@ -56,7 +57,7 @@ export default function SessionExit({ account, all = false, journal, onCancel }:
     }, signalOrigin);
     const timer = window.setInterval(() => {
       if (state.current !== 'cleanup-failed') announceSessionChange(true, signalOrigin);
-      if (document.visibilityState === 'visible') void verify();
+      if (document.visibilityState === 'visible') void verify(false);
     }, 10000);
     window.addEventListener('focus', focus); document.addEventListener('visibilitychange', visible);
     return () => {

@@ -6,6 +6,7 @@ import { recoveryRows } from './recovery-fixture';
 const otherId = 'e6d7e9f1-91eb-44d2-8b7e-84920bed16ed';
 
 async function setup(page: Page) {
+  await page.addInitScript(id => { localStorage.setItem(`capibloques-account:${id}:server-autosave`, 'false'); }, student.id);
   const control = { user: student as typeof student | null, fail: false, loseAck: false, logouts: 0 };
   await page.route('**/api/auth/session/', route => route.fulfill({ json: { user: control.user, csrfToken: token } }));
   await page.route('**/api/auth/editor-session/', route => route.fulfill(control.user
@@ -165,6 +166,10 @@ test('salida compartida: confirmación y cancelar alcanzables a 390px y texto 20
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false);
   const overflow = await page.getByRole('dialog').evaluate(element => element.scrollWidth > element.clientWidth + 1);
   expect(overflow).toBe(false);
+  const bounds = await page.getByRole('dialog').boundingBox();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0); expect(bounds!.y).toBeGreaterThanOrEqual(0);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(391);
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(845);
   await page.screenshot({ path: info.outputPath('salida-390-texto-200.png') });
   await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await expect(page.getByLabel('Nombre del proyecto')).toHaveValue('Mi proyecto antes de salir');
@@ -178,4 +183,47 @@ test('salida compartida: desde Mi cuenta explica que cerrar todas no limpia otro
   await page.getByRole('button', { name: 'Salir y conservar copias', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Ingresar', exact: true })).toBeVisible();
   expect(control.logouts).toBe(1); expect((await recoveryRows(page, student.id)).length).toBe(1);
+});
+
+test('salida compartida: conservar mantiene la misma operación pendiente después de reingresar', async ({ page }) => {
+  const { control, api } = await setup(page);
+  api.loseNextAck = true;
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(page.locator('.cloud-state')).toContainText('sin confirmar');
+  const before = (await recoveryRows(page, student.id))[0];
+  expect(before.pending).not.toBeNull();
+  await openExit(page);
+  await page.getByRole('button', { name: 'Salir y conservar copias', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Ingresar', exact: true })).toBeVisible();
+  expect((await recoveryRows(page, student.id))[0].pending).toEqual(before.pending);
+  control.user = student; await page.goto('/');
+  await expect(page.getByLabel('Nombre del proyecto')).toHaveValue('Mi proyecto antes de salir');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(page.locator('.cloud-state')).toContainText('Guardado en tu cuenta');
+  expect(api.projects.size).toBe(1); expect(api.writes).toBe(1);
+});
+
+test('salida compartida: otra pestaña se bloquea durante la elección y no recrea copias al salir', async ({ page, context }) => {
+  const { control } = await setup(page);
+  const second = await context.newPage();
+  await second.route('**/api/auth/session/', route => route.fulfill({ json: { user: control.user, csrfToken: token } }));
+  await second.route('**/api/auth/editor-session/', route => route.fulfill(control.user
+    ? { json: { user: control.user, csrfToken: token, context: `session-${control.user.id}` } }
+    : { status: 401, json: { code: 'login_required' } }));
+  await mockLibrary(second);
+  await second.goto('/');
+  await second.getByLabel('Nombre del proyecto').fill('Trabajo de la otra pestaña');
+  await expect.poll(async () => (await recoveryRows(second, student.id)).some(row => row.title === 'Trabajo de la otra pestaña')).toBe(true);
+  await page.bringToFront(); await openExit(page);
+  await expect(second.getByLabel('Nombre del proyecto')).not.toBeVisible();
+  await page.getByRole('button', { name: 'Actualizar copias antes de salir' }).click();
+  await expect(page.getByRole('checkbox')).toBeVisible();
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'Salir y quitar copias', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Ingresar', exact: true })).toBeVisible();
+  await expect(second).toHaveURL(/\/cuenta\/\?editor=1$/);
+  expect(await recoveryRows(page, student.id)).toEqual([]);
+  await second.bringToFront(); await second.reload();
+  await expect(second.getByRole('heading', { name: 'Ingresar', exact: true })).toBeVisible();
+  expect(await recoveryRows(second, student.id)).toEqual([]);
 });
