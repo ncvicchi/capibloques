@@ -132,9 +132,14 @@ test('autoguardado: no publica borrador de escena ni envía durante arrastre o b
     'Guardado en tu cuenta',
   );
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  await page.getByRole('button', { name: /^Agregar LED\./ }).click();
   await page.clock.runFor(12000);
   expect(api.writes).toBe(1);
+  expect([...api.projects.values()][0].document.scene.devices).toHaveLength(1);
   await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Salir sin guardar', exact: true })
+    .click();
   await page.getByLabel('Nombre del proyecto').fill('Después de la escena');
   await page.evaluate(() =>
     window.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 9 })),
@@ -160,6 +165,87 @@ test('autoguardado: no publica borrador de escena ni envía durante arrastre o b
     .click();
   await page.clock.runFor(500);
   await expect.poll(() => api.writes).toBe(3);
+  await expect(page.locator('.cloud-state')).toContainText(
+    'Guardado en tu cuenta',
+  );
+  await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  await page.getByRole('button', { name: /^Agregar LED\./ }).click();
+  await page
+    .getByRole('button', { name: 'Guardar escena', exact: true })
+    .click();
+  await page.clock.runFor(2000);
+  await expect.poll(() => api.writes).toBe(4);
+  expect([...api.projects.values()][0].document.scene.devices).toHaveLength(2);
+});
+
+test('autoguardado: curso de sólo lectura no recibe envíos automáticos', async ({
+  page,
+}) => {
+  const api = await mockLibrary(page);
+  await page.clock.install();
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(page.locator('.cloud-state')).toContainText(
+    'Guardado en tu cuenta',
+  );
+  [...api.projects.values()][0].project.course = {
+    id: '39b84a6d-6b64-42dd-a999-68579e4e099b',
+    name: 'Robótica A',
+    isArchived: true,
+    ownerCanEdit: false,
+  };
+  await page.clock.runFor(15000);
+  await expect(page.locator('.cloud-state')).toContainText('Sólo lectura');
+  await page
+    .getByLabel('Nombre del proyecto')
+    .fill('Sigo trabajando localmente');
+  await page.clock.runFor(12000);
+  expect(api.writes).toBe(1);
+  await expect(page.locator('.cloud-state')).toContainText(
+    'Autoguardado pausado',
+  );
+});
+
+test('autoguardado: opción y salida alcanzables a 390px y con texto al 200%', async ({
+  page,
+}, info) => {
+  await mockLibrary(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page
+    .getByRole('button', { name: 'Mis proyectos', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog', {
+    name: 'Mis proyectos',
+    exact: true,
+  });
+  const toggle = dialog.getByRole('checkbox', {
+    name: 'Guardar automáticamente en mi cuenta',
+  });
+  await toggle.scrollIntoViewIfNeeded();
+  await expect(toggle).toBeChecked();
+  expect(
+    await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth + 1),
+  ).toBe(true);
+  await page.screenshot({ path: info.outputPath('autosave-mobile.png') });
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = '200%';
+  });
+  await toggle.uncheck();
+  await expect(toggle).not.toBeChecked();
+  expect(
+    await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth + 1),
+  ).toBe(true);
+  await dialog
+    .getByRole('button', { name: 'Volver al editor', exact: true })
+    .scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: info.outputPath('autosave-mobile-large-text.png'),
+  });
+  await dialog
+    .getByRole('button', { name: 'Volver al editor', exact: true })
+    .click();
+  await expect(dialog).toBeHidden();
 });
 
 test('autoguardado: rechazo de validación requiere corrección y Guardar manual', async ({
