@@ -24,6 +24,8 @@ class PreferenceTests(TestCase):
         return (client or self.client).patch(URL, json.dumps(data), content_type="application/json", **(headers or self.headers))
 
     def test_catalog_private_preferences_and_safe_defaults(self):
+        # Bootstrap y recuperación usan full_clean, no sólo User.save().
+        self.user.full_clean()
         anonymous = Client().get(URL)
         self.assertEqual(anonymous.status_code, 401)
         response = self.client.get(URL, **self.headers)

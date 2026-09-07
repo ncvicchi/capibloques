@@ -202,13 +202,13 @@ test('favoritos: primera categoría, estrellas, cancelar, guardar y recargar sin
 }) => {
   const state = await mockPreferences(page);
   await page.goto('/');
-  await page.getByText('★ Favoritos', { exact: true }).click();
+  await page.locator('.blocklyToolboxCategory').filter({ hasText: '★ Favoritos' }).click();
   await expect(
     page.getByText('Marcá estrellas para agregar tus bloques.', {
       exact: true,
     }),
   ).toBeVisible();
-  await page.getByText('☆ Elegir favoritos', { exact: true }).click();
+  await page.locator('.blocklyFlyoutButton').filter({ hasText: '☆ Elegir favoritos' }).click();
   const dialog = page.getByRole('dialog', {
     name: 'Elegí tus bloques favoritos',
   });
@@ -216,7 +216,7 @@ test('favoritos: primera categoría, estrellas, cancelar, guardar y recargar sin
   await dialog.getByRole('checkbox', { name: /Esperar/ }).check();
   await dialog.getByRole('button', { name: 'Cancelar favoritos' }).click();
   expect(state.writes).toBe(0);
-  await page.getByText('☆ Elegir favoritos', { exact: true }).click();
+  await page.locator('.blocklyFlyoutButton').filter({ hasText: '☆ Elegir favoritos' }).click();
   await expect(
     dialog.getByRole('checkbox', { name: /Esperar/ }),
   ).not.toBeChecked();
@@ -229,7 +229,7 @@ test('favoritos: primera categoría, estrellas, cancelar, guardar y recargar sin
     page.locator('.blocklyFlyout .blocklyBlockCanvas > .blocklyBlock'),
   ).toHaveCount(2);
   await page.reload();
-  await page.getByText('★ Favoritos', { exact: true }).click();
+  await page.locator('.blocklyToolboxCategory').filter({ hasText: '★ Favoritos' }).click();
   await expect(
     page.locator('.blocklyFlyout .blocklyBlockCanvas > .blocklyBlock'),
   ).toHaveCount(2);

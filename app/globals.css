@@ -2767,8 +2767,11 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .avatar-button:focus-visible { outline: 3px solid #5744bd; outline-offset: 3px; }
 .account-personality { margin: 22px 0; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: #f8f6ff; }
 .account-personality > div:first-child, .avatar-preview { display: flex; gap: 14px; align-items: center; }
+.account-personality > div:first-child > div, .avatar-preview > strong { min-width: 0; overflow-wrap: anywhere; }
+.account-personality button { max-width: 100%; white-space: normal; height: auto; min-height: 44px; }
 .account-personality p { margin: 6px 0 12px; }
 .preferences-dialog { width: min(760px, calc(100vw - 24px)); max-width: calc(100vw - 24px); max-height: calc(100dvh - 32px); overflow-y: auto; }
+.preferences-dialog > * { min-width: 0; overflow-wrap: anywhere; }
 .preferences-category { display: grid; gap: 6px; font-weight: 700; }
 .preferences-category select { border: 1px solid #adb2ce; background: white; border-radius: 8px; padding: 10px; color: #273155; width: 100%; min-width: 0; }
 .avatar-grid, .favorite-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 12px; min-width: 0; border: 0; padding: 3px; }
