@@ -7,6 +7,7 @@ import { announceSessionChange, watchSessionChange, type Account, type Session }
 import { downloadText, safeFilename } from '@/lib/capiblocks';
 import { clearLocalExit, prepareLocalExit, type ExitSnapshot } from '@/lib/local-exit';
 import { RecoveryJournal } from '@/lib/project-recovery';
+import { exportLocalSceneCopy } from '@/lib/scene-recovery';
 
 type Phase = 'choosing' | 'sending' | 'failed' | 'cleanup-failed';
 
@@ -126,6 +127,7 @@ export default function SessionExit({ account, all = false, journal, onCancel }:
             {snapshot.files.map((file, index) => <article className="library-project" key={file.id}>
               <h2>{file.title}</h2><p>{file.status}</p>
               <Button variant="outline" onClick={() => downloadText(`${index + 1}-${safeFilename(file.title)}.capibloques.json`, file.document, 'application/json')}>Exportar JSON de {file.title}</Button>
+              {file.sceneDraft && <><p>Hay una escena sin terminar. El JSON normal sólo incluye la escena confirmada.</p><Button variant="outline" onClick={() => downloadText(`${index + 1}-${safeFilename(file.title)}.capibloques-recovery.json`, exportLocalSceneCopy(file.document, file.sceneDraft!), 'application/json')}>Exportar con escena pendiente de {file.title}</Button></>}
             </article>)}
           </details>}
           <label className="exit-confirmation"><input type="checkbox" checked={discard} onChange={event => setDiscard(event.target.checked)} />

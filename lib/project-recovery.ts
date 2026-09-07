@@ -4,6 +4,7 @@ import {
   type ProjectLink,
 } from './project-library';
 import { decodeProject } from './capiblocks';
+import { isSceneDraft, type SceneDraft } from './scene-recovery';
 
 // Sólo recuperación local. PostgreSQL sigue siendo la fuente del proyecto guardado.
 export const RECOVERY_DB = 'capibloques-recovery';
@@ -29,6 +30,7 @@ export type RecoveryDraft = {
   document: string;
   remote: ProjectLink | null;
   pending: DurableSave | null;
+  sceneDraft?: SceneDraft | null;
   bytes: number;
 };
 type Slot = { id: string; sequence: number };
@@ -73,6 +75,7 @@ function validate(row: RecoveryDraft, accountId: string): RecoveryDraft {
   const decoded = decodeProject(JSON.parse(row.document));
   if (!decoded.project)
     throw new Error('La copia local no contiene un proyecto compatible.');
+  if (row.sceneDraft != null && !isSceneDraft(row.sceneDraft)) throw new Error('El borrador de escena está dañado. No se sobrescribió.');
   if (row.pending) {
     const op = row.pending;
     if (
@@ -268,6 +271,7 @@ export class RecoveryJournal {
     document: string;
     remote: ProjectLink | null;
     pending: DurableSave | null;
+    sceneDraft?: SceneDraft | null;
   }) {
     // Congelar asociación y contenido antes de encolar: un cambio de proyecto
     // no puede desviar una escritura previa al siguiente proyecto.

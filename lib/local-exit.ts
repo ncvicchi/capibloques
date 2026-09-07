@@ -1,11 +1,12 @@
 import { decodeProject } from './capiblocks';
 import { projectFingerprint } from './project-library';
 import { RecoveryJournal, type RecoverySnapshot } from './project-recovery';
+import type { SceneDraft } from './scene-recovery';
 
 export type ExitSnapshot = {
   recovery: RecoverySnapshot;
   legacy: { key: string; raw: string | null }[];
-  files: { id: string; title: string; document: string; status: string }[];
+  files: { id: string; title: string; document: string; status: string; sceneDraft?: SceneDraft | null }[];
 };
 
 export async function prepareLocalExit(journal: RecoveryJournal): Promise<ExitSnapshot> {
@@ -15,8 +16,8 @@ export async function prepareLocalExit(journal: RecoveryJournal): Promise<ExitSn
     const key = `${prefix}${suffix}`;
     return { key, raw: localStorage.getItem(key) };
   });
-  const files = recovery.rows.map(row => ({
-    id: row.id, title: row.title, document: row.document,
+  const files: ExitSnapshot['files'] = recovery.rows.map(row => ({
+    id: row.id, title: row.title, document: row.document, sceneDraft: row.sceneDraft,
     status: row.pending ? 'Envío sin confirmar' : !row.remote ? 'Sólo en esta computadora'
       : projectFingerprint(JSON.parse(row.document)) !== row.remote.savedFingerprint ? 'Cambios sólo en esta computadora' : 'Coincide con el último guardado confirmado',
   }));

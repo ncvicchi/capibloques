@@ -1,0 +1,85 @@
+import { expect, test } from '@playwright/test';
+import { mockEditorSession, student } from './editor-fixture';
+import { recoveryRows } from './recovery-fixture';
+
+test.beforeEach(async ({ page }) => { await mockEditorSession(page); });
+
+test('escena: conserva inspector separado al recargar, cancelar no publica, guardar confirma', async ({ page }) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  let editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  await editor.getByRole('button', { name: /^Agregar LED\./ }).click();
+  await editor.locator('#selected-device-name').fill('Inspector sin confirmar');
+  await expect.poll(async () => (await recoveryRows(page, student.id))[0]?.sceneDraft?.inspector?.value.name).toBe('Inspector sin confirmar');
+  let saved = (await recoveryRows(page, student.id))[0];
+  expect(JSON.parse(saved.document).scene.devices).toHaveLength(1);
+  expect(saved.sceneDraft?.scene.devices).toHaveLength(2);
+  expect(saved.sceneDraft?.scene.devices[1].name).not.toBe('Inspector sin confirmar');
+  page.on('dialog', dialog => dialog.accept());
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Revisar escena pendiente' })).toBeVisible();
+  await page.getByRole('button', { name: 'Revisar escena pendiente' }).click();
+  await page.getByRole('button', { name: 'Ahora no', exact: true }).click();
+  await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  await page.getByRole('button', { name: 'Recuperar borrador', exact: true }).click();
+  editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  await expect(editor.locator('#selected-device-name')).toHaveValue('Inspector sin confirmar');
+  await editor.getByRole('button', { name: 'Cancelar cambios', exact: true }).click();
+  await expect(editor.locator('#selected-device-name')).not.toHaveValue('Inspector sin confirmar');
+  await editor.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await page.getByRole('button', { name: 'Salir sin guardar', exact: true }).click();
+  await expect(editor).toBeHidden();
+  saved = (await recoveryRows(page, student.id))[0];
+  expect(saved.sceneDraft).toBeNull(); expect(JSON.parse(saved.document).scene.devices).toHaveLength(1);
+  await page.reload();
+  await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Hay una escena sin terminar' })).toHaveCount(0);
+  await editor.getByRole('button', { name: /^Agregar LED\./ }).click();
+  await editor.getByRole('button', { name: 'Guardar escena', exact: true }).click();
+  await expect(editor).toBeHidden();
+  saved = (await recoveryRows(page, student.id))[0];
+  expect(saved.sceneDraft).toBeNull(); expect(JSON.parse(saved.document).scene.devices).toHaveLength(2);
+  expect(errors).toEqual([]);
+});
+
+test('escena: exportación e importación conserva borrador inválido sin publicarlo', async ({ page }) => {
+  await page.goto('/'); await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  await editor.getByRole('button', { name: /^Agregar LED\./ }).click();
+  await editor.locator('#selected-device-name').fill('');
+  await expect.poll(async () => (await recoveryRows(page, student.id))[0]?.sceneDraft?.inspector?.value.name).toBe('');
+  const download = page.waitForEvent('download');
+  await editor.getByRole('button', { name: 'Exportar con escena pendiente' }).click();
+  const file = await download;
+  await editor.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await page.getByRole('button', { name: 'Salir sin guardar', exact: true }).click();
+  await page.locator('input[type=file]').setInputFiles((await file.path())!);
+  await expect(page.locator('.notice')).toContainText('Hay una escena pendiente');
+  await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  await page.getByRole('button', { name: 'Recuperar borrador', exact: true }).click();
+  await expect(editor.locator('#selected-device-name')).toHaveValue('');
+  await editor.getByRole('button', { name: 'Guardar escena', exact: true }).click();
+  await expect(editor).toBeVisible();
+  await editor.locator('#selected-device-name').fill('Luz recuperada');
+  await editor.getByRole('button', { name: 'Guardar escena', exact: true }).click();
+  await expect(editor).toBeHidden();
+  const row = (await recoveryRows(page, student.id))[0];
+  expect(row.remote).toBeNull(); expect(row.pending).toBeNull(); expect(row.sceneDraft).toBeNull();
+  expect(JSON.parse(row.document).scene.devices[1].name).toBe('Luz recuperada');
+});
+
+test('escena: fallo de almacenamiento no cierra ni afirma guardar o descartar', async ({ page }) => {
+  await page.goto('/'); await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  await editor.getByRole('button', { name: /^Agregar LED\./ }).click();
+  await expect.poll(async () => (await recoveryRows(page, student.id))[0]?.sceneDraft?.scene.devices.length).toBe(2);
+  await page.evaluate(() => { const original = IDBObjectStore.prototype.put; Object.assign(window, { restoreSceneStorage: () => { IDBObjectStore.prototype.put = original; } }); IDBObjectStore.prototype.put = function (...args) { if (this.name === 'drafts') throw new DOMException('Cuota de prueba', 'QuotaExceededError'); return original.apply(this, args); }; });
+  await editor.getByRole('button', { name: 'Guardar escena', exact: true }).click();
+  await expect(editor).toContainText('Cuota de prueba');
+  await expect(editor).toBeVisible();
+  await page.evaluate(() => (window as unknown as { restoreSceneStorage: () => void }).restoreSceneStorage());
+  await editor.getByRole('button', { name: 'Guardar escena', exact: true }).click();
+  await expect(editor).toBeHidden();
+  expect(JSON.parse((await recoveryRows(page, student.id))[0].document).scene.devices).toHaveLength(2);
+});

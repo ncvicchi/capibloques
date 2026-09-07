@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { AccountDraftStore } from '@/lib/account-session';
 import type { RecoveryDraft } from '@/lib/project-recovery';
 import { downloadText, safeFilename } from '@/lib/capiblocks';
+import { exportLocalSceneCopy } from '@/lib/scene-recovery';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 
@@ -39,6 +40,7 @@ export default function LocalRecovery({ store, onOpen }: { store: AccountDraftSt
       <div className="account-actions">
         <Button disabled={busy} onClick={() => onOpen(row.id)}>Recuperar {row.title}</Button>
         <Button variant="outline" disabled={busy} onClick={() => downloadText(`${safeFilename(row.title)}.capibloques.json`, row.document, 'application/json')}>Exportar copia local de {row.title}</Button>
+        {row.sceneDraft && <Button variant="outline" disabled={busy} onClick={() => downloadText(`${safeFilename(row.title)}.capibloques-recovery.json`, exportLocalSceneCopy(row.document, row.sceneDraft!), 'application/json')}>Exportar con escena pendiente de {row.title}</Button>}
         <Button variant="outline" disabled={busy} onClick={() => setSelected(row)}>Quitar copia local de {row.title}</Button>
       </div>
     </article>)}

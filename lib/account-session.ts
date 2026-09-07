@@ -1,5 +1,6 @@
 import { isProjectLink, type ProjectLink } from './project-library';
 import { RecoveryJournal, type DurableSave } from './project-recovery';
+import type { SceneDraft } from './scene-recovery';
 
 export type Account = { id: string; alias: string; displayName: string; roles: string[]; mustChangePassword: boolean };
 export type Session = { user: Account | null; csrfToken: string };
@@ -57,6 +58,7 @@ export function createAccountDraftStore(accountId: string) {
     libraryMode: false,
     remote: null as ProjectLink | null,
     pending: null as DurableSave | null,
+    sceneDraft: null as SceneDraft | null,
     recovery,
     recoveryError: '',
     recovering: false,
@@ -67,7 +69,8 @@ export function createAccountDraftStore(accountId: string) {
     mutedKey: `${prefix}muted`,
     attach(remote: ProjectLink | null) { this.remote = remote; this.libraryMode = true; },
     setPending(pending: DurableSave | null) { this.pending = pending; },
-    start(remote: ProjectLink | null) { recovery.newSlot(); this.pending = null; this.attach(remote); },
+    setSceneDraft(draft: SceneDraft | null) { this.sceneDraft = draft; },
+    start(remote: ProjectLink | null) { recovery.newSlot(); this.pending = null; this.sceneDraft = null; this.attach(remote); },
     legacyRead() {
       const stored = localStorage.getItem(this.libraryKey);
       if (stored) {
@@ -82,7 +85,7 @@ export function createAccountDraftStore(accountId: string) {
       loaded ??= (async () => {
         try {
           const row = await recovery.restore();
-          if (row) { this.attach(row.remote); this.pending = row.pending; return row.document; }
+          if (row) { this.attach(row.remote); this.pending = row.pending; this.sceneDraft = row.sceneDraft ?? null; return row.document; }
           return await recovery.initialized() ? null : this.legacyRead();
         } catch (error) { this.recoveryError = error instanceof Error ? error.message : 'No pudimos abrir la recuperación local.'; this.notify(); throw error; }
       })();
@@ -91,7 +94,7 @@ export function createAccountDraftStore(accountId: string) {
     async restore(id: string) {
       const row = await recovery.restore(id);
       if (!row) throw new Error('No encontramos la copia local.');
-      this.attach(row.remote); this.pending = row.pending;
+      this.attach(row.remote); this.pending = row.pending; this.sceneDraft = row.sceneDraft ?? null;
       this.notify();
       return row;
     },
@@ -99,7 +102,7 @@ export function createAccountDraftStore(accountId: string) {
       if (!this.active) return;
       writes++; this.recovering = true;
       this.notify();
-      void recovery.write({ document: value, remote: this.remote, pending: this.pending }).then(() => {
+      void recovery.write({ document: value, remote: this.remote, pending: this.pending, sceneDraft: this.sceneDraft }).then(() => {
         this.recovering = --writes > 0; this.recoveryError = ''; this.notify();
       }, error => {
         this.recovering = --writes > 0; this.recoveryError = error instanceof Error ? error.message : 'No pudimos guardar la copia local. Exportá JSON antes de salir.'; this.notify();

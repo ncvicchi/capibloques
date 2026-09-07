@@ -87,6 +87,7 @@ import {
   type SceneDevice,
   type SceneDeviceKind,
 } from '@/lib/scene-model';
+import { exportLocalSceneCopy, isSceneDraft, type SceneDraft } from '@/lib/scene-recovery';
 // Vite convierte el sufijo `?worker` en un constructor durante el build.
 // oxlint-disable-next-line import/default
 import SimulatorWorker from '@/lib/simulator.worker.ts?worker';
@@ -416,6 +417,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const [muted, setMuted] = useState(false);
   const [examplesOpen, setExamplesOpen] = useState(false);
   const [sceneBuilderOpen, setSceneBuilderOpen] = useState(false);
+  const sceneCommitRef = useRef<SceneDefinition | null>(null);
+  const localSaveTimerRef = useRef<number | undefined>(undefined);
   const [wiringOpen, setWiringOpen] = useState(false);
   const [wiringAcknowledgedSignature, setWiringAcknowledgedSignature] =
     useState<string | null>(null);
@@ -608,6 +611,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         setNoticeTone('error');
       }
     }, 350);
+    localSaveTimerRef.current = timer;
     return () => window.clearTimeout(timer);
   }, [draftStore, hydrated, projectName, scene, speed, workspace]);
 
@@ -781,8 +785,30 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
 
   const currentProject = useCallback((): ProjectFile => {
     const savedWorkspace = editorRef.current?.save() ?? workspace;
-    return makeProject(projectName, scene, savedWorkspace, speed);
+    return makeProject(projectName, sceneCommitRef.current ?? scene, savedWorkspace, speed);
   }, [projectName, scene, speed, workspace]);
+
+  const persistSceneDraft = useCallback((draft: SceneDraft | null) => {
+    if (!draftStore.active || sceneCommitRef.current) return;
+    draftStore.setSceneDraft(draft);
+    draftStore.write(JSON.stringify(currentProject()));
+  }, [currentProject, draftStore]);
+
+  const finishScene = useCallback(async (nextScene?: SceneDefinition) => {
+    if (!draftStore.active) throw new Error('Verificá tu sesión antes de confirmar la escena.');
+    window.clearTimeout(localSaveTimerRef.current);
+    const previousDraft = draftStore.sceneDraft;
+    if (nextScene) { sceneCommitRef.current = cloneScene(nextScene); delete sceneCommitRef.current.sourceTemplate; }
+    draftStore.setSceneDraft(null);
+    try {
+      draftStore.write(JSON.stringify(currentProject()));
+      await draftStore.flush();
+      if (sceneCommitRef.current) changeScene(sceneCommitRef.current);
+    } catch (failure) {
+      draftStore.setSceneDraft(previousDraft);
+      throw failure;
+    } finally { sceneCommitRef.current = null; }
+  }, [changeScene, currentProject, draftStore]);
 
   const fingerprint = useMemo(() => projectFingerprint(makeProject(projectName, scene, workspace, speed)), [projectName, scene, workspace, speed]);
   const applyLibraryProject = useCallback((file: ProjectFile) => {
@@ -807,7 +833,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       postToWorker({ type: 'PAUSE' });
       stopSound();
       // Capturar el proyecto confirmado antes de cancelar el debounce. El borrador
-      // de Armar escena permanece en memoria al verificar la misma sesión.
+      // de Armar escena se conserva por separado en la misma transacción local.
       if (hydrated && draftStore.active) {
         try { draftStore.write(JSON.stringify(currentProject())); }
         catch { setNotice('No pudimos guardar el último cambio. Exportá una copia JSON antes de cerrar sesión.'); setNoticeTone('error'); return false; }
@@ -932,9 +958,12 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const importProject = useCallback(
     async (file: File) => {
       try {
-        if (file.size > 2_000_000)
-          throw new Error('El archivo supera el límite de 2 MB');
-        const decoded = decodeProject(JSON.parse(await file.text()) as unknown);
+        if (file.size > 4_000_000) throw new Error('El archivo supera el límite de 4 MB para copias con escena pendiente.');
+        const raw = JSON.parse(await file.text());
+        const localCopy = raw?.application === 'CapiBloquesLocalCopy';
+        if (!localCopy && file.size > 2_000_000) throw new Error('El proyecto supera el límite de 2 MB');
+        if (localCopy && (raw.version !== 1 || !isSceneDraft(raw.sceneDraft) || JSON.stringify(raw.project).length > 2_000_000)) throw new Error('La copia con escena pendiente no es compatible.');
+        const decoded = decodeProject(localCopy ? raw.project : raw);
         if (!decoded.project)
           throw new Error(
             decoded.diagnostics[0]?.message ??
@@ -943,6 +972,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         const imported = decoded.project;
         const apply = () => {
         libraryRef.current?.detach();
+        if (localCopy) draftStore.setSceneDraft(raw.sceneDraft);
         const nextScene = cloneScene(imported.scene);
         postToWorker({ type: 'STOP' });
         stopSound();
@@ -957,7 +987,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         setNotice(
           decoded.migrated
             ? 'Proyecto anterior convertido y abierto correctamente'
-            : 'Proyecto importado correctamente',
+            : localCopy ? 'Proyecto importado. Hay una escena pendiente: abrí Armar escena para recuperarla.' : 'Proyecto importado correctamente',
         );
         setNoticeTone(decoded.diagnostics.length ? 'warning' : 'ok');
         sound(880, 120, muted);
@@ -1198,6 +1228,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           Editar escena
         </button>
       </section>
+
+      {!sceneBuilderOpen && draftStore.sceneDraft && <aside className="scene-recovery-banner"><span>🧩 Hay una escena sin terminar en esta computadora. Tu escena confirmada no cambió.</span><button onClick={() => toggleSceneBuilder(true)}>Revisar escena pendiente</button></aside>}
 
       <section className="toolbar" aria-label="Controles del simulador">
         {sim.status === 'running' ? (
@@ -1529,7 +1561,10 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             open={sceneBuilderOpen}
             onOpenChange={toggleSceneBuilder}
             scene={scene}
-            onSceneChange={changeScene}
+            recoveryDraft={draftStore.sceneDraft}
+            onDraft={persistSceneDraft}
+            onFinish={finishScene}
+            onExportDraft={() => { if (draftStore.active && draftStore.sceneDraft) downloadText(`${safeFilename(projectName)}.capibloques-recovery.json`, exportLocalSceneCopy(JSON.stringify(currentProject()), draftStore.sceneDraft), 'application/json'); }}
           />
         </Suspense>
       )}

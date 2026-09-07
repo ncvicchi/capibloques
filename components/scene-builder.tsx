@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { InspectorDraft, SceneDraft } from '@/lib/scene-recovery';
 import SceneStage from '@/components/scene-stage';
 import {
   AlertDialog,
@@ -60,13 +61,13 @@ interface SceneBuilderProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   scene: SceneDefinition;
-  onSceneChange: (scene: SceneDefinition) => void;
+  recoveryDraft: SceneDraft | null;
+  onDraft: (draft: SceneDraft | null) => void;
+  onFinish: (scene?: SceneDefinition) => Promise<void>;
+  onExportDraft: () => void;
 }
 
 type SceneItem = SceneDevice | SceneWidget;
-type InspectorDraft =
-  | { kind: 'device'; value: SceneDevice }
-  | { kind: 'widget'; value: SceneWidget };
 type DeleteTarget =
   | { kind: 'all' }
   | { kind: 'device'; id: string }
@@ -175,24 +176,51 @@ const isTextEditingTarget = (target: EventTarget | null) => {
 
 export default function SceneBuilder({ open, ...props }: SceneBuilderProps) {
   if (!open) return null;
-  return <SceneBuilderSession open={open} {...props} />;
+  return <SceneRecoveryChoice open={open} {...props} />;
+}
+
+function SceneRecoveryChoice(props: SceneBuilderProps) {
+  const [recovery] = useState(() => props.recoveryDraft);
+  const [accepted, setAccepted] = useState(!recovery);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [discard, setDiscard] = useState(false);
+  if (accepted) return <SceneBuilderSession {...props} recoveryDraft={recovery} />;
+  const compatible = snapshotsEqual(recovery?.base, props.scene);
+  return <Dialog open onOpenChange={value => { if (!value && !busy) props.onOpenChange(false); }}><DialogContent className="management-dialog" showCloseButton={!busy}>
+    <DialogHeader><DialogTitle>Hay una escena sin terminar</DialogTitle><DialogDescription>El proyecto conserva su escena confirmada. Este borrador está sólo en esta computadora e incluye cambios del inspector. Recuperarlo no lo publica; después elegís Guardar escena o Cancelar.</DialogDescription></DialogHeader>
+    {!compatible && <p role="alert">La escena confirmada cambió desde ese borrador. No lo mezclamos con otro estado: exportalo para conservarlo o descartalo explícitamente.</p>}
+    <p>Al recuperar se reinicia la lista de Deshacer/Rehacer, no los cambios del borrador.</p>
+    {error && <p role="alert">{error}</p>}
+    <div className="account-actions">
+      <Button variant="outline" disabled={busy} onClick={() => props.onOpenChange(false)}>Ahora no</Button>
+      <Button variant="outline" disabled={busy} onClick={props.onExportDraft}>Exportar con escena pendiente</Button>
+      <Button variant="outline" disabled={busy} onClick={() => setDiscard(true)}>Descartar borrador…</Button>
+      <Button disabled={busy || !compatible} onClick={() => setAccepted(true)}>Recuperar borrador</Button>
+    </div>
+    {discard && <section aria-label="Confirmar descarte de escena"><p>¿Descartar la escena sin terminar? No se puede deshacer. El proyecto confirmado queda intacto.</p><Button variant="outline" disabled={busy} onClick={() => setDiscard(false)}>Conservar borrador</Button><Button variant="destructive" disabled={busy} onClick={async () => { setBusy(true); try { await props.onFinish(); props.onOpenChange(false); } catch (failure) { setError(failure instanceof Error ? failure.message : 'No se pudo descartar.'); } finally { setBusy(false); } }}>Sí, descartar borrador</Button></section>}
+  </DialogContent></Dialog>;
 }
 
 function SceneBuilderSession({
   open,
   onOpenChange,
   scene: savedScene,
-  onSceneChange,
+  recoveryDraft,
+  onDraft,
+  onFinish,
+  onExportDraft,
 }: SceneBuilderProps) {
-  const initialSelectedId = selectedIdForScene(savedScene);
+  const initialScene = recoveryDraft?.scene ?? savedScene;
+  const initialSelectedId = selectedIdForScene(initialScene, recoveryDraft?.selectedId);
   const [history, setHistory] = useState(() =>
     createSnapshotHistory<EditorSnapshot>({
-      scene: cloneScene(savedScene),
+      scene: cloneScene(initialScene),
       selectedId: initialSelectedId,
     }),
   );
   const [inspectorDraft, setInspectorDraft] = useState<InspectorDraft | null>(
-    () => createInspectorDraft(savedScene, initialSelectedId),
+    () => recoveryDraft ? structuredClone(recoveryDraft.inspector) : createInspectorDraft(initialScene, initialSelectedId),
   );
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [pendingSelectionId, setPendingSelectionId] = useState<string | null>(
@@ -201,6 +229,8 @@ function SceneBuilderSession({
   const [discardSceneOpen, setDiscardSceneOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [baselineScene] = useState(() => cloneScene(savedScene));
+  const [finishing, setFinishing] = useState(false);
+  const finishingRef = useRef(false);
 
   const draftScene = history.present.scene;
   const selectedId = history.present.selectedId;
@@ -226,6 +256,18 @@ function SceneBuilderSession({
   );
   const sceneDirty = !snapshotsEqual(baselineScene, previewScene);
   const objectCount = previewScene.devices.length + previewScene.widgets.length;
+  useLayoutEffect(() => {
+    if (finishingRef.current) return;
+    onDraft(sceneDirty ? { version: 1, base: baselineScene, scene: draftScene, selectedId, inspector: inspectorDraft } : null);
+  }, [onDraft, sceneDirty, baselineScene, draftScene, selectedId, inspectorDraft]);
+
+  const finish = async (scene?: SceneDefinition) => {
+    if (finishingRef.current) return;
+    finishingRef.current = true; setFinishing(true);
+    try { await onFinish(scene); onOpenChange(false); }
+    catch (failure) { setDiscardSceneOpen(false); setMessage(failure instanceof Error ? failure.message : 'No se pudo guardar la copia local. La escena sigue abierta.'); }
+    finally { finishingRef.current = false; setFinishing(false); }
+  };
 
   const commitScene = (
     nextScene: SceneDefinition,
@@ -331,21 +373,22 @@ function SceneBuilderSession({
       return;
     }
     const finalScene = cloneScene(previewScene);
-    onSceneChange(finalScene);
-    onOpenChange(false);
+    void finish(finalScene);
   };
 
   const requestClose = () => {
+    if (finishingRef.current) return;
     if (sceneDirty) {
       setDiscardSceneOpen(true);
       return;
     }
-    onOpenChange(false);
+    void finish();
   };
 
   useEffect(() => {
     if (!open) return;
     const handleShortcut = (event: KeyboardEvent) => {
+      if (finishingRef.current) { event.preventDefault(); return; }
       if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
       const key = event.key.toLowerCase();
       if (deleteTarget || pendingSelectionId || discardSceneOpen) {
@@ -607,6 +650,7 @@ function SceneBuilderSession({
       >
         <DialogContent
           className="scene-builder-dialog"
+          inert={finishing}
           showCloseButton={false}
           aria-describedby="scene-builder-description"
         >
@@ -1154,6 +1198,7 @@ function SceneBuilderSession({
           </div>
 
           <DialogFooter className="scene-builder-footer">
+            <Button type="button" variant="outline" onClick={onExportDraft} disabled={!sceneDirty}>Exportar con escena pendiente</Button>
             <Button
               type="button"
               variant="outline"
@@ -1249,9 +1294,10 @@ function SceneBuilderSession({
               <AlertDialogCancel>Seguir editando</AlertDialogCancel>
               <AlertDialogAction
                 variant="destructive"
-                onClick={() => {
-                  setDiscardSceneOpen(false);
-                  onOpenChange(false);
+                disabled={finishing}
+                onClick={(event) => {
+                  event.preventDefault();
+                  void finish();
                 }}
               >
                 Salir sin guardar

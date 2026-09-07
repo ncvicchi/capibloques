@@ -246,7 +246,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
     const replace = useCallback(
       (action: () => void) => {
         if (!store.active || inFlight.current) return;
-        if (dirty || pendingSave.current) {
+        if (dirty || pendingSave.current || store.sceneDraft) {
           replacing.current = action;
           setReplacePrompt(true);
         } else action();
@@ -260,6 +260,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
       options: RequestInit = {},
     ): Promise<T> {
       if (!store.active || !store.remoteAllowed) throw new Error('Sin conexión verificada. Guardá localmente o exportá JSON.');
+      const ticket = generation.current;
       const result = await fetch(url, {
         ...options,
         headers: { ...headers(), ...Object.fromEntries(new Headers(options.headers)) },
@@ -270,6 +271,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
         error?: string;
         code?: string;
       };
+      if (!valid(ticket)) throw new Error('La sesión o el proyecto cambió durante la operación. Revisá el resultado al volver a ingresar.');
       if (!result.ok) {
         if (
           result.status === 401 ||
