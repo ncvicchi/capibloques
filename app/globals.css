@@ -2642,6 +2642,8 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .management-dialog input, .management-search input { font-size: 1rem; min-height: 44px; }
 .management-dialog button { white-space: normal; height: auto; min-height: 40px; max-width: 100%; }
 .management-dialog { overflow-wrap: anywhere; }
+.account-delete-dialog { grid-template-columns: minmax(0, 1fr); }
+.account-delete-dialog [data-slot='alert-dialog-footer'] { margin: 0; padding: 12px 0 0; background: transparent; }
 .school-identity { display: flex; align-items: center; gap: 18px; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
 .school-identity img { flex: 0 0 80px; width: 80px; height: 80px; object-fit: contain; }
 .school-identity strong { min-width: 0; font-size: 1.15rem; line-height: 1.4; overflow-wrap: anywhere; }

@@ -228,7 +228,7 @@ export default function AccountDeletion({
         if (!open && !busy) close();
       }}
     >
-      <AlertDialogContent className="management-dialog">
+      <AlertDialogContent className="management-dialog account-delete-dialog">
         <AlertDialogHeader>
           <AlertDialogTitle>Eliminar cuenta definitivamente</AlertDialogTitle>
           <AlertDialogDescription>
