@@ -2,11 +2,13 @@
 
 CapiBloques es un entorno visual educativo para que chicos de 8 a 12 años armen una escena, programen sus componentes con bloques, prueben el comportamiento en el navegador y descarguen Arduino C++ compatible con una WEMOS D1 R32.
 
-El editor exige ingreso con alias y contraseña y conserva un borrador local por cuenta. En la VM de desarrollo corren Django + PostgreSQL, el [acceso y sesiones de fase 2A](docs/FASE_2A_ACCESO.md) en `/cuenta/` y el [ABM de usuarios de fase 2B.1](docs/FASE_2B1_USUARIOS.md) en `/gestion/usuarios/`, exclusivo del administrador. Permite crear, buscar, editar roles/estado, restablecer contraseñas y eliminar con confirmación. Todavía no hay cursos ni guardado de proyectos en el servidor. El alojamiento elegido es Proxmox; GitHub Pages deja de utilizarse. El frontend permite exportación estática, pero necesita la API de autenticación del mismo origen para abrir el editor. El resto de las funciones multiusuario y ESP-IDF están planificadas, no implementadas aún.
+El editor exige ingreso con alias y contraseña y conserva un borrador local por cuenta. En la VM de desarrollo corren Django + PostgreSQL, el [acceso y sesiones de fase 2A](docs/FASE_2A_ACCESO.md) en `/cuenta/` y el [ABM de usuarios de fase 2B.1](docs/FASE_2B1_USUARIOS.md) en `/gestion/usuarios/`, exclusivo del administrador. Permite crear, buscar, editar roles/estado, restablecer contraseñas y eliminar con confirmación. Los cursos y membresías también se guardan en servidor; los proyectos aún no. El alojamiento elegido es Proxmox; GitHub Pages deja de utilizarse. El frontend permite exportación estática, pero necesita la API de autenticación del mismo origen para abrir el editor. El resto de las funciones multiusuario y ESP-IDF están planificadas, no implementadas aún.
 
 El alcance está en [el plan de implementación](docs/PLAN_MULTIUSUARIO_PROXMOX.md) y el estado de preparación en [fase 0: servidores](docs/FASE_0_SERVIDORES.md). Trabajamos una fase por vez, con pruebas, commit/push y aprobación del propietario antes de avanzar.
 
 La [fase 2B.2](docs/FASE_2B2_COLEGIO.md) incorpora nombre y logo del colegio antes del ingreso. Se configuran desde **Mi cuenta → Configurar colegio**, con vista previa y Guardar/Cancelar, sólo para administradores. Acepta PNG/JPEG/WebP con validación y optimización; nombre e imagen quedan en PostgreSQL y su volumen persistente. No se necesita un logo para ingresar.
+
+La [fase 2B.3](docs/FASE_2B3_CURSOS.md) agrega **Mi cuenta → Gestionar cursos** y **Mis cursos**. El administrador prepara grupos, asigna docentes/alumnos y archiva/reactiva con Guardar/Cancelar. Los docentes ven sólo los padrones de sus cursos; los alumnos no reciben datos de compañeros. Las bajas y cambios de rol incompatibles exigen retirar previamente las membresías. La supervisión de proyectos sigue pendiente.
 
 ## Qué se puede construir
 

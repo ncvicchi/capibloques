@@ -1,8 +1,8 @@
 # Plan de CapiBloques: multiusuario, enseñanza y programación de Wemos
 
-Estado: fases 0A, 0B, 1, **2A, 2B.1 y 2B.2 implementadas**. [Fase 2A](FASE_2A_ACCESO.md): acceso, sesiones y editor con borradores locales por UUID. El propietario confirmó que recuperó el acceso. [Fase 2B.1](FASE_2B1_USUARIOS.md): ABM de usuarios. [Fase 2B.2](FASE_2B2_COLEGIO.md): nombre/logo institucional previo al ingreso y administración con vista previa. **2B.3 pendiente de nuevo OK:** cursos y membresías. Biblioteca/guardado servidor siguen pendientes. Evidencia previa en `FASE_0_SERVIDORES.md`, `FASE_0B_DESARROLLO.md` y [fase 1](FASE_1_BASE_REPRODUCIBLE.md).
+Estado: fases 0A, 0B, 1, **2A, 2B.1, 2B.2 y 2B.3 implementadas**. [Fase 2A](FASE_2A_ACCESO.md): acceso, sesiones y editor con borradores locales por UUID. El propietario confirmó que recuperó el acceso. [Fase 2B.1](FASE_2B1_USUARIOS.md): ABM de usuarios. [Fase 2B.2](FASE_2B2_COLEGIO.md): nombre/logo institucional previo al ingreso y administración con vista previa. [Fase 2B.3](FASE_2B3_CURSOS.md): cursos, membresías y lectura restringida por pertenencia. **Siguiente fase propuesta, pendiente de nuevo OK: 3, biblioteca y guardado manual en servidor.** Evidencia previa en `FASE_0_SERVIDORES.md`, `FASE_0B_DESARROLLO.md` y [fase 1](FASE_1_BASE_REPRODUCIBLE.md).
 Fecha de actualización: 6 de septiembre de 2026.
-Actualización: ABM en `/gestion/usuarios/` y marca institucional en `/gestion/colegio/`, ambos con detección de ediciones desactualizadas y auditoría administrativa. Editor conservado, proyectos aún locales. Producción no activada. Se mantienen Arduino + ESP-IDF, binarios/carga USB y concurrencia configurable en sus fases pendientes.
+Actualización: ABM en `/gestion/usuarios/`, marca institucional en `/gestion/colegio/` y cursos en `/gestion/cursos/`, con detección de ediciones desactualizadas y auditoría administrativa. `/cursos/` sólo muestra grupos asignados. Editor conservado, proyectos aún locales. Producción no activada. Se mantienen Arduino + ESP-IDF, binarios/carga USB y concurrencia configurable en sus fases pendientes.
 
 ## 1. Decisiones acordadas
 
@@ -287,7 +287,7 @@ El backup lógico de PostgreSQL está documentado como copia consistente mientra
 | 5E. USB desde la web | Monitor Serial y carga autónoma en Chrome/Edge | Se graban físicamente programas de ambos frameworks en Wemos, se verifican y ejecutan sin depender de la pestaña; errores y cortes tienen recuperación; detener la simulación no se presenta como detener hardware. |
 | 6. Piloto en Proxmox | Configuración de producción, HTTPS, backups y carga | Se restaura una copia en entorno aislado, se prueba la carga acordada, no se exponen servicios internos y se valida el flujo completo con administrador, docente y alumnos de prueba. |
 
-División de la fase 2 para entregas acotadas: 2A (acceso/editor), 2B.1 (ABM de usuarios) y 2B.2 (nombre/logo institucional) entregadas. Siguiente propuesta: 2B.3, cursos y membresías con permisos por curso, con nuevo OK. La baja de cuentas deberá ampliarse antes de incorporar proyectos: la ficha administrativa de 2B.1 no es el respaldo de proyectos previsto en el alcance final.
+División de la fase 2 para entregas acotadas: 2A (acceso/editor), 2B.1 (ABM de usuarios), 2B.2 (nombre/logo institucional) y 2B.3 (cursos/membresías) entregadas. Siguiente propuesta: fase 3, biblioteca y guardado manual, con nuevo OK. La baja de cuentas ahora exige retirar membresías y deberá ampliarse nuevamente antes de incorporar proyectos: la ficha administrativa de 2B.1 no es el respaldo de proyectos previsto en el alcance final.
 
 Pruebas obligatorias adicionales:
 

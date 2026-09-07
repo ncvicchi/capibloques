@@ -1,6 +1,6 @@
 # Fase 2B.3 · Cursos y membresías
 
-Alcance autorizado por el propietario: administrar cursos, asignar docentes y alumnos y ofrecer «Mis cursos». No incluye biblioteca ni revisión de proyectos. Implementación en validación en DEV; no activar producción.
+Alcance autorizado por el propietario: administrar cursos, asignar docentes y alumnos y ofrecer «Mis cursos». Implementado y probado en DEV. No incluye biblioteca ni revisión de proyectos. Producción no activada.
 
 ## Uso
 
@@ -26,6 +26,10 @@ Alcance autorizado por el propietario: administrar cursos, asignar docentes y al
 - Respaldo PostgreSQL previo a migrar en el directorio privado habitual de DEV. No es todavía un respaldo fuera de la VM ni un ensayo de restauración.
 - Detener sólo editor antes de actualizar código; aplicar la migración aditiva `courses/0001_initial`; reiniciar API/editor y esperar salud. Sin nuevas dependencias, sin aumento de recursos y sin cambios en PRD/gateway.
 - Pruebas nuevas: aislamiento entre dos docentes y alumno compartido, permisos directos, revocación, archivo/reactivación, validación, conflictos, CSRF, integridad/auditoría y protección de bajas. UI: selección, guardar/cancelar, restauración, archivo, pérdida de permiso/conexión, vistas por rol y teléfono con texto ampliado.
-- Resultados finales: pendientes de ejecutar contra DEV y CI.
+- DEV: 83 pruebas Django/PostgreSQL correctas, migración aplicada sin divergencia de modelos, servicios saludables y sin reinicios automáticos. Respaldo previo generado fuera de Git; no se crearon cursos/cuentas ficticias en la base real.
+- Chrome + Edge contra el túnel de DEV: 20 pruebas de cursos (incluidas dos verificaciones anónimas contra la API real); 28 regresiones de cuentas/ABM/acceso al editor. Las mutaciones de las pruebas UI usan respuestas simuladas; permisos y persistencia reales se prueban en la base PostgreSQL de test, no con la contraseña del propietario.
+- Tipos, lint, smoke del simulador/JSON/historial y build estático correctos. El build verifica también `/cursos/` y `/gestion/cursos/` y sus assets desde raíz.
+- La prueba de texto al 200% detectó desborde del título con las fuentes del runner Linux; corregido limitando el encabezado y permitiendo ajuste. No se eliminaron comprobaciones ni ampliaron tiempos/reintentos. Se agregó también una prueba de salida con una petición pendiente: la continuación no revalida una pantalla ya desmontada.
+- [CI final de `46457cf`](https://github.com/ncvicchi/capibloques/actions/runs/34068577280): **correcto**, backend y frontend; 51 pruebas de interfaz Chromium, comprobaciones estáticas/auditoría de dependencias, dos sketches compilados para Wemos D1 R32 y build. Cierre documental posterior sin cambios de código.
 
 Siguiente fase propuesta: 3, biblioteca de proyectos y guardado manual en servidor. Requiere nuevo OK.
