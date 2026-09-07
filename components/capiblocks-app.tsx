@@ -820,13 +820,16 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     return () => { checkpointRef.current = null; };
   }, [checkpointRef, currentProject, draftStore, hydrated, postToWorker]);
 
-  const saveToBrowser = useCallback(() => {
+  const saveToBrowser = useCallback(async () => {
     try {
       draftStore.write(JSON.stringify(currentProject()));
+      await draftStore.flush();
+      if (!draftStore.active) return;
       setNotice('Proyecto guardado para tu cuenta en este navegador');
       setNoticeTone('ok');
       sound(760, 80, muted);
     } catch (error) {
+      if (!draftStore.active) return;
       setNotice(
         error instanceof Error
           ? `No pudimos guardar: ${error.message}`

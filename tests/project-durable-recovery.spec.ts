@@ -440,7 +440,7 @@ test('recuperación durable: ACK confirmado con escritura local fallida se repit
     };
   });
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expect(page.locator('.cloud-error').first()).toContainText('Guardado en servidor');
+  await expect(page.locator('.cloud-error').filter({ hasText: 'Guardado en servidor' })).toBeVisible();
   expect((await recoveryRows(page, student.id))[0].pending).not.toBeNull();
   await page.reload();
   await expect(page.getByLabel('Nombre del proyecto')).toHaveValue('Confirmado sin disco');

@@ -153,6 +153,9 @@ test('editor: si falla el guardado permite exportar antes de una salida voluntar
   await page.getByRole('menuitem', { name: 'Proyecto editable JSON' }).click();
   await download;
   expect(logouts).toBe(0);
+  await page.getByRole('button', { name: 'Exportar', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Guardar sólo en este navegador' }).click();
+  await expect(page.locator('.notice')).toContainText('No pudimos guardar');
 });
 
 for (const changeAccount of [false, true]) {
