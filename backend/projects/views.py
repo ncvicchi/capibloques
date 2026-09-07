@@ -2,6 +2,7 @@ import copy
 import hashlib
 import json
 import uuid
+from datetime import timedelta
 from functools import wraps
 
 from django.contrib.auth import logout
@@ -20,7 +21,8 @@ from accounts.security import require_account
 from accounts.views import user_data
 from courses.models import Course, Membership
 from courses.views import belonging
-from .models import Project, ProjectEvent
+from .models import Project, ProjectEvent, ProjectRevision, ProjectDeletion
+from .history import archive_current, mark_checkpoint, revision_metadata, MAX_HISTORY_BYTES, HISTORY_PREVIOUS
 from .validation import document, encoded, exact, require, title
 
 MAX_PROJECTS = 100
@@ -82,6 +84,7 @@ def identifier(value):
 def metadata(project):
     return {"id": str(project.pk), "title": project.title, "revision": project.revision,
             "updatedAt": project.updated_at.isoformat(), "trashedAt": project.trashed_at.isoformat() if project.trashed_at else None,
+            "purgeAfter": (project.trashed_at + timedelta(days=30)).isoformat() if project.trashed_at else None,
             "course": {"id": str(project.course_id), "name": project.course.name, "isArchived": project.course.is_archived, "ownerCanEdit": owner_can_edit(project)} if project.course_id else None}
 
 
@@ -133,11 +136,13 @@ def check_revision(project, data):
     return None
 
 
-def finish(actor, project, data, action):
+def finish(actor, project, data, action, history_mode=None, audit_action=None):
     project.revision += 1
     project.last_operation, project.last_digest = identifier(data["operationId"]), digest(data, action)
+    if history_mode:
+        mark_checkpoint(project, history_mode)
     project.save()
-    audit(actor, project, action)
+    audit(actor, project, audit_action or action)
     return response(project)
 
 
@@ -158,6 +163,8 @@ def collection(request, actor):
                              "limits": {"projects": MAX_PROJECTS, "bytes": MAX_ACCOUNT_BYTES}})
     data = body(request, ("id", "operationId", "document"))
     project_id = identifier(data["id"])
+    if ProjectDeletion.objects.filter(pk=project_id).exists():
+        return fail("Este proyecto fue eliminado definitivamente. Podés importar tu JSON como un proyecto nuevo, pero no reactivar su identidad anterior.", "purged", 410)
     operation = identifier(data["operationId"])
     existing = Project.objects.filter(pk=project_id).first()
     if existing:
@@ -183,7 +190,9 @@ def detail(request, actor, project_id):
             return response(project)
         return JsonResponse({"project": metadata(project), "document": project.document})
     data = body(request, ("operationId", "revision", "document"))
-    repeated = replay(project, data, "saved")
+    mode = "automatic" if request.headers.get("X-Capi-Save-Mode") == "automatic" else "manual"
+    save_action = "saved_automatic" if mode == "automatic" else "saved"
+    repeated = replay(project, data, save_action)
     if repeated is not None:
         return repeated
     conflict = check_revision(project, data)
@@ -196,8 +205,9 @@ def detail(request, actor, project_id):
         return locked
     size = document(data["document"])
     quota(actor, size, project.size_bytes)
+    archive_current(project, force=mode == "manual")
     project.document, project.title, project.size_bytes = data["document"], title(data["document"]["metadata"]["title"]), size
-    return finish(actor, project, data, "saved")
+    return finish(actor, project, data, save_action, mode, "saved")
 
 
 @endpoint(["POST"])
@@ -216,6 +226,7 @@ def action(request, actor, project_id, action):
         locked = course_lock(project)
         if locked is not None:
             return locked
+        archive_current(project, force=True)
         project.title = title(data["title"])
         changed = copy.deepcopy(project.document)
         changed["metadata"]["title"] = project.title
@@ -231,7 +242,98 @@ def action(request, actor, project_id, action):
         if not project.trashed_at:
             return fail("El proyecto ya estaba activo.", "not_trashed", 409)
         project.trashed_at = None
-    return finish(actor, project, data, action)
+    return finish(actor, project, data, action, "manual" if action == "rename" else None)
+
+
+@endpoint(["GET"])
+def history_list(request, actor, project_id):
+    project = Project.objects.get(pk=project_id, owner=actor)
+    return JsonResponse({"project": metadata(project), "versions": [revision_metadata(project)] + [revision_metadata(project, row) for row in project.history.defer("document")],
+                         "policy": {"versions": HISTORY_PREVIOUS + 1, "bytes": MAX_HISTORY_BYTES, "automaticMinutes": 5}})
+
+
+@endpoint(["GET", "DELETE"])
+def history_detail(request, actor, project_id, revision):
+    project = Project.objects.get(pk=project_id, owner=actor)
+    row = project.history.filter(revision=revision).first()
+    if request.method == "GET":
+        if revision == project.revision:
+            return JsonResponse({"version": revision_metadata(project), "document": project.document})
+        if not row:
+            raise Project.DoesNotExist
+        return JsonResponse({"version": revision_metadata(project, row), "document": row.document})
+    data = body(request, ("operationId", "revision", "confirmation"))
+    action_name = f"history_remove:{revision}"
+    repeated = replay(project, data, action_name)
+    if repeated is not None:
+        return repeated
+    conflict = check_revision(project, data)
+    if conflict is not None:
+        return conflict
+    if not row:
+        raise Project.DoesNotExist
+    require(not row.pinned and revision != project.revision, "No se puede quitar la versión actual ni una referenciada.")
+    require(data["confirmation"] == str(revision), "Confirmá el número exacto de versión.")
+    row.delete()
+    return finish(actor, project, data, action_name, audit_action="history_removed")
+
+
+@endpoint(["POST"])
+def history_restore(request, actor, project_id, revision):
+    project = Project.objects.select_related("course").get(pk=project_id, owner=actor)
+    data = body(request, ("operationId", "revision"))
+    action_name = f"history_restore:{revision}"
+    repeated = replay(project, data, action_name)
+    if repeated is not None:
+        return repeated
+    conflict = check_revision(project, data)
+    if conflict is not None:
+        return conflict
+    require(not project.trashed_at, "Restaurá el proyecto desde la papelera antes de recuperar una versión.")
+    locked = course_lock(project)
+    if locked is not None:
+        return locked
+    row = project.history.filter(revision=revision).first()
+    if not row:
+        raise Project.DoesNotExist
+    restored = copy.deepcopy(row.document)
+    size = document(restored)
+    quota(actor, size, project.size_bytes)
+    archive_current(project, force=True)
+    project.document, project.title, project.size_bytes = restored, title(restored["metadata"]["title"]), size
+    # La asociación al curso es la vigente; nunca se restaura una membresía.
+    result = finish(actor, project, data, action_name, "restored", "history_restored")
+    return result
+
+
+def retire_project(actor, project, operation, operation_digest, action="purged"):
+    ProjectDeletion.objects.create(pk=project.pk, owner_id_snapshot=project.owner_id, operation=operation, digest=operation_digest)
+    ProjectEvent.objects.create(actor=actor, actor_id_snapshot=actor.pk if actor else uuid.UUID(int=0), project_id_snapshot=project.pk, revision=project.revision, action=action)
+    # Eliminación exacta y explícita. Las futuras devoluciones deben retirarse
+    # aquí antes de sus FK PROTECT, no mediante cascadas de la cuenta.
+    project.history.all().delete()
+    project.delete()
+
+
+@endpoint(["POST"])
+def purge(request, actor, project_id):
+    data = body(request, ("operationId", "revision", "confirmation"))
+    operation = identifier(data["operationId"])
+    operation_digest = digest(data, "purged")
+    deleted = ProjectDeletion.objects.filter(pk=project_id, owner_id_snapshot=actor.pk).first()
+    if deleted:
+        if deleted.operation == operation and deleted.digest == operation_digest:
+            return JsonResponse({"deleted": True})
+        raise Project.DoesNotExist
+    project = Project.objects.get(pk=project_id, owner=actor)
+    conflict = check_revision(project, data)
+    if conflict is not None:
+        return conflict
+    require(project.trashed_at is not None, "Primero enviá el proyecto a la papelera.")
+    require(project.trashed_at <= timezone.now() - timedelta(days=30), "La papelera protege este proyecto durante 30 días. Todavía podés restaurarlo.")
+    require(data["confirmation"] == project.title, "Escribí el nombre exacto para confirmar el borrado definitivo.")
+    retire_project(actor, project, operation, operation_digest)
+    return JsonResponse({"deleted": True})
 
 
 @endpoint(["GET"])

@@ -13,7 +13,8 @@ from accounts.deletion import summary
 from accounts.management_api import record
 from accounts.models import ManagementEvent, User
 from courses.models import Course, Membership
-from projects.models import Project, ProjectEvent
+from projects.models import Project, ProjectEvent, ProjectRevision, ProjectDeletion
+from projects.history import archive_current
 from projects.validation import document
 from .test_accounts import FAST_HASHERS, PASSWORD
 from .test_projects import EXAMPLES
@@ -62,6 +63,27 @@ class AccountDeletionTests(TestCase):
         self.assertNotIn("document", response.content.decode())
         self.assertNotIn(self.target.password, response.content.decode())
         self.assertIn("no-store", response["Cache-Control"])
+
+    def test_backup_and_deletion_include_history_and_invalidate_old_receipt(self):
+        old = self.receipt()
+        project = self.target.projects.first()
+        archive_current(project)
+        project.revision += 1; project.save()
+        preview = summary(self.target)
+        self.assertEqual(preview['projects']['historyCount'], 1)
+        self.assertEqual(self.remove(self.payload(old)).status_code, 409)
+        response = self.backup()
+        receipt = response['X-Capi-Backup-Receipt']
+        with zipfile.ZipFile(io.BytesIO(b''.join(response.streaming_content))) as archive:
+            manifest = json.loads(archive.read('manifest.json'))
+            entries = [v for p in manifest['projects'] for v in p['history']]
+            self.assertEqual(len(entries), 1)
+            raw = archive.read(entries[0]['file'])
+            self.assertEqual(hashlib.sha256(raw).hexdigest(), entries[0]['sha256'])
+            self.assertEqual(json.loads(raw), project.document)
+        self.assertEqual(self.remove(self.payload(receipt)).status_code, 200)
+        self.assertFalse(ProjectRevision.objects.exists())
+        self.assertEqual(ProjectDeletion.objects.count(), 2)
 
     def test_zip_contains_all_portable_projects_hashes_and_can_reimport(self):
         response = self.backup()

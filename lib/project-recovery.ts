@@ -13,6 +13,7 @@ const LIMIT_BYTES = 50 * 1024 * 1024;
 const LIMIT_DRAFTS = 30;
 export type DurableSave = {
   copy: boolean;
+  automatic?: boolean;
   url: string;
   method: 'POST' | 'PUT';
   body: string;
@@ -77,7 +78,8 @@ function validate(row: RecoveryDraft, accountId: string): RecoveryDraft {
     if (
       typeof op.body !== 'string' ||
       op.body.length > 3 * 1024 * 1024 ||
-      typeof op.copy !== 'boolean'
+      typeof op.copy !== 'boolean' ||
+      (op.automatic !== undefined && typeof op.automatic !== 'boolean')
     )
       throw new Error('El envío pendiente no es válido.');
     const body = JSON.parse(op.body);

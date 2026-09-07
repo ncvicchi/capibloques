@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { FolderOpen, Save } from 'lucide-react';
 import ProjectCourseDialog from '@/components/project-course';
+import ProjectHistory from '@/components/project-history';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -102,6 +103,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
     const [link, setLink] = useState<ProjectLink | null>(null);
     const [context, setContext] = useState<CloudProject | null>(null);
     const [courseProject, setCourseProject] = useState<CloudProject | null>(null);
+    const [historyProject, setHistoryProject] = useState<CloudProject | null>(null);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
     const [cloudNotice, setCloudNotice] = useState('');
@@ -380,6 +382,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
               };
           pendingSave.current = {
             copy,
+            automatic,
             url: remote ? `/api/projects/${remote.id}/` : '/api/projects/',
             method: remote ? 'PUT' : 'POST',
             body: JSON.stringify(body),
@@ -399,6 +402,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
         const result = await request<{ project: CloudProject }>(operation.url, {
           method: operation.method,
           body: operation.body,
+          headers: { 'X-Capi-Save-Mode': operation.automatic ? 'automatic' : 'manual' },
         });
         if (!valid(operation.generation)) return false;
         const next = {
@@ -872,6 +876,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
                           : ''}
                       </p>
                       <div className="account-actions">
+                        <Button disabled={busy} variant="outline" onClick={() => setHistoryProject(project)}>Historial de {project.title}</Button>
                         {project.trashedAt ? (
                           <Button
                             disabled={busy}
@@ -956,7 +961,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
             )}
             <p className="account-help">
               Hasta 100 proyectos y 50 MB por cuenta, incluida la papelera. En
-              esta subfase no hay borrado definitivo individual ni purga automática.
+              la papelera se protegen por 30 días. Luego el borrado definitivo está disponible en Historial; no se ejecuta automáticamente en DEV.
             </p>
             <label htmlFor="server-autosave" className="management-check">
               <Checkbox id="server-autosave" checked={autoEnabled} disabled={!autoReady} onCheckedChange={value => {
@@ -966,7 +971,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
               Guardar automáticamente en mi cuenta
             </label>
             <p className="account-help">Después del primer Guardar, sube los cambios del proyecto abierto al dejar de editar. Podés usar Guardar en cualquier momento. Esta opción se recuerda para tu cuenta en este navegador. Desactivarla no cancela un envío que ya comenzó.</p>
-            <p className="account-help">Los envíos se conservan en este navegador antes de enviarse. Al volver a ingresar podés recuperarlos y reintentar; no dependen de ejecutar código al cerrar. Si aparece un error de copia local, exportá JSON antes de salir. Armar escena conserva su Guardar/Cancelar; su borrador y el historial aún no se recuperan al cerrar.</p>
+            <p className="account-help">Los envíos se conservan en este navegador antes de enviarse. Al volver a ingresar podés recuperarlos y reintentar; no dependen de ejecutar código al cerrar. Si aparece un error de copia local, exportá JSON antes de salir. El historial del servidor no incluye escenas todavía sin confirmar.</p>
             {open && <LocalRecovery store={store} onOpen={id => replace(() => { void openLocal(id); })} />}
             <Button
               variant="outline"
@@ -980,6 +985,10 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
         {courseProject && !offline && <ProjectCourseDialog key={courseProject.id} project={courseProject} accountId={account.id} token={csrfToken} store={store} close={() => setCourseProject(null)} saved={() => {
           if (courseProject.id === store.remote?.id) { setConflict(true); setContext(null); setError('Cambió el curso del proyecto abierto. Abrí su versión actual desde la biblioteca antes de seguir guardando.'); }
           setCloudNotice('Curso actualizado. Los permisos se aplican a la versión del servidor.'); void refresh();
+        }} />}
+        {historyProject && !offline && <ProjectHistory key={historyProject.id} project={historyProject} request={request} close={() => setHistoryProject(null)} changed={() => {
+          if (historyProject.id === store.remote?.id) { setConflict(true); setContext(null); setError('El historial cambió la versión del servidor. Tus cambios locales siguen intactos. Abrí el proyecto desde la biblioteca o guardá una copia nueva.'); }
+          void refresh();
         }} />}
         <Dialog
           open={Boolean(rename) && !offline}

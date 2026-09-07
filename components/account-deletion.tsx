@@ -17,7 +17,7 @@ import {
 
 type Preview = {
   user: { id: string; alias: string; displayName: string; isActive: boolean };
-  projects: { count: number; active: number; trash: number; bytes: number };
+  projects: { count: number; active: number; trash: number; bytes: number; historyCount?: number; historyBytes?: number };
   memberships: number;
   version: string;
   canDelete: boolean;
@@ -257,6 +257,7 @@ export default function AccountDeletion({
               {preview.projects.count} proyectos: {preview.projects.active}{' '}
               activos y {preview.projects.trash} en papelera ·{' '}
               {(preview.projects.bytes / 1_000_000).toFixed(2)} MB.{' '}
+              Además, {preview.projects.historyCount ?? 0} versiones anteriores ({((preview.projects.historyBytes ?? 0) / 1_000_000).toFixed(2)} MB), incluidas en el respaldo y la baja.{' '}
               {preview.memberships} membresías.
             </p>
             {!preview.canDelete ? (
