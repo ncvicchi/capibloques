@@ -233,8 +233,21 @@ test('autoguardado: opción y salida alcanzables a 390px y con texto al 200%', a
   });
   await toggle.uncheck();
   await expect(toggle).not.toBeChecked();
+  const overflowDetails = await dialog.evaluate((node) => {
+    const bounds = node.getBoundingClientRect();
+    return [...node.querySelectorAll('*')]
+      .filter((child) => child.getBoundingClientRect().right > bounds.right + 1)
+      .map((child) => ({
+        tag: child.tagName,
+        id: child.id,
+        slot: child.getAttribute('data-slot'),
+        width: child.getBoundingClientRect().width,
+        right: child.getBoundingClientRect().right,
+      }));
+  });
   expect(
     await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth + 1),
+    JSON.stringify(overflowDetails),
   ).toBe(true);
   await dialog
     .getByRole('button', { name: 'Volver al editor', exact: true })
