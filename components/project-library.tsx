@@ -1059,7 +1059,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
           </AlertDialogContent>
         </AlertDialog>
         <AlertDialog open={replacePrompt} onOpenChange={value => { if (!busy) setReplacePrompt(value); }}>
-          <AlertDialogContent className="management-dialog">
+          <AlertDialogContent className="management-dialog library-replace-dialog">
             <AlertDialogHeader>
               <AlertDialogTitle>Antes de reemplazar el editor</AlertDialogTitle>
               <AlertDialogDescription>

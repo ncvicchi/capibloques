@@ -49,13 +49,26 @@ test('biblioteca: renombrar y duplicar, cancelar baja, papelera y restauración'
   expect(api.projects.size).toBe(2);
 });
 
-test('biblioteca: confirmación permite cancelar, guardar antes de abrir y nuevo proyecto independiente', async ({ page }) => {
+test('biblioteca: confirmación permite cancelar, guardar antes de abrir y nuevo proyecto independiente', async ({ page }, info) => {
   const api = await mockLibrary(page);
   await page.goto('/'); await page.getByLabel('Nombre del proyecto').fill('Sin perder');
   await page.getByRole('button', { name: 'Mis proyectos', exact: true }).click();
   await page.getByRole('button', { name: 'Nuevo proyecto', exact: true }).click();
+  expect(await page.getByRole('alertdialog').evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+  await page.screenshot({ path: info.outputPath('reemplazo-desktop.png') });
   await page.getByRole('alertdialog').getByRole('button', { name: 'Cancelar', exact: true }).click();
   expect(api.projects.size).toBe(0);
+  await page.getByRole('button', { name: 'Nuevo proyecto', exact: true }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+  const modal = page.getByRole('alertdialog');
+  expect(await modal.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+  await modal.getByRole('button', { name: 'Cancelar', exact: true }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: info.outputPath('reemplazo-200.png') });
+  await modal.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  expect(api.projects.size).toBe(0);
+  await page.evaluate(() => { document.documentElement.style.fontSize = ''; });
+  await page.setViewportSize({ width: 1280, height: 720 });
   await page.getByRole('button', { name: 'Nuevo proyecto', exact: true }).click();
   await page.getByRole('button', { name: 'Guardar y abrir', exact: true }).click();
   await expect(page.getByLabel('Nombre del proyecto')).toHaveValue('Mi aventura');
