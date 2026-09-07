@@ -29,7 +29,7 @@ def summary(target):
     rows = list(target.projects.order_by("id").values_list("id", "revision", "size_bytes", "trashed_at", "course_id", "course__name"))
     members = list(target.course_memberships.order_by("id").values_list("id", "course_id", "role"))
     history = list(ProjectRevision.objects.filter(project__owner=target).order_by("project_id", "revision").values_list("project_id", "revision", "size_bytes", "pinned"))
-    comments = list(ProjectFeedback.objects.filter(snapshot__project__owner=target).order_by("id").values_list("id", "version", "size_bytes", "author_id", "author__username", "author__display_name"))
+    comments = list(ProjectFeedback.objects.filter(snapshot__project__owner=target).order_by("id").values_list("id", "version", "size_bytes", "author_id", "author__username", "author__display_name", "author__avatar_id"))
     interventions = list(ProjectFeedback.objects.filter(author=target).exclude(snapshot__project__owner=target).order_by("id").values_list("id", "version"))
     version = salted_hmac(SALT, json.dumps([record(target)["version"], rows, members, history, comments, interventions], default=str), algorithm="sha256").hexdigest()
     return {"user": record(target), "projects": {"count": len(rows), "active": sum(row[3] is None for row in rows), "trash": sum(row[3] is not None for row in rows), "bytes": sum(row[2] for row in rows), "historyCount": len(history), "historyBytes": sum(row[2] for row in history), "feedbackCount": len(comments), "feedbackBytes": sum(row[2] for row in comments)}, "interventionsAnonymized": len(interventions), "memberships": len(members), "version": version,

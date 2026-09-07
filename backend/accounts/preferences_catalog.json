@@ -1,0 +1,43 @@
+{
+  "avatars": [
+    { "id": "capybara", "name": "Capi el capibara", "category": "Animales", "kind": "capybara", "color": "#b87949", "background": "#fff0cf" },
+    { "id": "cat", "name": "Mora la gata", "category": "Animales", "kind": "cat", "color": "#8b71ca", "background": "#eee7ff" },
+    { "id": "fox", "name": "Tito el zorro", "category": "Animales", "kind": "fox", "color": "#ed884b", "background": "#ffecdf" },
+    { "id": "frog", "name": "Lila la rana", "category": "Animales", "kind": "frog", "color": "#51ab85", "background": "#ddf8ea" },
+    { "id": "bear", "name": "Bruno el oso", "category": "Animales", "kind": "bear", "color": "#a66e57", "background": "#f7e2d8" },
+    { "id": "rabbit", "name": "Nube la coneja", "category": "Animales", "kind": "rabbit", "color": "#c987b7", "background": "#fde6f4" },
+    { "id": "robot-sky", "name": "Bip el robot", "category": "Robots", "kind": "robot", "color": "#4095cb", "background": "#ddf3ff" },
+    { "id": "robot-grape", "name": "Pixel la robot", "category": "Robots", "kind": "robot", "color": "#9168cf", "background": "#eee4ff" },
+    { "id": "robot-sun", "name": "Tuerca el robot", "category": "Robots", "kind": "robot", "color": "#c69531", "background": "#fff1c9" },
+    { "id": "star", "name": "Chispa la estrella", "category": "Personajes", "kind": "star", "color": "#ecc151", "background": "#fff4d5" },
+    { "id": "cloud", "name": "Viento la nube", "category": "Personajes", "kind": "cloud", "color": "#91bde7", "background": "#e5f2ff" },
+    { "id": "monster", "name": "Mimo el monstruito", "category": "Personajes", "kind": "monster", "color": "#a88bd7", "background": "#f0e6ff" },
+    { "id": "flower", "name": "Flora la flor", "category": "Plantas", "kind": "flower", "color": "#e886ab", "background": "#ffe9f2" },
+    { "id": "sunflower", "name": "Sol el girasol", "category": "Plantas", "kind": "flower", "color": "#efb944", "background": "#fff3cd" },
+    { "id": "cactus", "name": "Púa el cactus", "category": "Plantas", "kind": "cactus", "color": "#5ea888", "background": "#e1f6ec" }
+  ],
+  "blocks": [
+    { "type": "capi_parallel", "name": "Al mismo tiempo", "category": "Bucles" },
+    { "type": "capi_forever", "name": "Repetir por siempre", "category": "Bucles" },
+    { "type": "capi_repeat", "name": "Repetir veces", "category": "Bucles" },
+    { "type": "capi_wait", "name": "Esperar", "category": "Bucles" },
+    { "type": "capi_if", "name": "Si / si no", "category": "Condiciones" },
+    { "type": "capi_compare", "name": "Comparar números", "category": "Condiciones" },
+    { "type": "capi_counter_compare", "name": "Comparar contador", "category": "Condiciones" },
+    { "type": "capi_button_pressed", "name": "Botón presionado", "category": "Condiciones" },
+    { "type": "capi_sensor_compare", "name": "Comparar sensor", "category": "Condiciones" },
+    { "type": "capi_counter_set", "name": "Poner contador", "category": "Contador" },
+    { "type": "capi_counter_change", "name": "Cambiar contador", "category": "Contador" },
+    { "type": "capi_traffic", "name": "Semáforo", "category": "Luces" },
+    { "type": "capi_led", "name": "Brillo de LED", "category": "Luces" },
+    { "type": "capi_pin_write", "name": "Salida GPIO avanzada", "category": "Luces" },
+    { "type": "capi_buzzer", "name": "Buzzer", "category": "Sonido" },
+    { "type": "capi_tone", "name": "Nota musical", "category": "Sonido" },
+    { "type": "capi_robot", "name": "Mover robot", "category": "Movimiento" },
+    { "type": "capi_motor", "name": "Potencia del motor", "category": "Movimiento" },
+    { "type": "capi_servo", "name": "Ángulo del servo", "category": "Movimiento" },
+    { "type": "capi_wifi_connect", "name": "Conectar Wi-Fi", "category": "Wi-Fi" },
+    { "type": "capi_wifi_connected", "name": "Wi-Fi conectado", "category": "Wi-Fi" },
+    { "type": "capi_serial", "name": "Mensaje en consola", "category": "Mensajes" }
+  ]
+}

@@ -12,6 +12,7 @@ from django.middleware.csrf import get_token
 from django.utils import timezone
 
 from courses.models import Membership
+from accounts.preferences import avatar_id
 from courses.views import belonging
 from .history import archive_current, revision_metadata
 from .models import Project, ProjectDeletion, ProjectFeedback
@@ -61,7 +62,7 @@ def snapshot(project, actor, revision, create=False):
 
 def feedback_record(item):
     return {"id": str(item.pk), "revision": item.snapshot.revision,
-            "author": {"displayName": item.author.display_name, "alias": item.author.username} if item.author else None,
+            "author": {"displayName": item.author.display_name, "alias": item.author.username, "avatarId": avatar_id(item.author)} if item.author else None,
             "text": item.text, "reply": item.reply, "resolved": item.resolved, "version": item.version,
             "createdAt": item.created_at.isoformat(), "updatedAt": item.updated_at.isoformat()}
 
@@ -96,7 +97,7 @@ def status(request, actor, project_id):
     rows = feedback_rows(project)
     if not owner:
         rows = rows.filter(snapshot__course_id=project.course_id)
-    return JsonResponse({"project": metadata(project), "owner": {"displayName": project.owner.display_name, "alias": project.owner.username},
+    return JsonResponse({"project": metadata(project), "owner": {"displayName": project.owner.display_name, "alias": project.owner.username, "avatarId": avatar_id(project.owner)},
                          "versions": versions(project, actor), "feedback": [feedback_record(row) for row in rows],
                          "canComment": can_write and not owner, "canRespond": can_write and owner,
                          "isOwner": owner, "csrfToken": get_token(request),

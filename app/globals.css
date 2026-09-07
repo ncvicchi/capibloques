@@ -2762,5 +2762,29 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .feedback-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 .feedback-reply { border-left: 4px solid #89bcb1; padding: 0 14px; margin: 16px 0; }
 .review-access { margin: 32px auto; }
+.user-avatar { display: inline-block; flex-shrink: 0; vertical-align: middle; max-width: 100%; }
+.avatar-button { border: 2px solid transparent; border-radius: 50%; padding: 2px; cursor: pointer; background: transparent; }
+.avatar-button:focus-visible { outline: 3px solid #5744bd; outline-offset: 3px; }
+.account-personality { margin: 22px 0; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: #f8f6ff; }
+.account-personality > div:first-child, .avatar-preview { display: flex; gap: 14px; align-items: center; }
+.account-personality p { margin: 6px 0 12px; }
+.preferences-dialog { width: min(760px, calc(100vw - 24px)); max-width: calc(100vw - 24px); max-height: calc(100dvh - 32px); overflow-y: auto; }
+.preferences-category { display: grid; gap: 6px; font-weight: 700; }
+.preferences-category select { border: 1px solid #adb2ce; background: white; border-radius: 8px; padding: 10px; color: #273155; width: 100%; min-width: 0; }
+.avatar-grid, .favorite-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 12px; min-width: 0; border: 0; padding: 3px; }
+.avatar-choice, .favorite-choice { position: relative; display: flex; gap: 8px; border: 2px solid #dedfee; border-radius: 14px; padding: 12px; cursor: pointer; color: #273155; background: white; overflow-wrap: anywhere; }
+.avatar-choice { flex-direction: column; align-items: center; text-align: center; }
+.avatar-choice input { position: absolute; top: 10px; left: 10px; width: 18px; height: 18px; }
+.avatar-choice .user-avatar { margin-top: 12px; }
+.avatar-choice.is-selected, .favorite-choice.is-selected { border-color: #6450ce; background: #f0ecff; }
+.avatar-choice:focus-within, .favorite-choice:focus-within { outline: 3px solid #25145f; outline-offset: 2px; }
+.avatar-choice strong { font-size: .85rem; color: #44318f; }
+.favorite-choice { align-items: center; min-height: 68px; }
+.favorite-choice > span[aria-hidden] { font-size: 1.6rem; color: #886111; }
+.favorite-choice small { display: block; font-size: .8rem; color: #53607b; }
+.favorite-choice input { width: 18px; height: 18px; flex-shrink: 0; }
+.preferences-conflict { border-left: 4px solid #b37516; padding: 12px; background: #fff3d9; }
+.preferences-dialog .account-actions { position: sticky; bottom: -8px; background: white; padding: 12px 0 4px; flex-wrap: wrap; }
+@media (max-width: 540px) { .preferences-dialog { padding: 16px; } .avatar-grid, .favorite-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .favorite-choice { padding: 8px; gap: 5px; } .preferences-dialog button { white-space: normal; height: auto; min-height: 40px; } }
 @media (max-width: 950px) { .review-lab { grid-template-columns: minmax(0, 1fr); } .review-blocks .blockly-shell { height: 400px; } .review-header { flex-direction: column; } }
 @media (max-width: 540px) { .review-page { padding: 16px 10px; } .review-blocks, .review-stage, .review-feedback, .feedback-card { padding: 12px; } .review-toolbar label { width: 100%; } .review-page .account-actions > * { max-width: 100%; } .feedback-composer { padding: 12px; } }

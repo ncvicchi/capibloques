@@ -44,6 +44,9 @@ import BlocklyWorkspace, {
   type BlocklyWorkspaceHandle,
 } from '@/components/blockly-workspace';
 import SceneStage from '@/components/scene-stage';
+import UserAvatar from '@/components/user-avatar';
+import PreferencesPicker from '@/components/preferences-picker';
+import { useAccountPreferences } from '@/components/use-account-preferences';
 import {
   Dialog,
   DialogContent,
@@ -390,6 +393,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   onLogout: () => void;
 }) {
   const currentExample = examples[0];
+  const preferences = useAccountPreferences(account.id, !offline && draftStore.remoteAllowed);
+  const [preferencesOpen, setPreferencesOpen] = useState<'avatar'|'favorites'|null>(null);
   const initialScene = useMemo(
     () => cloneScene(currentExample.scene),
     [currentExample.scene],
@@ -1121,11 +1126,11 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
 
   return (
     <main className="app-shell">
+      {preferencesOpen && preferences.preferences && <PreferencesPicker kind={preferencesOpen} {...preferences} preferences={preferences.preferences} onSave={preferences.save} onRetry={()=>void preferences.refresh()} onClose={()=>setPreferencesOpen(null)}/>}
+      {preferencesOpen && !preferences.preferences && <Dialog open onOpenChange={open=>{if(!open)setPreferencesOpen(null);}}><DialogContent><DialogHeader><DialogTitle>Preferencias de tu cuenta</DialogTitle><DialogDescription>{preferences.error || 'Estamos cargando tus preferencias. Tu programa no se modificó.'}</DialogDescription></DialogHeader><button className="header-text-button" onClick={()=>void preferences.refresh()}>Reintentar preferencias</button><button className="header-text-button" onClick={()=>setPreferencesOpen(null)}>Cancelar</button></DialogContent></Dialog>}
       <header className="topbar">
         <div className="brand">
-          <span className="brand-mark" aria-hidden="true">
-            🐾
-          </span>
+          <button className="avatar-button" title="Elegir mi avatar" aria-label="Elegir mi avatar" disabled={!preferences.verified} onClick={()=>setPreferencesOpen('avatar')}><UserAvatar id={preferences.preferences?.avatarId ?? account.avatarId} decorative /></button>
           <div>
             <strong>CapiBloques</strong>
             <span title={`@${account.alias} · Borrador local de esta cuenta`}>{account.displayName} · Wemos D1 R32</span>
@@ -1338,6 +1343,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           {hydrated && (
             <BlocklyWorkspace
               ref={editorRef}
+              favorites={preferences.preferences?.favorites}
+              onChooseFavorites={()=>setPreferencesOpen('favorites')}
               initialWorkspace={workspace}
               revision={workspaceRevision}
               devices={scene.devices}

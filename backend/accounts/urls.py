@@ -1,7 +1,9 @@
 from django.urls import path
 from . import views
+from .preferences import preferences
 
 urlpatterns = [
+    path("preferences/", preferences),
     path("session/", views.session),
     path("editor-session/", views.editor_session),
     path("login/", views.sign_in),

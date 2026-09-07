@@ -12,7 +12,7 @@ export type ReviewVersion = {
 export type Feedback = {
   id: string;
   revision: number;
-  author: { displayName: string; alias: string } | null;
+  author: { displayName: string; alias: string; avatarId?: string } | null;
   text: string;
   reply: string;
   resolved: boolean;
@@ -22,7 +22,7 @@ export type Feedback = {
 };
 export type ReviewStatus = {
   project: CloudProject;
-  owner: { displayName: string; alias: string };
+  owner: { displayName: string; alias: string; avatarId?: string };
   versions: ReviewVersion[];
   feedback: Feedback[];
   isOwner: boolean;

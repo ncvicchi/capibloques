@@ -11,6 +11,7 @@ import { downloadText } from '@/lib/capiblocks';
 import SchoolBrand from '@/components/school-brand';
 import SessionExit from '@/components/session-exit';
 import { RecoveryJournal } from '@/lib/project-recovery';
+import AccountPersonality from '@/components/account-personality';
 
 export default function AccountAccess() {
   const [session, setSession] = useState<Session | null>(null);
@@ -150,6 +151,7 @@ export default function AccountAccess() {
             <p className="account-help">¿Olvidaste tu contraseña? Pedile ayuda al administrador. No hay registro público.</p>
           </> : <>
             <div className="account-identity"><ShieldCheck aria-hidden="true" /><div><strong>{user.displayName}</strong><span>@{user.alias} · {user.roles.join(' y ')}</span></div></div>
+            {!user.mustChangePassword && <AccountPersonality key={user.id} accountId={user.id} />}
             {!user.mustChangePassword && <Link className="account-back" href="/cursos/" prefetch={false}>Mis cursos →</Link>}
             {!user.mustChangePassword && user.roles.includes('administrador') && <nav className="account-actions" aria-label="Administración">
               <Link className="account-back" href="/gestion/usuarios/" prefetch={false}>Gestionar usuarios →</Link>

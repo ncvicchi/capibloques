@@ -1,4 +1,5 @@
 'use client';
+import UserAvatar from '@/components/user-avatar';
 
 // Navegación de documento intencional: respeta beforeunload para texto sin enviar.
 /* oxlint-disable next/no-html-link-for-pages */
@@ -506,6 +507,7 @@ export default function ProjectReview() {
         {status && (
           <>
             <p className="review-context">
+              <UserAvatar id={status.owner.avatarId} size={36} decorative />{' '}
               {status.isOwner
                 ? 'Tu proyecto'
                 : `${status.owner.displayName} (@${status.owner.alias})`}{' '}

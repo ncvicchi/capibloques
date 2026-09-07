@@ -1,4 +1,5 @@
 'use client';
+import UserAvatar from '@/components/user-avatar';
 
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -268,6 +269,7 @@ export default function ProjectFeedback({
             >
               <header>
                 <strong>
+                  {item.author && <UserAvatar id={item.author.avatarId} size={32} decorative />}{' '}
                   {item.author
                     ? `${item.author.displayName} (@${item.author.alias})`
                     : 'Docente · cuenta eliminada'}

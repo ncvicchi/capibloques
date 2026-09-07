@@ -53,6 +53,10 @@ class User(AbstractUser):
     is_student = models.BooleanField(default=True)
     must_change_password = models.BooleanField(default=True)
     session_epoch = models.PositiveIntegerField(default=1, editable=False)
+    avatar_id = models.CharField(max_length=32, default="capybara")
+    favorite_blocks = models.JSONField(default=list)
+    preference_version = models.PositiveIntegerField(default=1, editable=False)
+    preferences_configured = models.BooleanField(default=False)
     objects = UserManager()
     REQUIRED_FIELDS = ["display_name"]
 

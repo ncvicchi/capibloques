@@ -6,10 +6,11 @@ import { Input } from '@/components/ui/input';
 import { decodeProject, downloadText, safeFilename } from '@/lib/capiblocks';
 import type { CloudProject } from '@/lib/project-library';
 import { reviewUrl } from '@/lib/project-review';
+import UserAvatar from '@/components/user-avatar';
 
 type Listing = {
   projects: (CloudProject & {
-    owner: { displayName: string; alias: string };
+    owner: { displayName: string; alias: string; avatarId?: string };
   })[];
   count: number;
   page: number;
@@ -173,7 +174,7 @@ export default function CourseProjects({
                 <div>
                   <strong>{project.title}</strong>
                   <span>
-                    {project.owner.displayName} (@{project.owner.alias}) ·
+                    <UserAvatar id={project.owner.avatarId} size={32} decorative /> {project.owner.displayName} (@{project.owner.alias}) ·
                     Versión {project.revision} ·{' '}
                     {new Date(project.updatedAt).toLocaleString('es-AR')}
                   </span>

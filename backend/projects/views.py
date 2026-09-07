@@ -19,6 +19,7 @@ from accounts.management_api import fail
 from accounts.models import User, access_lock
 from accounts.security import require_account
 from accounts.views import user_data
+from accounts.preferences import avatar_id
 from courses.models import Course, Membership
 from courses.views import belonging
 from .models import Project, ProjectEvent, ProjectRevision, ProjectDeletion, ProjectFeedback
@@ -395,4 +396,4 @@ def course_projects(request, actor, course_id, project_id=None):
     projects = projects.filter(title__icontains=query)
     count = projects.count()
     page = min(page, max(1, (count + 19) // 20))
-    return JsonResponse({"projects": [{**metadata(project), "owner": {"id": str(project.owner_id), "displayName": project.owner.display_name, "alias": project.owner.username}} for project in projects.defer("document").order_by("-updated_at", "id")[(page-1)*20:page*20]], "count": count, "page": page, "pageSize": 20})
+    return JsonResponse({"projects": [{**metadata(project), "owner": {"id": str(project.owner_id), "displayName": project.owner.display_name, "alias": project.owner.username, "avatarId": avatar_id(project.owner)}} for project in projects.defer("document").order_by("-updated_at", "id")[(page-1)*20:page*20]], "count": count, "page": page, "pageSize": 20})

@@ -59,7 +59,7 @@ class AccountTests(TestCase):
         response = self.sign_in(alias=" Luna ")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["user"]["roles"], ["alumno"])
-        self.assertEqual(set(response.json()["user"]), {"id", "alias", "displayName", "roles", "mustChangePassword"})
+        self.assertEqual(set(response.json()["user"]), {"id", "alias", "displayName", "roles", "mustChangePassword", "avatarId"})
         self.assertNotIn(PASSWORD, response.content.decode())
         self.assertTrue(response.cookies["sessionid"]["httponly"])
         self.assertEqual(response.cookies["sessionid"]["samesite"], "Lax")

@@ -2,7 +2,7 @@ import { isProjectLink, type ProjectLink } from './project-library';
 import { RecoveryJournal, type DurableSave } from './project-recovery';
 import type { SceneDraft } from './scene-recovery';
 
-export type Account = { id: string; alias: string; displayName: string; roles: string[]; mustChangePassword: boolean };
+export type Account = { id: string; alias: string; displayName: string; roles: string[]; mustChangePassword: boolean; avatarId?: string };
 export type Session = { user: Account | null; csrfToken: string };
 export type EditorSession = Session & { user: Account; context: string; expiresAt?: string | null };
 

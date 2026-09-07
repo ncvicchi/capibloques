@@ -23,7 +23,8 @@ def csrf_failure(request, reason=""):
 def user_data(user):
     if not user.is_authenticated:
         return None
-    return {"id": str(user.pk), "alias": user.username, "displayName": user.display_name,
+    from .preferences import avatar_id
+    return {"id": str(user.pk), "alias": user.username, "displayName": user.display_name, "avatarId": avatar_id(user),
             "roles": user.roles, "mustChangePassword": user.must_change_password}
 
 

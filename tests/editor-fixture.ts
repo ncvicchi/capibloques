@@ -11,6 +11,7 @@ export async function mockEditorSession(page: Page, { autosave = false } = {}) {
     if (localStorage.getItem(key) === null) localStorage.setItem(key, 'false');
   }, student.id);
   await page.route('**/api/auth/editor-session/', route => route.fulfill({ json: { user: student, csrfToken: token, context: 'ui-session-a' } }));
+  await page.route('**/api/auth/preferences/', route => route.fulfill({ json: { preferences: {avatarId:'capybara',favorites:[],version:1,configured:false},csrfToken:token } }));
   const { mockLibrary } = await import('./project-library-fixture');
   await mockLibrary(page);
 }

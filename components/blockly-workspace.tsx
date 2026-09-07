@@ -10,6 +10,7 @@ import {
 } from 'react';
 import type { CompiledProgram, Condition, ProgramNode } from '@/lib/capiblocks';
 import type { SceneDevice, SceneDeviceKind } from '@/lib/scene-model';
+import { validFavorite } from '@/lib/user-preferences';
 
 type BlocklyApi = typeof import('blockly');
 type BlocklyWorkspaceSvg = import('blockly').WorkspaceSvg;
@@ -33,6 +34,8 @@ export interface BlocklyHistoryState {
 }
 
 interface BlocklyWorkspaceProps {
+  favorites?: readonly string[];
+  onChooseFavorites?: () => void;
   readOnly?: boolean;
   initialWorkspace: Record<string, unknown>;
   revision: number;
@@ -44,6 +47,7 @@ interface BlocklyWorkspaceProps {
 }
 
 const DEVICE_FIELD = 'DEVICE_ID';
+const EMPTY_FAVORITES: readonly string[] = [];
 const DEVICE_EXTENSION = 'capi_device_target_v2';
 const DEVICE_WARNING = 'capi-device-target';
 const MISSING_DEVICE_PREFIX = '__missing__:';
@@ -257,6 +261,7 @@ function selectedDeviceId(block: BlocklyBlock) {
 const toolbox = {
   kind: 'categoryToolbox',
   contents: [
+    { kind: 'category', name: '★ Favoritos', colour: '#b88412', custom: 'CAPI_FAVORITES' },
     {
       kind: 'category',
       name: 'Inicio',
@@ -1110,6 +1115,8 @@ const BlocklyWorkspace = forwardRef<
     onError,
     onHistoryChange,
     readOnly = false,
+    favorites = EMPTY_FAVORITES,
+    onChooseFavorites,
   },
   ref,
 ) {
@@ -1127,6 +1134,9 @@ const BlocklyWorkspace = forwardRef<
   const onBlockSnapRef = useRef(onBlockSnap);
   const onErrorRef = useRef(onError);
   const onHistoryChangeRef = useRef(onHistoryChange);
+  const favoritesRef = useRef(favorites);
+  const onChooseFavoritesRef = useRef(onChooseFavorites);
+  useEffect(() => { favoritesRef.current = favorites; onChooseFavoritesRef.current = onChooseFavorites; }, [favorites, onChooseFavorites]);
   const highlightedBlockIdsRef = useRef(new Set<string>());
   const keyboardStatusRef = useRef<HTMLOutputElement>(null);
   const [ready, setReady] = useState(false);
@@ -1210,6 +1220,12 @@ const BlocklyWorkspace = forwardRef<
           sounds: false,
         });
         workspaceRef.current = workspace;
+        workspace.registerButtonCallback('CAPI_CHOOSE_FAVORITES', () => onChooseFavoritesRef.current?.());
+        workspace.registerToolboxCategoryCallback('CAPI_FAVORITES', () => [
+          {kind:'button',text:'☆ Elegir favoritos',callbackKey:'CAPI_CHOOSE_FAVORITES'},
+          ...(!favoritesRef.current.length ? [{kind:'label',text:'Marcá estrellas para agregar tus bloques.'}] : []),
+          ...favoritesRef.current.filter(type=>validFavorite(type) && Boolean(Blockly.Blocks[type])).map(type=>({kind:'block',type})),
+        ]);
         workspaceDevices.set(workspace, devicesRef.current);
         try {
           loadWorkspaceData(Blockly, workspace, initialWorkspaceRef.current);
@@ -1450,6 +1466,10 @@ const BlocklyWorkspace = forwardRef<
     }),
     [],
   );
+
+  useEffect(() => {
+    if (ready && !readOnlyRef.current) workspaceRef.current?.refreshToolboxSelection();
+  }, [favorites, ready]);
 
   return (
     <div className="blockly-shell">
