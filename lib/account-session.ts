@@ -9,8 +9,8 @@ const channelName = 'capibloques-account-session';
 const signalKey = 'capibloques-session-change';
 
 // Sólo señales de invalidación: nunca identidad, contraseñas ni cookies.
-export function announceSessionChange(changing = false) {
-  const message = { changing, at: Date.now(), nonce: Math.random() };
+export function announceSessionChange(changing = false, origin?: string) {
+  const message = { changing, origin, at: Date.now(), nonce: Math.random() };
   try { localStorage.setItem(signalKey, JSON.stringify(message)); } catch { /* Canal alternativo abajo. */ }
   if ('BroadcastChannel' in window) {
     const channel = new BroadcastChannel(channelName);
@@ -27,11 +27,15 @@ export function sessionChangePending() {
   } catch { return false; }
 }
 
-export function watchSessionChange(callback: (changing: boolean) => void) {
+export function watchSessionChange(callback: (changing: boolean) => void, ignoredOrigin?: string) {
+  const receive = (data: { changing?: boolean; origin?: string }) => {
+    if (ignoredOrigin && data?.origin === ignoredOrigin) return;
+    callback(data?.changing === true);
+  };
   const channel = 'BroadcastChannel' in window ? new BroadcastChannel(channelName) : null;
-  if (channel) channel.onmessage = event => callback(event.data?.changing === true);
+  if (channel) channel.onmessage = event => receive(event.data);
   const storage = (event: StorageEvent) => { if (event.key === signalKey) callback(sessionChangePending()); };
-  const local = (event: Event) => callback((event as CustomEvent).detail?.changing === true);
+  const local = (event: Event) => receive((event as CustomEvent).detail);
   window.addEventListener('storage', storage);
   window.addEventListener(channelName, local);
   return () => { channel?.close(); window.removeEventListener('storage', storage); window.removeEventListener(channelName, local); };

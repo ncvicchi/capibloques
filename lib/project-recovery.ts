@@ -36,12 +36,15 @@ type Usage = {
   count: number;
   bytes: number;
   updatedAt: number;
+  epoch?: number;
+  lastRemoval?: string;
 };
+export type RecoverySnapshot = { accountId: string; epoch: number; updatedAt: number; removalId: string; rows: RecoveryDraft[] };
 function usage(value: Usage | undefined): Usage {
   if (!value) return { initialized: true, count: 0, bytes: 0, updatedAt: 0 };
   if (
     !value.initialized ||
-    ![value.count, value.bytes, value.updatedAt].every(
+    ![value.count, value.bytes, value.updatedAt, value.epoch ?? 0].every(
       (number) => Number.isSafeInteger(number) && number >= 0,
     )
   )
@@ -108,6 +111,7 @@ export class RecoveryJournal {
   private slot: Slot = { id: crypto.randomUUID(), sequence: 0 };
   private tail: Promise<void> = Promise.resolve();
   private failure: unknown = null;
+  private epoch: number | null = null;
   readonly pointerKey: string;
   constructor(readonly accountId: string) {
     this.pointerKey = `capibloques-account:${accountId}:recovery-tab`;
@@ -163,7 +167,7 @@ export class RecoveryJournal {
   async list() {
     const db = await this.db();
     return new Promise<RecoveryDraft[]>((resolve, reject) => {
-      const tx = db.transaction(TABLE, 'readonly');
+      const tx = db.transaction([TABLE, 'accounts'], 'readonly');
       const request = tx
         .objectStore(TABLE)
         .index('account')
@@ -194,7 +198,8 @@ export class RecoveryJournal {
     }
     const db = await this.db();
     const row = await new Promise<RecoveryDraft | null>((resolve, reject) => {
-      const tx = db.transaction(TABLE, 'readonly');
+      const tx = db.transaction([TABLE, 'accounts'], 'readonly');
+      const account = tx.objectStore('accounts').get(this.accountId);
       const table = tx.objectStore(TABLE);
       let found: RecoveryDraft | null = null;
       const recent = () => {
@@ -221,6 +226,9 @@ export class RecoveryJournal {
       } else recent();
       tx.oncomplete = () => {
         try {
+          const epoch = usage(account.result).epoch ?? 0;
+          if (this.epoch !== null && this.epoch !== epoch) throw new Error('Las copias locales se retiraron desde otra pestaña. Recargá antes de continuar.');
+          this.epoch = epoch;
           resolve(found ? validate(found, this.accountId) : null);
         } catch (error) {
           reject(error);
@@ -280,6 +288,8 @@ export class RecoveryJournal {
           try {
             const previous = current.result as RecoveryDraft | undefined;
             const meta = usage(account.result);
+            this.epoch ??= meta.epoch ?? 0;
+            if (this.epoch !== (meta.epoch ?? 0)) throw new Error('Las copias locales se retiraron desde otra pestaña. No volvimos a crearlas. Recargá antes de continuar.');
             const fork = previous
               ? previous.accountId !== this.accountId ||
                 previous.sequence !== slot.sequence
@@ -317,6 +327,7 @@ export class RecoveryJournal {
             table.put(saved);
             tx.objectStore('accounts').put(
               {
+                ...meta,
                 initialized: true,
                 count,
                 bytes,
@@ -416,5 +427,55 @@ export class RecoveryJournal {
     if (this.slot.sequence)
       await this.remove(this.id, this.slot.sequence, true);
     this.newSlot();
+  }
+
+  async snapshot(): Promise<RecoverySnapshot> {
+    await this.flush();
+    const db = await this.db();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction([TABLE, 'accounts'], 'readonly');
+      const account = tx.objectStore('accounts').get(this.accountId);
+      const rows = tx.objectStore(TABLE).index('account').getAll(this.accountId);
+      tx.oncomplete = () => {
+        try {
+          const meta = usage(account.result);
+          resolve({ accountId: this.accountId, epoch: meta.epoch ?? 0, updatedAt: meta.updatedAt, removalId: crypto.randomUUID(), rows: rows.result.map(row => validate(row, this.accountId)) });
+        } catch (error) { reject(error); }
+      };
+      tx.onabort = () => reject(tx.error);
+    });
+  }
+
+  // Retira exactamente el conjunto confirmado, nunca los cambios que otra
+  // pestaña escribió después de la vista previa. La época bloquea escritores
+  // viejos incluso si no recibieron BroadcastChannel o estuvieron congelados.
+  async removeAll(snapshot: RecoverySnapshot) {
+    if (snapshot.accountId !== this.accountId) throw new Error('La cuenta de las copias cambió.');
+    await this.flush();
+    const db = await this.db();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction([TABLE, 'accounts'], 'readwrite', { durability: 'strict' });
+      const table = tx.objectStore(TABLE), accounts = tx.objectStore('accounts');
+      const account = accounts.get(this.accountId);
+      const rows = table.index('account').getAll(this.accountId);
+      let failure: unknown;
+      const remove = () => {
+        if (account.readyState !== 'done' || rows.readyState !== 'done') return;
+        try {
+          const meta = usage(account.result);
+          if (meta.lastRemoval === snapshot.removalId) return;
+          if ((meta.epoch ?? 0) !== snapshot.epoch || meta.updatedAt !== snapshot.updatedAt ||
+              rows.result.length !== snapshot.rows.length || rows.result.some(row => !snapshot.rows.some(expected => expected.id === row.id && expected.sequence === row.sequence))) {
+            throw new Error('Las copias cambiaron en otra pestaña. No se quitaron: ingresá nuevamente para revisarlas.');
+          }
+          for (const row of rows.result) table.delete(row.id);
+          accounts.put({ initialized: true, count: 0, bytes: 0, updatedAt: Math.max(Date.now(), meta.updatedAt + 1), epoch: snapshot.epoch + 1, lastRemoval: snapshot.removalId } satisfies Usage, this.accountId);
+        } catch (error) { failure = error; tx.abort(); }
+      };
+      account.onsuccess = remove; rows.onsuccess = remove;
+      tx.oncomplete = () => resolve();
+      tx.onabort = () => reject(failure ?? tx.error ?? new Error('No se pudieron quitar las copias locales.'));
+    });
+    try { sessionStorage.removeItem(this.pointerKey); } catch { /* La referencia no contiene el documento. */ }
   }
 }

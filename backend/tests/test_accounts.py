@@ -189,6 +189,32 @@ class AccountTests(TestCase):
         self.assertIsNone(self.state()["user"])
         self.assertIsNone(self.state(second)["user"])
 
+    def test_logout_precondition_never_closes_a_different_account(self):
+        second = Client()
+        self.sign_in(); self.sign_in(second)
+        for path in ("logout", "logout-all"):
+            with self.subTest(path=path):
+                response = self.client.post(f"/api/auth/{path}/", HTTP_X_CAPI_ACCOUNT="another-account")
+                self.assertEqual(response.status_code, 409)
+                self.assertEqual(response.json()["code"], "account_changed")
+                self.assertIsNotNone(self.state()["user"])
+                self.assertIsNotNone(self.state(second)["user"])
+        self.assertFalse(AccessEvent.objects.filter(action__in=["logout", "logout_all"]).exists())
+        response = self.client.post("/api/auth/logout/", HTTP_X_CAPI_ACCOUNT=str(self.student.pk))
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(self.state()["user"])
+        self.assertIsNotNone(self.state(second)["user"])
+        self.assertEqual(self.client.post("/api/auth/logout/", HTTP_X_CAPI_ACCOUNT=str(self.student.pk)).status_code, 200)
+
+    def test_logout_all_rechecks_revocation_inside_lock(self):
+        from accounts.views import sign_out_all
+        request = RequestFactory().post("/api/auth/logout-all/", HTTP_X_CAPI_ACCOUNT=str(self.student.pk))
+        request.user = User.objects.get(pk=self.student.pk)
+        self.student.is_active = False
+        self.student.save(update_fields=["is_active"])
+        self.assertEqual(sign_out_all(request).status_code, 401)
+        self.assertFalse(AccessEvent.objects.filter(action="logout_all").exists())
+
     def test_required_password_change_and_roles_are_server_checked(self):
         @require_account("administrador")
         def protected(request):

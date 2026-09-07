@@ -30,7 +30,7 @@ test('cuenta: error de acceso, contraseña visible y reintento conservan alias',
   await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Mi cuenta' })).toBeVisible();
   await expect(page.getByText('@luna · alumno')).toBeVisible();
-  await expect(page.getByText('El editor todavía guarda en esta computadora.')).toBeVisible();
+  await expect(page.getByText('Guardado en tu cuenta y copias en este navegador.')).toBeVisible();
 });
 
 test('cuenta: cancelar contraseña no envía ni conserva el borrador', async ({ page }) => {
@@ -64,6 +64,7 @@ test('cuenta: contraseña temporal, guardar y cerrar sesión', async ({ page }) 
   await page.getByRole('button', { name: 'Guardar contraseña', exact: true }).click();
   await expect(page.getByText('Contraseña guardada. Las otras sesiones quedaron cerradas.')).toBeVisible();
   await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
+  await page.getByRole('button', { name: 'Salir y conservar copias', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Ingresar', exact: true })).toBeVisible();
   await expect(page.getByLabel('Contraseña', { exact: true })).toHaveValue('');
 });

@@ -90,6 +90,8 @@ def sign_in(request, data):
 @never_cache
 @require_POST
 def sign_out(request):
+    if request.user.is_authenticated and request.headers.get("X-Capi-Account", str(request.user.pk)) != str(request.user.pk):
+        return JsonResponse({"error": "La cuenta cambió. Revisá quién está conectado.", "code": "account_changed"}, status=409)
     if request.user.is_authenticated:
         AccessEvent.objects.create(user=request.user, action="logout")
     logout(request)
@@ -132,8 +134,12 @@ def change_password(request, data):
 @require_POST
 @require_account(allow_password_change=True)
 def sign_out_all(request):
+    if request.headers.get("X-Capi-Account", str(request.user.pk)) != str(request.user.pk):
+        return JsonResponse({"error": "La cuenta cambió. Revisá quién está conectado.", "code": "account_changed"}, status=409)
     with access_lock():
         user = User.objects.get(pk=request.user.pk)
+        if not user.is_active or user.session_epoch != request.user.session_epoch:
+            return JsonResponse({"error": "Ingresá nuevamente.", "code": "login_required"}, status=401)
         user.session_epoch += 1
         user.save(update_fields=["session_epoch"])
         AccessEvent.objects.create(user=user, action="logout_all")

@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { announceSessionChange, watchSessionChange, type Session } from '@/lib/account-session';
 import { downloadText } from '@/lib/capiblocks';
 import SchoolBrand from '@/components/school-brand';
+import SessionExit from '@/components/session-exit';
+import { RecoveryJournal } from '@/lib/project-recovery';
 
 export default function AccountAccess() {
   const [session, setSession] = useState<Session | null>(null);
@@ -27,6 +29,7 @@ export default function AccountAccess() {
   const knownSession = useRef<Session | null>(null);
   const [legacyOpen, setLegacyOpen] = useState(false);
   const [legacyFiles, setLegacyFiles] = useState<{ version: number; raw: string }[]>([]);
+  const [exit, setExit] = useState<{ user: NonNullable<Session['user']>; journal: RecoveryJournal; all: boolean } | null>(null);
 
   const clearSecrets = useCallback(() => {
     setPassword(''); setNewPassword(''); setConfirmation(''); setShowPassword(false);
@@ -45,6 +48,10 @@ export default function AccountAccess() {
           clearSecrets(); setEditingPassword(false);
         }
         knownSession.current = body; setSession(body);
+        if (!quiet) {
+          const result = new URLSearchParams(window.location.search).get('salida');
+          if (!body.user && result) setNotice(result === 'limpia' ? 'Sesión cerrada. Se quitaron tus copias de proyectos de este navegador.' : 'Sesión cerrada. Tus copias locales se conservaron en este navegador.');
+        }
       }
     } catch {
       if (current === epoch.current) {
@@ -167,8 +174,8 @@ export default function AccountAccess() {
               </fieldset>
             </form> : <Button variant="outline" className="account-action" disabled={busy} onClick={() => { setEditingPassword(true); setNotice(''); }}><KeyRound /> Cambiar contraseña</Button>}
             <div className="account-session-actions">
-              <Button variant="outline" className="account-action" disabled={busy} onClick={() => void submit('logout')}><LogOut /> Cerrar sesión</Button>
-              <Button variant="ghost" className="account-action" disabled={busy} onClick={() => void submit('logout-all')}>Cerrar todas mis sesiones</Button>
+              <Button variant="outline" className="account-action" disabled={busy} onClick={() => { clearSecrets(); setExit({ user, journal: new RecoveryJournal(user.id), all: false }); }}><LogOut /> Cerrar sesión</Button>
+              <Button variant="ghost" className="account-action" disabled={busy} onClick={() => { clearSecrets(); setExit({ user, journal: new RecoveryJournal(user.id), all: true }); }}>Cerrar todas mis sesiones</Button>
             </div>
             {!user.mustChangePassword && user.roles.includes('administrador') && <Button variant="outline" className="account-action" onClick={() => {
               try {
@@ -181,13 +188,14 @@ export default function AccountAccess() {
             }}>Recuperar proyecto anterior a las cuentas</Button>}
           </>}
         </>}
-        <aside className="account-local-note"><strong>El editor todavía guarda en esta computadora.</strong><p>Cada cuenta tiene su propio borrador en este navegador. Todavía no se guarda en el servidor ni se sincroniza entre computadoras. Exportá JSON para llevarte una copia.</p></aside>
+        <aside className="account-local-note"><strong>Guardado en tu cuenta y copias en este navegador.</strong><p>Usá Guardar en el editor para conservar un proyecto en tu cuenta y abrirlo desde otra computadora. Las copias locales ayudan a recuperar cambios; al cerrar sesión podés conservarlas o quitarlas. Exportá JSON para llevarte una copia.</p></aside>
       </section>
       <Dialog open={legacyOpen && Boolean(user?.roles.includes('administrador'))} onOpenChange={setLegacyOpen}>
         <DialogContent className="account-card"><DialogHeader><DialogTitle>Recuperar el proyecto anterior</DialogTitle><DialogDescription>El borrador anterior no tiene dueño. Descargá una copia y, sólo si te pertenece, importala desde Exportar → Importar proyecto JSON en tu editor. El original no se borra ni se asigna a ningún alumno.</DialogDescription></DialogHeader>
           {legacyFiles.length ? legacyFiles.map(file => <Button className="account-action" key={file.version} onClick={() => downloadText(`proyecto-anterior-v${file.version}.capibloques.json`, file.raw, 'application/json')}>Descargar copia anterior (v{file.version})</Button>) : <p>No hay borradores anteriores en este navegador.</p>}
         </DialogContent>
       </Dialog>
+      {exit && <SessionExit account={exit.user} all={exit.all} journal={exit.journal} onCancel={() => { setExit(null); void refresh(true); }} />}
     </main>
   );
 }

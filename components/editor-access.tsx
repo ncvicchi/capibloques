@@ -3,7 +3,8 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { announceSessionChange, createAccountDraftStore, sessionChangePending, watchSessionChange, type AccountDraftStore, type EditorSession } from '@/lib/account-session';
+import { createAccountDraftStore, sessionChangePending, watchSessionChange, type AccountDraftStore, type EditorSession } from '@/lib/account-session';
+import SessionExit from '@/components/session-exit';
 
 const CapiBlocksApp = lazy(() => import('@/components/capiblocks-app'));
 export type EditorCheckpoint = { suspend: () => boolean; resume: () => void };
@@ -16,8 +17,8 @@ export default function EditorAccess() {
   const current = useRef<OpenEditor | null>(null);
   const checkpoint = useRef<EditorCheckpoint | null>(null);
   const generation = useRef(0);
-  const leaving = useRef(false);
-  const preparingExit = useRef(false);
+  const exitPending = useRef(false);
+  const [exitTarget, setExitTarget] = useState<OpenEditor | null>(null);
 
   const lock = useCallback(() => {
     checkpoint.current?.suspend();
@@ -28,14 +29,14 @@ export default function EditorAccess() {
   }, []);
 
   const check = useCallback(async (hide = true) => {
-    if (leaving.current) return;
+    if (exitPending.current) return;
     if (sessionChangePending()) { lock(); return; }
     const ticket = ++generation.current;
     if (hide) lock();
     setError('');
     try {
       const response = await fetch('/api/auth/editor-session/', { cache: 'no-store', signal: AbortSignal.timeout(12000) });
-      if (ticket !== generation.current || leaving.current) return;
+      if (ticket !== generation.current || exitPending.current) return;
       if (response.status === 401 || response.status === 403) {
         lock(); setEditor(null); current.current = null;
         window.location.replace('/cuenta/?editor=1');
@@ -43,7 +44,7 @@ export default function EditorAccess() {
       }
       if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw new Error();
       const body = await response.json() as EditorSession;
-      if (ticket !== generation.current || leaving.current) return;
+      if (ticket !== generation.current || exitPending.current) return;
       if (!body.user?.id || body.user.mustChangePassword || !body.context || !body.csrfToken) throw new Error();
       const previous = current.current;
       if (previous?.session.user.id !== body.user.id || previous.session.context !== body.context) {
@@ -96,57 +97,32 @@ export default function EditorAccess() {
     };
   }, [check, lock]);
 
-  const logout = useCallback(async (retry = false) => {
-    const retrying = retry === true && leaving.current;
-    if ((leaving.current && !retrying) || preparingExit.current || !current.current) return;
+  const logout = useCallback(async () => {
+    if (exitPending.current || !current.current?.store.active) return;
     const target = current.current;
     // Una salida voluntaria no debe ocultar un fallo al guardar. El editor muestra
     // el error y permite exportar; una revocación externa sí bloquea el acceso.
-    if (!retrying && checkpoint.current?.suspend() === false) return;
-    preparingExit.current = true;
+    if (checkpoint.current?.suspend() === false) return;
+    exitPending.current = true; ++generation.current;
+    target.store.active = false;
     try { await target.store.flush(); }
     catch {
+      exitPending.current = false; target.store.active = true;
       setError('No pudimos conservar el último cambio. Exportá una copia JSON antes de cerrar sesión.');
       return;
-    } finally { preparingExit.current = false; }
-    if (current.current !== target || (!retrying && (!target.store.active || leaving.current))) return;
-    leaving.current = true; ++generation.current;
-    lock(); announceSessionChange(true); setError('');
-    try {
-      const state = await fetch('/api/auth/session/', { cache: 'no-store', signal: AbortSignal.timeout(12000) });
-      if (!state.ok) throw new Error();
-      const session = await state.json() as EditorSession;
-      if (session.user && session.user.id !== current.current.session.user.id) {
-        window.location.replace('/cuenta/?editor=1');
-        return;
-      }
-      const response = await fetch('/api/auth/logout/', {
-        method: 'POST', headers: { 'X-CSRFToken': session.csrfToken }, signal: AbortSignal.timeout(15000),
-      });
-      if (!response.ok) throw new Error();
-      const result = await response.json() as { user?: unknown; csrfToken?: unknown } | null;
-      if (result?.user !== null || typeof result.csrfToken !== 'string') throw new Error();
-      setEditor(null); current.current = null;
-      window.location.replace('/cuenta/?editor=1');
-    } catch {
-      // No afirmar un cierre que el servidor no confirmó ni reabrir el editor.
-      setError('No pudimos confirmar el cierre de sesión. Volvé a intentar antes de dejar esta computadora.');
-    } finally {
-      announceSessionChange();
-      // Un cierre fallido sólo se recupera con el botón explícito de reintento.
     }
+    lock(); setError(''); setExitTarget(target);
   }, [lock]);
 
-  const feedback = error ? <><p role="alert" className="account-error">{error}</p><Button className="account-action" onClick={() => {
-        if (leaving.current) { void logout(true); } else void check();
-      }}>Reintentar</Button></> : <output>Comprobando tu sesión…</output>;
+  const feedback = error ? <><p role="alert" className="account-error">{error}</p><Button className="account-action" onClick={() => void check()}>Reintentar</Button></> : <output>Comprobando tu sesión…</output>;
 
   return <>
     {editor && !locked && error && <div className="account-error" role="alert">{error}</div>}
     {!editor && <main className="account-page session-cover"><section className="account-card" aria-label="Acceso al editor">
       <header className="account-heading"><span className="brand-mark" aria-hidden="true">🐾</span><h1>CapiBloques</h1></header>{feedback}
     </section></main>}
-    {editor && <Dialog open={locked}>
+    {exitTarget && <SessionExit account={exitTarget.session.user} journal={exitTarget.store.recovery} onCancel={() => { setExitTarget(null); exitPending.current = false; void check(); }} />}
+    {editor && <Dialog open={locked && !exitTarget}>
       <DialogContent className="session-cover session-dialog account-card" showCloseButton={false}>
         <DialogHeader><DialogTitle>CapiBloques</DialogTitle><DialogDescription>Verificamos tu acceso antes de continuar.</DialogDescription></DialogHeader>
         {feedback}
