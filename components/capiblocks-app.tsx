@@ -1027,7 +1027,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             if (!example || !examples.some((item) => item.id === example))
               throw new Error('Ejemplo no válido');
             loadExample(example);
-            return { loaded: example };
+            return { requested: example, note: 'Puede requerir confirmar los cambios pendientes en el editor.' };
           },
         },
         { signal: lifecycle.signal },

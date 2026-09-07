@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react';
@@ -66,12 +67,17 @@ type Listing = {
   csrfToken: string;
 };
 type PendingSave = {
+  copy: boolean;
   url: string;
   method: string;
   body: string;
   fingerprint: string;
   generation: number;
 };
+
+class LibraryRequestError extends Error {
+  constructor(message: string, readonly status: number) { super(message); }
+}
 
 const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
   function ProjectLibrary(
@@ -111,6 +117,8 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
     const active = useRef(false);
     const inFlight = useRef(false);
     const pendingSave = useRef<PendingSave | null>(null);
+    const latestCapture = useRef(capture);
+    useLayoutEffect(() => { latestCapture.current = capture; }, [capture]);
     const duplicateIntent = useRef<{ source: string; body: string } | null>(
       null,
     );
@@ -158,11 +166,11 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
       // oxlint-disable-next-line react-hooks/exhaustive-deps
     }, [hydrated, store]);
     useEffect(() => {
-      if (!link || !dirty) return;
+      if ((!link || !dirty) && !pending) return;
       const warn = (event: BeforeUnloadEvent) => event.preventDefault();
       window.addEventListener('beforeunload', warn);
       return () => window.removeEventListener('beforeunload', warn);
-    }, [dirty, link]);
+    }, [dirty, link, pending]);
 
     const detach = useCallback(() => {
       ++generation.current;
@@ -220,7 +228,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
             data.code === 'operation_conflict')
         )
           setConflict(true);
-        throw new Error(data.error || 'No pudimos completar la operación.');
+        throw new LibraryRequestError(data.error || 'No pudimos completar la operación.', result.status);
       }
       return data;
     }
@@ -305,6 +313,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
                 document,
               };
           pendingSave.current = {
+            copy,
             url: remote ? `/api/projects/${remote.id}/` : '/api/projects/',
             method: remote ? 'PUT' : 'POST',
             body: JSON.stringify(body),
@@ -334,8 +343,10 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
         pendingSave.current = null;
         setPending(false);
         setConflict(false);
-        const current = capture();
-        if (copy) {
+        // La petición conserva su instantánea; la copia local conserva el editor
+        // más reciente, aunque haya cambiado mientras esperábamos la respuesta.
+        const current = latestCapture.current();
+        if (operation.copy) {
           current.metadata.title = result.project.title;
           apply(current);
         }
@@ -351,6 +362,11 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
         return true;
       } catch (failure) {
         if (active.current) {
+          // Rechazo confirmado: permitir corregir el proyecto y enviar otra
+          // instantánea. Sólo los resultados inciertos conservan el reintento.
+          if (failure instanceof LibraryRequestError && (failure.status === 400 || failure.status === 413)) {
+            pendingSave.current = null; setPending(false);
+          }
           setError(
             failure instanceof Error
               ? failure.message
@@ -432,7 +448,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
           const justSaved =
             store.remote?.id === data.project.id &&
             store.remote.revision > data.project.revision;
-          const opened = justSaved ? capture() : file;
+          const opened = justSaved ? latestCapture.current() : file;
           const next = justSaved
             ? store.remote!
             : {
