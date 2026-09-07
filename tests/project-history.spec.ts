@@ -98,3 +98,18 @@ test('papelera: purga sólo elegible tras treinta días y confirmación exacta',
   await dialog.getByRole('button', { name: 'Eliminar proyecto definitivamente', exact: true }).click();
   await expect(dialog).toBeHidden(); expect(purges).toBe(1);
 });
+
+test('historial: respuesta inválida permite reintentar sin romper el editor', async ({ page }) => {
+  const { row } = await setup(page);
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  let invalid = true;
+  await page.route(`**/api/projects/${row.project.id}/history/`, route => invalid ? route.fulfill({ json: { unexpected: true } }) : route.fallback());
+  await page.getByRole('button', { name: 'Mis proyectos', exact: true }).click();
+  await page.getByRole('button', { name: 'Historial de Mi semáforo', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Historial de Mi semáforo', exact: true });
+  await expect(dialog.getByRole('alert')).toContainText('La respuesta del historial no es válida');
+  invalid = false;
+  await dialog.getByRole('button', { name: 'Actualizar historial', exact: true }).click();
+  await expect(dialog.getByRole('button', { name: 'Exportar versión 1', exact: true })).toBeVisible();
+  expect(errors).toEqual([]);
+});

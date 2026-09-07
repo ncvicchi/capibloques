@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { mockEditorSession, student, token } from './editor-fixture';
 import { recoveryRows } from './recovery-fixture';
+import { mockLibrary } from './project-library-fixture';
 
 test.beforeEach(async ({ page }) => { await mockEditorSession(page); });
 
@@ -99,4 +100,24 @@ test('escena: la copia no pasa a otra cuenta tras recargar', async ({ page }) =>
   await expect(page.getByRole('heading', { name: 'Hay una escena sin terminar' })).toHaveCount(0);
   await expect(editor.getByText(/^1 objeto ·/)).toBeVisible();
   expect((await recoveryRows(page, student.id))[0].sceneDraft?.inspector?.value.name).toBe('Privado de Luna');
+});
+
+test('escena: abrir desde servidor pide confirmar también cuando sólo hay una escena pendiente', async ({ page }) => {
+  await mockLibrary(page);
+  await page.goto('/');
+  await page.getByLabel('Nombre del proyecto').fill('Proyecto confirmado');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(page.locator('.cloud-state')).toContainText('Guardado en tu cuenta');
+  await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Arma tu mundo' }).getByRole('button', { name: /^Agregar LED\./ }).click();
+  await expect.poll(async () => (await recoveryRows(page, student.id))[0]?.sceneDraft?.scene.devices.length).toBe(2);
+  page.on('dialog', dialog => dialog.accept());
+  await page.reload();
+  await page.getByRole('button', { name: 'Mis proyectos', exact: true }).click();
+  await page.getByRole('button', { name: 'Abrir Proyecto confirmado', exact: true }).click();
+  const confirmation = page.getByRole('alertdialog', { name: 'Antes de reemplazar el editor' });
+  await expect(confirmation).toBeVisible();
+  await confirmation.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await page.getByRole('button', { name: 'Volver al editor', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Revisar escena pendiente' })).toBeVisible();
 });

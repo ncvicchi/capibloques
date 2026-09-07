@@ -558,7 +558,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
             );
           }
         };
-        if (dirty || pendingSave.current) {
+        if (dirty || pendingSave.current || store.sceneDraft) {
           replacing.current = openFile;
           setReplacePrompt(true);
         } else openFile();

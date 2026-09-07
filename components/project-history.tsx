@@ -26,12 +26,18 @@ export default function ProjectHistory({ project, request, close, changed }: {
   const [pending, setPending] = useState<Operation | null>(null);
   const [checkedAt, setCheckedAt] = useState(0);
   const alive = useRef(true), running = useRef(false);
+  const loadSequence = useRef(0);
   const requestRef = useRef(request);
   useLayoutEffect(() => { requestRef.current = request; }, [request]);
   const url = `/api/projects/${project.id}/`;
   async function load() {
-    try { const result = await requestRef.current<History>(`${url}history/`); if (alive.current) { setData(result); setCheckedAt(Date.now()); setError(''); } }
-    catch (failure) { if (alive.current) setError(failure instanceof Error ? failure.message : 'No pudimos leer las versiones.'); }
+    const sequence = ++loadSequence.current;
+    try {
+      const result = await requestRef.current<History>(`${url}history/`);
+      if (result.project?.id !== project.id || !Array.isArray(result.versions) || !result.versions.every(row => row && Number.isSafeInteger(row.revision) && typeof row.title === 'string' && typeof row.current === 'boolean')) throw new Error('La respuesta del historial no es válida. Reintentá sin modificar tu proyecto.');
+      if (alive.current && sequence === loadSequence.current) { setData(result); setCheckedAt(Date.now()); setError(''); }
+    }
+    catch (failure) { if (alive.current && sequence === loadSequence.current) setError(failure instanceof Error ? failure.message : 'No pudimos leer las versiones.'); }
   }
   useEffect(() => { alive.current = true; void load(); return () => { alive.current = false; }; }, [project.id]); // oxlint-disable-line react-hooks/exhaustive-deps
 
