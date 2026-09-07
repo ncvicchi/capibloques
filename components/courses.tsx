@@ -36,6 +36,7 @@ export default function Courses({ management = false }: { management?: boolean }
   const [notice, setNotice] = useState('');
   const [discard, setDiscard] = useState(false);
   const epoch = useRef(0);
+  const active = useRef(false);
   const inFlight = useRef(false);
   const owner = useRef<string | null>(null);
   const selected = useRef<string | null>(null);
@@ -45,7 +46,7 @@ export default function Courses({ management = false }: { management?: boolean }
   const lock = useCallback(() => { document.documentElement.dataset.editorLocked = 'true'; setLocked(true); }, []);
 
   const refresh = useCallback(async (hide = false) => {
-    if (inFlight.current) return;
+    if (!active.current || inFlight.current) return;
     if (sessionChangePending()) { lock(); return; }
     const ticket = ++epoch.current;
     if (hide) lock();
@@ -78,6 +79,7 @@ export default function Courses({ management = false }: { management?: boolean }
   }, [clear, close, filter, lock, management, root]);
 
   useEffect(() => {
+    active.current = true;
     let disposed = false;
     queueMicrotask(() => { if (!disposed) void refresh(true); });
     const focus = () => { void refresh(true); };
@@ -87,6 +89,7 @@ export default function Courses({ management = false }: { management?: boolean }
     window.addEventListener('focus', focus); window.addEventListener('pageshow', focus); document.addEventListener('visibilitychange', visibility);
     return () => {
       disposed = true;
+      active.current = false;
       // Contador de peticiones, no una referencia a un nodo DOM.
       // oxlint-disable-next-line react-hooks/exhaustive-deps
       ++epoch.current;

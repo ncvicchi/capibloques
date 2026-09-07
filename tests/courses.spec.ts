@@ -157,6 +157,29 @@ test('cursos: revocar administrador limpia formulario y resultados de personas',
   expect(state.writes).toBe(0);
 });
 
+test('cursos: salir durante una lectura no revalida ni altera la pantalla siguiente', async ({ page }) => {
+  const state = await fixture(page);
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  let requests = 0;
+  page.on('request', request => { if (request.url().includes('/api/management/courses/')) requests++; });
+  await page.route('**/api/management/courses/course-ui/', async route => { await gate; await route.fulfill({ json: { course: state.course } }); });
+  await page.goto('/gestion/cursos/');
+  const requested = page.waitForRequest('**/api/management/courses/course-ui/');
+  await page.getByRole('button', { name: 'Editar Robótica A', exact: true }).click();
+  await requested;
+  await page.getByRole('link', { name: 'Mi cuenta', exact: true }).click();
+  await expect(page).toHaveURL(/\/cuenta\//);
+  const before = requests;
+  const finished = page.waitForResponse('**/api/management/courses/course-ui/');
+  release(); await finished;
+  // Dar salida a la continuación de fetch y dos frames, no esperar un timeout
+  // arbitrario. La página desmontada no debe emitir otra consulta de cursos.
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  expect(requests).toBe(before);
+  await expect(page.getByLabel('Nombre del curso', { exact: true })).toHaveCount(0);
+});
+
 test('cursos: recarga advierte y pantalla pequeña con texto ampliado conserva acciones', async ({ page }, testInfo) => {
   const state = await fixture(page);
   await page.setViewportSize({ width: 390, height: 844 });
