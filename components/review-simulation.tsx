@@ -13,6 +13,7 @@ import BlocklyWorkspace, {
   type BlocklyWorkspaceHandle,
 } from '@/components/blockly-workspace';
 import SceneStage from '@/components/scene-stage';
+import ExecutionPanel from '@/components/execution-panel';
 import { Button } from '@/components/ui/button';
 import {
   generateEsp32CodeResult,
@@ -293,7 +294,9 @@ export default function ReviewSimulation({
           {((state?.now ?? 0) / 1000).toFixed(1)} s · Contador:{' '}
           {state?.counter ?? 0}
         </output>
+        <ExecutionPanel state={state} post={message => worker.current?.postMessage(message)} onFollow={blockId => editor.current?.focusBlock(blockId)} />
         <SceneStage
+          activeDeviceId={state?.execution?.trace.at(-1)?.deviceId}
           scene={project.scene}
           runtimeDevices={state?.devices}
           counter={state?.counter}

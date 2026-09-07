@@ -187,7 +187,7 @@ export function useAccountPreferences(accountId: string, enabled = true) {
             data.code,
           );
         }
-        if (!isPreferences(data.preferences))
+        if (!isPreferences(data.preferences) || typeof data.csrfToken !== 'string')
           throw new PreferenceError(
             'La respuesta fue incompleta. Reintentá para verificar el resultado.',
           );

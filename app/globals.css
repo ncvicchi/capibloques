@@ -2762,6 +2762,24 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .feedback-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 .feedback-reply { border-left: 4px solid #89bcb1; padding: 0 14px; margin: 16px 0; }
 .review-access { margin: 32px auto; }
+.execution-panel { margin: 0 24px 18px; padding: 16px; border: 1px solid #cbd1e5; border-radius: 14px; background: #f8f9ff; color: #263252; min-width: 0; overflow-wrap: anywhere; }
+.execution-options { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; }
+.execution-options label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-weight: 700; }
+.execution-options select { max-width: 100%; min-width: 0; padding: 8px; border: 1px solid #919bbe; border-radius: 8px; background: white; }
+.execution-help { font-size: .85rem; margin: 10px 0; color: #4b5978; }
+.execution-now { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 12px; padding: 14px; background: #fff0a9; color: #302509; border-left: 6px solid #6b4e00; border-radius: 8px; }
+.execution-now > strong { font-size: 1.1rem; }
+.execution-now small { grid-column: 2; }
+.execution-paths { display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 0; margin: 12px 0; list-style: none; max-height: 130px; overflow-y: auto; }
+.execution-panel summary { cursor: pointer; padding: 8px 0; font-weight: 700; }
+.execution-trace { max-height: 220px; overflow-y: auto; padding-left: 24px; }
+.execution-trace button { text-align: left; padding: 6px; border-radius: 5px; max-width: 100%; cursor: pointer; }
+.execution-trace button:hover { background: #e4e9fa; }
+.scene-device-active { outline: 4px solid #594000; outline-offset: 6px; border-radius: 12px; }
+.device-now { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); padding: 3px 8px; background: #fff0a9; color: #302509; border: 2px solid #594000; border-radius: 8px; white-space: nowrap; }
+.capi-block-active > .blocklyPath { stroke: #201237 !important; stroke-width: 5px !important; filter: drop-shadow(0 0 4px #fff3a0); }
+.review-stage .execution-panel { margin: 12px 0; }
+@media (max-width: 540px) { .execution-panel { margin: 0 10px 12px; padding: 12px; } .execution-now { grid-template-columns: minmax(0, 1fr); } .execution-now small { grid-column: 1; } }
 .user-avatar { display: inline-block; flex-shrink: 0; vertical-align: middle; max-width: 100%; }
 .avatar-button { border: 2px solid transparent; border-radius: 50%; padding: 2px; cursor: pointer; background: transparent; }
 .avatar-button:focus-visible { outline: 3px solid #5744bd; outline-offset: 3px; }

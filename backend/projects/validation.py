@@ -13,6 +13,7 @@ from django.core.exceptions import ValidationError
 MAX_FILE_BYTES = 2_000_000
 TARGET = {"family": "esp32", "framework": "arduino", "coreMajor": 3, "coreVersion": "3.3.11", "boardProfile": "wemos-d1-r32", "fqbn": "esp32:esp32:d1_uno32"}
 BLOCKS = {"capi_" + name for name in ("start", "forever", "repeat", "wait", "if", "compare", "counter_compare", "counter_set", "counter_change", "traffic", "led", "pin_write", "robot", "motor", "servo", "buzzer", "tone", "button_pressed", "sensor_compare", "wifi_connect", "wifi_connected", "serial")}
+BLOCKS.add("capi_parallel")
 PINS = {"trafficLight": ["red", "yellow", "green"], "robot": ["leftIn1", "leftIn2", "rightIn1", "rightIn2"], "motor": ["in1", "in2"], **{kind: ["signal"] for kind in ("led", "servo", "activeBuzzer", "passiveBuzzer", "button", "lightSensor", "potentiometer")}, "wifiNode": []}
 CONFIGS = {
     "trafficLight": {"redBrightness": (0, 100), "yellowBrightness": (0, 100), "greenBrightness": (0, 100)},
@@ -100,6 +101,17 @@ def workspace(value):
         ids.add(block_id)
         require(len(ids) <= 2000, "El proyecto supera 2000 bloques.")
         require("fields" not in block or isinstance(block["fields"], dict))
+        if block["type"] == "capi_parallel":
+            extra = block.get("extraState", {})
+            require(isinstance(extra, dict))
+            raw = extra.get("branches", block.get("fields", {}).get("BRANCHES", 2))
+            require(type(raw) is int or isinstance(raw, str) and raw.isdigit())
+            count = int(raw)
+            require(2 <= count <= 16, "Al mismo tiempo admite entre 2 y 16 caminos.")
+            field = block.get("fields", {}).get("BRANCHES")
+            require(field is None or str(field) == str(count), "La cantidad de caminos no coincide.")
+            require(isinstance(block.get("inputs", {}), dict))
+            require(all(re.fullmatch(r"BRANCH\d+", name) and int(name[6:]) < count for name in block.get("inputs", {})), "Hay un camino fuera del bloque.")
         for coordinate in ("x", "y"):
             require(coordinate not in block or number(block[coordinate]))
         if "inputs" in block:

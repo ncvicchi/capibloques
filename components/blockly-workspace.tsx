@@ -26,6 +26,7 @@ export interface BlocklyWorkspaceHandle {
   undo(): void;
   redo(): void;
   zoomToFit(): void;
+  focusBlock(blockId: string): void;
 }
 
 export interface BlocklyHistoryState {
@@ -264,9 +265,9 @@ const toolbox = {
     { kind: 'category', name: '★ Favoritos', colour: '#b88412', custom: 'CAPI_FAVORITES' },
     {
       kind: 'category',
-      name: 'Inicio',
+      name: 'En paralelo',
       colour: '#F1A51F',
-      contents: [{ kind: 'block', type: 'capi_start' }],
+      contents: [{ kind: 'block', type: 'capi_parallel' }],
     },
     {
       kind: 'category',
@@ -833,7 +834,72 @@ function registerBlocks(Blockly: BlocklyApi) {
         'Escribe un mensaje en el monitor serial y en la consola simulada.',
     },
   ]);
+  Blockly.Blocks['capi_parallel'] = {
+    init(this: BlocklyBlock) {
+      this.appendDummyInput().appendField('🛤 al mismo tiempo:').appendField(new Blockly.FieldDropdown(
+        Array.from({ length: 15 }, (_, index) => [`${index + 2} caminos`, String(index + 2)] as [string, string]),
+        (value) => {
+          const count = Number(value);
+          const occupied = this.inputList.some(input => input.name.startsWith('BRANCH') && Number(input.name.slice(6)) >= count && input.connection?.targetBlock());
+          if (occupied) {
+            this.setWarningText('Primero mové los bloques del camino que querés quitar.', 'parallel-shape');
+            return null;
+          }
+          this.setWarningText(null, 'parallel-shape');
+          resizeParallel(this, count);
+          return value;
+        },
+      ), 'BRANCHES');
+      resizeParallel(this, 2);
+      this.setPreviousStatement(true);
+      this.setNextStatement(true);
+      this.setColour('#F1A51F');
+      this.setTooltip('Todos los caminos empiezan juntos. Lo que sigue debajo espera a que todos terminen. Si un camino repite por siempre, no se sigue debajo.');
+    },
+    saveExtraState(this: BlocklyBlock) { return { branches: Number(this.getFieldValue('BRANCHES')) || 2 }; },
+    loadExtraState(this: BlocklyBlock, state: { branches?: unknown }) {
+      if (!Number.isInteger(state.branches) || Number(state.branches) < 2 || Number(state.branches) > 16) throw new Error('Cantidad de caminos no válida.');
+      resizeParallel(this, Number(state.branches));
+      this.setFieldValue(String(state.branches), 'BRANCHES');
+    },
+  };
   registeredBlocklies.add(Blockly);
+}
+
+function resizeParallel(block: BlocklyBlock, count: number) {
+  for (const input of block.inputList.filter(input => input.name.startsWith('BRANCH') && Number(input.name.slice(6)) >= count)) {
+    if (input.name.startsWith('BRANCH') && Number(input.name.slice(6)) >= count) block.removeInput(input.name);
+  }
+  for (let index = 0; index < count; index++) {
+    if (!block.getInput(`BRANCH${index}`)) block.appendStatementInput(`BRANCH${index}`).appendField(`camino ${index + 1}`);
+  }
+}
+
+/** Repair creation/import/undo in one event group, without clearing history. */
+function ensureSingleStart(Blockly: BlocklyApi, workspace: BlocklyWorkspaceSvg) {
+  const starts = workspace.getTopBlocks(true).filter(block => block.type === 'capi_start');
+  if (starts.length > 16) throw new Error('Este proyecto tiene más de 16 inicios; no se puede convertir sin perder caminos.');
+  let start = starts[0];
+  if (!start) {
+    start = workspace.newBlock('capi_start');
+    start.initSvg();
+    start.render();
+    start.moveBy(50, 40);
+  }
+  if (starts.length > 1) {
+    const bodies = starts.map(root => root.getInputTargetBlock('DO'));
+    bodies.forEach(body => body?.unplug(false));
+    const parallel = workspace.newBlock('capi_parallel');
+    parallel.setFieldValue(String(starts.length), 'BRANCHES');
+    parallel.initSvg();
+    parallel.render();
+    start.getInput('DO')!.connection!.connect(parallel.previousConnection!);
+    bodies.forEach((body, index) => { if (body) parallel.getInput(`BRANCH${index}`)!.connection!.connect(body.previousConnection!); });
+    starts.slice(1).forEach(root => { root.setDeletable(true); root.dispose(false); });
+  }
+  start.setDeletable(false);
+  start.isDuplicatable = () => false;
+  // Keep the mandatory header protected; its body remains fully editable.
 }
 
 const numberField = (block: BlocklyBlock, name: string, fallback = 0) => {
@@ -882,6 +948,9 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
     switch (block.type) {
       case 'capi_start':
         result.push(...compileStack(block.getInputTargetBlock('DO')));
+        break;
+      case 'capi_parallel':
+        result.push({ op: 'parallel', branches: Array.from({ length: numberField(block, 'BRANCHES', 2) }, (_, index) => compileStack(block!.getInputTargetBlock(`BRANCH${index}`))), blockId });
         break;
       case 'capi_forever':
         result.push({
@@ -1049,6 +1118,7 @@ function loadWorkspaceData(
     workspace.clearUndo();
     workspace.clear();
     Blockly.serialization.workspaces.load(data, workspace);
+    ensureSingleStart(Blockly, workspace);
     workspace.clearUndo();
   } catch (error) {
     workspace.clear();
@@ -1243,6 +1313,12 @@ const BlocklyWorkspace = forwardRef<
         workspace.addChangeListener((event) => {
           if (readOnlyRef.current) return;
           if (event.isUiEvent) return;
+          if (event.type === Blockly.Events.BLOCK_CREATE || event.type === Blockly.Events.BLOCK_DELETE) {
+            const group = Blockly.Events.getGroup();
+            Blockly.Events.setGroup(event.group || true);
+            try { ensureSingleStart(Blockly, workspace); } catch (error) { onErrorRef.current?.(readableLoadError(error)); }
+            finally { Blockly.Events.setGroup(group); }
+          }
           if (event.type === Blockly.Events.BLOCK_MOVE && event.recordUndo)
             onBlockSnapRef.current?.();
           if (event.type === Blockly.Events.BLOCK_CHANGE) {
@@ -1462,6 +1538,10 @@ const BlocklyWorkspace = forwardRef<
       },
       zoomToFit() {
         workspaceRef.current?.zoomToFit();
+      },
+      focusBlock(blockId) {
+        const workspace = workspaceRef.current;
+        if (workspace?.getBlockById(blockId) && !workspace.isDragging()) workspace.centerOnBlock(blockId);
       },
     }),
     [],

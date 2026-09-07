@@ -44,6 +44,7 @@ import BlocklyWorkspace, {
   type BlocklyWorkspaceHandle,
 } from '@/components/blockly-workspace';
 import SceneStage from '@/components/scene-stage';
+import ExecutionPanel from '@/components/execution-panel';
 import UserAvatar from '@/components/user-avatar';
 import PreferencesPicker from '@/components/preferences-picker';
 import { useAccountPreferences } from '@/components/use-account-preferences';
@@ -402,6 +403,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const editorRef = useRef<BlocklyWorkspaceHandle>(null);
   const libraryRef = useRef<ProjectLibraryHandle>(null);
   const workerRef = useRef<Worker | null>(null);
+  const playbackSourceRef = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingImportRef = useRef<(() => void) | null>(null);
   const mutedRef = useRef(false);
@@ -644,6 +646,12 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
 
   const onWorkspaceChange = useCallback(
     (nextWorkspace: Record<string, unknown>) => {
+      if (playbackSourceRef.current !== null && playbackSourceRef.current !== JSON.stringify(nextWorkspace)) {
+        playbackSourceRef.current = null;
+        workerRef.current?.postMessage({ type: 'STOP' });
+        stopSound();
+        setNotice('Cambiaste los bloques. Ejecutar o Paso comenzará con el programa actualizado.');
+      }
       setWorkspace(nextWorkspace);
       setDiagnostics([]);
       setNoticeTone('ok');
@@ -660,7 +668,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const run = useCallback(() => {
     const program = compile();
     if (!hasExecutableNodes(program)) {
-      setNotice('Agrega un bloque “al comenzar” con acciones para ejecutar');
+      setNotice('Conectá acciones dentro de «Al comenzar» para ejecutar');
       setNoticeTone('warning');
       sound(210, 180, muted);
       return;
@@ -683,6 +691,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       sound(210, 180, muted);
       return;
     }
+    playbackSourceRef.current = JSON.stringify(editorRef.current?.save());
     postToWorker({ type: 'LOAD', program, scene });
     postToWorker({ type: 'SET_SPEED', speed });
     postToWorker({ type: 'RUN' });
@@ -703,15 +712,16 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     ) {
       const program = compile();
       if (!hasExecutableNodes(program)) {
-        setNotice('Agrega un bloque “al comenzar” para avanzar paso a paso');
+        setNotice('Conectá acciones dentro de «Al comenzar» para avanzar paso a paso');
         setNoticeTone('warning');
         return;
       }
+      playbackSourceRef.current = JSON.stringify(editorRef.current?.save());
       postToWorker({ type: 'LOAD', program, scene });
       postToWorker({ type: 'SET_SPEED', speed });
     }
     postToWorker({ type: 'STEP' });
-    setNotice('Avanzamos una acción del próximo programa listo');
+    setNotice('Avanzamos un paso visible. El panel «Ahora» explica qué ocurrió.');
     setNoticeTone('ok');
   }, [compile, postToWorker, scene, sim.status, speed]);
 
@@ -1307,6 +1317,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         </button>
       </section>
 
+      <ExecutionPanel state={sim} post={postToWorker} onFollow={blockId => editorRef.current?.focusBlock(blockId)} />
       <div className="workspace-grid functional">
         <section className="canvas-panel" aria-label="Programa visual">
           <div className="canvas-header">
@@ -1384,6 +1395,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             <TabsContent value="scene" className="sim-content">
               <div className="sim-stage composed-scene">
                 <SceneStage
+                  activeDeviceId={sim.execution?.trace.at(-1)?.deviceId}
                   scene={scene}
                   runtimeDevices={sim.devices}
                   counter={sim.counter}

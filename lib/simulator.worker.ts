@@ -1,5 +1,7 @@
 import {
   addCounterValues,
+  compileTaskGraph,
+  type FlatInstruction,
   inferSceneForProgram,
   normalizeCounterValue,
   normalizeCompiledProgram,
@@ -7,7 +9,7 @@ import {
   type CapiDiagnostic,
   type CompiledProgram,
   type Condition,
-  type ProgramNode,
+  type ExecutionEvent,
   type ProgramThread,
   type RuntimeDeviceState,
   type SimulatorState,
@@ -21,20 +23,6 @@ import {
   // @ts-expect-error Node's type-stripping smoke runner needs the explicit suffix.
 } from './scene-model.ts';
 
-type FlatInstruction =
-  | Exclude<ProgramNode, { op: 'repeat' } | { op: 'if' }>
-  | {
-      op: 'repeatStart';
-      count: number;
-      slot: number;
-      end: number;
-      blockId: string;
-    }
-  | { op: 'repeatNext'; slot: number; target: number; blockId: string }
-  | { op: 'jumpIfFalse'; condition: Condition; target: number; blockId: string }
-  | { op: 'jump'; target: number; yieldAfter?: boolean; blockId: string }
-  | { op: 'halt'; blockId: string };
-
 type Pending =
   | { kind: 'wait'; until: number; blockId: string }
   | { kind: 'wifi'; readyAt: number; timeoutAt: number; blockId: string }
@@ -42,11 +30,13 @@ type Pending =
 
 type ThreadExecution = {
   thread: ProgramThread;
+  label: string;
   instructions: FlatInstruction[];
   pc: number;
   loopCounters: number[];
   pending: Pending;
   done: boolean;
+  started: boolean;
 };
 
 type BuzzerRuntimeState = Extract<RuntimeDeviceState, { playing: boolean }>;
@@ -56,6 +46,8 @@ type WorkerInboundMessage =
   | { type: 'LOAD'; program: unknown; scene?: unknown }
   | { type: 'RUN' | 'PAUSE' | 'STOP' | 'RESET' | 'STEP' }
   | { type: 'SET_SPEED'; speed: unknown }
+  | { type: 'SET_MODE'; mode: 'normal' | 'guided' }
+  | { type: 'FRAME_SHOWN'; seq: number }
   | {
       type: 'SET_INPUT';
       deviceId?: unknown;
@@ -75,6 +67,13 @@ let program: CompiledProgram = { version: 2, threads: [] };
 let scene: SceneDefinition = inferSceneForProgram(program);
 let executions: ThreadExecution[] = [];
 let schedulerCursor = 0;
+let schedulerBudgetUsed = 0;
+let quantumOpen = false;
+let mode: 'normal' | 'guided' = 'normal';
+let awaitingFrame: number | null = null;
+let guidedNextAt = 0;
+let eventSequence = 0;
+let trace: ExecutionEvent[] = [];
 let running = false;
 let doneEmitted = false;
 let speed = 1;
@@ -300,6 +299,14 @@ function syncCompatibilityProjection() {
 function emit(type = 'SNAPSHOT') {
   state.now = Math.round(virtualNow);
   syncCompatibilityProjection();
+  state.execution = {
+    mode, awaitingFrame, trace: [...trace],
+    tasks: executions.map(execution => ({
+      id: execution.thread.id, label: execution.label,
+      status: !execution.started ? 'inactive' : execution.done ? 'done' : execution.pending ? 'waiting' : execution.instructions[execution.pc]?.op === 'join' ? 'joining' : 'ready',
+      ...(execution.pending ? { remainingMs: Math.max(0, Math.round((execution.pending.kind === 'wait' ? execution.pending.until : state.wifiAvailable ? execution.pending.readyAt : execution.pending.timeoutAt) - virtualNow)) } : {}),
+    })),
+  };
   scope.postMessage({
     type,
     state: {
@@ -310,80 +317,17 @@ function emit(type = 'SNAPSHOT') {
   });
 }
 
-function flattenProgram(nodes: ProgramNode[]) {
-  const instructions: FlatInstruction[] = [];
-  let loopSlot = 0;
-  const visit = (items: ProgramNode[]) => {
-    for (const node of items) {
-      if (node.op === 'repeat') {
-        if (node.count < 0) {
-          const start = instructions.length;
-          visit(node.body);
-          instructions.push({
-            op: 'jump',
-            target: start,
-            yieldAfter: true,
-            blockId: node.blockId,
-          });
-        } else {
-          const slot = loopSlot++;
-          const startIndex = instructions.length;
-          instructions.push({
-            op: 'repeatStart',
-            count: Math.max(0, Math.floor(node.count)),
-            slot,
-            end: -1,
-            blockId: node.blockId,
-          });
-          const bodyStart = instructions.length;
-          visit(node.body);
-          instructions.push({
-            op: 'repeatNext',
-            slot,
-            target: bodyStart,
-            blockId: node.blockId,
-          });
-          const start = instructions[startIndex];
-          if (start.op === 'repeatStart') start.end = instructions.length;
-        }
-      } else if (node.op === 'if') {
-        const conditionIndex = instructions.length;
-        instructions.push({
-          op: 'jumpIfFalse',
-          condition: node.condition,
-          target: -1,
-          blockId: node.blockId,
-        });
-        visit(node.consequent);
-        const jumpIndex = instructions.length;
-        instructions.push({ op: 'jump', target: -1, blockId: node.blockId });
-        const condition = instructions[conditionIndex];
-        if (condition.op === 'jumpIfFalse') {
-          condition.target = instructions.length;
-        }
-        visit(node.otherwise);
-        const jump = instructions[jumpIndex];
-        if (jump.op === 'jump') jump.target = instructions.length;
-      } else {
-        instructions.push(node);
-      }
-    }
-  };
-  visit(nodes);
-  instructions.push({ op: 'halt', blockId: 'program-end' });
-  return { instructions, loopSlots: Math.max(1, loopSlot) };
-}
-
 function createExecutions(): ThreadExecution[] {
-  return program.threads.map((thread) => {
-    const flattened = flattenProgram(thread.nodes);
+  return compileTaskGraph(program).map((task) => {
     return {
-      thread,
-      instructions: flattened.instructions,
+      thread: { id: task.id, startBlockId: task.startBlockId, nodes: [] },
+      label: task.label,
+      instructions: task.output,
       pc: 0,
-      loopCounters: Array.from({ length: flattened.loopSlots }, () => -1),
+      loopCounters: Array.from({ length: task.loopSlots }, () => -1),
       pending: null,
-      done: false,
+      done: !task.initial,
+      started: task.initial,
     };
   });
 }
@@ -434,6 +378,11 @@ function resetExecution(status: SimulatorState['status'] = 'idle') {
   schedulerDebtMs = 0;
   executions = createExecutions();
   schedulerCursor = 0;
+  schedulerBudgetUsed = 0;
+  quantumOpen = false;
+  trace = [];
+  awaitingFrame = null;
+  guidedNextAt = 0;
   running = false;
   doneEmitted = false;
   lastRealTime = performance.now();
@@ -593,7 +542,7 @@ function setBuzzer(deviceId: string, frequency: number, durationMs: number) {
   pendingSounds.set(deviceId, { frequency: device.frequency });
 }
 
-function executeOne(
+function executeInstruction(
   execution: ThreadExecution,
 ): 'action' | 'continue' | 'wait' | 'yield' | 'done' {
   if (execution.done) return 'done';
@@ -608,6 +557,24 @@ function executeOne(
     return 'done';
   }
   markBlockActive(execution.thread.id, node.blockId);
+
+  if (node.op === 'fork') {
+    for (const index of node.children) {
+      const child = executions[index];
+      child.pc = 0;
+      child.loopCounters.fill(-1);
+      child.pending = null;
+      child.done = false;
+      child.started = true;
+    }
+    execution.pc += 1;
+    return 'yield';
+  }
+  if (node.op === 'join') {
+    if (node.children.some(index => !executions[index].done)) return 'wait';
+    execution.pc += 1;
+    return 'continue';
+  }
 
   if (node.op === 'repeatStart') {
     if (execution.loopCounters[node.slot] < 0) {
@@ -761,6 +728,40 @@ function executeOne(
   return 'action';
 }
 
+function recordEvent(execution: ThreadExecution, blockId: string, message: string, deviceId?: string) {
+  trace = [...trace.slice(-29), { seq: ++eventSequence, now: Math.round(virtualNow), taskId: execution.thread.id, label: execution.label, blockId, message, ...(deviceId ? { deviceId } : {}) }];
+  markBlockActive(execution.thread.id, blockId);
+}
+
+function executeOne(execution: ThreadExecution) {
+  const node = execution.instructions[execution.pc];
+  const pending = execution.pending;
+  const wasDone = execution.done;
+  const consoleBefore = state.console;
+  const result = executeInstruction(execution);
+  if (wasDone || !node) return result;
+  let message = '';
+  if (pending) {
+    if (!execution.pending) message = pending.kind === 'wait' ? 'Terminó la espera; seguimos.' : state.wifi === 'connected' ? 'Wi-Fi conectado.' : 'No se pudo conectar a Wi-Fi.';
+  } else {
+    switch (node.op) {
+      case 'jumpIfFalse': message = execution.pc === node.target ? 'La condición es falsa: vamos por «si no».' : 'La condición es verdadera: vamos por «si».'; break;
+      case 'repeatStart': message = node.count ? `Comienza el bucle de ${node.count} vueltas.` : 'Cero vueltas: saltamos el bucle.'; break;
+      case 'repeatNext': message = execution.loopCounters[node.slot] > 0 ? `Vuelta completada. Faltan ${execution.loopCounters[node.slot]}.` : 'Terminó el bucle.'; break;
+      case 'jump': if (node.yieldAfter) message = 'Terminó una vuelta; repetimos por siempre.'; break;
+      case 'fork': message = `Empiezan ${node.children.length} caminos al mismo tiempo.`; break;
+      case 'join': if (result !== 'wait') message = 'Todos los caminos terminaron; seguimos debajo.'; break;
+      case 'halt': message = 'Este camino terminó.'; break;
+      case 'wait': message = `Esperamos ${Math.max(0, node.ms) / 1000} segundos sin bloquear los otros caminos.`; break;
+      case 'wifi': message = 'Buscamos una red Wi-Fi.'; break;
+      case 'buzzer': case 'tone': message = `${deviceName(node.deviceId)}: suena durante ${node.durationMs / 1000} segundos.`; break;
+      default: message = state.console !== consoleBefore ? state.console.at(-1)!.replace(/^[^·]*· /, '') : 'Acción ejecutada.';
+    }
+  }
+  if (message) recordEvent(execution, node.op === 'halt' ? execution.thread.startBlockId : node.blockId, message, 'deviceId' in node ? node.deviceId : undefined);
+  return result;
+}
+
 function updatePhysics(deltaMs: number) {
   for (const [deviceId, device] of Object.entries(state.devices)) {
     if (device.kind === 'robot') {
@@ -816,7 +817,7 @@ function hasDynamicOutput() {
   });
 }
 
-function runScheduler() {
+function runScheduler(stopAtEvent = false) {
   if (!executions.length) {
     finishProgramIfDone();
     return;
@@ -825,17 +826,21 @@ function runScheduler() {
     1,
     Math.floor(GENERATED_LOOP_BUDGET / executions.length),
   );
-  let visited = 0;
-  while (visited < executions.length) {
-    const execution = executions[schedulerCursor % executions.length];
-    schedulerCursor = (schedulerCursor + 1) % executions.length;
-    visited += 1;
-    for (let budget = 0; budget < threadBudget; budget += 1) {
-      const result = executeOne(execution);
-      // These operations map to a `return` in the generated thread function.
-      if (result === 'wait' || result === 'yield' || result === 'done') break;
+  if (!quantumOpen) { quantumOpen = true; schedulerCursor = 0; schedulerBudgetUsed = 0; }
+  while (schedulerCursor < executions.length) {
+    const sequence = eventSequence;
+    const result = executeOne(executions[schedulerCursor]);
+    schedulerBudgetUsed++;
+    if (schedulerBudgetUsed >= threadBudget || result === 'wait' || result === 'yield' || result === 'done') {
+      schedulerCursor++;
+      schedulerBudgetUsed = 0;
+    }
+    if (stopAtEvent && sequence !== eventSequence) {
+      finishProgramIfDone();
+      return;
     }
   }
+  quantumOpen = false;
   finishProgramIfDone();
 }
 
@@ -843,11 +848,23 @@ function tick() {
   const now = performance.now();
   const realDelta = Math.min(100, now - lastRealTime);
   lastRealTime = now;
+  if (mode === 'guided') {
+    if (running && awaitingFrame === null && now >= guidedNextAt) {
+      stepOnce();
+      awaitingFrame = eventSequence;
+      flushBlockActivity(true);
+      flushSounds(true);
+      emit();
+    }
+    return;
+  }
   const continueFinishedPhysics = state.status === 'done' && hasDynamicOutput();
   if (!running && !continueFinishedPhysics) return;
   const previousStatus = state.status;
   const logicalDelta = realDelta * speed;
   if (running) {
+    // Resume the exact instruction budget left by guided/manual stepping.
+    if (quantumOpen) runScheduler();
     let remaining = logicalDelta;
     while (remaining > 0) {
       const slice = Math.min(remaining, SCHEDULER_QUANTUM_MS - schedulerDebtMs);
@@ -878,44 +895,27 @@ function tick() {
   }
 }
 
-function nextPendingTime() {
-  const times = executions.flatMap((execution) => {
-    if (!execution.pending) return [];
-    if (execution.pending.kind === 'wait') return [execution.pending.until];
-    return [
-      state.wifiAvailable
-        ? execution.pending.readyAt
-        : execution.pending.timeoutAt,
-    ];
-  });
-  return times.length ? Math.min(...times) : null;
-}
-
 function stepOnce() {
   if (!executions.length) {
     finishProgramIfDone();
     return;
   }
-  let unavailableInARow = 0;
-  for (let budget = 0; budget < 80; budget += 1) {
-    const execution = executions[schedulerCursor % executions.length];
-    schedulerCursor = (schedulerCursor + 1) % executions.length;
-    const result = executeOne(execution);
-    if (result === 'action' || result === 'yield') break;
-    if (result === 'continue') {
-      unavailableInARow = 0;
-      continue;
+  const sequence = eventSequence;
+  // At most one simulated second without an event per click: bounded work and
+  // visible wait progress. No wall-clock delay is added to the program.
+  for (let quantum = 0; quantum < 63; quantum++) {
+    if (!quantumOpen) {
+      const delta = SCHEDULER_QUANTUM_MS - schedulerDebtMs;
+      virtualNow += delta;
+      updatePhysics(delta);
+      schedulerDebtMs = 0;
     }
-    unavailableInARow += 1;
-    if (unavailableInARow >= executions.length) {
-      const nextTime = nextPendingTime();
-      if (nextTime !== null && nextTime > virtualNow) {
-        const delta = nextTime - virtualNow;
-        virtualNow = nextTime;
-        updatePhysics(delta);
-      }
-      break;
-    }
+    runScheduler(true);
+    if (eventSequence !== sequence || state.status === 'done') break;
+  }
+  if (eventSequence === sequence && state.status !== 'done') {
+    const waiting = executions.find(execution => !execution.done && execution.pending);
+    if (waiting?.pending) recordEvent(waiting, waiting.pending.blockId, 'La espera sigue avanzando en el reloj simulado.');
   }
   finishProgramIfDone();
 }
@@ -1015,6 +1015,8 @@ scope.addEventListener('message', (event) => {
         resetExecution();
       }
       running = true;
+      awaitingFrame = null;
+      guidedNextAt = 0;
       doneEmitted = false;
       state.status = 'running';
       lastRealTime = performance.now();
@@ -1051,12 +1053,28 @@ scope.addEventListener('message', (event) => {
         resetExecution('paused');
       }
       running = false;
+      awaitingFrame = null;
       state.status = 'paused';
       stopSounds();
       stepOnce();
       flushBlockActivity(true);
       flushSounds(true);
       emit();
+      break;
+    case 'SET_MODE':
+      if (message.mode !== 'normal' && message.mode !== 'guided') break;
+      mode = message.mode;
+      running = false;
+      awaitingFrame = null;
+      if (state.status === 'running') state.status = 'paused';
+      stopSounds();
+      emit();
+      break;
+    case 'FRAME_SHOWN':
+      if (awaitingFrame !== null && message.seq === awaitingFrame) {
+        awaitingFrame = null;
+        guidedNextAt = performance.now() + 750;
+      }
       break;
     case 'SET_SPEED': {
       const wasAudible = running && hasDynamicOutput();

@@ -220,6 +220,13 @@ if (auxiliary) {
   });
 }
 
+// Exercise fork/join (including loop-slot and optional Wi-Fi reset) in both
+// actual Arduino builds, not just string assertions.
+program.threads = [{ id: 'single-start', startBlockId: 'single-start', nodes: [
+  { op: 'serial', text: 'Comenzar', blockId: 'before-parallel' },
+  { op: 'parallel', blockId: 'parallel-fixture', branches: [...program.threads.map(thread => thread.nodes), [{ op: 'repeat', count: 2, blockId: 'parallel-loop', body: [{ op: 'wait', ms: 10, blockId: 'parallel-wait' }] }]] },
+  { op: 'serial', text: 'Todos terminaron', blockId: 'after-parallel' },
+] }];
 const generated = generateEsp32CodeResult(program, 'Fixture Arduino CI', scene);
 const errors = generated.diagnostics.filter(
   (diagnostic) => diagnostic.severity === 'error',

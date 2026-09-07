@@ -89,6 +89,7 @@ export type ProgramNode =
       blockId: string;
     }
   | { op: 'repeat'; count: number; body: ProgramNode[]; blockId: string }
+  | { op: 'parallel'; branches: ProgramNode[][]; blockId: string }
   | {
       op: 'if';
       condition: Condition;
@@ -220,7 +221,23 @@ export type RuntimeDeviceState =
   | { kind: 'potentiometer'; value: number }
   | { kind: 'wifiNode'; status: WifiRuntimeState };
 
+export interface ExecutionEvent {
+  seq: number;
+  now: number;
+  taskId: string;
+  label: string;
+  blockId: string;
+  deviceId?: string;
+  message: string;
+}
+
 export interface SimulatorState {
+  execution?: {
+    mode: 'normal' | 'guided';
+    awaitingFrame: number | null;
+    trace: ExecutionEvent[];
+    tasks: { id: string; label: string; status: 'ready' | 'waiting' | 'joining' | 'done' | 'inactive'; remainingMs?: number }[];
+  };
   now: number;
   status: 'idle' | 'running' | 'paused' | 'done' | 'stopped';
   devices: Record<string, RuntimeDeviceState>;
@@ -603,6 +620,7 @@ export const PROJECT_IMPORT_LIMITS = {
 
 const supportedBlocklyBlockTypes = new Set([
   'capi_start',
+  'capi_parallel',
   'capi_forever',
   'capi_repeat',
   'capi_wait',
@@ -893,6 +911,14 @@ function decodeWorkspace(value: unknown): WorkspaceDecodeResult {
         block.id,
       );
     }
+    if (block.type === 'capi_parallel') {
+      const extra = isObjectRecord(block.extraState) ? block.extraState.branches : undefined;
+      const field = isObjectRecord(block.fields) ? block.fields.BRANCHES : undefined;
+      const count = Number(extra ?? field ?? 2);
+      if (!Number.isInteger(count) || count < 2 || count > 16 || (extra !== undefined && field !== undefined && Number(field) !== count) || (isObjectRecord(block.inputs) && Object.keys(block.inputs).some(name => !/^BRANCH\d+$/.test(name) || Number(name.slice(6)) >= count))) {
+        return workspaceError('workspace-parallel-invalid', 'Los caminos de «Al mismo tiempo» están dañados; no se importó ningún bloque.', block.id);
+      }
+    }
     for (const coordinate of ['x', 'y'] as const) {
       if (
         block[coordinate] !== undefined &&
@@ -950,6 +976,12 @@ function decodeWorkspace(value: unknown): WorkspaceDecodeResult {
   }
 
   return { workspace: root, diagnostics: [] };
+}
+
+function legacyStartWarnings(workspace: Record<string, unknown>): string[] {
+  const section = workspace.blocks;
+  const starts = isObjectRecord(section) && Array.isArray(section.blocks) ? section.blocks.filter(block => isObjectRecord(block) && block.type === 'capi_start').length : 0;
+  return starts > 1 ? ['Al abrir, los inicios anteriores se reúnen en un solo «Al comenzar» con caminos «Al mismo tiempo». Se conservan las acciones y su orden. Guardar conserva la conversión; el archivo original no se modifica.'] : [];
 }
 
 function cloneWorkspace(value: unknown): Record<string, unknown> {
@@ -1229,7 +1261,7 @@ function decodeProjectUnsafe(value: unknown): ProjectDecodeResult {
         workspace: decodedWorkspace.workspace,
       },
       migrated: false,
-      warnings: validation.issues.map((issue) => issue.message),
+      warnings: [...validation.issues.map((issue) => issue.message), ...legacyStartWarnings(decodedWorkspace.workspace)],
       diagnostics: sceneDiagnostics,
     };
   }
@@ -1630,6 +1662,9 @@ function normalizeNodes(
           blockId,
         });
         break;
+      case 'parallel':
+        result.push({ op: 'parallel', branches: Array.isArray(node.branches) ? node.branches.map(branch => normalizeNodes(branch, scene)) : [], blockId });
+        break;
       case 'if':
         result.push({
           op: 'if',
@@ -1667,6 +1702,7 @@ function collectRequiredKindsFromNodes(
       collectRequiredKindsFromNodes(node.otherwise, result);
     }
     if (node.op === 'repeat') collectRequiredKindsFromNodes(node.body, result);
+    if (node.op === 'parallel' && Array.isArray(node.branches)) node.branches.forEach(branch => collectRequiredKindsFromNodes(branch, result));
   }
 }
 
@@ -1747,6 +1783,7 @@ function visitProgram(
     for (const node of nodes) {
       visitor(node);
       if (node.op === 'repeat') visit(node.body);
+      if (node.op === 'parallel') node.branches.forEach(visit);
       if (node.op === 'if') {
         visit(node.consequent);
         visit(node.otherwise);
@@ -1838,7 +1875,11 @@ export function validateProgramForScene(
         'La placa admite hasta 16 programas “al comenzar” en este perfil.',
     });
   }
+  try { compileTaskGraph(program); } catch (error) {
+    diagnostics.push({ severity: 'error', code: 'parallel-limit', message: error instanceof Error ? error.message : 'Demasiados caminos paralelos.' });
+  }
   visitProgram(program, (node) => {
+    if (node.op === 'parallel' && (node.branches.length < 2 || node.branches.length > 16)) diagnostics.push({ severity: 'error', code: 'parallel-branches', message: '«Al mismo tiempo» necesita entre 2 y 16 caminos.', blockId: node.blockId });
     const kinds = expectedKinds(node);
     if (kinds.length) {
       const deviceId = 'deviceId' in node ? node.deviceId : '';
@@ -1915,8 +1956,9 @@ export function validateProgramForScene(
   );
 }
 
-type FlatInstruction =
-  | Exclude<ProgramNode, { op: 'repeat' } | { op: 'if' }>
+export type FlatInstruction =
+  | Exclude<ProgramNode, { op: 'repeat' } | { op: 'if' } | { op: 'parallel' }>
+  | { op: 'fork' | 'join'; children: number[]; blockId: string }
   | {
       op: 'repeatStart';
       count: number;
@@ -1929,7 +1971,7 @@ type FlatInstruction =
   | { op: 'jump'; target: number; yieldAfter?: boolean; blockId: string }
   | { op: 'halt'; blockId: string };
 
-function flattenProgram(nodes: ProgramNode[]) {
+function flattenProgram(nodes: ProgramNode[], branchTask: (nodes: ProgramNode[], blockId: string, branch: number) => number) {
   const output: FlatInstruction[] = [];
   let loopSlot = 0;
   const visit = (items: ProgramNode[]) => {
@@ -1969,6 +2011,9 @@ function flattenProgram(nodes: ProgramNode[]) {
             >
           ).end = output.length;
         }
+      } else if (node.op === 'parallel') {
+        const children = node.branches.map((branch, index) => branchTask(branch, node.blockId, index));
+        output.push({ op: 'fork', children, blockId: node.blockId }, { op: 'join', children, blockId: node.blockId });
       } else if (node.op === 'if') {
         const conditionIndex = output.length;
         output.push({
@@ -1997,6 +2042,44 @@ function flattenProgram(nodes: ProgramNode[]) {
   visit(nodes);
   output.push({ op: 'halt', blockId: 'program-end' });
   return { output, loopSlots: Math.max(1, loopSlot) };
+}
+
+export interface ExecutableTask {
+  id: string;
+  startBlockId: string;
+  label: string;
+  initial: boolean;
+  output: FlatInstruction[];
+  loopSlots: number;
+}
+
+/** One bounded task graph is shared by simulation and the Arduino scheduler. */
+export function compileTaskGraph(program: CompiledProgram): ExecutableTask[] {
+  const tasks: ExecutableTask[] = [];
+  const reservedIds = new Set(program.threads.map(thread => thread.id));
+  const add = (nodes: ProgramNode[], blockId: string, label: string, initial: boolean, depth: number): number => {
+    if (tasks.length >= 32 || depth > 4) throw new Error('Usá hasta 32 caminos y 4 niveles de «Al mismo tiempo».');
+    const index = tasks.length;
+    let id = `parallel-task-${index}`;
+    while (reservedIds.has(id)) id += '-branch';
+    reservedIds.add(id);
+    tasks.push({ id, startBlockId: blockId, label, initial, output: [], loopSlots: 1 });
+    const flat = flattenProgram(nodes, (branch, source, branchIndex) => add(branch, source, `${label} · camino ${branchIndex + 1}`, false, depth + 1));
+    Object.assign(tasks[index], flat);
+    return index;
+  };
+  program.threads.forEach((thread, index) => {
+    // A sole root fork has no continuation to join. Avoid adding a scheduler
+    // slot: migrated multi-start projects keep their instruction budgets/order.
+    const only = thread.nodes.length === 1 ? thread.nodes[0] : null;
+    if (only?.op === 'parallel') {
+      only.branches.forEach((branch, branchIndex) => add(branch, only.blockId, `Camino ${branchIndex + 1}`, true, 1));
+    } else {
+      const taskIndex = add(thread.nodes, thread.startBlockId, index ? `Programa ${index + 1}` : 'Comenzar', true, 0);
+      tasks[taskIndex].id = thread.id;
+    }
+  });
+  return tasks;
 }
 
 const cppString = (value: string) =>
@@ -2067,6 +2150,7 @@ function createCppSymbols(scene: SceneDefinition) {
 }
 
 interface GeneratorContext {
+  usesWifi: boolean;
   scene: SceneDefinition;
   symbols: Map<string, string>;
   threadIndex: number;
@@ -2115,6 +2199,10 @@ function instructionToCpp(
   const loops = `loopCounters_${suffix}`;
   const comment = `        // bloque: ${cppLineComment(instruction.blockId)}`;
   switch (instruction.op) {
+    case 'fork':
+      return `${comment}\n${instruction.children.map(child => `        pc_T${child} = 0; active_T${child} = true; waiting_T${child} = false;\n        for (auto &value : loopCounters_T${child}) value = -1;\n${context.usesWifi ? `        wifiAttemptActive_T${child} = false;` : ''}`).join('\n')}\n        ${pc} = ${nextPc};\n        return;`;
+    case 'join':
+      return `${comment}\n        if (${instruction.children.map(child => `active_T${child}`).join(' || ') || 'false'}) return;\n        ${pc} = ${nextPc};\n        break;`;
     case 'traffic':
       return `${comment}\n        setTraffic(DEV_${deviceSymbol(context, instruction.deviceId)}, TrafficColor::${instruction.color});\n        ${pc} = ${nextPc};\n        break;`;
     case 'led': {
@@ -2384,15 +2472,14 @@ const char* WIFI_PASSWORD = "TU_CLAVE";
         .join('\n')}\n`
     : '';
 
-  const flattened = program.threads.map((thread) =>
-    flattenProgram(thread.nodes),
-  );
+  let flattened: ExecutableTask[] = [];
+  try { flattened = compileTaskGraph(program); } catch { /* Validation above emits #error; never emit a partial graph. */ }
   const threadGlobals = flattened
-    .map(({ loopSlots }, index) => {
+    .map(({ loopSlots, initial }, index) => {
       const suffix = `T${index}`;
       const loopSlotCount = Math.max(1, loopSlots);
       return `uint16_t pc_${suffix} = 0;
-bool active_${suffix} = true;
+bool active_${suffix} = ${initial ? 'true' : 'false'};
 bool waiting_${suffix} = false;
 uint32_t waitStarted_${suffix} = 0;
 int32_t loopCounters_${suffix}[${loopSlotCount}] = { ${Array.from(
@@ -2404,7 +2491,7 @@ ${usesWifi ? `bool wifiAttemptActive_${suffix} = false;\nuint32_t wifiAttemptSta
     .join('\n\n');
   const threadFunctions = flattened
     .map(({ output }, threadIndex) => {
-      const context: GeneratorContext = { scene, symbols, threadIndex };
+      const context: GeneratorContext = { scene, symbols, threadIndex, usesWifi };
       const cases = output
         .map(
           (instruction, index) =>
@@ -2426,10 +2513,10 @@ ${cases}
     .join('\n\n');
   const threadBudget = Math.max(
     1,
-    Math.floor(32 / Math.max(1, program.threads.length)),
+    Math.floor(32 / Math.max(1, flattened.length)),
   );
-  const runThreads = program.threads.length
-    ? program.threads
+  const runThreads = flattened.length
+    ? flattened
         .map((_, index) => `  runThread${index}(now, ${threadBudget});`)
         .join('\n')
     : '  // No hay programas “al comenzar”.';
