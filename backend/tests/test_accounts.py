@@ -73,6 +73,8 @@ class AccountTests(TestCase):
         response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["user"]["id"], str(self.student.pk))
+        from django.contrib.sessions.models import Session
+        self.assertEqual(response.json()["expiresAt"], Session.objects.get(session_key=self.client.session.session_key).expire_date.isoformat())
         self.assertIn("no-store", response["Cache-Control"])
         context = response.json()["context"]
         self.assertNotEqual(context, self.client.session.session_key)

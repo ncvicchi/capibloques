@@ -3,7 +3,7 @@ import { RecoveryJournal, type DurableSave } from './project-recovery';
 
 export type Account = { id: string; alias: string; displayName: string; roles: string[]; mustChangePassword: boolean };
 export type Session = { user: Account | null; csrfToken: string };
-export type EditorSession = Session & { user: Account; context: string };
+export type EditorSession = Session & { user: Account; context: string; expiresAt?: string | null };
 
 const channelName = 'capibloques-account-session';
 const signalKey = 'capibloques-session-change';
@@ -53,6 +53,7 @@ export function createAccountDraftStore(accountId: string) {
   let writes = 0;
   return {
     active: true,
+    remoteAllowed: true,
     libraryMode: false,
     remote: null as ProjectLink | null,
     pending: null as DurableSave | null,

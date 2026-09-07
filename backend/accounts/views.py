@@ -3,6 +3,7 @@ from functools import wraps
 
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.sessions.models import Session as StoredSession
 from django.core.exceptions import RequestDataTooBig, ValidationError
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
@@ -59,7 +60,9 @@ def editor_session(request):
     # No es una credencial: todas las peticiones siguen autenticándose en Django.
     context = salted_hmac("capibloques.editor-context",
                           f"{request.session.session_key}:{request.user.session_epoch}").hexdigest()
-    return JsonResponse({"user": user_data(request.user), "csrfToken": get_token(request), "context": context})
+    expires = StoredSession.objects.filter(session_key=request.session.session_key).values_list("expire_date", flat=True).first()
+    return JsonResponse({"user": user_data(request.user), "csrfToken": get_token(request), "context": context,
+                         "expiresAt": expires.isoformat() if expires else None})
 
 
 @never_cache

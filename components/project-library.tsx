@@ -45,7 +45,7 @@ import {
   type CloudProject,
   type ProjectLink,
 } from '@/lib/project-library';
-import type { Account, AccountDraftStore } from '@/lib/account-session';
+import { announceSessionChange, type Account, type AccountDraftStore } from '@/lib/account-session';
 
 export type ProjectLibraryHandle = {
   detach: () => void;
@@ -57,6 +57,7 @@ type Props = {
   csrfToken: string;
   hydrated: boolean;
   sceneEditing: boolean;
+  offline?: boolean;
   fingerprint: string;
   capture: () => ProjectFile;
   apply: (file: ProjectFile) => void;
@@ -86,6 +87,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
       csrfToken,
       hydrated,
       sceneEditing,
+      offline = false,
       fingerprint,
       capture,
       apply,
@@ -141,7 +143,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
     );
     const valid = useCallback(
       (ticket: number) =>
-        active.current && store.active && generation.current === ticket,
+        active.current && store.active && store.remoteAllowed && generation.current === ticket,
       [store],
     );
     const dirty = Boolean(
@@ -162,7 +164,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
       identity: link?.id ?? (pending ? 'pending-create' : null), fingerprint, needed: dirty || pending,
       enabled: autoReady && autoEnabled,
       paused: busy || open || sceneEditing || replacePrompt || autoPaused || conflict || context?.course?.ownerCanEdit === false,
-      ready: () => hydrated && active.current && store.active && !store.recoveryError && !inFlight.current && document.documentElement.dataset.editorLocked !== 'true',
+      ready: () => hydrated && active.current && store.active && store.remoteAllowed && !store.recoveryError && !inFlight.current && document.documentElement.dataset.editorLocked !== 'true',
       save: () => save(false, true),
     });
 
@@ -172,7 +174,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
       let checks = 0;
       const id = link.id;
       const check = async () => {
-        if (!store.active || inFlight.current) return;
+        if (!store.active || !store.remoteAllowed || inFlight.current) return;
         const ticket = generation.current;
         const sequence = ++checks;
         const baseRevision = store.remote?.revision;
@@ -255,9 +257,10 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
       url: string,
       options: RequestInit = {},
     ): Promise<T> {
+      if (!store.active || !store.remoteAllowed) throw new Error('Sin conexión verificada. Guardá localmente o exportá JSON.');
       const result = await fetch(url, {
         ...options,
-        headers: headers(),
+        headers: { ...headers(), ...Object.fromEntries(new Headers(options.headers)) },
         cache: 'no-store',
         signal: AbortSignal.timeout(20000),
       });
@@ -270,11 +273,13 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
           result.status === 401 ||
           result.status === 403 ||
           data.code === 'account_changed'
-        )
+        ) {
+          announceSessionChange();
           throw new LibraryRequestError(
             'Tu sesión cambió. Volvé a Mi cuenta antes de continuar.',
             result.status,
           );
+        }
         if (
           active.current &&
           store.active &&
@@ -290,7 +295,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
     }
 
     const refresh = useCallback(async () => {
-      if (!active.current || !store.active || inFlight.current) return;
+      if (!active.current || !store.active || !store.remoteAllowed || inFlight.current) return;
       const ticket = generation.current;
       const sequence = ++listEpoch.current;
       try {
@@ -347,6 +352,11 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
 
     async function save(copy = false, automatic = false): Promise<boolean> {
       if (!store.active || inFlight.current || !hydrated) return false;
+      if (!store.remoteAllowed) {
+        if (copy || automatic) return false;
+        try { store.write(JSON.stringify(capture())); await store.flush(); notice('Guardado sólo en esta computadora. Reconectá para enviar a tu cuenta.'); return true; }
+        catch (failure) { setError(failure instanceof Error ? failure.message : 'No se pudo guardar localmente. Exportá JSON.'); return false; }
+      }
       inFlight.current = true;
       setBusy(true);
       setError('');
@@ -653,7 +663,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
       } catch (failure) { if (store.active) setError(failure instanceof Error ? failure.message : 'No pudimos recuperar la copia.'); }
       finally { inFlight.current = false; if (active.current) setBusy(false); }
     }
-    const status = busy
+    const status = offline ? 'Sin conexión · guardado local, sin enviar' : busy
       ? 'Guardando o consultando…'
       : conflict
         ? 'Conflicto pendiente · revisá Mis proyectos'
@@ -676,7 +686,8 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
         </button>
         <button
           className="header-text-button"
-          disabled={!hydrated || busy}
+          disabled={!hydrated || busy || offline}
+          title={offline ? 'Reconectá para abrir proyectos del servidor' : undefined}
           onClick={() => {
             setError('');
             setCloudNotice('');
@@ -689,7 +700,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
         </button>
         <span className="cloud-state" aria-live="polite">
           {link ? context?.id === link.id ? context.course ? `Curso ${context.course.name}${context.course.ownerCanEdit ? ' · Visible para sus docentes' : ' · Sólo lectura; continuá con una copia'}` : 'Personal' : 'Visibilidad sin verificar' : 'Personal'} · {status}
-          {link && autoEnabled && <span> · {autoPaused || conflict ? 'Autoguardado pausado' : 'Auto activo'}</span>}
+          {link && autoEnabled && <span> · {offline || autoPaused || conflict ? 'Autoguardado pausado' : 'Auto activo'}</span>}
           {localBusy && <span> · Conservando copia local…</span>}
         </span>
         {localError && <span className="cloud-error" role="alert">{localError} Exportá JSON antes de salir.</span>}
@@ -698,7 +709,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
             {error}
             <Button
               variant="outline"
-              disabled={busy}
+              disabled={busy || offline}
               onClick={() => setOpen(true)}
             >
               Revisar guardado
@@ -706,7 +717,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
           </span>
         )}
         <Dialog
-          open={open}
+          open={open && !offline}
           onOpenChange={(value) => {
             if (!busy) {
               setOpen(value);
@@ -966,12 +977,12 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
             </Button>
           </DialogContent>
         </Dialog>
-        {courseProject && <ProjectCourseDialog key={courseProject.id} project={courseProject} accountId={account.id} token={csrfToken} store={store} close={() => setCourseProject(null)} saved={() => {
+        {courseProject && !offline && <ProjectCourseDialog key={courseProject.id} project={courseProject} accountId={account.id} token={csrfToken} store={store} close={() => setCourseProject(null)} saved={() => {
           if (courseProject.id === store.remote?.id) { setConflict(true); setContext(null); setError('Cambió el curso del proyecto abierto. Abrí su versión actual desde la biblioteca antes de seguir guardando.'); }
           setCloudNotice('Curso actualizado. Los permisos se aplican a la versión del servidor.'); void refresh();
         }} />}
         <Dialog
-          open={Boolean(rename)}
+          open={Boolean(rename) && !offline}
           onOpenChange={(value) => {
             if (!value && !busy) setRename(null);
           }}
@@ -1030,7 +1041,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
           </DialogContent>
         </Dialog>
         <AlertDialog
-          open={Boolean(trash)}
+          open={Boolean(trash) && !offline}
           onOpenChange={(value) => {
             if (!value && !busy) setTrash(null);
           }}
@@ -1081,7 +1092,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
                 Conservar copia local y abrir
               </AlertDialogAction>
               <AlertDialogAction
-                disabled={busy}
+                disabled={busy || offline}
                 onClick={async (event) => {
                   event.preventDefault();
                   if (await save()) completeReplacement();

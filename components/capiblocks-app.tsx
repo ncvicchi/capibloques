@@ -380,7 +380,8 @@ function DeviceStateCard({
   );
 }
 
-export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLogout, csrfToken }: {
+export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLogout, csrfToken, offline = false }: {
+  offline?: boolean;
   csrfToken: string;
   account: Account;
   draftStore: AccountDraftStore;
@@ -802,7 +803,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   }, [applyLibraryProject]);
 
   useLayoutEffect(() => {
-    checkpointRef.current = { suspend: () => {
+    checkpointRef.current = { ready: () => hydrated, suspend: () => {
       postToWorker({ type: 'PAUSE' });
       stopSound();
       // Capturar el proyecto confirmado antes de cancelar el debounce. El borrador
@@ -1110,7 +1111,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         <nav className="header-actions" aria-label="Acciones del proyecto">
           <a className="header-text-button" href="/cuenta/" target="_blank" rel="noopener">Mi cuenta ↗</a>
           <button className="icon-button" aria-label="Cerrar sesión" title="Revisar copias locales y cerrar sesión" onClick={onLogout}><LogOut size={20} /></button>
-          <ProjectLibrary ref={libraryRef} account={account} store={draftStore} csrfToken={csrfToken} hydrated={hydrated} sceneEditing={sceneBuilderOpen} fingerprint={fingerprint} capture={currentProject} apply={applyLibraryProject} onNew={newLibraryProject} onImport={() => fileInputRef.current?.click()} notice={message => { setNotice(message); setNoticeTone('ok'); }} />
+          <ProjectLibrary ref={libraryRef} account={account} store={draftStore} csrfToken={csrfToken} hydrated={hydrated} sceneEditing={sceneBuilderOpen} offline={offline} fingerprint={fingerprint} capture={currentProject} apply={applyLibraryProject} onNew={newLibraryProject} onImport={() => fileInputRef.current?.click()} notice={message => { setNotice(message); setNoticeTone('ok'); }} />
           <button
             className="header-text-button scene-builder-button"
             onClick={() => toggleSceneBuilder(true)}
