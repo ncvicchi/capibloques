@@ -1,6 +1,6 @@
 # Plan de CapiBloques: multiusuario, enseñanza y programación de Wemos
 
-Estado: fases 0A, 0B, 1, 2A, 2B.1, 2B.2 y 2B.3 entregadas. **3A: biblioteca personal y guardado manual** implementada en DEV; alcance y validación en [fase 3A](FASE_3A_BIBLIOTECA.md). Acceso recuperado por el propietario; usuarios, colegio y cursos conservados. **Siguiente subfase propuesta, pendiente de otro OK: 3B, vínculos a cursos y baja administrativa con respaldo de proyectos.** El autoguardado al servidor y el historial restaurable siguen en fase 4. Evidencia anterior en las guías de fases 0–2.
+Estado: fases 0A, 0B, 1, 2A, 2B.1, 2B.2, 2B.3 y 3A entregadas. **3B: vínculos a cursos y baja administrativa con respaldo** implementada en DEV; alcance y validación en [fase 3B](FASE_3B_CURSOS_Y_BAJAS.md). Acceso recuperado por el propietario; sus cuentas, colegio y cursos conservados. **Siguiente fase, pendiente de validación y otro OK: 4, autoguardado al servidor y recuperación/historial.** La revisión docente visual con devoluciones sigue en fase 5. Evidencia anterior en las guías de fases 0–3A.
 Fecha de actualización: 7 de septiembre de 2026.
 Actualización: ABM en `/gestion/usuarios/`, marca institucional en `/gestion/colegio/`, cursos en `/gestion/cursos/` y biblioteca personal en el editor → Mis proyectos. Guardado manual en PostgreSQL con revisión optimista, importación/exportación y papelera recuperable. Autoguardado todavía local. Producción no activada; Arduino + ESP-IDF, binarios/carga USB y concurrencia configurable permanecen en sus fases pendientes.
 
@@ -288,7 +288,7 @@ El backup lógico de PostgreSQL está documentado como copia consistente mientra
 | 5E. USB desde la web | Monitor Serial y carga autónoma en Chrome/Edge | Se graban físicamente programas de ambos frameworks en Wemos, se verifican y ejecutan sin depender de la pestaña; errores y cortes tienen recuperación; detener la simulación no se presenta como detener hardware. |
 | 6. Piloto en Proxmox | Configuración de producción, HTTPS, backups y carga | Se restaura una copia en entorno aislado, se prueba la carga acordada, no se exponen servicios internos y se valida el flujo completo con administrador, docente y alumnos de prueba. |
 
-División para entregas acotadas: 2A, 2B.1, 2B.2 y 2B.3 entregadas; 3A incorpora la biblioteca personal. En 3A no hay purga automática ni borrado definitivo: la papelera cuenta contra cuotas. La baja de cuentas con proyectos está bloqueada y permite desactivación como alternativa hasta implementar el flujo con respaldo de 3B. La ficha administrativa de 2B.1 no respalda proyectos. 3B y después 4 requieren nuevos OK; no se presenta 3A como fase 3 completa.
+División para entregas acotadas: 3A incorpora la biblioteca personal; 3B agrega compartir por curso y baja administrativa preparada con respaldo. No hay purga automática ni borrado definitivo individual: la papelera cuenta contra cuotas. Desactivar sigue conservando todos los trabajos. El ZIP de 3B reemplaza la ficha de 2B.1 para preparar bajas y recupera trabajos mediante importación, no la cuenta original ni borradores locales. Las fases 4 y 5 siguen separadas y requieren nuevos OK; listar/descargar JSON no se presenta como supervisión completa.
 
 Pruebas obligatorias adicionales:
 

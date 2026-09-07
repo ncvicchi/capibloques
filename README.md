@@ -8,7 +8,9 @@ El alcance está en [el plan de implementación](docs/PLAN_MULTIUSUARIO_PROXMOX.
 
 La [fase 2B.2](docs/FASE_2B2_COLEGIO.md) incorpora nombre y logo del colegio antes del ingreso. Se configuran desde **Mi cuenta → Configurar colegio**, con vista previa y Guardar/Cancelar, sólo para administradores. Acepta PNG/JPEG/WebP con validación y optimización; nombre e imagen quedan en PostgreSQL y su volumen persistente. No se necesita un logo para ingresar.
 
-La [fase 2B.3](docs/FASE_2B3_CURSOS.md) agrega **Mi cuenta → Gestionar cursos** y **Mis cursos**. El administrador prepara grupos, asigna docentes/alumnos y archiva/reactiva con Guardar/Cancelar. Los docentes ven sólo los padrones de sus cursos; los alumnos no reciben datos de compañeros. Las bajas y cambios de rol incompatibles exigen retirar previamente las membresías. La supervisión de proyectos sigue pendiente.
+La [fase 2B.3](docs/FASE_2B3_CURSOS.md) agrega **Mi cuenta → Gestionar cursos** y **Mis cursos**. El administrador prepara grupos, asigna docentes/alumnos y archiva/reactiva con Guardar/Cancelar. Los alumnos no reciben padrones. Las bajas y cambios de rol incompatibles exigen retirar previamente las membresías.
+
+La [fase 3B](docs/FASE_3B_CURSOS_Y_BAJAS.md) permite al alumno elegir el curso de cada proyecto guardado. Sus docentes asignados pueden listar y descargar esos trabajos desde Mis cursos, sin modificar originales ni acceder a proyectos personales. Duplicar/importar crea una copia personal. Retiradas y archivo se revalidan en servidor; la revisión visual y los comentarios siguen pendientes de fase 5.
 
 ## Qué se puede construir
 
@@ -61,7 +63,7 @@ El programa intermedio y el Arduino C++ se regeneran a partir de esos datos. La 
 
 **Guardar** sube el proyecto a la cuenta. **Mis proyectos** permite abrir, buscar, renombrar, duplicar, exportar y enviar a una papelera recuperable. Se comprueba la revisión para no pisar cambios de otra pestaña. Importar y cargar un ejemplo crean trabajos independientes; antes de reemplazar cambios locales se ofrece Guardar/Descartar/Cancelar. El autoguardado sigue siendo **local** por UUID de cuenta: todavía no sincroniza automáticamente con el servidor. La exportación JSON es la copia transportable, sin ID de cuenta o servidor. Los borradores locales no protegen frente a acceso al perfil del navegador. Los borradores anteriores a las cuentas se conservan sin asignar y pueden recuperarse desde Mi cuenta. Las credenciales Wi-Fi no se guardan: el sketch utiliza `TU_RED` y `TU_CLAVE`.
 
-Límites de 3A: 100 proyectos y 50 MB por cuenta, incluida la papelera, sin purga ni borrado definitivo aún. No hay historial restaurable ni cola offline persistente. Las cuentas con proyectos pueden desactivarse, pero no eliminarse hasta implementar la baja con respaldo de 3B. [Detalles y recuperación](docs/FASE_3A_BIBLIOTECA.md).
+Límites: 100 proyectos y 50 MB por cuenta, incluida la papelera, sin purga ni borrado definitivo individual. No hay historial restaurable ni cola offline persistente. En [3B](docs/FASE_3B_CURSOS_Y_BAJAS.md), la baja administrativa de una cuenta inactiva y sin membresías exige conteo, respaldo ZIP de sus trabajos y confirmaciones. Incluye papelera, pero no contraseñas ni borradores locales; recuperar implica importar los JSON como proyectos nuevos, no restaurar la cuenta original. Desactivar sigue siendo la alternativa sin pérdida de trabajos. [Biblioteca y recuperación local](docs/FASE_3A_BIBLIOTECA.md).
 
 ## Ejecutar localmente
 

@@ -41,7 +41,15 @@ Antes de migrar DEV se generó un `pg_dump -Fc` privado en la VM, comprobado no 
 
 ## Validación
 
-En curso: completar evidencia de backend PostgreSQL, Chrome/Edge, CI y salud DEV antes de cerrar esta entrega. Los tests de eliminación usan cuentas sintéticas en `test_capibloques`; no se borra una cuenta real para probar. Los contratos UI interceptan respuestas sólo en Playwright; no hay bypass de autenticación en el producto.
+Validación del 7 de septiembre de 2026. Código final de esta subfase: `a859cec`; [CI completo aprobado](https://github.com/ncvicchi/capibloques/actions/runs/34127701292).
+
+- DEV: 118 pruebas Django/PostgreSQL aprobadas en `f16590f`, más `check`, coherencia y estado de migraciones. El último ajuste `a859cec` sólo modifica el estilo del diálogo de baja. Se prueban dos docentes con un alumno en ambos cursos, vínculos explícitos, archivo/retiradas, lecturas y escrituras prohibidas, CSRF, revisión/replay, recibos vencidos/adulterados/de otro actor, fallos de respaldo y rollback de baja. Los ZIP se abren, se verifican sus checksums y se importan sus documentos bajo identidades nuevas.
+- Navegadores contra DEV: 44 contratos de cursos/usuarios/asignación aprobados en Chrome y Edge sobre `e6fed08`; ronda final de 32 pruebas de biblioteca/recuperación/cursos/respaldo aprobada en `a859cec`. Las rondas se superponen: no son 76 casos diferentes. Incluyen descartar una respuesta de contexto anterior a un guardado confirmado y conservar cambios hechos durante peticiones pendientes.
+- Inspección visual: compartir curso, listado docente y respaldo en escritorio; diálogo de baja a 390 px y texto al 200 %, con Cancelar alcanzable y sin desborde horizontal. Se corrigieron los márgenes del pie del diálogo, sin esconder contenido ni ampliar tolerancias del test.
+- Tipos, lint y smoke del editor/worker/historial aprobados; auditoría de dependencias sin vulnerabilidades informadas. CI final: 118 pruebas backend y 67 UI Chromium aprobadas, dos sketches compilados para Wemos D1 R32 y build con ocho rutas verificadas. El CI sólo verifica: no publica en Pages.
+- DEV: API, PostgreSQL y editor saludables, sin OOM ni reinicios automáticos. Observación durante las pruebas: aproximadamente 62, 26 y 887 MiB respectivamente. No se midió la capacidad de una clase concurrente ni se grabó hardware físico.
+
+Los tests de eliminación usan cuentas sintéticas en `test_capibloques`; no se borró una cuenta real para probar. Los contratos UI interceptan respuestas sólo en Playwright; no hay bypass de autenticación en el producto. La validación manual del propietario con sus cuentas sigue siendo el punto de control.
 
 ## Punto de control
 
