@@ -1,6 +1,6 @@
 # Fase 6 — Experiencia y programación
 
-Autorizada el 7 de septiembre de 2026. Implementación integrada en DEV; **verificación y cierre pendientes**. No habilita las fases 7–11.
+Autorizada y **completada en DEV el 7 de septiembre de 2026**. Implementación verificada: `81b79ee`. No habilita las fases 7–11 ni los pedidos nuevos del [backlog](BACKLOG.md).
 
 ## Funciones
 
@@ -26,10 +26,22 @@ Respaldo previo en DEV, privado y fuera del checkout: `pre-phase6-preferences-20
 - Typecheck, lint, smoke y build locales pasan en la implementación integrada (`20ebe7f`). El build verifica nueve páginas estáticas y sus assets. Sigue la advertencia conocida, no bloqueante, de chunks superiores a 500 kB.
 - Nuevo smoke compara trazas normal/guiado; verifica fork/join, anidación, reuso en bucles, tiempos de programas antiguos, límites, backpressure y cambio de modo.
 - CI de `20ebe7f`: [ejecución 34165513731](https://github.com/ncvicchi/capibloques/actions/runs/34165513731), correcta. 162 pruebas backend, 138 de interfaz Chromium sin casos flaky; tipos, lint, smoke, auditoría npm y build estático.
+- **CI final del runtime `81b79ee`: [ejecución 34170429835](https://github.com/ncvicchi/capibloques/actions/runs/34170429835), correcta.** 162 pruebas backend y persistencia tras recreación; 139 pruebas de interfaz Chromium sin casos flaky (8,5 min), tipos, lint, smoke, auditoría npm, ambos sketches Arduino y build estático. El commit posterior de cierre sólo actualiza documentación, no el runtime validado aquí; su CI es una ejecución nueva.
 - Compilación real en ese CI de los dos fixtures ampliados con fork/join y reinicio de estado de bucles/Wi-Fi, usando Arduino-ESP32 3.3.11 y `esp32:esp32:d1_uno32`. Memoria de programa: 897707 y 281443 bytes; datos globales: 45700 y 22352 bytes. Son programas de prueba, no una medida de todos los proyectos posibles ni una prueba física en placa.
 - Contra la VM DEV actualizada: 20/20 pruebas de preferencias e inicio/paralelo/pasos, diez en Chrome y diez en Edge, sin reintentos (1,9 min). Incluyen guardar/cancelar/recargar, conflictos y respuesta perdida, revocación, favoritos, arrastre con deshacer/rehacer, conversión de proyectos antiguos y móvil 390 px con texto al 200%.
+- Cierre local sobre `81b79ee`: **42/42 recorridos**, 21 en Chrome y 21 en Edge, sin reintentos (3,8 min). Repite lo anterior y suma salud/acceso con API real, deshacer/rehacer/guardar/cancelar escenas, arrastre y recarga, JSON completo, autoguardado sin publicar escenas pendientes y revisión docente inmutable con revocación. Incluye el nuevo caso de caminos ocupados, ampliación, deshacer/rehacer y exportación/reimportación sin perder acciones.
+- La prueba adicional de caminos falló inicialmente por usar una clase antigua de campo y después por esperar el sufijo «caminos» dentro del número. Se contrastó con la traza/DOM de Blockly y se corrigió sólo el test; no se relajó la protección de las acciones. La ejecución final de 42 casos pasó completa; no se atribuyen resultados correctos a las tandas de desarrollo fallidas.
+- Inspección visual de escritorio 1280×720 y móvil 390 px con texto al 200%. El último ajuste compacta espacios del panel de ejecución sin reducir letra/contraste ni cambiar la lógica, y recupera altura para editar los bloques.
 - Corregidos y verificados en CI/Chrome/Edge: marca de edición falsa por persistir la protección del inicio, desborde móvil de acciones de cuenta y desplazamiento horizontal de todo el editor al abrir Exportar. El panel distingue Detenido/Terminado y no deja componentes aparentando ejecución. El selector de velocidad normal se deshabilita en Guiado; no cambia el reloj lógico.
 - Las pruebas UI usan identidades y respuestas sintéticas dentro de Playwright; las pruebas backend comprueban permisos, conflictos y persistencia en PostgreSQL real de prueba, separado de los datos de DEV. No se cambiaron credenciales ni proyectos reales como prueba.
+
+## Operación al cierre
+
+DEV actualizado con el runtime verificado; editor, API y PostgreSQL saludables, sin OOM ni reinicios automáticos. `/api/health/ready/` devuelve `status: ok` tanto desde la VM como desde el túnel dedicado de esta PC. La PC está fuera de la LAN y se usa el salto SSH exclusivamente como reenvío. No se modificaron gateway, Proxmox, router, Nginx ni producción; no se reactivó Pages ni se publicó en otro hosting.
+
+Se conserva el túnel de navegación; la sesión administrativa se cierra al entregar. El servidor sigue funcionando en la VM aunque la PC se apague, pero para volver a navegar por localhost se debe reconectar el túnel. El respaldo previo conserva los límites de verificación indicados arriba.
+
+El rediseño general de la interfaz pedido durante el cierre sigue en el backlog: el ajuste de espacios no sustituye esa redistribución. ESP32-S3, display interactivo y TX/RX están registrados, no implementados ni iniciados.
 
 ## Validación de entrega
 

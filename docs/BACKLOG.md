@@ -1,0 +1,46 @@
+# Backlog de CapiBloques
+
+Pedidos del propietario del 7 de septiembre de 2026, durante el cierre de la fase 6. **Registrados, no implementados ni iniciados.** No cambian la autorización ni interrumpen la entrega de la fase 6. Estos números identifican pedidos, no nuevas fases; su incorporación al plan requiere acordar alcance y orden.
+
+## 1. Redistribuir la interfaz
+
+Problema reportado: la parte superior está sobrecargada, con aproximadamente siete líneas de encabezados/controles que dejan muy poco espacio para programación y escena.
+
+- Rediseñar la distribución general, no limitarse a reducir márgenes o letra.
+- Dar prioridad al espacio útil de los bloques y la escena; agrupar acciones de proyecto/cuenta y presentar detalles secundarios bajo demanda.
+- Mantener visibles y accesibles ejecución, pausa/paso, estado de guardado, deshacer/rehacer y avisos importantes, sin apilar encabezados permanentes.
+- Verificar escritorio de altura limitada, móvil, teclado y texto ampliado; medir espacio realmente disponible para editar y simular.
+
+El ajuste menor de espacios realizado al cerrar la fase 6 **no resuelve ni da por completado este pedido**.
+
+## 2. Soporte ESP32-S3
+
+- Agregar perfiles de placa para **ESP32-S3 DevKit** y **Waveshare ESP32-S3 con display de 5 pulgadas**.
+- Conservar el perfil Wemos D1 R32 y la compatibilidad de sus proyectos.
+- Incorporar capacidades, pines reservados, conexiones, validación, generación, compilación y posterior grabación para cada perfil, tanto en Arduino como en ESP-IDF según las fases acordadas.
+- No tratar las dos placas nuevas como intercambiables ni trasladarles automáticamente el mapa de pines de Wemos.
+
+Antes de implementar: identificar modelo/revisión exactos de DevKit y Waveshare, memoria y pantalla/táctil presentes; verificar documentación del fabricante. Definir cómo se elige o cambia la placa sin perder dispositivos ni ocultar conexiones incompatibles. No hay controladores ni asignaciones de pines elegidos todavía.
+
+## 3. Nuevos componentes
+
+### Display interactivo
+
+- Mostrar la escena en el display.
+- Permitir controlar manualmente los dispositivos agregados mediante controles de esa vista.
+- Representar en el simulador el comportamiento esperado y preservar la escena/configuración en JSON.
+
+Precisar al diseñar: qué vista corre en el navegador y cuál en el display físico; qué entradas táctiles tiene cada placa; qué sucede si un bloque y un control manual actúan sobre el mismo dispositivo. Este pedido no se interpreta como autorización para agregar control remoto de la placa desde la web: el alcance previo excluye ese control en vivo y cualquier cambio debe acordarse explícitamente.
+
+### TX/RX serial reasignable
+
+- **TX:** enviar mensajes por el puerto serial elegido.
+- **RX:** recibir mensajes y compararlos con mensajes fijos/prearmados, con caminos **igual / distinto**.
+- Puerto y asignaciones configurables según las capacidades/pines de la placa; no asumir que todo se transmite por la consola USB de diagnóstico.
+- Permitir probar envío/recepción y bifurcaciones en el navegador antes de programar la placa.
+
+Precisar al diseñar: selección de UART, TX/RX, velocidad, fin de mensaje, codificación, tamaño máximo, espera/timeout y estado «sin mensaje». No confundir ausencia de datos con una comparación distinta. Las lecturas y esperas deben ser no bloqueantes; validar conflictos con otros componentes y puertos reservados.
+
+## Relación con el plan vigente
+
+Estos pedidos cruzan la UX de la fase 6 y las futuras fases de mensajes/display, generadores, compilación y USB. Se incorporarán explícitamente al [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) antes de iniciar su implementación, con alcance y orden acordados. El rediseño general sigue pendiente aunque las funciones de fase 6 estén entregadas; el backlog no demuestra soporte funcional disponible.

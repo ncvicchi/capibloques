@@ -2,15 +2,17 @@
 
 CapiBloques es un entorno visual educativo para que chicos de 8 a 12 años armen una escena, programen sus componentes con bloques, prueben el comportamiento en el navegador y descarguen Arduino C++ compatible con una WEMOS D1 R32.
 
-El editor exige ingreso con alias y contraseña. En la VM de desarrollo corren Django + PostgreSQL, el [acceso y sesiones de fase 2A](docs/FASE_2A_ACCESO.md) en `/cuenta/` y el [ABM de usuarios de fase 2B.1](docs/FASE_2B1_USUARIOS.md) en `/gestion/usuarios/`, exclusivo del administrador. Cursos, membresías y proyectos personales se guardan en servidor. La [biblioteca de fase 3A](docs/FASE_3A_BIBLIOTECA.md) se abre con **Mis proyectos** en el editor. El alojamiento elegido es Proxmox; GitHub Pages deja de utilizarse. El frontend permite exportación estática, pero necesita la API del mismo origen. La [fase 4A](docs/FASE_4A_AUTOGUARDADO.md) incorpora autoguardado y [4B.1](docs/FASE_4B1_RECUPERACION.md) recuperación local del proyecto y su envío pendiente. La [fase 4](docs/FASE_4_RECUPERACION_E_HISTORIAL.md) agrega salida en equipos compartidos, continuidad local durante cortes, recuperación de escenas e historial restaurable. La [fase 5](docs/FASE_5_SUPERVISION_DOCENTE.md) incorpora revisión docente, simulación de sólo lectura y devoluciones por versión. ESP-IDF, compilación en servidor y grabación USB siguen pendientes.
+El editor exige ingreso con alias y contraseña. En la VM de desarrollo corren Django + PostgreSQL, el [acceso y sesiones](docs/FASE_2A_ACCESO.md) en `/cuenta/` y el [ABM de usuarios](docs/FASE_2B1_USUARIOS.md) en `/gestion/usuarios/`, exclusivo del administrador. Cursos, membresías y proyectos personales se guardan en servidor. La [biblioteca de fase 3](docs/FASE_3A_BIBLIOTECA.md) se abre con **Mis proyectos** en el editor. El alojamiento elegido es Proxmox; GitHub Pages deja de utilizarse. El frontend permite exportación estática, pero necesita la API del mismo origen. La [fase 4](docs/FASE_4_RECUPERACION_E_HISTORIAL.md) incluye autoguardado, recuperación local del proyecto y su envío pendiente, salida en equipos compartidos, continuidad durante cortes, recuperación de escenas e historial restaurable. La [fase 5](docs/FASE_5_SUPERVISION_DOCENTE.md) incorpora revisión docente, simulación de sólo lectura y devoluciones por versión. La [fase 6](docs/FASE_6_EXPERIENCIA_Y_PROGRAMACION.md) agrega avatares, favoritos, inicio único, caminos en paralelo y ejecución guiada visible. ESP-IDF, compilación en servidor y grabación USB siguen pendientes.
 
 El alcance está en [el plan de implementación](docs/PLAN_MULTIUSUARIO_PROXMOX.md) y el estado de preparación en [fase 0: servidores](docs/FASE_0_SERVIDORES.md). Trabajamos una fase por vez, con pruebas, commit/push y aprobación del propietario antes de avanzar.
 
-La [fase 2B.2](docs/FASE_2B2_COLEGIO.md) incorpora nombre y logo del colegio antes del ingreso. Se configuran desde **Mi cuenta → Configurar colegio**, con vista previa y Guardar/Cancelar, sólo para administradores. Acepta PNG/JPEG/WebP con validación y optimización; nombre e imagen quedan en PostgreSQL y su volumen persistente. No se necesita un logo para ingresar.
+El [backlog](docs/BACKLOG.md) registra pedidos posteriores todavía no implementados: redistribución de la interfaz, perfiles ESP32-S3 DevKit/Waveshare de 5 pulgadas, display interactivo y TX/RX serial con bifurcaciones.
 
-La [fase 2B.3](docs/FASE_2B3_CURSOS.md) agrega **Mi cuenta → Gestionar cursos** y **Mis cursos**. El administrador prepara grupos, asigna docentes/alumnos y archiva/reactiva con Guardar/Cancelar. Los alumnos no reciben padrones. Las bajas y cambios de rol incompatibles exigen retirar previamente las membresías.
+La [configuración del colegio de fase 2](docs/FASE_2B2_COLEGIO.md) incorpora nombre y logo antes del ingreso. Se configuran desde **Mi cuenta → Configurar colegio**, con vista previa y Guardar/Cancelar, sólo para administradores. Acepta PNG/JPEG/WebP con validación y optimización; nombre e imagen quedan en PostgreSQL y su volumen persistente. No se necesita un logo para ingresar.
 
-La [fase 3B](docs/FASE_3B_CURSOS_Y_BAJAS.md) permite al alumno elegir el curso de cada proyecto guardado. Sus docentes asignados pueden listar y descargar esos trabajos desde Mis cursos, sin modificar originales ni acceder a proyectos personales. Duplicar/importar crea una copia personal. Retiradas y archivo se revalidan en servidor.
+La [gestión de cursos de fase 2](docs/FASE_2B3_CURSOS.md) agrega **Mi cuenta → Gestionar cursos** y **Mis cursos**. El administrador prepara grupos, asigna docentes/alumnos y archiva/reactiva con Guardar/Cancelar. Los alumnos no reciben padrones. Las bajas y cambios de rol incompatibles exigen retirar previamente las membresías.
+
+Los [proyectos de curso de fase 3](docs/FASE_3B_CURSOS_Y_BAJAS.md) permiten al alumno elegir el curso de cada proyecto guardado. Sus docentes asignados pueden listar y descargar esos trabajos desde Mis cursos, sin modificar originales ni acceder a proyectos personales. Duplicar/importar crea una copia personal. Retiradas y archivo se revalidan en servidor.
 
 La [supervisión docente de fase 5](docs/FASE_5_SUPERVISION_DOCENTE.md) se abre desde **Mi cuenta → Mis cursos → Ver curso → Revisar**, en otra pestaña. Permite filtrar por alumno, inspeccionar bloques y escena, simular y dejar devoluciones sobre una versión fija. El alumno entra desde **Mis proyectos → Ver devoluciones**, responde y marca pendiente/atendida con Guardar/Cancelar. Un guardado posterior no cambia el contexto comentado. Copiar guarda un proyecto personal independiente; JSON/Arduino exportan la versión elegida sin conversaciones. El rol administrador por sí solo no concede acceso docente: hace falta rol y asignación al curso. No hay edición del original ajeno ni supervisión de actividad en vivo. Los textos pendientes de comentarios permanecen sólo en memoria de esa pestaña, no se autoguardan al cerrarla.
 
@@ -32,7 +34,7 @@ Las plantillas prácticas incluidas —semáforo, robot, Wi-Fi y contador— son
 
 El editor Blockly incluye:
 
-- inicio, esperas, repetición y bucles;
+- un inicio obligatorio, caminos en paralelo, esperas, repetición y bucles;
 - condicionales, comparadores y lógica;
 - contador y mensajes;
 - control de semáforos y brillo de LED por PWM;
@@ -44,11 +46,15 @@ El editor Blockly incluye:
 
 Cuando hay más de un componente del mismo tipo, el bloque muestra un selector con el nombre de la instancia. Así, “Semáforo norte” y “Semáforo sur” pueden ejecutar acciones distintas. Si se elimina un componente usado por un bloque, el editor conserva la referencia para poder corregirla y el generador informa el problema.
 
-Se pueden colocar varios bloques de inicio. Cada uno se convierte en un programa independiente y todos avanzan de forma concurrente. El simulador y el sketch generado usan el mismo orden cooperativo y el mismo presupuesto de instrucciones para que una condición no cambie de resultado al pasar del navegador a la placa.
+Hay un único **Al comenzar**, obligatorio y fuera de las categorías; no se borra ni duplica, pero sus acciones siguen siendo editables. **En paralelo → Al mismo tiempo** abre de 2 a 16 caminos. Lo conectado debajo espera a que todos terminen; un camino infinito impide continuar debajo. Al abrir proyectos antiguos con varios inicios se reúnen sus acciones en caminos, conservando el original sin sobrescribirlo. El simulador y el sketch generado comparten el orden cooperativo y el presupuesto de instrucciones.
+
+**★ Favoritos**, la primera categoría, permite elegir los tipos de bloque usados con frecuencia y conservarlos en la cuenta. Guardar/Cancelar no modifica la escena. Desde **Mi cuenta → Elegir avatar** se puede elegir entre 15 animales, robots, personajes y plantas originales, sin subir fotos.
 
 ## Simulación en el navegador
 
 La simulación representa cada instancia de la escena por separado: luces, brillo, motores, robots, servos, buzzers, sensores y estado de Wi-Fi. Los controles permiten ejecutar, pausar, avanzar un paso, detener y cambiar la velocidad.
+
+**Guiado: ver cada paso** muestra condiciones, vueltas, esperas y acciones con el bloque y componente resaltados, el panel «Ahora» y los estados de los caminos. **Paso** avanza con cada clic; **Ejecutar/Reanudar** los presenta automáticamente. «Seguir el bloque en pantalla» es opcional. El historial muestra hasta 30 eventos. Las pausas de presentación no se agregan al código de la placa ni cambian el reloj lógico del algoritmo. Editar bloques detiene el programa anterior; la siguiente ejecución usa los cambios.
 
 El motor de simulación corre en un Web Worker con un planificador cooperativo. Las esperas y los distintos programas no bloquean la interfaz, y se aplican límites de instrucciones, mensajes y tiempo por ciclo para que un bucle infinito no congele la página. Las entradas simuladas de sensores, botones y Wi-Fi se conservan al ejecutar o reiniciar. Los sonidos se administran por dispositivo y se detienen al pausar, detener o reiniciar. Se simula el algoritmo y su comportamiento visible; no se emulan la CPU, el radio, la corriente ni los tiempos eléctricos del ESP32.
 
@@ -86,9 +92,9 @@ npm run dev
 
 Con la API disponible, definir `CAPIBLOQUES_API_TARGET` con su URL interna antes de iniciar el frontend; Vite expone `/api/` en el mismo origen. Abrir `http://localhost:3000`. El servidor de desarrollo actualiza la página al guardar cambios. No activar bypass de autenticación para probar; las pruebas de contratos UI interceptan la red sólo dentro de Playwright.
 
-Para trabajar en la VM `capi-dev`, seguir [fase 1: entorno completo y recuperación](docs/FASE_1_BASE_REPRODUCIBLE.md). Usa **ambos** archivos `compose.dev.yaml` y `compose.backend.dev.yaml`, más un túnel SSH privado; no exige instalar Node en Ubuntu ni expone DEV en Internet. Desde la PC ya configurada, `.\scripts\connect-dev.ps1` permite abrir `http://localhost:3000` con la aplicación ejecutándose en la VM. Los proyectos confirmados en la cuenta se recuperan desde Mis proyectos en otros navegadores autenticados; la recuperación local y la preferencia de autoguardado pertenecen al navegador/origen. La [fase 0B](docs/FASE_0B_DESARROLLO.md) conserva la evidencia histórica del editor solo.
+Para trabajar en la VM `capi-dev`, seguir [fase 1: entorno completo y recuperación](docs/FASE_1_BASE_REPRODUCIBLE.md). Usa **ambos** archivos `compose.dev.yaml` y `compose.backend.dev.yaml`, más un túnel SSH privado; no exige instalar Node en Ubuntu ni expone DEV en Internet. Desde la PC ya configurada, `.\scripts\connect-dev.ps1` permite abrir `http://localhost:3000` con la aplicación ejecutándose en la VM. Los proyectos confirmados en la cuenta se recuperan desde Mis proyectos en otros navegadores autenticados; la recuperación local y la preferencia de autoguardado pertenecen al navegador/origen. La [guía histórica de desarrollo](docs/FASE_0B_DESARROLLO.md) conserva la evidencia del editor solo.
 
-Si la PC está en la misma LAN que DEV, usar `.\scripts\connect-dev.ps1 -DirectLan`: omite el gateway sin abrir puertos web en la LAN. No iniciar un segundo túnel en un puerto ya ocupado. El procedimiento de actualización de la VM limitada está en [fase 2B.1](docs/FASE_2B1_USUARIOS.md#operación-en-dev).
+Si la PC está en la misma LAN que DEV, usar `.\scripts\connect-dev.ps1 -DirectLan`: omite el gateway sin abrir puertos web en la LAN. No iniciar un segundo túnel en un puerto ya ocupado. El procedimiento de actualización de la VM limitada está en la [guía de operación en DEV](docs/FASE_2B1_USUARIOS.md#operación-en-dev).
 
 Comprobaciones disponibles:
 
