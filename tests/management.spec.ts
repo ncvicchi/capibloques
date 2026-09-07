@@ -163,8 +163,16 @@ test('usuarios: respaldo incompleto bloquea, ZIP verificado habilita y cancelar 
   await page.getByLabel('Escribí el alias exacto para confirmar').fill('luna');
   await expect(page.getByRole('button', { name: 'Eliminar definitivamente', exact: true })).toBeEnabled();
   await page.screenshot({ path: testInfo.outputPath('baja-con-respaldo.png'), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => { document.documentElement.style.fontSize = '32px'; });
+  await page.getByRole('button', { name: 'Cancelar', exact: true }).scrollIntoViewIfNeeded();
+  expect(await page.getByRole('alertdialog').evaluate(node => node.scrollWidth > node.clientWidth + 1)).toBe(false);
+  await page.screenshot({ path: testInfo.outputPath('baja-mobile.png'), fullPage: true });
   await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
   expect(state.writes).toBe(0); expect(state.users).toHaveLength(2);
+  await page.getByRole('button', { name: 'Eliminar luna', exact: true }).click();
+  await expect(page.getByRole('checkbox', { name: /Conservé el respaldo/ })).toBeDisabled();
+  await expect(page.getByLabel('Escribí el alias exacto para confirmar')).toHaveValue('');
 });
 
 test('usuarios: conflicto conserva el formulario y pérdida de permiso retira datos y diálogos', async ({ page }) => {

@@ -147,18 +147,21 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
     useEffect(() => {
       if (!link?.id) return;
       let disposed = false;
+      let checks = 0;
       const id = link.id;
       const check = async () => {
         if (!store.active || inFlight.current) return;
         const ticket = generation.current;
+        const sequence = ++checks;
+        const baseRevision = store.remote?.revision;
         try {
           const response = await fetch(`/api/projects/${id}/?metadata=1`, { headers: headers(), cache: 'no-store', signal: AbortSignal.timeout(12000) });
           const data = await response.json() as { project?: CloudProject };
-          if (disposed || !valid(ticket)) return;
+          if (disposed || !valid(ticket) || sequence !== checks || inFlight.current || store.remote?.id !== id || store.remote?.revision !== baseRevision) return;
           if (!response.ok || data.project?.id !== id) { setContext(null); return; }
           setContext(data.project);
           if (data.project.revision !== store.remote?.revision || data.project.course?.ownerCanEdit === false) setConflict(true);
-        } catch { if (!disposed && valid(ticket)) setContext(null); }
+        } catch { if (!disposed && valid(ticket) && sequence === checks && !inFlight.current && store.remote?.id === id && store.remote?.revision === baseRevision) setContext(null); }
       };
       void check();
       const timer = window.setInterval(() => void check(), 15000);

@@ -2,6 +2,34 @@ import { expect, test } from '@playwright/test';
 import { mockEditorSession } from './editor-fixture';
 import { mockLibrary } from './project-library-fixture';
 
+test('contexto de curso: respuesta anterior a un guardado no produce un conflicto falso', async ({ page }) => {
+  await mockEditorSession(page); const api = await mockLibrary(page);
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  let held = false;
+  await page.route('**/api/projects/*/?metadata=1', async route => {
+    const id = new URL(route.request().url()).pathname.split('/')[3];
+    const project = structuredClone(api.projects.get(id)!.project);
+    if (!held) { held = true; await gate; }
+    await route.fulfill({ json: { project } });
+  });
+  await page.goto('/'); await page.getByLabel('Nombre del proyecto').fill('Primero');
+  const metadata = page.waitForRequest('**/api/projects/*/?metadata=1');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await metadata;
+  await expect(page.locator('.cloud-state')).toContainText('Guardado en tu cuenta');
+  await page.getByLabel('Nombre del proyecto').fill('Segundo');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect.poll(() => [...api.projects.values()][0].project.revision).toBe(2);
+  await expect(page.locator('.cloud-state')).toContainText('Guardado en tu cuenta');
+  const finished = page.waitForResponse('**/api/projects/*/?metadata=1');
+  release(); await finished;
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await page.getByRole('button', { name: 'Mis proyectos', exact: true }).click();
+  await expect(page.locator('.library-recovery')).toHaveCount(0);
+  expect(api.writes).toBe(2);
+});
+
 test('proyecto de curso: cancelar no escribe; compartir, duplicar personal y retirar', async ({ page }, testInfo) => {
   await mockEditorSession(page); const api = await mockLibrary(page);
   api.courses.push({ id: '39b84a6d-6b64-42dd-a999-68579e4e099b', name: 'Robótica A' });

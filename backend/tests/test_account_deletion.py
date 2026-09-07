@@ -45,7 +45,7 @@ class AccountDeletionTests(TestCase):
         # transaccional de TestCase. close() manual emitiría request_finished dos veces.
         for _ in response.streaming_content:
             pass
-        self.assertTrue(response.file_to_stream.closed)
+        self.assertTrue(response.closed)
         return receipt
 
     def remove(self, data=None):
@@ -67,7 +67,7 @@ class AccountDeletionTests(TestCase):
         response = self.backup()
         self.assertEqual(response.status_code, 200)
         contents = b"".join(response.streaming_content)
-        self.assertTrue(response.file_to_stream.closed)
+        self.assertTrue(response.closed)
         self.assertEqual(hashlib.sha256(contents).hexdigest(), response["X-Capi-Backup-SHA256"])
         with zipfile.ZipFile(io.BytesIO(contents)) as archive:
             manifest = json.loads(archive.read("manifest.json"))
