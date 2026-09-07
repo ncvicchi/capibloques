@@ -26,7 +26,7 @@ ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
 
 # Modelo propio desde la primera migración de identidad; sin Django admin público.
-INSTALLED_APPS = ["django.contrib.contenttypes", "django.contrib.auth", "django.contrib.sessions", "accounts", "school", "courses"]
+INSTALLED_APPS = ["django.contrib.contenttypes", "django.contrib.auth", "django.contrib.sessions", "accounts", "school", "courses", "projects"]
 AUTH_USER_MODEL = "accounts.User"
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator", "OPTIONS": {"user_attributes": ["username", "display_name"]}},
@@ -43,6 +43,7 @@ CSRF_FAILURE_VIEW = "accounts.views.csrf_failure"
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "school.middleware.SchoolUploadLimit",
+    "projects.middleware.ProjectUploadLimit",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.middleware.common.CommonMiddleware",

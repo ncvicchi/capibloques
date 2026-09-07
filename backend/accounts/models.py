@@ -115,6 +115,8 @@ class User(AbstractUser):
     def delete(self, *args, **kwargs):
         with access_lock():
             current = type(self).objects.get(pk=self.pk)
+            if current.projects.exists():
+                raise ValidationError("Esta cuenta tiene proyectos en servidor, incluida su papelera. La eliminación con respaldo se habilitará en la siguiente subfase. Por ahora podés desactivarla sin perder sus proyectos.")
             if current.course_memberships.exists():
                 raise ValidationError("Esta cuenta pertenece a cursos. Retirá primero sus membresías en Gestionar cursos, incluidos los archivados, o desactivá la cuenta.")
             if current.is_administrator and current.is_active:

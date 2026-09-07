@@ -1,3 +1,5 @@
+import { isProjectLink, type ProjectLink } from './project-library';
+
 export type Account = { id: string; alias: string; displayName: string; roles: string[]; mustChangePassword: boolean };
 export type Session = { user: Account | null; csrfToken: string };
 export type EditorSession = Session & { user: Account; context: string };
@@ -42,9 +44,26 @@ export function createAccountDraftStore(accountId: string) {
   const prefix = `capibloques-account:${accountId}:`;
   return {
     active: true,
+    libraryMode: false,
+    remote: null as ProjectLink | null,
     projectKey: `${prefix}project-v2`,
+    libraryKey: `${prefix}library-draft-v1`,
     mutedKey: `${prefix}muted`,
-    read() { return localStorage.getItem(this.projectKey); },
-    write(value: string) { if (this.active) localStorage.setItem(this.projectKey, value); },
+    attach(remote: ProjectLink | null) { this.remote = remote; this.libraryMode = true; },
+    read() {
+      const stored = localStorage.getItem(this.libraryKey);
+      if (stored) {
+        const bundle = JSON.parse(stored) as { version?: number; accountId?: string; document?: string; remote?: unknown };
+        if (bundle.version !== 1 || bundle.accountId !== accountId || typeof bundle.document !== 'string' || (bundle.remote !== null && !isProjectLink(bundle.remote))) throw new Error('El borrador de biblioteca necesita recuperación. No se sobrescribió.');
+        this.libraryMode = true; this.remote = bundle.remote as ProjectLink | null;
+        return bundle.document;
+      }
+      return localStorage.getItem(this.projectKey);
+    },
+    write(value: string) {
+      if (!this.active) return;
+      if (this.libraryMode) localStorage.setItem(this.libraryKey, JSON.stringify({ version: 1, accountId, document: value, remote: this.remote }));
+      else localStorage.setItem(this.projectKey, value);
+    },
   };
 }

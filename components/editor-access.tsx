@@ -143,7 +143,7 @@ export default function EditorAccess() {
     </Dialog>}
     {editor && <div className="authenticated-editor" inert={locked} aria-hidden={locked || undefined}>
       <Suspense fallback={<div className="account-page"><output>Abriendo tu editor…</output></div>}>
-        <CapiBlocksApp key={`${editor.session.user.id}:${editor.session.context}`} account={editor.session.user} draftStore={editor.store} checkpointRef={checkpoint} onLogout={logout} />
+        <CapiBlocksApp key={`${editor.session.user.id}:${editor.session.context}`} account={editor.session.user} csrfToken={editor.session.csrfToken} draftStore={editor.store} checkpointRef={checkpoint} onLogout={logout} />
       </Suspense>
     </div>}
   </>;

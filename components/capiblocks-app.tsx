@@ -92,6 +92,8 @@ import {
 import SimulatorWorker from '@/lib/simulator.worker.ts?worker';
 import type { Account, AccountDraftStore } from '@/lib/account-session';
 import type { EditorCheckpoint } from '@/components/editor-access';
+import ProjectLibrary, { type ProjectLibraryHandle } from '@/components/project-library';
+import { projectFingerprint } from '@/lib/project-library';
 
 const SceneBuilder = lazy(() => import('@/components/scene-builder'));
 const WiringGuide = lazy(() => import('@/components/wiring-guide'));
@@ -378,7 +380,8 @@ function DeviceStateCard({
   );
 }
 
-export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLogout }: {
+export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLogout, csrfToken }: {
+  csrfToken: string;
   account: Account;
   draftStore: AccountDraftStore;
   checkpointRef: RefObject<EditorCheckpoint | null>;
@@ -390,6 +393,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     [currentExample.scene],
   );
   const editorRef = useRef<BlocklyWorkspaceHandle>(null);
+  const libraryRef = useRef<ProjectLibraryHandle>(null);
   const workerRef = useRef<Worker | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingImportRef = useRef<(() => void) | null>(null);
@@ -418,7 +422,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const [problemsOpen, setProblemsOpen] = useState(false);
   const [code, setCode] = useState('');
   const [copied, setCopied] = useState(false);
-  const [notice, setNotice] = useState('Guardado automático activo');
+  const [notice, setNotice] = useState('Recuperación local activa · Guardar sube a tu cuenta');
   const [noticeTone, setNoticeTone] = useState<'ok' | 'warning' | 'error'>(
     'ok',
   );
@@ -732,6 +736,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
 
   const loadExample = useCallback(
     (id: SceneId) => {
+      const applyExample = () => {
+      libraryRef.current?.detach();
       const example = examples.find((item) => item.id === id) ?? examples[0];
       const nextScene = cloneScene(example.scene);
       postToWorker({ type: 'STOP' });
@@ -747,6 +753,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       setActiveTab('scene');
       setNotice(`Ejemplo cargado: ${example.title}`);
       setNoticeTone('ok');
+      };
+      if (libraryRef.current) libraryRef.current.replace(applyExample); else applyExample();
     },
     [postToWorker],
   );
@@ -771,6 +779,24 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     const savedWorkspace = editorRef.current?.save() ?? workspace;
     return makeProject(projectName, scene, savedWorkspace, speed);
   }, [projectName, scene, speed, workspace]);
+
+  const fingerprint = useMemo(() => projectFingerprint(makeProject(projectName, scene, workspace, speed)), [projectName, scene, workspace, speed]);
+  const applyLibraryProject = useCallback((file: ProjectFile) => {
+    postToWorker({ type: 'STOP' }); stopSound();
+    const nextScene = cloneScene(file.scene);
+    setProjectName(file.metadata.title); setScene(nextScene); setSim(makeInitialState(nextScene));
+    setSpeed(file.simulation.speed); speedRef.current = file.simulation.speed;
+    setWorkspace(normalizeWorkspace(file.workspace)); setWorkspaceRevision(value => value + 1);
+    setWiringAcknowledgedSignature(null); setDiagnostics([]); setActiveTab('scene');
+    setNotice('Proyecto abierto · los cambios se suben con Guardar'); setNoticeTone('ok');
+  }, [postToWorker]);
+
+  const newLibraryProject = useCallback(() => {
+    const blank = cloneScene(examples[0].scene);
+    blank.id = crypto.randomUUID(); blank.name = 'Mi escena'; blank.description = '';
+    blank.devices = []; blank.widgets = []; blank.retiredDeviceIds = []; blank.canvas.background = 'blank'; delete blank.sourceTemplate;
+    applyLibraryProject(makeProject('Mi aventura', blank, { blocks: { languageVersion: 0, blocks: [{ type: 'capi_start', id: crypto.randomUUID(), x: 40, y: 40 }] } }, 1));
+  }, [applyLibraryProject]);
 
   useLayoutEffect(() => {
     checkpointRef.current = { suspend: () => {
@@ -909,6 +935,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           );
         const imported = decoded.project;
         const apply = () => {
+        libraryRef.current?.detach();
         const nextScene = cloneScene(imported.scene);
         postToWorker({ type: 'STOP' });
         stopSound();
@@ -930,8 +957,9 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         };
         // El selector de archivos puede devolver foco antes de que la verificación
         // termine. Esperar la misma sesión; nunca transferir la importación a otra.
-        if (draftStore.active) apply(); else {
-          pendingImportRef.current = apply;
+        const requestApply = () => { if (libraryRef.current) libraryRef.current.replace(apply); else apply(); };
+        if (draftStore.active) requestApply(); else {
+          pendingImportRef.current = requestApply;
           setNotice('Archivo leído. Esperando verificar tu sesión para importarlo.');
         }
       } catch (error) {
@@ -1074,12 +1102,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         <nav className="header-actions" aria-label="Acciones del proyecto">
           <a className="header-text-button" href="/cuenta/" target="_blank" rel="noopener">Mi cuenta ↗</a>
           <button className="icon-button" aria-label="Cerrar sesión" title="Guardar borrador y cerrar sesión" onClick={onLogout}><LogOut size={20} /></button>
-          <button
-            className="header-text-button save-project-button"
-            onClick={saveToBrowser}
-          >
-            <Save size={18} /> Guardar
-          </button>
+          <ProjectLibrary ref={libraryRef} account={account} store={draftStore} csrfToken={csrfToken} hydrated={hydrated} fingerprint={fingerprint} capture={currentProject} apply={applyLibraryProject} onNew={newLibraryProject} onImport={() => fileInputRef.current?.click()} notice={message => { setNotice(message); setNoticeTone('ok'); }} />
           <button
             className="header-text-button scene-builder-button"
             onClick={() => toggleSceneBuilder(true)}
@@ -1123,6 +1146,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                 <DropdownMenuItem onClick={exportCode}>
                   <Code2 /> Código Arduino .ino
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={saveToBrowser}><Save />Guardar sólo en este navegador</DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>

@@ -1,10 +1,16 @@
 from django.urls import include, path, re_path
 from school import views as school
 from courses import views as courses
+from projects import views as projects
 
 from .views import live, ready
 
 urlpatterns = [
+    path("api/projects/", projects.collection),
+    path("api/projects/<uuid:project_id>/", projects.detail),
+    path("api/projects/<uuid:project_id>/rename/", projects.action, {"action": "rename"}),
+    path("api/projects/<uuid:project_id>/trash/", projects.action, {"action": "trash"}),
+    path("api/projects/<uuid:project_id>/restore/", projects.action, {"action": "restore"}),
     path("api/management/courses/", courses.management),
     path("api/management/courses/<uuid:course_id>/", courses.management_detail),
     path("api/courses/", courses.mine),

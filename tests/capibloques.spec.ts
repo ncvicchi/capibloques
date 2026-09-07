@@ -394,6 +394,7 @@ test.describe('CapiBloques', () => {
       mimeType: 'application/json',
       buffer,
     });
+    await page.getByRole('alertdialog', { name: 'Antes de reemplazar el editor' }).getByRole('button', { name: 'Descartar cambios y abrir' }).click();
     await expect(
       page.getByRole('textbox', { name: 'Nombre del proyecto' }),
     ).toHaveValue('Mi semáforo exportado');
