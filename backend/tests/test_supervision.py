@@ -5,13 +5,16 @@ import uuid
 import zipfile
 from datetime import timedelta
 from unittest.mock import patch
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 
 from django.core.exceptions import ValidationError
-from django.test import Client, TestCase, override_settings
+from django.test import Client, TestCase, TransactionTestCase, override_settings
+from django.db import connections, close_old_connections
 from django.utils import timezone
 
 from accounts.deletion import summary
-from accounts.models import User
+from accounts.models import User, access_lock
 from courses.models import Membership
 from projects.models import Project, ProjectRevision, ProjectFeedback
 from .test_accounts import FAST_HASHERS
@@ -241,3 +244,88 @@ class SupervisionTests(TestCase):
         result = admin.delete(url, {"version": preview["version"], "confirmationAlias": self.owner.username, "understandsLocalDrafts": True, "understandsPermanent": True, "backupReceipt": receipt}, content_type="application/json")
         self.assertEqual(result.status_code, 200, result.content)
         self.assertFalse(ProjectFeedback.objects.exists())
+
+    def test_student_in_both_courses_keeps_comments_and_snapshots_separate(self):
+        Membership.objects.create(course=self.other_course, user=self.owner, role="alumno")
+        self.link(); self.open(); self.comment("Sólo para el grupo A")
+        second = self.create()
+        self.client.post(f"/api/projects/{second['id']}/course/", {"revision": 1, "operationId": str(uuid.uuid4()), "courseId": str(self.other_course.pk)}, content_type="application/json")
+        teacher_b = self.login(self.outside); root_b = self.root(second)
+        teacher_b.post(root_b + f"versions/2/?course={self.other_course.pk}", {}, content_type="application/json")
+        second_comment = teacher_b.post(root_b + f"feedback/?course={self.other_course.pk}", {"id": str(uuid.uuid4()), "revision": 2, "text": "Sólo para B"}, content_type="application/json")
+        self.assertEqual(second_comment.status_code, 201, second_comment.content)
+        self.assertEqual([f["text"] for f in self.request().json()["feedback"]], ["Sólo para el grupo A"])
+        self.assertEqual([f["text"] for f in teacher_b.get(root_b + f"?course={self.other_course.pk}").json()["feedback"]], ["Sólo para B"])
+        for suffix, method in [("", "get"), ("versions/2/", "get"), ("versions/2/copy/", "post"), ("feedback/", "post")]:
+            for context in [self.course.pk, self.other_course.pk]:
+                self.assertEqual(getattr(self.login(self.teacher), method)(root_b + suffix + f"?course={context}", {}, content_type="application/json").status_code, 404)
+
+    def test_teacher_cannot_mutate_original_via_owner_endpoints(self):
+        self.link(); self.open(); self.comment()
+        client = self.login(self.teacher)
+        for path, method in [("", "put"), ("rename/", "post"), ("trash/", "post"), ("restore/", "post"), ("course/", "post"), ("purge/", "post"), ("history/2/", "delete"), ("history/2/restore/", "post")]:
+            self.assertEqual(getattr(client, method)(self.url + path, {}, content_type="application/json").status_code, 404)
+        self.assertEqual(Project.objects.get().revision, 2)
+
+    def test_review_listing_student_filter_and_unknown_student_never_leak(self):
+        self.link()
+        teacher = self.login(self.teacher)
+        self.assertEqual(teacher.get(self.shared + f"?student={self.owner.pk}").json()["count"], 1)
+        for user in [self.peer, self.outside]:
+            self.assertEqual(teacher.get(self.shared + f"?student={user.pk}").json()["count"], 0)
+        self.assertEqual(teacher.get(self.shared + "?student=bad").status_code, 400)
+
+
+@override_settings(PASSWORD_HASHERS=FAST_HASHERS)
+class SupervisionRaceTests(TransactionTestCase):
+    setUp = ProjectCourseTests.setUp
+    login = ProjectCourseTests.login
+    create = ProjectCourseTests.create
+    link = ProjectCourseTests.link
+    root = SupervisionTests.root
+    request = SupervisionTests.request
+    open = SupervisionTests.open
+    comment = SupervisionTests.comment
+    save = SupervisionTests.save
+
+    def parallel(self, *actions):
+        barrier = Barrier(len(actions))
+        def run(action):
+            close_old_connections()
+            try:
+                barrier.wait(timeout=5)
+                return action()
+            finally:
+                connections.close_all()
+        with ThreadPoolExecutor(max_workers=len(actions)) as pool:
+            return list(pool.map(run, actions))
+
+    def test_simultaneous_save_and_feedback_keep_exact_old_document(self):
+        self.link(); self.open()
+        owner_client = self.login(self.owner)
+        sample = copy.deepcopy(EXAMPLES[0]); sample["metadata"]["title"] = "Guardado simultáneo"
+        payload = {"revision": 2, "operationId": str(uuid.uuid4()), "document": sample}
+        results = self.parallel(lambda: owner_client.put(self.url, payload, content_type="application/json"), lambda: self.comment(revision=2))
+        self.assertEqual(sorted(response.status_code for response in results), [200, 201])
+        self.assertEqual(Project.objects.get().revision, 3)
+        item = ProjectFeedback.objects.get()
+        self.assertEqual(item.snapshot.revision, 2)
+        self.assertEqual(item.snapshot.document, EXAMPLES[0])
+        self.assertTrue(item.snapshot.pinned)
+
+    def test_simultaneous_membership_revocation_cannot_be_bypassed(self):
+        self.link(); self.open()
+        def revoke():
+            with access_lock():
+                Membership.objects.get(user=self.teacher, course=self.course).delete()
+        _, result = self.parallel(revoke, lambda: self.comment(revision=2))
+        self.assertIn(result.status_code, [201, 404])
+        self.assertEqual(self.request().status_code, 404)
+        self.assertEqual(ProjectFeedback.objects.count(), 1 if result.status_code == 201 else 0)
+
+    def test_simultaneous_duplicate_comment_creates_only_one(self):
+        self.link(); self.open()
+        data = {"id": str(uuid.uuid4()), "revision": 2, "text": "Mismo mensaje"}
+        results = self.parallel(lambda: self.request("feedback/", "post", data), lambda: self.request("feedback/", "post", data))
+        self.assertEqual(sorted(response.status_code for response in results), [200, 201])
+        self.assertEqual(ProjectFeedback.objects.count(), 1)

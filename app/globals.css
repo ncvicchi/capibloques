@@ -2729,8 +2729,8 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .review-page p { margin-bottom: 12px; line-height: 1.6; }
 .review-context { padding: 14px; background: #eeeaff; border: 1px solid #d2c9fa; border-radius: 12px; }
 .review-toolbar, .review-sim-options { display: flex; flex-wrap: wrap; gap: 14px; align-items: end; margin: 18px 0; }
-.review-toolbar label, .review-sim-options label { display: grid; gap: 6px; min-width: 0; max-width: 100%; }
-.review-page select, .course-projects select { border: 1px solid #aeb5ce; border-radius: 8px; padding: 10px; min-height: 44px; background: white; color: #273155; max-width: 100%; font: inherit; }
+.review-toolbar label, .review-sim-options label { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; min-width: 0; max-width: 100%; }
+.review-page select, .course-projects select { border: 1px solid #aeb5ce; border-radius: 8px; padding: 10px; min-height: 44px; min-width: 0; background: white; color: #273155; width: 100%; max-width: 100%; font: inherit; }
 .review-version-badge { padding: 10px 14px; border-radius: 10px; background: #dcefea; color: #155746; }
 .review-new-version { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .review-page button, .review-link { min-height: 44px; white-space: normal; height: auto; }

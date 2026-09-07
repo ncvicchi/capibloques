@@ -30,6 +30,7 @@ import {
 } from '@/lib/account-session';
 import {
   ReviewError,
+  isReviewStatus,
   type ReviewStatus,
   type ReviewVersion,
   type ReviewRequest,
@@ -44,6 +45,7 @@ export default function ProjectReview() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [locked, setLocked] = useState(true);
   const [error, setError] = useState('');
+  const [accessError, setAccessError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -62,6 +64,7 @@ export default function ProjectReview() {
   const fetching = useRef(false);
   const operating = useRef(false);
   const selected = useRef<number | null>(null);
+  const opened = useRef(false);
   const pendingAction = useRef<(() => void) | null>(null);
   const copyIntent = useRef<{
     revision: number;
@@ -76,11 +79,14 @@ export default function ProjectReview() {
     ++epoch.current;
     allowed.current = false;
     selected.current = null;
+    opened.current = false;
     setLocked(true);
     setStatus(null);
     setSnapshot(null);
     setArtifact(null);
-    setError(message);
+    setAccessError(message);
+    setError('');
+    setNotice('');
     setDraftKey((key) => key + 1);
     setDirty(false);
     setCopyPrompt(false);
@@ -103,7 +109,7 @@ export default function ProjectReview() {
         !/^[a-f0-9-]{36}$/i.test(id) ||
         (course && !/^[a-f0-9-]{36}$/i.test(course))
       ) {
-        setError(
+        setAccessError(
           'El enlace de revisión no es válido. Abrilo desde Mis cursos o Mis proyectos.',
         );
         return;
@@ -168,6 +174,10 @@ export default function ProjectReview() {
           clear(
             'Tu cuenta o permiso cambió. Volvé a ingresar desde Mi cuenta.',
           );
+        if (response.status === 404 && data.code !== 'version_unavailable')
+          clear(
+            'Este proyecto ya no está disponible para tu cuenta o curso. Cerramos la revisión y la simulación.',
+          );
         // Una versión retirada no implica revocación del proyecto; el sondeo
         // revalida el objeto completo. Nunca sustituirla por otra al comentar.
         throw new ReviewError(
@@ -183,6 +193,7 @@ export default function ProjectReview() {
   const loadVersion = useCallback(
     async (revision: number) => {
       if (operating.current || !allowed.current) return;
+      opened.current = true;
       operating.current = true;
       setBusy(true);
       setError('');
@@ -200,6 +211,7 @@ export default function ProjectReview() {
         if (!active.current || ticket !== epoch.current || !allowed.current)
           return;
         selected.current = revision;
+        opened.current = true;
         setSnapshot({ version: result.version, document: decoded.project });
         setArtifact(null);
         const url = new URL(window.location.href);
@@ -272,25 +284,32 @@ export default function ProjectReview() {
         return;
       }
       if (!response.ok) throw new Error();
-      const data = (await response.json()) as ReviewStatus;
+      const data: unknown = await response.json();
       if (!active.current || ticket !== epoch.current) return;
-      if (
-        data.project?.id !== selection.id ||
-        !data.csrfToken ||
-        !Array.isArray(data.versions) ||
-        !Array.isArray(data.feedback)
-      )
+      if (!isReviewStatus(data) || data.project.id !== selection.id)
         throw new Error();
       token.current = data.csrfToken;
       setStatus(data);
       allowed.current = true;
       setLocked(false);
-      if (selected.current === null)
+      setAccessError('');
+      if (
+        selected.current !== null &&
+        !data.versions.some((item) => item.revision === selected.current)
+      ) {
+        selected.current = null;
+        setSnapshot(null);
+        setArtifact(null);
+        setError(
+          'La versión que estabas revisando ya no está en el historial. Tu texto pendiente sigue aquí. Elegí explícitamente otra versión para continuar.',
+        );
+      }
+      if (selected.current === null && !opened.current)
         await loadVersion(selection.initialVersion ?? data.project.revision);
     } catch {
       if (active.current && ticket === epoch.current) {
         pause();
-        setError(
+        setAccessError(
           'No pudimos verificar el acceso. La simulación está detenida; reintentá la conexión. Los borradores de devoluciones siguen en esta pestaña mientras no se confirme un cambio de cuenta o permiso.',
         );
       }
@@ -472,8 +491,9 @@ export default function ProjectReview() {
       {locked && (
         <section className="account-card review-access">
           <h2>Verificar acceso</h2>
-          <p role={error ? 'alert' : 'status'}>
-            {error || 'Verificando tu cuenta y permiso sobre este proyecto…'}
+          <p role={accessError ? 'alert' : 'status'}>
+            {accessError ||
+              'Verificando tu cuenta y permiso sobre este proyecto…'}
           </p>
           <Button onClick={() => void refresh()} disabled={!selection}>
             Reintentar acceso

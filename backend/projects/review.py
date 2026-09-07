@@ -6,6 +6,7 @@ Las versiones legacy sin contexto sólo son visibles para su propietario.
 import copy
 
 from django.db.models import Sum
+from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
 from django.utils import timezone
@@ -54,7 +55,7 @@ def snapshot(project, actor, revision, create=False):
             row.course_id = project.course_id
             row.save(update_fields=["course"])
     if not row or (project.owner_id != actor.pk and row.course_id != project.course_id):
-        raise Project.DoesNotExist
+        raise ValidationError("Esta versión no está disponible en esta revisión. Elegí una versión guardada de este curso; no se sustituyó el contenido.", code="version_unavailable")
     return row
 
 

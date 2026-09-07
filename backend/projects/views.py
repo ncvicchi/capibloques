@@ -49,6 +49,8 @@ def endpoint(methods):
             except (Project.DoesNotExist, Course.DoesNotExist):
                 return fail("El proyecto no está disponible para tu cuenta.", "not_found", 404)
             except ValidationError as error:
+                if getattr(error, "code", None) == "version_unavailable":
+                    return fail(" ".join(error.messages), "version_unavailable", 404)
                 return fail(" ".join(error.messages))
             except IntegrityError:
                 return fail("La operación entra en conflicto con otro cambio. Actualizá la biblioteca.", "conflict", 409)

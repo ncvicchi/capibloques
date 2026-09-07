@@ -35,6 +35,64 @@ export type ReviewRequest = <T>(
   options?: RequestInit,
 ) => Promise<T>;
 
+// Un corte o una respuesta parcial nunca debe hacer caer el visor con datos
+// personales todavía montados. No sustituye la autorización del servidor.
+export function isReviewStatus(value: unknown): value is ReviewStatus {
+  if (!value || typeof value !== 'object') return false;
+  const data = value as ReviewStatus;
+  const text = (item: unknown): item is string => typeof item === 'string';
+  const positive = (item: unknown): item is number =>
+    Number.isSafeInteger(item) && Number(item) > 0;
+  return Boolean(
+    data.project &&
+    text(data.project.id) &&
+    text(data.project.title) &&
+    positive(data.project.revision) &&
+    text(data.project.updatedAt) &&
+    (data.project.course == null ||
+      (text(data.project.course.id) &&
+        text(data.project.course.name) &&
+        typeof data.project.course.isArchived === 'boolean')) &&
+    data.owner &&
+    text(data.owner.alias) &&
+    text(data.owner.displayName) &&
+    text(data.csrfToken) &&
+    data.csrfToken.length > 0 &&
+    typeof data.isOwner === 'boolean' &&
+    typeof data.canComment === 'boolean' &&
+    typeof data.canRespond === 'boolean' &&
+    Array.isArray(data.versions) &&
+    data.versions.length > 0 &&
+    data.versions.every(
+      (item) =>
+        item &&
+        positive(item.revision) &&
+        text(item.title) &&
+        text(item.createdAt) &&
+        typeof item.current === 'boolean' &&
+        typeof item.pinned === 'boolean',
+    ) &&
+    Array.isArray(data.feedback) &&
+    data.feedback.length <= 50 &&
+    data.feedback.every(
+      (item) =>
+        item &&
+        text(item.id) &&
+        positive(item.revision) &&
+        positive(item.version) &&
+        text(item.text) &&
+        text(item.reply) &&
+        typeof item.resolved === 'boolean' &&
+        text(item.createdAt) &&
+        text(item.updatedAt) &&
+        (item.author === null ||
+          (item.author &&
+            text(item.author.displayName) &&
+            text(item.author.alias))),
+    ),
+  );
+}
+
 export class ReviewError extends Error {
   constructor(
     message: string,
