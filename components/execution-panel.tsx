@@ -71,16 +71,6 @@ export default function ExecutionPanel({
           Seguir el bloque en pantalla
         </label>
       </div>
-      <p className="execution-help">
-        Un solo «Al comenzar». Usá «Al mismo tiempo» para abrir caminos. Los
-        bloques de abajo esperan a que todos terminen.
-      </p>
-      {execution?.mode === 'guided' && (
-        <p>
-          Ejecutar muestra un paso a la vez. Paso avanza con cada clic. El reloj
-          simulado y el código de la placa no reciben pausas extra.
-        </p>
-      )}
       <div
         className="execution-now"
         aria-live={
@@ -90,7 +80,7 @@ export default function ExecutionPanel({
         }
         aria-atomic="true"
       >
-        <strong>➜ Ahora</strong>
+        <strong>{state?.status === 'stopped' ? '■ Detenido' : state?.status === 'done' ? '✓ Terminado' : '➜ Ahora'}</strong>
         <span>
           {latest?.message ??
             'Presioná Ejecutar o Paso para ver qué hace tu programa.'}
@@ -117,6 +107,7 @@ export default function ExecutionPanel({
         <summary>
           Últimos {execution?.trace.length ?? 0} pasos (máximo 30)
         </summary>
+        <p className="execution-help">Un solo «Al comenzar». Usá «Al mismo tiempo» para abrir caminos. Lo que sigue debajo espera a que todos terminen. En modo guiado, Ejecutar muestra cada paso y Paso avanza con cada clic. El reloj simulado y el código de la placa no reciben pausas extra.</p>
         <ol className="execution-trace">
           {execution?.trace.map((item) => (
             <li key={item.seq}>

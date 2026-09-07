@@ -1395,7 +1395,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             <TabsContent value="scene" className="sim-content">
               <div className="sim-stage composed-scene">
                 <SceneStage
-                  activeDeviceId={sim.execution?.trace.at(-1)?.deviceId}
+                  activeDeviceId={sim.status === 'stopped' || sim.status === 'done' ? undefined : sim.execution?.trace.at(-1)?.deviceId}
                   scene={scene}
                   runtimeDevices={sim.devices}
                   counter={sim.counter}

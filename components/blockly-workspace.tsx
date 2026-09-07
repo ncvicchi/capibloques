@@ -1101,12 +1101,21 @@ function compileWorkspace(workspace: BlocklyWorkspaceSvg): CompiledProgram {
   };
 }
 
+function saveWorkspace(Blockly: BlocklyApi, workspace: BlocklyWorkspaceSvg) {
+  const snapshot = Blockly.serialization.workspaces.save(workspace);
+  const roots = (snapshot.blocks as { blocks?: { type: string; deletable?: boolean }[] } | undefined)?.blocks ?? [];
+  // Root protection is an editor invariant, not a document edit. Persisting
+  // its UI flag would falsely dirty every old project merely by opening it.
+  roots.filter(root => root.type === 'capi_start').forEach(root => { delete root.deletable; });
+  return snapshot;
+}
+
 function loadWorkspaceData(
   Blockly: BlocklyApi,
   workspace: BlocklyWorkspaceSvg,
   data: Record<string, unknown>,
 ) {
-  const previous = Blockly.serialization.workspaces.save(workspace) as Record<
+  const previous = saveWorkspace(Blockly, workspace) as Record<
     string,
     unknown
   >;
@@ -1305,7 +1314,7 @@ const BlocklyWorkspace = forwardRef<
         refreshBlockAccessibility(workspace);
         appliedRevisionRef.current = revisionRef.current;
         onChangeRef.current(
-          Blockly.serialization.workspaces.save(workspace) as Record<
+          saveWorkspace(Blockly, workspace) as Record<
             string,
             unknown
           >,
@@ -1348,9 +1357,7 @@ const BlocklyWorkspace = forwardRef<
             if (!workspaceRef.current) return;
             refreshBlockAccessibility(workspaceRef.current);
             onChangeRef.current(
-              Blockly.serialization.workspaces.save(
-                workspaceRef.current,
-              ) as Record<string, unknown>,
+              saveWorkspace(Blockly, workspaceRef.current) as Record<string, unknown>,
             );
             onHistoryChangeRef.current?.(historyState(workspaceRef.current));
           }, 180);
@@ -1449,9 +1456,7 @@ const BlocklyWorkspace = forwardRef<
     }
     appliedRevisionRef.current = revision;
     onChangeRef.current(
-      blocklyRef.current.serialization.workspaces.save(
-        workspaceRef.current,
-      ) as Record<string, unknown>,
+      saveWorkspace(blocklyRef.current, workspaceRef.current) as Record<string, unknown>,
     );
     refreshBlockAccessibility(workspaceRef.current);
   }, [ready, revision]);
@@ -1462,9 +1467,7 @@ const BlocklyWorkspace = forwardRef<
     if (refreshDeviceFields(blocklyRef.current, workspaceRef.current)) {
       refreshBlockAccessibility(workspaceRef.current);
       onChangeRef.current(
-        blocklyRef.current.serialization.workspaces.save(
-          workspaceRef.current,
-        ) as Record<string, unknown>,
+        saveWorkspace(blocklyRef.current, workspaceRef.current) as Record<string, unknown>,
       );
     }
   }, [deviceSignature, ready]);
@@ -1475,9 +1478,7 @@ const BlocklyWorkspace = forwardRef<
       save() {
         if (!workspaceRef.current || !blocklyRef.current)
           return initialWorkspaceRef.current;
-        return blocklyRef.current.serialization.workspaces.save(
-          workspaceRef.current,
-        ) as Record<string, unknown>;
+        return saveWorkspace(blocklyRef.current, workspaceRef.current) as Record<string, unknown>;
       },
       load(data) {
         if (!workspaceRef.current || !blocklyRef.current) return;
@@ -1488,9 +1489,7 @@ const BlocklyWorkspace = forwardRef<
           return;
         }
         onChangeRef.current(
-          blocklyRef.current.serialization.workspaces.save(
-            workspaceRef.current,
-          ) as Record<string, unknown>,
+          saveWorkspace(blocklyRef.current, workspaceRef.current) as Record<string, unknown>,
         );
       },
       compile() {

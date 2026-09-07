@@ -104,6 +104,7 @@ def workspace(value):
         if block["type"] == "capi_parallel":
             extra = block.get("extraState", {})
             require(isinstance(extra, dict))
+            require("extraState" not in block or type(extra.get("branches")) is int)
             raw = extra.get("branches", block.get("fields", {}).get("BRANCHES", 2))
             require(type(raw) is int or isinstance(raw, str) and raw.isdigit())
             count = int(raw)

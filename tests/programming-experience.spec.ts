@@ -98,7 +98,7 @@ test('importación antigua: reúne inicios, conserva acciones y exporta paralelo
   expect(saved.blocks.blocks).toHaveLength(1);
   const root = saved.blocks.blocks[0];
   expect(root.id).toBe('first');
-  expect(root.deletable).toBe(false);
+  expect(root).not.toHaveProperty('deletable'); // Protection is a runtime invariant, not a user edit.
   const fork = root.inputs.DO.block;
   expect(fork.type).toBe('capi_parallel');
   expect(fork.inputs.BRANCH0.block.id).toBe('add-one');

@@ -296,7 +296,7 @@ export default function ReviewSimulation({
         </output>
         <ExecutionPanel state={state} post={message => worker.current?.postMessage(message)} onFollow={blockId => editor.current?.focusBlock(blockId)} />
         <SceneStage
-          activeDeviceId={state?.execution?.trace.at(-1)?.deviceId}
+          activeDeviceId={state?.status === 'stopped' || state?.status === 'done' ? undefined : state?.execution?.trace.at(-1)?.deviceId}
           scene={project.scene}
           runtimeDevices={state?.devices}
           counter={state?.counter}

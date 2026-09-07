@@ -912,6 +912,7 @@ function decodeWorkspace(value: unknown): WorkspaceDecodeResult {
       );
     }
     if (block.type === 'capi_parallel') {
+      if (block.extraState !== undefined && (!isObjectRecord(block.extraState) || !Number.isInteger(block.extraState.branches))) return workspaceError('workspace-parallel-invalid', 'El estado de los caminos no es válido.', block.id);
       const extra = isObjectRecord(block.extraState) ? block.extraState.branches : undefined;
       const field = isObjectRecord(block.fields) ? block.fields.BRANCHES : undefined;
       const count = Number(extra ?? field ?? 2);
