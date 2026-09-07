@@ -17,6 +17,7 @@ export default function EditorAccess() {
   const checkpoint = useRef<EditorCheckpoint | null>(null);
   const generation = useRef(0);
   const leaving = useRef(false);
+  const preparingExit = useRef(false);
 
   const lock = useCallback(() => {
     checkpoint.current?.suspend();
@@ -96,10 +97,18 @@ export default function EditorAccess() {
   }, [check, lock]);
 
   const logout = useCallback(async () => {
-    if (leaving.current || !current.current) return;
+    if (leaving.current || preparingExit.current || !current.current) return;
+    const target = current.current;
     // Una salida voluntaria no debe ocultar un fallo al guardar. El editor muestra
     // el error y permite exportar; una revocación externa sí bloquea el acceso.
     if (checkpoint.current?.suspend() === false) return;
+    preparingExit.current = true;
+    try { await target.store.flush(); }
+    catch {
+      setError('No pudimos conservar el último cambio. Exportá una copia JSON antes de cerrar sesión.');
+      return;
+    } finally { preparingExit.current = false; }
+    if (current.current !== target || !target.store.active || leaving.current) return;
     leaving.current = true; ++generation.current;
     lock(); announceSessionChange(true); setError('');
     try {
@@ -132,6 +141,7 @@ export default function EditorAccess() {
       }}>Reintentar</Button></> : <output>Comprobando tu sesión…</output>;
 
   return <>
+    {editor && !locked && error && <div className="account-error" role="alert">{error}</div>}
     {!editor && <main className="account-page session-cover"><section className="account-card" aria-label="Acceso al editor">
       <header className="account-heading"><span className="brand-mark" aria-hidden="true">🐾</span><h1>CapiBloques</h1></header>{feedback}
     </section></main>}

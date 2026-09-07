@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { mockEditorSession, student } from './editor-fixture';
 import { mockLibrary } from './project-library-fixture';
+import { recoveryRows } from './recovery-fixture';
 
 test('biblioteca: un rechazo confirmado permite corregir y guardar otro contenido', async ({ page }) => {
   await mockEditorSession(page); const api = await mockLibrary(page);
@@ -60,6 +61,6 @@ test('biblioteca: editar mientras llega la confirmación no marca lo nuevo como 
   await expect(page.locator('.cloud-state')).toContainText('Cambios sólo');
   expect([...api.projects.values()][0].project.title).toBe('Instantánea enviada');
   await expect(page.getByLabel('Nombre del proyecto')).toHaveValue('Cambio posterior');
-  const localTitle = await page.evaluate(id => JSON.parse(JSON.parse(localStorage.getItem(`capibloques-account:${id}:library-draft-v1`)!).document).metadata.title, student.id);
+  const localTitle = JSON.parse((await recoveryRows(page, student.id))[0].document).metadata.title;
   expect(localTitle).toBe('Cambio posterior');
 });

@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useProjectAutosave } from '@/components/use-project-autosave';
+import LocalRecovery from '@/components/local-recovery';
+import type { DurableSave } from '@/lib/project-recovery';
 import {
   Dialog,
   DialogContent,
@@ -70,14 +72,7 @@ type Listing = {
   actor: Account;
   csrfToken: string;
 };
-type PendingSave = {
-  copy: boolean;
-  url: string;
-  method: string;
-  body: string;
-  fingerprint: string;
-  generation: number;
-};
+type PendingSave = DurableSave & { generation: number };
 
 class LibraryRequestError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
@@ -113,6 +108,9 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
     const [autoEnabled, setAutoEnabled] = useState(true);
     const [autoReady, setAutoReady] = useState(false);
     const [autoPaused, setAutoPaused] = useState(false);
+    const [localError, setLocalError] = useState(store.recoveryError);
+    const [localBusy, setLocalBusy] = useState(false);
+    useEffect(() => store.subscribe(() => { setLocalError(store.recoveryError); setLocalBusy(store.recovering); }), [store]);
     const [query, setQuery] = useState('');
     const [filter, setFilter] = useState({ q: '', state: 'active', page: 1 });
     const [rename, setRename] = useState<{
@@ -161,10 +159,10 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
       return () => { disposed = true; };
     }, [autoKey]);
     useProjectAutosave({
-      identity: link?.id ?? null, fingerprint, needed: dirty || pending,
+      identity: link?.id ?? (pending ? 'pending-create' : null), fingerprint, needed: dirty || pending,
       enabled: autoReady && autoEnabled,
       paused: busy || open || sceneEditing || replacePrompt || autoPaused || conflict || context?.course?.ownerCanEdit === false,
-      ready: () => hydrated && active.current && store.active && !inFlight.current && document.documentElement.dataset.editorLocked !== 'true',
+      ready: () => hydrated && active.current && store.active && !store.recoveryError && !inFlight.current && document.documentElement.dataset.editorLocked !== 'true',
       save: () => save(false, true),
     });
 
@@ -184,7 +182,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
           if (disposed || !valid(ticket) || sequence !== checks || inFlight.current || store.remote?.id !== id || store.remote?.revision !== baseRevision) return;
           if (!response.ok || data.project?.id !== id) { setContext(null); return; }
           setContext(data.project);
-          if (data.project.revision !== store.remote?.revision || data.project.course?.ownerCanEdit === false) setConflict(true);
+          if ((!store.pending && data.project.revision !== store.remote?.revision) || data.project.course?.ownerCanEdit === false) setConflict(true);
         } catch { if (!disposed && valid(ticket) && sequence === checks && !inFlight.current && store.remote?.id === id && store.remote?.revision === baseRevision) setContext(null); }
       };
       void check();
@@ -208,6 +206,9 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
       queueMicrotask(() => {
         if (!disposed) {
           setLink(store.remote);
+          pendingSave.current = store.pending ? { ...store.pending, generation: generation.current } : null;
+          setPending(Boolean(store.pending));
+          if (store.pending) setCloudNotice('Recuperamos un envío pendiente. Podés reintentarlo sin crear otra copia.');
           setInitialFingerprint(projectFingerprint(capture()));
         }
       });
@@ -226,7 +227,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
 
     const detach = useCallback(() => {
       ++generation.current;
-      store.attach(null);
+      store.start(null);
       setLink(null);
       pendingSave.current = null;
       setPending(false);
@@ -377,12 +378,14 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
           };
         }
         const operation = pendingSave.current;
-        try {
-          store.write(JSON.stringify(capture()));
-        } catch {
-          /* El servidor aún puede guardar y exportar sigue disponible. */
-        }
+        const { generation: _generation, ...durable } = operation;
+        store.setPending(durable);
+        store.write(JSON.stringify(capture()));
         setPending(true);
+        // No iniciar red hasta confirmar la transacción local con documento,
+        // revisión base y operación inmutable. Una recarga puede repetirla.
+        await store.flush();
+        if (!valid(operation.generation)) return false;
         const result = await request<{ project: CloudProject }>(operation.url, {
           method: operation.method,
           body: operation.body,
@@ -398,6 +401,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
         setLink(next);
         setContext(result.project);
         pendingSave.current = null;
+        store.setPending(null);
         setPending(false);
         setConflict(false);
         setAutoPaused(false);
@@ -410,6 +414,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
         }
         try {
           store.write(JSON.stringify(current));
+          await store.flush();
         } catch {
           setError(
             'Guardado en servidor. No se pudo actualizar la copia local; abrilo desde Mis proyectos al volver.',
@@ -425,6 +430,8 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
           // instantánea. Sólo los resultados inciertos conservan el reintento.
           if (failure instanceof LibraryRequestError && (failure.status === 400 || failure.status === 413)) {
             pendingSave.current = null; setPending(false);
+            store.setPending(null);
+            store.write(JSON.stringify(latestCapture.current()));
           }
           setError(
             failure instanceof Error
@@ -516,7 +523,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
                 revision: data.project.revision,
                 savedFingerprint: projectFingerprint(file),
               };
-          store.attach(next);
+          store.start(next);
           setLink(next);
           if (!justSaved) setContext(data.project);
           pendingSave.current = null;
@@ -613,6 +620,39 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
       setReplacePrompt(false);
       action?.();
     }
+
+    async function replaceLocally(discard: boolean) {
+      if (!store.active || inFlight.current) return;
+      setBusy(true);
+      try {
+        store.write(JSON.stringify(latestCapture.current()));
+        await store.flush();
+        if (!store.active) return;
+        if (discard) await store.recovery.discardCurrent();
+        if (store.active) completeReplacement();
+      } catch (failure) { setError(failure instanceof Error ? failure.message : 'No pudimos conservar los cambios. Exportá JSON antes de continuar.'); }
+      finally { setBusy(false); }
+    }
+
+    async function openLocal(id: string) {
+      if (!store.active || inFlight.current) return;
+      const ticket = generation.current;
+      inFlight.current = true; setBusy(true);
+      try {
+        const row = await store.restore(id);
+        if (!valid(ticket)) return;
+        const file = decodeProject(JSON.parse(row.document)).project;
+        if (!file) throw new Error('La copia local no es compatible.');
+        ++generation.current;
+        setLink(row.remote); setContext(null);
+        pendingSave.current = row.pending ? { ...row.pending, generation: generation.current } : null;
+        setPending(Boolean(row.pending)); setConflict(false); setAutoPaused(false);
+        setInitialFingerprint(projectFingerprint(file));
+        apply(file); setOpen(false); setError('');
+        setCloudNotice('Copia local recuperada. Revisá el estado antes de salir.');
+      } catch (failure) { if (store.active) setError(failure instanceof Error ? failure.message : 'No pudimos recuperar la copia.'); }
+      finally { inFlight.current = false; if (active.current) setBusy(false); }
+    }
     const status = busy
       ? 'Guardando o consultando…'
       : conflict
@@ -650,7 +690,9 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
         <span className="cloud-state" aria-live="polite">
           {link ? context?.id === link.id ? context.course ? `Curso ${context.course.name}${context.course.ownerCanEdit ? ' · Visible para sus docentes' : ' · Sólo lectura; continuá con una copia'}` : 'Personal' : 'Visibilidad sin verificar' : 'Personal'} · {status}
           {link && autoEnabled && <span> · {autoPaused || conflict ? 'Autoguardado pausado' : 'Auto activo'}</span>}
+          {localBusy && <span> · Conservando copia local…</span>}
         </span>
+        {localError && <span className="cloud-error" role="alert">{localError} Exportá JSON antes de salir.</span>}
         {error && !open && (
           <span className="cloud-error" role="alert">
             {error}
@@ -913,7 +955,8 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
               Guardar automáticamente en mi cuenta
             </label>
             <p className="account-help">Después del primer Guardar, sube los cambios del proyecto abierto al dejar de editar. Podés usar Guardar en cualquier momento. Esta opción se recuerda para tu cuenta en este navegador. Desactivarla no cancela un envío que ya comenzó.</p>
-            <p className="account-help">Armar escena conserva su Guardar/Cancelar: no se sube el borrador de la escena. Si hay un envío sin confirmar, mantené abierto el editor y reintentá o exportá JSON antes de salir. La recuperación de envíos al cerrar el navegador y el historial todavía no están disponibles.</p>
+            <p className="account-help">Los envíos se conservan en este navegador antes de enviarse. Al volver a ingresar podés recuperarlos y reintentar; no dependen de ejecutar código al cerrar. Si aparece un error de copia local, exportá JSON antes de salir. Armar escena conserva su Guardar/Cancelar; su borrador y el historial aún no se recuperan al cerrar.</p>
+            {open && <LocalRecovery store={store} onOpen={id => replace(() => { void openLocal(id); })} />}
             <Button
               variant="outline"
               disabled={busy}
@@ -1021,7 +1064,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
               <AlertDialogTitle>Antes de reemplazar el editor</AlertDialogTitle>
               <AlertDialogDescription>
                 Hay cambios locales o un guardado sin confirmar. Podés
-                guardarlos primero, descartarlos del editor o cancelar. No se
+                guardarlos primero, conservarlos en esta computadora, descartarlos o cancelar. No se
                 modifica la versión ya guardada en tu cuenta al descartar.
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -1030,9 +1073,12 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
               <AlertDialogAction
                 disabled={busy}
                 variant="outline"
-                onClick={completeReplacement}
+                onClick={event => { event.preventDefault(); void replaceLocally(true); }}
               >
                 Descartar cambios y abrir
+              </AlertDialogAction>
+              <AlertDialogAction disabled={busy} variant="outline" onClick={event => { event.preventDefault(); void replaceLocally(false); }}>
+                Conservar copia local y abrir
               </AlertDialogAction>
               <AlertDialogAction
                 disabled={busy}

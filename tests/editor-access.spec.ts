@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { makeProject } from '../lib/capiblocks';
 import { createEmptyScene } from '../lib/scene-model';
 import { student, token } from './editor-fixture';
+import { recoveryRows } from './recovery-fixture';
 
 const other = { ...student, id: 'e6d7e9f1-91eb-44d2-8b7e-84920bed16ed', alias: 'sol', displayName: 'Sol' };
 const key = (id: string) => `capibloques-account:${id}:project-v2`;
@@ -65,7 +66,7 @@ test('editor: salida captura cambios recientes y la otra cuenta nunca los hereda
   // Enviar la salida en la misma tarea del navegador, antes del debounce de 350 ms.
   await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).evaluate((button: HTMLButtonElement) => button.click());
   await expect(page.getByRole('heading', { name: 'Ingresar', exact: true })).toBeVisible();
-  expect(JSON.parse((await page.evaluate(storageKey => localStorage.getItem(storageKey), key(student.id)))!).metadata.title).toBe('Luna solamente');
+  expect(JSON.parse((await recoveryRows(page, student.id))[0].document).metadata.title).toBe('Luna solamente');
   user = other;
   await page.goto('/');
   await expect(page.getByLabel('Nombre del proyecto')).not.toHaveValue('Luna solamente');
@@ -74,7 +75,7 @@ test('editor: salida captura cambios recientes y la otra cuenta nunca los hereda
   user = student;
   await page.reload();
   await expect(page.getByLabel('Nombre del proyecto')).toHaveValue('Luna solamente');
-  expect(JSON.parse((await page.evaluate(storageKey => localStorage.getItem(storageKey), key(other.id)))!).metadata.title).toBe('Sol solamente');
+  expect(JSON.parse((await recoveryRows(page, other.id))[0].document).metadata.title).toBe('Sol solamente');
 });
 
 test('editor: logout en otra pestaña oculta también un diálogo abierto', async ({ page, context }) => {
@@ -138,14 +139,14 @@ test('editor: si falla el guardado permite exportar antes de una salida voluntar
   await page.goto('/');
   await page.getByLabel('Nombre del proyecto').fill('Conservar aunque no haya espacio');
   await page.evaluate(() => {
-    const original = Storage.prototype.setItem;
-    Storage.prototype.setItem = function (key, value) {
-      if (key.startsWith('capibloques-account:')) throw new DOMException('Quota', 'QuotaExceededError');
-      return original.call(this, key, value);
+    const original = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (...args) {
+      if (this.name === 'drafts') throw new DOMException('Quota', 'QuotaExceededError');
+      return original.apply(this, args);
     };
   });
   await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
-  await expect(page.locator('.notice')).toContainText('Exportá una copia JSON antes de cerrar sesión');
+  await expect(page.getByText('No pudimos conservar el último cambio. Exportá una copia JSON antes de cerrar sesión.', { exact: true })).toBeVisible();
   await expect(page.getByLabel('Nombre del proyecto')).toHaveValue('Conservar aunque no haya espacio');
   await page.getByRole('button', { name: 'Exportar', exact: true }).click();
   const download = page.waitForEvent('download');

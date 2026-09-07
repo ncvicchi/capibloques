@@ -526,9 +526,11 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   }, [draftStore]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
+    let disposed = false;
+    const timer = window.setTimeout(async () => {
       try {
-        const currentSaved = draftStore.read();
+        const currentSaved = await draftStore.read();
+        if (disposed) return;
         const soundSetting = localStorage.getItem(draftStore.mutedKey);
         if (soundSetting !== null) setMuted(soundSetting === 'true');
 
@@ -571,6 +573,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           setNoticeTone('warning');
         }
       } catch (error) {
+        if (disposed) return;
         setNotice(
           error instanceof Error
             ? `No pudimos usar el guardado del navegador: ${error.message}`
@@ -578,10 +581,10 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         );
         setNoticeTone('warning');
       } finally {
-        setHydrated(true);
+        if (!disposed) setHydrated(true);
       }
     }, 0);
-    return () => window.clearTimeout(timer);
+    return () => { disposed = true; window.clearTimeout(timer); };
   }, [draftStore]);
 
   useEffect(() => {
@@ -788,7 +791,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     setSpeed(file.simulation.speed); speedRef.current = file.simulation.speed;
     setWorkspace(normalizeWorkspace(file.workspace)); setWorkspaceRevision(value => value + 1);
     setWiringAcknowledgedSignature(null); setDiagnostics([]); setActiveTab('scene');
-    setNotice('Proyecto abierto · los cambios se suben con Guardar'); setNoticeTone('ok');
+    setNotice('Proyecto abierto · revisá el estado junto a Guardar'); setNoticeTone('ok');
   }, [postToWorker]);
 
   const newLibraryProject = useCallback(() => {

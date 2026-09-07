@@ -4,10 +4,9 @@ import type { CloudProject } from '../lib/project-library';
 import { student, token } from './editor-fixture';
 
 // Contrato UI exclusivamente. Autorización/CSRF/validación reales: tests Django.
-export async function mockLibrary(page: Page) {
-  const projects = new Map<string, { project: CloudProject; document: ProjectFile }>();
-  const operations = new Map<string, string>();
-  const control = { projects, writes: 0, loseNextAck: false, staleNext: false, delayMs: 0, courses: [] as { id: string; name: string }[] };
+export async function mockLibrary(page: Page, existing?: Awaited<ReturnType<typeof createLibraryState>>) {
+  const control = existing ?? createLibraryState();
+  const { projects, operations } = control;
   await page.route('**/api/projects/**', async route => {
     const req = route.request(), url = new URL(req.url());
     const [, , , id, action] = url.pathname.split('/');
@@ -47,4 +46,11 @@ export async function mockLibrary(page: Page) {
     return route.fulfill({ status: id ? 200 : 201, json: { project: saved.project } });
   });
   return control;
+}
+
+function createLibraryState() {
+  return {
+    projects: new Map<string, { project: CloudProject; document: ProjectFile }>(), operations: new Map<string, string>(),
+    writes: 0, loseNextAck: false, staleNext: false, delayMs: 0, courses: [] as { id: string; name: string }[],
+  };
 }

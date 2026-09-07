@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { mockEditorSession, student } from './editor-fixture';
 import { mockLibrary } from './project-library-fixture';
+import { clearRecovery, recoveryRows } from './recovery-fixture';
 
 test.beforeEach(async ({ page }) => { await mockEditorSession(page); });
 
@@ -12,6 +13,7 @@ test('biblioteca: guardar, recuperar desde servidor sin borrador local y exporta
   await expect(page.locator('.cloud-state')).toContainText('Guardado en tu cuenta');
   expect(api.projects.size).toBe(1);
   await page.evaluate(() => localStorage.clear());
+  await clearRecovery(page);
   await page.reload();
   await page.getByRole('button', { name: 'Mis proyectos', exact: true }).click();
   await page.getByRole('button', { name: 'Abrir Dos semáforos', exact: true }).click();
@@ -88,8 +90,8 @@ test('biblioteca: conflicto ofrece copia sin sobrescribir y el borrador separa c
   await page.getByRole('button', { name: 'Guardar editor como copia', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Abrir Edición local (copia)', exact: true })).toBeVisible();
   expect([...api.projects.values()][0].project.title).toBe('Original');
-  const bundle = await page.evaluate(id => JSON.parse(localStorage.getItem(`capibloques-account:${id}:library-draft-v1`)! ), student.id);
-  expect(bundle.accountId).toBe(student.id); expect(bundle.remote.id).toBe([...api.projects.keys()][1]);
+  const bundle = (await recoveryRows(page, student.id))[0];
+  expect(bundle.accountId).toBe(student.id); expect(bundle.remote?.id).toBe([...api.projects.keys()][1]);
   expect(JSON.parse(bundle.document).remote).toBeUndefined();
 });
 
