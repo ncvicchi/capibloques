@@ -117,6 +117,8 @@ class User(AbstractUser):
             current = type(self).objects.get(pk=self.pk)
             if current.projects.exists():
                 raise ValidationError("Esta cuenta tiene proyectos en servidor, incluida su papelera. Usá la baja con respaldo desde Gestión de usuarios, o desactivala sin perder sus proyectos.")
+            if current.project_feedback.exists():
+                raise ValidationError("Esta cuenta tiene intervenciones docentes. Usá la baja preparada para revisar su anonimización; no se borrarán proyectos ajenos.")
             if current.course_memberships.exists():
                 raise ValidationError("Esta cuenta pertenece a cursos. Retirá primero sus membresías en Gestionar cursos, incluidos los archivados, o desactivá la cuenta.")
             if current.is_administrator and current.is_active:

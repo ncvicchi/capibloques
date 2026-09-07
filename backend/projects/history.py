@@ -16,6 +16,7 @@ def archive_current(project, force=False):
     ProjectRevision.objects.get_or_create(project=project, revision=project.revision, defaults={
         "document": project.document, "size_bytes": project.size_bytes, "title": project.title,
         "kind": project.history_kind, "created_at": project.updated_at,
+        "course_id": project.course_id,
     })
     # Política visible: conservar la actual y las 19 anteriores no fijadas más
     # recientes. Las referenciadas no participan de esta poda; sí de la cuota.
@@ -39,5 +40,5 @@ def revision_metadata(project, row=None):
             "title": row.title if row else project.title,
             "createdAt": (row.created_at if row else project.updated_at).isoformat(),
             "kind": row.kind if row else project.history_kind,
-            "current": row is None, "pinned": row.pinned if row else False,
+            "current": row is None, "pinned": row.pinned if row else project.history.filter(revision=project.revision, pinned=True).exists(),
             "bytes": row.size_bytes if row else project.size_bytes}

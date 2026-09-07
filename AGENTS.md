@@ -2,7 +2,7 @@
 
 ## Fases y autorización
 
-- Trabajar una fase completa por vez. El propietario autorizó terminar toda la fase 4 sin pedir OK entre subfases; no avanzar a la 5 sin nueva autorización. Informar alcance al comenzar y dar actualizaciones breves durante el trabajo; no pasar largos períodos sin informar al propietario.
+- Trabajar una fase completa por vez. El propietario autorizó la fase 5 (supervisión docente) completa el 7 de septiembre de 2026. No pedir OK entre subfases ni iniciar las entregas posteriores de UX/IDF/compilación/USB sin nueva autorización. Informar alcance al comenzar y dar actualizaciones breves durante el trabajo; no pasar largos períodos sin informar al propietario.
 - Implementar, probar y entregar el resultado de la fase. No avanzar a la siguiente sin el OK del propietario. Informar pendientes o fallos sin presentarlos como completados.
 - Hacer commit y push de los cambios versionables verificados de cada entrega. Si no se puede publicar, comunicarlo. No incluir cambios ajenos ni secretos.
 - El plan principal es `docs/PLAN_MULTIUSUARIO_PROXMOX.md`; el estado de preparación está en `docs/FASE_0_SERVIDORES.md`. El plan no demuestra que las funciones estén implementadas.
@@ -32,7 +32,7 @@
 
 ## Producto
 
-- Fase 4 en `docs/FASE_4_RECUPERACION_E_HISTORIAL.md` amplía las guías históricas: continuidad sólo del proyecto ya cargado y hasta expiración conocida; no autenticar offline ni permitir red sin comprobación fresca. Escena pendiente separada del documento confirmado, con CAS/época y exportación/importación portable sin identidad/operación remota. Guardar/Cancelar deben esperar almacenamiento. Historial propietario, máximo 20 puntos no referenciados más protegidos, cuota adicional 50 MB; una restauración crea revisión nueva y mantiene curso vigente. Mantener borrados explícitos bajo bloqueo, FK PROTECT, conteo/historial en ZIP de baja y recibos invalidados. Purga individual sólo tras 30 días, nombre exacto/revisión/idempotencia y tombstone sin contenido; jamás borrar datos reales como prueba. Antes de agregar comentarios, proteger sus revisiones y revisar bajas/purga/backups. No avanzar a fase 5 sin nuevo OK.
+- Fase 4 en `docs/FASE_4_RECUPERACION_E_HISTORIAL.md` amplía las guías históricas: continuidad sólo del proyecto ya cargado y hasta expiración conocida; no autenticar offline ni permitir red sin comprobación fresca. Escena pendiente separada del documento confirmado, con CAS/época y exportación/importación portable sin identidad/operación remota. Guardar/Cancelar deben esperar almacenamiento. Historial propietario, máximo 20 puntos no referenciados más protegidos, cuota adicional 50 MB; una restauración crea revisión nueva y mantiene curso vigente. Mantener borrados explícitos bajo bloqueo, FK PROTECT, conteo/historial en ZIP de baja y recibos invalidados. Purga individual sólo tras 30 días, nombre exacto/revisión/idempotencia y tombstone sin contenido; jamás borrar datos reales como prueba. En fase 5, proteger las revisiones comentadas y revisar bajas/purga/backups.
 
 - Conservar Arduino y agregar ESP-IDF como opciones. No reemplazar uno por otro.
 - Flujo previsto: simular en navegador, compilar, descargar/grabar por USB y ejecutar autónomamente. No agregar control físico en vivo.

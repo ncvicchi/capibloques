@@ -15,7 +15,8 @@ from django.http import FileResponse, JsonResponse
 from django.utils import timezone
 from django.utils.crypto import constant_time_compare, salted_hmac
 
-from projects.models import Project, ProjectRevision
+from projects.models import Project, ProjectRevision, ProjectFeedback
+from projects.review import feedback_record, MAX_FEEDBACK_BYTES
 from projects.views import retire_project
 from projects.validation import encoded
 from .management_api import audit, body, endpoint, fail, locked_actor, record, text_field
@@ -28,8 +29,10 @@ def summary(target):
     rows = list(target.projects.order_by("id").values_list("id", "revision", "size_bytes", "trashed_at", "course_id", "course__name"))
     members = list(target.course_memberships.order_by("id").values_list("id", "course_id", "role"))
     history = list(ProjectRevision.objects.filter(project__owner=target).order_by("project_id", "revision").values_list("project_id", "revision", "size_bytes", "pinned"))
-    version = salted_hmac(SALT, json.dumps([record(target)["version"], rows, members, history], default=str), algorithm="sha256").hexdigest()
-    return {"user": record(target), "projects": {"count": len(rows), "active": sum(row[3] is None for row in rows), "trash": sum(row[3] is not None for row in rows), "bytes": sum(row[2] for row in rows), "historyCount": len(history), "historyBytes": sum(row[2] for row in history)}, "memberships": len(members), "version": version,
+    comments = list(ProjectFeedback.objects.filter(snapshot__project__owner=target).order_by("id").values_list("id", "version", "size_bytes", "author_id", "author__username", "author__display_name"))
+    interventions = list(ProjectFeedback.objects.filter(author=target).exclude(snapshot__project__owner=target).order_by("id").values_list("id", "version"))
+    version = salted_hmac(SALT, json.dumps([record(target)["version"], rows, members, history, comments, interventions], default=str), algorithm="sha256").hexdigest()
+    return {"user": record(target), "projects": {"count": len(rows), "active": sum(row[3] is None for row in rows), "trash": sum(row[3] is not None for row in rows), "bytes": sum(row[2] for row in rows), "historyCount": len(history), "historyBytes": sum(row[2] for row in history), "feedbackCount": len(comments), "feedbackBytes": sum(row[2] for row in comments)}, "interventionsAnonymized": len(interventions), "memberships": len(members), "version": version,
             "canDelete": not target.is_active and not members}
 
 
@@ -70,9 +73,10 @@ def deletion(request, user_id):
         # Objetos exactos verificados en esta transacción. Auditar antes de borrar,
         # conservando UUIDs; nunca tocar cuentas, cursos o proyectos ajenos.
         owned = Project.objects.filter(owner=target)
-        audit(actor, target, "deleted", ["projects"] if current["projects"]["count"] else [])
+        audit(actor, target, "deleted", (["projects"] if current["projects"]["count"] else []) + (["feedback_author_anonymized"] if current["interventionsAnonymized"] else []))
         for item in owned.defer("document"):
             retire_project(actor, item, uuid.uuid4(), current["version"], "account_deleted")
+        ProjectFeedback.objects.filter(author=target).update(author=None)
         target.delete()  # Sigue comprobando último admin y relaciones PROTECT.
         return JsonResponse({"deleted": True, "projectsDeleted": current["projects"]["count"], "sessionEnded": False})
 
@@ -87,12 +91,12 @@ def backup(request, user_id):
         if data["confirmsPrivateBackup"] is not True:
             return fail("Confirmá que vas a preparar el respaldo privado para esta baja.")
         # Cuotas de 3A. No convertir futuros incrementos en archivos sin límite.
-        if current["projects"]["count"] > 100 or current["projects"]["bytes"] > 50_000_000 or current["projects"]["historyBytes"] > 50_000_000:
+        if current["projects"]["count"] > 100 or current["projects"]["bytes"] > 50_000_000 or current["projects"]["historyBytes"] > 50_000_000 or current["projects"]["feedbackBytes"] > MAX_FEEDBACK_BYTES:
             return fail("La cuenta supera el tamaño de respaldo admitido. No se eliminó ningún dato.")
         archive = None
         try:
             archive = tempfile.TemporaryFile(mode="w+b", dir="/tmp")
-            manifest = {"application": "CapiBloquesAccountBackup", "schemaVersion": 1, "exportedAt": timezone.now().isoformat(), "account": {key: value for key, value in current["user"].items() if key != "version"}, "projects": []}
+            manifest = {"application": "CapiBloquesAccountBackup", "schemaVersion": 2, "exportedAt": timezone.now().isoformat(), "account": {key: value for key, value in current["user"].items() if key != "version"}, "projects": []}
             with zipfile.ZipFile(archive, mode="w", compression=zipfile.ZIP_DEFLATED, compresslevel=1) as bundle:
                 # Un documento a la vez, no la biblioteca completa en memoria.
                 for project in target.projects.select_related("course").order_by("id").iterator(chunk_size=1):
@@ -105,9 +109,15 @@ def backup(request, user_id):
                         contents = encoded(version.document)
                         bundle.writestr(filename, contents)
                         entry["history"].append({"revision": version.revision, "title": version.title, "kind": version.kind, "pinned": version.pinned, "createdAt": version.created_at.isoformat(), "file": filename, "sha256": hashlib.sha256(contents).hexdigest()})
+                    feedback = [feedback_record(item) for item in ProjectFeedback.objects.filter(snapshot__project=project).select_related("snapshot", "author").defer("snapshot__document")]
+                    filename = f"feedback/{project.pk}.json"
+                    contents = encoded(feedback)
+                    bundle.writestr(filename, contents)
+                    entry["feedback"] = {"count": len(feedback), "file": filename, "sha256": hashlib.sha256(contents).hexdigest()}
+                    entry["provenance"] = project.provenance
                     manifest["projects"].append(entry)
                 bundle.writestr("manifest.json", encoded(manifest))
-                bundle.writestr("LEEME.txt", "Respaldo privado de baja de cuenta. Incluye proyectos actuales e historial en history/. No contiene contraseñas, sesiones ni borradores locales. Para recuperar trabajos: crear una cuenta e importar por separado los JSON; obtendrán nueva identidad personal, sin compartir automáticamente con cursos. Guardar este ZIP en un lugar privado. No restaura automáticamente la cuenta original ni su historial como conjunto.\n")
+                bundle.writestr("LEEME.txt", "Respaldo privado de baja de cuenta. Incluye proyectos actuales, historial en history/ y devoluciones/respuestas en feedback/. Las intervenciones de esta persona en proyectos ajenos se anonimizan al eliminar la cuenta y NO se exportan aquí ni se eliminan del trabajo ajeno. No contiene contraseñas, sesiones ni borradores locales. Para recuperar trabajos: crear una cuenta e importar por separado los JSON; obtendrán nueva identidad personal, sin compartir automáticamente con cursos. Guardar este ZIP en un lugar privado. No restaura automáticamente la cuenta original, su historial ni conversaciones como conjunto.\n")
             archive.seek(0)
             checksum = hashlib.file_digest(archive, "sha256").hexdigest()
             receipt = signing.dumps({"actor": str(actor.pk), "epoch": actor.session_epoch, "target": str(target.pk), "version": current["version"], "sha256": checksum}, salt=SALT)

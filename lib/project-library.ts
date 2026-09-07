@@ -10,6 +10,8 @@ export type CloudProject = {
   trashedAt: string | null;
   purgeAfter?: string | null;
   course?: ProjectCourse | null;
+  feedbackCount?: number;
+  provenance?: { title: string; revision: number; course: string | null } | null;
 };
 export type ProjectLink = {
   id: string;

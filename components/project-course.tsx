@@ -104,7 +104,7 @@ export default function ProjectCourseDialog({
       if (active.current) setBusy(false);
     }
   }
-  const unavailable = project.course && !project.course.ownerCanEdit;
+  const unavailable = (project.course && !project.course.ownerCanEdit) || Boolean(project.feedbackCount);
   return (
     <Dialog
       open
@@ -127,8 +127,7 @@ export default function ProjectCourseDialog({
         )}
         {unavailable ? (
           <p>
-            El curso está archivado o ya no estás asignado. Conservamos el
-            original; duplicalo como proyecto personal para continuar.
+            {project.feedbackCount ? 'Este proyecto tiene devoluciones vinculadas a sus versiones y curso. Para usarlo en otro curso, duplicalo sin conversaciones.' : 'El curso está archivado o ya no estás asignado. Conservamos el original; duplicalo como proyecto personal para continuar.'}
           </p>
         ) : (
           <>

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { decodeProject, downloadText, safeFilename } from '@/lib/capiblocks';
 import type { CloudProject } from '@/lib/project-library';
+import { reviewUrl } from '@/lib/project-review';
 
 type Listing = {
   projects: (CloudProject & {
@@ -18,14 +19,16 @@ export default function CourseProjects({
   courseId,
   accountId,
   locked,
+  students = [],
 }: {
   courseId: string;
   accountId: string;
   locked: boolean;
+  students?: { id: string; displayName: string; alias: string }[];
 }) {
   const [listing, setListing] = useState<Listing | null>(null);
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState({ q: '', page: 1 });
+  const [filter, setFilter] = useState({ q: '', page: 1, student: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [reload, setReload] = useState(0);
@@ -38,11 +41,11 @@ export default function CourseProjects({
   useEffect(() => {
     active.current = true;
     const refresh = async () => {
-      if (locked || !active.current || downloading.current) return;
+      if (locked || !active.current || downloading.current || document.visibilityState !== 'visible') return;
       const ticket = ++epoch.current;
       try {
         const response = await fetch(
-          `${root}?${new URLSearchParams({ q: filter.q, page: String(filter.page) })}`,
+          `${root}?${new URLSearchParams({ q: filter.q, page: String(filter.page), student: filter.student })}`,
           {
             headers: { 'X-Capi-Account': accountId },
             cache: 'no-store',
@@ -136,9 +139,10 @@ export default function CourseProjects({
         className="library-filters"
         onSubmit={(event) => {
           event.preventDefault();
-          setFilter({ q: query, page: 1 });
+          setFilter({ ...filter, q: query, page: 1 });
         }}
       >
+        <label htmlFor="course-project-student">Alumno<select id="course-project-student" value={filter.student} disabled={busy} onChange={event => setFilter({ ...filter, student: event.target.value, page: 1 })}><option value="">Todos los alumnos</option>{students.map(student => <option key={student.id} value={student.id}>{student.displayName} (@{student.alias})</option>)}</select></label>
         <label htmlFor="course-project-search">
           Buscar proyecto
           <Input
@@ -174,6 +178,7 @@ export default function CourseProjects({
                     {new Date(project.updatedAt).toLocaleString('es-AR')}
                   </span>
                 </div>
+                <a className="review-link" href={reviewUrl(project.id, courseId)} target="_blank" rel="noopener noreferrer">Revisar {project.title} · {project.feedbackCount ?? 0} devoluciones (otra pestaña)</a>
                 <Button
                   variant="outline"
                   disabled={busy || locked}
@@ -213,8 +218,9 @@ export default function CourseProjects({
         <p>Actualizá para verificar los proyectos disponibles.</p>
       )}
       <p className="account-help">
-        El visor de revisión y las devoluciones por versión llegarán en la fase
-        de supervisión.
+        Actualiza cada 15 segundos mientras esta vista está visible. La fecha
+        corresponde al guardado en servidor, no a actividad en vivo. Revisar abre
+        bloques, simulación y devoluciones sin cambiar tus propios borradores.
       </p>
     </section>
   );

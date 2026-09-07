@@ -21,7 +21,7 @@ from accounts.security import require_account
 from accounts.views import user_data
 from courses.models import Course, Membership
 from courses.views import belonging
-from .models import Project, ProjectEvent, ProjectRevision, ProjectDeletion
+from .models import Project, ProjectEvent, ProjectRevision, ProjectDeletion, ProjectFeedback
 from .history import archive_current, mark_checkpoint, revision_metadata, MAX_HISTORY_BYTES, HISTORY_PREVIOUS
 from .validation import document, encoded, exact, require, title
 
@@ -83,6 +83,8 @@ def identifier(value):
 
 def metadata(project):
     return {"id": str(project.pk), "title": project.title, "revision": project.revision,
+            "provenance": project.provenance,
+            "feedbackCount": ProjectFeedback.objects.filter(snapshot__project=project).count(),
             "updatedAt": project.updated_at.isoformat(), "trashedAt": project.trashed_at.isoformat() if project.trashed_at else None,
             "purgeAfter": (project.trashed_at + timedelta(days=30)).isoformat() if project.trashed_at else None,
             "course": {"id": str(project.course_id), "name": project.course.name, "isArchived": project.course.is_archived, "ownerCanEdit": owner_can_edit(project)} if project.course_id else None}
@@ -248,7 +250,7 @@ def action(request, actor, project_id, action):
 @endpoint(["GET"])
 def history_list(request, actor, project_id):
     project = Project.objects.get(pk=project_id, owner=actor)
-    return JsonResponse({"project": metadata(project), "versions": [revision_metadata(project)] + [revision_metadata(project, row) for row in project.history.defer("document")],
+    return JsonResponse({"project": metadata(project), "versions": [revision_metadata(project)] + [revision_metadata(project, row) for row in project.history.exclude(revision=project.revision).defer("document")],
                          "policy": {"versions": HISTORY_PREVIOUS + 1, "bytes": MAX_HISTORY_BYTES, "automaticMinutes": 5}})
 
 
@@ -309,8 +311,8 @@ def history_restore(request, actor, project_id, revision):
 def retire_project(actor, project, operation, operation_digest, action="purged"):
     ProjectDeletion.objects.create(pk=project.pk, owner_id_snapshot=project.owner_id, operation=operation, digest=operation_digest)
     ProjectEvent.objects.create(actor=actor, actor_id_snapshot=actor.pk if actor else uuid.UUID(int=0), project_id_snapshot=project.pk, revision=project.revision, action=action)
-    # Eliminación exacta y explícita. Las futuras devoluciones deben retirarse
-    # aquí antes de sus FK PROTECT, no mediante cascadas de la cuenta.
+    # Exactamente las devoluciones de este proyecto, antes de sus FK PROTECT.
+    ProjectFeedback.objects.filter(snapshot__project=project).delete()
     project.history.all().delete()
     project.delete()
 
@@ -362,6 +364,9 @@ def link_course(request, actor, project_id):
         if not member:
             raise Project.DoesNotExist
         course = member.course
+    if project.course_id != (course.pk if course else None):
+        require(not ProjectFeedback.objects.filter(snapshot__project=project).exists(), "Este proyecto tiene devoluciones. Para usarlo en otro curso o como personal, creá una copia sin comentarios. El original conserva su contexto.")
+        archive_current(project, force=True)
     project.course = course
     return finish(actor, project, data, "course_changed")
 
@@ -382,7 +387,10 @@ def course_projects(request, actor, course_id, project_id=None):
         require(1 <= page <= 100000 and len(query) <= 80)
     except ValueError:
         raise ValidationError("Revisá la búsqueda y la página.") from None
+    student = request.GET.get("student", "")
+    if student:
+        projects = projects.filter(owner_id=identifier(student))
     projects = projects.filter(title__icontains=query)
     count = projects.count()
     page = min(page, max(1, (count + 19) // 20))
-    return JsonResponse({"projects": [{**metadata(project), "owner": {"displayName": project.owner.display_name, "alias": project.owner.username}} for project in projects.defer("document").order_by("-updated_at", "id")[(page-1)*20:page*20]], "count": count, "page": page, "pageSize": 20})
+    return JsonResponse({"projects": [{**metadata(project), "owner": {"id": str(project.owner_id), "displayName": project.owner.display_name, "alias": project.owner.username}} for project in projects.defer("document").order_by("-updated_at", "id")[(page-1)*20:page*20]], "count": count, "page": page, "pageSize": 20})

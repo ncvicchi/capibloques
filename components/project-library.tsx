@@ -12,6 +12,7 @@ import {
 import { FolderOpen, Save } from 'lucide-react';
 import ProjectCourseDialog from '@/components/project-course';
 import ProjectHistory from '@/components/project-history';
+import { reviewUrl } from '@/lib/project-review';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -870,6 +871,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
                     <article className="library-project" key={project.id}>
                       <h2>{project.title}</h2>
                       <p>{project.course ? `Curso ${project.course.name}${project.course.ownerCanEdit ? ' · Visible para sus docentes' : ' · Conservado, continuar con copia personal'}` : 'Personal · sólo vos'}</p>
+                      {project.provenance && <p className="account-help">Procedencia: copia de «{project.provenance.title}», versión {project.provenance.revision}{project.provenance.course ? ` · ${project.provenance.course}` : ''}. Sin conversaciones del original.</p>}
                       <p>
                         Versión {project.revision} ·{' '}
                         {new Date(project.updatedAt).toLocaleString('es-AR')}
@@ -878,6 +880,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
                           : ''}
                       </p>
                       <div className="account-actions">
+                        {(project.course || Boolean(project.feedbackCount)) && <a className="review-link" href={reviewUrl(project.id)} target="_blank" rel="noopener noreferrer">Ver devoluciones de {project.title} ({project.feedbackCount ?? 0}) · otra pestaña</a>}
                         <Button disabled={busy} variant="outline" onClick={() => setHistoryProject(project)}>Historial de {project.title}</Button>
                         {project.trashedAt ? (
                           <Button

@@ -33,6 +33,7 @@ export interface BlocklyHistoryState {
 }
 
 interface BlocklyWorkspaceProps {
+  readOnly?: boolean;
   initialWorkspace: Record<string, unknown>;
   revision: number;
   devices: readonly SceneDevice[];
@@ -1108,6 +1109,7 @@ const BlocklyWorkspace = forwardRef<
     onBlockSnap,
     onError,
     onHistoryChange,
+    readOnly = false,
   },
   ref,
 ) {
@@ -1116,6 +1118,8 @@ const BlocklyWorkspace = forwardRef<
   const blocklyRef = useRef<BlocklyApi | null>(null);
   const changeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialWorkspaceRef = useRef(initialWorkspace);
+  // El modo no cambia durante la vida de un workspace; revisión monta el suyo.
+  const readOnlyRef = useRef(readOnly);
   const revisionRef = useRef(revision);
   const appliedRevisionRef = useRef<number | null>(null);
   const devicesRef = useRef(devices);
@@ -1187,10 +1191,11 @@ const BlocklyWorkspace = forwardRef<
           },
         });
         const workspace = Blockly.inject(hostRef.current, {
-          toolbox,
+          toolbox: readOnlyRef.current ? undefined : toolbox,
+          readOnly: readOnlyRef.current,
           theme,
           renderer: 'zelos',
-          trashcan: true,
+          trashcan: !readOnlyRef.current,
           move: { scrollbars: true, drag: true, wheel: true },
           zoom: {
             controls: true,
@@ -1220,6 +1225,7 @@ const BlocklyWorkspace = forwardRef<
           >,
         );
         workspace.addChangeListener((event) => {
+          if (readOnlyRef.current) return;
           if (event.isUiEvent) return;
           if (event.type === Blockly.Events.BLOCK_MOVE && event.recordUndo)
             onBlockSnapRef.current?.();
@@ -1425,12 +1431,14 @@ const BlocklyWorkspace = forwardRef<
         workspace.highlightBlock([...nextIds][0] ?? null);
       },
       undo() {
+        if (readOnlyRef.current) return;
         const workspace = workspaceRef.current;
         if (!workspace || !workspace.getUndoStack().length) return;
         workspace.undo(false);
         onHistoryChangeRef.current?.(historyState(workspace));
       },
       redo() {
+        if (readOnlyRef.current) return;
         const workspace = workspaceRef.current;
         if (!workspace || !workspace.getRedoStack().length) return;
         workspace.undo(true);
@@ -1448,7 +1456,7 @@ const BlocklyWorkspace = forwardRef<
       {!ready && <div className="editor-loading">Preparando los bloques…</div>}
       <p id="blockly-keyboard-help" className="visually-hidden">
         Usa Tab para recorrer el editor. Las flechas permiten navegar por los
-        controles de Blockly. Control Z deshace y Control Y rehace.
+        controles de Blockly. {readOnly ? 'Sólo lectura: no se pueden modificar los bloques.' : 'Control Z deshace y Control Y rehace.'}
       </p>
       <output
         ref={keyboardStatusRef}
@@ -1461,7 +1469,7 @@ const BlocklyWorkspace = forwardRef<
         ref={hostRef}
         className="blockly-host"
         role="application"
-        aria-label="Editor visual de bloques"
+        aria-label={readOnly ? 'Bloques de la versión, sólo lectura' : 'Editor visual de bloques'}
         aria-describedby="blockly-keyboard-help blockly-keyboard-status"
       />
     </div>

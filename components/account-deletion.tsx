@@ -17,7 +17,8 @@ import {
 
 type Preview = {
   user: { id: string; alias: string; displayName: string; isActive: boolean };
-  projects: { count: number; active: number; trash: number; bytes: number; historyCount?: number; historyBytes?: number };
+  projects: { count: number; active: number; trash: number; bytes: number; historyCount?: number; historyBytes?: number; feedbackCount?: number; feedbackBytes?: number };
+  interventionsAnonymized?: number;
   memberships: number;
   version: string;
   canDelete: boolean;
@@ -133,7 +134,7 @@ export default function AccountDeletion({
       const newReceipt = response.headers.get('X-Capi-Backup-Receipt'),
         checksum = response.headers.get('X-Capi-Backup-SHA256');
       const blob = await response.blob();
-      if (!newReceipt || !checksum || blob.size === 0 || blob.size > 55_000_000)
+      if (!newReceipt || !checksum || blob.size === 0 || blob.size > 120_000_000)
         throw new Error('El respaldo recibido está incompleto o no es válido.');
       const hash = [
         ...new Uint8Array(
@@ -260,6 +261,7 @@ export default function AccountDeletion({
               Además, {preview.projects.historyCount ?? 0} versiones anteriores ({((preview.projects.historyBytes ?? 0) / 1_000_000).toFixed(2)} MB), incluidas en el respaldo y la baja.{' '}
               {preview.memberships} membresías.
             </p>
+            <p>{preview.projects.feedbackCount ?? 0} devoluciones con sus respuestas se incluyen en el respaldo y se borran junto con sus proyectos. {preview.interventionsAnonymized ?? 0} intervenciones en trabajos ajenos conservarán su texto, pero se retirará la identidad del autor. No se borran ni exportan aquí los proyectos ajenos.</p>
             {!preview.canDelete ? (
               <p className="account-error">
                 Primero cancelá, desactivá la cuenta desde Editar y retirale

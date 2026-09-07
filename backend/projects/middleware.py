@@ -11,6 +11,20 @@ class ProjectUploadLimit:
         self.get_response = get_response
 
     def __call__(self, request):
+        if request.path.startswith("/api/review/") and request.method in ("POST", "PATCH"):
+            try:
+                length = int(request.META.get("CONTENT_LENGTH", ""))
+                if request.content_type != "application/json" or not 0 < length <= 16000:
+                    raise ValueError
+                data = request.read(16001)
+                if len(data) != length:
+                    raise ValueError
+            except (ValueError, TypeError, OSError):
+                response = JsonResponse({"error": "El mensaje excede el tamaño admitido.", "code": "upload_size"}, status=413)
+                response["Cache-Control"] = "no-store"
+                return response
+            request._body = data
+            request._stream = BytesIO(data)
         if request.path.startswith("/api/projects/") and request.method in ("POST", "PUT"):
             try:
                 length = int(request.META.get("CONTENT_LENGTH", ""))

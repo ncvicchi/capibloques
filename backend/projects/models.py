@@ -21,6 +21,7 @@ class Project(models.Model):
     history_checkpoint = models.BooleanField(default=True)
     history_kind = models.CharField(max_length=20, default="manual")
     last_checkpoint_at = models.DateTimeField(default=timezone.now)
+    provenance = models.JSONField(null=True)
 
     class Meta:
         indexes = [models.Index(fields=["owner", "trashed_at", "-updated_at"], name="project_owner_listing")]
@@ -43,7 +44,8 @@ class ProjectRevision(models.Model):
     title = models.CharField(max_length=80)
     kind = models.CharField(max_length=20)
     created_at = models.DateTimeField()
-    # Fase 5 debe fijar la revisión antes de referenciarla en una devolución.
+    # Contexto al guardar, nunca inferido del curso actual para versiones legacy.
+    course = models.ForeignKey("courses.Course", null=True, on_delete=models.PROTECT, related_name="project_versions")
     pinned = models.BooleanField(default=False)
 
     class Meta:
@@ -58,3 +60,22 @@ class ProjectDeletion(models.Model):
     operation = models.UUIDField()
     digest = models.CharField(max_length=64)
     deleted_at = models.DateTimeField(auto_now_add=True)
+
+
+class ProjectFeedback(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    snapshot = models.ForeignKey(ProjectRevision, on_delete=models.PROTECT, related_name="feedback")
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="project_feedback")
+    text = models.TextField()
+    reply = models.TextField(blank=True)
+    resolved = models.BooleanField(default=False)
+    version = models.PositiveIntegerField(default=1)
+    size_bytes = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    creation_digest = models.CharField(max_length=64)
+    last_operation = models.UUIDField(null=True)
+    last_digest = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]

@@ -2,10 +2,16 @@ from django.urls import include, path, re_path
 from school import views as school
 from courses import views as courses
 from projects import views as projects
+from projects import review
 
 from .views import live, ready
 
 urlpatterns = [
+    path("api/review/<uuid:project_id>/", review.status),
+    path("api/review/<uuid:project_id>/versions/<int:revision>/", review.version),
+    path("api/review/<uuid:project_id>/versions/<int:revision>/copy/", review.make_copy),
+    path("api/review/<uuid:project_id>/feedback/", review.comment),
+    path("api/review/<uuid:project_id>/feedback/<uuid:feedback_id>/", review.respond),
     path("api/projects/", projects.collection),
     path("api/projects/courses/", projects.eligible_courses),
     path("api/projects/<uuid:project_id>/course/", projects.link_course),
