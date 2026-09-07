@@ -299,6 +299,10 @@ export default function ProjectFeedback({
               {item.reply && (
                 <section className="feedback-reply">
                   <h3>Respuesta del alumno</h3>
+                  <p className="account-help">
+                    Actualizada el{' '}
+                    {new Date(item.updatedAt).toLocaleString('es-AR')}
+                  </p>
                   <p className="feedback-text">{item.reply}</p>
                 </section>
               )}

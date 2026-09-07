@@ -1,6 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import BlocklyWorkspace, {
   type BlocklyWorkspaceHandle,
 } from '@/components/blockly-workspace';
@@ -8,6 +16,7 @@ import SceneStage from '@/components/scene-stage';
 import { Button } from '@/components/ui/button';
 import {
   generateEsp32CodeResult,
+  collectRawOutputPins,
   type ProjectFile,
   type SimulatorState,
   type CompiledProgram,
@@ -16,6 +25,8 @@ import {
 // Vite convierte el worker durante el build.
 // oxlint-disable-next-line import/default
 import SimulatorWorker from '@/lib/simulator.worker.ts?worker';
+
+const WiringGuide = lazy(() => import('@/components/wiring-guide'));
 
 export default function ReviewSimulation({
   project,
@@ -36,6 +47,27 @@ export default function ReviewSimulation({
   const [blocked, setBlocked] = useState(false);
   const [error, setError] = useState('');
   const [speed, setSpeed] = useState(1);
+  const [wiringOpen, setWiringOpen] = useState(false);
+  const [wiringChecked, setWiringChecked] = useState(false);
+  const generated = useMemo(
+    () =>
+      program
+        ? generateEsp32CodeResult(
+            program,
+            project.metadata.title,
+            project.scene,
+          )
+        : null,
+    [program, project],
+  );
+  const rawPins = useMemo(
+    () =>
+      generated ? collectRawOutputPins(generated.program, project.scene) : [],
+    [generated, project.scene],
+  );
+  const needsWiring =
+    project.scene.devices.some((device) => device.kind !== 'wifiNode') ||
+    rawPins.length > 0;
   const speedRef = useRef(1);
   const stopSounds = useCallback((key?: string) => {
     for (const [id, oscillator] of sounds.current) {
@@ -119,17 +151,16 @@ export default function ReviewSimulation({
       scene: project.scene,
     });
     worker.current?.postMessage({ type: 'SET_SPEED', speed: speedRef.current });
-    const generated = generateEsp32CodeResult(
-      program,
-      project.metadata.title,
-      project.scene,
-    );
+  }, [program, project]);
+  useEffect(() => {
     onCode(
-      generated.diagnostics.some((item) => item.severity === 'error')
+      !generated ||
+        generated.diagnostics.some((item) => item.severity === 'error') ||
+        (needsWiring && !wiringChecked)
         ? null
         : generated.code,
     );
-  }, [onCode, program, project]);
+  }, [generated, needsWiring, onCode, wiringChecked]);
   const compile = useCallback(() => {
     if (editor.current) setProgram(editor.current.compile());
   }, []);
@@ -166,6 +197,19 @@ export default function ReviewSimulation({
       </section>
       <section className="review-stage" aria-label="Simulación de la versión">
         <h2>Probar sin cambiar el trabajo</h2>
+        <Button
+          variant="outline"
+          disabled={!generated}
+          onClick={() => setWiringOpen(true)}
+        >
+          Revisar cableado de esta versión
+        </Button>
+        {needsWiring && !wiringChecked && (
+          <p className="account-help">
+            Para descargar Arduino, revisá primero la guía de conexiones y
+            completá su chequeo. La simulación no certifica seguridad eléctrica.
+          </p>
+        )}
         <div className="account-actions">
           <Button
             disabled={!program || blocked || state?.status === 'running'}
@@ -354,6 +398,19 @@ export default function ReviewSimulation({
           guarda en el proyecto.
         </p>
       </section>
+      <Suspense fallback={null}>
+        {generated && (
+          <WiringGuide
+            open={wiringOpen}
+            onOpenChange={setWiringOpen}
+            scene={project.scene}
+            rawPins={rawPins}
+            diagnostics={generated.diagnostics}
+            acknowledged={wiringChecked}
+            onAcknowledgedChange={setWiringChecked}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

@@ -14,39 +14,138 @@ import {
   sampleProject,
 } from './project-review-fixture';
 
-test('docente: curso, filtro por alumno y acceso a revisión en otra pestaña', async ({ page }) => {
-  const course = { id: reviewCourseId, name: 'Robótica A', description: 'Semáforos', isArchived: false };
+test('docente: curso, filtro por alumno y acceso a revisión en otra pestaña', async ({
+  page,
+}) => {
+  const course = {
+    id: reviewCourseId,
+    name: 'Robótica A',
+    description: 'Semáforos',
+    isArchived: false,
+  };
   const filters: string[] = [];
-  await page.route('**/api/courses/**', route => {
+  await page.route('**/api/courses/**', (route) => {
     const url = new URL(route.request().url());
     if (url.pathname.endsWith('/projects/')) {
-      const studentId = url.searchParams.get('student') ?? ''; filters.push(studentId);
-      return route.fulfill({ json: { projects: [{ id: reviewProjectId, title: 'Semáforo de Luna', revision: 3, updatedAt: '2026-09-07T12:00:00Z', trashedAt: null, course: { ...course, ownerCanEdit: true }, owner: pupil, feedbackCount: 2 }], count: 1, page: 1, pageSize: 20 } });
+      const studentId = url.searchParams.get('student') ?? '';
+      filters.push(studentId);
+      return route.fulfill({
+        json: {
+          projects: [
+            {
+              id: reviewProjectId,
+              title: 'Semáforo de Luna',
+              revision: 3,
+              updatedAt: '2026-09-07T12:00:00Z',
+              trashedAt: null,
+              course: { ...course, ownerCanEdit: true },
+              owner: pupil,
+              feedbackCount: 2,
+            },
+          ],
+          count: 1,
+          page: 1,
+          pageSize: 20,
+        },
+      });
     }
-    if (url.pathname.endsWith(`/${reviewCourseId}/`)) return route.fulfill({ json: { course: { ...course, myRole: 'docente', members: [{ ...teacher, role: 'docente' }, { ...pupil, role: 'alumno' }] } } });
-    return route.fulfill({ json: { courses: [course], count: 1, page: 1, pageSize: 20, actor: teacher, csrfToken: 'review-token' } });
+    if (url.pathname.endsWith(`/${reviewCourseId}/`))
+      return route.fulfill({
+        json: {
+          course: {
+            ...course,
+            myRole: 'docente',
+            members: [
+              { ...teacher, role: 'docente' },
+              { ...pupil, role: 'alumno' },
+            ],
+          },
+        },
+      });
+    return route.fulfill({
+      json: {
+        courses: [course],
+        count: 1,
+        page: 1,
+        pageSize: 20,
+        actor: teacher,
+        csrfToken: 'review-token',
+      },
+    });
   });
   await page.goto('/cursos/');
-  await page.getByRole('button', { name: 'Ver Robótica A', exact: true }).click();
-  await page.getByRole('combobox', { name: 'Alumno', exact: true }).selectOption(pupil.id);
+  await page
+    .getByRole('button', { name: 'Ver Robótica A', exact: true })
+    .click();
+  await page
+    .getByRole('combobox', { name: 'Alumno', exact: true })
+    .selectOption(pupil.id);
   await expect.poll(() => filters.at(-1)).toBe(pupil.id);
-  const link = page.getByRole('link', { name: 'Revisar Semáforo de Luna · 2 devoluciones (otra pestaña)', exact: true });
+  const link = page.getByRole('link', {
+    name: 'Revisar Semáforo de Luna · 2 devoluciones (otra pestaña)',
+    exact: true,
+  });
   await expect(link).toHaveAttribute('href', reviewPath);
   await expect(link).toHaveAttribute('target', '_blank');
   await expect(page.getByText(/Actualiza cada 15 segundos/)).toBeVisible();
 });
 
-test('biblioteca: devoluciones y procedencia visibles; curso con comentarios no se traslada', async ({ page }) => {
-  await mockEditorSession(page); const api = await mockLibrary(page);
+test('biblioteca: devoluciones y procedencia visibles; curso con comentarios no se traslada', async ({
+  page,
+}) => {
+  await mockEditorSession(page);
+  const api = await mockLibrary(page);
   const doc = sampleProject();
-  api.projects.set(reviewProjectId, { document: doc, project: { id: reviewProjectId, title: doc.metadata.title, revision: 2, updatedAt: '2026-09-07T12:00:00Z', trashedAt: null, course: { id: reviewCourseId, name: 'Robótica A', isArchived: false, ownerCanEdit: true }, feedbackCount: 1, provenance: { title: 'Ejemplo del profe', revision: 3, course: 'Robótica A' } } });
+  api.projects.set(reviewProjectId, {
+    document: doc,
+    project: {
+      id: reviewProjectId,
+      title: doc.metadata.title,
+      revision: 2,
+      updatedAt: '2026-09-07T12:00:00Z',
+      trashedAt: null,
+      course: {
+        id: reviewCourseId,
+        name: 'Robótica A',
+        isArchived: false,
+        ownerCanEdit: true,
+      },
+      feedbackCount: 1,
+      provenance: {
+        title: 'Ejemplo del profe',
+        revision: 3,
+        course: 'Robótica A',
+      },
+    },
+  });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Mis proyectos', exact: true }).click();
-  await expect(page.getByRole('link', { name: `Ver devoluciones de ${doc.metadata.title} (1) · otra pestaña`, exact: true })).toHaveAttribute('href', `/revision/?project=${reviewProjectId}`);
-  await expect(page.getByText(/Procedencia: copia de «Ejemplo del profe»/)).toBeVisible();
-  await page.getByRole('button', { name: `Elegir curso de ${doc.metadata.title}`, exact: true }).click();
-  await expect(page.getByText(/Este proyecto tiene devoluciones vinculadas/)).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Guardar curso del proyecto', exact: true })).toBeDisabled();
+  await page
+    .getByRole('button', { name: 'Mis proyectos', exact: true })
+    .click();
+  await expect(
+    page.getByRole('link', {
+      name: `Ver devoluciones de ${doc.metadata.title} (1) · otra pestaña`,
+      exact: true,
+    }),
+  ).toHaveAttribute('href', `/revision/?project=${reviewProjectId}`);
+  await expect(
+    page.getByText(/Procedencia: copia de «Ejemplo del profe»/),
+  ).toBeVisible();
+  await page
+    .getByRole('button', {
+      name: `Elegir curso de ${doc.metadata.title}`,
+      exact: true,
+    })
+    .click();
+  await expect(
+    page.getByText(/Este proyecto tiene devoluciones vinculadas/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', {
+      name: 'Guardar curso del proyecto',
+      exact: true,
+    }),
+  ).toBeDisabled();
   expect(api.writes).toBe(0);
 });
 
@@ -89,7 +188,40 @@ test('revisión: bloques inmutables, simulación, pausa y exportación exacta si
       name: 'Descargar Arduino de versión 1',
       exact: true,
     }),
+  ).toBeDisabled();
+  await page
+    .getByRole('button', {
+      name: 'Revisar cableado de esta versión',
+      exact: true,
+    })
+    .click();
+  const guide = page.getByRole('dialog', {
+    name: 'Conectar la Wemos sin adivinar',
+    exact: true,
+  });
+  for (const checkbox of await guide.getByRole('checkbox').all())
+    await checkbox.check();
+  await guide
+    .getByRole('button', { name: 'Conexiones revisadas', exact: true })
+    .click();
+  await expect(
+    page.getByRole('button', {
+      name: 'Descargar Arduino de versión 1',
+      exact: true,
+    }),
   ).toBeEnabled();
+  const arduinoDownload = page.waitForEvent('download');
+  await page
+    .getByRole('button', {
+      name: 'Descargar Arduino de versión 1',
+      exact: true,
+    })
+    .click();
+  const ino = await arduinoDownload;
+  expect(ino.suggestedFilename()).toMatch(/-v1\.ino$/);
+  expect(readFileSync((await ino.path())!, 'utf8')).toContain(
+    '#include <Arduino.h>',
+  );
   expect(
     await page.evaluate(() => localStorage.getItem('capibloques-project-v2')),
   ).toBe('borrador ajeno intacto');

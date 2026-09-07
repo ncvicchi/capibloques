@@ -90,6 +90,7 @@ export default function ProjectHistory({ project, request, close, changed }: {
       {target ? <section aria-label="Confirmar cambio de historial">
         <h2>{target.action === 'restore' ? `¿Restaurar versión ${target.version?.revision}?` : target.action === 'remove' ? `¿Eliminar versión ${target.version?.revision}?` : '¿Eliminar definitivamente el proyecto?'}</h2>
         <p>{target.action === 'restore' ? 'Se guardará como una versión nueva en tu cuenta. Tus cambios abiertos en el editor quedan intactos y no se fusionan.' : 'Este borrado no se puede deshacer. Exportá las versiones que quieras conservar antes de confirmar. No borra archivos descargados ni copias de otros navegadores.'}</p>
+        {target.action === 'purge' && <p>Se eliminarán también {data?.project.feedbackCount ?? 0} devoluciones y sus respuestas. Exportar el JSON no incluye esas conversaciones.</p>}
         {target.action !== 'restore' && <label>Escribí {target.action === 'purge' ? 'el nombre exacto del proyecto' : 'el número de versión'}: {expected}<Input aria-label="Confirmación de borrado" value={confirmation} disabled={busy || Boolean(pending)} onChange={event => setConfirmation(event.target.value)} /></label>}
         {pending && <p>Resultado sin confirmar. Reintentá la misma operación. Si cerrás, revisá el historial al volver: cancelar la vista no revierte una petición enviada.</p>}
         <div className="account-actions">
@@ -105,7 +106,7 @@ export default function ProjectHistory({ project, request, close, changed }: {
             {!version.current && <><Button disabled={busy || Boolean(data.project.trashedAt) || data.project.course?.ownerCanEdit === false} onClick={() => setTarget({ version, action: 'restore' })}>Restaurar versión {version.revision}</Button><Button variant="outline" disabled={busy || version.pinned} onClick={() => setTarget({ version, action: 'remove' })}>Eliminar versión {version.revision}</Button></>}
           </div>
         </article>)}</div>
-        {data?.project.trashedAt && <section><p>Protegido en papelera hasta {new Date(data.project.purgeAfter ?? Date.parse(data.project.trashedAt) + 30 * 86400000).toLocaleString('es-AR')}. Después puede eliminarse definitivamente, junto con todas sus versiones. Hasta entonces podés restaurarlo desde la biblioteca.</p><Button variant="destructive" disabled={busy || !purgeReady} onClick={() => setTarget({ action: 'purge' })}>Eliminar definitivamente…</Button></section>}
+        {data?.project.trashedAt && <section><p>Protegido en papelera hasta {new Date(data.project.purgeAfter ?? Date.parse(data.project.trashedAt) + 30 * 86400000).toLocaleString('es-AR')}. Después puede eliminarse definitivamente, junto con todas sus versiones, devoluciones y respuestas. Hasta entonces podés restaurarlo desde la biblioteca.</p><Button variant="destructive" disabled={busy || !purgeReady} onClick={() => setTarget({ action: 'purge' })}>Eliminar definitivamente…</Button></section>}
         <div className="account-actions"><Button variant="outline" disabled={busy} onClick={() => void load()}>Actualizar historial</Button><Button disabled={busy} onClick={close}>Volver a la biblioteca</Button></div>
       </>}
     </DialogContent>

@@ -264,7 +264,14 @@ class SupervisionTests(TestCase):
         self.link(); self.open(); self.comment()
         client = self.login(self.teacher)
         for path, method in [("", "put"), ("rename/", "post"), ("trash/", "post"), ("restore/", "post"), ("course/", "post"), ("purge/", "post"), ("history/2/", "delete"), ("history/2/restore/", "post")]:
-            self.assertEqual(getattr(client, method)(self.url + path, {}, content_type="application/json").status_code, 404)
+            data = {"revision": 2, "operationId": str(uuid.uuid4())}
+            if not path: data["document"] = EXAMPLES[0]
+            if path == "rename/": data["title"] = "No cambiar"
+            if path == "course/": data["courseId"] = None
+            if path == "purge/": data["confirmation"] = self.project["title"]
+            if path == "history/2/": data["confirmation"] = "2"
+            with self.subTest(path=path):
+                self.assertEqual(getattr(client, method)(self.url + path, data, content_type="application/json").status_code, 404)
         self.assertEqual(Project.objects.get().revision, 2)
 
     def test_review_listing_student_filter_and_unknown_student_never_leak(self):
