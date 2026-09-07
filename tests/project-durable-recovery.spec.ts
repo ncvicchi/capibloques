@@ -2,6 +2,73 @@ import { chromium, expect, test } from '@playwright/test';
 import { mockEditorSession, student, token } from './editor-fixture';
 import { mockLibrary } from './project-library-fixture';
 import { recoveryRows } from './recovery-fixture';
+import { makeProject } from '../lib/capiblocks';
+import { createEmptyScene } from '../lib/scene-model';
+
+test('recuperación durable: migra el borrador anterior sin borrarlo ni volver a usarlo como fuente', async ({
+  page,
+}) => {
+  await mockEditorSession(page);
+  await mockLibrary(page);
+  const legacy = JSON.stringify(
+    makeProject('De la versión anterior', createEmptyScene(), {}, 1),
+  );
+  const key = `capibloques-account:${student.id}:project-v2`;
+  await page.addInitScript(
+    ({ key, legacy }) => {
+      if (!localStorage.getItem(key)) localStorage.setItem(key, legacy);
+    },
+    { key, legacy },
+  );
+  await page.goto('/');
+  await expect(page.getByLabel('Nombre del proyecto')).toHaveValue(
+    'De la versión anterior',
+  );
+  await expect
+    .poll(async () => (await recoveryRows(page, student.id)).length)
+    .toBe(1);
+  expect(await page.evaluate((key) => localStorage.getItem(key), key)).toBe(
+    legacy,
+  );
+  await page.getByLabel('Nombre del proyecto').fill('La copia nueva');
+  await expect
+    .poll(async () => (await recoveryRows(page, student.id))[0].title)
+    .toBe('La copia nueva');
+  await page.reload();
+  await expect(page.getByLabel('Nombre del proyecto')).toHaveValue(
+    'La copia nueva',
+  );
+});
+
+test('recuperación durable: espera la lectura antes de permitir editar', async ({
+  page,
+}) => {
+  await mockEditorSession(page);
+  await mockLibrary(page);
+  await page.addInitScript(() => {
+    const original = IDBFactory.prototype.open;
+    IDBFactory.prototype.open = function (...args) {
+      const request = original.apply(this, args);
+      if (args[0] === 'capibloques-recovery')
+        Object.defineProperty(request, 'onsuccess', {
+          set(handler: (this: IDBOpenDBRequest, event: Event) => void) {
+            request.addEventListener('success', (event) =>
+              window.setTimeout(() => handler.call(request, event), 1000),
+            );
+          },
+        });
+      return request;
+    };
+  });
+  await page.goto('/');
+  await expect(
+    page.getByText('Recuperando tu proyecto de esta computadora…', {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.getByLabel('Nombre del proyecto')).toHaveCount(0);
+  await expect(page.getByLabel('Nombre del proyecto')).toBeVisible();
+});
 
 test('recuperación durable: primer envío con ACK perdido sobrevive reiniciar el navegador', async ({}, info) => {
   const profile = info.outputPath('recovery-profile');
@@ -324,6 +391,9 @@ test('recuperación durable: un envío almacenado adulterado no se ejecuta', asy
   await page.goto('/');
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
   await expect(page.locator('.cloud-state')).toContainText('sin confirmar');
+  // Adulterar con el editor desmontado: su checkpoint legítimo al salir no
+  // debe reparar el fixture antes de que probemos la validación de arranque.
+  await page.goto('/cuenta/');
   const row = (await recoveryRows(page, student.id))[0];
   await page.evaluate(
     (data) =>
@@ -348,7 +418,7 @@ test('recuperación durable: un envío almacenado adulterado no se ejecuta', asy
     badRequests++;
     return route.fulfill({ status: 400 });
   });
-  await page.reload();
+  await page.goto('/');
   await expect(page.locator('.notice')).toContainText(
     'El envío pendiente no coincide',
   );

@@ -1081,6 +1081,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const wiringAcknowledged =
     wiringAcknowledgedSignature === currentWiringSignature;
 
+  if (!hydrated) return <main className="account-page" aria-busy="true"><section className="account-card"><output>Recuperando tu proyecto de esta computadora…</output></section></main>;
+
   return (
     <main className="app-shell">
       <header className="topbar">
