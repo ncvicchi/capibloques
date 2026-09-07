@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 
 const admin = { id: 'admin-ui', alias: 'admin', displayName: 'Admin', roles: ['administrador'], mustChangePassword: false };
 const teacher = { id: 'teacher-ui', alias: 'profe', displayName: 'Profe Sol', roles: ['docente'], mustChangePassword: false };
@@ -19,6 +20,7 @@ async function fixture(page: Page, actor = admin) {
     const detail = url.pathname.endsWith('/course-ui/');
     if (state.denied) return route.fulfill({ status: 403, json: { error: 'Sin permiso' } });
     if (state.offline) return route.fulfill({ status: 503, json: { error: 'Sin conexión' } });
+    if (url.pathname.includes('/projects/')) return route.fulfill({ status: state.removed ? 404 : 200, json: { projects: [], count: 0, page: 1, pageSize: 20 } });
     if (detail && state.removed) return route.fulfill({ status: 404, json: { error: 'Curso no disponible' } });
     const method = route.request().method();
     if (method === 'POST' || method === 'PATCH') {
@@ -142,6 +144,31 @@ test('cursos: alumno recibe vista propia sin padrón ni controles de administrac
   await expect(page.getByText('Luna', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Profe Sol', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Crear curso', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Proyectos guardados del curso' })).toHaveCount(0);
+});
+
+test('cursos: docente descarga copia portable sin modificar el original y retirada bloquea', async ({ page }, testInfo) => {
+  const state = await fixture(page, teacher);
+  const document = JSON.parse(readFileSync(new URL('../backend/tests/fixtures/projects-v2.json', import.meta.url), 'utf8'))[0];
+  const project = { id: 'project-ui', title: document.metadata.title, revision: 3, updatedAt: '2026-09-07T12:00:00Z', trashedAt: null, owner: { alias: 'luna', displayName: 'Luna' } };
+  await page.route('**/api/courses/course-ui/projects/**', route => {
+    expect(route.request().method()).toBe('GET');
+    expect(route.request().headers()['x-capi-account']).toBe(teacher.id);
+    if (state.removed) return route.fulfill({ status: 404, json: { error: 'Sin acceso' } });
+    return route.fulfill({ json: route.request().url().endsWith('/project-ui/') ? { project, document } : { projects: [project], count: 1, page: 1, pageSize: 20 } });
+  });
+  await page.goto('/cursos/');
+  await page.getByRole('button', { name: 'Ver Robótica A', exact: true }).click();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: `Descargar JSON de ${project.title}`, exact: true }).click();
+  const chunks: Buffer[] = []; const stream = await (await download).createReadStream();
+  for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
+  expect(JSON.parse(Buffer.concat(chunks).toString())).toEqual(document);
+  await page.screenshot({ path: testInfo.outputPath('proyectos-docente.png'), fullPage: true });
+  state.removed = true;
+  await page.getByRole('button', { name: 'Actualizar proyectos', exact: true }).click();
+  await expect(page.getByRole('button', { name: `Descargar JSON de ${project.title}`, exact: true })).toHaveCount(0);
+  expect(state.writes).toBe(0);
 });
 
 test('cursos: revocar administrador limpia formulario y resultados de personas', async ({ page }) => {

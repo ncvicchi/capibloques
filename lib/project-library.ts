@@ -1,16 +1,20 @@
 import type { ProjectFile } from './capiblocks';
 
+export type ProjectCourse = { id: string; name: string; isArchived: boolean; ownerCanEdit: boolean };
+
 export type CloudProject = {
   id: string;
   title: string;
   revision: number;
   updatedAt: string;
   trashedAt: string | null;
+  course?: ProjectCourse | null;
 };
 export type ProjectLink = {
   id: string;
   revision: number;
   savedFingerprint: string;
+  course?: ProjectCourse | null;
 };
 
 // Sólo indicador de cambios de UX, nunca autorización ni integridad del servidor.
@@ -52,6 +56,7 @@ export function isProjectLink(value: unknown): value is ProjectLink {
     Number.isSafeInteger(link.revision) &&
     link.revision > 0 &&
     typeof link.savedFingerprint === 'string' &&
-    link.savedFingerprint.length <= 32
+    link.savedFingerprint.length <= 32 &&
+    (link.course == null || (typeof link.course.id === 'string' && typeof link.course.name === 'string' && link.course.name.length <= 100 && typeof link.course.isArchived === 'boolean' && typeof link.course.ownerCanEdit === 'boolean'))
   );
 }

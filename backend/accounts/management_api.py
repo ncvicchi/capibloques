@@ -180,8 +180,8 @@ def detail(request, user_id):
             return finish(request, actor, target)
         if text_field(data, "confirmationAlias", 32) != target.username or data["understandsLocalDrafts"] is not True:
             return fail("Confirmá el alias exacto y la advertencia sobre los borradores locales.")
-        # Hasta la fase 3 no existen proyectos en servidor. No inspeccionar ni
-        # prometer respaldar localStorage ajeno; revisar esta baja al agregar datos.
+        # Compatibilidad del flujo antiguo sólo para cuentas sin proyectos.
+        # User.delete mantiene PROTECT; los trabajos exigen la baja con respaldo.
         audit(actor, target, "deleted")
         self_deleted = actor.pk == target.pk
         target.delete()  # Método protegido; nunca QuerySet.delete().

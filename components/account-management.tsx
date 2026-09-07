@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { announceSessionChange, sessionChangePending, watchSessionChange, type Account } from '@/lib/account-session';
-import { downloadText } from '@/lib/capiblocks';
+import AccountDeletion from '@/components/account-deletion';
 
 type ManagedUser = Account & { isActive: boolean; createdAt: string; version: string };
 type Listing = { actor: Account; csrfToken: string; users: ManagedUser[]; count: number; page: number; pageSize: number };
@@ -153,7 +153,7 @@ export default function AccountManagement() {
       <label htmlFor="managed-name">Nombre visible</label><Input id="managed-name" required maxLength={80} value={draft.displayName} onChange={event => update('displayName', event.target.value)} />
       <span id="managed-role-label">Rol</span><RadioGroup aria-labelledby="managed-role-label" value={draft.role} onValueChange={value => update('role', String(value))} className="management-roles">{roles.map(item => <label key={item.value}><RadioGroupItem value={item.value} />{item.label}</label>)}</RadioGroup>
       <label className="management-check" htmlFor="managed-active"><Checkbox id="managed-active" checked={draft.isActive} onCheckedChange={value => update('isActive', value)} />Cuenta activa</label>
-      <p className="account-help">Desactivar impide ingresar y cierra sesiones; reactivar conserva la identidad de la cuenta. Docente no concede acceso a cursos todavía.</p>
+      <p className="account-help">Desactivar impide ingresar y cierra sesiones; reactivar conserva la identidad de la cuenta. La asignación a cada curso se gestiona aparte.</p>
     </>}
     {(mode === 'create' || mode === 'password') && <>
       {target && <p>Para <strong>{target.displayName}</strong> (@{target.alias}). No muestra ni recupera su contraseña anterior.</p>}
@@ -187,7 +187,7 @@ export default function AccountManagement() {
           {!listing.users.length && <p>No hay cuentas que coincidan. Modificá los filtros y buscá nuevamente.</p>}
           <nav className="management-pagination" aria-label="Páginas de usuarios"><Button variant="outline" disabled={refreshing || listing.page <= 1} onClick={() => { filters.current.page--; void refresh(); }}>Anterior</Button><Button variant="outline" disabled={refreshing || listing.page * listing.pageSize >= listing.count} onClick={() => { filters.current.page++; void refresh(); }}>Siguiente</Button></nav>
         </section>
-        <p className="account-help">Los proyectos aún son borradores locales. Administrar una cuenta no permite leer sus proyectos privados. Antes de eliminarla, pedí que exporte sus JSON; preferí desactivarla si la baja no es definitiva.</p>
+        <p className="account-help">Administrar no permite revisar proyectos privados. La baja definitiva exige desactivar, retirar membresías y respaldar los proyectos; si sólo querés suspender el acceso, desactivá la cuenta. Pedí que exporten también sus borradores locales.</p>
       </main>
       <Dialog open={locked}><DialogContent className="session-cover session-dialog account-card" showCloseButton={false}><DialogHeader><DialogTitle>Acceso administrativo</DialogTitle><DialogDescription>Verificamos tu sesión antes de continuar.</DialogDescription></DialogHeader>{accessMessage}</DialogContent></Dialog>
     </>}
@@ -196,15 +196,7 @@ export default function AccountManagement() {
         <form onSubmit={event => { event.preventDefault(); void save(); }}><fieldset disabled={busy}>{formFields}<div className="management-form-actions"><Button variant="outline" className="account-action" type="button" onClick={requestClose}>Cancelar</Button><Button className="account-action" type="submit">{busy ? 'Guardando…' : 'Guardar'}</Button></div></fieldset></form>
       </DialogContent>
     </Dialog>
-    <AlertDialog open={mode === 'delete'} onOpenChange={open => { if (!open && !busy) closeForm(); }}><AlertDialogContent className="management-dialog"><AlertDialogHeader><AlertDialogTitle>Eliminar cuenta definitivamente</AlertDialogTitle><AlertDialogDescription>Se eliminará {target?.displayName} (@{target?.alias}). No se puede deshacer. El último administrador activo está protegido.</AlertDialogDescription></AlertDialogHeader>
-      {formError && <p role="alert" className="account-error">{formError}</p>}
-      <p>No hay biblioteca de proyectos en servidor todavía. Los borradores locales no se cuentan ni se respaldan aquí y dejarán de abrirse con esta cuenta. Pedí a la persona que exporte sus JSON antes de continuar.</p>
-      <p>Si pertenece a cursos, primero retirale sus membresías en Gestionar cursos, incluidos los archivados. Desactivar la cuenta bloquea su acceso sin borrar sus asignaciones.</p>
-      <Button variant="outline" className="account-action" disabled={busy} onClick={() => { if (target) downloadText(`ficha-${target.alias}.json`, JSON.stringify({ ...target, version: undefined, note: 'Ficha administrativa. No contiene contraseña ni proyectos; no restablece la cuenta.' }, null, 2), 'application/json'); }}>Exportar ficha (sin proyectos)</Button>
-      <label className="management-check" htmlFor="managed-delete-warning"><Checkbox id="managed-delete-warning" disabled={busy} checked={draft.understandsLocalDrafts} onCheckedChange={value => update('understandsLocalDrafts', value)} />Entiendo que esta ficha no respalda los proyectos y que la eliminación es definitiva.</label>
-      <label htmlFor="delete-alias">Escribí el alias exacto para confirmar</label><Input id="delete-alias" disabled={busy} autoComplete="off" value={draft.confirmationAlias} onChange={event => update('confirmationAlias', event.target.value)} />
-      <AlertDialogFooter><AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel><AlertDialogAction variant="destructive" disabled={busy || !draft.understandsLocalDrafts || draft.confirmationAlias !== target?.alias} onClick={() => void save()}>{busy ? 'Eliminando…' : 'Eliminar definitivamente'}</AlertDialogAction></AlertDialogFooter>
-    </AlertDialogContent></AlertDialog>
+    {mode === 'delete' && target && listing && <AccountDeletion key={target.id} targetId={target.id} actorId={listing.actor.id} token={listing.csrfToken} locked={locked} close={closeForm} deleted={() => { closeForm(); setNotice('Cuenta y proyectos eliminados del servidor. El ZIP y los JSON descargados se conservan.'); announceSessionChange(); void refresh(); }} />}
     <AlertDialog open={discard} onOpenChange={setDiscard}><AlertDialogContent className="management-dialog"><AlertDialogHeader><AlertDialogTitle>¿Descartar los cambios?</AlertDialogTitle><AlertDialogDescription>Todavía no se guardaron. La cuenta seguirá como estaba.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Seguir editando</AlertDialogCancel><AlertDialogAction onClick={closeForm}>Descartar cambios</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
   </>;
 }

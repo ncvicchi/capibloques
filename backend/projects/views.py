@@ -18,6 +18,8 @@ from accounts.management_api import fail
 from accounts.models import User, access_lock
 from accounts.security import require_account
 from accounts.views import user_data
+from courses.models import Course, Membership
+from courses.views import belonging
 from .models import Project, ProjectEvent
 from .validation import document, encoded, exact, require, title
 
@@ -42,7 +44,7 @@ def endpoint(methods):
                     if request.headers.get("X-Capi-Account") != str(actor.pk):
                         return fail("La cuenta activa no coincide con esta pestaña. Ingresá nuevamente.", "account_changed", 409)
                     return view(request, actor, *args, **kwargs)
-            except Project.DoesNotExist:
+            except (Project.DoesNotExist, Course.DoesNotExist):
                 return fail("El proyecto no está disponible para tu cuenta.", "not_found", 404)
             except ValidationError as error:
                 return fail(" ".join(error.messages))
@@ -79,11 +81,25 @@ def identifier(value):
 
 def metadata(project):
     return {"id": str(project.pk), "title": project.title, "revision": project.revision,
-            "updatedAt": project.updated_at.isoformat(), "trashedAt": project.trashed_at.isoformat() if project.trashed_at else None}
+            "updatedAt": project.updated_at.isoformat(), "trashedAt": project.trashed_at.isoformat() if project.trashed_at else None,
+            "course": {"id": str(project.course_id), "name": project.course.name, "isArchived": project.course.is_archived, "ownerCanEdit": owner_can_edit(project)} if project.course_id else None}
+
+
+def owner_can_edit(project):
+    return not project.course_id or (not project.course.is_archived and Membership.objects.filter(course_id=project.course_id, user_id=project.owner_id, role="alumno", user__is_active=True, user__is_student=True).exists())
+
+
+def course_lock(project):
+    if not owner_can_edit(project):
+        return fail("El curso está archivado o ya no estás asignado como alumno. Tu proyecto se conserva: exportalo o creá una copia personal para continuar.", "course_locked", 409)
+    return None
 
 
 def digest(data, action):
-    return hashlib.sha256(encoded([action, data])).hexdigest()
+    try:
+        return hashlib.sha256(encoded([action, data])).hexdigest()
+    except (ValueError, UnicodeError, RecursionError):
+        raise ValidationError("El JSON contiene valores no compatibles.") from None
 
 
 def response(project, status=200):
@@ -134,7 +150,7 @@ def collection(request, actor):
             require(1 <= page <= 100000 and len(query) <= 80 and state in ("active", "trash"))
         except ValueError:
             raise ValidationError("Revisá la búsqueda y la página.") from None
-        projects = Project.objects.filter(owner=actor, trashed_at__isnull=state == "active", title__icontains=query)
+        projects = Project.objects.select_related("course").filter(owner=actor, trashed_at__isnull=state == "active", title__icontains=query)
         count = projects.count()
         page = min(page, max(1, (count + 19) // 20))
         return JsonResponse({"projects": [metadata(item) for item in projects.defer("document").order_by("-updated_at", "id")[(page - 1) * 20:page * 20]],
@@ -158,8 +174,10 @@ def collection(request, actor):
 
 @endpoint(["GET", "PUT"])
 def detail(request, actor, project_id):
-    project = Project.objects.get(pk=project_id, owner=actor)
+    project = Project.objects.select_related("course").get(pk=project_id, owner=actor)
     if request.method == "GET":
+        if request.GET.get("metadata") == "1":
+            return response(project)
         return JsonResponse({"project": metadata(project), "document": project.document})
     data = body(request, ("operationId", "revision", "document"))
     repeated = replay(project, data, "saved")
@@ -170,6 +188,9 @@ def detail(request, actor, project_id):
         return conflict
     if project.trashed_at:
         return fail("El proyecto está en la papelera. No se sobrescribió ni se restauró. Guardá una copia nueva o restauralo explícitamente.", "trashed", 409)
+    locked = course_lock(project)
+    if locked is not None:
+        return locked
     size = document(data["document"])
     quota(actor, size, project.size_bytes)
     project.document, project.title, project.size_bytes = data["document"], title(data["document"]["metadata"]["title"]), size
@@ -189,6 +210,9 @@ def action(request, actor, project_id, action):
     if action == "rename":
         if project.trashed_at:
             return fail("Restaurá el proyecto antes de renombrarlo.", "trashed", 409)
+        locked = course_lock(project)
+        if locked is not None:
+            return locked
         project.title = title(data["title"])
         changed = copy.deepcopy(project.document)
         changed["metadata"]["title"] = project.title
@@ -205,3 +229,55 @@ def action(request, actor, project_id, action):
             return fail("El proyecto ya estaba activo.", "not_trashed", 409)
         project.trashed_at = None
     return finish(actor, project, data, action)
+
+
+@endpoint(["GET"])
+def eligible_courses(request, actor):
+    courses = belonging(actor).filter(role="alumno", course__is_archived=False).select_related("course").order_by("course__name")
+    return JsonResponse({"courses": [{"id": str(item.course_id), "name": item.course.name} for item in courses]})
+
+
+@endpoint(["POST"])
+def link_course(request, actor, project_id):
+    project = Project.objects.select_related("course").get(pk=project_id, owner=actor)
+    data = body(request, ("operationId", "revision", "courseId"))
+    repeated = replay(project, data, "course_changed")
+    if repeated is not None:
+        return repeated
+    conflict = check_revision(project, data)
+    if conflict is not None:
+        return conflict
+    require(not project.trashed_at, "Restaurá el proyecto antes de cambiar su curso.")
+    locked = course_lock(project)
+    if locked is not None:
+        return locked
+    course = None
+    if data["courseId"] is not None:
+        member = belonging(actor).filter(role="alumno", course_id=identifier(data["courseId"]), course__is_archived=False).select_related("course").first()
+        if not member:
+            raise Project.DoesNotExist
+        course = member.course
+    project.course = course
+    return finish(actor, project, data, "course_changed")
+
+
+@endpoint(["GET"])
+def course_projects(request, actor, course_id, project_id=None):
+    if not belonging(actor).filter(course_id=course_id, role="docente").exists():
+        raise Project.DoesNotExist
+    # También el propietario debe seguir siendo alumno activo del mismo curso.
+    enrolled = Membership.objects.filter(course_id=course_id, role="alumno", user__is_active=True, user__is_student=True).values("user_id")
+    projects = Project.objects.filter(course_id=course_id, owner_id__in=enrolled, trashed_at__isnull=True).select_related("owner", "course")
+    if project_id:
+        project = projects.get(pk=project_id)
+        return JsonResponse({"project": metadata(project), "document": project.document})
+    query = request.GET.get("q", "").strip()
+    try:
+        page = int(request.GET.get("page", "1"))
+        require(1 <= page <= 100000 and len(query) <= 80)
+    except ValueError:
+        raise ValidationError("Revisá la búsqueda y la página.") from None
+    projects = projects.filter(title__icontains=query)
+    count = projects.count()
+    page = min(page, max(1, (count + 19) // 20))
+    return JsonResponse({"projects": [{**metadata(project), "owner": {"displayName": project.owner.display_name, "alias": project.owner.username}} for project in projects.defer("document").order_by("-updated_at", "id")[(page-1)*20:page*20]], "count": count, "page": page, "pageSize": 20})

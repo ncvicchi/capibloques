@@ -24,7 +24,9 @@ services:
       db:
         condition: service_healthy
     tmpfs:
-      - /tmp:rw,nosuid,nodev,size=32m,mode=1777
+      # Archivos efímeros de respaldo (hasta 50 MB/cuenta). Cuenta contra los
+      # mismos 256 MiB del contenedor; no aumenta RAM ni swap de la VM.
+      - /tmp:rw,nosuid,nodev,size=128m,mode=1777
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     cpus: 0.5

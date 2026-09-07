@@ -7,6 +7,7 @@ from django.db import models
 class Project(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="projects")
+    course = models.ForeignKey("courses.Course", null=True, on_delete=models.PROTECT, related_name="projects")
     title = models.CharField(max_length=80)
     document = models.JSONField()
     size_bytes = models.PositiveIntegerField()

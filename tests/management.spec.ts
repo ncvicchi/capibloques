@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { createHash } from 'node:crypto';
 
 const admin = { id: '2512cc10-4b68-4fb5-b1a2-9d7a72d54aa1', alias: 'admin', displayName: 'Admin', roles: ['administrador'], mustChangePassword: false, isActive: true, createdAt: '2026-09-06T12:00:00Z', version: 'v1' };
 const student = { ...admin, id: 'be5c2b10-4b68-4fb5-b1a2-9d7a72d54aa2', alias: 'luna', displayName: 'Luna', roles: ['alumno'] };
@@ -6,13 +7,23 @@ const password = 'Frase temporal sólo de prueba 58';
 
 // Contratos UI. Las mutaciones y permisos reales se verifican en Django/PG.
 async function mockManagement(page: Page) {
-  const state = { users: [admin, student].map(user => ({ ...user })), denied: false, fail: false, writes: 0, conflict: false };
+  const state = { users: [admin, student].map(user => ({ ...user })), denied: false, fail: false, writes: 0, conflict: false, projects: 0, corruptBackup: false, deletionVersion: 'deletion-v1' };
   await page.route('**/api/management/users/**', async route => {
     if (state.denied) return route.fulfill({ status: 403, json: { error: 'Sin permiso', code: 'forbidden' } });
     if (state.fail) return route.fulfill({ status: 503 });
     const request = route.request();
     const url = new URL(request.url());
     const method = request.method();
+    const targetId = url.pathname.split('/')[4];
+    if (method === 'GET' && url.pathname.endsWith('/deletion/')) {
+      const user = state.users.find(user => user.id === targetId)!;
+      return route.fulfill({ json: { user, projects: { count: state.projects, active: state.projects, trash: 0, bytes: 1200 * state.projects }, memberships: 0, version: state.deletionVersion, canDelete: !user.isActive } });
+    }
+    if (method === 'POST' && url.pathname.endsWith('/deletion/backup/')) {
+      // Sólo contrato de descarga/checksum en UI. ZIP real y restauración: Django.
+      const bytes = Buffer.from('archivo de contrato UI; el ZIP real se valida en backend');
+      return route.fulfill({ contentType: 'application/zip', body: bytes, headers: { 'X-Capi-Backup-Receipt': 'receipt-ui', 'X-Capi-Backup-SHA256': state.corruptBackup ? 'incorrecto' : createHash('sha256').update(bytes).digest('hex') } });
+    }
     if (method === 'GET') {
       const q = url.searchParams.get('q')?.toLowerCase() || '';
       const role = url.searchParams.get('role');
@@ -27,7 +38,8 @@ async function mockManagement(page: Page) {
     const id = url.pathname.split('/')[4];
     const target = state.users.find(user => user.id === id);
     if (method === 'DELETE') {
-      expect(data.confirmationAlias).toBe(target?.alias); expect(data.understandsLocalDrafts).toBe(true);
+      expect(data.confirmationAlias).toBe(target?.alias); expect(data.understandsLocalDrafts).toBe(true); expect(data.understandsPermanent).toBe(true);
+      if (state.projects) expect(data.backupReceipt).toBe('receipt-ui');
       state.users = state.users.filter(user => user.id !== id);
       return route.fulfill({ json: { deleted: true, sessionEnded: false } });
     }
@@ -108,21 +120,51 @@ test('usuarios: contraseña temporal no se conserva al cancelar ni tras guardar'
   expect(state.writes).toBe(1);
 });
 
-test('usuarios: eliminación exige advertencia y alias y ofrece ficha sin proyectos', async ({ page }) => {
+test('usuarios: baja sin proyectos exige desactivar, advertencias y alias exacto', async ({ page }) => {
   const state = await mockManagement(page);
   await page.goto('/gestion/usuarios/');
   await page.getByRole('button', { name: 'Eliminar luna', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Eliminar definitivamente', exact: true })).toBeDisabled();
-  const download = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Exportar ficha (sin proyectos)' }).click();
-  expect((await download).suggestedFilename()).toBe('ficha-luna.json');
-  await page.getByRole('checkbox', { name: /Entiendo que esta ficha/ }).check();
+  await expect(page.getByText(/Primero cancelá, desactivá/)).toBeVisible();
+  await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await page.getByRole('button', { name: 'Editar luna', exact: true }).click();
+  await page.getByRole('checkbox', { name: 'Cuenta activa', exact: true }).uncheck();
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Eliminar luna', exact: true }).click();
+  await page.getByRole('checkbox', { name: /Entiendo que los borradores locales/ }).check();
+  await page.getByRole('checkbox', { name: /Conservé el respaldo/ }).check();
   await page.getByLabel('Escribí el alias exacto para confirmar').fill('otra');
   await expect(page.getByRole('button', { name: 'Eliminar definitivamente', exact: true })).toBeDisabled();
   await page.getByLabel('Escribí el alias exacto para confirmar').fill('luna');
   await page.getByRole('button', { name: 'Eliminar definitivamente', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Editar luna', exact: true })).toHaveCount(0);
-  expect(state.writes).toBe(1);
+  expect(state.writes).toBe(2);
+});
+
+test('usuarios: respaldo incompleto bloquea, ZIP verificado habilita y cancelar conserva cuenta', async ({ page }, testInfo) => {
+  const state = await mockManagement(page);
+  state.users[1].isActive = false; state.projects = 2; state.corruptBackup = true;
+  await page.goto('/gestion/usuarios/');
+  await page.getByRole('button', { name: 'Eliminar luna', exact: true }).click();
+  await expect(page.getByText(/2 proyectos: 2 activos y 0 en papelera/)).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: /Conservé el respaldo/ })).toBeDisabled();
+  await page.getByRole('checkbox', { name: /Entiendo que el respaldo incluye/ }).check();
+  await page.getByRole('button', { name: 'Descargar respaldo ZIP' }).click();
+  await expect(page.getByRole('alert')).toContainText('La descarga no coincide');
+  await expect(page.getByRole('checkbox', { name: /Conservé el respaldo/ })).toBeDisabled();
+  state.corruptBackup = false;
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Descargar respaldo ZIP' }).click();
+  expect((await download).suggestedFilename()).toBe(`respaldo-cuenta-${student.id}.zip`);
+  await expect(page.getByText(/ZIP recibido y verificado/)).toBeVisible();
+  await page.getByRole('checkbox', { name: /Conservé el respaldo/ }).check();
+  await page.getByRole('checkbox', { name: /Entiendo que los borradores locales/ }).check();
+  await page.getByLabel('Escribí el alias exacto para confirmar').fill('luna');
+  await expect(page.getByRole('button', { name: 'Eliminar definitivamente', exact: true })).toBeEnabled();
+  await page.screenshot({ path: testInfo.outputPath('baja-con-respaldo.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  expect(state.writes).toBe(0); expect(state.users).toHaveLength(2);
 });
 
 test('usuarios: conflicto conserva el formulario y pérdida de permiso retira datos y diálogos', async ({ page }) => {

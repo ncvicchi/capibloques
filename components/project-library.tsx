@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react';
 import { FolderOpen, Save } from 'lucide-react';
+import ProjectCourseDialog from '@/components/project-course';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -98,6 +99,8 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
     const [open, setOpen] = useState(false);
     const [listing, setListing] = useState<Listing | null>(null);
     const [link, setLink] = useState<ProjectLink | null>(null);
+    const [context, setContext] = useState<CloudProject | null>(null);
+    const [courseProject, setCourseProject] = useState<CloudProject | null>(null);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
     const [cloudNotice, setCloudNotice] = useState('');
@@ -140,6 +143,28 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
       hydrated &&
       fingerprint !== (link?.savedFingerprint ?? initialFingerprint),
     );
+
+    useEffect(() => {
+      if (!link?.id) return;
+      let disposed = false;
+      const id = link.id;
+      const check = async () => {
+        if (!store.active || inFlight.current) return;
+        const ticket = generation.current;
+        try {
+          const response = await fetch(`/api/projects/${id}/?metadata=1`, { headers: headers(), cache: 'no-store', signal: AbortSignal.timeout(12000) });
+          const data = await response.json() as { project?: CloudProject };
+          if (disposed || !valid(ticket)) return;
+          if (!response.ok || data.project?.id !== id) { setContext(null); return; }
+          setContext(data.project);
+          if (data.project.revision !== store.remote?.revision || data.project.course?.ownerCanEdit === false) setConflict(true);
+        } catch { if (!disposed && valid(ticket)) setContext(null); }
+      };
+      void check();
+      const timer = window.setInterval(() => void check(), 15000);
+      window.addEventListener('focus', check);
+      return () => { disposed = true; window.clearInterval(timer); window.removeEventListener('focus', check); };
+    }, [link?.id, store, headers, valid]);
 
     useEffect(() => {
       active.current = true;
@@ -224,7 +249,8 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
           active.current &&
           store.active &&
           (data.code === 'stale_revision' ||
-            data.code === 'trashed' ||
+          data.code === 'trashed' ||
+          data.code === 'course_locked' ||
             data.code === 'operation_conflict')
         )
           setConflict(true);
@@ -335,11 +361,13 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
         if (!valid(operation.generation)) return false;
         const next = {
           id: result.project.id,
+          course: result.project.course,
           revision: result.project.revision,
           savedFingerprint: operation.fingerprint,
         };
         store.attach(next);
         setLink(next);
+        setContext(result.project);
         pendingSave.current = null;
         setPending(false);
         setConflict(false);
@@ -453,11 +481,13 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
             ? store.remote!
             : {
                 id: data.project.id,
+                course: data.project.course,
                 revision: data.project.revision,
                 savedFingerprint: projectFingerprint(file),
               };
           store.attach(next);
           setLink(next);
+          if (!justSaved) setContext(data.project);
           pendingSave.current = null;
           setPending(false);
           setConflict(false);
@@ -584,7 +614,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
           Mis proyectos
         </button>
         <span className="cloud-state" aria-live="polite">
-          Personal · {status}
+          {link ? context?.id === link.id ? context.course ? `Curso ${context.course.name}${context.course.ownerCanEdit ? ' · Visible para sus docentes' : ' · Sólo lectura; continuá con una copia'}` : 'Personal' : 'Visibilidad sin verificar' : 'Personal'} · {status}
         </span>
         {error && !open && (
           <span className="cloud-error" role="alert">
@@ -617,8 +647,8 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
             <DialogHeader>
               <DialogTitle>Mis proyectos</DialogTitle>
               <DialogDescription>
-                Biblioteca personal de {account.displayName}. Sólo vos podés
-                abrir estos proyectos.
+                Proyectos de {account.displayName}. Los personales son privados;
+                los asignados a cursos también son visibles para sus docentes.
               </DialogDescription>
             </DialogHeader>
             {error && (
@@ -745,6 +775,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
                   {listing.projects.map((project) => (
                     <article className="library-project" key={project.id}>
                       <h2>{project.title}</h2>
+                      <p>{project.course ? `Curso ${project.course.name}${project.course.ownerCanEdit ? ' · Visible para sus docentes' : ' · Conservado, continuar con copia personal'}` : 'Personal · sólo vos'}</p>
                       <p>
                         Versión {project.revision} ·{' '}
                         {new Date(project.updatedAt).toLocaleString('es-AR')}
@@ -791,6 +822,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
                             >
                               Eliminar {project.title}
                             </Button>
+                            <Button disabled={busy} variant="outline" onClick={() => setCourseProject(project)}>Elegir curso de {project.title}</Button>
                           </>
                         )}
                         <Button
@@ -849,6 +881,10 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
             </Button>
           </DialogContent>
         </Dialog>
+        {courseProject && <ProjectCourseDialog key={courseProject.id} project={courseProject} accountId={account.id} token={csrfToken} store={store} close={() => setCourseProject(null)} saved={() => {
+          if (courseProject.id === store.remote?.id) { setConflict(true); setContext(null); setError('Cambió el curso del proyecto abierto. Abrí su versión actual desde la biblioteca antes de seguir guardando.'); }
+          setCloudNotice('Curso actualizado. Los permisos se aplican a la versión del servidor.'); void refresh();
+        }} />}
         <Dialog
           open={Boolean(rename)}
           onOpenChange={(value) => {
