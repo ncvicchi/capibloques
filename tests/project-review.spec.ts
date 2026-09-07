@@ -199,6 +199,8 @@ test('revisión: bloques inmutables, simulación, pausa y exportación exacta si
     name: 'Conectar la Wemos sin adivinar',
     exact: true,
   });
+  // El diálogo se carga bajo demanda: all() no espera su montaje.
+  await expect(guide.getByRole('checkbox')).toHaveCount(4);
   for (const checkbox of await guide.getByRole('checkbox').all())
     await checkbox.check();
   await guide
