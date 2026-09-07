@@ -2,6 +2,8 @@
 
 Entrega acotada de recuperación local en el navegador, sobre el autoguardado 4A. No cambia PostgreSQL, la API ni los generadores. No habilita producción ni edición offline. La política de salida en equipos compartidos queda en 4B.2, con otro OK.
 
+Actualización posterior: [4B.2a](FASE_4B2A_SALIDA.md) amplía la salida con la elección de conservar o retirar las copias locales confirmadas de esa cuenta. Las referencias de este documento a conservar siempre al salir describen la entrega original de 4B.1. Desconexión sigue pendiente en 4B.2b.
+
 ## Uso
 
 - El editor conserva el proyecto en IndexedDB, separado por UUID de cuenta. Al recargar restaura la copia de esa pestaña; si el navegador ya no conserva esa referencia, busca la más reciente de la cuenta. Primero verifica la sesión y termina de leer la copia; recién entonces permite editar.
