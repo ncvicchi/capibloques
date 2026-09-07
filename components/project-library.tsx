@@ -13,6 +13,8 @@ import { FolderOpen, Save } from 'lucide-react';
 import ProjectCourseDialog from '@/components/project-course';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useProjectAutosave } from '@/components/use-project-autosave';
 import {
   Dialog,
   DialogContent,
@@ -52,6 +54,7 @@ type Props = {
   store: AccountDraftStore;
   csrfToken: string;
   hydrated: boolean;
+  sceneEditing: boolean;
   fingerprint: string;
   capture: () => ProjectFile;
   apply: (file: ProjectFile) => void;
@@ -87,6 +90,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
       store,
       csrfToken,
       hydrated,
+      sceneEditing,
       fingerprint,
       capture,
       apply,
@@ -106,6 +110,9 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
     const [cloudNotice, setCloudNotice] = useState('');
     const [pending, setPending] = useState(false);
     const [conflict, setConflict] = useState(false);
+    const [autoEnabled, setAutoEnabled] = useState(true);
+    const [autoReady, setAutoReady] = useState(false);
+    const [autoPaused, setAutoPaused] = useState(false);
     const [query, setQuery] = useState('');
     const [filter, setFilter] = useState({ q: '', state: 'active', page: 1 });
     const [rename, setRename] = useState<{
@@ -143,6 +150,23 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
       hydrated &&
       fingerprint !== (link?.savedFingerprint ?? initialFingerprint),
     );
+    const autoKey = `capibloques-account:${account.id}:server-autosave`;
+    useEffect(() => {
+      let disposed = false;
+      queueMicrotask(() => {
+        if (disposed) return;
+        try { setAutoEnabled(localStorage.getItem(autoKey) !== 'false'); } catch { /* La opción sigue disponible en memoria. */ }
+        setAutoReady(true);
+      });
+      return () => { disposed = true; };
+    }, [autoKey]);
+    useProjectAutosave({
+      identity: link?.id ?? null, fingerprint, needed: dirty || pending,
+      enabled: autoReady && autoEnabled,
+      paused: busy || open || sceneEditing || replacePrompt || autoPaused || conflict || context?.course?.ownerCanEdit === false,
+      ready: () => hydrated && active.current && store.active && !inFlight.current && document.documentElement.dataset.editorLocked !== 'true',
+      save: () => save(false, true),
+    });
 
     useEffect(() => {
       if (!link?.id) return;
@@ -207,6 +231,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
       pendingSave.current = null;
       setPending(false);
       setConflict(false);
+      setAutoPaused(false);
       setError('');
       setCloudNotice(
         'Sólo en esta computadora · guardá para agregarlo a tu cuenta.',
@@ -235,7 +260,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
         cache: 'no-store',
         signal: AbortSignal.timeout(20000),
       });
-      const data = (await result.json()) as T & {
+      const data = (await result.json().catch(() => ({ error: 'El servidor devolvió una respuesta no válida.' }))) as T & {
         error?: string;
         code?: string;
       };
@@ -245,8 +270,9 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
           result.status === 403 ||
           data.code === 'account_changed'
         )
-          throw new Error(
+          throw new LibraryRequestError(
             'Tu sesión cambió. Volvé a Mi cuenta antes de continuar.',
+            result.status,
           );
         if (
           active.current &&
@@ -318,7 +344,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
       };
     }, [open, refresh]);
 
-    async function save(copy = false): Promise<boolean> {
+    async function save(copy = false, automatic = false): Promise<boolean> {
       if (!store.active || inFlight.current || !hydrated) return false;
       inFlight.current = true;
       setBusy(true);
@@ -374,6 +400,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
         pendingSave.current = null;
         setPending(false);
         setConflict(false);
+        setAutoPaused(false);
         // La petición conserva su instantánea; la copia local conserva el editor
         // más reciente, aunque haya cambiado mientras esperábamos la respuesta.
         const current = latestCapture.current();
@@ -389,10 +416,11 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
           );
         }
         setCloudNotice('Proyecto guardado en tu cuenta.');
-        notice('Proyecto guardado en tu cuenta');
+        if (!automatic) notice('Proyecto guardado en tu cuenta');
         return true;
       } catch (failure) {
         if (active.current) {
+          if (failure instanceof LibraryRequestError && failure.status >= 400 && failure.status < 500) setAutoPaused(true);
           // Rechazo confirmado: permitir corregir el proyecto y enviar otra
           // instantánea. Sólo los resultados inciertos conservan el reintento.
           if (failure instanceof LibraryRequestError && (failure.status === 400 || failure.status === 413)) {
@@ -494,6 +522,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
           pendingSave.current = null;
           setPending(false);
           setConflict(false);
+          setAutoPaused(false);
           apply(opened);
           setOpen(false);
           setError('');
@@ -586,7 +615,9 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
     }
     const status = busy
       ? 'Guardando o consultando…'
-      : pending
+      : conflict
+        ? 'Conflicto pendiente · revisá Mis proyectos'
+        : pending
         ? 'Guardado sin confirmar · reintentá o exportá'
         : link
           ? dirty
@@ -618,6 +649,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
         </button>
         <span className="cloud-state" aria-live="polite">
           {link ? context?.id === link.id ? context.course ? `Curso ${context.course.name}${context.course.ownerCanEdit ? ' · Visible para sus docentes' : ' · Sólo lectura; continuá con una copia'}` : 'Personal' : 'Visibilidad sin verificar' : 'Personal'} · {status}
+          {link && autoEnabled && <span> · {autoPaused || conflict ? 'Autoguardado pausado' : 'Auto activo'}</span>}
         </span>
         {error && !open && (
           <span className="cloud-error" role="alert">
@@ -871,10 +903,17 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
             )}
             <p className="account-help">
               Hasta 100 proyectos y 50 MB por cuenta, incluida la papelera. En
-              esta subfase no hay borrado definitivo ni purga automática. Los
-              cambios del editor se suben con Guardar; el autoguardado al
-              servidor llegará después.
+              esta subfase no hay borrado definitivo individual ni purga automática.
             </p>
+            <label htmlFor="server-autosave" className="management-check">
+              <Checkbox id="server-autosave" checked={autoEnabled} disabled={!autoReady} onCheckedChange={value => {
+                setAutoEnabled(value); if (value) setAutoPaused(false);
+                try { localStorage.setItem(autoKey, String(value)); } catch { setError('La opción funciona ahora, pero no pudimos recordarla en este navegador.'); }
+              }} />
+              Guardar automáticamente en mi cuenta
+            </label>
+            <p className="account-help">Después del primer Guardar, sube los cambios del proyecto abierto al dejar de editar. Podés usar Guardar en cualquier momento. Esta opción se recuerda para tu cuenta en este navegador. Desactivarla no cancela un envío que ya comenzó.</p>
+            <p className="account-help">Armar escena conserva su Guardar/Cancelar: no se sube el borrador de la escena. Si hay un envío sin confirmar, mantené abierto el editor y reintentá o exportá JSON antes de salir. La recuperación de envíos al cerrar el navegador y el historial todavía no están disponibles.</p>
             <Button
               variant="outline"
               disabled={busy}
