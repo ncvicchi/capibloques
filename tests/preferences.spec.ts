@@ -108,6 +108,7 @@ test('avatar: galería, categoría, cancelar y guardar persisten sin alterar acc
   await expect(dialog).toHaveCount(0);
   expect(state.value.avatarId).toBe('frog');
   await page.reload();
+  await expect(page.getByRole('heading', { name: 'Mi cuenta', exact: true })).toBeVisible({ timeout: process.env.PLAYWRIGHT_BASE_URL ? 120000 : 10000 });
   await expect(
     page
       .getByRole('region', { name: 'Mi avatar' })

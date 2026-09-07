@@ -37,6 +37,7 @@ type ThreadExecution = {
   pending: Pending;
   done: boolean;
   started: boolean;
+  launch: { blockId: string; count: number } | null;
 };
 
 type BuzzerRuntimeState = Extract<RuntimeDeviceState, { playing: boolean }>;
@@ -318,7 +319,9 @@ function emit(type = 'SNAPSHOT') {
 }
 
 function createExecutions(): ThreadExecution[] {
-  return compileTaskGraph(program).map((task) => {
+  let tasks: ReturnType<typeof compileTaskGraph>;
+  try { tasks = compileTaskGraph(program); } catch { return []; } // Validation reports the rejected graph without losing its diagnostics.
+  return tasks.map((task) => {
     return {
       thread: { id: task.id, startBlockId: task.startBlockId, nodes: [] },
       label: task.label,
@@ -328,6 +331,7 @@ function createExecutions(): ThreadExecution[] {
       pending: null,
       done: !task.initial,
       started: task.initial,
+      launch: task.initialLaunch ?? null,
     };
   });
 }
@@ -734,6 +738,11 @@ function recordEvent(execution: ThreadExecution, blockId: string, message: strin
 }
 
 function executeOne(execution: ThreadExecution) {
+  if (execution.launch) {
+    recordEvent(execution, execution.launch.blockId, `Empiezan ${execution.launch.count} caminos al mismo tiempo.`);
+    execution.launch = null;
+    return 'launch';
+  }
   const node = execution.instructions[execution.pc];
   const pending = execution.pending;
   const wasDone = execution.done;
@@ -830,7 +839,7 @@ function runScheduler(stopAtEvent = false) {
   while (schedulerCursor < executions.length) {
     const sequence = eventSequence;
     const result = executeOne(executions[schedulerCursor]);
-    schedulerBudgetUsed++;
+    if (result !== 'launch') schedulerBudgetUsed++;
     if (schedulerBudgetUsed >= threadBudget || result === 'wait' || result === 'yield' || result === 'done') {
       schedulerCursor++;
       schedulerBudgetUsed = 0;

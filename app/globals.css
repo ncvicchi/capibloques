@@ -135,7 +135,7 @@ select:focus-visible {
   background: var(--paper);
   border-bottom: 1px solid var(--line);
   display: grid;
-  grid-template-columns: minmax(175px, 1fr) minmax(160px, 280px) max-content;
+  grid-template-columns: minmax(150px, 200px) minmax(140px, 220px) minmax(0, 1fr);
   align-items: center;
   gap: 18px;
   padding: 0 22px;
@@ -2791,6 +2791,8 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .preferences-dialog { width: min(760px, calc(100vw - 24px)); max-width: calc(100vw - 24px); max-height: calc(100dvh - 32px); overflow-y: auto; }
 .preferences-dialog > * { min-width: 0; overflow-wrap: anywhere; }
 .preferences-dialog button { max-width: 100%; min-width: 0; white-space: normal; height: auto; }
+.preferences-dialog .bg-primary { color: #fff; background: var(--purple); }
+.preferences-dialog .bg-primary:hover { background: var(--purple-dark); }
 .preferences-category { display: grid; gap: 6px; font-weight: 700; }
 .preferences-category select { border: 1px solid #adb2ce; background: white; border-radius: 8px; padding: 10px; color: #273155; width: 100%; min-width: 0; }
 .avatar-grid, .favorite-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 12px; min-width: 0; border: 0; padding: 3px; }

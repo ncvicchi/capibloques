@@ -252,6 +252,8 @@ export default function ReviewSimulation({
             Velocidad de simulación{' '}
             <select
               value={speed}
+              disabled={state?.execution?.mode === 'guided'}
+              title="Esta velocidad se aplica al modo normal; guiado muestra un paso por vez."
               onChange={(event) => {
                 const next = Number(event.target.value);
                 setSpeed(next);

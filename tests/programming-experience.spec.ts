@@ -18,7 +18,8 @@ const start = (id: string, body?: unknown, y = 40) => ({
 async function open(page: Page) {
   await mockEditorSession(page);
   await page.goto('/');
-  await expect(page.locator('.blocklySvg')).toBeVisible();
+  await expect(page.getByLabel('Editor visual de bloques')).toBeVisible();
+  await expect(page.locator('.blocklySvg')).toBeVisible({ timeout: process.env.PLAYWRIGHT_BASE_URL ? 120000 : 10000 });
 }
 async function importBlocks(page: Page, blocks: unknown[]) {
   const project = makeProject(
@@ -70,10 +71,15 @@ test('inicio único: obligatorio, sin categoría y protegido de borrar/copiar; a
     ),
   ).toHaveLength(1);
   expect(JSON.stringify(saved)).toContain('action');
-  await page.mouse.move(box.x + 40, box.y + 20);
+  // Opening the header menu can scroll its own action strip. Read the current
+  // geometry after closing it instead of dragging a stale screen coordinate.
+  const beforeMove = await root.getAttribute('transform');
+  const dragBox = (await root.locator('.blocklyPath').first().boundingBox())!;
+  await page.mouse.move(dragBox.x + 40, dragBox.y + 20);
   await page.mouse.down();
-  await page.mouse.move(box.x + 110, box.y + 80, { steps: 10 });
+  await page.mouse.move(dragBox.x + 110, dragBox.y - 30, { steps: 10 });
   await page.mouse.up();
+  await expect(root).not.toHaveAttribute('transform', beforeMove!);
   const undo = page.getByRole('button', { name: 'Deshacer', exact: true });
   await expect(undo).toBeEnabled();
   await undo.click();

@@ -1292,6 +1292,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           <Gauge size={18} /> Velocidad
           <select
             value={speed}
+            disabled={sim.execution?.mode === 'guided'}
+            title={sim.execution?.mode === 'guided' ? 'En modo guiado miramos un paso por vez. Esta velocidad se aplica al modo normal.' : 'Velocidad del reloj en modo normal'}
             onChange={(event) => {
               const value = Number(event.target.value);
               setSpeed(value);

@@ -2046,6 +2046,7 @@ function flattenProgram(nodes: ProgramNode[], branchTask: (nodes: ProgramNode[],
 }
 
 export interface ExecutableTask {
+  initialLaunch?: { blockId: string; count: number };
   id: string;
   startBlockId: string;
   label: string;
@@ -2074,7 +2075,9 @@ export function compileTaskGraph(program: CompiledProgram): ExecutableTask[] {
     // slot: migrated multi-start projects keep their instruction budgets/order.
     const only = thread.nodes.length === 1 ? thread.nodes[0] : null;
     if (only?.op === 'parallel') {
+      const firstTask = tasks.length;
       only.branches.forEach((branch, branchIndex) => add(branch, only.blockId, `Camino ${branchIndex + 1}`, true, 1));
+      if (tasks[firstTask]) tasks[firstTask].initialLaunch = { blockId: only.blockId, count: only.branches.length };
     } else {
       const taskIndex = add(thread.nodes, thread.startBlockId, index ? `Programa ${index + 1}` : 'Comenzar', true, 0);
       tasks[taskIndex].id = thread.id;

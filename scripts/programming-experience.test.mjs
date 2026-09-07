@@ -164,6 +164,8 @@ const migrated = wrap([
     legacy.threads.map((thread) => thread.nodes),
   ),
 ]);
+assert.deepEqual(run(migrated, true).trace, run(migrated, false).trace);
+assert.ok(run(migrated, true).trace[0].message.includes('caminos al mismo tiempo'));
 const actions = (result) =>
   result.trace
     .filter((item) => ['a', 'b', 'aa', 'bb', 'wa', 'wb'].includes(item.blockId))
