@@ -217,6 +217,12 @@ select:focus-visible {
 .library-project, .library-recovery { padding: 14px; border: 1px solid #bddbd9; background: #f2faf7; border-radius: 14px; min-width: 0; }
 .library-project h2, .library-recovery h2 { font-size: 1.05rem; font-weight: 700; overflow-wrap: anywhere; }
 .library-project p, .library-recovery p { font-size: .85rem; margin: 6px 0 10px; }
+.local-copies p { font-size: 1rem; }
+.local-copies h3 { font-size: 1rem; font-weight: 700; }
+.local-copies .library-project { margin-top: 12px; }
+/* El footer compartido usa márgenes negativos en rem; no deben exceder el
+   padding del diálogo con texto ampliado. */
+.local-recovery-dialog [data-slot='alert-dialog-footer'] { margin: 0; min-width: 0; flex-wrap: wrap; }
 .library-dialog .account-actions { flex-wrap: wrap; }
 .library-dialog button { white-space: normal; height: auto; min-height: 36px; overflow-wrap: anywhere; max-width: 100%; }
 .header-actions > button,

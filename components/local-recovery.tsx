@@ -27,9 +27,9 @@ export default function LocalRecovery({ store, onOpen }: { store: AccountDraftSt
     return () => { disposed = true; unsubscribe(); };
   }, [store, refresh]);
   const others = rows.filter(row => row.id !== store.recovery.id);
-  return <section className="library-recovery" aria-label="Copias en esta computadora">
+  return <section className="library-recovery local-copies" aria-label="Copias en esta computadora">
     <h2>Copias en esta computadora</h2>
-    <p>Son de tu cuenta en este navegador; no reemplazan Guardado en tu cuenta. Abrí una para continuar y reintentar su envío. No se suben todas en segundo plano.</p>
+    <p>Estas copias están en esta computadora. Recuperá una para continuar o reintentar su envío. Para verla en otro equipo, guardala en tu cuenta; no se suben todas en segundo plano.</p>
     <p>Hasta 30 copias y 50 MB. Conservar una copia al cambiar de proyecto permite volver acá después.</p>
     <Button variant="outline" onClick={() => setRefresh(value => value + 1)}>Actualizar copias locales</Button>
     {!others.length && <p>No hay otras copias locales para recuperar.</p>}
@@ -44,7 +44,7 @@ export default function LocalRecovery({ store, onOpen }: { store: AccountDraftSt
     </article>)}
     {error && <p role="alert" className="account-error">{error}</p>}
     <AlertDialog open={Boolean(selected)} onOpenChange={value => { if (!value && !busy) setSelected(null); }}>
-      <AlertDialogContent className="management-dialog">
+      <AlertDialogContent className="management-dialog local-recovery-dialog">
         <AlertDialogHeader><AlertDialogTitle>¿Quitar esta copia local?</AlertDialogTitle>
           <AlertDialogDescription>{selected?.title} se quitará de este navegador. No se borra el proyecto del servidor. Los cambios y envíos pendientes de esta copia no podrán recuperarse aquí: exportá JSON antes si querés conservarlos.</AlertDialogDescription></AlertDialogHeader>
         <AlertDialogFooter><AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
