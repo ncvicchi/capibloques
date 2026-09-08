@@ -106,7 +106,7 @@ ${assignments.length ? assignments.map(item => `  { ${item.pin}, ${item.bank ? '
 };
 void capiPwmWrite(uint8_t pin, uint32_t duty) {
   for (const auto& pwm : capiPwm) if (pwm.pin == pin && pin != 255) {
-    duty = std::min(duty, (1U << pwm.resolution) - 1);
+    duty = std::min<uint32_t>(duty, (1U << pwm.resolution) - 1);
     ESP_ERROR_CHECK(ledc_set_duty(pwm.bank, pwm.channel, duty));
     ESP_ERROR_CHECK(ledc_update_duty(pwm.bank, pwm.channel)); return;
   }
@@ -114,8 +114,14 @@ void capiPwmWrite(uint8_t pin, uint32_t duty) {
 void capiTone(uint8_t pin, uint32_t frequency) {
   for (const auto& pwm : capiPwm) if (pwm.pin == pin && pin != 255 && pwm.tone) {
     if (!frequency) { capiPwmWrite(pin, 0); return; }
-    ESP_ERROR_CHECK(ledc_set_freq(pwm.bank, pwm.timer, frequency));
-    capiPwmWrite(pin, 1U << (pwm.resolution - 1)); return;
+    // A fixed 8-bit/APB timer cannot reach the entire 20..20000 Hz repertoire.
+    // This timer belongs only to this buzzer, so changing resolution is isolated.
+    const ledc_timer_bit_t resolution = frequency < 1000 ? LEDC_TIMER_16_BIT : LEDC_TIMER_10_BIT;
+    ledc_timer_config_t timer = {}; timer.speed_mode = pwm.bank; timer.timer_num = pwm.timer;
+    timer.duty_resolution = resolution; timer.freq_hz = frequency; timer.clk_cfg = LEDC_USE_APB_CLK;
+    ESP_ERROR_CHECK(ledc_timer_config(&timer));
+    ESP_ERROR_CHECK(ledc_set_duty(pwm.bank, pwm.channel, 1U << (resolution - 1)));
+    ESP_ERROR_CHECK(ledc_update_duty(pwm.bank, pwm.channel)); return;
   }
 }
 ${hasAdc ? `

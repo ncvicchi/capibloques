@@ -121,7 +121,8 @@ bool capiDisplayGlyph(uint16_t x, uint16_t y, uint8_t character) {
 constexpr int CAPI_PIXEL_BYTES = ${device.config.profile === 'ili9488' ? 3 : 2};
 bool capiDisplayDeviceBegin() {
   if (!capiDisplayBusBegin()) return false;
-  if (!capiDisplayCommand(0x01)) return false; vTaskDelay(pdMS_TO_TICKS(150));
+  if (!capiDisplayCommand(0x01)) return false;
+  vTaskDelay(pdMS_TO_TICKS(150));
   const uint8_t format = ${device.config.profile === 'ili9488' ? '0x66' : '0x55'}, rotation = 0x28;
   if (!capiDisplayCommand(0x3a, &format, 1) || !capiDisplayCommand(0x36, &rotation, 1)
     || !capiDisplayCommand(0x20) || !capiDisplayCommand(0x13) || !capiDisplayCommand(0x11)) return false;
