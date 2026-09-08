@@ -1,6 +1,6 @@
 # Backlog de CapiBloques
 
-Pedidos del propietario desde el 7 de septiembre de 2026, registrados durante distintas entregas. **Planificados, no implementados ni iniciados.** El 8 de septiembre se asignaron a las [nuevas fases](PLAN_FASES_BACKLOG.md), precedidas por una fase de contexto portable para otra cuenta. Los números de este archivo identifican pedidos, no fases. Las notas de «no interrumpir» conservan el contexto de cada solicitud; la planificación no autoriza iniciar su implementación.
+Pedidos del propietario desde el 7 de septiembre de 2026, registrados durante distintas entregas. El 8 de septiembre se asignaron a las [nuevas fases](PLAN_FASES_BACKLOG.md), precedidas por una fase de contexto portable para otra cuenta. **La fase 12 implementa los pedidos 1, 6, 8 y 10, y la parte Wemos del 9**; alcance, pruebas y límites en su [guía de entrega](FASE_12_MESA_DE_TRABAJO.md). Los restantes siguen pendientes. Los números de este archivo identifican pedidos, no fases. Las notas de «no interrumpir» son históricas, referidas a la entrega que transcurría cuando se hizo cada solicitud; no sustituyen el estado ni las autorizaciones del plan vigente.
 
 ## 1. Redistribuir la interfaz
 
@@ -11,7 +11,7 @@ Problema reportado: la parte superior está sobrecargada, con aproximadamente si
 - Mantener visibles y accesibles ejecución, pausa/paso, estado de guardado, deshacer/rehacer y avisos importantes, sin apilar encabezados permanentes.
 - Verificar escritorio de altura limitada, móvil, teclado y texto ampliado; medir espacio realmente disponible para editar y simular.
 
-El ajuste menor de espacios realizado al cerrar la fase 6 **no resuelve ni da por completado este pedido**.
+El ajuste menor de espacios de fase 6 no resolvía este pedido. La reorganización de **fase 12** recupera altura útil medida: 54,9 % → 80,6 % a 1366 × 768, con dos filas globales y detalles bajo demanda.
 
 ## 2. Soporte ESP32-S3
 
@@ -51,7 +51,7 @@ La vista se desplaza sola en cada paso, incluso cuando el programa completo ya e
 
 ## 6. Separar catálogo y programa
 
-El panel de bloques de una categoría se mezcla visualmente con los bloques del programa. Separar claramente ambas superficies. El catálogo puede superponerse temporalmente al elegir una categoría y ocultarse después, dejando el programa despejado. Verificar arrastre, cierre, foco y teclado en Chrome/Edge. Sólo registrado; no implementar durante fase 7.
+El panel de bloques de una categoría se mezcla visualmente con los bloques del programa. Separar claramente ambas superficies. El catálogo puede superponerse temporalmente al elegir una categoría y ocultarse después, dejando el programa despejado. Verificar arrastre, cierre, foco y teclado en Chrome/Edge. Se registró sin interrumpir fase 7; **implementado en fase 12** con fondo opaco, cierre explícito/Escape y cierre después del arrastre.
 
 ## 7. Progreso dentro del bloque o componente
 
@@ -73,7 +73,7 @@ Pedido durante fase 10: al salir de la página y volver a enfocarla, la validaci
 - Conservar comprobaciones frescas en operaciones que requieren permisos, expiración, cambios explícitos de cuenta/cierre de sesión y revocaciones reales. Resolver el problema de UX sin permitir acceso con una sesión revocada.
 - Probar cambios frecuentes entre pestañas, regreso antes/después del intervalo, red lenta/cortada y vencimiento real, sin perder trabajo ni duplicar solicitudes.
 
-**Sólo registrado. No cambiar el comportamiento de sesión ni interrumpir o modificar el trabajo en curso de fase 10 por este pedido.**
+Se registró sin interrumpir fase 10. **Implementado en fase 12:** reloj compartido de 60 segundos, sin consulta por foco/visibilidad y sin desmontar el editor por una sesión igual; expiración conocida, señales explícitas y permisos remotos conservados.
 
 ## 9. Conexiones sobre una imagen de la placa
 
@@ -85,13 +85,13 @@ Pedido del 8 de septiembre de 2026: donde se indica cómo conectar los component
 - Conservar advertencias y requisitos eléctricos del montaje, incluidas alimentación, masa común, resistencias o drivers cuando correspondan. La imagen no debe sugerir conectar directamente un actuador que necesita una etapa intermedia ni presentar un conflicto como cableado válido.
 - Usar imágenes propias o con permiso/licencia documentados y contrastar etiquetas/coordenadas con la documentación de la placa exacta; no generar ni adivinar pinouts. Para Waveshare, representar los conectores realmente accesibles y los recursos reservados por pantalla/táctil según el modelo confirmado.
 
-Asignación: **fase 12** entrega la guía visual para Wemos; **fase 15** la adapta a DevKit y **fase 16** a Waveshare. La fase 14 debe reflejar también las asignaciones TX/RX en esta guía. Sólo planificación: no iniciar implementación ni alterar el orden de fases.
+Asignación: **fase 12 implementa la guía visual Wemos**, con dibujo propio, mapa contrastado y selección por componente/GPIO sincronizada con listado. **Fase 15** la adaptará a DevKit y **fase 16** a Waveshare; la fase 14 reflejará TX/RX. Esas ampliaciones siguen pendientes, sin autorización para iniciarlas. La ilustración no sustituye una prueba eléctrica.
 
 ## 10. Desplazamiento y zoom de la escena
 
 Pedido del 8 de septiembre de 2026: la programación permite desplazarse y ampliar, pero la escena no. Permitir **mover la vista y hacer zoom sobre zonas de la escena**, además de recuperar fácilmente la vista completa.
 
-Estado observado en el código: [Blockly](../components/blockly-workspace.tsx) habilita desplazamiento, rueda y zoom; [SceneStage](../components/scene-stage.tsx) usa una vista ajustada al contenedor, sin cámara de navegación. Sus eventos de arrastre mueven objetos sólo al editar. Esto describe una limitación actual, no una restricción necesaria del simulador ni evidencia de una decisión explícita de prohibir zoom.
+Estado histórico anterior a fase 12: Blockly permitía navegación y SceneStage sólo ajustaba la vista al contenedor, sin cámara. Era una limitación, no una prohibición explícita. **Fase 12 incorpora [SceneViewport](../components/scene-viewport.tsx)** al editar, simular y revisar; cámara transitoria, controles/teclado y gesto táctil en modo Mano, sin capturar la rueda o zoom accesible de la página.
 
 - Agregar navegación de la vista en Armar escena y en la simulación, incluida la revisión docente de sólo lectura, sin conceder edición donde no corresponde. Zoom con controles +/−, rueda/gestos acotados a la escena y alternativas de teclado/táctiles; permitir acercarse a la zona indicada por el usuario.
 - Incorporar desplazamiento mediante herramienta «Mano» o gesto explícito, distinguible de seleccionar/mover un componente y de accionar controles simulados. El zoom no debe apropiarse del desplazamiento de toda la página ni impedir su ampliación accesible.
@@ -99,24 +99,24 @@ Estado observado en el código: [Blockly](../components/blockly-workspace.tsx) h
 - Separar cámara y modelo: navegar no cambia posiciones, tamaño lógico, distancias, límites del simulador ni firmware. No marca el proyecto como modificado, no dispara autoguardado ni ocupa deshacer/rehacer. La cámara es estado de interfaz, no parte del JSON portable ni de la futura escena física en pantalla.
 - Convertir correctamente coordenadas de pantalla a escena al seleccionar/arrastrar con zoom y desplazamiento, preservando ajuste a cuadrícula y límites. No perder borradores ni romper Guardar/Cancelar o la interacción con sensores/actuadores simulados.
 
-Asignación: **fase 12**, como parte de la usabilidad del editor. Aceptación en Chrome/Edge, teclado y táctil: acercar una sección, desplazar, seleccionar/mover sin saltos, ejecutar conservando encuadre, volver a vista completa y comprobar que navegar no cambia el proyecto ni la simulación. Sólo planificación; no iniciar implementación ni añadir control físico en vivo.
+Asignación: **fase 12**, implementada como parte de la usabilidad del editor. Pruebas en Chrome/Edge, teclado y gesto táctil sintético: acercar una sección, desplazar, seleccionar/mover, ejecutar conservando encuadre, volver a vista completa y comprobar que navegar no cambia JSON. No añade control físico en vivo.
 
 ## Relación actualizada con el plan vigente
 
-El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las nuevas fases](PLAN_FASES_BACKLOG.md) incorporan todos los pedidos. La fase 11 prepara el contexto para continuar desde otra cuenta; no implementa el backlog. El rediseño general sigue pendiente aunque las funciones de fase 6 estén entregadas.
+El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las nuevas fases](PLAN_FASES_BACKLOG.md) incorporan todos los pedidos. La fase 11 conserva el contexto vivo; la fase 12 implementa la reorganización general y navegación. La ejecución dentro de bloques y paralelo vertical siguen en fase 13, no se dan por resueltos al redistribuir la UI.
 
-| Pedido | Fase prevista |
+| Pedido | Fase y estado |
 | --- | --- |
-| 1. Redistribución de interfaz | 12. Editor despejado |
+| 1. Redistribución de interfaz | 12. Implementado |
 | 2. ESP32-S3 | 15. DevKit y 16. Waveshare de 5 pulgadas |
 | 3. Display interactivo | 17. Escena y controles locales en pantalla |
 | 3. TX/RX serial | 14. TX/RX programable |
 | 4. Paralelo vertical | 13. Ejecución visual |
 | 5. Bloques estáticos | 13. Ejecución visual |
-| 6. Catálogo separado | 12. Editor despejado |
+| 6. Catálogo separado | 12. Implementado |
 | 7. Progreso dentro del bloque/componente | 13. Ejecución visual |
-| 8. Sesión sin revalidación por foco | 12. Editor despejado |
-| 9. Imagen de la placa con conexiones | 12. Wemos; 15. DevKit; 16. Waveshare; integración TX/RX en 14 |
-| 10. Desplazamiento y zoom de la escena | 12. Editor despejado |
+| 8. Sesión sin revalidación por foco | 12. Implementado |
+| 9. Imagen de la placa con conexiones | 12. Wemos implementada; pendientes DevKit (15), Waveshare (16) y TX/RX (14) |
+| 10. Desplazamiento y zoom de la escena | 12. Implementado |
 
-Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. Ninguna de estas asignaciones demuestra soporte funcional disponible ni habilita cambios en servidores.
+Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. Los pedidos de fases 13–17 siguen sin implementar ni autorizar; su asignación no demuestra soporte disponible ni habilita cambios en servidores.

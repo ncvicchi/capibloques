@@ -6,7 +6,7 @@ Documento vivo de **fase 11**. Actualización: **8 de septiembre de 2026**. Leer
 
 - Repositorio: [ncvicchi/capibloques](https://github.com/ncvicchi/capibloques). Rama de trabajo actual: `main`. Nuevas ramas, si hacen falta: prefijo `codex/`. Respetar el árbol existente, sin reset/force ni descartar cambios ajenos.
 - El propietario autorizó: **«vamos con 11 y 12»**, consecutivas y completas, sin pedir otro OK entre ellas. También pidió mantener esta documentación al cerrar la 12 y toda fase futura que solicite.
-- Fase 11: preparar este traspaso, comprobarlo y hacer commit/push. Fase 12: UX, catálogo separado, cámara de escena, guía Wemos y sesión sin validación por foco. **No iniciar 13–17 ni producción por esta autorización.**
+- **Fases 11 y 12 entregadas.** La 11 es contexto portable con mantenimiento obligatorio; la 12 entrega UX, catálogo separado, cámara de escena, guía Wemos y sesión sin validación por foco, verificados en DEV y CI. **No iniciar 13–17 ni producción por esta autorización.**
 - Fase 10: software entregado, **aceptación física pendiente**. El propietario no tiene Wemos disponible; no dar por probada la placa ni conectar/programar otro puerto como sustituto.
 - Producción es **Fase final, postergada**, no «fase 11». Los documentos históricos con letras son evidencias antiguas, no fases nuevas ni puntos para pedir OK.
 - Este contexto no transfiere automáticamente credenciales, chats, sesiones ni permisos. Otra cuenta debe tener su propio acceso verificado y la solicitud del propietario antes de operar.
@@ -28,7 +28,9 @@ CapiBloques enseña programación visual a chicos de **8–12 años**. Se arma u
 - USB está conectado a la **PC del navegador**, no al servidor. Chrome/Edge, localhost/HTTPS, elección y confirmación explícitas. Monitor real sólo lectura; distinto de consola simulada. No control remoto de actuadores, OTA ni seguimiento físico de bloques.
 - Placa implementada: Wemos D1 R32. S3 DevKit y Waveshare 5 pulgadas están pendientes; modelos/revisiones exactos deben identificarse. No copiar pines/offsets de Wemos a S3.
 
-## 3. Corte verificable al iniciar este traspaso
+## 3. Evidencia y versiones
+
+### Corte histórico al iniciar el traspaso
 
 | Evidencia | Estado y fecha |
 | --- | --- |
@@ -42,16 +44,36 @@ CapiBloques enseña programación visual a chicos de **8–12 años**. Se arma u
 
 El estado remoto puede cambiar. Revalidar identidad, commit y salud antes de operar. Los hashes de arriba son un corte histórico, no una orden de volver atrás. Usar `git log` para encontrar entregas posteriores y actualizar esta sección al cerrarlas.
 
+### Entrega de fases 11 y 12 — 8 de septiembre de 2026
+
+| Evidencia | Resultado |
+| --- | --- |
+| Fase 11 inicial | `14c4dcc`: contexto, reglas y planes publicados. Clone limpio desde GitHub y 55 destinos de enlaces locales del contexto comprobados; no depende del chat ni transfiere credenciales. |
+| Código de fase 12 | Implementación desde `6143bbe`, corregida y verificada hasta **`668be43`**. Mesa de trabajo, cámara, Wemos, sesiones y correcciones de Deshacer/Exportar/botones/scroll móvil. Secuencia y evidencia en la [guía de entrega](FASE_12_MESA_DE_TRABAJO.md). |
+| DEV verificado al cierre | `capi-dev`, checkout limpio en `668be43832c99b23f09295f8356d44d1c495503b`. Editor/API/DB saludables y planificador `active`; salud VM/túnel `ok`. Sólo editor reiniciado; API/base/compilador no recreados, concurrencia 1. |
+| Tipos, lint, unidad y build | Correctos sobre `668be43` en CI; siete grupos smoke, drivers, USB, aislamiento y 10 páginas estáticas verificadas. Permanece aviso de chunks grandes, no error de build. `npm audit`: cero vulnerabilidades conocidas tras parche acotado sharp 0.35.4. |
+| Altura útil comparable | 54,9 % → 80,6 % a 1366 × 768; capturas y método en la guía. No confundir esta proporción de pantalla con avance del proyecto. |
+| Navegadores | **124/124 Chrome/Edge sobre `63c96b2`**, más **46/46 sobre `668be43`**, sin reintentos. Acceso/autoguardado, mesa de trabajo, móvil/fuentes/scroll, programación, compilación/Wi-Fi, revisión docente y salida. Fixtures UI sintéticos, salud sin interceptar y backend separado; no es aceptación física. Historial de pruebas en la guía de entrega. |
+| CI final | [34291829169](https://github.com/ncvicchi/capibloques/actions/runs/34291829169), commit `668be43`: cuatro jobs correctos. 174 pruebas Chromium más dos regresiones rápidas, 179 backend/persistencia, siete Arduino y siete ESP-IDF. Reporte sin flaky. |
+| Documentación y entornos | Los commits de documentación posteriores no cambian la versión funcional DEV. PRD/gateway/Proxmox/router/Nginx sin cambios; Pages/Sites sin publicación. |
+
+Este corte sustituye al histórico para continuar, sin borrar su trazabilidad. Consultar nuevamente estado remoto si se retoma en otra fecha. El mantenimiento del contexto acompaña cada fase futura autorizada.
+
+Validación documental de cierre: **130 destinos locales en ocho documentos**, sin archivos faltantes ni diferencias de mayúsculas/minúsculas; las anclas operativas del túnel y compilador también se contrastaron. Los únicos recursos gráficos publicados son las dos capturas de fixtures sintéticos enlazadas desde la guía.
+
+Al terminar esta entrega se cerró la sesión SSH administrativa y finalizaron las pruebas locales. Se conserva el túnel habitual para navegar DEV; apagar la PC sólo corta ese acceso local, no detiene los servicios de la VM. Los archivos de diagnóstico quedan ignorados en `work/`/`test-results/`; no son parte necesaria del traspaso ni deben publicarse indiscriminadamente.
+
 ## 4. Arquitectura y mapa de archivos
 
 | Área | Punto de entrada y responsabilidad |
 | --- | --- |
 | Rutas y UI | [app](../app), [capiblocks-app](../components/capiblocks-app.tsx), estilos [globals.css](../app/globals.css). React, Vinext/Vite y componentes Base UI existentes; conservar lockfile. |
-| Identidad del editor | [editor-access](../components/editor-access.tsx), [account-session](../lib/account-session.ts), [accounts](../backend/accounts). Sesión/CSRF y borrador ligado a UUID, no al alias. |
-| Escena | [scene-model](../lib/scene-model.ts), [scene-builder](../components/scene-builder.tsx), [scene-stage](../components/scene-stage.tsx). Modelo lógico, edición pendiente separada y vista/simulación. |
+| Identidad del editor | [editor-access](../components/editor-access.tsx), [account-session](../lib/account-session.ts), [session-polling](../lib/session-polling.ts), [accounts](../backend/accounts). Sesión/CSRF y borrador ligado a UUID, no al alias; reloj periódico sin consultas por foco. |
+| Escena | [scene-model](../lib/scene-model.ts), [scene-builder](../components/scene-builder.tsx), [scene-stage](../components/scene-stage.tsx). Modelo lógico, edición pendiente separada y vista/simulación. Cámara transitoria en [scene-viewport](../components/scene-viewport.tsx) y [scene-camera](../lib/scene-camera.ts). |
 | Bloques y generación | [blockly-workspace](../components/blockly-workspace.tsx), [blockly-engine](../lib/blockly-engine.ts), [capiblocks](../lib/capiblocks.ts). Workspace → programa/grafo → simulador y generadores. |
 | Simulación | [simulator.worker](../lib/simulator.worker.ts), [execution-panel](../components/execution-panel.tsx). Worker cooperativo, tiempos lógicos/trazas separados de presentación. |
 | Pantallas y cableado | [display-model](../lib/display-model.ts), [display-arduino](../lib/display-arduino.ts), [display-idf](../lib/display-idf.ts), [wiring-guide](../components/wiring-guide.tsx). Validación compartida y revisión eléctrica explícita. |
+| Imagen Wemos | [wemos-board UI](../components/wemos-board.tsx), [mapa físico](../lib/wemos-board.ts), [referencias contrastadas](REFERENCIA_WEMOS.md). Listado/dibujo comparten conexiones; ilustración propia, no certificación eléctrica. |
 | Recuperación | [project-recovery](../lib/project-recovery.ts), [scene-recovery](../lib/scene-recovery.ts), [local-exit](../lib/local-exit.ts), [use-project-autosave](../components/use-project-autosave.ts). IndexedDB/CAS, envíos pendientes y ACK. |
 | Backend | [config/urls](../backend/config/urls.py); módulos [projects](../backend/projects), [courses](../backend/courses), [school](../backend/school), [compiler](../backend/compiler). Django/PostgreSQL. |
 | Compilación | [ops/compiler](../ops/compiler), [compiler-generate](../scripts/compiler-generate.mjs), [firmware-builds](../components/firmware-builds.tsx). Cola durable, planificador confiable y ejecutor efímero aislado. |
@@ -65,8 +87,10 @@ Versiones fijadas: Node DEV 22.23.2, React 19.2.8, Blockly 12.5.1, Vinext 1.0.0-
 - Permisos frescos dentro de `access_lock()`, revisiones optimistas y operaciones idempotentes. No mutar cuentas/membresías/proyectos por SQL o bulk saltando servicios. Conservar último administrador y revocación.
 - JSON portable sin identidad remota, credenciales ni estado transitorio. Importar/nuevo/ejemplos desvinculan la biblioteca después de confirmar reemplazo. No resucitar papelera ni sobrescribir cambios concurrentes.
 - Guardar pendiente conserva operación/documento ante respuestas perdidas. IndexedDB por cuenta/copia, CAS entre pestañas, ACK y documento posterior atómicos. No limpiar storage global ni una cuenta real para probar.
-- Desconexión permite continuar sólo el proyecto ya cargado, con sesión no vencida y consentimiento cuando corresponde. No autenticar offline ni hacer peticiones con permisos conocidos retirados. Perder foco no equivale a revocación: fase 12 cambia ese comportamiento de UX, no las guardas de permisos.
+- Desconexión permite continuar sólo el proyecto ya cargado, con sesión no vencida y consentimiento cuando corresponde. No autenticar offline ni hacer peticiones con permisos conocidos retirados. Desde fase 12, reloj compartido de 60 segundos, sin consultas por foco/visibilidad ni desmontar el editor por una sesión igual. Mantener expiración conocida, señales de salida/cambio de cuenta, BFCache, recuperación de conexión y autorización fresca de cada operación.
 - Escena pendiente no es proyecto confirmado. Guardar/Cancelar esperan persistencia; deshacer/rehacer no deben publicar cambios automáticamente. Referencias de dispositivos/zonas retirados se diagnostican, no se reasignan a escondidas.
+- Cámara de escena fuera del JSON, guardado e historial; conservar encuadre al ejecutar/pasar de pestaña y coordenadas inversas al arrastrar. Un primer frame sin movimiento efectivo no abre un grupo de Deshacer sin instantánea inicial. El catálogo temporal no debe bloquear el arrastre ni ocultar cómo cerrarlo.
+- `ExecutionPanel` debe permanecer montado: confirma cuadros de ejecución guiada. Trasladar su UI no permite retirar ese ACK. Los errores de almacenamiento deben dejar Exportar y salida alcanzables inmediatamente.
 - Revisiones comentadas quedan protegidas. Bajas/purgas exigen conteo, confirmaciones y respaldo vigente; no cascadas incidentales. Los ZIP administrativos restauran contenido por importación, no identidad de cuenta/membresías.
 - Compilador: límite global compartido, no liberar cupo sólo por lease vencido; confirmar terminación del contenedor. No ampliar red/montajes/socket/privilegios para resolver un build. Wi-Fi no reutiliza caché.
 - USB: validar SHA-256/manifiesto/segmentos y chip/capacidad antes de escribir, verificar transferencia, un dueño del puerto, revalidar acceso. Cancelar no garantiza firmware válido; cerrar pestaña no detiene hardware.
@@ -160,8 +184,8 @@ Artefactos compilados caducan y pueden contener Wi-Fi; no subirlos como contexto
 El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BACKLOG.md) conserva la intención original. Resumen:
 
 - 10: prueba física Wemos de ambos frameworks y recuperación USB.
-- 11: entregar y comprobar este contexto; mantenerlo en futuras fases.
-- 12, autorizada a continuación: reorganizar encabezados/catálogo, zoom/desplazamiento de escena, imagen técnica Wemos sincronizada y chequeo periódico de sesión sin interrupciones por foco. Pendiente de implementar al escribir este corte.
+- 11: entregada y comprobada; mantenimiento obligatorio en futuras fases, no requiere reiniciar el traspaso.
+- 12: **entregada y verificada en DEV/CI**; [guía, pruebas y cierre](FASE_12_MESA_DE_TRABAJO.md). Encabezados/catálogo reorganizados, zoom/desplazamiento de escena, imagen técnica Wemos sincronizada y chequeo periódico sin interrupciones por foco.
 - 13: paralelo vertical, lienzo de bloques estático e indicadores locales de progreso.
 - 14: TX/RX serial configurable con mensajes completos, espera no bloqueante y bifurcación.
 - 15: DevKit S3 exacta, perfiles, imagen de conexiones, fuentes/compilación/USB.
@@ -169,7 +193,7 @@ El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BAC
 - 17: escena y controles locales en display, prioridad manual/programa explícita.
 - Final: producción/HTTPS, restauración/backups externos, carga, monitoreo, rollback y piloto; postergada.
 
-No esperar hardware para documentar o mejorar UX. Sí exigir modelo/documentación y ensayo físico antes de anunciar soporte de placa. El diagrama Wemos debe verificarse: hay pinouts públicos con etiquetas contradictorias; no convertir una ilustración en fuente única de verdad.
+La próxima fase de desarrollo es **13, aún no autorizada**. No esperar hardware para documentar o mejorar UX. Sí exigir modelo/documentación y ensayo físico antes de anunciar soporte de placa. El diagrama Wemos fue contrastado con las fuentes enlazadas; conservar esa verificación al ampliarlo, porque existen pinouts públicos contradictorios. No convertir una ilustración en fuente única de verdad.
 
 ## 9. Mensaje listo para otra conversación
 

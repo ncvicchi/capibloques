@@ -1,15 +1,15 @@
 # Nuevas fases de CapiBloques
 
-Plan elaborado el 8 de septiembre de 2026 a pedido del propietario. **Actualización de autorización: el propietario pidió ejecutar las fases 11 y 12 completas y consecutivas.** La 11 entrega el [contexto vivo](CONTEXTO_PARA_CONTINUAR.md); la 12 continúa a continuación. Al cerrar la 12 y cada fase futura solicitada se actualiza ese documento. Las fases 13–17 no están autorizadas y la Fase final sigue postergada. Complementa el [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y asigna todos los pedidos del [backlog](BACKLOG.md).
+Plan elaborado el 8 de septiembre de 2026 a pedido del propietario. **Fases 11 y 12 entregadas**, bajo autorización del propietario para ejecutarlas completas y consecutivas. La 11 entrega el [contexto vivo](CONTEXTO_PARA_CONTINUAR.md); la 12 implementa la [mesa de trabajo y navegación](FASE_12_MESA_DE_TRABAJO.md) en DEV. La guía de entrega registra la verificación completa en DEV y CI. Al cerrar la 12 y cada fase futura solicitada se actualiza ese documento. Las fases 13–17 no están autorizadas y la Fase final sigue postergada. Complementa el [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y asigna todos los pedidos del [backlog](BACKLOG.md).
 
-La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros 11–17; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. Primero se prepara el contexto portable para continuar desde otra cuenta; las mejoras de interfaz pueden comenzar después con autorización propia sin dar por hecha esa prueba.
+La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros 11–17; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. El contexto portable se entregó primero y después la UX, bajo la autorización consecutiva de 11 y 12, sin dar por hecha la prueba física.
 
 ## Orden y cobertura
 
 | Fase | Entrega completa | Pedidos del backlog | Dependencia |
 | --- | --- | --- | --- |
 | 11 | Contexto portable documentado; mantenimiento obligatorio en cada entrega | Pedido adicional del propietario | Documentación y estado verificable; sin migrar secretos ni datos |
-| 12 | Editor despejado, navegación de escena, sesión sin interrupciones y guía visual Wemos | 1, 6, 8 y 10; 9: Wemos | Traspaso de fase 11; pinout documentado para la guía, sin sustituir ensayo físico |
+| 12 | Entregada y verificada en DEV/CI: editor despejado, navegación de escena, sesión sin interrupciones y guía visual Wemos | 1, 6, 8 y 10; 9: Wemos | Traspaso de fase 11; pinout documentado para la guía, sin sustituir ensayo físico |
 | 13 | Ejecución visual en los bloques y paralelo vertical | 4, 5 y 7 | Distribución de fase 12 |
 | 14 | Componentes y bloques TX/RX serial | 3: TX/RX; 9: conexiones seriales | Wemos actual como primer destino; simulador y ambos generadores |
 | 15 | Soporte completo ESP32-S3 DevKit y selección de placa | 2: DevKit; 9: guía visual DevKit | Modelo exacto identificado; incorporar el contrato TX/RX de fase 14 |
@@ -22,6 +22,8 @@ Primero se asegura la continuidad desde otra cuenta sin depender de este chat; d
 ## Fase 11 — Contexto portable y traspaso a otra cuenta
 
 **Objetivo:** que otra cuenta o una conversación nueva pueda continuar el proyecto leyendo el repositorio, sin necesitar el historial de este chat ni adivinar decisiones.
+
+**Entregada:** `14c4dcc`, punto de entrada y 55 enlaces locales del contexto comprobados desde clon limpio de GitHub. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) incorpora también la fase 12 y debe actualizarse al cerrar cada fase futura autorizada. No se transfieren credenciales, sesiones ni datos privados por Git.
 
 Alcance:
 
@@ -45,6 +47,8 @@ Esta fase documenta y prepara continuidad: no migra usuarios de CapiBloques, no 
 ## Fase 12 — Editor despejado y sesión sin interrupciones
 
 **Objetivo:** recuperar espacio para programar y armar escenas, poder explorar la escena con desplazamiento/zoom y mantener una sesión que no interrumpa cada cambio de ventana.
+
+**Entregada y verificada en DEV/CI:** [guía de entrega y evidencia](FASE_12_MESA_DE_TRABAJO.md), código `668be43`. Altura útil medida 54,9 % → 80,6 % a 1366 × 768, cámara separada del proyecto, Wemos y sesiones periódicas. La guía distingue la verificación software del ensayo físico pendiente de fase 10. Los criterios siguientes conservan el alcance acordado.
 
 Alcance:
 
