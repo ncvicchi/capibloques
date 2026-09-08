@@ -114,7 +114,7 @@ test('cursos: conflicto conserva borrador y conexión perdida bloquea hasta reva
   await expect(page.getByLabel('Nombre del curso', { exact: true })).toHaveValue('Pendiente');
   expect(state.course.name).toBe('Robótica A');
   state.offline = true;
-  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(page.getByText('No pudimos verificar el acceso.', { exact: false })).toBeVisible();
   await expect(page.getByLabel('Nombre del curso', { exact: true })).not.toBeVisible();
   state.offline = false;
@@ -131,7 +131,7 @@ test('cursos: docente ve su grupo y perder membresía limpia el detalle sin cerr
   await expect(page.getByText('Luna', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Guardar curso', exact: true })).toHaveCount(0);
   state.removed = true;
-  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(page.getByText('El curso ya no está disponible para tu cuenta.', { exact: true })).toBeVisible();
   await expect(page.getByText('Luna', { exact: true })).toHaveCount(0);
 });
@@ -177,7 +177,7 @@ test('cursos: revocar administrador limpia formulario y resultados de personas',
   await page.getByRole('button', { name: 'Editar Robótica A', exact: true }).click();
   await page.getByRole('button', { name: 'Buscar personas', exact: true }).click();
   state.denied = true;
-  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(page.getByRole('alert')).toContainText('Tu sesión o permiso cambió');
   await expect(page.getByLabel('Nombre del curso', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Luna', { exact: true })).toHaveCount(0);

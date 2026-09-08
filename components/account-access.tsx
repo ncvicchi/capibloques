@@ -1,5 +1,7 @@
 'use client';
 
+import { watchPeriodicRefresh } from '@/lib/session-polling';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Eye, EyeOff, KeyRound, LogOut, ShieldCheck } from 'lucide-react';
@@ -67,15 +69,11 @@ export default function AccountAccess() {
   useEffect(() => {
     let disposed = false;
     queueMicrotask(() => { if (!disposed) void refresh(); });
-    const onVisible = () => { if (document.visibilityState === 'visible' && !inFlight.current) void refresh(true); };
-    const onFocus = () => { if (!inFlight.current) void refresh(true); };
-    document.addEventListener('visibilitychange', onVisible);
-    window.addEventListener('focus', onFocus);
+    const stopPolling = watchPeriodicRefresh(() => { if (!inFlight.current) return refresh(true); });
     const stopWatching = watchSessionChange(changing => { if (!changing && !inFlight.current) void refresh(true); });
     return () => {
       disposed = true;
-      document.removeEventListener('visibilitychange', onVisible);
-      window.removeEventListener('focus', onFocus);
+      stopPolling();
       stopWatching();
     };
   }, [refresh]);

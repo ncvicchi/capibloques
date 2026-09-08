@@ -1,5 +1,7 @@
 'use client';
 
+import { watchPeriodicRefresh } from '@/lib/session-polling';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, School } from 'lucide-react';
@@ -53,7 +55,7 @@ export default function SchoolManagement() {
       if (owner.current && owner.current !== body.actor.id) closeForm();
       owner.current = body.actor.id;
       setData(body);
-      if (document.visibilityState === 'visible') { delete document.documentElement.dataset.editorLocked; setLocked(false); }
+      delete document.documentElement.dataset.editorLocked; setLocked(false);
     } catch {
       if (ticket === epoch.current) { lock(); setAccessError('No pudimos verificar el acceso. Reintentá la conexión; el borrador no se publicó.'); }
     }
@@ -62,21 +64,18 @@ export default function SchoolManagement() {
   useEffect(() => {
     let disposed = false;
     queueMicrotask(() => { if (!disposed) void refresh(true); });
-    const focus = () => { void refresh(true); };
-    const visibility = () => { if (document.visibilityState === 'hidden') { ++epoch.current; lock(); } else void refresh(true); };
     const stop = watchSessionChange(changing => {
       ++epoch.current; lock();
       if (inFlight.current) return;
       if (changing) clearPrivate(); else void refresh(true);
     });
-    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh(); }, 15000);
-    window.addEventListener('focus', focus); window.addEventListener('pageshow', focus); document.addEventListener('visibilitychange', visibility);
+    const stopPolling = watchPeriodicRefresh(() => refresh());
     return () => {
       disposed = true;
       // Contador de solicitudes, no nodo DOM.
       // oxlint-disable-next-line react-hooks/exhaustive-deps
       ++epoch.current;
-      stop(); window.clearInterval(timer); window.removeEventListener('focus', focus); window.removeEventListener('pageshow', focus); document.removeEventListener('visibilitychange', visibility);
+      stop(); stopPolling();
       delete document.documentElement.dataset.editorLocked;
     };
   }, [clearPrivate, lock, refresh]);

@@ -15,7 +15,7 @@ test('desconexión: continúa sólo local, exporta y revalida antes de enviar', 
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
   await expect(page.locator('.cloud-state')).toContainText('Guardado en tu cuenta');
   failed = true;
-  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await page.getByRole('button', { name: 'Seguir sólo en esta computadora', exact: true }).click();
   await page.getByLabel('Nombre del proyecto').fill('Trabajé durante el corte');
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
@@ -48,7 +48,7 @@ test('desconexión: no ofrece entrada desde cero ni tras revocación o cambio de
   await expect(page.getByRole('button', { name: 'Seguir sólo en esta computadora', exact: true })).toHaveCount(0);
   status = 200; await page.getByRole('button', { name: 'Reintentar', exact: true }).click();
   await page.getByLabel('Nombre del proyecto').fill('Privado de Luna');
-  status = 503; await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  status = 503; await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await page.getByRole('button', { name: 'Seguir sólo en esta computadora', exact: true }).click();
   status = 401; user = null;
   await page.getByRole('button', { name: 'Reconectar', exact: true }).click();
@@ -66,7 +66,7 @@ test('desconexión: el vencimiento conocido bloquea la copia aunque no vuelva la
     json: { user: student, csrfToken: token, context: 'offline-fixture', expiresAt: deadline },
   }));
   await page.goto('/'); await expect(page.getByLabel('Nombre del proyecto')).toBeVisible();
-  failed = true; await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  failed = true; await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await page.getByRole('button', { name: 'Seguir sólo en esta computadora', exact: true }).click();
   await page.clock.fastForward(61000);
   await expect(page.getByLabel('Nombre del proyecto')).not.toBeVisible();

@@ -28,7 +28,8 @@ async function setup(page: Page) {
 }
 
 async function openExit(page: Page) {
-  await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
+  await page.getByRole('button', { name: 'Opciones de mi cuenta' }).click();
+  await page.getByRole('menuitem', { name: 'Cerrar sesión', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Salir y conservar copias', exact: true })).toBeVisible();
 }
 

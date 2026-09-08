@@ -104,7 +104,7 @@ test('colegio: conflicto conserva borrador y cancelar carga la versión actual',
   await page.getByRole('button', { name: 'Editar colegio', exact: true }).click();
   await page.getByLabel('Nombre del colegio', { exact: true }).fill('Mi borrador');
   state.conflict = true; state.school.name = 'Otra edición'; state.version = 'v2';
-  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(page.getByLabel('Nombre del colegio', { exact: true })).toHaveValue('Mi borrador');
   await page.getByRole('button', { name: 'Guardar colegio', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('Otro administrador');
@@ -121,14 +121,14 @@ test('colegio: corte de conexión conserva borrador, revocación retira formular
   await page.getByRole('button', { name: 'Editar colegio', exact: true }).click();
   await page.getByLabel('Nombre del colegio', { exact: true }).fill('Borrador privado');
   state.failed = true;
-  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(page.getByRole('alert')).toContainText('No pudimos verificar');
   state.failed = false;
   await page.getByRole('button', { name: 'Reintentar', exact: true }).click();
   await expect(page.getByLabel('Nombre del colegio', { exact: true })).toHaveValue('Borrador privado');
   await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
   state.denied = true;
-  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(page.getByRole('alert')).toContainText('Necesitás una cuenta administradora');
   await expect(page.locator('body')).not.toContainText('Borrador privado');
   await expect(page.getByRole('alertdialog')).toHaveCount(0);

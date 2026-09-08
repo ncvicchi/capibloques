@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { watchSessionChange } from '@/lib/account-session';
+import { watchPeriodicRefresh } from '@/lib/session-polling';
 import {
   isPreferences,
   PreferenceError,
@@ -111,9 +112,8 @@ export function useAccountPreferences(accountId: string, enabled = true) {
     const channel =
       'BroadcastChannel' in window ? new BroadcastChannel(channelName) : null;
     if (channel) channel.onmessage = invalidated;
-    window.addEventListener('focus', invalidated);
+    const stopPolling = watchPeriodicRefresh(refresh);
     window.addEventListener(channelName, invalidated);
-    document.addEventListener('visibilitychange', invalidated);
     return () => {
       disposed = true;
       active.current = false;
@@ -122,9 +122,8 @@ export function useAccountPreferences(accountId: string, enabled = true) {
       ++epoch.current;
       stop();
       channel?.close();
-      window.removeEventListener('focus', invalidated);
+      stopPolling();
       window.removeEventListener(channelName, invalidated);
-      document.removeEventListener('visibilitychange', invalidated);
     };
   }, [refresh, enabled]);
   const save = useCallback(

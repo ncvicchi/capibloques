@@ -161,7 +161,7 @@ test('avatar: corte y respuesta perdida conservan elección y no duplican guarda
   const dialog = page.getByRole('dialog', { name: 'Elegí tu avatar' });
   await dialog.getByRole('radio', { name: /Lila la rana/ }).check();
   state.offline = true;
-  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(
     dialog.getByRole('button', { name: 'Reintentar conexión de preferencias' }),
   ).toBeVisible();
@@ -193,7 +193,7 @@ test('avatar: cuenta revocada retira el selector y no aplica el borrador', async
     .click();
   await page.getByRole('radio', { name: /Lila la rana/ }).check();
   state.denied = true;
-  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(state.writes).toBe(0);
 });

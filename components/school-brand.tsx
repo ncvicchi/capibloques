@@ -1,5 +1,7 @@
 'use client';
 
+import { watchPeriodicRefresh } from '@/lib/session-polling';
+
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 
@@ -26,12 +28,9 @@ export default function SchoolBrand() {
         if (ticket === generation && typeof data.name === 'string' && (data.logoUrl === null || /^\/api\/school\/logo\/[a-f0-9]{64}\/$/.test(data.logoUrl))) setSchool(data);
       } catch { /* La marca no debe bloquear el formulario de ingreso. */ }
     }
-    const focus = () => { void refresh(); };
-    const visible = () => { if (document.visibilityState === 'visible') void refresh(); };
     void refresh();
-    window.addEventListener('focus', focus);
-    document.addEventListener('visibilitychange', visible);
-    return () => { ++generation; window.removeEventListener('focus', focus); document.removeEventListener('visibilitychange', visible); };
+    const stopPolling = watchPeriodicRefresh(refresh);
+    return () => { ++generation; stopPolling(); };
   }, []);
   return school ? <SchoolIdentity {...school} /> : null;
 }

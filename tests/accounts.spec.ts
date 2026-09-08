@@ -41,7 +41,7 @@ test('cuenta: cancelar contraseña no envía ni conserva el borrador', async ({ 
   await page.getByRole('button', { name: 'Cambiar contraseña', exact: true }).click();
   await page.getByLabel('Contraseña nueva', { exact: true }).fill('Borrador privado de prueba');
   // Recuperar foco no debe descartar un formulario si sigue la misma cuenta.
-  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(page.getByLabel('Contraseña nueva', { exact: true })).toHaveValue('Borrador privado de prueba');
   await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await expect(page.getByLabel('Contraseña nueva', { exact: true })).toHaveCount(0);

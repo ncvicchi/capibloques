@@ -1,5 +1,7 @@
 'use client';
 
+import { watchPeriodicRefresh } from '@/lib/session-polling';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -46,11 +48,6 @@ export default function SessionExit({ account, all = false, journal, onCancel }:
   useEffect(() => {
     let disposed = false;
     queueMicrotask(() => { if (!disposed) { announceSessionChange(true, signalOrigin); void verify(); } });
-    const focus = () => { void verify(); };
-    const visible = () => {
-      if (document.visibilityState === 'hidden') { ++generation.current; setVerified(false); }
-      else void verify();
-    };
     const stop = watchSessionChange(changing => {
       if (state.current !== 'choosing') return;
       ++generation.current; setVerified(false);
@@ -58,16 +55,15 @@ export default function SessionExit({ account, all = false, journal, onCancel }:
     }, signalOrigin);
     const timer = window.setInterval(() => {
       if (state.current !== 'cleanup-failed') announceSessionChange(true, signalOrigin);
-      if (document.visibilityState === 'visible') void verify(false);
     }, 10000);
-    window.addEventListener('focus', focus); document.addEventListener('visibilitychange', visible);
+    const stopPolling = watchPeriodicRefresh(() => verify(false));
     return () => {
       disposed = true;
       // Época de solicitudes, no una referencia a un nodo DOM.
       // oxlint-disable-next-line react-hooks/exhaustive-deps
       ++generation.current; stop(); window.clearInterval(timer);
       announceSessionChange(false, signalOrigin);
-      window.removeEventListener('focus', focus); document.removeEventListener('visibilitychange', visible);
+      stopPolling();
     };
   }, [verify, signalOrigin]);
 

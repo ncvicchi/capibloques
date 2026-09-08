@@ -168,6 +168,7 @@ const BlocklyWorkspace = forwardRef<
   const highlightedBlockIdsRef = useRef(new Set<string>());
   const keyboardStatusRef = useRef<HTMLOutputElement>(null);
   const [ready, setReady] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const deviceSignature = JSON.stringify(
     devices.map(device => [device.id, device.kind, device.name, device.kind === 'display' ? device.config : null]),
   );
@@ -270,6 +271,11 @@ const BlocklyWorkspace = forwardRef<
         );
         workspace.addChangeListener((event) => {
           if (readOnlyRef.current) return;
+          if (event.type === Blockly.Events.TOOLBOX_ITEM_SELECT) setPaletteOpen(Boolean(workspace.getFlyout()?.isVisible()));
+          if (event.type === Blockly.Events.BLOCK_DRAG) {
+            if (!(event as import('blockly').Events.BlockDrag).isStart) workspace.getToolbox()?.clearSelection();
+            setPaletteOpen(Boolean(workspace.getFlyout()?.isVisible()));
+          }
           if (event.isUiEvent) return;
           if (event.type === Blockly.Events.BLOCK_CREATE || event.type === Blockly.Events.BLOCK_DELETE) {
             const group = Blockly.Events.getGroup();
@@ -317,6 +323,7 @@ const BlocklyWorkspace = forwardRef<
           }, 180);
         });
         activateKeyboardNavigation = (event: KeyboardEvent) => {
+          if (event.key === 'Escape' && workspace.getFlyout()?.isVisible()) { workspace.getToolbox()?.clearSelection(); setPaletteOpen(false); }
           if (
             event.key.startsWith('Arrow') ||
             event.key === 'Enter' ||
@@ -505,7 +512,8 @@ const BlocklyWorkspace = forwardRef<
   }, [favorites, ready]);
 
   return (
-    <div className="blockly-shell">
+    <div className="blockly-shell" data-palette-open={paletteOpen}>
+      {paletteOpen && <button className="palette-close" type="button" onClick={() => { workspaceRef.current?.getToolbox()?.clearSelection(); setPaletteOpen(false); }} aria-label="Cerrar catálogo de bloques">Catálogo abierto · Cerrar ×</button>}
       {!ready && <div className="editor-loading">Preparando los bloques…</div>}
       <p id="blockly-keyboard-help" className="visually-hidden">
         Usa Tab para recorrer el editor. Las flechas permiten navegar por los

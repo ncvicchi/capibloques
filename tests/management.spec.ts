@@ -87,7 +87,7 @@ test('usuarios: cancelar pregunta por el borrador, foco lo conserva y guardar ca
   await page.goto('/gestion/usuarios/');
   await page.getByRole('button', { name: 'Editar luna', exact: true }).click();
   await page.getByLabel('Nombre visible').fill('Luna editada');
-  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(page.getByLabel('Nombre visible')).toHaveValue('Luna editada');
   await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await page.getByRole('button', { name: 'Seguir editando', exact: true }).click();
@@ -185,7 +185,7 @@ test('usuarios: conflicto conserva el formulario y pérdida de permiso retira da
   await expect(page.getByRole('alert')).toContainText('otra pestaña');
   await expect(page.getByLabel('Nombre visible')).toHaveValue('Cambio pendiente');
   state.denied = true;
-  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(page.getByRole('alert')).toContainText('Necesitás una cuenta administradora');
   await expect(page.getByLabel('Nombre visible')).toHaveCount(0);
   await expect(page.locator('body')).not.toContainText('Luna');

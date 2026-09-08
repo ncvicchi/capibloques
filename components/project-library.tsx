@@ -1,5 +1,7 @@
 'use client';
 
+import { watchPeriodicRefresh } from '@/lib/session-polling';
+
 import {
   forwardRef,
   useCallback,
@@ -191,9 +193,8 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
         } catch { if (!disposed && valid(ticket) && sequence === checks && !inFlight.current && store.remote?.id === id && store.remote?.revision === baseRevision) setContext(null); }
       };
       void check();
-      const timer = window.setInterval(() => void check(), 15000);
-      window.addEventListener('focus', check);
-      return () => { disposed = true; window.clearInterval(timer); window.removeEventListener('focus', check); };
+      const stopPolling = watchPeriodicRefresh(check);
+      return () => { disposed = true; stopPolling(); };
     }, [link?.id, link?.revision, busy, store, headers, valid]);
 
     useEffect(() => {
@@ -340,18 +341,13 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
       queueMicrotask(() => {
         if (!disposed) void refresh();
       });
-      const focus = () => {
-        void refresh();
-      };
-      const timer = window.setInterval(focus, 15000);
-      window.addEventListener('focus', focus);
+      const stopPolling = watchPeriodicRefresh(refresh);
       return () => {
         disposed = true;
         // Epoch lógico para descartar listados de una búsqueda anterior.
         // oxlint-disable-next-line react-hooks/exhaustive-deps
         ++listEpoch.current;
-        window.clearInterval(timer);
-        window.removeEventListener('focus', focus);
+        stopPolling();
       };
     }, [open, refresh]);
 

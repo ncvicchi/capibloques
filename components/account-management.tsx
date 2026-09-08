@@ -1,5 +1,7 @@
 'use client';
 
+import { watchPeriodicRefresh } from '@/lib/session-polling';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Eye, EyeOff, Plus, RefreshCw, Search, Users } from 'lucide-react';
@@ -71,7 +73,7 @@ export default function AccountManagement() {
       owner.current = data.actor.id;
       filters.current.page = data.page;
       setListing(data);
-      if (document.visibilityState === 'visible') { delete document.documentElement.dataset.editorLocked; setLocked(false); }
+      delete document.documentElement.dataset.editorLocked; setLocked(false);
     } catch {
       if (ticket === epoch.current) { lock(); setError('No pudimos verificar el acceso. Reintentá la conexión; no se enviaron cambios desde esta verificación.'); }
     } finally { if (ticket === epoch.current) setRefreshing(false); }
@@ -80,25 +82,19 @@ export default function AccountManagement() {
   useEffect(() => {
     let disposed = false;
     queueMicrotask(() => { if (!disposed) void refresh(true); });
-    const focus = () => { void refresh(true); };
-    const visibility = () => {
-      if (document.visibilityState === 'hidden') { ++epoch.current; lock(); }
-      else void refresh(true);
-    };
     const stop = watchSessionChange(changing => {
       // No descartar un formulario por el aviso propio al completar su escritura.
       ++epoch.current; lock();
       if (inFlight.current) return;
       if (changing) clearPrivate(); else void refresh(true);
     });
-    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh(); }, 15000);
-    window.addEventListener('focus', focus); window.addEventListener('pageshow', focus); document.addEventListener('visibilitychange', visibility);
+    const stopPolling = watchPeriodicRefresh(() => refresh());
     return () => {
       disposed = true;
       // Contador de solicitudes, no referencia a un nodo DOM.
       // oxlint-disable-next-line react-hooks/exhaustive-deps
       ++epoch.current;
-      stop(); window.clearInterval(timer); window.removeEventListener('focus', focus); window.removeEventListener('pageshow', focus); document.removeEventListener('visibilitychange', visibility);
+      stop(); stopPolling();
       delete document.documentElement.dataset.editorLocked;
     };
   }, [clearPrivate, lock, refresh]);

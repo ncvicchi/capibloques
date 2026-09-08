@@ -7,10 +7,12 @@ export default function ExecutionPanel({
   state,
   post,
   onFollow,
+  compact = false,
 }: {
   state?: SimulatorState | null;
   post: (message: Record<string, unknown>) => void;
   onFollow: (blockId: string) => void;
+  compact?: boolean;
 }) {
   const [follow, setFollow] = useState(false);
   const lastFollowed = useRef(0);
@@ -44,10 +46,10 @@ export default function ExecutionPanel({
     inactive: 'Aún no comenzó',
   };
   return (
-    <section className="execution-panel" aria-label="Qué se está ejecutando">
+    <section className={`execution-panel${compact ? ' execution-compact' : ''}`} aria-label="Qué se está ejecutando">
       <div className="execution-options">
         <label>
-          Cómo mirar la ejecución{' '}
+          {compact ? 'Ejecución' : 'Cómo mirar la ejecución'}{' '}
           <select
             aria-label="Modo de ejecución"
             value={execution?.mode ?? 'normal'}
@@ -58,17 +60,6 @@ export default function ExecutionPanel({
             <option value="normal">Normal</option>
             <option value="guided">Guiado: ver cada paso</option>
           </select>
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={follow}
-            onChange={(event) => {
-              lastFollowed.current = 0;
-              setFollow(event.target.checked);
-            }}
-          />{' '}
-          Seguir el bloque en pantalla
         </label>
       </div>
       <div
@@ -91,6 +82,9 @@ export default function ExecutionPanel({
           </small>
         )}
       </div>
+      <details className="execution-detail">
+        <summary>Últimos {execution?.trace.length ?? 0} pasos (máximo 30)</summary>
+        <label className="execution-follow"><input type="checkbox" checked={follow} onChange={event => { lastFollowed.current = 0; setFollow(event.target.checked); }} /> Seguir el bloque en pantalla</label>
       {execution && execution.tasks.length > 0 && (
         <ul className="execution-paths" aria-label="Estado de los caminos">
           {execution.tasks.map((task) => (
@@ -103,10 +97,6 @@ export default function ExecutionPanel({
           ))}
         </ul>
       )}
-      <details>
-        <summary>
-          Últimos {execution?.trace.length ?? 0} pasos (máximo 30)
-        </summary>
         <p className="execution-help">Un solo «Al comenzar». Usá «Al mismo tiempo» para abrir caminos. Lo que sigue debajo espera a que todos terminen. En modo guiado, Ejecutar muestra cada paso y Paso avanza con cada clic. El reloj simulado y el código de la placa no reciben pausas extra.</p>
         <ol className="execution-trace">
           {execution?.trace.map((item) => (

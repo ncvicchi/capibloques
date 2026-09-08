@@ -1,7 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Cable, Check, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { Check, ShieldAlert, ShieldCheck } from 'lucide-react';
+import WemosBoard from '@/components/wemos-board';
+import { physicalWemosLabel } from '@/lib/wemos-board';
 import {
   Dialog,
   DialogContent,
@@ -63,6 +65,8 @@ export default function WiringGuide({
   onAcknowledgedChange,
 }: WiringGuideProps) {
   const signature = sceneSignature(scene, rawPins);
+  const [selection, setSelection] = useState<{ signature: string; pin: number } | null>(null);
+  const selectedPin = selection?.signature === signature ? selection.pin : undefined;
   const needsLedSafety = scene.devices.some((device) =>
     ['led', 'trafficLight'].includes(device.kind),
   );
@@ -163,15 +167,7 @@ export default function WiringGuide({
         </DialogHeader>
 
         <div className="wiring-layout">
-          <section className="wiring-board" aria-label="Placa de destino">
-            <span className="wiring-usb">USB</span>
-            <div>
-              <Cable size={28} />
-              <strong>WEMOS D1 R32</strong>
-              <small>ESP32 · lógica de 3,3 V</small>
-            </div>
-            <span className="wiring-ground">GND común</span>
-          </section>
+          <WemosBoard connections={connectionRows} selectedPin={selectedPin} onSelect={pin => setSelection({ signature, pin })} />
 
           <section className="wiring-status">
             {hardwareReady ? (
@@ -199,19 +195,21 @@ export default function WiringGuide({
                 <table className="wiring-table">
                   <thead>
                     <tr>
+                      <th>N.º</th>
                       <th>Componente</th>
                       <th>Señal</th>
-                      <th>Wemos</th>
+                      <th>Serigrafía / alias</th>
                       <th>GPIO</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {connectionRows.map((row) => (
-                      <tr key={row.id}>
+                    {connectionRows.map((row, index) => (
+                      <tr key={row.id} data-selected={row.pin != null && row.pin === selectedPin}>
+                        <td>{index + 1}</td>
                         <td>{row.deviceName}</td>
                         <td>{row.signal}</td>
-                        <td>{row.boardLabel ?? 'Sin asignar'}</td>
-                        <td>{row.pin ?? '—'}</td>
+                        <td>{physicalWemosLabel(row.pin) ?? (row.pin == null ? 'Sin asignar' : 'No localizado')}{row.boardLabel ? ` / ${row.boardLabel}` : ''}</td>
+                        <td>{row.pin == null ? '—' : <button type="button" className="wiring-pin-button" aria-label={`Localizar conexión ${index + 1}: ${row.deviceName}, ${row.signal}, GPIO ${row.pin}`} aria-pressed={row.pin === selectedPin} onClick={() => setSelection({ signature, pin: row.pin! })}>GPIO {row.pin}</button>}</td>
                       </tr>
                     ))}
                   </tbody>

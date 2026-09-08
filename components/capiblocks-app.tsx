@@ -1168,7 +1168,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   if (!hydrated) return <main className="account-page" aria-busy="true"><section className="account-card"><output>Recuperando tu proyecto de esta computadora…</output></section></main>;
 
   return (
-    <main className="app-shell">
+    <main className="app-shell workbench">
       {preferencesOpen && preferences.preferences && <PreferencesPicker kind={preferencesOpen} {...preferences} preferences={preferences.preferences} onSave={preferences.save} onRetry={()=>void preferences.refresh()} onClose={()=>setPreferencesOpen(null)}/>}
       {preferencesOpen && !preferences.preferences && <Dialog open onOpenChange={open=>{if(!open)setPreferencesOpen(null);}}><DialogContent><DialogHeader><DialogTitle>Preferencias de tu cuenta</DialogTitle><DialogDescription>{preferences.error || 'Estamos cargando tus preferencias. Tu programa no se modificó.'}</DialogDescription></DialogHeader><button className="header-text-button" onClick={()=>void preferences.refresh()}>Reintentar preferencias</button><button className="header-text-button" onClick={()=>setPreferencesOpen(null)}>Cancelar</button></DialogContent></Dialog>}
       <header className="topbar">
@@ -1189,21 +1189,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           />
         </label>
         <nav className="header-actions" aria-label="Acciones del proyecto">
-          <a className="header-text-button" href="/cuenta/" target="_blank" rel="noopener">Mi cuenta ↗</a>
-          <button className="icon-button" aria-label="Cerrar sesión" title="Revisar copias locales y cerrar sesión" onClick={onLogout}><LogOut size={20} /></button>
           <ProjectLibrary ref={libraryRef} account={account} store={draftStore} csrfToken={csrfToken} hydrated={hydrated} sceneEditing={sceneBuilderOpen} offline={offline} fingerprint={fingerprint} capture={currentProject} apply={applyLibraryProject} onNew={newLibraryProject} onImport={() => fileInputRef.current?.click()} notice={message => { setNotice(message); setNoticeTone('ok'); }} />
-          <button
-            className="header-text-button scene-builder-button"
-            onClick={() => toggleSceneBuilder(true)}
-          >
-            <Blocks size={18} /> Armar escena
-          </button>
-          <button
-            className="header-text-button wiring-button"
-            onClick={openWiring}
-          >
-            <Cable size={18} /> Conectar
-          </button>
           <button
             className="icon-button"
             onClick={() => setExamplesOpen(true)}
@@ -1211,14 +1197,6 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             title="Ejemplos"
           >
             <FolderOpen size={20} />
-          </button>
-          <button
-            className="icon-button"
-            onClick={() => setMuted((value) => !value)}
-            aria-label={muted ? 'Activar sonidos' : 'Silenciar sonidos'}
-            title="Sonidos"
-          >
-            {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger className="export-button">
@@ -1252,6 +1230,18 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="icon-button account-menu-button" aria-label="Opciones de mi cuenta" title="Mi cuenta y sonidos"><Settings2 size={19} /></DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>{account.displayName} · @{account.alias}</DropdownMenuLabel>
+                <DropdownMenuItem render={<a href="/cuenta/" target="_blank" rel="noopener" aria-label="Mi cuenta" />}>Mi cuenta ↗</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setMuted(value => !value)}>{muted ? <VolumeX /> : <Volume2 />}{muted ? 'Activar sonidos' : 'Silenciar sonidos'}</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onLogout}><LogOut />Cerrar sesión</DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <input
             ref={fileInputRef}
             type="file"
@@ -1267,26 +1257,6 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           />
         </nav>
       </header>
-
-      <section className="mission-strip">
-        <span className="guide-avatar" aria-hidden="true">
-          🦫
-        </span>
-        <div>
-          <strong>Escena: {scene.name}</strong>
-          <span>
-            {scene.description ||
-              sourceExample?.mission ||
-              'Combina componentes y crea tu propia aventura.'}
-          </span>
-        </div>
-        <button
-          className="mission-button"
-          onClick={() => toggleSceneBuilder(true)}
-        >
-          Editar escena
-        </button>
-      </section>
 
       {!sceneBuilderOpen && draftStore.sceneDraft && <aside className="scene-recovery-banner"><span>🧩 Hay una escena sin terminar en esta computadora. Tu escena confirmada no cambió.</span><button onClick={() => toggleSceneBuilder(true)}>Revisar escena pendiente</button></aside>}
 
@@ -1351,17 +1321,9 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         <button onClick={openCode}>
           <Code2 size={18} /> Ver código ESP32
         </button>
-        <button
-          type="button"
-          className="board-badge"
-          onClick={openWiring}
-          title="Abrir guía de conexiones"
-        >
-          <span /> WEMOS D1 R32 · Arduino / ESP-IDF
-        </button>
+        <button type="button" className="header-text-button wiring-button" onClick={openWiring} title="Conexiones de la Wemos D1 R32"><Cable size={18} /> Conectar</button>
       </section>
 
-      <ExecutionPanel state={sim} post={postToWorker} onFollow={blockId => editorRef.current?.focusBlock(blockId)} />
       <div className="workspace-grid functional">
         <section className="canvas-panel" aria-label="Programa visual">
           <div className="canvas-header">
@@ -1426,6 +1388,10 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           className="simulator-panel"
           aria-label="Simulador de comportamiento"
         >
+          <div className="scene-context">
+            <details><summary><span aria-hidden="true">🦫</span> {scene.name}</summary><p>{scene.description || sourceExample?.mission || 'Combiná componentes y creá tu propia aventura.'}</p></details>
+            <button className="header-text-button scene-builder-button" onClick={() => toggleSceneBuilder(true)}><Blocks size={17} /> Armar escena</button>
+          </div>
           <Tabs
             value={activeTab}
             onValueChange={(value) => setActiveTab(value as string)}
@@ -1436,7 +1402,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
               <TabsTrigger value="state">Estado</TabsTrigger>
               <TabsTrigger value="console">Consola</TabsTrigger>
             </TabsList>
-            <TabsContent value="scene" className="sim-content">
+            <TabsContent value="scene" className="sim-content" keepMounted>
               <div className="sim-stage composed-scene">
                 <SceneStage
                   activeDeviceId={sim.status === 'stopped' || sim.status === 'done' ? undefined : sim.execution?.trace.at(-1)?.deviceId}
@@ -1444,13 +1410,6 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                   runtimeDevices={sim.devices}
                   counter={sim.counter}
                 />
-                <button
-                  type="button"
-                  className="edit-scene-fab"
-                  onClick={() => toggleSceneBuilder(true)}
-                >
-                  <Blocks size={15} /> Editar
-                </button>
               </div>
             </TabsContent>
             <TabsContent value="state" className="sim-content state-content">
@@ -1561,6 +1520,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
               </div>
             </TabsContent>
           </Tabs>
+          <ExecutionPanel compact state={sim} post={postToWorker} onFollow={blockId => editorRef.current?.focusBlock(blockId)} />
           <div className={`sim-status ${sim.status}`}>
             <span className="status-dot" />
             <div>

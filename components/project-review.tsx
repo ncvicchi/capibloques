@@ -1,4 +1,6 @@
 'use client';
+
+import { watchPeriodicRefresh } from '@/lib/session-polling';
 import UserAvatar from '@/components/user-avatar';
 
 // Navegación de documento intencional: respeta beforeunload para texto sin enviar.
@@ -327,22 +329,11 @@ export default function ProjectReview() {
     queueMicrotask(() => {
       if (!disposed) void refresh();
     });
-    const focus = () => {
-      void refresh();
-    };
-    const visibility = () => {
-      ++epoch.current;
-      pause();
-      if (document.visibilityState === 'visible') void refresh();
-    };
     const stop = watchSessionChange((changing) => {
       clear('Verificando el cambio de sesión…');
       if (!changing) void refresh();
     });
-    const timer = window.setInterval(() => void refresh(), 15000);
-    window.addEventListener('focus', focus);
-    window.addEventListener('pageshow', focus);
-    document.addEventListener('visibilitychange', visibility);
+    const stopPolling = watchPeriodicRefresh(refresh);
     return () => {
       disposed = true;
       active.current = false;
@@ -350,10 +341,7 @@ export default function ProjectReview() {
       // oxlint-disable-next-line react-hooks/exhaustive-deps
       ++epoch.current;
       stop();
-      clearInterval(timer);
-      window.removeEventListener('focus', focus);
-      window.removeEventListener('pageshow', focus);
-      document.removeEventListener('visibilitychange', visibility);
+      stopPolling();
     };
   }, [clear, pause, refresh]);
   useEffect(() => {

@@ -1,5 +1,6 @@
 'use client';
 import { DisplayPreview } from '@/components/display-preview';
+import SceneViewport from '@/components/scene-viewport';
 
 import {
   useEffect,
@@ -371,6 +372,7 @@ export default function SceneStage({
   } as CSSProperties;
 
   return (
+    <SceneViewport key={`${scene.id}:${scene.canvas.width}:${scene.canvas.height}`} width={scene.canvas.width} height={scene.canvas.height}>
     <section
       ref={stageRef}
       className={`scene-stage scene-background-${scene.canvas.background}${editing ? ' editing' : ''}`}
@@ -513,5 +515,6 @@ export default function SceneStage({
         </div>
       )}
     </section>
+    </SceneViewport>
   );
 }

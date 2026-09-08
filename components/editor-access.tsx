@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { createAccountDraftStore, sessionChangePending, watchSessionChange, type AccountDraftStore, type EditorSession } from '@/lib/account-session';
 import SessionExit from '@/components/session-exit';
+import { watchPeriodicRefresh } from '@/lib/session-polling';
 
 const CapiBlocksApp = lazy(() => import('@/components/capiblocks-app'));
 export type EditorCheckpoint = { suspend: () => boolean; resume: () => void; ready: () => boolean };
@@ -21,6 +22,7 @@ export default function EditorAccess() {
   const current = useRef<OpenEditor | null>(null);
   const checkpoint = useRef<EditorCheckpoint | null>(null);
   const generation = useRef(0);
+  const checking = useRef<number | null>(null);
   const exitPending = useRef(false);
   const [exitTarget, setExitTarget] = useState<OpenEditor | null>(null);
 
@@ -35,7 +37,9 @@ export default function EditorAccess() {
   const check = useCallback(async (hide = true) => {
     if (exitPending.current) return;
     if (sessionChangePending()) { lock(); return; }
+    if (checking.current === generation.current) return;
     const ticket = ++generation.current;
+    checking.current = ticket;
     if (hide) lock();
     setError('');
     let unavailable = false;
@@ -53,6 +57,7 @@ export default function EditorAccess() {
       const body = await response.json() as EditorSession;
       if (ticket !== generation.current || exitPending.current) return;
       if (!body.user?.id || body.user.mustChangePassword || !body.context || !body.csrfToken) throw new Error();
+      if (Date.parse(body.expiresAt ?? '') <= Date.now()) { eligible.current = false; throw new Error('Sesión vencida'); }
       const previous = current.current;
       if (previous?.session.user.id !== body.user.id || previous.session.context !== body.context) {
         lock();
@@ -63,16 +68,14 @@ export default function EditorAccess() {
         previous.session = body;
         previous.store.active = true;
         previous.store.remoteAllowed = true;
-        if (document.visibilityState === 'visible') checkpoint.current?.resume();
+        checkpoint.current?.resume();
       }
       eligible.current = true; offlineActive.current = false;
       setOffline(false); setCanContinueLocally(false);
       setEditor({ ...current.current! });
-      // Una respuesta iniciada antes de ocultar la pestaña no vuelve a mostrarla.
-      if (document.visibilityState === 'visible') {
-        delete document.documentElement.dataset.editorLocked;
-        setLocked(false);
-      }
+      // Ocultar una pestaña no invalida por sí solo una sesión vigente.
+      delete document.documentElement.dataset.editorLocked;
+      setLocked(false);
     } catch (failure) {
       if (ticket !== generation.current) return;
       const candidate = current.current;
@@ -83,17 +86,14 @@ export default function EditorAccess() {
       setCanContinueLocally(allowed);
       if (!(allowed && offlineActive.current && !hide)) lock();
       setError('No pudimos verificar tu sesión. Tu borrador se conserva; reconectá para seguir.');
+    } finally {
+      if (checking.current === ticket) checking.current = null;
     }
   }, [lock]);
 
   useEffect(() => {
     let disposed = false;
     queueMicrotask(() => { if (!disposed) void check(); });
-    const focus = () => { void check(); };
-    const visible = () => {
-      if (document.visibilityState === 'hidden') { ++generation.current; lock(); }
-      else void check();
-    };
     const pageHide = () => { ++generation.current; lock(); };
     const stopWatching = watchSessionChange(changing => {
       eligible.current = false; offlineActive.current = false;
@@ -101,22 +101,15 @@ export default function EditorAccess() {
       ++generation.current; lock();
       if (!changing) void check();
     });
-    const interval = window.setInterval(() => { if (document.visibilityState === 'visible') void check(false); }, 15000);
-    const online = () => { void check(false); };
-    window.addEventListener('online', online);
-    window.addEventListener('focus', focus);
-    window.addEventListener('pageshow', focus);
+    const stopPolling = watchPeriodicRefresh(() => check(false));
     window.addEventListener('pagehide', pageHide);
-    document.addEventListener('visibilitychange', visible);
     return () => {
       disposed = true;
       // Invalida respuestas pendientes; no es una referencia a un nodo DOM.
       // oxlint-disable-next-line react-hooks/exhaustive-deps
       ++generation.current;
-      window.clearInterval(interval); stopWatching();
-      window.removeEventListener('online', online);
-      window.removeEventListener('focus', focus); window.removeEventListener('pageshow', focus); window.removeEventListener('pagehide', pageHide);
-      document.removeEventListener('visibilitychange', visible);
+      stopPolling(); stopWatching();
+      window.removeEventListener('pagehide', pageHide);
       delete document.documentElement.dataset.editorLocked;
     };
   }, [check, lock]);
@@ -124,12 +117,18 @@ export default function EditorAccess() {
   useEffect(() => {
     const deadline = Date.parse(editor?.session.expiresAt ?? '');
     if (!Number.isFinite(deadline)) return;
-    const timer = window.setTimeout(() => {
+    const expire = () => {
+      if (Date.now() < deadline) return;
+      ++generation.current;
       eligible.current = false; offlineActive.current = false;
       setOffline(false); setCanContinueLocally(false); lock();
       setError('Tu sesión venció. Reconectá e ingresá nuevamente; conservamos tu trabajo local.');
-    }, Math.max(0, deadline - Date.now()));
-    return () => window.clearTimeout(timer);
+    };
+    const timer = window.setTimeout(expire, Math.max(0, deadline - Date.now()));
+    // Sólo aplica el vencimiento ya conocido tras suspensión del navegador;
+    // no dispara una petición al volver a la pestaña.
+    document.addEventListener('visibilitychange', expire);
+    return () => { window.clearTimeout(timer); document.removeEventListener('visibilitychange', expire); };
   }, [editor?.session.expiresAt, lock]);
 
   const logout = useCallback(async () => {

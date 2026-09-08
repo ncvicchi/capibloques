@@ -89,7 +89,8 @@ test('editor: logout en otra pestaña oculta también un diálogo abierto', asyn
   await sessionRoutes(second, () => user);
   await second.route('**/api/auth/logout/', route => { user = null; return route.fulfill({ json: { user: null, csrfToken: token } }); });
   await second.goto('/cuenta/');
-  await second.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
+  await page.getByRole('button', { name: 'Opciones de mi cuenta' }).click();
+  await page.getByRole('menuitem', { name: 'Cerrar sesión', exact: true }).click();
   await second.getByRole('button', { name: 'Salir y conservar copias', exact: true }).click();
   await expect(page).toHaveURL(/\/cuenta\/\?editor=1$/);
   await expect(page.getByLabel('Nombre del proyecto')).toHaveCount(0);
@@ -107,7 +108,7 @@ test('editor: fallo de sesión bloquea y reintento conserva el mismo borrador', 
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   failed = true;
-  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(page.getByRole('alert')).toContainText('No pudimos verificar');
   await expect(page.getByLabel('Nombre del proyecto')).not.toBeVisible();
   failed = false;
@@ -126,7 +127,8 @@ test('editor: cierre fallido no afirma éxito ni vuelve a mostrar el proyecto', 
     user = null; return route.fulfill({ json: { user: null, csrfToken: token } });
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
+  await page.getByRole('button', { name: 'Opciones de mi cuenta' }).click();
+  await page.getByRole('menuitem', { name: 'Cerrar sesión', exact: true }).click();
   await page.getByRole('button', { name: 'Salir y conservar copias', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('No pudimos confirmar el cierre');
   await expect(page.getByLabel('Nombre del proyecto')).not.toBeVisible();
@@ -148,7 +150,8 @@ test('editor: si falla el guardado permite exportar antes de una salida voluntar
       return original.apply(this, args);
     };
   });
-  await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
+  await page.getByRole('button', { name: 'Opciones de mi cuenta' }).click();
+  await page.getByRole('menuitem', { name: 'Cerrar sesión', exact: true }).click();
   await expect(page.getByText('No pudimos conservar el último cambio. Exportá una copia JSON antes de cerrar sesión.', { exact: true })).toBeVisible();
   await expect(page.getByLabel('Nombre del proyecto')).toHaveValue('Conservar aunque no haya espacio');
   await page.getByRole('button', { name: 'Exportar', exact: true }).click();
@@ -175,7 +178,7 @@ for (const changeAccount of [false, true]) {
     await page.goto('/');
     await expect(page.getByLabel('Editor visual de bloques')).toBeVisible();
     hold = true;
-    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('capibloques-account-session', { detail: { changing: false } })));
     await expect(page.getByText('Comprobando tu sesión…')).toBeVisible();
     await page.locator('input[type="file"]').setInputFiles({ name: 'importado.json', mimeType: 'application/json', buffer: Buffer.from(project('Importación de Luna')) });
     await expect(page.locator('.notice')).toContainText('Esperando verificar tu sesión');

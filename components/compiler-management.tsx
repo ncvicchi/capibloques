@@ -1,4 +1,5 @@
 'use client';
+import { watchPeriodicRefresh } from '@/lib/session-polling';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -38,15 +39,13 @@ export default function CompilerManagement() {
   useEffect(() => {
     alive.current = true; queueMicrotask(() => { if (alive.current) void refresh(); });
     const stop = watchSessionChange(() => { ++epoch.current; account.current = null; setStatus(null); setDraft(null); setLocked(true); void refresh(); });
-    const focus = () => { void refresh(); };
-    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh(); }, 10000);
-    window.addEventListener('focus', focus);
+    const stopPolling = watchPeriodicRefresh(refresh);
     return () => {
       alive.current = false;
       // Logical request epoch, not a DOM ref.
       // oxlint-disable-next-line react-hooks/exhaustive-deps
       ++epoch.current;
-      stop(); clearInterval(timer); window.removeEventListener('focus', focus);
+      stop(); stopPolling();
     };
   }, [refresh]);
   const dirty = !!(draft && status && (draft.concurrency !== status.settings.concurrency || draft.paused !== status.settings.paused));
