@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 import sys
 from archive import bundle
+stage = "generation"
 
 
 def run(command, *, input=None, cwd=None, maximum=2_100_000, structured=False):
@@ -25,6 +26,7 @@ def run(command, *, input=None, cwd=None, maximum=2_100_000, structured=False):
 
 
 def main():
+    global stage
     payload = sys.stdin.buffer.read(2_100_001)
     if len(payload) > 2_100_000:
         raise ValueError
@@ -43,10 +45,12 @@ def main():
         path.write_text(text)
     # Captured output is bounded and NEVER returned: compiler diagnostics may
     # include source lines/passwords. Only a fixed stage/error reaches the host.
+    stage = "toolchain"
     if framework == "esp-idf":
         run(["bash", "-c", '. /opt/esp/idf/export.sh >/dev/null && idf.py -C /work/project -B /work/build -DIDF_TARGET=esp32 build'], maximum=4_000_000)
     else:
         run(["arduino-cli", "--config-file", "/opt/arduino/arduino-cli.yaml", "compile", "--fqbn", "esp32:esp32:d1_uno32:FlashFreq=40", "--jobs", "1", "--build-path", "/work/build", "/work/project/capibloques"], maximum=4_000_000)
+    stage = "artifact"
     archive = bundle("/work/build", framework, generated["usesWifi"])
     print(json.dumps({"success": True, "artifact": base64.b64encode(archive).decode()}))
 
@@ -55,5 +59,5 @@ try:
     main()
 except Exception:
     # Intentional redaction, including dependency exception context.
-    print(json.dumps({"success": False, "reason": "generation"}))
+    print(json.dumps({"success": False, "reason": stage}))
     sys.exit(1)

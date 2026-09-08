@@ -170,7 +170,7 @@ def dispatch(command, data):
                     job.state, job.message = "failed", "No se pudo publicar el firmware. Volvé a compilar."
             else:
                 job.state = "cancelled" if job.cancel_requested or not live_project(job) else "failed"
-                job.message = {"timeout": "Se alcanzó el tiempo máximo. Simplificá el programa o consultá al administrador.", "resources": "No alcanzaron los recursos del compilador.", "generation": "Revisá bloques, conexiones y configuración Wi-Fi.", "restart": "El servidor interrumpió el intento. Podés volver a compilar."}.get(data.get("reason"), "No se pudo compilar. Tu proyecto se conserva.")
+                job.message = {"timeout": "Se alcanzó el tiempo máximo. Simplificá el programa o consultá al administrador.", "resources": "No alcanzaron los recursos del compilador.", "generation": "Revisá bloques, conexiones y configuración Wi-Fi.", "toolchain": "Las herramientas no pudieron compilar. Consultá al administrador; tu proyecto se conserva.", "artifact": "No se pudo preparar un firmware completo y verificado. Consultá al administrador.", "restart": "El servidor interrumpió el intento. Podés volver a compilar."}.get(data.get("reason"), "No se pudo compilar. Tu proyecto se conserva.")
             job.finished_at = now
             job.save()
             return {"accepted": True, "state": job.state}

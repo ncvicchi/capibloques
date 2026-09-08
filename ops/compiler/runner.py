@@ -202,11 +202,16 @@ def main():
                     state = terminate(container_name)
                     result = {**job, "terminated": True, "success": False, "reason": "timeout" if elapsed > DEADLINE else "resources" if state["OOMKilled"] else "generation",
                               "metrics": {"seconds": round(elapsed, 1), "peakMemoryBytes": current["peakMemoryBytes"], "oomKilled": state["OOMKilled"], "exitCode": state["ExitCode"]}}
-                    if not job["cancel"] and state["ExitCode"] == 0 and current.get("output") and not current.get("overflow"):
-                        output = json.loads(current["output"])
-                        if output.get("success") is True:
-                            raw = base64.b64decode(output["artifact"], validate=True)
-                            result.update(success=True, sha256=publish(raw, current["job"]))
+                    if not job["cancel"] and elapsed <= DEADLINE and not state["OOMKilled"] and current.get("output") and not current.get("overflow"):
+                        try:
+                            output = json.loads(current["output"])
+                            if state["ExitCode"] == 0 and output.get("success") is True:
+                                raw = base64.b64decode(output["artifact"], validate=True)
+                                result.update(success=True, sha256=publish(raw, current["job"]))
+                            elif output.get("reason") in ("generation", "toolchain", "artifact"):
+                                result["reason"] = output["reason"]
+                        except (ValueError, KeyError, OSError, zipfile.BadZipFile):
+                            result["reason"] = "artifact"
                     dispatch(configuration, "finish", result)
                     current["process"].wait(timeout=5)
                     del active[job["attempt"]]
