@@ -2,9 +2,9 @@
 
 ## Fases y autorización
 
-- Las fases del plan se numeran con enteros consecutivos, sin letras ni fases independientes presentadas como subfases. Fases 0–8 implementadas y verificadas en DEV; pendientes 9–11. Conservar los nombres de archivos históricos para no romper enlaces, pero comunicar progreso y autorización por el número de fase vigente.
+- Las fases del plan se numeran con enteros consecutivos, sin letras ni fases independientes presentadas como subfases. Fases 0–8 implementadas y verificadas en DEV; fase 9 autorizada y en implementación; pendientes 10–11. Conservar los nombres de archivos históricos para no romper enlaces, pero comunicar progreso y autorización por el número de fase vigente.
 
-- Trabajar una fase completa por vez. La fase 8 quedó entregada en DEV: Arduino conservado y ESP-IDF nativo con ZIP, mismos bloques/componentes y compilación real de ambas salidas. No iniciar las fases 9–11 ni otros pedidos del backlog sin nueva autorización. No pedir OK entre subfases de una fase completa autorizada. Informar alcance al comenzar y dar actualizaciones breves durante el trabajo; no pasar largos períodos sin informar al propietario.
+- Trabajar una fase completa por vez. El propietario autorizó la fase 9 completa: cola durable, compiladores aislados en DEV para Arduino/ESP-IDF, firmware descargable y simultaneidad administrativa. Incluye preparar herramientas y medir recursos de DEV; no aumentar recursos ni modificar PRD/gateway. No iniciar fases 10–11 ni otros pedidos del backlog sin nueva autorización. No pedir OK entre subfases de una fase completa autorizada. Informar alcance al comenzar y dar actualizaciones breves durante el trabajo; no pasar largos períodos sin informar al propietario.
 - Implementar, probar y entregar el resultado de la fase. No avanzar a la siguiente sin el OK del propietario. Informar pendientes o fallos sin presentarlos como completados.
 - Hacer commit y push de los cambios versionables verificados de cada entrega. Si no se puede publicar, comunicarlo. No incluir cambios ajenos ni secretos.
 - El plan principal es `docs/PLAN_MULTIUSUARIO_PROXMOX.md`; el estado de preparación está en `docs/FASE_0_SERVIDORES.md`. El plan no demuestra que las funciones estén implementadas.
