@@ -98,4 +98,17 @@ await check('serial UTF-8 fragmentation, bounded lines/text, clear while batched
 await check('rejected permission does not acquire or open a device', async () => {
   const driver = fakeDriver(), session = new UsbSession(driver.factory); session.monitor(async () => { throw new DOMException('cancelled', 'NotFoundError'); }); await session.settled(); assert.match(session.state.message, /No elegiste/); assert.deepEqual(driver.events, []);
 });
+await check('disconnection of the selected port cancels an idle monitor, unrelated ports do not', async () => {
+  let closed = 0; const stream = new ReadableStream({ start() {} }), session = new UsbSession(fakeDriver().factory);
+  const port = { open: async () => {}, close: async () => closed++, readable: stream };
+  session.monitor(async () => port); await waitFor(() => session.state.stage === 'monitor'); session.disconnected({}); assert.equal(session.state.stage, 'monitor');
+  session.disconnected(port); await session.settled(); assert.equal(closed, 1); assert.match(session.state.message, /Se desconectó/);
+});
+// Last: intentionally retain the global lease after an unconfirmed cleanup.
+await check('a failed close never claims USB was released or permits a new owner', async () => {
+  const driver = fakeDriver({ close: async () => { throw new Error('locked'); } }), session = new UsbSession(driver.factory);
+  session.flash(async () => ({}), async () => firmware(), async () => {}); await session.settled();
+  assert.equal(session.state.stage, 'error'); assert.match(session.state.message, /No pudimos confirmar el cierre/); assert.ok(!session.state.message.includes('quedó liberado'));
+  let selected = false; const next = new UsbSession(fakeDriver().factory); next.monitor(async () => { selected = true; return {}; }); assert.equal(selected, false);
+});
 console.log(`${checks} USB test groups passed. Doubles do not demonstrate physical ESP32 behavior.`);

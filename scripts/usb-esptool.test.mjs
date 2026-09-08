@@ -36,6 +36,16 @@ try {
   try { loader.transport.trace('private bytes'); loader.info('private info'); loader.debug('private debug'); } finally { console.log = savedLog; }
   assert.equal(logged, 0); assert.equal(loader.transport.traceLog, '');
   assert.throws(() => loader.transport.appendArray(new Uint8Array(131072), new Uint8Array(1)));
+  const mockedWrite = ESPLoader.prototype.writeFlash;
+  ESPLoader.prototype.writeFlash = original.writeFlash;
+  loader.IS_STUB = true;
+  loader.flashDeflBegin = async () => 1; loader.flashDeflBlock = async () => {}; loader.flashDeflFinish = async () => {};
+  loader.flashMd5sum = async () => options.calculateMD5Hash(firmware.parts[0].data);
+  await driver.write(firmware, () => {});
+  loader.flashMd5sum = async () => '0'.repeat(32);
+  await assert.rejects(driver.write(firmware, () => {}), /does not match/);
+  ESPLoader.prototype.writeFlash = mockedWrite;
+  console.log('USB adapter OK: actual Espressif writeFlash checks flashed MD5 and rejects mismatches');
   await driver.reset(); await driver.close(); await driver.close(); assert.equal(events.filter(value => value === 'close').length, 1);
   await assert.rejects(driver.write(firmware, () => {}));
   console.log('USB adapter OK: pinned loader, SHA-checked headers preserved, MD5, SLIP, bounded receive, silent private transport, one close');

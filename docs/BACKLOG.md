@@ -64,6 +64,17 @@ Pedido durante el cierre de fase 9: trasladar la información de progreso del «
 
 **Sólo registrado. No modificar ni interrumpir la implementación, pruebas o cierre de fase 9 por este pedido.**
 
+## 8. No revalidar la sesión al recuperar el foco
+
+Pedido durante fase 10: al salir de la página y volver a enfocarla, la validación de sesión interrumpe repetidamente la experiencia y resulta molesta.
+
+- Quitar el chequeo disparado sólo por perder/recuperar el foco o cambiar de pestaña.
+- Mantener un chequeo periódico cada intervalo definido, sin bloquear ni reemplazar el editor cuando la sesión sigue vigente.
+- Conservar comprobaciones frescas en operaciones que requieren permisos, expiración, cambios explícitos de cuenta/cierre de sesión y revocaciones reales. Resolver el problema de UX sin permitir acceso con una sesión revocada.
+- Probar cambios frecuentes entre pestañas, regreso antes/después del intervalo, red lenta/cortada y vencimiento real, sin perder trabajo ni duplicar solicitudes.
+
+**Sólo registrado. No cambiar el comportamiento de sesión ni interrumpir o modificar el trabajo en curso de fase 10 por este pedido.**
+
 ## Relación actualizada con el plan vigente
 
 Estos pedidos cruzan la UX de la fase 6 y las futuras fases de mensajes/display, generadores, compilación y USB. Se incorporarán explícitamente al [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) antes de iniciar su implementación, con alcance y orden acordados. El rediseño general sigue pendiente aunque las funciones de fase 6 estén entregadas; el backlog no demuestra soporte funcional disponible.

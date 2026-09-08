@@ -2,7 +2,7 @@
 import type { UsbFirmware } from './usb-firmware';
 
 export type UsbStage = 'idle' | 'selecting' | 'preparing' | 'connecting' | 'writing' | 'resetting' | 'closing' | 'done' | 'monitor' | 'error';
-export type UsbState = { stage: UsbStage; message: string; progress: number; chip: string; text: string; writingStarted: boolean };
+export type UsbState = { stage: UsbStage; message: string; progress: number; chip: string; text: string; writingStarted: boolean; verified: boolean };
 export interface UsbDriver {
   detect(): Promise<{ chip: string; flashBytes: number }>;
   write(firmware: UsbFirmware, progress: (percent: number) => void): Promise<void>;
@@ -11,6 +11,12 @@ export interface UsbDriver {
 }
 export type UsbDriverFactory = (port: SerialPort, signal: AbortSignal) => Promise<UsbDriver>;
 export class UsbError extends Error {}
+class UsbCleanupError extends UsbError {
+  constructor() { super('No pudimos confirmar el cierre del puerto. Desconectá el cable y cerrá esta pestaña antes de volver a conectar USB.'); }
+}
+async function confirmClose(close: () => Promise<void>) {
+  try { await close(); } catch { throw new UsbCleanupError(); }
+}
 // Blocks a replacement component/account from acquiring USB while an old
 // asynchronous operation is still releasing streams. Web Locks adds tab scope.
 let owner: UsbSession | null = null;
@@ -34,7 +40,7 @@ export function appendSerialText(previous: string, incoming: string) {
 }
 
 export class UsbSession {
-  state: UsbState = { stage: 'idle', message: 'Sin conexión USB.', progress: 0, chip: '', text: '', writingStarted: false };
+  state: UsbState = { stage: 'idle', message: 'Sin conexión USB.', progress: 0, chip: '', text: '', writingStarted: false, verified: false };
   private aborter: AbortController | null = null;
   private operation: Promise<void> | null = null;
   private driver: UsbDriver | null = null;
@@ -60,19 +66,20 @@ export class UsbSession {
     // oxlint-disable-next-line typescript/no-this-alias -- Identity lease, not a scope alias.
     owner = this;
     const aborter = new AbortController(); this.aborter = aborter;
-    this.update({ stage: 'selecting', message: 'Elegí la Wemos conectada a esta PC en la ventana del navegador.', progress: 0, chip: '', writingStarted: false, text: '' });
+    this.update({ stage: 'selecting', message: 'Elegí la Wemos conectada a esta PC en la ventana del navegador.', progress: 0, chip: '', writingStarted: false, verified: false, text: '' });
     // Must run synchronously in the click gesture, before imports/network/locks.
     let selection: Promise<SerialPort>;
     try { selection = requestPort(); } catch (error) { selection = Promise.reject(error); }
     this.operation = (async () => {
-      let success = false;
+      let success = false, cleanupFailed = false;
       const operate = async () => {
         try {
           const port = await selection; this.check(aborter.signal); this.port = port;
           await work(port, aborter.signal); this.check(aborter.signal); success = true;
         } finally {
           this.update({ stage: 'closing', message: 'Liberando el puerto USB…' });
-          await this.driver?.close(); this.driver = null;
+          if (this.driver) await confirmClose(() => this.driver!.close());
+          this.driver = null;
         }
       };
       try {
@@ -85,14 +92,21 @@ export class UsbSession {
             await operate();
           });
         } else await operate();
-        if (success) this.update({ stage: 'done', message: 'Firmware grabado y verificado. La Wemos se reinició y ejecuta el programa por su cuenta.', progress: 100 });
+        if (success) this.update({ stage: 'done', message: 'Firmware grabado y verificado. Se solicitó el reinicio; comprobá que el programa arrancó en la placa o en el monitor.', progress: 100 });
       } catch (error) {
-        this.update({ stage: 'error', message: aborter.signal.aborted
-          ? (aborter.signal.reason instanceof UsbError ? aborter.signal.reason.message : 'Operación detenida. El puerto quedó liberado.') + (this.state.writingStarted ? ' El firmware puede estar incompleto: volvé a grabarlo entero antes de conectar actuadores.' : '')
-          : usbErrorMessage(error, this.state.writingStarted) });
+        cleanupFailed = error instanceof UsbCleanupError;
+        const cancelledCleanly = aborter.signal.aborted && !cleanupFailed && !this.state.writingStarted && !(aborter.signal.reason instanceof UsbError);
+        const incomplete = this.state.writingStarted && !this.state.verified;
+        const message = cleanupFailed ? usbErrorMessage(error, incomplete) : aborter.signal.aborted
+          ? (aborter.signal.reason instanceof UsbError ? aborter.signal.reason.message : 'Conexión cerrada. El puerto quedó liberado; esto no detiene el programa físico.') + (incomplete ? ' El firmware puede estar incompleto: volvé a grabarlo entero antes de conectar actuadores.' : '')
+          : usbErrorMessage(error, incomplete);
+        this.update({ stage: cancelledCleanly ? 'idle' : 'error', message: message + (this.state.verified ? ' Los segmentos sí se verificaron, pero no confirmamos el reinicio o cierre. Revisá la conexión y pulsá RESET con los actuadores desconectados.' : '') });
       } finally {
         this.driver = null; this.port = null; this.reader = null; this.aborter = null; this.operation = null;
-        if (owner === this) owner = null;
+        // If cleanup failed, keep the lease: a new account/panel must not race
+        // a reader/writer that the browser could not close. Reopening the tab
+        // is the explicit recovery, never a silent second owner.
+        if (owner === this && !cleanupFailed) owner = null;
         if (this.disposed) this.state = { ...this.state, text: '', chip: '' };
       }
     })();
@@ -103,9 +117,9 @@ export class UsbSession {
       this.update({ stage: 'preparing', message: 'Descargando y comprobando el firmware privado…' });
       let firmware: UsbFirmware;
       try { firmware = await prepare(signal); } catch (error) { throw new UsbError(error instanceof Error ? error.message : 'No pudimos preparar el firmware.'); }
-      this.check(signal);
       const timer = setTimeout(() => this.cancel(new UsbError('Se agotó el tiempo de conexión o grabación. Revisá el cable y volvé a intentarlo.')), 240_000);
       try {
+        this.check(signal);
         this.update({ stage: 'connecting', message: 'Detectando ESP32 y memoria. Esto puede reiniciar la placa; todavía no escribimos flash.' });
         this.driver = await this.factory(port, signal); this.check(signal);
         const detected = await this.driver.detect(); this.check(signal);
@@ -117,7 +131,7 @@ export class UsbSession {
         this.update({ stage: 'writing', message: 'Grabando y verificando cada segmento. No desconectes el cable.', writingStarted: true });
         await this.driver.write(firmware, progress => { this.check(signal); this.update({ progress: Math.max(0, Math.min(99, Math.round(progress))) }); });
         this.check(signal);
-        this.update({ stage: 'resetting', message: 'Todos los segmentos verificados. Reiniciando la Wemos…' });
+        this.update({ stage: 'resetting', verified: true, message: 'Todos los segmentos verificados. Reiniciando la Wemos…' });
         await this.driver.reset();
       } finally { clearTimeout(timer); for (const part of firmware.parts) part.data.fill(0); }
     });
@@ -152,7 +166,7 @@ export class UsbSession {
         if (timer) clearTimeout(timer);
         this.update({ stage: 'closing', message: 'Cerrando el monitor y liberando USB…' });
         await this.reader?.cancel().catch(() => {}); this.reader?.releaseLock(); this.reader = null;
-        if (opened) await port.close();
+        if (opened) await confirmClose(() => port.close());
       }
     });
   }
@@ -160,7 +174,7 @@ export class UsbSession {
   cancel(reason?: UsbError) {
     if (!this.aborter) return;
     this.aborter.abort(reason);
-    this.update({ stage: 'closing', message: 'Deteniendo la operación y liberando USB. Esperá a que termine…' });
+    this.update({ stage: 'closing', message: 'Deteniendo la operación y liberando USB. Esperá a que termine; si el selector del navegador sigue abierto, cancelalo allí también. Si el cable falló y no se libera, desconectalo y cerrá esta pestaña.' });
     // Closing wakes an idle read. Never release ownership via a Promise.race:
     // another connection may start only after the old operation has settled.
     void this.reader?.cancel().catch(() => {});

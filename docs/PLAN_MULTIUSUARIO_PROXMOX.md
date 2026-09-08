@@ -272,7 +272,7 @@ El backup lógico de PostgreSQL está documentado como copia consistente mientra
 
 ## 10. Etapas y criterios de aceptación
 
-Numeración vigente: fases consecutivas 0–11, sin letras. Las fases 0–8 están implementadas y verificadas en DEV; las fases 9–11 quedan pendientes de autorización e implementación. Los nombres de las guías históricas se conservan para mantener sus enlaces; no son fases independientes del plan actual.
+Numeración vigente: fases consecutivas 0–11, sin letras. Las fases 0–9 están implementadas y verificadas en DEV. La fase 10 está autorizada y tiene implementación USB/monitor en DEV, pero no se cierra sin probar físicamente una Wemos identificada. La fase 11 sigue pendiente y sin iniciar. Los nombres de las guías históricas se conservan para mantener sus enlaces; no son fases independientes del plan actual.
 
 | Etapa | Entrega | Se considera terminada cuando… |
 | --- | --- | --- |
@@ -286,10 +286,10 @@ Numeración vigente: fases consecutivas 0–11, sin letras. Las fases 0–8 est�
 | 7. Mensajes y pantalla · implementada en DEV | Consola/Serial y una pantalla LCD/OLED/TFT con zonas de texto; [cierre y pruebas](FASE_7_MENSAJES_Y_PANTALLAS.md) | Se simula y genera el mismo texto, el perfil físico tiene conexiones validadas y compila; refresco acotado y timeouts sin esperas indefinidas. Pruebas físicas del módulo pendientes antes del uso con alumnos. |
 | 8. Arduino y ESP-IDF · implementada en DEV | Exportación `.ino` conservada y ZIP ESP-IDF nativo, generadores desde el mismo programa intermedio; [cierre y pruebas](FASE_8_ARDUINO_Y_ESP_IDF.md) | Ambos compilan con herramientas fijadas, cubren bloques/componentes y conservan las reglas del simulador; IDF no depende de Arduino; los proyectos anteriores siguen abriendo/exportando. |
 | 9. Compilación y descarga · implementada en DEV | Cola durable, ejecutores restringidos, firmware completo, Wi-Fi privado autorizado y ajuste de simultaneidad en admin; [alcance y pruebas](FASE_9_COMPILACION_Y_DESCARGA.md) | Se respetan límites globales y por usuario incluso con varios workers; cambios/reinicios no duplican trabajos; se descarga el firmware de la instantánea correcta; ni artefactos ni logs filtran datos de otros usuarios. |
-| 10. USB desde la web | Monitor Serial y carga autónoma en Chrome/Edge | Se graban físicamente programas de ambos frameworks en Wemos, se verifican y ejecutan sin depender de la pestaña; errores y cortes tienen recuperación; detener la simulación no se presenta como detener hardware. |
+| 10. USB desde la web · aceptación física pendiente | Monitor Serial y grabación en Chrome/Edge; [implementación y pruebas](FASE_10_USB_Y_SERIAL.md) | Se graban físicamente programas de ambos frameworks en Wemos, se verifican y ejecutan sin depender de la pestaña; errores y cortes tienen recuperación; detener la simulación no se presenta como detener hardware. |
 | 11. Piloto en Proxmox | Configuración de producción, HTTPS, backups y carga | Se restaura una copia en entorno aislado, se prueba la carga acordada, no se exponen servicios internos y se valida el flujo completo con administrador, docente y alumnos de prueba. |
 
-Desde la fase 4, la unidad de entrega y validación es la **fase completa**, por indicación del propietario. Las guías 4A/4B se conservan como evidencia histórica, no como nuevas pausas para pedir aprobación. La fase 4 agrega purga individual confirmada tras 30 días y amplía el ZIP administrativo de 3B con historial. La fase 5 completa la supervisión visual y amplía nuevamente el ZIP con conversaciones y sus versiones protegidas; las bajas/purgas las contemplan explícitamente. Desactivar sigue conservando trabajos; importar un respaldo no restaura la cuenta original ni sus membresías. Las fases 6–9 están entregadas en DEV. Las fases 10–11 siguen pendientes y requieren autorización propia; los pedidos del backlog no amplían automáticamente el alcance de una fase.
+Desde la fase 4, la unidad de entrega y validación es la **fase completa**, por indicación del propietario. Las guías 4A/4B se conservan como evidencia histórica, no como nuevas pausas para pedir aprobación. La fase 4 agrega purga individual confirmada tras 30 días y amplía el ZIP administrativo de 3B con historial. La fase 5 completa la supervisión visual y amplía nuevamente el ZIP con conversaciones y sus versiones protegidas; las bajas/purgas las contemplan explícitamente. Desactivar sigue conservando trabajos; importar un respaldo no restaura la cuenta original ni sus membresías. Las fases 6–9 están entregadas en DEV. La fase 10 está autorizada, con implementación en DEV y aceptación física pendiente; la fase 11 requiere autorización propia; los pedidos del backlog no amplían automáticamente el alcance de una fase.
 
 Pruebas obligatorias adicionales:
 
@@ -349,7 +349,7 @@ La fase autorizada comienza en las VMs ya creadas. No se abren puertos del route
 
 ## 12. Arduino, ESP-IDF, compilación y carga USB
 
-Estado: las dos salidas de fuentes están implementadas y compiladas en la fase 8. La fase 9 incorpora compilación en servidor y descarga de firmware completo. USB desde la web sigue pendiente (fase 10); no se validó en placa. El recorrido es simular comportamiento en la web, elegir salida, compilar, descargar o grabar y ejecutar autónomamente. Se conservan Arduino y exportación JSON; no se necesita controlar la placa en vivo.
+Estado: las dos salidas de fuentes están implementadas y compiladas en la fase 8. La fase 9 incorpora compilación en servidor y descarga de firmware completo. USB desde la web está implementado en la fase 10; su aceptación física sigue pendiente y no se validó en placa. El recorrido es simular comportamiento en la web, elegir salida, compilar, descargar o grabar y ejecutar autónomamente. Se conservan Arduino y exportación JSON; no se necesita controlar la placa en vivo.
 
 ### A. Dos generadores y salidas portables
 

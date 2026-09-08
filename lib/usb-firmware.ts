@@ -44,7 +44,7 @@ function unpack(bytes: Uint8Array) {
 }
 
 export async function parseUsbFirmware(bytes: Uint8Array, job: FirmwareJob): Promise<UsbFirmware> {
-  if (!job.sha256 || !/^[a-f0-9]{64}$/.test(job.sha256) || bytes.length !== job.bytes || bytes.length > limit || await sha256(bytes) !== job.sha256) throw invalid();
+  if (!['arduino', 'esp-idf'].includes(job.framework) || !job.sha256 || !/^[a-f0-9]{64}$/.test(job.sha256) || bytes.length !== job.bytes || bytes.length > limit || await sha256(bytes) !== job.sha256) throw invalid();
   try {
     const files = unpack(bytes), manifestBytes = files.get('manifest.json');
     if (!manifestBytes || manifestBytes.length > 16_384 || !files.has('LEEME.txt')) throw invalid();
@@ -61,7 +61,7 @@ export async function parseUsbFirmware(bytes: Uint8Array, job: FirmwareJob): Pro
       if (part.path !== `firmware/part-${index}.bin` || !data?.length || !Number.isSafeInteger(part.size) || part.size !== data.length || part.offset !== addresses[index] || part.offset < end || part.offset + data.length > 4 * 1024 * 1024 || await sha256(data) !== part.sha256) throw invalid();
       // Flash erases complete sectors. A padded/erased tail must not damage the next segment.
       end = part.offset + Math.ceil(data.length / 4096) * 4096;
-      parts.push({ address: part.offset, data: data.slice() });
+      parts.push({ address: part.offset, data: new Uint8Array(data) });
     }
     if ([...files.keys()].filter(name => name.startsWith('firmware/')).length !== parts.length) throw invalid();
     return { parts, framework: job.framework, containsWifi: job.containsWifi };
