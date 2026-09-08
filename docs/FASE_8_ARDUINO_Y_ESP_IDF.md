@@ -1,6 +1,6 @@
 # Fase 8 — Arduino y ESP-IDF
 
-Autorizada por el propietario: «Vamos con 8». **En implementación, no entregada todavía.**
+Autorizada por el propietario: «Vamos con 8». **Implementada y verificada en DEV** (7 de septiembre de 2026). Arduino conservado y ZIP ESP-IDF nativo disponible; no incluye compilación en servidor ni grabación web. Pruebas físicas pendientes.
 
 ## Alcance
 
@@ -53,3 +53,17 @@ Comandos: `npm run typecheck`, `npm run lint`, `npm run test:smoke`, `npm run te
 `test:idf-driver` compila y ejecuta el C++ generado con dobles de HAL: PWM y frecuencias extremas, GPIO sin pulsos bajos repetidos, errores ADC, Wi-Fi por eventos, saturación de consola, rollover de reloj, contadores saturados, ejecución real del bucle y fork/join, refresco y borrado por zona, ausencia/corte de bus y persistencia de memoria SPI ante timeout. No reemplaza compilar con la API real ni probar una placa.
 
 **No se verificó hardware físico.** Antes de usarlo con alumnos, comprobar modelo real, niveles/fuente, límites mecánicos, conexiones y comportamiento autónomo. Un error de GPIO/PWM puede reiniciar por `ESP_ERROR_CHECK`; no es una parada de emergencia garantizada. No aplicar 5 V a los GPIO. Un SPI de escritura no detecta que falta la pantalla.
+
+### Evidencia de entrega
+
+Código funcional: `f52cf08`, con [los cuatro trabajos de CI correctos](https://github.com/ncvicchi/capibloques/actions/runs/34179399332). Pruebas sobre datos sintéticos, sin modificar cuentas/proyectos reales.
+
+- **DEV, Chrome/Edge: 72 pruebas de regresión correctas** sobre `9078de4`, sin reintentos: pantallas, exportación nativa, programación, revisión docente y recuperación de escenas. Tras los últimos ajustes, **10 pruebas de exportación correctas** sobre `f52cf08`, sin reintentos, incluyendo los cinco perfiles, permisos revocados durante el ZIP, Arduino conservado y cuadro de código móvil a 390 px. Capturas en `work/phase8-regression` y `work/phase8-final-export`, no versionadas. La prueba móvil detectó y permitió corregir el desborde horizontal de los controles.
+- **Siete compilaciones Arduino correctas**, core 3.3.11, [trabajo de firmware](https://github.com/ncvicchi/capibloques/actions/runs/34179399332/job/101915226962). La extracción de fixtures compartidos conservó byte a byte los dos `.ino` previos, comprobados localmente antes/después.
+- **Siete compilaciones ESP-IDF correctas**, 5.5.5 y target `esp32`, [trabajo nativo](https://github.com/ncvicchi/capibloques/actions/runs/34179399332/job/101915226663). Se validan CRC/SHA de cada ZIP, se extraen sus archivos y se recompila `main.cpp` para cada perfil. Se reutilizan sólo los objetos comunes del framework en un directorio de CI. El log conserva siete recompilaciones y siete SHA-256 distintos de binarios; no se publican binarios a usuarios en esta fase.
+- **C++ nativo: 12 escenarios correctos** con HAL de prueba (runtime, fork/join y dos por pantalla). Arduino conserva sus cinco pruebas C++ de display. Se corrigieron una incompatibilidad de tipos de `uint32_t` en Xtensa y la resolución del temporizador necesaria para notas graves. El build nativo real confirma las firmas de las APIs; los dobles permiten comprobar fallos y estados internos reproducibles.
+- **Backend CI: 167 pruebas correctas**, más preparación de secretos sintéticos y persistencia tras recreación; [trabajo backend](https://github.com/ncvicchi/capibloques/actions/runs/34179399332/job/101915226868). No hubo cambios de API, modelos, migraciones ni datos DEV en esta fase.
+- **CI Chromium: 150 pruebas correctas**, sin fallos ni reintentos, [trabajo web](https://github.com/ncvicchi/capibloques/actions/runs/34179399332/job/101915226869), junto con tipos, lint, pruebas de núcleo/HAL, auditoría de dependencias y build. Los cuatro trabajos finalizaron correctamente sobre el mismo commit funcional.
+- Tipos, lint, simulador, persistencia local, ZIP y build verificados localmente. El build mantiene el aviso previo de bundles de más de 500 kB, sin error; verifica nueve páginas estáticas. No se presenta este cambio como una optimización general de carga del editor.
+
+Despliegue limitado a DEV mediante el túnel existente; `/api/health/ready/` saludable. PRD, gateway, Proxmox, router y Nginx no se modificaron. No se instalaron toolchains en las VMs ni se reactivó Pages. Las fases 9–11 y el backlog requieren autorización nueva.

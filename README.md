@@ -1,8 +1,8 @@
 # CapiBloques para WEMOS D1 R32
 
-CapiBloques es un entorno visual educativo para que chicos de 8 a 12 años armen una escena, programen sus componentes con bloques, prueben el comportamiento en el navegador y descarguen Arduino C++ compatible con una WEMOS D1 R32.
+CapiBloques es un entorno visual educativo para que chicos de 8 a 12 años armen una escena, programen sus componentes con bloques, prueben el comportamiento en el navegador y descarguen código Arduino o un proyecto ESP-IDF nativo compatible con una WEMOS D1 R32.
 
-El editor exige ingreso con alias y contraseña. En la VM de desarrollo corren Django + PostgreSQL, el [acceso y sesiones](docs/FASE_2A_ACCESO.md) en `/cuenta/` y el [ABM de usuarios](docs/FASE_2B1_USUARIOS.md) en `/gestion/usuarios/`, exclusivo del administrador. Cursos, membresías y proyectos personales se guardan en servidor. La [biblioteca de fase 3](docs/FASE_3A_BIBLIOTECA.md) se abre con **Mis proyectos** en el editor. El alojamiento elegido es Proxmox; GitHub Pages deja de utilizarse. El frontend permite exportación estática, pero necesita la API del mismo origen. La [fase 4](docs/FASE_4_RECUPERACION_E_HISTORIAL.md) incluye autoguardado, recuperación local del proyecto y su envío pendiente, salida en equipos compartidos, continuidad durante cortes, recuperación de escenas e historial restaurable. La [fase 5](docs/FASE_5_SUPERVISION_DOCENTE.md) incorpora revisión docente, simulación de sólo lectura y devoluciones por versión. La [fase 6](docs/FASE_6_EXPERIENCIA_Y_PROGRAMACION.md) agrega avatares, favoritos, inicio único, caminos en paralelo y ejecución guiada visible. ESP-IDF, compilación en servidor y grabación USB siguen pendientes.
+El editor exige ingreso con alias y contraseña. En la VM de desarrollo corren Django + PostgreSQL, el [acceso y sesiones](docs/FASE_2A_ACCESO.md) en `/cuenta/` y el [ABM de usuarios](docs/FASE_2B1_USUARIOS.md) en `/gestion/usuarios/`, exclusivo del administrador. Cursos, membresías y proyectos personales se guardan en servidor. La [biblioteca de fase 3](docs/FASE_3A_BIBLIOTECA.md) se abre con **Mis proyectos** en el editor. El alojamiento elegido es Proxmox; GitHub Pages deja de utilizarse. El frontend permite exportación estática, pero necesita la API del mismo origen. La [fase 4](docs/FASE_4_RECUPERACION_E_HISTORIAL.md) incluye autoguardado, recuperación local del proyecto y su envío pendiente, salida en equipos compartidos, continuidad durante cortes, recuperación de escenas e historial restaurable. La [fase 5](docs/FASE_5_SUPERVISION_DOCENTE.md) incorpora revisión docente, simulación de sólo lectura y devoluciones por versión. La [fase 6](docs/FASE_6_EXPERIENCIA_Y_PROGRAMACION.md) agrega avatares, favoritos, inicio único, caminos en paralelo y ejecución guiada visible. La [fase 7](docs/FASE_7_MENSAJES_Y_PANTALLAS.md) añade mensajes en una pantalla LCD/OLED/TFT. La [fase 8](docs/FASE_8_ARDUINO_Y_ESP_IDF.md) conserva Arduino y agrega ZIP ESP-IDF nativo. Compilación en servidor, grabación USB desde la web y producción siguen pendientes.
 
 El alcance está en [el plan de implementación](docs/PLAN_MULTIUSUARIO_PROXMOX.md) y el estado de preparación en [fase 0: servidores](docs/FASE_0_SERVIDORES.md). Trabajamos una fase por vez, con pruebas, commit/push y aprobación del propietario antes de avanzar.
 
@@ -67,7 +67,7 @@ Un proyecto exportado usa el esquema JSON v2 e incluye:
 - el workspace Blockly y los identificadores de sus bloques;
 - la velocidad elegida para la simulación.
 
-El programa intermedio y el Arduino C++ se regeneran a partir de esos datos. La aplicación importa proyectos v2 y migra automáticamente los JSON v1 anteriores, incluyendo las escenas predefinidas y las referencias de bloques a su primera instancia compatible. Antes de reemplazar el proyecto, valida el esquema, los tipos e identificadores de bloques, la profundidad y la cantidad de nodos. Una importación dañada se rechaza sin borrar el trabajo abierto.
+El programa intermedio y las salidas Arduino/ESP-IDF se regeneran a partir de esos datos. La aplicación importa proyectos v2 y migra automáticamente los JSON v1 anteriores, incluyendo las escenas predefinidas y las referencias de bloques a su primera instancia compatible. Antes de reemplazar el proyecto, valida el esquema, los tipos e identificadores de bloques, la profundidad y la cantidad de nodos. Una importación dañada se rechaza sin borrar el trabajo abierto. No se reconstruyen bloques importando fuentes `.ino` o ZIP ESP-IDF: para eso se conserva el JSON del proyecto.
 
 **Guardar** sube el proyecto a la cuenta. Después del primer guardado confirmado, el **autoguardado al servidor** envía cambios al dejar de editar durante 1,5 segundos (o a los 10 segundos de edición continua, sujeto a pausas). Se puede desactivar en Mis proyectos; la opción se recuerda por cuenta/navegador. Guardar manual sigue disponible. La escena conserva su Guardar/Cancelar; mientras se arma no se sube su borrador.
 
@@ -102,6 +102,8 @@ Comprobaciones disponibles:
 npm run typecheck
 npm run lint
 npm run test:smoke
+npm run test:idf
+npm run test:idf-driver
 npm run test:e2e
 npm run build
 ```
@@ -114,17 +116,21 @@ npx serve dist/client
 
 ## Generación para WEMOS D1 R32
 
-El destino soportado es WEMOS D1 R32 con el core Arduino-ESP32 3.3.11:
+El destino soportado es WEMOS D1 R32/chip ESP32 (no ESP32-S3). En **Exportar** se puede elegir Arduino `.ino` o **Proyecto ESP-IDF .zip**. **Ver código ESP32** incluye un selector de formato. La revisión docente permite descargar ambos formatos de la versión autorizada. [Uso y límites de fase 8](docs/FASE_8_ARDUINO_Y_ESP_IDF.md).
+
+Arduino conserva el core Arduino-ESP32 3.3.11:
 
 ```text
 FQBN: esp32:esp32:d1_uno32
 ```
 
-El generador toma los GPIO de cada instancia de la escena, emite diagnósticos de cableado y crea un sketch `.ino` con un planificador cooperativo. No usa `delay()` para las esperas de los bloques, por lo que un semáforo puede esperar mientras el robot u otro programa continúa avanzando.
+ESP-IDF requiere **5.5.5**, sin Arduino como componente. Extraer el ZIP y ejecutar `idf.py set-target esp32` y `idf.py build` en su terminal oficial. Incluye `main/main.cpp`, CMake, configuración, plantilla Wi-Fi local, instrucciones, licencias y manifiesto SHA-256. La vista previa muestra sólo `main.cpp`: para compilar se necesita el ZIP completo. Son fuentes, no un binario; la compilación en servidor y la grabación USB desde la web siguen pendientes.
+
+El generador toma los GPIO de cada instancia de la escena, emite diagnósticos de cableado y comparte el mismo grafo cooperativo entre `.ino` y C++ nativo de ESP-IDF. No usa `delay()` para las esperas de los bloques, por lo que un semáforo puede esperar mientras el robot u otro camino continúa avanzando.
 
 El simulador y el sketch avanzan los programas en intervalos lógicos de 16 ms, con un presupuesto acotado de instrucciones por turno para mantener la interfaz y la placa disponibles. El contador usa enteros de 32 bits: al llegar a −2.147.483.648 o 2.147.483.647 se mantiene en el límite, sin desbordarse ni cambiar de signo. La posición inicial configurada del servo también se aplica al encender la placa.
 
-La vista previa del código siempre queda disponible para aprender y corregir problemas. La descarga del `.ino` se habilita sólo cuando no quedan errores de pines o referencias a componentes y se completó la revisión guiada del cableado. La guía reúne en una sola tabla la placa, todos los GPIO, resistencias, drivers, alimentación externa y masa común.
+La vista previa del código siempre queda disponible para aprender y corregir problemas. La descarga de ambos formatos se habilita sólo cuando no quedan errores de pines o referencias a componentes y se completó la revisión guiada del cableado. La guía reúne en una sola tabla la placa, todos los GPIO, resistencias, drivers, alimentación externa y masa común. Compilar no certifica el circuito: la prueba con los módulos físicos sigue siendo necesaria.
 
 Los bloques de salida digital avanzada también aparecen en la guía, incluso sin componentes en la escena. Agregar o cambiar sus GPIO exige revisar nuevamente las conexiones. Los botones deben usar pull-up interna; los proyectos importados con otra polaridad pueden simularse, pero se bloquea la descarga hasta resolver esa configuración.
 
@@ -161,7 +167,7 @@ La WEMOS D1 R32 usa lógica de **3,3 V**. No conectes una señal de 5 V directam
 
 El workflow `.github/workflows/ci.yml`, **Verificar CapiBloques**, se ejecuta en pushes y pull requests a `main`, y permite ejecución manual.
 
-Verifica tipos, lint, pruebas de núcleo e interfaz en Chromium, auditoría de dependencias, compilación real de dos circuitos Arduino para Wemos D1 R32 y construcción del frontend. Conserva el core Arduino-ESP32 3.3.11.
+Verifica tipos, lint, pruebas de núcleo e interfaz en Chromium, auditoría de dependencias y construcción del frontend. Compila siete circuitos con Arduino-ESP32 3.3.11 y los siete equivalentes nativos con ESP-IDF 5.5.5: principal, auxiliar y cinco pantallas. En IDF valida CRC/SHA-256, extrae los ZIP exportados y compila esas fuentes; reutiliza los objetos del framework sin omitir la recompilación de cada programa. La imagen oficial está fijada por digest. También ejecuta C++ con dobles deterministas de HAL para los contratos de funcionamiento y errores; no reemplazan una prueba eléctrica.
 
 Este workflow **no publica en GitHub Pages ni en Proxmox** y sólo solicita lectura del repositorio. También valida la configuración Compose de desarrollo. La despublicación de Pages se verifica en la configuración de GitHub; retirar los pasos del workflow por sí solo no elimina un sitio ya publicado. El entorno DEV se ejecuta en la VM autorizada y producción permanece pendiente de su fase. Se conserva por ahora la corrección de rutas relativas del build, sin reestructurar la aplicación durante la preparación de servidores.
 
@@ -179,8 +185,9 @@ npm run test:e2e -- --workers=3
 Escena componible ─┬─> asignación y validación de GPIO
                   └─> instancias disponibles en los bloques
 
-Blockly ─> programa tipado multi-hilo ─┬─> Web Worker de simulación
-                                      └─> Arduino C++ cooperativo
+Blockly ─> programa tipado y grafo ─┬─> Web Worker de simulación
+                                   ├─> Arduino C++ cooperativo (.ino)
+                                   └─> ESP-IDF C++ nativo cooperativo (.zip)
 
 Escena + workspace + metadatos ─> proyecto JSON v2
 ```
