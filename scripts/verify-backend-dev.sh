@@ -2,7 +2,15 @@
 # Pruebas de integración; sólo DEV/CI. Requiere api y db ya migrados.
 set -eu
 cd "$(dirname "$0")/.."
-dc() { docker compose --ansi never -f compose.dev.yaml -f compose.backend.dev.yaml "$@"; }
+dc() {
+  # A DEV with the phase-9 installer must preserve the private artifact mount
+  # when --restart recreates the API. Fresh CI has no host compiler directory.
+  if [ -d /var/lib/capibloques-compiler/artifacts ]; then
+    docker compose --ansi never -f compose.dev.yaml -f compose.backend.dev.yaml -f compose.compiler.dev.yaml "$@"
+  else
+    docker compose --ansi never -f compose.dev.yaml -f compose.backend.dev.yaml "$@"
+  fi
+}
 
 dc exec -T api python manage.py check
 dc exec -T api python manage.py makemigrations --check --dry-run

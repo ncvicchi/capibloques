@@ -2,7 +2,7 @@
 
 Fecha: 6 de septiembre de 2026. Alcance: editor existente + API Django mínima + PostgreSQL persistente en `capi-dev`. **No implementa cuentas, roles, biblioteca ni guardado servidor.** Producción permanece sin aplicación. Gateway usado sólo como salto TCP SSH; Proxmox, router y Nginx no se modificaron.
 
-Evidencia histórica de fase 1. El acceso y las migraciones de cuentas incorporados después se documentan en [fase 2A](FASE_2A_ACCESO.md); sus comandos operativos extienden esta guía. La receta con ambos Compose sigue vigente.
+Evidencia histórica de fase 1. El acceso y las migraciones de cuentas incorporados después se documentan en [fase 2A](FASE_2A_ACCESO.md); sus comandos operativos extienden esta guía. Los dos Compose son la base. **Desde la instalación del compilador de fase 9, añadir también `-f compose.compiler.dev.yaml` al crear/recrear la API de DEV**, para conservar el montaje privado de firmware. Ver [operación vigente](FASE_9_COMPILACION_Y_DESCARGA.md#operación-dev); el verificador detecta ese directorio y conserva el montaje. No usar `--restart` mientras haya compilaciones activas.
 
 ## Entorno comprobado
 
