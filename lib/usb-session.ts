@@ -36,7 +36,13 @@ export function appendSerialText(previous: string, incoming: string) {
   // Plain text only, bounded even when a sketch never emits a newline.
   // oxlint-disable-next-line no-control-regex -- Strip terminal escape/control bytes from plain text.
   const clean = incoming.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '').replace(/[^\P{Cc}\n\t]/gu, '');
-  return (previous + clean).slice(-32768).split('\n').slice(-200).join('\n');
+  const text = (previous + clean).split('\n').slice(-200).join('\n');
+  const encoded = new TextEncoder().encode(text);
+  if (encoded.length <= 32768) return text;
+  let start = encoded.length - 32768;
+  // Trim only at a UTF-8 boundary: emoji must not become a replacement glyph.
+  while ((encoded[start] & 0xc0) === 0x80) start++;
+  return new TextDecoder().decode(encoded.subarray(start));
 }
 
 export class UsbSession {

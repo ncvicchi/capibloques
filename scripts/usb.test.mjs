@@ -94,6 +94,9 @@ await check('serial UTF-8 fragmentation, bounded lines/text, clear while batched
   controller.enqueue(new TextEncoder().encode('nuevo')); await delay(120); assert.equal(session.state.text, 'nuevo');
   session.dispose(); await session.settled(); assert.equal(session.state.text, '');
   assert.ok(appendSerialText('', 'x'.repeat(100_000)).length <= 32768); assert.ok(appendSerialText('', 'line\n'.repeat(500)).split('\n').length <= 200); assert.equal(appendSerialText('', '\x1b[31mHola\x00\r\n'), 'Hola\n');
+  for (const text of ['🐧'.repeat(30000), 'árbol'.repeat(20000), '🐧'.repeat(20000) + 'a']) {
+    const trimmed = appendSerialText('', text); assert.ok(new TextEncoder().encode(trimmed).length <= 32768); assert.ok(!trimmed.includes('\ufffd'));
+  }
 });
 await check('rejected permission does not acquire or open a device', async () => {
   const driver = fakeDriver(), session = new UsbSession(driver.factory); session.monitor(async () => { throw new DOMException('cancelled', 'NotFoundError'); }); await session.settled(); assert.match(session.state.message, /No elegiste/); assert.deepEqual(driver.events, []);
