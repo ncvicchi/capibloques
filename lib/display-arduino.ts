@@ -21,7 +21,7 @@ export function displayArduinoSupport(scene: SceneDefinition) {
 #include <LiquidCrystal_PCF8574.h>
 LiquidCrystal_PCF8574 capiScreen(${device.config.address});`
     : i2c
-      ? `// Instalar U8g2@2.37.1 (BSD-2-Clause). Fuente ASCII 8x8, sin framebuffer completo.
+      ? `// Instalar U8g2@2.36.19 (BSD-2-Clause). Fuente ASCII 8x8, sin framebuffer completo.
 #include <Wire.h>
 #include <U8x8lib.h>
 U8X8_SSD1306_128X64_NONAME_HW_I2C capiScreen(U8X8_PIN_NONE, ${pin('scl')}, ${pin('sda')});`

@@ -960,6 +960,7 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
   ];
   const device = createSceneDevice(kind, scene.devices, {
     ...options,
+    ...(kind === 'display' && !options.position ? { position: { x: scene.canvas.width * 0.7, y: scene.canvas.height * 0.55 } } : {}),
     id: options.id ?? createStableDeviceId(kind, reservedIds),
   });
   device.name = createUniqueVisibleName(
@@ -2019,6 +2020,7 @@ export function migrateSceneDefinition(
 export function getPinRequirements(device: SceneDeviceKind | SceneDevice) {
   if (typeof device === 'string') return requirementsByKind[device];
   if (device.kind !== 'display') return requirementsByKind[device.kind];
+  if (!validDisplayConfig(device.config, true)) return [];
   const keys = requiredDisplayPins(device.config);
   return requirementsByKind.display.filter(requirement => keys.includes(requirement.key as DisplayPinKey));
 }

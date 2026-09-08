@@ -67,10 +67,27 @@ jobs:
           npm run lint
           npm run lint:displays
           npm run test:smoke
+          npm run test:display-driver
           npm audit --audit-level=high
 
       - name: Probar la interfaz en Chromium
         run: npm run test:e2e
+
+      - name: Construir sitio estático
+        run: npm run build
+
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el proyecto
+        uses: actions/checkout@v4
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Instalar dependencias
+        run: npm ci
 
       - name: Preparar Arduino CLI
         uses: arduino/setup-arduino-cli@v2
@@ -89,11 +106,8 @@ jobs:
 
       - name: Compilar los cinco perfiles de pantalla
         run: |
-          arduino-cli lib install "LiquidCrystal_PCF8574@2.3.0" "U8g2@2.37.1" "GFX Library for Arduino@1.6.7"
+          arduino-cli lib install "LiquidCrystal_PCF8574@2.3.0" "U8g2@2.36.19" "GFX Library for Arduino@1.6.7"
           node --experimental-strip-types scripts/generate-display-fixtures.mjs
           for profile in lcd1602 lcd2004 ssd1306 ili9341 ili9488; do
             arduino-cli compile --fqbn esp32:esp32:d1_uno32 ".arduino-ci/$profile"
           done
-
-      - name: Construir sitio estático
-        run: npm run build

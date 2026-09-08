@@ -202,10 +202,10 @@ Esto ofrece supervisión de los proyectos de curso conforme se guardan, sin exig
 - Agregar un componente Pantalla a la escena y bloques «mostrar [texto] en [pantalla]» y «limpiar [pantalla]». El destino es una instancia concreta, no una salida global implícita.
 - Comenzar con texto y números básicos; tamaños, líneas, saltos y caracteres soportados deben coincidir entre simulador y hardware. No simular emojis o tipografías que el módulo físico no pueda mostrar.
 - Consola y pantalla no se reflejan automáticamente entre sí. Para escribir en ambos se usan ambos bloques, evitando suponer que un mensaje de depuración se verá en el dispositivo.
-- Elegir un único perfil de pantalla física inicial. Propuesta a confirmar con el módulo disponible: OLED I2C SSD1306 128×64. Su controlador y resolución deben verificarse; otros OLED/LCD no se tratan como intercambiables. La biblioteca SSD1306 y su capa gráfica ofrecen texto para este tipo de pantalla. [Referencia del fabricante de la biblioteca](https://learn.adafruit.com/monochrome-oled-breakouts/arduino-library-and-examples).
-- Antes de generar firmware: documentar conexiones SDA/SCL, dirección I2C, alimentación y niveles admitidos por el módulo. Extender el modelo/validador para buses compartidos y conflictos de dirección; no tratar un bus I2C como salidas GPIO independientes.
+- Decisión del propietario para fase 7: **una sola pantalla por proyecto**. Perfiles LCD PCF8574 I2C 16×2/20×4, OLED SSD1306 I2C 128×64 y TFT SPI ILI9341/ILI9488. Texto directo en LCD o zonas de texto dentro de una gráfica. No incluir múltiples pantallas, buses compartidos, Waveshare ni la escena interactiva.
+- Antes de generar firmware: documentar conexiones, dirección I2C o señales SPI, alimentación y niveles admitidos por el módulo. Las conexiones del controlador no pueden ocupar pines usados por otros componentes.
 - Limitar frecuencia de refresco, tiempos de espera y cantidad de mensajes para mantener el comportamiento cooperativo. Un display ausente o que no responde no debe dejar al programa esperando indefinidamente.
-- Añadir el perfil, bloques y conexiones al JSON, las escenas, el worker y ambos generadores, con compilación Arduino/ESP-IDF en CI. Elegir una implementación de pantalla nativa para IDF: la biblioteca Arduino no se presume compatible ni justifica agregar Arduino como dependencia oculta de la exportación IDF. No considerar terminado el equivalente físico sólo porque el dibujo de la pantalla funciona.
+- Fase 7 añade perfiles, bloques y conexiones al JSON, escenas, worker y generador Arduino, con compilación real en CI. En fase 8 se incorpora el equivalente nativo ESP-IDF: la biblioteca Arduino no se presume compatible ni justifica agregar Arduino como dependencia oculta. La compilación no sustituye probar el módulo físico antes del uso real.
 
 ## 6. Autoguardado sin pérdida de trabajo
 
@@ -272,7 +272,7 @@ El backup lógico de PostgreSQL está documentado como copia consistente mientra
 
 ## 10. Etapas y criterios de aceptación
 
-Numeración vigente: fases consecutivas 0–11, sin letras. Las fases 0–6 están implementadas y verificadas en DEV; las fases 7–11 quedan pendientes. Los nombres de las guías históricas se conservan para mantener sus enlaces; no son fases independientes del plan actual.
+Numeración vigente: fases consecutivas 0–11, sin letras. Las fases 0–6 están implementadas y verificadas en DEV; la fase 7 está autorizada y en verificación; las fases 8–11 quedan pendientes. Los nombres de las guías históricas se conservan para mantener sus enlaces; no son fases independientes del plan actual.
 
 | Etapa | Entrega | Se considera terminada cuando… |
 | --- | --- | --- |

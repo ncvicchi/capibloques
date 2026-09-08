@@ -268,6 +268,8 @@ export function portableDisplayText(text: string) {
     .replace(/¡/g, '!')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    // HD44780 ROM A00 uses these ASCII positions for yen/an arrow.
+    .replace(/[\\~]/g, '?')
     .replace(/[^\x20-\x7e\n]/gu, '?');
 }
 

@@ -20,6 +20,8 @@ async function open(page: Page) {
 }
 function sample(profile: DisplayProfile = 'ssd1306') {
   const config = displayConfig(profile);
+  // Imported identities may match Object.prototype names; an empty preview must remain safe.
+  if (profile === 'ili9488') config.areas[0].id = 'constructor';
   if (displayProfiles[profile].graphic)
     config.areas.push({
       id: 'second',
@@ -103,6 +105,77 @@ async function exportProject(page: Page) {
   for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
   return JSON.parse(Buffer.concat(chunks).toString());
 }
+
+test('pantalla: crear, cambiar modelo con confirmación y autoconectar SPI', async ({
+  page,
+}, testInfo) => {
+  await open(page);
+  await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  const editor = page.getByRole('dialog', {
+    name: 'Arma tu mundo',
+    exact: true,
+  });
+  await editor
+    .getByRole('button', { name: /^Agregar Pantalla de mensajes/ })
+    .click();
+  const model = editor.getByRole('combobox', {
+    name: 'Modelo de pantalla',
+    exact: true,
+  });
+  await expect(model).toHaveValue('lcd1602');
+  await model.selectOption('ili9341');
+  await editor
+    .getByRole('button', { name: 'Conservar modelo', exact: true })
+    .click();
+  await expect(model).toHaveValue('lcd1602');
+  await model.selectOption('ili9341');
+  await editor
+    .getByRole('button', { name: 'Cambiar modelo', exact: true })
+    .click();
+  await expect(model).toHaveValue('ili9341');
+  await expect(editor.getByRole('combobox', { name: /^SCK de/ })).toHaveValue(
+    '',
+  );
+  await expect(editor.getByRole('combobox', { name: /^SDA de/ })).toHaveCount(
+    0,
+  );
+  await editor
+    .getByRole('button', { name: 'Guardar cambios', exact: false })
+    .click();
+  await editor
+    .getByRole('button', { name: 'Auto conectar', exact: true })
+    .click();
+  await expect(editor.getByRole('combobox', { name: /^SCK de/ })).toHaveValue(
+    /^\d+$/,
+  );
+  await editor
+    .getByRole('button', { name: 'Agregar zona de texto', exact: false })
+    .click();
+  await editor.getByLabel('Nombre de text-2', { exact: true }).fill('Estado');
+  await editor
+    .getByRole('button', { name: 'Guardar cambios', exact: false })
+    .click();
+  await page.screenshot({
+    path: testInfo.outputPath('display-editor.png'),
+    fullPage: true,
+  });
+  await editor
+    .getByRole('button', { name: 'Guardar escena', exact: true })
+    .click();
+  await expect(editor).toBeHidden();
+  const saved = await exportProject(page);
+  const screen = saved.scene.devices.find(
+    (device: { kind: string }) => device.kind === 'display',
+  );
+  expect(screen.config.profile).toBe('ili9341');
+  expect(
+    screen.config.areas.map((area: { name: string }) => area.name),
+  ).toEqual(['Mensaje', 'Estado']);
+  expect(
+    Object.values(screen.pins).filter((value) => value !== null),
+  ).toHaveLength(5);
+  expect(screen.pins.sda).toBeNull();
+});
 
 test('pantalla: paso visible, zonas independientes y consola separada', async ({
   page,

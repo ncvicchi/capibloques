@@ -9,8 +9,12 @@ export function DisplayPreview({
   texts?: Record<string, string[]>;
 }) {
   const profile = displayProfiles[device.config.profile];
-  const width = profile.columns * 8;
-  const height = profile.rows * 12;
+  const linesFor = (id: string) =>
+    Object.hasOwn(texts, id) ? texts[id] : undefined;
+  const cellWidth = profile.bus === 'spi' ? 12 : 8;
+  const cellHeight = profile.bus === 'spi' ? 16 : profile.graphic ? 8 : 12;
+  const width = profile.graphic ? profile.width : profile.columns * cellWidth;
+  const height = profile.graphic ? profile.height : profile.rows * cellHeight;
   return (
     <svg
       className={`display-preview ${profile.graphic ? 'graphic' : 'character'}`}
@@ -18,7 +22,7 @@ export function DisplayPreview({
       aria-label={`${device.name}: ${displayTargets(device.config)
         .map(
           (area) =>
-            `${area.name}: ${texts[area.id]?.join(' ').trim() || 'sin texto'}`,
+            `${area.name}: ${linesFor(area.id)?.join(' ').trim() || 'sin texto'}`,
         )
         .join('; ')}`}
     >
@@ -34,28 +38,28 @@ export function DisplayPreview({
       {displayTargets(device.config).map((area) => (
         <g key={area.id}>
           <rect
-            x={area.column * 8}
-            y={area.row * 12}
-            width={Math.max(0, area.columns) * 8}
-            height={Math.max(0, area.rows) * 12}
+            x={area.column * cellWidth}
+            y={area.row * cellHeight}
+            width={Math.max(0, area.columns) * cellWidth}
+            height={Math.max(0, area.rows) * cellHeight}
             fill="none"
             stroke="#73ab99"
             strokeWidth={0.5}
             strokeDasharray={profile.graphic ? '2 2' : undefined}
           />
-          {(texts[area.id] ?? [profile.graphic ? area.name : ''])
+          {(linesFor(area.id) ?? [profile.graphic ? area.name : ''])
             .slice(0, Math.max(0, area.rows))
             .map((line, row) => (
               <text
                 key={row}
-                x={area.column * 8}
-                y={(area.row + row) * 12 + 10}
+                x={area.column * cellWidth}
+                y={(area.row + row) * cellHeight + cellHeight * 0.85}
                 fontFamily="monospace"
-                fontSize={12}
+                fontSize={cellHeight}
                 fill={profile.graphic ? '#fff' : '#baffb8'}
                 xmlSpace="preserve"
                 textLength={
-                  Math.min(line.length, Math.max(0, area.columns)) * 8
+                  Math.min(line.length, Math.max(0, area.columns)) * cellWidth
                 }
                 lengthAdjust="spacingAndGlyphs"
               >

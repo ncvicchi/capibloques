@@ -19,7 +19,7 @@ import {
 
 export type SceneId = LegacySceneId;
 // @ts-expect-error Node strip-types runner.
-import { displayTargets, layoutDisplayText, MAX_DISPLAY_TEXT } from './display-model.ts';
+import { displayTargets, layoutDisplayText, MAX_DISPLAY_TEXT, validDisplayConfig } from './display-model.ts';
 // @ts-expect-error Node strip-types runner.
 import { displayArduinoSupport } from './display-arduino.ts';
 
@@ -1913,7 +1913,7 @@ export function validateProgramForScene(
   visitProgram(program, (node) => {
     if (node.op === 'displayWrite' || node.op === 'displayClear') {
       const device = deviceMap.get(node.deviceId);
-      const area = device?.kind === 'display' ? displayTargets(device.config).find(area => area.id === node.areaId) : undefined;
+      const area = device?.kind === 'display' && validDisplayConfig(device.config) ? displayTargets(device.config).find(area => area.id === node.areaId) : undefined;
       if (device?.kind === 'display' && !area) diagnostics.push({ severity: 'error', code: 'display-area-missing', message: `${device.name}: elegí una zona de texto existente. La anterior fue retirada o cambió el modelo.`, blockId: node.blockId, deviceId: node.deviceId });
       if (node.op === 'displayWrite') {
         if (node.text.length > MAX_DISPLAY_TEXT) diagnostics.push({ severity: 'error', code: 'display-text-limit', message: `Un mensaje admite hasta ${MAX_DISPLAY_TEXT} caracteres.`, blockId: node.blockId });
@@ -2311,7 +2311,7 @@ function instructionToCpp(
     case 'displayWrite':
     case 'displayClear': {
       const device = context.scene.devices.find(device => device.id === instruction.deviceId);
-      const area = device?.kind === 'display' ? displayTargets(device.config).find(area => area.id === instruction.areaId) : undefined;
+      const area = device?.kind === 'display' && validDisplayConfig(device.config) ? displayTargets(device.config).find(area => area.id === instruction.areaId) : undefined;
       const call = area ? `capiDisplayWrite(${area.column}, ${area.row}, ${area.columns}, ${area.rows}, ${instruction.op === 'displayWrite' ? cppString(layoutDisplayText(instruction.text, area).cells) : 'nullptr'});` : '// Destino inválido: revisar el diagnóstico #error.';
       return `${comment}\n        ${call}\n        ${pc} = ${nextPc};\n        break;`;
     }

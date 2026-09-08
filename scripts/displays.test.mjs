@@ -138,6 +138,11 @@ assert.deepEqual(layoutDisplayText('\n\nZ', { columns: 4, rows: 3 }).lines, [
 assert.equal(layoutDisplayText('áñü😀', { columns: 4, rows: 1 }).cells, 'anu?');
 assert.equal(layoutDisplayText('ABCDE', { columns: 4, rows: 1 }).clipped, true);
 const config = displayConfig('ssd1306');
+assert.equal(
+  layoutDisplayText(String.fromCharCode(92, 126), { columns: 2, rows: 1 })
+    .cells,
+  '??',
+);
 const unfinished = addDeviceToScene(createEmptyScene('Borrador'), 'display', {
   config,
 }).scene;
@@ -154,6 +159,21 @@ assert.equal(
   'a bounded unfinished layout can be recovered locally',
 );
 assert.equal(validateScene(unfinished).canSimulate, false);
+unfinished.devices[0].config.profile = 'constructor';
+const invalidCode = generateEsp32CodeResult(
+  wrap([
+    {
+      op: 'displayWrite',
+      deviceId: unfinished.devices[0].id,
+      areaId: 'text-1',
+      text: 'Hola',
+      blockId: 'bad',
+    },
+  ]),
+  'Inválido',
+  unfinished,
+);
+assert.match(invalidCode.code, /#error/);
 for (const patch of [
   { profile: 'unknown' },
   { address: 0x27 },
