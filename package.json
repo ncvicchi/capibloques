@@ -16,6 +16,7 @@
     "test:display-driver": "node --experimental-strip-types scripts/display-driver.test.mjs",
     "test:idf": "node --experimental-strip-types scripts/idf.test.mjs",
     "test:idf-driver": "node --experimental-strip-types scripts/idf-driver.test.mjs",
+    "test:usb": "node --experimental-strip-types scripts/usb.test.mjs && node --experimental-strip-types scripts/usb-esptool.test.mjs",
     "test:e2e": "playwright test",
     "test": "npm run test:smoke && npm run test:e2e",
     "format": "oxfmt"

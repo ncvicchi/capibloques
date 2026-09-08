@@ -25,7 +25,7 @@ function UsbPanel({ account, store, job, currentFingerprint, onClose, onBuilds, 
   const [revoked, setRevoked] = useState(false);
   const [follow, setFollow] = useState(true);
   const busy = usbBusy(state), monitoring = state.stage === 'monitor';
-  const available = window.isSecureContext && 'serial' in navigator;
+  const available = window.isSecureContext && typeof navigator.serial?.requestPort === 'function';
   const usable = () => store.active && store.remoteAllowed && !sessionChangePending();
   const differs = job && (store.remote?.id !== job.projectId || store.remote.revision !== job.revision || store.remote.savedFingerprint !== currentFingerprint);
 
