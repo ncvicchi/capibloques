@@ -102,6 +102,8 @@ import type { Account, AccountDraftStore } from '@/lib/account-session';
 import type { EditorCheckpoint } from '@/components/editor-access';
 import ProjectLibrary, { type ProjectLibraryHandle } from '@/components/project-library';
 import FirmwareBuilds from '@/components/firmware-builds';
+import UsbBoard from '@/components/usb-board';
+import type { FirmwareJob } from '@/lib/usb-firmware';
 import { projectFingerprint } from '@/lib/project-library';
 
 const SceneBuilder = lazy(() => import('@/components/scene-builder'));
@@ -444,6 +446,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const [codeFramework, setCodeFramework] = useState<FirmwareFramework>('arduino');
   const [exportBusy, setExportBusy] = useState(false);
   const [buildsOpen, setBuildsOpen] = useState(false);
+  const [usbOpen, setUsbOpen] = useState(false);
+  const [usbJob, setUsbJob] = useState<FirmwareJob | null>(null);
   const exportInFlight = useRef(false);
   const exportEpoch = useRef(0);
   useEffect(() => { const current = ++exportEpoch.current; return () => { exportEpoch.current = current + 1; }; }, [account.id]);
@@ -1237,6 +1241,9 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                 <DropdownMenuItem disabled={offline || sceneBuilderOpen || !hydrated} onClick={() => setBuildsOpen(true)}>
                   <Settings2 /> Compilar y descargar firmware
                 </DropdownMenuItem>
+                <DropdownMenuItem disabled={offline || sceneBuilderOpen || !hydrated} onClick={() => { setUsbJob(null); setUsbOpen(true); }}>
+                  <Settings2 /> USB y monitor Serial
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={saveToBrowser}><Save />Guardar sólo en este navegador</DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
@@ -1701,7 +1708,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         </DialogContent>
       </Dialog>
 
-      {buildsOpen && !offline && <FirmwareBuilds account={account} store={draftStore} csrfToken={csrfToken} capture={currentProject} fingerprint={fingerprint} onClose={() => setBuildsOpen(false)} validate={framework => {
+      {usbOpen && !offline && <UsbBoard account={account} store={draftStore} job={usbJob} currentFingerprint={fingerprint} onClose={() => { setUsbOpen(false); setUsbJob(null); }} onBuilds={() => { setUsbOpen(false); setUsbJob(null); setBuildsOpen(true); }} />}
+      {buildsOpen && !offline && <FirmwareBuilds account={account} store={draftStore} csrfToken={csrfToken} capture={currentProject} fingerprint={fingerprint} onClose={() => setBuildsOpen(false)} onProgram={job => { setBuildsOpen(false); setUsbJob(job); setUsbOpen(true); }} validate={framework => {
         const generated = buildCode(framework);
         if (generated.diagnostics.some(item => item.severity === 'error')) { setProblemsOpen(true); return null; }
         if (hasPhysicalConnections(scene, generated.program) && wiringAcknowledgedSignature !== wiringReviewSignature(scene, generated.program)) {

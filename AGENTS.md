@@ -2,7 +2,7 @@
 
 ## Fases y autorización
 
-- Las fases del plan se numeran con enteros consecutivos, sin letras ni fases independientes presentadas como subfases. **Fases 0–9 implementadas y verificadas en DEV; pendientes 10–11**, que requieren nueva autorización. Conservar los nombres de archivos históricos para no romper enlaces, pero comunicar progreso y autorización por el número de fase vigente.
+- Las fases del plan se numeran con enteros consecutivos, sin letras ni fases independientes presentadas como subfases. **Fases 0–9 entregadas; fase 10 completa autorizada y en implementación; fase 11 pendiente.** La autorización de fase 10 incluye USB/monitor y pruebas, no producción, ESP32-S3 ni backlog. No declarar verificación física sin placa identificada y resultados observados. Conservar nombres de archivos históricos, pero comunicar por el número vigente.
 
 - Trabajar una fase completa por vez. La fase 9 quedó entregada: cola durable, compiladores aislados en DEV para Arduino/ESP-IDF, firmware descargable, Wi-Fi privado autorizado y simultaneidad administrativa con techo 1 según medición. No aumentar recursos ni modificar PRD/gateway. No iniciar fases 10–11 ni otros pedidos del backlog sin nueva autorización. No pedir OK entre subfases de una fase completa autorizada. Informar alcance al comenzar y dar actualizaciones breves durante el trabajo; no pasar largos períodos sin informar al propietario.
 - Implementar, probar y entregar el resultado de la fase. No avanzar a la siguiente sin el OK del propietario. Informar pendientes o fallos sin presentarlos como completados.
