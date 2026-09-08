@@ -1,6 +1,6 @@
 # Fase 10 — USB y monitor Serial
 
-Autorización: «Empeza y termina la 10». **En implementación, no entregada.**
+Autorización: «Empeza y termina la 10». **Software implementado y desplegado en DEV. La fase no se cierra: queda pendiente la aceptación física.** El propietario confirmó el 8 de septiembre de 2026 que no dispone de una Wemos ahora; no se sustituye esa prueba por simulación ni se inicia fase 11.
 
 ## Alcance
 
@@ -18,7 +18,7 @@ No implementar controles de actuadores en vivo, TX/RX de bloques, ESP32-S3, UI d
 - [esptool-js de Espressif](https://github.com/espressif/esptool-js).
 - [Web Serial, permisos y liberación de lectores](https://developer.chrome.com/docs/capabilities/serial).
 
-Registrar aquí implementación, resultados y límites al cerrar la fase. Las pruebas simuladas de transporte no sustituyen grabar una placa física.
+Las pruebas simuladas de transporte no sustituyen grabar una placa física.
 
 ## Implementación y uso
 
@@ -36,6 +36,21 @@ Cancelar durante escritura puede dejar el firmware incompleto y exige volver a g
 La identidad se comprueba de nuevo antes de abrir el monitor y periódicamente mientras el diálogo está abierto. Cambio/revocación/cierre de sesión o pérdida conocida de acceso cancela USB y retira mensajes de la UI. Mantener la conexión al servidor durante la operación; una interrupción de acceso durante la grabación puede exigir repetirla. Las promesas viejas no pueden empezar otra escritura ni reutilizar el puerto de otra cuenta.
 
 Los binarios preparados viven sólo en memoria de la pestaña; al terminar se limpian los segmentos utilizados. No se escriben en localStorage, IndexedDB ni historial. Los mensajes Serial se limitan a 200 líneas/32 KiB, se muestran como texto y no se envían al servidor. Ni el trazado interno de esptool ni sus errores imprimen bytes privados. Esto no promete borrado forense de RAM/swap, del firmware de la placa o de descargas que el usuario haga por separado.
+
+## Verificación del software
+
+- `npm run test:usb`: 15 grupos de parser, autorización, ciclo de conexión, cancelación y memoria; cinco comprobaciones del adaptador de Espressif. Incluyen el `writeFlash` real de la biblioteca con respuestas de flash simuladas: un MD5 distinto rechaza la grabación. Writer rechazado libera el lock; un `open()` tardío tras cancelar se cierra; el puerto no se reasigna si su cierre falló. Los textos UTF-8 se acotan por bytes sin partir emojis.
+- Tipos, lint, smoke de editor/worker/programación/pantallas/historial/autoguardado, generador ESP-IDF, drivers C++ de pantalla/IDF y build de diez páginas estáticas correctos. `npm audit`: cero vulnerabilidades reportadas.
+- [CI general de implementación](https://github.com/ncvicchi/capibloques/actions/runs/34188535092), commit `a9d69a3`: cuatro jobs correctos, **165 pruebas Chromium**, backend, siete programas Arduino y siete ESP-IDF compilados. Sus pruebas USB sustituyen explícitamente el dispositivo/adaptador por dobles; no son evidencia física.
+- [CI general final de ciclo USB](https://github.com/ncvicchi/capibloques/actions/runs/34189286101), commit `8dd4676`: cuatro jobs correctos. Después, `c1e469b` acota la consola por bytes UTF-8 sin dividir emojis: verificado con los 15 grupos y cinco comprobaciones de `test:usb`, tipos/lint y **6/6 casos Chrome/Edge** de monitor, interrupción y revocación contra DEV (37 segundos). No se atribuye el CI anterior a ese ajuste posterior; la comprobación del ajuste fue dirigida a su alcance.
+- Chrome/Edge reales en esta PC contra DEV mediante el túnel: **30/30** casos de USB/compilación, repetidos **30/30** tras `8dd4676` (2,4 minutos). Permiso rechazado, navegador no disponible, confirmaciones, firmware anterior, ZIP corrupto, chip incompatible, revocación, error de verificación, interrupción, monitor silencioso, reapertura, cambio de sesión y layout de 390 px. No se arrancó un servidor local alternativo ni se modificaron proyectos reales para estas pruebas.
+- Compilación real de fixture Arduino en DEV: **91,9 s**, pico **534,8 MiB**, sin OOM; ZIP privado **309.339 bytes**, cuatro segmentos. Descarga autorizada y parser USB verificaron hashes y offsets `0x1000/0x8000/0xe000/0x10000`.
+- Compilación real de fixture ESP-IDF en DEV: **418,3 s**, pico **532,3 MiB**, sin OOM; ZIP privado **188.640 bytes**, tres segmentos. Descarga autorizada y parser USB verificaron hashes y offsets `0x1000/0x8000/0x10000`. El parser se ejecutó en un contenedor temporal restringido con sólo ese artefacto de prueba y checkout montados de lectura, sin red.
+- Ambas cuentas/proyectos sintéticos se retiraron mediante el probe y sus UUID exactos. Cero cuentas de esos probes y cero pedidos en cola/compilando al comprobar el cierre. Editor/API/DB saludables; compilador activo, concurrencia/techo 1, sin pausa. No se cambió imagen/receta del compilador, recursos, PRD, gateway, Proxmox ni Nginx. La VM conserva aproximadamente 11 GiB libres.
+
+Son pruebas de software y contratos de transporte, no mediciones de un aula ni prueba de ejecución en ESP32. Los ZIP producidos con la imagen inmutable de fase 9 conservan su nota histórica sobre USB; el flujo vigente de grabación es el documentado aquí y disponible en la web.
+
+Código publicado con commit/push y desplegado en DEV; esta actualización de resultados sólo cambia documentación. No quedan pruebas ni compilaciones de prueba ejecutándose. Se conserva el túnel de navegación y los servicios normales. El pedido de no revalidar sesión al recuperar el foco se agregó como entrada 8 del backlog, **sin implementarlo** ni modificar los disparadores de sesión existentes.
 
 ## Aceptación física pendiente
 
