@@ -10,13 +10,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  sceneComponentCatalog,
+  getPinRequirements,
   validateScene,
   wemosD1R32Pins,
   type SceneDefinition,
   type SceneDevice,
 } from '@/lib/scene-model';
 import type { CapiDiagnostic } from '@/lib/capiblocks';
+import { displayProfiles } from '@/lib/display-model';
 
 interface WiringGuideProps {
   open: boolean;
@@ -29,6 +30,7 @@ interface WiringGuideProps {
 }
 
 const deviceAdvice: Record<SceneDevice['kind'], string> = {
+  display: 'GPIO sólo a 3,3 V. LCD con backpack de 5 V: revisar pull-ups y usar adaptador de nivel I2C si corresponde. TFT: alimentación y retroiluminación según el módulo, nunca desde un GPIO. No se usa MISO ni el touch.',
   trafficLight: 'Una resistencia de 220–330 Ω en serie con cada LED.',
   robot: 'DRV8833, fuente para motores y GND compartido con la Wemos.',
   motor: 'DRV8833 y fuente para el motor; nunca lo conectes directo al GPIO.',
@@ -46,7 +48,7 @@ const deviceAdvice: Record<SceneDevice['kind'], string> = {
 
 function sceneSignature(scene: SceneDefinition, rawPins: number[]) {
   return JSON.stringify([
-    scene.devices.map((device) => [device.id, device.kind, device.pins]),
+    scene.devices.map((device) => [device.id, device.kind, device.pins, device.kind === 'display' ? device.config : null]),
     rawPins,
   ]);
 }
@@ -124,10 +126,7 @@ export default function WiringGuide({
     validation.hardwareReady &&
     !rawDiagnostics.some((item) => item.severity === 'error');
   const connectionRows = scene.devices.flatMap((device) => {
-    const catalog = sceneComponentCatalog.find(
-      (entry) => entry.kind === device.kind,
-    );
-    return (catalog?.pinRequirements ?? []).map((requirement) => {
+    return getPinRequirements(device).map((requirement) => {
       const pin = (device.pins as Record<string, number | null>)[
         requirement.key
       ];
@@ -230,6 +229,7 @@ export default function WiringGuide({
               {scene.devices.map((device) => (
                 <article key={device.id}>
                   <strong>{device.name}</strong>
+                  {device.kind === 'display' && <span>{displayProfiles[device.config.profile].name}{displayProfiles[device.config.profile].bus === 'i2c' ? ` · dirección 0x${device.config.address.toString(16).toUpperCase()}` : ' · orientación horizontal'}</span>}
                   <span>{deviceAdvice[device.kind]}</span>
                 </article>
               ))}

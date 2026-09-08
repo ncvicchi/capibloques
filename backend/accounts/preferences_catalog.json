@@ -38,6 +38,8 @@
     { "type": "capi_servo", "name": "Ángulo del servo", "category": "Movimiento" },
     { "type": "capi_wifi_connect", "name": "Conectar Wi-Fi", "category": "Wi-Fi" },
     { "type": "capi_wifi_connected", "name": "Wi-Fi conectado", "category": "Wi-Fi" },
-    { "type": "capi_serial", "name": "Mensaje en consola", "category": "Mensajes" }
+    { "type": "capi_serial", "name": "Mensaje en consola", "category": "Mensajes" },
+    { "type": "capi_display_write", "name": "Escribir en pantalla", "category": "Mensajes" },
+    { "type": "capi_display_clear", "name": "Borrar texto de pantalla", "category": "Mensajes" }
   ]
 }

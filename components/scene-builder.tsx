@@ -1,4 +1,5 @@
 'use client';
+import { DisplayProperties } from '@/components/display-properties';
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { InspectorDraft, SceneDraft } from '@/lib/scene-recovery';
@@ -837,6 +838,7 @@ function SceneBuilderSession({
                     <button
                       type="button"
                       key={component.kind}
+                      disabled={component.kind === 'display' && previewScene.devices.some(device => device.kind === 'display')}
                       onClick={() => addComponent(component.kind)}
                       title={component.description}
                       aria-label={`Agregar ${component.name}. ${component.childFriendlyControl}`}
@@ -844,7 +846,7 @@ function SceneBuilderSession({
                       <span aria-hidden="true">{component.icon}</span>
                       <span>
                         <strong>{component.name}</strong>
-                        <small>{component.childFriendlyControl}</small>
+                        <small>{component.kind === 'display' && previewScene.devices.some(device => device.kind === 'display') ? 'Una por proyecto: configurá la existente' : component.childFriendlyControl}</small>
                       </span>
                       <b aria-hidden="true">＋</b>
                     </button>
@@ -957,10 +959,11 @@ function SceneBuilderSession({
                     />
                   </label>
 
+                  {selected.kind === 'display' && <DisplayProperties key={selected.id} device={selected} onChange={next => updateSelectedDraft(() => next)} />}
                   <div className="pin-editor">
                     <h4>Conexiones</h4>
-                    {getPinRequirements(selected.kind).length ? (
-                      getPinRequirements(selected.kind).map((requirement) => {
+                    {getPinRequirements(selected).length ? (
+                      getPinRequirements(selected).map((requirement) => {
                         const value =
                           (selected.pins as Record<string, PinNumber>)[
                             requirement.key
@@ -1055,6 +1058,8 @@ function SceneBuilderSession({
                       type="button"
                       variant="outline"
                       onClick={duplicateSelected}
+                      disabled={selected.kind === 'display'}
+                      title={selected.kind === 'display' ? 'Una sola pantalla por proyecto' : undefined}
                     >
                       📄 Duplicar
                     </Button>

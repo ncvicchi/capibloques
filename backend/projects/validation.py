@@ -14,6 +14,7 @@ MAX_FILE_BYTES = 2_000_000
 TARGET = {"family": "esp32", "framework": "arduino", "coreMajor": 3, "coreVersion": "3.3.11", "boardProfile": "wemos-d1-r32", "fqbn": "esp32:esp32:d1_uno32"}
 BLOCKS = {"capi_" + name for name in ("start", "forever", "repeat", "wait", "if", "compare", "counter_compare", "counter_set", "counter_change", "traffic", "led", "pin_write", "robot", "motor", "servo", "buzzer", "tone", "button_pressed", "sensor_compare", "wifi_connect", "wifi_connected", "serial")}
 BLOCKS.add("capi_parallel")
+BLOCKS.update(("capi_display_write", "capi_display_clear"))
 PINS = {"trafficLight": ["red", "yellow", "green"], "robot": ["leftIn1", "leftIn2", "rightIn1", "rightIn2"], "motor": ["in1", "in2"], **{kind: ["signal"] for kind in ("led", "servo", "activeBuzzer", "passiveBuzzer", "button", "lightSensor", "potentiometer")}, "wifiNode": []}
 CONFIGS = {
     "trafficLight": {"redBrightness": (0, 100), "yellowBrightness": (0, 100), "greenBrightness": (0, 100)},
@@ -25,6 +26,34 @@ CONFIGS = {
     "wifiNode": {"status": ["idle", "connecting", "connected", "error"], "ssid": 64},
     "counter": {"value": (-1e308, 1e308), "mascot": 32},
 }
+PINS["display"] = ["sda", "scl", "sck", "mosi", "cs", "dc", "rst"]
+DISPLAY_PROFILES = {"lcd1602": (16, 2, False, "i2c"), "lcd2004": (20, 4, False, "i2c"), "ssd1306": (16, 8, True, "i2c"), "ili9341": (26, 15, True, "spi"), "ili9488": (40, 20, True, "spi")}
+
+
+def display_config(config):
+    exact(config, ("profile", "address", "areas", "retiredAreaIds"))
+    require(isinstance(config["profile"], str) and config["profile"] in DISPLAY_PROFILES)
+    columns, rows, graphic, bus = DISPLAY_PROFILES[config["profile"]]
+    require(type(config["address"]) is int and (config["address"] == 0 if bus == "spi" else config["address"] in ([0x3c, 0x3d] if config["profile"] == "ssd1306" else [*range(0x20, 0x28), *range(0x38, 0x40)])))
+    areas, retired = config["areas"], config["retiredAreaIds"]
+    require(isinstance(areas, list) and len(areas) <= 8 and (graphic or not areas))
+    require(isinstance(retired, list) and len(retired) <= 4096)
+    ids, names = {"screen"}, set()
+    for area in areas:
+        exact(area, ("id", "name", "column", "row", "columns", "rows"))
+        require(identifier(area["id"]) and area["id"] not in ids and text(area["name"], 40, 1) and area["name"].strip())
+        name = re.sub(r"\s+", " ", re.sub(r"[\u0300-\u036f]", "", unicodedata.normalize("NFKD", area["name"]))).strip().lower()
+        require(name not in names)
+        ids.add(area["id"])
+        names.add(name)
+        require(all(type(area[key]) is int for key in ("column", "row", "columns", "rows")))
+        require(0 <= area["column"] < columns and 0 <= area["row"] < rows and 1 <= area["columns"] <= columns - area["column"] and 1 <= area["rows"] <= rows - area["row"])
+    for index, area in enumerate(areas):
+        require(not any(area["column"] < other["column"] + other["columns"] and other["column"] < area["column"] + area["columns"] and area["row"] < other["row"] + other["rows"] and other["row"] < area["row"] + area["rows"] for other in areas[index + 1:]))
+    for key in retired:
+        require(identifier(key) and key not in ids)
+        ids.add(key)
+    return ["sda", "scl"] if bus == "i2c" else ["sck", "mosi", "cs", "dc", "rst"]
 
 
 def require(condition, message="El proyecto contiene una estructura o valores no compatibles."):
@@ -136,6 +165,7 @@ def scene(value):
     require(canvas["background"] in ("park", "workshop", "home", "pond", "blank") and type(canvas["snapToGrid"]) is bool)
     require(isinstance(value["devices"], list) and isinstance(value["widgets"], list) and len(value["devices"]) + len(value["widgets"]) <= 256 and len(value["widgets"]) <= 1)
     ids, names = set(), set()
+    display_count = 0
     for is_widget, items in ((False, value["devices"]), (True, value["widgets"])):
         for item in items:
             exact(item, ("schemaVersion", "id", "kind", "name", "position", "config") if is_widget else ("schemaVersion", "id", "kind", "name", "position", "config", "pins", "rotation"))
@@ -151,8 +181,14 @@ def scene(value):
             kind = item["kind"]
             require(isinstance(kind, str) and (kind == "counter" if is_widget else kind in PINS))
             config = item["config"]
-            exact(config, CONFIGS[kind])
-            for key, rule in CONFIGS[kind].items():
+            if kind == "display":
+                display_count += 1
+                require(display_count <= 1, "Cada proyecto admite una sola pantalla.")
+                used_pins = display_config(config)
+                require(isinstance(item["pins"], dict) and all(item["pins"].get(key) is None for key in PINS[kind] if key not in used_pins))
+            else:
+                exact(config, CONFIGS[kind])
+            for key, rule in CONFIGS.get(kind, {}).items():
                 setting = config[key]
                 require(type(setting) is bool if rule is bool else number(setting, *rule) if isinstance(rule, tuple) else text(setting, rule) if type(rule) is int else setting in rule)
             if not is_widget:

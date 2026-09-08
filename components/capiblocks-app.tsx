@@ -110,7 +110,7 @@ function wiringReviewSignature(
   program: CompiledProgram,
 ) {
   return JSON.stringify([
-    scene.devices.map((device) => [device.id, device.kind, device.pins]),
+    scene.devices.map((device) => [device.id, device.kind, device.pins, device.kind === 'display' ? device.config : null]),
     collectRawOutputPins(program, scene),
   ]);
 }
@@ -191,6 +191,7 @@ function runtimeFromDevice(
   scene: SceneDefinition,
 ): RuntimeDeviceState {
   switch (device.kind) {
+    case 'display': return { kind: 'display', texts: {} };
     case 'trafficLight':
       return { kind: device.kind, color: 'OFF' };
     case 'led':
@@ -364,6 +365,7 @@ function DeviceStateCard({
     lightSensor: '☀️',
     potentiometer: '🎚️',
     wifiNode: '📶',
+    display: '📺',
   };
   return (
     <article>
@@ -760,7 +762,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   );
 
   const loadExample = useCallback(
-    (id: SceneId) => {
+    (id: SceneId | 'display') => {
       const applyExample = () => {
       libraryRef.current?.detach();
       const example = examples.find((item) => item.id === id) ?? examples[0];

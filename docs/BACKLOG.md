@@ -41,6 +41,18 @@ Precisar al diseñar: qué vista corre en el navegador y cuál en el display fí
 
 Precisar al diseñar: selección de UART, TX/RX, velocidad, fin de mensaje, codificación, tamaño máximo, espera/timeout y estado «sin mensaje». No confundir ausencia de datos con una comparación distinta. Las lecturas y esperas deben ser no bloqueantes; validar conflictos con otros componentes y puertos reservados.
 
-## Relación con el plan vigente
+## 4. Disposición de «Al mismo tiempo»
+
+Pedido durante la implementación de fase 7: cambiar la disposición del bloque a **vertical en lugar de horizontal**, para poder ver los hilos en paralelo. Validar la propuesta visual con el propietario antes de implementarla, preservando orden, conexiones, deshacer/rehacer y proyectos existentes. Sólo registrado; no cambia la fase 7 en curso.
+
+## 5. Bloques estáticos al ejecutar
+
+La vista se desplaza sola en cada paso, incluso cuando el programa completo ya está visible; al crecer, los saltos confunden. El propietario pide **dejar estático el programa durante la ejecución**. Mantener resaltado del paso actual sin mover automáticamente el lienzo. Sólo registrado; no cambiar ahora el seguimiento de ejecución.
+
+## 6. Separar catálogo y programa
+
+El panel de bloques de una categoría se mezcla visualmente con los bloques del programa. Separar claramente ambas superficies. El catálogo puede superponerse temporalmente al elegir una categoría y ocultarse después, dejando el programa despejado. Verificar arrastre, cierre, foco y teclado en Chrome/Edge. Sólo registrado; no implementar durante fase 7.
+
+## Relación actualizada con el plan vigente
 
 Estos pedidos cruzan la UX de la fase 6 y las futuras fases de mensajes/display, generadores, compilación y USB. Se incorporarán explícitamente al [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) antes de iniciar su implementación, con alcance y orden acordados. El rediseño general sigue pendiente aunque las funciones de fase 6 estén entregadas; el backlog no demuestra soporte funcional disponible.

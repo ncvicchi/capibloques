@@ -143,8 +143,12 @@ function finiteDegrees(value: number) {
       : normalized;
 }
 
+// @ts-expect-error Node strip-types runner.
+import { displayTargets, layoutDisplayText } from './display-model.ts';
+
 function runtimeForDevice(device: SceneDevice): RuntimeDeviceState {
   switch (device.kind) {
+    case 'display': return { kind: 'display', texts: Object.fromEntries(displayTargets(device.config).map(area => [area.id, layoutDisplayText('', area).lines])) };
     case 'trafficLight':
       return { kind: 'trafficLight', color: 'OFF' };
     case 'led':
@@ -721,6 +725,14 @@ function executeInstruction(
       state.counter = normalizeCounterValue(node.value);
       appendConsole(`Contador = ${state.counter}`);
       break;
+    case 'displayWrite':
+    case 'displayClear': {
+      const device = state.devices[node.deviceId];
+      const definition = scene.devices.find(device => device.id === node.deviceId);
+      const area = definition?.kind === 'display' ? displayTargets(definition.config).find(area => area.id === node.areaId) : undefined;
+      if (device?.kind === 'display' && area) device.texts[node.areaId] = layoutDisplayText(node.op === 'displayWrite' ? node.text : '', area).lines;
+      break;
+    }
     case 'counterChange':
       state.counter = addCounterValues(state.counter, node.delta);
       appendConsole(`Contador = ${state.counter}`);
@@ -764,6 +776,8 @@ function executeOne(execution: ThreadExecution) {
       case 'wait': message = `Esperamos ${Math.max(0, node.ms) / 1000} segundos sin bloquear los otros caminos.`; break;
       case 'wifi': message = 'Buscamos una red Wi-Fi.'; break;
       case 'buzzer': case 'tone': message = `${deviceName(node.deviceId)}: suena durante ${node.durationMs / 1000} segundos.`; break;
+      case 'displayWrite': message = `${deviceName(node.deviceId)}: escribimos «${node.text.slice(0, 80)}».`; break;
+      case 'displayClear': message = `${deviceName(node.deviceId)}: borramos la zona de texto elegida.`; break;
       default: message = state.console !== consoleBefore ? state.console.at(-1)!.replace(/^[^·]*· /, '') : 'Acción ejecutada.';
     }
   }

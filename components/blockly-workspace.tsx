@@ -1,4 +1,5 @@
 'use client';
+import { displayTargets } from '@/lib/display-model';
 
 import {
   forwardRef,
@@ -48,6 +49,8 @@ interface BlocklyWorkspaceProps {
 }
 
 const DEVICE_FIELD = 'DEVICE_ID';
+const AREA_FIELD = 'AREA_ID';
+const serializedAreaIds = new WeakMap<BlocklyWorkspaceSvg, Map<string, string>>();
 const EMPTY_FAVORITES: readonly string[] = [];
 const DEVICE_EXTENSION = 'capi_device_target_v2';
 const DEVICE_WARNING = 'capi-device-target';
@@ -75,6 +78,7 @@ const deviceLabels: Record<SceneDeviceKind, string> = {
   lightSensor: 'un sensor de luz',
   potentiometer: 'un potenciómetro',
   wifiNode: 'una conexión Wi-Fi',
+  display: 'una pantalla',
 };
 
 function targetWorkspaceForBlock(block: BlocklyBlock) {
@@ -84,6 +88,8 @@ function targetWorkspaceForBlock(block: BlocklyBlock) {
 
 function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
   switch (block.type) {
+    case 'capi_display_write':
+    case 'capi_display_clear': return ['display'];
     case 'capi_traffic':
       return ['trafficLight'];
     case 'capi_led':
@@ -184,6 +190,33 @@ function updateDeviceWarning(block: BlocklyBlock) {
     compatible ? null : 'Elige un dispositivo que esté colocado en la escena.',
     DEVICE_WARNING,
   );
+  if (block.getField(AREA_FIELD)) {
+    const device = devicesForBlock(block).find(device => device.id === value);
+    const areaId = block.getFieldValue(AREA_FIELD);
+    block.setWarningText(device?.kind === 'display' && displayTargets(device.config).some(area => area.id === areaId) ? null : 'Elegí una zona de texto existente en esta pantalla.', 'display-area');
+  }
+}
+
+function areaMenuGenerator(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
+  const block = this.getSourceBlock();
+  if (!block) return [['Elegí una pantalla', '__missing_area__']];
+  const workspace = targetWorkspaceForBlock(block);
+  const deviceId = serializedDeviceIds.get(workspace)?.get(block.id) ?? block.getFieldValue(DEVICE_FIELD);
+  const device = devicesForBlock(block).find(device => device.id === deviceId);
+  const options: BlocklyMenuOption[] = device?.kind === 'display' ? displayTargets(device.config).map(area => [area.name, area.id]) : [];
+  const current = serializedAreaIds.get(workspace)?.get(block.id) ?? this.getValue();
+  if (current && current !== '__missing_area__' && !options.some(option => option[1] === current)) options.push([`⚠️ Zona retirada (${current})`, current]);
+  return options.length ? options : [['Agregá una zona de texto', '__missing_area__']];
+}
+
+function refreshAreaField(block: BlocklyBlock) {
+  const field = block.getField(AREA_FIELD) as BlocklyFieldDropdown | null;
+  if (!field) return;
+  const previous = field.getValue();
+  field.setOptions(areaMenuGenerator);
+  if (field.getOptions(false).some(option => option[1] === previous)) field.setValue(previous);
+  field.forceRerender();
+  updateDeviceWarning(block);
 }
 
 function refreshDeviceField(block: BlocklyBlock) {
@@ -208,6 +241,7 @@ function refreshDeviceField(block: BlocklyBlock) {
     : options[0][1];
   dropdown.setValue(nextValue);
   dropdown.forceRerender();
+  refreshAreaField(block);
   updateDeviceWarning(block);
   return previous !== nextValue;
 }
@@ -229,7 +263,7 @@ function refreshDeviceFields(
   return changed;
 }
 
-function collectSerializedDeviceIds(value: unknown) {
+function collectSerializedDeviceIds(value: unknown, fieldName = DEVICE_FIELD) {
   const result = new Map<string, string>();
   const visit = (candidate: unknown) => {
     if (Array.isArray(candidate)) {
@@ -243,9 +277,9 @@ function collectSerializedDeviceIds(value: unknown) {
       typeof record.id === 'string' &&
       fields &&
       typeof fields === 'object' &&
-      typeof (fields as Record<string, unknown>)[DEVICE_FIELD] === 'string'
+      typeof (fields as Record<string, unknown>)[fieldName] === 'string'
     ) {
-      result.set(record.id, (fields as Record<string, string>)[DEVICE_FIELD]);
+      result.set(record.id, (fields as Record<string, string>)[fieldName]);
     }
     Object.values(record).forEach(visit);
   };
@@ -343,7 +377,7 @@ const toolbox = {
       kind: 'category',
       name: 'Mensajes',
       colour: '#59627D',
-      contents: [{ kind: 'block', type: 'capi_serial' }],
+      contents: [{ kind: 'block', type: 'capi_serial' }, { kind: 'block', type: 'capi_display_write' }, { kind: 'block', type: 'capi_display_clear' }],
     },
   ],
 };
@@ -357,6 +391,7 @@ function registerBlocks(Blockly: BlocklyApi) {
           DEVICE_FIELD,
         ) as BlocklyFieldDropdown | null;
         field?.setOptions(deviceMenuGenerator);
+        (this.getField(AREA_FIELD) as BlocklyFieldDropdown | null)?.setOptions(areaMenuGenerator);
         updateDeviceWarning(this);
       },
     );
@@ -825,13 +860,25 @@ function registerBlocks(Blockly: BlocklyApi) {
     },
     {
       type: 'capi_serial',
-      message0: '💬 mostrar %1',
+      message0: '💬 escribir en consola %1',
       args0: [{ type: 'field_input', name: 'TEXT', text: '¡Hola!' }],
       previousStatement: null,
       nextStatement: null,
       colour: '#59627D',
       tooltip:
         'Escribe un mensaje en el monitor serial y en la consola simulada.',
+    },
+    {
+      type: 'capi_display_write', message0: '📺 en %1 zona %2 escribir %3',
+      args0: [deviceField('Elegí una pantalla'), { type: 'field_dropdown', name: AREA_FIELD, options: [['Elegí una zona', '__missing_area__']] }, { type: 'field_input', name: 'TEXT', text: 'Hola, mundo!' }],
+      previousStatement: null, nextStatement: null, colour: '#59627D', extensions: [DEVICE_EXTENSION],
+      tooltip: 'Reemplaza el texto de este destino, ajustándolo a sus filas y columnas. No lo envía a consola.',
+    },
+    {
+      type: 'capi_display_clear', message0: '🧽 en %1 borrar zona %2',
+      args0: [deviceField('Elegí una pantalla'), { type: 'field_dropdown', name: AREA_FIELD, options: [['Elegí una zona', '__missing_area__']] }],
+      previousStatement: null, nextStatement: null, colour: '#59627D', extensions: [DEVICE_EXTENSION],
+      tooltip: 'Borra solamente el destino elegido. Las otras zonas conservan sus mensajes.',
     },
   ]);
   Blockly.Blocks['capi_parallel'] = {
@@ -1081,6 +1128,12 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           blockId,
         });
         break;
+      case 'capi_display_write':
+        result.push({ op: 'displayWrite', deviceId: selectedDeviceId(block), areaId: String(block.getFieldValue(AREA_FIELD) ?? ''), text: String(block.getFieldValue('TEXT') ?? ''), blockId });
+        break;
+      case 'capi_display_clear':
+        result.push({ op: 'displayClear', deviceId: selectedDeviceId(block), areaId: String(block.getFieldValue(AREA_FIELD) ?? ''), blockId });
+        break;
     }
     block = block.getNextBlock();
   }
@@ -1120,6 +1173,8 @@ function loadWorkspaceData(
     unknown
   >;
   const previousDeviceIds = serializedDeviceIds.get(workspace) ?? new Map();
+  const previousAreaIds = serializedAreaIds.get(workspace) ?? new Map();
+  serializedAreaIds.set(workspace, collectSerializedDeviceIds(data, AREA_FIELD));
   serializedDeviceIds.set(workspace, collectSerializedDeviceIds(data));
   Blockly.Events.disable();
   workspace.setResizesEnabled(false);
@@ -1132,6 +1187,7 @@ function loadWorkspaceData(
   } catch (error) {
     workspace.clear();
     serializedDeviceIds.set(workspace, previousDeviceIds);
+    serializedAreaIds.set(workspace, previousAreaIds);
     try {
       Blockly.serialization.workspaces.load(previous, workspace);
     } catch {
@@ -1220,7 +1276,7 @@ const BlocklyWorkspace = forwardRef<
   const keyboardStatusRef = useRef<HTMLOutputElement>(null);
   const [ready, setReady] = useState(false);
   const deviceSignature = JSON.stringify(
-    devices.map(({ id, kind, name }) => [id, kind, name]),
+    devices.map(device => [device.id, device.kind, device.name, device.kind === 'display' ? device.config : null]),
   );
 
   useEffect(() => {
@@ -1342,6 +1398,11 @@ const BlocklyWorkspace = forwardRef<
               change.blockId
             ) {
               serializedDeviceIds.get(workspace)?.delete(change.blockId);
+              const block = workspace.getBlockById(change.blockId);
+              if (block) { refreshAreaField(block); updateDeviceWarning(block); }
+            }
+            if (change.element === 'field' && change.name === AREA_FIELD && change.blockId) {
+              serializedAreaIds.get(workspace)?.delete(change.blockId);
               const block = workspace.getBlockById(change.blockId);
               if (block) updateDeviceWarning(block);
             }

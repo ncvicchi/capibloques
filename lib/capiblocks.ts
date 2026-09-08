@@ -18,6 +18,10 @@ import {
 } from './scene-model.ts';
 
 export type SceneId = LegacySceneId;
+// @ts-expect-error Node strip-types runner.
+import { displayTargets, layoutDisplayText, MAX_DISPLAY_TEXT } from './display-model.ts';
+// @ts-expect-error Node strip-types runner.
+import { displayArduinoSupport } from './display-arduino.ts';
 
 export type CompareOperator = 'EQ' | 'NEQ' | 'LT' | 'LTE' | 'GT' | 'GTE';
 
@@ -81,6 +85,8 @@ export type ProgramNode =
   | { op: 'counterSet'; value: number; blockId: string }
   | { op: 'counterChange'; delta: number; blockId: string }
   | { op: 'serial'; text: string; blockId: string }
+  | { op: 'displayWrite'; deviceId: string; areaId: string; text: string; blockId: string }
+  | { op: 'displayClear'; deviceId: string; areaId: string; blockId: string }
   | {
       op: 'tone';
       deviceId: string;
@@ -161,7 +167,7 @@ export interface ProjectDecodeResult {
 }
 
 export interface ExampleDefinition {
-  id: SceneId;
+  id: SceneId | 'display';
   title: string;
   mission: string;
   description: string;
@@ -189,6 +195,7 @@ export type WifiRuntimeState =
   | 'error';
 
 export type RuntimeDeviceState =
+  | { kind: 'display'; texts: Record<string, string[]> }
   | {
       kind: 'trafficLight';
       color: 'RED' | 'YELLOW' | 'GREEN' | 'OFF';
@@ -521,6 +528,18 @@ export const examples: ExampleDefinition[] = [
     scene: createSceneFromTemplate('wifi'),
     workspace: wifiWorkspace,
   },
+  {
+    id: 'display', title: 'Mensajes para la plaza', icon: '📺', level: 'Inicial',
+    mission: 'Escribí en la pantalla, esperá para leer y borrá el mensaje. La consola es otro destino.',
+    description: 'Una LCD de 16 × 2; podés cambiar el modelo desde Armar escena.',
+    scene: addDeviceToScene(createEmptyScene('Mensajes para la plaza'), 'display', { id: 'display-1', position: { x: 480, y: 270 } }).scene,
+    workspace: startWorkspace(chain(
+      { type: 'capi_display_write', id: 'display-hello', fields: { DEVICE_ID: 'display-1', AREA_ID: 'screen', TEXT: 'Hola, explorador!' } },
+      { type: 'capi_wait', id: 'display-read', fields: { SECONDS: 3 } },
+      { type: 'capi_display_clear', id: 'display-clean', fields: { DEVICE_ID: 'display-1', AREA_ID: 'screen' } },
+      { type: 'capi_serial', id: 'display-console', fields: { TEXT: 'Este mensaje va a la consola.' } },
+    )),
+  },
 ];
 
 /** Legacy export kept for callers that show the original kit table. */
@@ -642,6 +661,8 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_wifi_connect',
   'capi_wifi_connected',
   'capi_serial',
+  'capi_display_write',
+  'capi_display_clear',
 ]);
 
 interface WorkspaceDecodeResult {
@@ -1083,6 +1104,8 @@ const blockKind = (block: Record<string, unknown>): SceneDeviceKind | null => {
       ? (block.fields as Record<string, unknown>)
       : {};
   switch (type) {
+    case 'capi_display_write':
+    case 'capi_display_clear': return 'display';
     case 'capi_traffic':
       return 'trafficLight';
     case 'capi_led':
@@ -1415,6 +1438,8 @@ const compatibleKindsForNode = (
   node: Record<string, unknown>,
 ): SceneDeviceKind[] => {
   switch (node.op) {
+    case 'displayWrite':
+    case 'displayClear': return ['display'];
     case 'traffic':
       return ['trafficLight'];
     case 'led':
@@ -1655,6 +1680,12 @@ function normalizeNodes(
           blockId,
         });
         break;
+      case 'displayWrite':
+        result.push({ op: 'displayWrite', deviceId: typeof node.deviceId === 'string' ? node.deviceId : '', areaId: typeof node.areaId === 'string' ? node.areaId : '', text: typeof node.text === 'string' ? node.text : '', blockId });
+        break;
+      case 'displayClear':
+        result.push({ op: 'displayClear', deviceId: typeof node.deviceId === 'string' ? node.deviceId : '', areaId: typeof node.areaId === 'string' ? node.areaId : '', blockId });
+        break;
       case 'repeat':
         result.push({
           op: 'repeat',
@@ -1880,6 +1911,19 @@ export function validateProgramForScene(
     diagnostics.push({ severity: 'error', code: 'parallel-limit', message: error instanceof Error ? error.message : 'Demasiados caminos paralelos.' });
   }
   visitProgram(program, (node) => {
+    if (node.op === 'displayWrite' || node.op === 'displayClear') {
+      const device = deviceMap.get(node.deviceId);
+      const area = device?.kind === 'display' ? displayTargets(device.config).find(area => area.id === node.areaId) : undefined;
+      if (device?.kind === 'display' && !area) diagnostics.push({ severity: 'error', code: 'display-area-missing', message: `${device.name}: elegí una zona de texto existente. La anterior fue retirada o cambió el modelo.`, blockId: node.blockId, deviceId: node.deviceId });
+      if (node.op === 'displayWrite') {
+        if (node.text.length > MAX_DISPLAY_TEXT) diagnostics.push({ severity: 'error', code: 'display-text-limit', message: `Un mensaje admite hasta ${MAX_DISPLAY_TEXT} caracteres.`, blockId: node.blockId });
+        if (area) {
+          const layout = layoutDisplayText(node.text, area);
+          if (layout.converted) diagnostics.push({ severity: 'warning', code: 'display-text-converted', message: 'Pantalla: se quitan tildes y los símbolos no compatibles se muestran como ?. La vista previa usa el mismo texto que la placa.', blockId: node.blockId });
+          if (layout.clipped) diagnostics.push({ severity: 'warning', code: 'display-text-clipped', message: 'El mensaje no cabe completo en su destino. Se muestra solamente la parte que entra.', blockId: node.blockId });
+        }
+      }
+    }
     if (node.op === 'parallel' && (node.branches.length < 2 || node.branches.length > 16)) diagnostics.push({ severity: 'error', code: 'parallel-branches', message: '«Al mismo tiempo» necesita entre 2 y 16 caminos.', blockId: node.blockId });
     const kinds = expectedKinds(node);
     if (kinds.length) {
@@ -2264,6 +2308,13 @@ function instructionToCpp(
       return `${comment}\n        counterValue = addCounter(counterValue, ${normalizeCounterValue(instruction.delta)});\n        ${pc} = ${nextPc};\n        break;`;
     case 'serial':
       return `${comment}\n        Serial.println(${cppString(instruction.text)});\n        ${pc} = ${nextPc};\n        break;`;
+    case 'displayWrite':
+    case 'displayClear': {
+      const device = context.scene.devices.find(device => device.id === instruction.deviceId);
+      const area = device?.kind === 'display' ? displayTargets(device.config).find(area => area.id === instruction.areaId) : undefined;
+      const call = area ? `capiDisplayWrite(${area.column}, ${area.row}, ${area.columns}, ${area.rows}, ${instruction.op === 'displayWrite' ? cppString(layoutDisplayText(instruction.text, area).cells) : 'nullptr'});` : '// Destino inválido: revisar el diagnóstico #error.';
+      return `${comment}\n        ${call}\n        ${pc} = ${nextPc};\n        break;`;
+    }
     case 'repeatStart':
       return `${comment}\n        if (${loops}[${instruction.slot}] < 0) ${loops}[${instruction.slot}] = ${instruction.count};\n        if (${loops}[${instruction.slot}] == 0) { ${loops}[${instruction.slot}] = -1; ${pc} = ${instruction.end}; }\n        else { ${pc} = ${nextPc}; }\n        break;`;
     case 'repeatNext':
@@ -2310,6 +2361,7 @@ function deviceDeclarations(
           return `constexpr MotorDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.in1)}, ${gpioOrPlaceholder(device.pins.in2)}}; // ${cppLineComment(device.name)}`;
         case 'wifiNode':
           return `// ${cppLineComment(device.name)}: radio Wi-Fi integrada, sin GPIO externo.`;
+        case 'display': return '// Pantalla configurada en capiScreen.';
         default:
           return `constexpr uint8_t PIN_${symbol} = ${label(device.pins.signal)}`;
       }
@@ -2457,6 +2509,7 @@ export function generateEsp32CodeResult(
     })),
   );
   const usesWifi = programUsesWifi(program);
+  const displaySupport = displayArduinoSupport(scene);
   const wifiHeader = usesWifi
     ? `#include <WiFi.h>
 
@@ -2532,6 +2585,7 @@ ${cases}
 
 #include <Arduino.h>
 ${wifiHeader}${diagnosticHeader}
+${displaySupport}
 struct TrafficDevice { uint8_t red; uint8_t yellow; uint8_t green; };
 struct RobotDevice { uint8_t leftIn1; uint8_t leftIn2; uint8_t rightIn1; uint8_t rightIn2; };
 struct MotorDevice { uint8_t in1; uint8_t in2; };
@@ -2591,11 +2645,13 @@ ${threadFunctions}
 void setup() {
   Serial.begin(115200);
 ${setupLines(scene, symbols)}
+${displaySupport ? '  capiDisplayBegin();' : ''}
 }
 
 void loop() {
   const uint32_t now = millis();
 ${serviceBuzzerLines(scene, symbols)}
+${displaySupport ? '  capiDisplayService(now);' : ''}
   if ((uint32_t)(now - lastSchedulerTick) < SCHEDULER_QUANTUM_MS) {
     yield();
     return;

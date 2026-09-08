@@ -6,6 +6,9 @@
  * without loading the visual editor.
  */
 
+// @ts-expect-error Node strip-types tests import the source extension.
+import { displayConfig, displayPins, displayPinKeys, requiredDisplayPins, validDisplayConfig, type DisplayConfig, type DisplayPinKey } from './display-model.ts';
+
 export const SCENE_SCHEMA_VERSION = 1 as const;
 
 export const legacySceneIds = ['traffic', 'robot', 'wifi', 'counter'] as const;
@@ -24,6 +27,7 @@ export const sceneDeviceKinds = [
   'lightSensor',
   'potentiometer',
   'wifiNode',
+  'display',
 ] as const;
 
 export type SceneDeviceKind = (typeof sceneDeviceKinds)[number];
@@ -138,6 +142,7 @@ export type WifiNodeDevice = SceneDeviceBase<
 >;
 
 export interface SceneDeviceByKind {
+  display: DisplayDevice;
   trafficLight: TrafficLightDevice;
   robot: RobotDevice;
   motor: MotorDevice;
@@ -152,6 +157,7 @@ export interface SceneDeviceByKind {
 }
 
 export type SceneDevice = SceneDeviceByKind[SceneDeviceKind];
+export type DisplayDevice = SceneDeviceBase<'display', Record<DisplayPinKey, PinNumber>, DisplayConfig>;
 
 export interface CounterWidget {
   schemaVersion: typeof SCENE_SCHEMA_VERSION;
@@ -350,9 +356,11 @@ const requirementsByKind: Record<SceneDeviceKind, readonly PinRequirement[]> = {
     { key: 'signal', label: 'Lectura de posición', capability: 'analogInput' },
   ],
   wifiNode: [],
+  display: displayPinKeys.map(key => ({ key, label: key.toUpperCase(), capability: 'pwmOutput' })),
 };
 
 export const sceneComponentCatalog: readonly SceneComponentCatalogEntry[] = [
+  { kind: 'display', icon: '📺', name: 'Pantalla de mensajes', description: 'LCD, OLED o TFT con zonas de texto.', childFriendlyControl: 'Escribir y borrar mensajes', pinRequirements: requirementsByKind.display },
   {
     kind: 'trafficLight',
     icon: '🚦',
@@ -460,6 +468,7 @@ const kindIdBases: Record<SceneDeviceKind, string> = {
   lightSensor: 'light-sensor',
   potentiometer: 'potentiometer',
   wifiNode: 'wifi-node',
+  display: 'display',
 };
 
 const defaultCanvas: SceneCanvas = {
@@ -484,7 +493,7 @@ function cloneDevice(device: SceneDevice): SceneDevice {
     ...device,
     position: { ...device.position },
     pins: { ...device.pins },
-    config: { ...device.config },
+    config: structuredClone(device.config),
   } as SceneDevice;
 }
 
@@ -654,6 +663,9 @@ function unassignedDevice<K extends SceneDeviceKind>(
 
   let device: SceneDevice;
   switch (kind) {
+    case 'display':
+      device = { ...base, kind, pins: displayPins(), config: displayConfig((options.config as Partial<DisplayConfig> | undefined)?.profile) };
+      break;
     case 'trafficLight':
       device = {
         ...base,
@@ -756,7 +768,7 @@ function unassignedDevice<K extends SceneDeviceKind>(
   return {
     ...device,
     pins: { ...device.pins, ...options.pins },
-    config: { ...device.config, ...options.config },
+    config: structuredClone({ ...device.config, ...options.config }),
   } as SceneDeviceByKind[K];
 }
 
@@ -800,7 +812,7 @@ interface PinSlot {
 
 function collectPinSlots(devices: readonly SceneDevice[]): PinSlot[] {
   return devices.flatMap((device, deviceIndex) =>
-    requirementsByKind[device.kind].map((requirement) => ({
+    getPinRequirements(device).map((requirement) => ({
       deviceIndex,
       deviceId: device.id,
       deviceName: device.name,
@@ -847,8 +859,7 @@ export function assignSafePins(
     const currentIsUsable =
       current !== null &&
       pinSupports(current, slot.capability) &&
-      owner?.deviceId === slot.deviceId &&
-      owner.key === slot.key;
+      owner?.deviceId === slot.deviceId && owner.key === slot.key;
 
     if (currentIsUsable) continue;
 
@@ -941,6 +952,7 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
       `Una escena admite hasta ${MAX_SCENE_ITEMS} componentes para mantener el editor fluido.`,
     );
   }
+  if (kind === 'display' && scene.devices.some(device => device.kind === 'display')) throw new Error('Cada proyecto admite una sola pantalla. Configurá la pantalla existente.');
   const reservedIds = [
     ...scene.devices.map((item) => item.id),
     ...scene.widgets.map((item) => item.id),
@@ -971,6 +983,7 @@ export function duplicateSceneDevice(
 ): AddDeviceResult | null {
   const original = source.devices.find((device) => device.id === deviceId);
   if (!original) return null;
+  if (original.kind === 'display') return null;
   const pins = Object.fromEntries(
     Object.keys(original.pins).map((key) => [key, null]),
   );
@@ -1313,7 +1326,9 @@ export type SceneValidationIssueCode =
   | 'button-external-bias-required'
   | 'external-motor-power'
   | 'external-servo-power'
-  | 'led-resistor-required';
+  | 'led-resistor-required'
+  | 'invalid-display'
+  | 'display-limit';
 
 export interface SceneValidationIssue {
   code: SceneValidationIssueCode;
@@ -1411,6 +1426,16 @@ export function validateScene(scene: SceneDefinition): SceneValidationResult {
   const ids = new Set<string>();
   const visibleNames = new Map<string, string>();
   const occupied = new Map<number, PinSlot>();
+  const displays = scene.devices.filter((device): device is DisplayDevice => device.kind === 'display');
+  if (displays.length > 1) issues.push({ code: 'display-limit', severity: 'error', message: 'Cada proyecto admite una sola pantalla. Podés crear varias zonas de texto dentro de una pantalla gráfica.' });
+  for (const device of displays) {
+    if (!validDisplayConfig(device.config)) {
+      issues.push({ code: 'invalid-display', severity: 'error', deviceId: device.id, message: `${device.name}: revisá el modelo, los nombres y las zonas de texto. Deben caber en pantalla, sin superponerse.` });
+      continue;
+    }
+    const required = requiredDisplayPins(device.config);
+    if (displayPinKeys.some(key => !required.includes(key) && device.pins[key] !== null)) issues.push({ code: 'invalid-display', severity: 'error', deviceId: device.id, message: `${device.name}: hay pines configurados que no pertenecen a este modelo.` });
+  }
   for (const device of scene.devices) {
     if (!itemIdIsValid(device.id)) {
       issues.push({
@@ -1716,6 +1741,7 @@ function validDeviceConfig(
   config: Record<string, unknown>,
 ) {
   switch (kind) {
+    case 'display': return validDisplayConfig(config);
     case 'trafficLight':
       return (
         hasOnlyKeys(config, [
@@ -1990,6 +2016,9 @@ export function migrateSceneDefinition(
   };
 }
 
-export function getPinRequirements(kind: SceneDeviceKind) {
-  return requirementsByKind[kind];
+export function getPinRequirements(device: SceneDeviceKind | SceneDevice) {
+  if (typeof device === 'string') return requirementsByKind[device];
+  if (device.kind !== 'display') return requirementsByKind[device.kind];
+  const keys = requiredDisplayPins(device.config);
+  return requirementsByKind.display.filter(requirement => keys.includes(requirement.key as DisplayPinKey));
 }

@@ -1,4 +1,5 @@
 'use client';
+import { DisplayPreview } from '@/components/display-preview';
 
 import {
   useEffect,
@@ -15,6 +16,7 @@ import type {
 } from '@/lib/scene-model';
 
 export type RuntimeVisualDevice = {
+  texts?: Record<string, string[]>;
   kind: string;
   color?: 'RED' | 'YELLOW' | 'GREEN' | 'OFF';
   brightness?: number;
@@ -58,6 +60,7 @@ const icons: Record<SceneDevice['kind'], string> = {
   lightSensor: '☀️',
   potentiometer: '🎚️',
   wifiNode: '📶',
+  display: '📺',
 };
 
 const clamp = (value: number, minimum: number, maximum: number) =>
@@ -72,6 +75,7 @@ function DeviceVisual({
   device: SceneDevice;
   runtime?: RuntimeVisualDevice;
 }) {
+  if (device.kind === 'display') return <DisplayPreview device={device} texts={runtime?.texts} />;
   if (device.kind === 'trafficLight') {
     const color = runtime?.color ?? 'OFF';
     return (

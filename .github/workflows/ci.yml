@@ -65,6 +65,7 @@ jobs:
         run: |
           npm run typecheck
           npm run lint
+          npm run lint:displays
           npm run test:smoke
           npm audit --audit-level=high
 
@@ -85,6 +86,14 @@ jobs:
           arduino-cli compile --fqbn esp32:esp32:d1_uno32 .arduino-ci/capibloques-ci
           node --experimental-strip-types scripts/generate-arduino-fixture.mjs .arduino-ci/auxiliary/auxiliary.ino auxiliary
           arduino-cli compile --fqbn esp32:esp32:d1_uno32 .arduino-ci/auxiliary
+
+      - name: Compilar los cinco perfiles de pantalla
+        run: |
+          arduino-cli lib install "LiquidCrystal_PCF8574@2.3.0" "U8g2@2.37.1" "GFX Library for Arduino@1.6.7"
+          node --experimental-strip-types scripts/generate-display-fixtures.mjs
+          for profile in lcd1602 lcd2004 ssd1306 ili9341 ili9488; do
+            arduino-cli compile --fqbn esp32:esp32:d1_uno32 ".arduino-ci/$profile"
+          done
 
       - name: Construir sitio estático
         run: npm run build
