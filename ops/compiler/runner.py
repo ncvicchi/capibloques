@@ -79,8 +79,8 @@ def create_arguments(attempt, image):
             "--network", "none", "--read-only", "--user", "10000:10000", "--cap-drop", "ALL",
             "--security-opt", "no-new-privileges:true", "--pids-limit", "128", "--cpus", "0.60",
             "--memory", "1024m", "--memory-swap", "1600m", "--ulimit", "nofile=256:256",
-            "--tmpfs", "/work:rw,nosuid,nodev,size=768m,uid=10000,gid=10000,mode=0700",
-            "--tmpfs", "/tmp:rw,nosuid,nodev,size=128m,mode=1777", "--log-driver", "none", image]
+            "--tmpfs", "/work:rw,exec,nosuid,nodev,size=768m,uid=10000,gid=10000,mode=0700",
+            "--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=128m,mode=1777", "--log-driver", "none", image]
 
 
 def memory_peak(info):
