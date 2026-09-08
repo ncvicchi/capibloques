@@ -101,7 +101,11 @@ def detail(request, actor, job_id):
     if request.method == "DELETE":
         if job.state == "building":
             return fail("Ya se está compilando. Cerrar esta ventana no interrumpe el trabajo.", "already_building", 409)
-        if job.state != "cancelled":
+        if job.state == "ready" and job.artifact:
+            for alias in Build.objects.filter(owner_id_snapshot=actor.pk, project_id_snapshot=job.project_id_snapshot, artifact=job.artifact):
+                forget(alias, "cancelled", "Firmware y resultados reutilizados retirados de este proyecto.")
+            job.refresh_from_db()
+        elif job.state != "cancelled":
             forget(job, "cancelled", "Pedido cancelado; firmware retirado del servidor.")
     return JsonResponse({"job": metadata(job)})
 

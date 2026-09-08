@@ -160,7 +160,7 @@ export default function FirmwareBuilds({ account, store, csrfToken, capture, fin
       {job.message && <p>{job.message}</p>}
       {job.containsWifi && <p>🔒 Contiene configuración Wi-Fi. No compartir el firmware.</p>}
       {job.state === 'ready' && <><small>Vence: {new Date(job.expiresAt).toLocaleString()}</small><Button disabled={busy || locked} onClick={() => void action(job, true)}>Descargar firmware completo</Button></>}
-      {['queued', 'ready'].includes(job.state) && <Button variant="outline" disabled={busy || locked} onClick={() => { if (job.state === 'queued' || window.confirm('¿Retirar este firmware del servidor? No se borra el proyecto ni las copias descargadas.')) void action(job, false); }}>{job.state === 'queued' ? 'Cancelar pedido' : 'Retirar firmware'}</Button>}
+      {['queued', 'ready'].includes(job.state) && <Button variant="outline" disabled={busy || locked} onClick={() => { if (job.state === 'queued' || window.confirm('¿Retirar este firmware y sus resultados reutilizados de este proyecto? No se borra el proyecto ni las copias descargadas.')) void action(job, false); }}>{job.state === 'queued' ? 'Cancelar pedido' : 'Retirar firmware'}</Button>}
     </li>)}</ul>}
     <Button variant="outline" onClick={onClose}>Cerrar y seguir programando</Button>
   </DialogContent></Dialog>;

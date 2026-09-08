@@ -133,6 +133,22 @@ class CompilerTests(TestCase):
             Build.objects.filter(pk=job["id"]).update(expires_at=timezone.now() - timedelta(seconds=1))
             self.assertEqual(self.client.get(f"/api/builds/{job['id']}/download/").status_code, 410)
             self.assertEqual(self.client.get(f"/api/builds/{second['id']}/download/").status_code, 200)
+            third = self.enqueue()
+            self.assertEqual(self.client.delete(f"/api/builds/{second['id']}/").status_code, 200)
+            self.assertEqual(self.client.get(f"/api/builds/{third['id']}/download/").status_code, 410)
+
+    def test_claim_removes_stored_secret_and_corruption_does_not_block_queue(self):
+        self.enqueue(self.request_data(wifi={"ssid": "Synthetic", "password": "test-only-password", "consent": True}))
+        claim = dispatch("claim", {})["job"]
+        self.assertEqual(claim["wifi"]["ssid"], "Synthetic")
+        stored = Build.objects.get(pk=claim["id"])
+        self.assertEqual(stored.wifi_encrypted, ""); self.assertIsNone(stored.document)
+        dispatch("finish", {"id": claim["id"], "attempt": claim["attempt"], "terminated": True})
+        bad = self.enqueue(self.request_data(wifi={"ssid": "Synthetic", "password": "", "consent": True}))
+        good = self.enqueue()
+        Build.objects.filter(pk=bad["id"]).update(wifi_encrypted="damaged")
+        self.assertEqual(dispatch("claim", {})["job"]["id"], good["id"])
+        self.assertEqual(Build.objects.get(pk=bad["id"]).state, "failed")
 
     def test_wifi_invalid_inputs_and_source_injection_rejected(self):
         for wifi in ({"ssid": "x", "password": "short", "consent": True}, {"ssid": "x", "password": "long-enough", "consent": False}, {"ssid": "x\x00", "password": "", "consent": True}):
