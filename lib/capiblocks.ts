@@ -22,6 +22,12 @@ export type SceneId = LegacySceneId;
 import { displayTargets, layoutDisplayText, MAX_DISPLAY_TEXT, validDisplayConfig } from './display-model.ts';
 // @ts-expect-error Node strip-types runner.
 import { displayArduinoSupport } from './display-arduino.ts';
+// @ts-expect-error Node strip-types runner.
+import { displayIdfSupport } from './display-idf.ts';
+// @ts-expect-error Node strip-types runner.
+import { allocateIdfPwm, idfRuntimeSupport, IDF_VERSION } from './idf-runtime.ts';
+
+export type FirmwareFramework = 'arduino' | 'esp-idf';
 
 export type CompareOperator = 'EQ' | 'NEQ' | 'LT' | 'LTE' | 'GT' | 'GTE';
 
@@ -2198,6 +2204,7 @@ function createCppSymbols(scene: SceneDefinition) {
 }
 
 interface GeneratorContext {
+  framework: FirmwareFramework;
   usesWifi: boolean;
   scene: SceneDefinition;
   symbols: Map<string, string>;
@@ -2222,11 +2229,11 @@ function conditionToCpp(condition: Condition, context: GeneratorContext) {
     GTE: '>=',
   } as const;
   if (condition.kind === 'wifiConnected')
-    return 'WiFi.status() == WL_CONNECTED';
+    return context.framework === 'esp-idf' ? 'capiWifiConnected()' : 'WiFi.status() == WL_CONNECTED';
   if (condition.kind === 'buttonPressed')
-    return `digitalRead(${pinConstant(context, condition.deviceId)}) == LOW`;
+    return `${context.framework === 'esp-idf' ? 'capiDigitalRead' : 'digitalRead'}(${pinConstant(context, condition.deviceId)}) == ${context.framework === 'esp-idf' ? '0' : 'LOW'}`;
   if (condition.kind === 'sensor') {
-    return `analogRead(${pinConstant(context, condition.deviceId)}) ${operators[condition.operator]} ${Math.max(0, Math.min(4095, Math.round(condition.value)))}`;
+    return `${context.framework === 'esp-idf' ? 'capiAnalogRead' : 'analogRead'}(${pinConstant(context, condition.deviceId)}) ${operators[condition.operator]} ${Math.max(0, Math.min(4095, Math.round(condition.value)))}`;
   }
   if (condition.kind === 'boolean') return condition.value ? 'true' : 'false';
   if (condition.kind === 'counter')
@@ -2246,6 +2253,9 @@ function instructionToCpp(
   const waitStarted = `waitStarted_${suffix}`;
   const loops = `loopCounters_${suffix}`;
   const comment = `        // bloque: ${cppLineComment(instruction.blockId)}`;
+  const native = context.framework === 'esp-idf';
+  const pwmWrite = native ? 'capiPwmWrite' : 'ledcWrite';
+  const toneWrite = native ? 'capiTone' : 'ledcWriteTone';
   switch (instruction.op) {
     case 'fork':
       return `${comment}\n${instruction.children.map(child => `        pc_T${child} = 0; active_T${child} = true; waiting_T${child} = false;\n        for (auto &value : loopCounters_T${child}) value = -1;\n${context.usesWifi ? `        wifiAttemptActive_T${child} = false;` : ''}`).join('\n')}\n        ${pc} = ${nextPc};\n        return;`;
@@ -2257,9 +2267,10 @@ function instructionToCpp(
       const duty = Math.round(
         (Math.max(0, Math.min(100, instruction.brightness)) / 100) * 255,
       );
-      return `${comment}\n        ledcWrite(${pinConstant(context, instruction.deviceId)}, ${duty});\n        ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        ${pwmWrite}(${pinConstant(context, instruction.deviceId)}, ${duty});\n        ${pc} = ${nextPc};\n        break;`;
     }
     case 'pin':
+      if (native) return `${comment}\n        capiOutput(${instruction.pin});\n        capiDigitalWrite(${instruction.pin}, ${instruction.value ? 1 : 0});\n        ${pc} = ${nextPc};\n        break;`;
       return `${comment}\n        pinMode(${instruction.pin}, OUTPUT);\n        digitalWrite(${instruction.pin}, ${instruction.value ? 'HIGH' : 'LOW'});\n        ${pc} = ${nextPc};\n        break;`;
     case 'wait':
       return `${comment}\n        if (!${waiting}) { ${waitStarted} = now; ${waiting} = true; return; }\n        if ((uint32_t)(now - ${waitStarted}) < ${Math.max(0, Math.round(instruction.ms))}U) return;\n        ${waiting} = false;\n        ${pc} = ${nextPc};\n        break;`;
@@ -2291,22 +2302,24 @@ function instructionToCpp(
       const stop = `BUZZER_STOP_${deviceSymbol(context, instruction.deviceId)}`;
       const start =
         instruction.kind === 'ACTIVE'
-          ? `ledcWrite(${pin}, 255);`
-          : `ledcWriteTone(${pin}, ${Math.max(20, Math.round(instruction.frequency))});`;
+          ? `${pwmWrite}(${pin}, 255);`
+          : `${toneWrite}(${pin}, ${Math.max(20, Math.round(instruction.frequency))});`;
       return `${comment}\n        ${start}\n        ${stop} = now + ${Math.max(10, Math.round(instruction.durationMs))}U;\n        ${pc} = ${nextPc};\n        break;`;
     }
     case 'tone': {
       const pin = pinConstant(context, instruction.deviceId);
       const stop = `BUZZER_STOP_${deviceSymbol(context, instruction.deviceId)}`;
-      return `${comment}\n        ledcWriteTone(${pin}, ${Math.max(20, Math.round(instruction.frequency))});\n        ${stop} = now + ${Math.max(10, Math.round(instruction.durationMs))}U;\n        ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        ${toneWrite}(${pin}, ${Math.max(20, Math.round(instruction.frequency))});\n        ${stop} = now + ${Math.max(10, Math.round(instruction.durationMs))}U;\n        ${pc} = ${nextPc};\n        break;`;
     }
     case 'wifi':
+      if (native) return `${comment}\n        if (!wifiAttemptActive_${suffix}) {\n          capiWifiBegin();\n          wifiAttemptStarted_${suffix} = now;\n          wifiAttemptActive_${suffix} = true;\n          return;\n        }\n        if (capiWifiConnected() || (uint32_t)(now - wifiAttemptStarted_${suffix}) >= ${Math.max(1000, Math.round(instruction.timeoutMs))}U) {\n          wifiAttemptActive_${suffix} = false;\n          ${pc} = ${nextPc};\n          break;\n        }\n        return;`;
       return `${comment}\n        if (!wifiAttemptActive_${suffix}) {\n          WiFi.mode(WIFI_STA);\n          WiFi.begin(WIFI_SSID, WIFI_PASSWORD);\n          wifiAttemptStarted_${suffix} = now;\n          wifiAttemptActive_${suffix} = true;\n          return;\n        }\n        if (WiFi.status() == WL_CONNECTED || (uint32_t)(now - wifiAttemptStarted_${suffix}) >= ${Math.max(1000, Math.round(instruction.timeoutMs))}U) {\n          wifiAttemptActive_${suffix} = false;\n          ${pc} = ${nextPc};\n          break;\n        }\n        return;`;
     case 'counterSet':
       return `${comment}\n        counterValue = ${normalizeCounterValue(instruction.value)};\n        ${pc} = ${nextPc};\n        break;`;
     case 'counterChange':
       return `${comment}\n        counterValue = addCounter(counterValue, ${normalizeCounterValue(instruction.delta)});\n        ${pc} = ${nextPc};\n        break;`;
     case 'serial':
+      if (native) return `${comment}\n        if (!capiPrintln(${cppString(instruction.text)})) return; // bounded Serial backpressure, other paths continue\n        ${pc} = ${nextPc};\n        break;`;
       return `${comment}\n        Serial.println(${cppString(instruction.text)});\n        ${pc} = ${nextPc};\n        break;`;
     case 'displayWrite':
     case 'displayClear': {
@@ -2465,6 +2478,7 @@ function setupLines(scene: SceneDefinition, symbols: Map<string, string>) {
 function serviceBuzzerLines(
   scene: SceneDefinition,
   symbols: Map<string, string>,
+  framework: FirmwareFramework = 'arduino',
 ) {
   return scene.devices
     .filter(
@@ -2474,8 +2488,8 @@ function serviceBuzzerLines(
     .map((device) => {
       const symbol = symbols.get(device.id) ?? cppIdentifier(device.id);
       return `  if (BUZZER_STOP_${symbol} != 0 && (int32_t)(now - BUZZER_STOP_${symbol}) >= 0) {
-    ledcWriteTone(PIN_${symbol}, 0);
-    ledcWrite(PIN_${symbol}, 0);
+    ${framework === 'esp-idf' ? 'capiTone' : 'ledcWriteTone'}(PIN_${symbol}, 0);
+    ${framework === 'esp-idf' ? 'capiPwmWrite' : 'ledcWrite'}(PIN_${symbol}, 0);
     BUZZER_STOP_${symbol} = 0;
   }`;
     })
@@ -2483,6 +2497,7 @@ function serviceBuzzerLines(
 }
 
 export interface CodeGenerationResult {
+  framework: FirmwareFramework;
   code: string;
   diagnostics: CapiDiagnostic[];
   program: CompiledProgram;
@@ -2493,12 +2508,15 @@ export function generateEsp32CodeResult(
   input: CompiledProgram | ProgramNode[],
   title: string,
   sourceScene?: SceneDefinition,
+  framework: FirmwareFramework = 'arduino',
 ): CodeGenerationResult {
+  const native = framework === 'esp-idf';
   const scene = sourceScene
     ? cloneScene(sourceScene)
     : inferSceneForProgram(input);
   const program = normalizeCompiledProgram(input, scene);
   const diagnostics = validateProgramForScene(program, scene);
+  if (native && !allocateIdfPwm(scene)) diagnostics.push({ severity: 'error', code: 'idf-pwm-timer-limit', message: 'No hay una combinación de canales y temporizadores PWM disponible para esta escena. Reducí componentes PWM antes de exportar ESP-IDF.' });
   const { symbols, collisions } = createCppSymbols(scene);
   diagnostics.push(
     ...collisions.map(({ deviceId, ownerId }) => ({
@@ -2509,8 +2527,8 @@ export function generateEsp32CodeResult(
     })),
   );
   const usesWifi = programUsesWifi(program);
-  const displaySupport = displayArduinoSupport(scene);
-  const wifiHeader = usesWifi
+  const displaySupport = native ? displayIdfSupport(scene) : displayArduinoSupport(scene);
+  const wifiHeader = usesWifi && !native
     ? `#include <WiFi.h>
 
 const char* WIFI_SSID = "TU_RED";
@@ -2548,7 +2566,7 @@ ${usesWifi ? `bool wifiAttemptActive_${suffix} = false;\nuint32_t wifiAttemptSta
     .join('\n\n');
   const threadFunctions = flattened
     .map(({ output }, threadIndex) => {
-      const context: GeneratorContext = { scene, symbols, threadIndex, usesWifi };
+      const context: GeneratorContext = { scene, symbols, threadIndex, usesWifi, framework };
       const cases = output
         .map(
           (instruction, index) =>
@@ -2580,10 +2598,10 @@ ${cases}
 
   const code = `// ${cppLineComment(projectTitle(title))}
 // Generado por CapiBloques para WEMOS D1 R32
-// Arduino-ESP32 3.3.11 | FQBN: esp32:esp32:d1_uno32
+// ${native ? `ESP-IDF ${IDF_VERSION} | Target: esp32 | CapiBloques generator 8.1` : 'Arduino-ESP32 3.3.11 | FQBN: esp32:esp32:d1_uno32'}
 // Scheduler cooperativo con ${program.threads.length} programa(s) y esperas no bloqueantes.
 
-#include <Arduino.h>
+${native ? idfRuntimeSupport(scene, usesWifi) : '#include <Arduino.h>'}
 ${wifiHeader}${diagnosticHeader}
 struct TrafficDevice { uint8_t red; uint8_t yellow; uint8_t green; };
 struct RobotDevice { uint8_t leftIn1; uint8_t leftIn2; uint8_t rightIn1; uint8_t rightIn2; };
@@ -2601,9 +2619,9 @@ ${buzzerDeclarations(scene, symbols)}
 ${threadGlobals}
 
 void setTraffic(const TrafficDevice& device, TrafficColor color) {
-  digitalWrite(device.red, color == TrafficColor::RED ? HIGH : LOW);
-  digitalWrite(device.yellow, color == TrafficColor::YELLOW ? HIGH : LOW);
-  digitalWrite(device.green, color == TrafficColor::GREEN ? HIGH : LOW);
+  ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.red, color == TrafficColor::RED ? ${native ? '1 : 0' : 'HIGH : LOW'});
+  ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.yellow, color == TrafficColor::YELLOW ? ${native ? '1 : 0' : 'HIGH : LOW'});
+  ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.green, color == TrafficColor::GREEN ? ${native ? '1 : 0' : 'HIGH : LOW'});
 }
 
 int32_t addCounter(int32_t current, int32_t delta) {
@@ -2614,14 +2632,14 @@ int32_t addCounter(int32_t current, int32_t delta) {
 }
 
 void motorWrite(uint8_t in1, uint8_t in2, int speedPercent) {
-  speedPercent = constrain(speedPercent, -100, 100);
+  speedPercent = ${native ? 'std::clamp' : 'constrain'}(speedPercent, -100, 100);
   const uint8_t duty = (uint8_t)((abs(speedPercent) * 255 + 50) / 100);
   if (speedPercent >= 0) {
-    ledcWrite(in1, duty);
-    ledcWrite(in2, 0);
+    ${native ? 'capiPwmWrite' : 'ledcWrite'}(in1, duty);
+    ${native ? 'capiPwmWrite' : 'ledcWrite'}(in2, 0);
   } else {
-    ledcWrite(in1, 0);
-    ledcWrite(in2, duty);
+    ${native ? 'capiPwmWrite' : 'ledcWrite'}(in1, 0);
+    ${native ? 'capiPwmWrite' : 'ledcWrite'}(in2, duty);
   }
 }
 
@@ -2635,15 +2653,29 @@ void driveMotor(const MotorDevice& device, int power) {
 }
 
 void setServoAngle(uint8_t pin, int angle) {
-  angle = constrain(angle, 0, 180);
+  angle = ${native ? 'std::clamp' : 'constrain'}(angle, 0, 180);
   const uint32_t pulseMicros = 500U + ((uint32_t)angle * 2000U) / 180U;
   const uint32_t duty = (pulseMicros * 65535U) / 20000U;
-  ledcWrite(pin, duty);
+  ${native ? 'capiPwmWrite' : 'ledcWrite'}(pin, duty);
 }
 
 ${threadFunctions}
 
-void setup() {
+${native ? `extern "C" void app_main() {
+  capiHardwareBegin();
+${scene.devices.filter(device => device.kind === 'servo').map(device => `  setServoAngle(PIN_${symbols.get(device.id)}, ${Math.max(0, Math.min(180, Math.round(device.config.angle)))});`).join('\n')}
+${displaySupport ? '  capiDisplayBegin();' : ''}
+  for (;;) {
+    const uint32_t now = capiMillis();
+${serviceBuzzerLines(scene, symbols, framework)}
+${displaySupport ? '    capiDisplayService(now);' : ''}
+    if ((uint32_t)(now - lastSchedulerTick) >= SCHEDULER_QUANTUM_MS) {
+      lastSchedulerTick = now;
+${runThreads}
+    }
+    vTaskDelay(1); // one OS tick; logical block waits never sleep this task
+  }
+}` : `void setup() {
   Serial.begin(115200);
 ${setupLines(scene, symbols)}
 ${displaySupport ? '  capiDisplayBegin();' : ''}
@@ -2660,9 +2692,13 @@ ${displaySupport ? '  capiDisplayService(now);' : ''}
   lastSchedulerTick = now;
 ${runThreads}
   yield();
-}
+}`}
 `;
-  return { code, diagnostics, program, scene };
+  return { framework, code, diagnostics, program, scene };
+}
+
+export function generateEspIdfCodeResult(input: CompiledProgram | ProgramNode[], title: string, scene?: SceneDefinition) {
+  return generateEsp32CodeResult(input, title, scene, 'esp-idf');
 }
 
 export function generateEsp32Code(

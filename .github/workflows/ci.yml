@@ -15,6 +15,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  esp-idf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    container: espressif/idf:v5.5.5@sha256:a9231d0697ab8f7517cc072e93b7c83e04907bfbfba80b6440d7dbbf90665cf2
+    defaults:
+      run:
+        shell: bash
+    env:
+      IDF_CCACHE_ENABLE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Generar proyectos nativos y ZIP
+        run: node --experimental-strip-types scripts/generate-idf-fixtures.mjs
+      - name: Compilar siete proyectos ESP-IDF nativos para ESP32
+        run: |
+          . "$IDF_PATH/export.sh" >/dev/null
+          for profile in main auxiliary lcd1602 lcd2004 ssd1306 ili9341 ili9488; do
+            idf.py -C ".idf-ci/$profile" -DIDF_TARGET=esp32 -j 2 build
+          done
   backend:
     runs-on: ubuntu-latest
     env:
