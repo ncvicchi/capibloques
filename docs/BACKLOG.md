@@ -1,6 +1,6 @@
 # Backlog de CapiBloques
 
-Pedidos del propietario del 7 de septiembre de 2026, durante el cierre de la fase 6. **Registrados, no implementados ni iniciados.** No cambian la autorización ni interrumpen la entrega de la fase 6. Estos números identifican pedidos, no nuevas fases; su incorporación al plan requiere acordar alcance y orden.
+Pedidos del propietario desde el 7 de septiembre de 2026, registrados durante distintas entregas. **Registrados, no implementados ni iniciados.** No cambian la autorización ni interrumpen la fase en curso. Estos números identifican pedidos, no nuevas fases; su incorporación al plan requiere acordar alcance y orden.
 
 ## 1. Redistribuir la interfaz
 
@@ -52,6 +52,17 @@ La vista se desplaza sola en cada paso, incluso cuando el programa completo ya e
 ## 6. Separar catálogo y programa
 
 El panel de bloques de una categoría se mezcla visualmente con los bloques del programa. Separar claramente ambas superficies. El catálogo puede superponerse temporalmente al elegir una categoría y ocultarse después, dejando el programa despejado. Verificar arrastre, cierre, foco y teclado en Chrome/Edge. Sólo registrado; no implementar durante fase 7.
+
+## 7. Progreso dentro del bloque o componente
+
+Pedido durante el cierre de fase 9: trasladar la información de progreso del «header de estado» al bloque o componente que está ejecutándose, para no obligar a mirar otra zona de la pantalla.
+
+- En esperas/delays, mostrar el tiempo restante en el propio bloque mediante un indicador gráfico, numérico o ambos.
+- Aplicar el mismo criterio a otras acciones con progreso, relacionando claramente la información con su bloque o dispositivo.
+- Preservar legibilidad, pausas/reanudación y pasos guiados; si hay caminos concurrentes, cada uno debe mostrar su propio progreso sin mover el lienzo ni mezclar sus tiempos.
+- Este pedido se relaciona con la redistribución de la interfaz y los bloques estáticos; no implica cambiar el reloj lógico del simulador o del firmware ni agregar seguimiento físico en vivo.
+
+**Sólo registrado. No modificar ni interrumpir la implementación, pruebas o cierre de fase 9 por este pedido.**
 
 ## Relación actualizada con el plan vigente
 

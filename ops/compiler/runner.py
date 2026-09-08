@@ -238,6 +238,11 @@ def main():
         except Exception:
             # Fail closed; retain DB slots. Next cycle reconciles known containers.
             print("Compiler waiting for safe reconciliation", flush=True)
+        finally:
+            # Python loop locals otherwise retain the last finished job/secret
+            # and decoded firmware indefinitely while the queue is idle. Active
+            # attempts retain their inputs only in `active` for reconciliation.
+            claim = current = raw = output = None
         STOP.wait(5)
     for attempt in active:
         try:

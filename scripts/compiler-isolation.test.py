@@ -8,6 +8,8 @@ import tempfile
 import unittest
 import uuid
 import zipfile
+from types import SimpleNamespace
+from unittest.mock import patch, Mock
 
 root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root / "ops/compiler"))
@@ -22,6 +24,36 @@ import runner
 
 
 class FirmwareIsolationTests(unittest.TestCase):
+    def test_completed_attempt_does_not_remain_in_idle_loop_locals(self):
+        attempt = str(uuid.uuid4())
+        job = {"id": str(uuid.uuid4()), "attempt": attempt, "recipe": "a" * 64,
+               "framework": "arduino", "document": {}, "wifi": {"password": "synthetic-only"}}
+        snapshot = {"id": job["id"], "attempt": attempt, "cancel": False}
+        process = SimpleNamespace(stdin=io.BytesIO(), stdout=io.BytesIO(b'{"success":true,"artifact":"eA=="}'), wait=Mock())
+        rounds = []
+        def wait(_):
+            frame = sys._getframe(1).f_locals
+            self.assertTrue(all(frame[name] is None for name in ("claim", "current", "raw", "output")))
+            rounds.append(len(frame["active"]))
+        def dispatch(_config, action, data=None):
+            if action == "inspect": return {"active": [snapshot] if rounds else [], "artifacts": []}
+            if action == "claim": return {"job": None if rounds else job}
+            self.assertEqual(action, "finish")
+            self.assertTrue(data["success"] and data["terminated"])
+            return {"accepted": True}
+        with patch.object(runner, "CONFIG") as config, \
+             patch.object(runner, "STOP", SimpleNamespace(is_set=lambda: len(rounds) == 2, wait=wait)), \
+             patch.object(runner, "dispatch", side_effect=dispatch), \
+             patch.object(runner, "inventory", return_value={}), \
+             patch.object(runner, "docker", return_value=b""), \
+             patch.object(runner, "terminate", return_value={"ExitCode": 0, "OOMKilled": False}), \
+             patch.object(runner, "cleanup"), patch.object(runner, "publish", return_value="b" * 64), \
+             patch.object(runner.subprocess, "Popen", return_value=process), \
+             patch.object(runner.threading, "Thread", side_effect=lambda target, args, **_: SimpleNamespace(start=lambda: target(*args))):
+            config.read_text.return_value = json.dumps({"image": "sha256:" + "a" * 64})
+            runner.main()
+        self.assertEqual(rounds, [1, 0])
+
     def test_no_host_mounts_secrets_network_or_privileges(self):
         args = runner.create_arguments(str(uuid.uuid4()), "sha256:" + "a" * 64)
         for forbidden in ("--privileged", "--volume", "-v", "--mount", "--env", "-e", "/var/run/docker.sock"):
