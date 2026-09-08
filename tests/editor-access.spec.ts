@@ -64,7 +64,8 @@ test('editor: salida captura cambios recientes y la otra cuenta nunca los hereda
   await page.goto('/');
   await page.getByLabel('Nombre del proyecto').fill('Luna solamente');
   // Enviar la salida en la misma tarea del navegador, antes del debounce de 350 ms.
-  await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).evaluate((button: HTMLButtonElement) => button.click());
+  await page.getByRole('button', { name: 'Opciones de mi cuenta' }).click();
+  await page.getByRole('menuitem', { name: 'Cerrar sesión', exact: true }).evaluate((button: HTMLElement) => button.click());
   await page.getByRole('button', { name: 'Salir y conservar copias', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Ingresar', exact: true })).toBeVisible();
   expect(JSON.parse((await recoveryRows(page, student.id))[0].document).metadata.title).toBe('Luna solamente');
@@ -89,8 +90,7 @@ test('editor: logout en otra pestaña oculta también un diálogo abierto', asyn
   await sessionRoutes(second, () => user);
   await second.route('**/api/auth/logout/', route => { user = null; return route.fulfill({ json: { user: null, csrfToken: token } }); });
   await second.goto('/cuenta/');
-  await page.getByRole('button', { name: 'Opciones de mi cuenta' }).click();
-  await page.getByRole('menuitem', { name: 'Cerrar sesión', exact: true }).click();
+  await second.getByRole('button', { name: 'Cerrar sesión', exact: true }).click();
   await second.getByRole('button', { name: 'Salir y conservar copias', exact: true }).click();
   await expect(page).toHaveURL(/\/cuenta\/\?editor=1$/);
   await expect(page.getByLabel('Nombre del proyecto')).toHaveCount(0);

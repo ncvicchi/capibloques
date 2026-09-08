@@ -2903,7 +2903,7 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .workbench .sim-status > div { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .workbench .sim-status strong { font-size: 11px; }
 .workbench .sim-status > div > span { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.workbench .notice { min-height: 28px; padding: 4px 16px; margin: 0; font-size: 11px; flex-shrink: 0; }
+.workbench .notice { position: static; max-width: none; min-height: 28px; padding: 4px 16px; margin: 0; font-size: 11px; flex-shrink: 0; border-radius: 0; border: 0; box-shadow: none; }
 .execution-compact { flex-shrink: 0; margin: 0; padding: 7px 10px; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: #f7f6ff; position: relative; }
 .execution-compact .execution-options { margin-bottom: 4px; font-size: 12px; }
 .execution-compact .execution-options label { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px; }
@@ -2937,7 +2937,7 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 
 .wemos-figure { grid-column: 1 / -1; margin: 0; min-width: 0; background: #f6f9fc; border: 1px solid #cbd7e5; border-radius: 12px; padding: 12px; }
 .wemos-image-scroll { overflow-x: auto; }
-.wemos-image { width: 100%; min-width: 660px; height: auto; }
+.wemos-image { display: block; width: 100%; min-width: 660px; max-width: 760px; height: auto; margin: 0 auto; }
 .wemos-figure figcaption, .wemos-caution { font-size: 12px; line-height: 1.5; color: #344761; margin: 6px 0 0; }
 .wemos-caution { padding: 8px; background: #fff4d9; border-radius: 6px; }
 .board-contact circle { fill: #c3d2e0; stroke: #132e45; stroke-width: 3; }

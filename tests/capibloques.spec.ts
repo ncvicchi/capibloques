@@ -33,10 +33,7 @@ test.describe('CapiBloques', () => {
     });
     for (const name of [
       'Guardar',
-      'Armar escena',
-      'Conectar',
       'Abrir ejemplos',
-      'Silenciar sonidos',
       'Exportar',
     ]) {
       await expect(projectActions.getByRole('button', { name })).toBeVisible();
@@ -55,6 +52,11 @@ test.describe('CapiBloques', () => {
       await expect(simulator.getByRole('button', { name })).toBeVisible();
     }
     await expect(simulator.getByRole('combobox')).toHaveValue('1');
+    await expect(page.getByRole('button', { name: 'Armar escena' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Conectar', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Opciones de mi cuenta' }).click();
+    await expect(page.getByRole('menuitem', { name: 'Silenciar sonidos' })).toBeVisible();
+    await page.keyboard.press('Escape');
     expect(pageErrors).toEqual([]);
   });
 
@@ -70,8 +72,6 @@ test.describe('CapiBloques', () => {
     });
     for (const name of [
       'Guardar',
-      'Armar escena',
-      'Conectar',
       'Abrir ejemplos',
       'Exportar',
     ]) {
@@ -86,7 +86,7 @@ test.describe('CapiBloques', () => {
     }
     await expect(simulator.getByRole('combobox')).toBeVisible();
     await expect(
-      page.getByRole('button', { name: 'Editar escena' }),
+      page.getByRole('button', { name: 'Armar escena' }),
     ).toBeVisible();
 
     await projectActions

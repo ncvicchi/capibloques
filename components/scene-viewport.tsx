@@ -25,7 +25,11 @@ export default function SceneViewport({ width, height, children }: { width: numb
     return () => observer.disconnect();
   }, []);
   const bounded = constrainCamera(camera, size, { width, height });
-  const scale = Math.min(size.width / width, size.height / height) * bounded.zoom;
+  const fit = Math.min(size.width / width, size.height / height);
+  // Lay out at the fitted size so labels remain readable at 100%; zoom then
+  // magnifies the whole view. Logical scene coordinates still use percentages.
+  const renderWidth = width * fit, renderHeight = height * fit;
+  const scale = bounded.zoom;
   const anchor = (x: number, y: number) => {
     const rect = viewport.current!.getBoundingClientRect();
     return { x: x - rect.left - size.width / 2, y: y - rect.top - size.height / 2 };
@@ -80,7 +84,7 @@ export default function SceneViewport({ width, height, children }: { width: numb
         else return;
         event.preventDefault();
       }}>
-      <div className="scene-camera-world" style={{ width, height, transform: `translate(${(size.width - width * scale) / 2 + bounded.x}px, ${(size.height - height * scale) / 2 + bounded.y}px) scale(${scale})` }}>{children}</div>
+      <div className="scene-camera-world" style={{ width: renderWidth, height: renderHeight, transform: `translate(${(size.width - renderWidth * scale) / 2 + bounded.x}px, ${(size.height - renderHeight * scale) / 2 + bounded.y}px) scale(${scale})` }}>{children}</div>
     </div>
     <span className="scene-camera-hint">Arrastrá el fondo o usá Mano · + / − acercan · 0 ajusta</span>
   </div>;

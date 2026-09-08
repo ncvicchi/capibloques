@@ -161,9 +161,9 @@ test('paso visible: condición, espera y continuación, guiado y normal sin rein
   await expect(
     page.locator('[data-id="choice"].capi-block-active'),
   ).toHaveCount(1);
-  await page
-    .getByRole('checkbox', { name: 'Seguir el bloque en pantalla' })
-    .check();
+  await page.getByText(/Últimos .* pasos \(máximo 30\)/).click();
+  await page.getByRole('checkbox', { name: 'Seguir el bloque en pantalla' }).check();
+  await page.getByText(/Últimos .* pasos \(máximo 30\)/).click();
   await page.getByRole('button', { name: 'Paso', exact: true }).click();
   await expect(page.locator('.execution-now')).toContainText('Contador = 1');
   await page.getByRole('button', { name: 'Paso', exact: true }).click();
