@@ -1,6 +1,6 @@
 # Fase 7 — Mensajes y pantallas
 
-Autorizada el 7 de septiembre de 2026. **En implementación; no entregada ni verificada todavía.**
+Autorizada y cerrada el 7 de septiembre de 2026 (hora Argentina). **Implementada y verificada en DEV y CI.** No se probó hardware físico; sus límites y comprobaciones pendientes se detallan debajo.
 
 ## Alcance acordado
 
@@ -22,7 +22,7 @@ Fuera de esta fase: Waveshare de 5 pulgadas, ESP32-S3, representar la escena com
 - [Referencia U8x8](https://github.com/olikraus/u8g2/wiki/u8x8reference): texto por celdas en displays gráficos y configuración de dirección I2C.
 - [hd44780](https://github.com/duinoWitchery/hd44780): familias de controladores LCD, retorno de errores y precaución con niveles de 5 V. Evaluada; no incorporada (se usa LiquidCrystal_PCF8574).
 
-## Uso y contrato implementado (verificación final en curso)
+## Uso y contrato implementado
 
 1. Abrir **Armar escena → Pantalla de mensajes**. Se admite una por proyecto; no se puede duplicar.
 2. Elegir el modelo. Cambiarlo requiere confirmación, reinicia conexiones y retira las zonas gráficas anteriores. **Cancelar cambios** restaura la configuración previa; después de **Guardar cambios**, deshacer/rehacer conserva configuración e identidades.
@@ -59,3 +59,18 @@ I2C se configura con timeout de transacción de 2 ms. Se verifica respuesta ante
 **No se probó hardware físico en esta fase.** Antes de usar módulos con alumnos, una persona adulta debe verificar modelo, fuente/niveles, contraste/retroiluminación, orden de pines, texto y respuesta al desconectar. Las pruebas C++ con dobles de bus no se presentan como una prueba eléctrica.
 
 Fuentes de los perfiles: [LiquidCrystal_PCF8574](https://github.com/mathertel/LiquidCrystal_PCF8574), [U8x8](https://github.com/olikraus/u8g2/wiki/u8x8reference), [Arduino_GFX: controladores](https://github.com/moononournation/Arduino_GFX/wiki/Display-Class), [Arduino_GFX: buses](https://github.com/moononournation/Arduino_GFX/wiki/Data-Bus-Class), [HD44780: tabla de ROM](https://cdn-shop.adafruit.com/datasheets/HD44780.pdf).
+
+## Evidencia de verificación
+
+Código funcional: `0a3dd8a`, con [CI completo correcto](https://github.com/ncvicchi/capibloques/actions/runs/34175765625). Las pruebas usan cuentas y documentos sintéticos, sin modificar trabajos de usuarios reales.
+
+- **DEV, PostgreSQL/API: 167 pruebas correctas**, incluida creación y lectura por la API propietaria de proyectos con cada uno de los cinco perfiles. Sin migraciones nuevas. CI repite las 167 pruebas y comprueba persistencia tras recrear API/PostgreSQL.
+- **DEV, Chrome y Edge: 64 pruebas correctas** de pantallas, programación, revisión docente y recuperación de escenas sobre `e65e611`. Después de la corrección del generador, **12 pruebas de pantalla correctas** sobre `0a3dd8a`, seis por navegador, sin reintentos. Incluyen creación/cambio de modelo, pines I2C/SPI, zonas independientes, consola separada, Guardar/Cancelar, deshacer/rehacer, destinos retirados, JSON de los cinco perfiles y recuperación de una edición incompleta. Capturas locales en `work/phase7-regression` y `work/phase7-final-displays` (no versionadas).
+- **Compilación real Arduino: siete fixtures correctos** para `esp32:esp32:d1_uno32`, core 3.3.11: los dos anteriores y los cinco perfiles de pantalla. [Ejecución de firmware](https://github.com/ncvicchi/capibloques/actions/runs/34175765625/job/101904725952). Se corrigió el orden de tipos/funciones para el preprocesador Arduino y se fijó la versión de U8g2 publicada en su gestor de bibliotecas.
+- **C++ del adaptador: cinco perfiles correctos**, con dobles deterministas de bus para verificar refresco acotado, último mensaje, borrado independiente, ausencia I2C y corte de conexión. No equivale a probar el módulo físico.
+- **CI, Chromium: 145 pruebas correctas**, sin fallos ni reintentos, y build con las nueve páginas estáticas verificadas. Los tres trabajos (backend, web y firmware) finalizaron correctamente sobre el mismo commit funcional.
+- Tipos, lint, simulación, persistencia local, fork/join, generación y build estático comprobados localmente. El build conserva el aviso de tamaño de bundle superior a 500 kB; no impide construir y no se presenta como una optimización resuelta.
+
+Comandos reproducibles: `npm run typecheck`, `npm run lint`, `npm run lint:displays`, `npm run test:smoke`, `npm run test:display-driver`, `npm run build`; en DEV, `sudo sh scripts/verify-backend-dev.sh`. Para navegador contra DEV, establecer `PLAYWRIGHT_BASE_URL=http://localhost:3000`, `PLAYWRIGHT_CHROME=1`, `PLAYWRIGHT_EDGE=1` y ejecutar `npx playwright test tests/displays.spec.ts --project=chrome --project=edge --workers=1`. La compilación con bibliotecas reales y el conjunto completo de Chromium se conservan en `.github/workflows/ci.yml`.
+
+El despliegue de esta fase se limita a DEV por el túnel existente, con `/api/health/ready/` saludable. No se modificaron PRD, gateway, router, Proxmox ni Nginx. No se reactivó GitHub Pages. Los pedidos de disposición de «Al mismo tiempo», lienzo estático durante ejecución y separación catálogo/programa quedaron en `BACKLOG.md`, sin implementarlos incidentalmente. La fase 8 no está iniciada ni autorizada por este cierre.
