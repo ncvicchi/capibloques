@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mockEditorSession, student, token } from './editor-fixture';
+import { mockReview, reviewPath } from './project-review-fixture';
 
 async function open(page: Page) {
   await mockEditorSession(page);
@@ -109,6 +110,28 @@ test('escena ampliada: mover componentes y deshacer/rehacer; cámara no ensucia'
   expect(saved.scene.devices[0].position.x).toBeGreaterThan(project.scene.devices[0].position.x);
   expect(saved.scene.devices[0].pins).toEqual(project.scene.devices[0].pins);
   expect(JSON.stringify(saved)).not.toContain('camera');
+});
+
+test('cámara: teclado, zoom táctil con Mano y revisión docente de sólo lectura', async ({ page, context }) => {
+  await open(page);
+  const viewport = page.getByRole('application', { name: 'Lienzo de la escena' });
+  await viewport.focus(); await page.keyboard.press('+'); await page.keyboard.press('ArrowRight');
+  await expect(viewport).toHaveAttribute('data-camera-zoom', '1.25'); await expect(viewport).toHaveAttribute('data-camera-x', '40.00');
+  await page.keyboard.press('0'); await expect(viewport).toHaveAttribute('data-camera-zoom', '1');
+  await page.getByRole('button', { name: 'Mover vista de la escena' }).click();
+  const rect = (await viewport.boundingBox())!, x = rect.x + rect.width / 2, y = rect.y + rect.height / 2;
+  const cdp = await context.newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x - 35, y, id: 1 }, { x: x + 35, y, id: 2 }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x - 65, y, id: 1 }, { x: x + 65, y, id: 2 }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await expect.poll(async () => Number(await viewport.getAttribute('data-camera-zoom'))).toBeGreaterThan(1.5);
+  await cdp.detach();
+  await mockReview(page); await page.goto(reviewPath);
+  await expect(page.getByLabel('Bloques de la versión, sólo lectura')).toBeVisible();
+  const reviewCamera = page.getByRole('application', { name: 'Lienzo de la escena' });
+  await page.getByRole('button', { name: 'Acercar escena' }).click();
+  await expect(reviewCamera).toHaveAttribute('data-camera-zoom', '1.25');
+  await expect(page.getByRole('button', { name: /^Mover Semáforo/ })).toHaveCount(0);
 });
 
 test('catálogo separado: fondo opaco, cierre explícito y Escape, arrastre funcional', async ({ page }) => {

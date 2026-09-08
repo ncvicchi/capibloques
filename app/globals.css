@@ -2925,7 +2925,8 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .scene-camera-tools button[aria-pressed='true'] { background: #e9e0ff; border-color: #7451c5; color: #40217e; }
 .scene-camera-tools button:disabled { opacity: .45; }
 .scene-camera-tools output { min-width: 44px; text-align: center; font-size: 11px; font-variant-numeric: tabular-nums; }
-.scene-viewport { position: relative; flex: 1; min-height: 100px; overflow: hidden; background: #e5e8f1; border: 1px solid #ced5e3; border-radius: 12px; touch-action: none; }
+.scene-viewport { position: relative; flex: 1; min-height: 100px; overflow: hidden; background: #e5e8f1; border: 1px solid #ced5e3; border-radius: 12px; touch-action: pan-y pinch-zoom; }
+.scene-viewport.hand-mode { touch-action: none; }
 .scene-viewport:focus-visible { outline: 3px solid #7451c5; outline-offset: -3px; }
 .scene-viewport.hand-mode, .scene-viewport.hand-mode * { cursor: grab !important; }
 .scene-viewport.hand-mode:active, .scene-viewport.hand-mode:active * { cursor: grabbing !important; }

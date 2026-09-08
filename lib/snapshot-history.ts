@@ -46,7 +46,9 @@ export const commitSnapshot = <T>(
   if (snapshotsEqual(history.present, value)) {
     return options.group === history.activeGroup
       ? history
-      : { ...history, activeGroup: options.group ?? null };
+      // A grid-snapped zero-distance move must not start a group: otherwise
+      // the first real move is merged into a group with no baseline to undo.
+      : { ...history, activeGroup: null };
   }
 
   const sameGroup =

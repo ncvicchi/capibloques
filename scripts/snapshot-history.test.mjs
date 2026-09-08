@@ -47,4 +47,15 @@ history = commitSnapshot(history, { value: 7, selected: 'b' });
 history = commitSnapshot(history, { value: 8, selected: 'b' });
 assert.equal(history.past.length, 3, 'history respects its configured limit');
 
-console.log('snapshot history tests passed');
+let snapped = createSnapshotHistory({ x: 100 });
+snapped = commitSnapshot(snapped, { x: 100 }, { group: 'move:a' });
+assert.equal(snapped.activeGroup, null, 'no-op cannot open a group without a baseline');
+snapped = commitSnapshot(snapped, { x: 110 }, { group: 'move:a' });
+snapped = commitSnapshot(snapped, { x: 120 }, { group: 'move:a' });
+assert.equal(snapped.past.length, 1);
+assert.equal(undoSnapshot(snapped).present.x, 100);
+assert.equal(redoSnapshot(undoSnapshot(snapped)).present.x, 120);
+snapped = commitSnapshot(snapped, { x: 120 }, { group: 'move:b' });
+snapped = commitSnapshot(snapped, { x: 130 }, { group: 'move:b' });
+assert.equal(undoSnapshot(snapped).present.x, 120, 'new gesture retains a separate baseline after a no-op');
+console.log('snapshot history tests passed (including zero-distance grid gestures)');

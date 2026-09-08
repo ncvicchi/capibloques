@@ -348,7 +348,7 @@ test.describe('CapiBloques', () => {
     await expect(wiring).toBeVisible();
     await expect(page.getByRole('dialog')).toHaveCount(1);
     await expect(
-      wiring.getByRole('cell', { name: 'Salida avanzada (bloque)' }),
+      wiring.getByRole('cell', { name: 'Salida avanzada (bloque)', exact: true }),
     ).toBeVisible();
     const confirm = wiring.getByRole('button', {
       name: 'Conexiones revisadas',

@@ -35,6 +35,7 @@ export default function SceneViewport({ width, height, children }: { width: numb
     return { x: x - rect.left - size.width / 2, y: y - rect.top - size.height / 2 };
   };
   const down = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === 'touch' && !hand) return;
     if (event.button !== 0 && event.button !== 1) return;
     if (!hand && event.button !== 1 && (event.target as Element).closest('[data-device-id], button')) return;
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
@@ -74,7 +75,7 @@ export default function SceneViewport({ width, height, children }: { width: numb
       onPointerDownCapture={down} onPointerMoveCapture={move} onPointerUpCapture={end} onPointerCancelCapture={end} onLostPointerCapture={end}
       onClickCapture={event => { if (hand) { event.preventDefault(); event.stopPropagation(); } }}
       onKeyDown={event => {
-        if (event.target !== event.currentTarget) return;
+        if (event.target !== event.currentTarget || event.ctrlKey || event.metaKey || event.altKey) return;
         const delta = { ArrowLeft: [-40, 0], ArrowRight: [40, 0], ArrowUp: [0, -40], ArrowDown: [0, 40] }[event.key];
         if (event.key === 'Escape') setHand(false);
         else if (event.key === '+' || event.key === '=') changeZoom(1.25);
