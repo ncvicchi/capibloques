@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { student, token } from './editor-fixture';
 import { mockLibrary } from './project-library-fixture';
 import { recoveryRows } from './recovery-fixture';
+import { viewportBounds } from './viewport-fixture';
 
 const otherId = 'e6d7e9f1-91eb-44d2-8b7e-84920bed16ed';
 
@@ -164,7 +165,8 @@ test('salida compartida: confirmación y cancelar alcanzables a 390px y texto 20
   await page.getByRole('checkbox').scrollIntoViewIfNeeded();
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Cancelar', exact: true }).scrollIntoViewIfNeeded();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false);
+  const viewport = await viewportBounds(page);
+  expect(viewport.width, JSON.stringify(viewport)).toBeLessThanOrEqual(viewport.viewport + 1);
   const overflow = await page.getByRole('dialog').evaluate(element => element.scrollWidth > element.clientWidth + 1);
   expect(overflow).toBe(false);
   const bounds = await page.getByRole('dialog').boundingBox();

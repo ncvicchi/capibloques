@@ -106,11 +106,22 @@ jobs:
           npx oxlint components/firmware-builds.tsx components/compiler-management.tsx components/usb-board.tsx
           npm audit --audit-level=high
 
+      - name: Verificar primero las regresiones de texto ampliado
+        run: npx playwright test tests/programming-experience.spec.ts tests/session-exit.spec.ts --grep 'vacío y móvil|confirmación y cancelar alcanzables' --retries=0
+
       - name: Probar la interfaz en Chromium
         run: npm run test:e2e
 
       - name: Construir sitio estático
         run: npm run build
+
+      - name: Conservar diagnóstico UI sintético si falla
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-diagnostics
+          path: test-results/
+          retention-days: 3
 
   firmware:
     runs-on: ubuntu-latest

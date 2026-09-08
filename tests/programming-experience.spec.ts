@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { mockEditorSession } from './editor-fixture';
 import { makeProject } from '../lib/capiblocks';
 import { createEmptyScene } from '../lib/scene-model';
+import { viewportBounds } from './viewport-fixture';
 
 const block = (
   type: string,
@@ -192,9 +193,8 @@ test('vacío y móvil: comienzo automático, ayuda y controles al 200%', async (
   await page
     .getByRole('combobox', { name: 'Modo de ejecución' })
     .selectOption('guided');
-  expect(
-    await page.evaluate(() => document.documentElement.scrollWidth),
-  ).toBeLessThanOrEqual(391);
+  const bounds = await viewportBounds(page);
+  expect(bounds.width, JSON.stringify(bounds)).toBeLessThanOrEqual(391);
   await page
     .getByRole('region', { name: 'Qué se está ejecutando' })
     .screenshot({ path: testInfo.outputPath('execution-mobile.png') });
