@@ -706,6 +706,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
           {link && autoEnabled && <span> · {offline || autoPaused || conflict ? 'Autoguardado pausado' : 'Auto activo'}</span>}
           {localBusy && <span> · Conservando copia local…</span>}
         </span>
+        {(localError || (error && !open)) && <div className="project-save-errors">
         {localError && <span className="cloud-error" role="alert">{localError} Exportá JSON antes de salir.</span>}
         {error && !open && (
           <span className="cloud-error" role="alert">
@@ -719,6 +720,7 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
             </Button>
           </span>
         )}
+        </div>}
         <Dialog
           open={open && !offline}
           onOpenChange={(value) => {

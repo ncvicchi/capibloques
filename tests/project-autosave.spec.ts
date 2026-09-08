@@ -194,7 +194,7 @@ test('autoguardado: curso de sólo lectura no recibe envíos automáticos', asyn
     isArchived: true,
     ownerCanEdit: false,
   };
-  await page.clock.runFor(15000);
+  await page.clock.fastForward(60000);
   await expect(page.locator('.cloud-state')).toContainText('Sólo lectura');
   await page
     .getByLabel('Nombre del proyecto')

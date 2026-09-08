@@ -154,7 +154,8 @@ test('editor: si falla el guardado permite exportar antes de una salida voluntar
   await page.getByRole('menuitem', { name: 'Cerrar sesión', exact: true }).click();
   await expect(page.getByText('No pudimos conservar el último cambio. Exportá una copia JSON antes de cerrar sesión.', { exact: true })).toBeVisible();
   await expect(page.getByLabel('Nombre del proyecto')).toHaveValue('Conservar aunque no haya espacio');
-  await page.getByRole('button', { name: 'Exportar', exact: true }).click();
+  // The storage-error banner must not obstruct the escape hatch it recommends.
+  await page.getByRole('button', { name: 'Exportar', exact: true }).click({ timeout: 5000 });
   const download = page.waitForEvent('download');
   await page.getByRole('menuitem', { name: 'Proyecto editable JSON' }).click();
   await download;
