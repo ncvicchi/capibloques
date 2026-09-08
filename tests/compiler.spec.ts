@@ -44,6 +44,7 @@ async function save(page: Page) {
 async function acknowledge(page: Page) {
   await page.getByTitle('Abrir guía de conexiones', { exact: true }).click();
   const guide = page.getByRole('dialog', { name: 'Conectar la Wemos sin adivinar', exact: true });
+  await expect(guide.getByRole('checkbox').first()).toBeVisible();
   for (const checkbox of await guide.getByRole('checkbox').all()) await checkbox.check();
   await guide.getByRole('button', { name: 'Conexiones revisadas', exact: true }).click();
 }
