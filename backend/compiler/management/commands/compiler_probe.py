@@ -21,7 +21,7 @@ from projects.views import retire_project
 
 class Command(BaseCommand):
     def add_arguments(self, parser):
-        parser.add_argument("action", choices=["create", "status", "verify", "measure", "cleanup"])
+        parser.add_argument("action", choices=["create", "status", "repeat", "verify", "measure", "cleanup"])
         parser.add_argument("--owner")
         parser.add_argument("--framework", choices=["arduino", "esp-idf"], default="arduino")
         parser.add_argument("--wifi", action="store_true")
@@ -55,12 +55,20 @@ class Command(BaseCommand):
         if options["action"] == "status":
             self.stdout.write(json.dumps({"jobs": [metadata(job) for job in jobs]}))
             return
-        if options["action"] in ("verify", "measure"):
+        if options["action"] in ("repeat", "verify", "measure"):
             client = Client(enforce_csrf_checks=True, HTTP_HOST="localhost", HTTP_X_CAPI_ACCOUNT=str(owner.pk))
             client.force_login(owner)
             try:
                 csrf = client.get("/api/auth/session/").json()["csrfToken"]
-                if options["action"] == "verify":
+                if options["action"] == "repeat":
+                    job = jobs.latest("created_at")
+                    project = owner.projects.get()
+                    data = {"id": str(uuid.uuid4()), "projectId": str(project.pk), "revision": project.revision, "framework": job.framework, "wiringReviewed": True,
+                            "wifi": {"ssid": "CapiSyntheticNetwork", "password": "synthetic-password-only", "consent": True} if job.contains_wifi else None}
+                    started = time.monotonic()
+                    response = client.post("/api/builds/", data, content_type="application/json", HTTP_X_CSRFTOKEN=csrf)
+                    self.stdout.write(json.dumps({"status": response.status_code, "milliseconds": round((time.monotonic()-started)*1000, 1), "job": response.json()}))
+                elif options["action"] == "verify":
                     job = jobs.filter(state="ready").latest("created_at")
                     response = client.get(f"/api/builds/{job.pk}/download/")
                     if response.status_code != 200: raise CommandError("Private download failed")

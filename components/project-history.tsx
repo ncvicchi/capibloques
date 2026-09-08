@@ -90,7 +90,7 @@ export default function ProjectHistory({ project, request, close, changed }: {
       {target ? <section aria-label="Confirmar cambio de historial">
         <h2>{target.action === 'restore' ? `¿Restaurar versión ${target.version?.revision}?` : target.action === 'remove' ? `¿Eliminar versión ${target.version?.revision}?` : '¿Eliminar definitivamente el proyecto?'}</h2>
         <p>{target.action === 'restore' ? 'Se guardará como una versión nueva en tu cuenta. Tus cambios abiertos en el editor quedan intactos y no se fusionan.' : 'Este borrado no se puede deshacer. Exportá las versiones que quieras conservar antes de confirmar. No borra archivos descargados ni copias de otros navegadores.'}</p>
-        {target.action === 'purge' && <p>Se eliminarán también {data?.project.feedbackCount ?? 0} devoluciones y sus respuestas. Exportar el JSON no incluye esas conversaciones.</p>}
+        {target.action === 'purge' && <p>Se eliminarán también {data?.project.feedbackCount ?? 0} devoluciones y sus respuestas, y se retirarán los firmwares temporales. Exportar el JSON no incluye esas conversaciones ni las claves Wi-Fi de compilación.</p>}
         {target.action !== 'restore' && <label>Escribí {target.action === 'purge' ? 'el nombre exacto del proyecto' : 'el número de versión'}: {expected}<Input aria-label="Confirmación de borrado" value={confirmation} disabled={busy || Boolean(pending)} onChange={event => setConfirmation(event.target.value)} /></label>}
         {pending && <p>Resultado sin confirmar. Reintentá la misma operación. Si cerrás, revisá el historial al volver: cancelar la vista no revierte una petición enviada.</p>}
         <div className="account-actions">

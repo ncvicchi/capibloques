@@ -298,6 +298,7 @@ export default function AccountDeletion({
                   Incluye los JSON activos y de papelera. No contiene
                   contraseñas ni borradores locales; no restablece la cuenta
                   original ni comparte automáticamente los proyectos importados.
+                  {' '}Los firmwares temporales se retiran con sus proyectos y no se incluyen en el respaldo.
                 </p>
                 <label htmlFor="backup-local" className="management-check">
                   <Checkbox

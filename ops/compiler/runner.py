@@ -205,6 +205,8 @@ def main():
                     if not job["cancel"] and elapsed <= DEADLINE and not state["OOMKilled"] and current.get("output") and not current.get("overflow"):
                         try:
                             output = json.loads(current["output"])
+                            if not isinstance(output, dict):
+                                raise ValueError("Invalid compiler result")
                             if state["ExitCode"] == 0 and output.get("success") is True:
                                 raw = base64.b64decode(output["artifact"], validate=True)
                                 result.update(success=True, sha256=publish(raw, current["job"]))

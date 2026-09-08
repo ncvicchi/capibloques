@@ -10,7 +10,7 @@ import uuid
 from datetime import timedelta
 from pathlib import Path
 
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from django.conf import settings
 from django.utils import timezone
 from django.utils.crypto import salted_hmac
@@ -129,7 +129,11 @@ def dispatch(command, data):
                 if job.recipe != cfg.recipe:
                     forget(job, "failed", "Se actualizaron las herramientas. Volvé a compilar.")
                     continue
-                wifi = json.loads(cipher().decrypt(job.wifi_encrypted.encode()).decode()) if job.wifi_encrypted else None
+                try:
+                    wifi = json.loads(cipher().decrypt(job.wifi_encrypted.encode()).decode()) if job.wifi_encrypted else None
+                except (InvalidToken, ValueError, UnicodeError):
+                    forget(job, "failed", "La configuración privada de Wi-Fi ya no está disponible. Ingresala nuevamente al compilar.")
+                    continue
                 snapshot = job.document
                 job.state, job.attempt, job.started_at = "building", uuid.uuid4(), now
                 job.lease_until = now + timedelta(seconds=45)
