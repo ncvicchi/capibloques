@@ -49,7 +49,7 @@ Esto es retiro lógico, **no borrado forense**: WAL/backups de PostgreSQL, swap,
 
 Arduino usa `WiFi.persistent(false)` y ESP-IDF `WIFI_STORAGE_RAM`; eso evita pedir persistencia adicional de la configuración nueva en NVS, pero no borra residuos de firmware o NVS anteriores. Cambiar firmware o retirar un ZIP no permite retirar copias previas ni garantiza eliminar una clave de la placa.
 
-DEV sigue por loopback y túnel SSH; no exponer el formulario con claves por HTTP en LAN/Internet. Producción requiere HTTPS en fase 11.
+DEV sigue por loopback y túnel SSH; no exponer el formulario con claves por HTTP en LAN/Internet. Producción requiere HTTPS en la Fase final, postergada.
 
 ## Operación DEV
 

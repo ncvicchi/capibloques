@@ -82,7 +82,7 @@ npm run test:e2e -- tests/scene-recovery.spec.ts tests/project-history.spec.ts t
 
 Las regresiones completas de fase 4 añaden `tests/capibloques.spec.ts`, `tests/project-autosave.spec.ts`, `tests/project-durable-recovery.spec.ts`, `tests/session-exit.spec.ts` y `tests/editor-access.spec.ts`. CI ejecuta además las restantes pruebas del producto. En DEV, `sudo sh scripts/verify-backend-dev.sh` comprueba el servidor sin recrear PostgreSQL.
 
-No sustituye un backup fuera de la VM ni una prueba de apagón. El ensayo de restauración integral, retención de backups, aplicación de registros de eliminación al restaurar copias antiguas, carga concurrente y producción/HTTPS siguen en fase 11. No se promete aislamiento físico del perfil del navegador ni recuperación de datos ya purgados sin un respaldo externo.
+No sustituye un backup fuera de la VM ni una prueba de apagón. El ensayo de restauración integral, retención de backups, aplicación de registros de eliminación al restaurar copias antiguas, carga concurrente y producción/HTTPS siguen en la Fase final, postergada. No se promete aislamiento físico del perfil del navegador ni recuperación de datos ya purgados sin un respaldo externo.
 
 ## Prueba del propietario al terminar
 

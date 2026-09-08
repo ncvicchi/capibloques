@@ -18,7 +18,7 @@ Autorizada y **completada en DEV el 7 de septiembre de 2026**. Implementación v
 
 Migraciones `accounts.0003_preferences` y `0004_empty_favorites` aditivas. La segunda permite validar una cuenta nueva sin favoritos. No se cambiaron contraseñas ni usuarios reales como prueba.
 
-Respaldo previo en DEV, privado y fuera del checkout: `pre-phase6-preferences-20260907.dump`; verificada su existencia y catálogo, no se hizo una restauración ni copia externa. No confundir esto con la prueba de restauración de producción de la fase 11.
+Respaldo previo en DEV, privado y fuera del checkout: `pre-phase6-preferences-20260907.dump`; verificada su existencia y catálogo, no se hizo una restauración ni copia externa. No confundir esto con la prueba de restauración de producción de la Fase final, postergada.
 
 ## Evidencia de la implementación
 

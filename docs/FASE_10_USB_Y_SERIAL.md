@@ -1,6 +1,6 @@
 # Fase 10 — USB y monitor Serial
 
-Autorización: «Empeza y termina la 10». **Software implementado y desplegado en DEV. La fase no se cierra: queda pendiente la aceptación física.** El propietario confirmó el 8 de septiembre de 2026 que no dispone de una Wemos ahora; no se sustituye esa prueba por simulación ni se inicia fase 11.
+Autorización: «Empeza y termina la 10». **Software implementado y desplegado en DEV. La fase no se cierra: queda pendiente la aceptación física.** El propietario confirmó el 8 de septiembre de 2026 que no dispone de una Wemos ahora; no se sustituye esa prueba por simulación ni se inicia producción. Producción se renombra Fase final y queda postergada; la [nueva fase 11](PLAN_FASES_BACKLOG.md) es contexto portable, no el despliegue.
 
 ## Alcance
 
@@ -56,4 +56,4 @@ Código publicado con commit/push y desplegado en DEV; esta actualización de re
 
 Al preparar esta fase, Windows sólo mostraba cuatro puertos Bluetooth; no había una Wemos identificada para sobrescribir. No se abrió ni programó ninguno de esos puertos. El selector nativo exige elección explícita del usuario y no se evade su permiso.
 
-Para cerrar la fase hay que conectar una **Wemos D1 R32 concreta**, con cable de datos y actuadores desconectados, y confirmar que se puede reemplazar su programa. Probar Arduino y ESP-IDF por la web, comprobar sus mensajes reales, cerrar la pestaña y comprobar funcionamiento autónomo. Verificar también monitor cerrado/reabierto, desconexión y recuperación de una carga interrumpida sobre esa placa de prueba. La fase 11 permanece sin iniciar.
+Para cerrar la fase hay que conectar una **Wemos D1 R32 concreta**, con cable de datos y actuadores desconectados, y confirmar que se puede reemplazar su programa. Probar Arduino y ESP-IDF por la web, comprobar sus mensajes reales, cerrar la pestaña y comprobar funcionamiento autónomo. Verificar también monitor cerrado/reabierto, desconexión y recuperación de una carga interrumpida sobre esa placa de prueba. La Fase final de producción permanece postergada.

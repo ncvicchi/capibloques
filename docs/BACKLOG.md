@@ -1,6 +1,6 @@
 # Backlog de CapiBloques
 
-Pedidos del propietario desde el 7 de septiembre de 2026, registrados durante distintas entregas. **Registrados, no implementados ni iniciados.** No cambian la autorización ni interrumpen la fase en curso. Estos números identifican pedidos, no nuevas fases; su incorporación al plan requiere acordar alcance y orden.
+Pedidos del propietario desde el 7 de septiembre de 2026, registrados durante distintas entregas. **Planificados, no implementados ni iniciados.** El 8 de septiembre se asignaron a las [nuevas fases](PLAN_FASES_BACKLOG.md), precedidas por una fase de contexto portable para otra cuenta. Los números de este archivo identifican pedidos, no fases. Las notas de «no interrumpir» conservan el contexto de cada solicitud; la planificación no autoriza iniciar su implementación.
 
 ## 1. Redistribuir la interfaz
 
@@ -77,4 +77,18 @@ Pedido durante fase 10: al salir de la página y volver a enfocarla, la validaci
 
 ## Relación actualizada con el plan vigente
 
-Estos pedidos cruzan la UX de la fase 6 y las futuras fases de mensajes/display, generadores, compilación y USB. Se incorporarán explícitamente al [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) antes de iniciar su implementación, con alcance y orden acordados. El rediseño general sigue pendiente aunque las funciones de fase 6 estén entregadas; el backlog no demuestra soporte funcional disponible.
+El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las nuevas fases](PLAN_FASES_BACKLOG.md) incorporan todos los pedidos. La fase 11 prepara el contexto para continuar desde otra cuenta; no implementa el backlog. El rediseño general sigue pendiente aunque las funciones de fase 6 estén entregadas.
+
+| Pedido | Fase prevista |
+| --- | --- |
+| 1. Redistribución de interfaz | 12. Editor despejado |
+| 2. ESP32-S3 | 15. DevKit y 16. Waveshare de 5 pulgadas |
+| 3. Display interactivo | 17. Escena y controles locales en pantalla |
+| 3. TX/RX serial | 14. TX/RX programable |
+| 4. Paralelo vertical | 13. Ejecución visual |
+| 5. Bloques estáticos | 13. Ejecución visual |
+| 6. Catálogo separado | 12. Editor despejado |
+| 7. Progreso dentro del bloque/componente | 13. Ejecución visual |
+| 8. Sesión sin revalidación por foco | 12. Editor despejado |
+
+Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. Ninguna de estas asignaciones demuestra soporte funcional disponible ni habilita cambios en servidores.
