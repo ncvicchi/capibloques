@@ -66,7 +66,9 @@ export default function WiringGuide({
 }: WiringGuideProps) {
   const signature = sceneSignature(scene, rawPins);
   const [selection, setSelection] = useState<{ signature: string; pin: number } | null>(null);
+  const [deviceSelection, setDeviceSelection] = useState<{ signature: string; id: string } | null>(null);
   const selectedPin = selection?.signature === signature ? selection.pin : undefined;
+  const selectedDevice = selectedPin === undefined && deviceSelection?.signature === signature ? deviceSelection.id : undefined;
   const needsLedSafety = scene.devices.some((device) =>
     ['led', 'trafficLight'].includes(device.kind),
   );
@@ -137,6 +139,7 @@ export default function WiringGuide({
       const boardPin = wemosD1R32Pins.find((item) => item.gpio === pin);
       return {
         id: `${device.id}-${requirement.key}`,
+        deviceId: device.id,
         deviceName: device.name,
         signal: requirement.label,
         pin,
@@ -147,6 +150,7 @@ export default function WiringGuide({
   connectionRows.push(
     ...rawPins.map((pin) => ({
       id: `raw-output-${pin}`,
+      deviceId: 'raw-outputs',
       deviceName: 'Salida avanzada (bloque)',
       signal: 'Salida digital',
       pin,
@@ -167,7 +171,14 @@ export default function WiringGuide({
         </DialogHeader>
 
         <div className="wiring-layout">
-          <WemosBoard connections={connectionRows} selectedPin={selectedPin} onSelect={pin => setSelection({ signature, pin })} />
+          <label className="wiring-highlight">Resaltar conexiones de
+            <select aria-label="Resaltar conexiones de" value={selectedDevice ?? ''} onChange={event => { setSelection(null); setDeviceSelection({ signature, id: event.target.value }); }}>
+              <option value="">Todos los componentes</option>
+              {scene.devices.map(device => <option key={device.id} value={device.id}>{device.name}</option>)}
+              {rawPins.length > 0 && <option value="raw-outputs">Salidas avanzadas</option>}
+            </select>
+          </label>
+          <WemosBoard connections={connectionRows} selectedPin={selectedPin} selectedDevice={selectedDevice} onSelect={pin => setSelection({ signature, pin })} />
 
           <section className="wiring-status">
             {hardwareReady ? (
@@ -204,7 +215,7 @@ export default function WiringGuide({
                   </thead>
                   <tbody>
                     {connectionRows.map((row, index) => (
-                      <tr key={row.id} data-selected={row.pin != null && row.pin === selectedPin}>
+                      <tr key={row.id} data-selected={(row.pin != null && row.pin === selectedPin) || row.deviceId === selectedDevice}>
                         <td>{index + 1}</td>
                         <td>{row.deviceName}</td>
                         <td>{row.signal}</td>

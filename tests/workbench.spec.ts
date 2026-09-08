@@ -39,6 +39,13 @@ test('mesa de trabajo: dos filas globales, área útil y cámara sin cambiar el 
   await expect(viewport).toHaveAttribute('data-camera-zoom', '1.25');
   const after = await exported(page);
   expect(after.scene).toEqual(before.scene); expect(after.workspace).toEqual(before.workspace);
+  const pan = await viewport.getAttribute('data-camera-x');
+  await page.getByRole('button', { name: 'Ejecutar', exact: true }).click();
+  await page.getByRole('button', { name: 'Pausar', exact: true }).click();
+  await page.getByRole('button', { name: 'Paso', exact: true }).click();
+  await expect(viewport).toHaveAttribute('data-camera-zoom', '1.25');
+  await expect(viewport).toHaveAttribute('data-camera-x', pan!);
+  await page.getByRole('button', { name: 'Detener', exact: true }).click();
   await page.getByRole('button', { name: 'Ajustar escena', exact: true }).click();
   await expect(viewport).toHaveAttribute('data-camera-zoom', '1'); await expect(viewport).toHaveAttribute('data-camera-x', '0.00');
   await page.screenshot({ path: info.outputPath('workbench-1366.png') });
@@ -68,6 +75,9 @@ test('Wemos: pines y listado sincronizados, sin dar por aprobado el circuito', a
   await expect(dialog.locator('.wemos-image')).toBeVisible();
   const rows = dialog.locator('.wiring-table tbody tr');
   expect(await rows.count()).toBeGreaterThan(0);
+  await dialog.getByRole('combobox', { name: 'Resaltar conexiones de' }).selectOption({ label: 'Semáforo principal' });
+  await expect(dialog.locator('.board-contact[aria-pressed="true"]')).toHaveCount(3);
+  await expect(dialog.locator('.wiring-table tr[data-selected="true"]')).toHaveCount(3);
   const first = rows.first().getByRole('button');
   const gpio = Number((await first.textContent())!.replace('GPIO ', ''));
   await first.click();
@@ -152,4 +162,24 @@ test('catálogo separado: fondo opaco, cierre explícito y Escape, arrastre func
   await page.mouse.move(host.x + host.width - 140, host.y + host.height / 2, { steps: 20 }); await page.mouse.up();
   await expect(page.locator('.blocklyToolboxFlyout')).not.toBeVisible();
   await expect.poll(() => page.locator('.blocklyWorkspace > .blocklyBlockCanvas > .blocklyDraggable').count()).toBeGreaterThan(before);
+});
+
+test('sesión lenta: una consulta en curso, sin tapar el editor; señal explícita sí bloquea', async ({ page }) => {
+  await mockEditorSession(page);
+  let calls = 0, hold = false, release!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/api/auth/editor-session/', async route => {
+    calls++; if (hold) await pending;
+    await route.fulfill({ json: { user: student, csrfToken: token, context: 'ui-session-a' } });
+  });
+  await page.clock.install(); await page.goto('/'); await expect(page.locator('.blocklySvg')).toBeVisible();
+  const initial = calls; hold = true;
+  await page.clock.fastForward(60000); await expect.poll(() => calls).toBe(initial + 1);
+  await page.evaluate(() => { for (let i = 0; i < 8; i++) { window.dispatchEvent(new Event('online')); window.dispatchEvent(new Event('focus')); } });
+  expect(calls).toBe(initial + 1); await expect(page.getByLabel('Nombre del proyecto')).toBeVisible();
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('capibloques-account-session', { detail: { changing: true } })));
+  await expect(page.getByLabel('Nombre del proyecto')).not.toBeVisible();
+  hold = false; release();
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('capibloques-account-session', { detail: { changing: false } })));
+  await expect(page.getByLabel('Nombre del proyecto')).toBeVisible();
 });

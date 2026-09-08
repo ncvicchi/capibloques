@@ -2941,6 +2941,8 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .wemos-image { display: block; width: 100%; min-width: 660px; max-width: 760px; height: auto; margin: 0 auto; }
 .wemos-figure figcaption, .wemos-caution { font-size: 12px; line-height: 1.5; color: #344761; margin: 6px 0 0; }
 .wemos-caution { padding: 8px; background: #fff4d9; border-radius: 6px; }
+.wiring-highlight { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; }
+.wiring-highlight select { min-height: 36px; max-width: 100%; padding: 6px 10px; border: 1px solid #c4c9dd; background: white; border-radius: 7px; }
 .board-contact circle { fill: #c3d2e0; stroke: #132e45; stroke-width: 3; }
 .board-contact-target { fill: transparent; stroke: transparent; stroke-width: 3; }
 .board-contact.used { cursor: pointer; }
