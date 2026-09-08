@@ -24,7 +24,8 @@ container = "capi-probe-" + attempt
 args[args.index("--name") + 1] = container
 code = '''
 from pathlib import Path
-import sys, json, base64, traceback
+import sys, json, base64, traceback, os
+os.environ['NODE_NO_WARNINGS'] = '1'
 sys.path.insert(0, '/opt/capi')
 source = Path('/opt/capi/entry.py').read_text().split('\\ntry:\\n    main()')[0]
 source = source.replace('raise ValueError("Compilation failed")', 'raise ValueError(result[-12000:].decode("utf-8", errors="replace"))')
