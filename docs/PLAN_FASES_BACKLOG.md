@@ -1,6 +1,6 @@
 # Nuevas fases de CapiBloques
 
-Plan elaborado el 8 de septiembre de 2026 a pedido del propietario. **Sólo planificación: no autoriza iniciar implementación ni modificar servidores.** Complementa el [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y asigna todos los pedidos del [backlog](BACKLOG.md).
+Plan elaborado el 8 de septiembre de 2026 a pedido del propietario. **Actualización de autorización: el propietario pidió ejecutar las fases 11 y 12 completas y consecutivas.** La 11 entrega el [contexto vivo](CONTEXTO_PARA_CONTINUAR.md); la 12 continúa a continuación. Al cerrar la 12 y cada fase futura solicitada se actualiza ese documento. Las fases 13–17 no están autorizadas y la Fase final sigue postergada. Complementa el [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y asigna todos los pedidos del [backlog](BACKLOG.md).
 
 La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros 11–17; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. Primero se prepara el contexto portable para continuar desde otra cuenta; las mejoras de interfaz pueden comenzar después con autorización propia sin dar por hecha esa prueba.
 
@@ -8,7 +8,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 
 | Fase | Entrega completa | Pedidos del backlog | Dependencia |
 | --- | --- | --- | --- |
-| 11 | Contexto portable y traspaso a otra cuenta | Pedido adicional del propietario | Documentación y estado verificable; sin migrar secretos ni datos |
+| 11 | Contexto portable documentado; mantenimiento obligatorio en cada entrega | Pedido adicional del propietario | Documentación y estado verificable; sin migrar secretos ni datos |
 | 12 | Editor despejado, navegación de escena, sesión sin interrupciones y guía visual Wemos | 1, 6, 8 y 10; 9: Wemos | Traspaso de fase 11; pinout documentado para la guía, sin sustituir ensayo físico |
 | 13 | Ejecución visual en los bloques y paralelo vertical | 4, 5 y 7 | Distribución de fase 12 |
 | 14 | Componentes y bloques TX/RX serial | 3: TX/RX; 9: conexiones seriales | Wemos actual como primer destino; simulador y ambos generadores |
@@ -183,7 +183,7 @@ El gateway sigue siendo sólo un salto SSH, con prohibición de cambios. Tampoco
 ## Cómo se trabaja y qué falta decidir
 
 - Una fase completa autorizada por vez, con implementación, pruebas proporcionales, entrega en DEV y commit/push. Informar avances con evidencia y pendientes; no inventar porcentajes ni tiempos exactos.
-- Este plan **no inicia la fase 11**. La próxima a autorizar es «Contexto portable y traspaso a otra cuenta». Su alcance no incluye implementar las fases 12–17.
+- **Fases 11 y 12 autorizadas consecutivamente.** Entregar el contexto y continuar la UX sin otro OK entre ambas. Actualizar la documentación de fase 11 al cerrar la 12 y cada fase futura solicitada. No avanzar a 13–17 ni producción sin autorización.
 - No se necesitan placas para decidir el rediseño. Para fases 15 y 16 sí hacen falta modelos exactos antes de fijar drivers/pines; para cerrar las entregas físicas hace falta hardware identificado y autorización para reemplazar firmware.
 - La disposición exacta del paralelo se fija al abordar fase 13; formato de mensajes/timeout en fase 14; prioridad manual/programa y límites gráficos en fase 17. Son decisiones dentro de esas fases, no nuevas fases con letras.
 - No hay estimaciones horarias comprometidas: hardware, alcance de la adaptación gráfica y mediciones en la VM condicionan el esfuerzo. No retrasar ahora la planificación esperando esos datos, ni prometer implementaciones específicas de un modelo no identificado.

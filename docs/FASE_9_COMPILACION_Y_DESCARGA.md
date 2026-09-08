@@ -107,4 +107,4 @@ Para comprobaciones, `python manage.py compiler_probe` ofrece crear/repetir/medi
 
 Son mediciones de ejemplos sintéticos, no un SLA ni una prueba de carga de un aula completa. La compilación no demuestra compatibilidad eléctrica ni ejecución en una placa física. Las cuatro cuentas/proyectos sintéticos se retiraron mediante sus UUID exactos y las guardas del probe, sin borrar cuentas/proyectos reales. Los registros mínimos de auditoría del compilador siguen su plazo de siete días, sin documentos, claves ni referencias de artefactos.
 
-Fuera de fase: grabación/monitor USB (10), producción/HTTPS/piloto (11), ESP32-S3, control físico en vivo y backlog de interfaz. No se inició ninguna de esas fases.
+Fuera de fase: grabación/monitor USB (10), producción/HTTPS/piloto (Fase final, postergada), ESP32-S3, control físico en vivo y backlog de interfaz. No se inició ninguna de esas fases.
