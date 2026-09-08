@@ -75,6 +75,18 @@ Pedido durante fase 10: al salir de la página y volver a enfocarla, la validaci
 
 **Sólo registrado. No cambiar el comportamiento de sesión ni interrumpir o modificar el trabajo en curso de fase 10 por este pedido.**
 
+## 9. Conexiones sobre una imagen de la placa
+
+Pedido del 8 de septiembre de 2026: donde se indica cómo conectar los componentes, **conservar el listado y complementarlo con una imagen de la placa**, inicialmente Wemos D1 R32 y, al incorporar su perfil, Waveshare ESP32-S3 con pantalla de 5 pulgadas.
+
+- Mostrar una fotografía o ilustración técnica fiel del modelo/revisión seleccionado, con orientación reconocible y pines/conectores señalados. Incluir también la DevKit cuando se entregue su perfil; no reutilizar la imagen ni el mapa Wemos para otra placa.
+- Relacionar cada componente del listado con sus conexiones en la imagen mediante etiquetas y resaltado, sin depender sólo del color. Distinguir nombre físico del conector/pin y GPIO; permitir ampliar la vista sin añadir encabezados permanentes al editor.
+- Derivar listado y marcas gráficas de la misma configuración/validación de conexiones del proyecto. Cambiar pines o placa, agregar/quitar componentes, importar y deshacer/rehacer debe mantener ambas vistas sincronizadas; no asignar pines automáticamente desde una imagen.
+- Conservar advertencias y requisitos eléctricos del montaje, incluidas alimentación, masa común, resistencias o drivers cuando correspondan. La imagen no debe sugerir conectar directamente un actuador que necesita una etapa intermedia ni presentar un conflicto como cableado válido.
+- Usar imágenes propias o con permiso/licencia documentados y contrastar etiquetas/coordenadas con la documentación de la placa exacta; no generar ni adivinar pinouts. Para Waveshare, representar los conectores realmente accesibles y los recursos reservados por pantalla/táctil según el modelo confirmado.
+
+Asignación: **fase 12** entrega la guía visual para Wemos; **fase 15** la adapta a DevKit y **fase 16** a Waveshare. La fase 14 debe reflejar también las asignaciones TX/RX en esta guía. Sólo planificación: no iniciar implementación ni alterar el orden de fases.
+
 ## Relación actualizada con el plan vigente
 
 El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las nuevas fases](PLAN_FASES_BACKLOG.md) incorporan todos los pedidos. La fase 11 prepara el contexto para continuar desde otra cuenta; no implementa el backlog. El rediseño general sigue pendiente aunque las funciones de fase 6 estén entregadas.
@@ -90,5 +102,6 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 6. Catálogo separado | 12. Editor despejado |
 | 7. Progreso dentro del bloque/componente | 13. Ejecución visual |
 | 8. Sesión sin revalidación por foco | 12. Editor despejado |
+| 9. Imagen de la placa con conexiones | 12. Wemos; 15. DevKit; 16. Waveshare; integración TX/RX en 14 |
 
 Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. Ninguna de estas asignaciones demuestra soporte funcional disponible ni habilita cambios en servidores.
