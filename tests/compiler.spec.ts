@@ -42,7 +42,7 @@ async function save(page: Page) {
   await expect(page.locator('.cloud-state')).toContainText('Guardado en tu cuenta');
 }
 async function acknowledge(page: Page) {
-  await page.getByTitle('Abrir guía de conexiones', { exact: true }).click();
+  await page.getByRole('button', { name: 'Conectar', exact: true }).click();
   const guide = page.getByRole('dialog', { name: 'Conectar la Wemos sin adivinar', exact: true });
   await expect(guide.getByRole('checkbox').first()).toBeVisible();
   for (const checkbox of await guide.getByRole('checkbox').all()) await checkbox.check();

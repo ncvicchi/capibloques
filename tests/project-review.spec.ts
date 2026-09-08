@@ -583,7 +583,7 @@ test('revisión: enlace a versión retirada permite elegir otra explícitamente'
   await page
     .getByRole('combobox', { name: 'Versión abierta', exact: true })
     .selectOption('1');
-  await expect(page.getByRole('application')).toBeVisible();
+  await expect(page.getByRole('application', { name: 'Bloques de la versión, sólo lectura', exact: true })).toBeVisible();
   expect(state.snapshotOpens).toBe(2);
 });
 

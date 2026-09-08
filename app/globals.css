@@ -2973,5 +2973,7 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
   .workbench .workspace-grid.functional { display: flex; flex-direction: column; padding: 8px; }
   .workbench .canvas-panel { height: 65dvh; min-height: 420px; }
   .workbench .simulator-panel { height: 620px; }
+  .workbench .canvas-header { height: auto; flex-wrap: wrap; gap: 6px; }
+  .workbench .canvas-header-actions { flex-wrap: wrap; max-width: 100%; }
   .workbench .canvas-header-actions button { font-size: 11px; padding: 5px; }
 }

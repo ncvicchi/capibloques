@@ -183,3 +183,21 @@ test('sesión lenta: una consulta en curso, sin tapar el editor; señal explíci
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('capibloques-account-session', { detail: { changing: false } })));
   await expect(page.getByLabel('Nombre del proyecto')).toBeVisible();
 });
+
+test('mesa de trabajo móvil: texto ampliado y fuentes del sistema sin desborde', async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page);
+  for (const family of ['sans-serif', 'Arial', 'Verdana']) {
+    await page.addStyleTag({ content: `html { font-size: 200%; } body { font-family: ${family}; }` });
+    const bounds = await page.evaluate(() => ({
+      width: document.documentElement.scrollWidth,
+      overflowing: Array.from(document.querySelectorAll('body *')).flatMap(element => {
+        const box = element.getBoundingClientRect();
+        if (box.width && box.right > innerWidth + 1 && element instanceof HTMLElement) return [{ tag: element.tagName, class: element.className, right: box.right, width: box.width }];
+        return [];
+      }).slice(0, 30),
+    }));
+    await info.attach(`mobile-${family}.json`, { body: JSON.stringify(bounds), contentType: 'application/json' });
+    expect(bounds.width, JSON.stringify(bounds.overflowing)).toBeLessThanOrEqual(391);
+  }
+});
