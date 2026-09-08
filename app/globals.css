@@ -2894,7 +2894,7 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .scene-context details { min-width: 0; flex: 1; position: relative; }
 .scene-context summary { font-weight: 750; cursor: pointer; font-size: 13px; overflow-wrap: anywhere; }
 .scene-context details p { position: absolute; z-index: 10; top: 100%; left: 0; width: min(330px, 75vw); background: white; box-shadow: 0 6px 24px #1e245333; padding: 14px; border-radius: 8px; border: 1px solid var(--line); font-size: 13px; }
-.scene-context .scene-builder-button { padding: 6px 9px; min-height: 34px; font-size: 12px; white-space: nowrap; }
+.scene-context .scene-builder-button { width: auto; padding: 6px 9px; min-height: 34px; font-size: 12px; white-space: nowrap; }
 .workbench .sim-tabs-list { height: 38px; min-height: 38px; }
 .workbench .sim-tabs-root { min-height: 0; }
 .workbench .sim-content { min-height: 0; }
