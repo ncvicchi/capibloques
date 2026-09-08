@@ -100,6 +100,9 @@ jobs:
           npm run test:display-driver
           npm run test:idf
           npm run test:idf-driver
+          node --experimental-strip-types scripts/compiler-generator.test.mjs
+          python scripts/compiler-isolation.test.py
+          npx oxlint components/firmware-builds.tsx components/compiler-management.tsx
           npm audit --audit-level=high
 
       - name: Probar la interfaz en Chromium

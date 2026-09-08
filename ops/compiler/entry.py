@@ -7,8 +7,8 @@ import sys
 from archive import bundle
 
 
-def run(command, *, input=None, cwd=None, maximum=2_100_000):
-    process = subprocess.Popen(command, stdin=subprocess.PIPE if input else subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=cwd)
+def run(command, *, input=None, cwd=None, maximum=2_100_000, structured=False):
+    process = subprocess.Popen(command, stdin=subprocess.PIPE if input else subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL if structured else subprocess.STDOUT, cwd=cwd)
     if input:
         # Generator input is bounded; its output is emitted only after all stdin.
         process.stdin.write(input); process.stdin.close()
@@ -34,7 +34,7 @@ def main():
         raise ValueError
     Path("/work/home").mkdir()
     Path("/work/project").mkdir()
-    generated = json.loads(run(["node", "--experimental-strip-types", "/opt/capi/scripts/compiler-generate.mjs"], input=payload))
+    generated = json.loads(run(["node", "--experimental-strip-types", "/opt/capi/scripts/compiler-generate.mjs"], input=payload, structured=True))
     for name, text in generated["files"].items():
         path = (Path("/work/project") / name).resolve()
         if not path.is_relative_to(Path("/work/project")):

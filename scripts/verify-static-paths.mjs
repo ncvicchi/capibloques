@@ -25,6 +25,7 @@ await access(join(root, 'cuenta', 'index.html'));
 await access(join(root, 'gestion', 'usuarios', 'index.html'));
 await access(join(root, 'gestion', 'colegio', 'index.html'));
 await access(join(root, 'gestion', 'cursos', 'index.html'));
+await access(join(root, 'gestion', 'compilaciones', 'index.html'));
 await access(join(root, 'cursos', 'index.html'));
 await access(join(root, 'revision', 'index.html'));
 console.log(`${pages} páginas estáticas verificadas: assets desde raíz, incluidas las rutas de cuentas, colegio y cursos.`);

@@ -52,6 +52,9 @@ def bundle(build, framework, uses_wifi):
     manifest = {"format": "CapiBloquesFirmware", "version": 1, "board": "wemos-d1-r32", "chip": "esp32", "framework": framework,
                 "frameworkVersion": "5.5.5" if framework == "esp-idf" else "3.3.11", "containsWifiCredentials": uses_wifi, **options, "parts": parts}
     contents["manifest.json"] = json.dumps(manifest, indent=2).encode()
+    if framework == "esp-idf":
+        for name in ("Adafruit-GFX.txt", "Arduino-GFX.txt"):
+            contents["licenses/" + name] = (build.parent / "project" / "licenses" / name).read_bytes()
     arguments = " ".join(f"0x{part['offset']:x} {part['path']}" for part in parts)
     contents["LEEME.txt"] = ("CapiBloques · Firmware completo para Wemos D1 R32 (ESP32, no ESP32-S3).\n"
         "Revisá cableado, alimentación y parada física con una persona adulta. Desconectá motores antes de grabar.\n"

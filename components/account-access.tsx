@@ -157,6 +157,7 @@ export default function AccountAccess() {
               <Link className="account-back" href="/gestion/usuarios/" prefetch={false}>Gestionar usuarios →</Link>
               <Link className="account-back" href="/gestion/colegio/" prefetch={false}>Configurar colegio →</Link>
               <Link className="account-back" href="/gestion/cursos/" prefetch={false}>Gestionar cursos →</Link>
+              <Link className="account-back" href="/gestion/compilaciones/" prefetch={false}>Configurar compilaciones →</Link>
             </nav>}
             {changing ? <form onSubmit={event => { event.preventDefault(); void submit('password', { currentPassword: password, newPassword, confirmation }); }}>
               <h2>{user.mustChangePassword ? 'Elegí tu contraseña' : 'Cambiar contraseña'}</h2>

@@ -1,0 +1,10 @@
+# Only after ops/compiler/install.py creates the exact private directory.
+services:
+  api:
+    volumes:
+      - type: bind
+        source: /var/lib/capibloques-compiler/artifacts
+        target: /artifacts
+        read_only: true
+        bind:
+          create_host_path: false

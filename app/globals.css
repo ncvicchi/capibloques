@@ -50,6 +50,22 @@
 .account-page { min-height: 100vh; padding: 24px; }
 .account-back { display: inline-flex; align-items: center; gap: 8px; color: var(--purple-dark); min-height: 44px; text-decoration: underline; }
 .account-card { width: min(100%, 520px); margin: 24px auto; padding: 32px; border: 1px solid var(--line); border-radius: 22px; background: var(--paper); box-shadow: 0 8px 32px #20294d0a; }
+.firmware-dialog { width: min(740px, calc(100vw - 24px)); max-width: 740px; max-height: 88dvh; overflow-y: auto; gap: 14px; }
+.firmware-dialog p { line-height: 1.5; }
+.firmware-dialog fieldset { display: grid; gap: 12px; border: 0; padding: 0; margin: 0 0 14px; min-width: 0; }
+.firmware-dialog select, .compiler-management select { padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: white; max-width: 100%; }
+.firmware-wifi { display: grid; gap: 10px; border: 1px solid #e0d5ac; padding: 16px; border-radius: 12px; background: #fffbee; }
+.firmware-wifi label, .firmware-heading h3 { font-weight: 650; }
+.firmware-consent { display: flex; gap: 10px; align-items: flex-start; }
+.firmware-consent input { margin-top: 5px; }
+.firmware-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.firmware-jobs { list-style: none; padding: 0; display: grid; gap: 12px; }
+.firmware-jobs li { padding: 16px; border: 1px solid var(--line); border-radius: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; overflow-wrap: anywhere; }
+.firmware-jobs li > :is(strong, p, small) { flex-basis: 100%; }
+.firmware-dialog button { min-height: 40px; height: auto; white-space: normal; }
+.firmware-dialog .bg-primary, .compiler-management .bg-primary { background: var(--purple); color: white; }
+.compiler-management { width: min(100%, 700px); }
+.compiler-management input[type=checkbox] { min-height: auto; }
 .account-heading { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
 .account-heading > div { min-width: 0; overflow-wrap: anywhere; }
 .account-heading h1 { font-size: 1.8rem; margin: 0; line-height: 1.2; }

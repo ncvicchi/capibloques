@@ -73,6 +73,7 @@ import {
   downloadText,
   examples,
   generateEsp32CodeResult,
+  programUsesWifi,
   makeProject,
   safeFilename,
   validateProgramForScene,
@@ -100,6 +101,7 @@ import SimulatorWorker from '@/lib/simulator.worker.ts?worker';
 import type { Account, AccountDraftStore } from '@/lib/account-session';
 import type { EditorCheckpoint } from '@/components/editor-access';
 import ProjectLibrary, { type ProjectLibraryHandle } from '@/components/project-library';
+import FirmwareBuilds from '@/components/firmware-builds';
 import { projectFingerprint } from '@/lib/project-library';
 
 const SceneBuilder = lazy(() => import('@/components/scene-builder'));
@@ -441,6 +443,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const [code, setCode] = useState('');
   const [codeFramework, setCodeFramework] = useState<FirmwareFramework>('arduino');
   const [exportBusy, setExportBusy] = useState(false);
+  const [buildsOpen, setBuildsOpen] = useState(false);
   const exportInFlight = useRef(false);
   const exportEpoch = useRef(0);
   useEffect(() => { const current = ++exportEpoch.current; return () => { exportEpoch.current = current + 1; }; }, [account.id]);
@@ -1231,6 +1234,9 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                 <DropdownMenuItem disabled={exportBusy} onClick={() => void exportCode('esp-idf')}>
                   <Code2 /> Proyecto ESP-IDF .zip
                 </DropdownMenuItem>
+                <DropdownMenuItem disabled={offline || sceneBuilderOpen || !hydrated} onClick={() => setBuildsOpen(true)}>
+                  <Settings2 /> Compilar y descargar firmware
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={saveToBrowser}><Save />Guardar sólo en este navegador</DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
@@ -1695,6 +1701,14 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         </DialogContent>
       </Dialog>
 
+      {buildsOpen && !offline && <FirmwareBuilds account={account} store={draftStore} csrfToken={csrfToken} capture={currentProject} fingerprint={fingerprint} onClose={() => setBuildsOpen(false)} validate={framework => {
+        const generated = buildCode(framework);
+        if (generated.diagnostics.some(item => item.severity === 'error')) { setProblemsOpen(true); return null; }
+        if (hasPhysicalConnections(scene, generated.program) && wiringAcknowledgedSignature !== wiringReviewSignature(scene, generated.program)) {
+          setNotice('Antes de compilar, revisá y confirmá la guía de cableado.'); setNoticeTone('warning'); setWiringOpen(true); return null;
+        }
+        return { wifi: programUsesWifi(generated.program) };
+      }} />}
       <Dialog open={codeOpen} onOpenChange={setCodeOpen}>
         <DialogContent className="code-dialog">
           <DialogHeader>

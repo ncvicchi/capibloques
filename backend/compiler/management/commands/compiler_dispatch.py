@@ -16,7 +16,7 @@ class Command(BaseCommand):
             if len(data) > 8192:
                 raise ValueError
             result = dispatch(options["action"], json.loads(data or b"{}"))
-            self.stdout.write(json.dumps(result))
+            self.stdout.write(json.dumps(result, ensure_ascii=False))
         except Exception:
             # No exception context/traceback containing credentials to the runner.
             raise CommandError("No se pudo completar la operación del compilador.") from None

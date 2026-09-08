@@ -16,16 +16,16 @@ from compiler.models import Build, CompilerConfig, CompilerEvent
 from compiler.services import cipher, dispatch, retire_project_builds, sweep
 from projects.models import Project
 from .test_accounts import FAST_HASHERS
-from .test_projects import ProjectTests
+from . import test_projects
 
 
 @override_settings(PASSWORD_HASHERS=FAST_HASHERS)
 class CompilerTests(TestCase):
-    payload = ProjectTests.payload
-    create = ProjectTests.create
+    payload = test_projects.ProjectTests.payload
+    create = test_projects.ProjectTests.create
 
     def setUp(self):
-        ProjectTests.setUp(self)
+        test_projects.ProjectTests.setUp(self)
         self.project = self.create()
         CompilerConfig.objects.create(recipe="a" * 64, paused=False, runner_seen=timezone.now())
 
