@@ -3,6 +3,8 @@ import type { CodeGenerationResult } from './capiblocks.ts';
 import { IDF_VERSION, IDF_IMAGE } from './idf-runtime.ts';
 // @ts-expect-error Node strip-types runner.
 import { IDF_FONT_LICENSE, IDF_FONT_SOURCE } from './idf-font.ts';
+// @ts-expect-error Node strip-types runner.
+import { IDF_TFT_SOURCES } from './idf-tft-init.ts';
 
 export type FirmwareFiles = Record<string, string>;
 const MAX_ARCHIVE_BYTES = 16 * 1024 * 1024;
@@ -41,6 +43,7 @@ CONFIG_APP_REPRODUCIBLE_BUILD=y
 `,
     '.gitignore': '/build/\n/sdkconfig\n/sdkconfig.old\n/main/wifi_config.h\n',
     'licenses/Adafruit-GFX.txt': `${IDF_FONT_LICENSE}\nFont source: ${IDF_FONT_SOURCE}\nSubset: ASCII 32..126, no Arduino/GFX executable code is included.\n`,
+    'licenses/Arduino-GFX.txt': `${IDF_FONT_LICENSE}\nController initialization settings adapted from Arduino_GFX v1.6.7:\n${IDF_TFT_SOURCES.join('\n')}\nNo Arduino runtime/library is included.\n`,
     'README.md': `# CapiBloques — proyecto ESP-IDF
 
 Wemos D1 R32, chip ESP32, flash 4 MiB. Requiere **ESP-IDF ${IDF_VERSION}**.
@@ -87,7 +90,7 @@ Refresco máximo de un carácter cada 2 ms; se conserva el último estado pedido
 SPI de escritura no detecta la presencia de la pantalla. Compilar y simular no reemplazan la prueba física del modelo, niveles, fuente y cableado.
 
 \`manifest.json\` identifica versiones y SHA-256 de estas fuentes/configuración. No es un manifiesto de binarios ni contiene direcciones de grabación.
-\`licenses/\` contiene la licencia de la fuente de texto. Mantenerla al redistribuir.
+\`licenses/\` contiene las licencias de la fuente de texto y las tablas de inicialización TFT. Mantenerlas al redistribuir.
 `,
   };
 }

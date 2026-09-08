@@ -65,6 +65,11 @@ test('ESP-IDF: descarga ZIP completo con cableado confirmado, conserva Arduino y
   await page.screenshot({ path: info.outputPath('idf-code-preview.png'), fullPage: true });
   await dialog.getByRole('combobox', { name: 'Formato de código' }).selectOption('arduino');
   await expect(dialog.locator('pre')).toContainText('#include <Arduino.h>');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await dialog.getByRole('combobox', { name: 'Formato de código' }).selectOption('esp-idf');
+  await expect(dialog.getByRole('button', { name: 'Descargar ESP-IDF .zip', exact: true })).toBeVisible();
+  expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  await page.screenshot({ path: info.outputPath('idf-code-mobile.png'), fullPage: true });
 });
 
 function screenProject(profile: DisplayProfile, valid = true) {

@@ -36,8 +36,14 @@ jobs:
         run: |
           . "$IDF_PATH/export.sh" >/dev/null
           python scripts/verify-idf-archives.py
+          mkdir -p .idf-ci/build-project
           for profile in main auxiliary lcd1602 lcd2004 ssd1306 ili9341 ili9488; do
-            idf.py -C ".idf-ci/from-zip/$profile/capibloques" -DIDF_TARGET=esp32 build
+            # Same IDF/configuration: reuse framework objects, not the generated app.
+            # Do NOT preserve timestamps: each extracted main.cpp must rebuild.
+            cp -R ".idf-ci/from-zip/$profile/capibloques/." .idf-ci/build-project/
+            cmp ".idf-ci/from-zip/$profile/capibloques/main/main.cpp" .idf-ci/build-project/main/main.cpp
+            idf.py -C .idf-ci/build-project -DIDF_TARGET=esp32 build
+            sha256sum .idf-ci/build-project/main/main.cpp .idf-ci/build-project/build/capibloques.bin
           done
   backend:
     runs-on: ubuntu-latest
@@ -93,6 +99,7 @@ jobs:
           npm run test:smoke
           npm run test:display-driver
           npm run test:idf
+          npm run test:idf-driver
           npm audit --audit-level=high
 
       - name: Probar la interfaz en Chromium

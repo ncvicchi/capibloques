@@ -2,6 +2,8 @@
 import { displayProfiles, validDisplayConfig } from './display-model.ts';
 // @ts-expect-error Node strip-types runner.
 import { IDF_FONT } from './idf-font.ts';
+// @ts-expect-error Node strip-types runner.
+import { IDF_TFT_INIT } from './idf-tft-init.ts';
 import type { SceneDefinition } from './scene-model.ts';
 
 /** Native, write-only text drivers; one display and no shared external bus. */
@@ -12,6 +14,10 @@ export function displayIdfSupport(scene: SceneDefinition) {
   const pin = (name: keyof typeof device.pins) => device.pins[name] ?? -1;
   const lcd = !profile.graphic;
   const i2c = profile.bus === 'i2c';
+  const init = device.config.profile === 'ili9341' || device.config.profile === 'ili9488'
+    ? IDF_TFT_INIT[device.config.profile].map(([command, ...data], index) =>
+      `  const uint8_t init${index}[] = { ${data.join(', ')} };\n  if (!capiDisplayCommand(${command}, init${index}, sizeof(init${index}))) return false;`).join('\n')
+    : '';
   const font = profile.graphic ? `// ASCII font: see licenses/Adafruit-GFX.txt in the exported project.
 constexpr uint8_t capiFont[] = { ${IDF_FONT.join(', ')} };
 uint8_t capiGlyphColumn(uint8_t character, uint8_t column) {
@@ -123,6 +129,8 @@ bool capiDisplayDeviceBegin() {
   if (!capiDisplayBusBegin()) return false;
   if (!capiDisplayCommand(0x01)) return false;
   vTaskDelay(pdMS_TO_TICKS(150));
+  // Controller-specific power, VCOM, timing and gamma; see licenses/Arduino-GFX.txt.
+${init}
   const uint8_t format = ${device.config.profile === 'ili9488' ? '0x66' : '0x55'}, rotation = 0x28;
   if (!capiDisplayCommand(0x3a, &format, 1) || !capiDisplayCommand(0x36, &rotation, 1)
     || !capiDisplayCommand(0x20) || !capiDisplayCommand(0x13) || !capiDisplayCommand(0x11)) return false;

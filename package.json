@@ -15,6 +15,7 @@
     "lint:displays": "oxlint components/display-properties.tsx components/display-preview.tsx",
     "test:display-driver": "node --experimental-strip-types scripts/display-driver.test.mjs",
     "test:idf": "node --experimental-strip-types scripts/idf.test.mjs",
+    "test:idf-driver": "node --experimental-strip-types scripts/idf-driver.test.mjs",
     "test:e2e": "playwright test",
     "test": "npm run test:smoke && npm run test:e2e",
     "format": "oxfmt"
