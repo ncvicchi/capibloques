@@ -14,6 +14,7 @@
     "test:smoke": "node --experimental-strip-types scripts/smoke.mjs && node --experimental-strip-types scripts/simulator-worker-smoke.mjs && node --experimental-strip-types scripts/programming-experience.test.mjs && node --experimental-strip-types scripts/displays.test.mjs && node --experimental-strip-types scripts/snapshot-history.test.mjs && node --experimental-strip-types scripts/project-autosave.test.mjs",
     "lint:displays": "oxlint components/display-properties.tsx components/display-preview.tsx",
     "test:display-driver": "node --experimental-strip-types scripts/display-driver.test.mjs",
+    "test:idf": "node --experimental-strip-types scripts/idf.test.mjs",
     "test:e2e": "playwright test",
     "test": "npm run test:smoke && npm run test:e2e",
     "format": "oxfmt"

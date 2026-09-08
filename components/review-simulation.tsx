@@ -22,6 +22,7 @@ import {
   type SimulatorState,
   type CompiledProgram,
   type CapiDiagnostic,
+  type CodeGenerationResult,
 } from '@/lib/capiblocks';
 // Vite convierte el worker durante el build.
 // oxlint-disable-next-line import/default
@@ -34,7 +35,7 @@ export default function ReviewSimulation({
   onCode,
 }: {
   project: ProjectFile;
-  onCode: (code: string | null) => void;
+  onCode: (code: CodeGenerationResult | null) => void;
 }) {
   const editor = useRef<BlocklyWorkspaceHandle>(null);
   const worker = useRef<Worker | null>(null);
@@ -159,7 +160,7 @@ export default function ReviewSimulation({
         generated.diagnostics.some((item) => item.severity === 'error') ||
         (needsWiring && !wiringChecked)
         ? null
-        : generated.code,
+        : generated,
     );
   }, [generated, needsWiring, onCode, wiringChecked]);
   const compile = useCallback(() => {

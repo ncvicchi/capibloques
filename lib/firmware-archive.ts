@@ -52,7 +52,7 @@ Instalar la versión indicada desde las herramientas oficiales de Espressif y ab
 En esta carpeta: \`idf.py set-target esp32\`, luego \`idf.py build\`.
 El programa rechaza otro chip o versión de ESP-IDF. No usar el perfil ESP32-S3.
 Alternativa para compilación reproducible con Docker: imagen \`${IDF_IMAGE}\`.
-El volumen del proyecto debe contener estas fuentes; ejecutar \`idf.py -j 2 build\` dentro del contenedor.
+El volumen del proyecto debe contener estas fuentes; configurar la variable de entorno \`IDF_PY_BUILD_JOBS=2\` y ejecutar \`idf.py build\` dentro del contenedor.
 
 ## Conectar y programar
 

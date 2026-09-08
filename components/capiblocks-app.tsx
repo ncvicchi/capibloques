@@ -82,7 +82,9 @@ import {
   type RuntimeDeviceState,
   type SceneId,
   type SimulatorState,
+  type FirmwareFramework,
 } from '@/lib/capiblocks';
+import { createEspIdfArchive, downloadFirmwareArchive } from '@/lib/firmware-archive';
 import {
   addDeviceToScene,
   cloneScene,
@@ -437,6 +439,11 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const [codeOpen, setCodeOpen] = useState(false);
   const [problemsOpen, setProblemsOpen] = useState(false);
   const [code, setCode] = useState('');
+  const [codeFramework, setCodeFramework] = useState<FirmwareFramework>('arduino');
+  const [exportBusy, setExportBusy] = useState(false);
+  const exportInFlight = useRef(false);
+  const exportEpoch = useRef(0);
+  useEffect(() => { const current = ++exportEpoch.current; return () => { exportEpoch.current = current + 1; }; }, [account.id]);
   const [copied, setCopied] = useState(false);
   const [notice, setNotice] = useState('Recuperación local activa · Guardar sube a tu cuenta');
   const [noticeTone, setNoticeTone] = useState<'ok' | 'warning' | 'error'>(
@@ -911,9 +918,11 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     }
   }, [currentProject, muted, projectName]);
 
-  const buildCode = useCallback(() => {
+  const buildCode = useCallback((framework: FirmwareFramework = codeFramework) => {
     const program = compile();
-    const result = generateEsp32CodeResult(program, projectName, scene);
+    const result = generateEsp32CodeResult(program, projectName, scene, framework);
+    setCodeFramework(framework);
+    setCopied(false);
     setCode(result.code);
     setDiagnostics(result.diagnostics);
     const errors = result.diagnostics.filter(
@@ -931,7 +940,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       setNoticeTone('ok');
     }
     return result;
-  }, [compile, projectName, scene]);
+  }, [compile, projectName, scene, codeFramework]);
 
   const openCode = useCallback(() => {
     buildCode();
@@ -943,8 +952,9 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     setWiringOpen(true);
   }, [buildCode]);
 
-  const exportCode = useCallback(() => {
-    const generated = buildCode();
+  const exportCode = useCallback(async (framework: FirmwareFramework = codeFramework) => {
+    if (exportInFlight.current) return;
+    const generated = buildCode(framework);
     const errors = generated.diagnostics.filter(
       (diagnostic) => diagnostic.severity === 'error',
     );
@@ -970,14 +980,23 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       setWiringOpen(true);
       return;
     }
-    downloadText(
-      `${safeFilename(projectName)}.ino`,
-      generated.code,
-      'text/x-c++src',
-    );
-    setNotice('Código .ino descargado para la Wemos D1 R32');
-    setNoticeTone('ok');
-  }, [buildCode, muted, projectName, scene, wiringAcknowledgedSignature]);
+    exportInFlight.current = true;
+    setExportBusy(true);
+    const epoch = exportEpoch.current;
+    try {
+      if (framework === 'esp-idf') {
+        setNotice('Preparando proyecto ESP-IDF y verificando sus archivos…');
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const archive = await createEspIdfArchive(generated);
+        if (epoch !== exportEpoch.current) return;
+        downloadFirmwareArchive(`${safeFilename(projectName)}-esp-idf.zip`, archive);
+      } else downloadText(`${safeFilename(projectName)}.ino`, generated.code, 'text/x-c++src');
+      setNotice(framework === 'esp-idf' ? 'Proyecto ESP-IDF .zip descargado: fuentes, configuración e instrucciones; no es un binario.' : 'Código .ino descargado para la Wemos D1 R32');
+      setNoticeTone('ok');
+    } catch (error) {
+      if (epoch === exportEpoch.current) { setNotice(error instanceof Error ? error.message : 'No pudimos preparar la descarga.'); setNoticeTone('error'); }
+    } finally { exportInFlight.current = false; if (epoch === exportEpoch.current) setExportBusy(false); }
+  }, [buildCode, codeFramework, muted, projectName, scene, wiringAcknowledgedSignature]);
 
   const importProject = useCallback(
     async (file: File) => {
@@ -1206,8 +1225,11 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                 <DropdownMenuItem onClick={exportJson}>
                   <FileJson /> Proyecto editable JSON
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={exportCode}>
+                <DropdownMenuItem disabled={exportBusy} onClick={() => void exportCode('arduino')}>
                   <Code2 /> Código Arduino .ino
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled={exportBusy} onClick={() => void exportCode('esp-idf')}>
+                  <Code2 /> Proyecto ESP-IDF .zip
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={saveToBrowser}><Save />Guardar sólo en este navegador</DropdownMenuItem>
               </DropdownMenuGroup>
@@ -1322,7 +1344,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           onClick={openWiring}
           title="Abrir guía de conexiones"
         >
-          <span /> WEMOS D1 R32 · Arduino-ESP32 3.3.11
+          <span /> WEMOS D1 R32 · Arduino / ESP-IDF
         </button>
       </section>
 
@@ -1678,11 +1700,18 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           <DialogHeader>
             <DialogTitle>Código para WEMOS D1 R32</DialogTitle>
             <DialogDescription>
-              Usa cada componente y pin de tu escena. Las tareas avanzan juntas
-              con millis(), sin delay().
+              Usa cada componente y pin de tu escena. Los caminos avanzan juntos
+              con esperas cooperativas, tanto en Arduino como en ESP-IDF.
             </DialogDescription>
           </DialogHeader>
           <div className="code-actions">
+            <label>
+              Formato de código{' '}
+              <select aria-label="Formato de código" value={codeFramework} disabled={exportBusy} onChange={event => buildCode(event.target.value as FirmwareFramework)}>
+                <option value="arduino">Arduino (.ino)</option>
+                <option value="esp-idf">ESP-IDF nativo (.zip)</option>
+              </select>
+            </label>
             <span>
               {lastProgram.threads.length} programa(s) · {programNodeCount}{' '}
               acciones principales
@@ -1697,15 +1726,15 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
               <Clipboard size={16} /> {copied ? 'Copiado' : 'Copiar'}
             </button>
             <button
-              onClick={exportCode}
-              disabled={diagnostics.some((item) => item.severity === 'error')}
+              onClick={() => void exportCode()}
+              disabled={exportBusy || diagnostics.some((item) => item.severity === 'error')}
               title={
                 diagnostics.some((item) => item.severity === 'error')
                   ? 'Corregí los problemas antes de descargar'
-                  : 'Descargar código Arduino'
+                  : codeFramework === 'esp-idf' ? 'Descargar proyecto ESP-IDF completo' : 'Descargar código Arduino'
               }
             >
-              <Download size={16} /> Descargar .ino
+              <Download size={16} /> {exportBusy ? 'Preparando…' : codeFramework === 'esp-idf' ? 'Descargar ESP-IDF .zip' : 'Descargar .ino'}
             </button>
           </div>
           {diagnostics.length > 0 && (
@@ -1725,6 +1754,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           <pre className="code-view">
             <code>{code}</code>
           </pre>
+          {codeFramework === 'esp-idf' && <p>Vista de <code>main/main.cpp</code>. Para compilar necesitás el ZIP completo y ESP-IDF 5.5.5. No usa Arduino. Incluye instrucciones, configuración y licencias; todavía no descarga un binario.</p>}
           <div className="code-note">
             <Settings2 size={17} />
             <span>

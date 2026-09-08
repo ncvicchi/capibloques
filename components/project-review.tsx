@@ -22,8 +22,11 @@ import {
   decodeProject,
   downloadText,
   safeFilename,
+  generateEspIdfCodeResult,
+  type CodeGenerationResult,
   type ProjectFile,
 } from '@/lib/capiblocks';
+import { createEspIdfArchive, downloadFirmwareArchive } from '@/lib/firmware-archive';
 import {
   sessionChangePending,
   watchSessionChange,
@@ -55,7 +58,7 @@ export default function ProjectReview() {
   const [copyPrompt, setCopyPrompt] = useState(false);
   const [artifact, setArtifact] = useState<{
     revision: number;
-    code: string | null;
+    generated: CodeGenerationResult | null;
   } | null>(null);
   const identity = useRef<string | null>(null);
   const token = useRef('');
@@ -363,8 +366,8 @@ export default function ProjectReview() {
     void refresh();
   }, [refresh]);
   const onCode = useCallback(
-    (code: string | null) => {
-      if (snapshot) setArtifact({ revision: snapshot.version.revision, code });
+    (generated: CodeGenerationResult | null) => {
+      if (snapshot) setArtifact({ revision: snapshot.version.revision, generated });
     },
     [snapshot],
   );
@@ -378,11 +381,12 @@ export default function ProjectReview() {
       setDiscard(true);
     } else action();
   }
-  async function exportVersion(kind: 'json' | 'arduino') {
+  async function exportVersion(kind: 'json' | 'arduino' | 'esp-idf') {
     if (!snapshot || operating.current || !allowed.current) return;
     operating.current = true;
     setBusy(true);
     setError('');
+    const exportEpoch = epoch.current;
     try {
       const verified = await request<Snapshot>(
         `versions/${snapshot.version.revision}/`,
@@ -401,12 +405,20 @@ export default function ProjectReview() {
         );
       else if (
         artifact?.revision === snapshot.version.revision &&
-        artifact.code
-      )
-        downloadText(`${name}.ino`, artifact.code, 'text/plain');
+        artifact.generated
+      ) {
+        if (kind === 'esp-idf') {
+          const generated = generateEspIdfCodeResult(artifact.generated.program, verified.document.metadata.title, verified.document.scene);
+          const archive = await createEspIdfArchive(generated);
+          // Recheck access after asynchronous packaging; revocation may have arrived meanwhile.
+          await request<Snapshot>(`versions/${snapshot.version.revision}/`);
+          if (!active.current || !allowed.current || epoch.current !== exportEpoch) return;
+          downloadFirmwareArchive(`${name}-esp-idf.zip`, archive);
+        } else downloadText(`${name}.ino`, artifact.generated.code, 'text/plain');
+      }
       else
         throw new Error(
-          'Revisá los avisos de cableado y bloques. No hay código Arduino válido para esta versión.',
+          'Revisá los avisos de cableado y bloques. No hay código válido para esta versión.',
         );
       setNotice(
         `Descargaste una copia de la versión ${snapshot.version.revision}. El archivo no se revoca si luego cambian tus permisos.`,
@@ -608,11 +620,14 @@ export default function ProjectReview() {
                   disabled={
                     busy ||
                     artifact?.revision !== snapshot.version.revision ||
-                    !artifact.code
+                    !artifact.generated
                   }
                   onClick={() => void exportVersion('arduino')}
                 >
                   Descargar Arduino de versión {snapshot.version.revision}
+                </Button>
+                <Button variant="outline" disabled={busy || artifact?.revision !== snapshot.version.revision || !artifact.generated} onClick={() => void exportVersion('esp-idf')}>
+                  Descargar ESP-IDF de versión {snapshot.version.revision}
                 </Button>
                 <Button disabled={busy} onClick={() => setCopyPrompt(true)}>
                   Crear mi copia personal
