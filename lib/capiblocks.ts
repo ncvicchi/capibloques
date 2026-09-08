@@ -2585,11 +2585,12 @@ ${cases}
 
 #include <Arduino.h>
 ${wifiHeader}${diagnosticHeader}
-${displaySupport}
 struct TrafficDevice { uint8_t red; uint8_t yellow; uint8_t green; };
 struct RobotDevice { uint8_t leftIn1; uint8_t leftIn2; uint8_t rightIn1; uint8_t rightIn2; };
 struct MotorDevice { uint8_t in1; uint8_t in2; };
 enum class TrafficColor { RED, YELLOW, GREEN, OFF };
+
+${displaySupport}
 
 ${deviceDeclarations(scene, symbols)}
 

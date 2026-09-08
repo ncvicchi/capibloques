@@ -73,6 +73,7 @@ for (const profile of Object.keys(displayProfiles)) {
     profile,
   );
   assert.match(generated.code, /capiDisplayWrite\(0, 0/);
+  assert.ok(generated.code.indexOf('struct TrafficDevice') < generated.code.indexOf('void capiDisplayWrite'), 'Arduino inserts prototypes before the first sketch function: declare helper types first');
   assert.doesNotMatch(generated.code, /Serial.println\("!Hola/);
   assert.doesNotMatch(generated.code, /delay\(/);
   if (profile === 'ili9488')

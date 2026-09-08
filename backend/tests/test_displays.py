@@ -1,9 +1,12 @@
 import copy
 import json
+import uuid
 from pathlib import Path
 
 from django.core.exceptions import ValidationError
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase, override_settings
+from accounts.models import User
+from .test_accounts import FAST_HASHERS, PASSWORD
 from projects.validation import document, display_config
 
 
@@ -59,3 +62,20 @@ class DisplayValidationTests(SimpleTestCase):
         display_config(config)
         config["retiredAreaIds"] = ["old"]
         display_config(config)
+
+
+@override_settings(PASSWORD_HASHERS=FAST_HASHERS)
+class DisplayPersistenceTests(TestCase):
+    def test_five_profiles_roundtrip_through_owned_project_api(self):
+        user = User.objects.create_user("display-test", display_name="Prueba", password=PASSWORD, must_change_password=False)
+        self.client.force_login(user)
+        self.client.defaults["HTTP_X_CAPI_ACCOUNT"] = str(user.pk)
+        for profile in ("lcd1602", "lcd2004", "ssd1306", "ili9341", "ili9488"):
+            with self.subTest(profile=profile):
+                sample = DisplayValidationTests().sample(profile)
+                response = self.client.post("/api/projects/", {"id": str(uuid.uuid4()), "operationId": str(uuid.uuid4()), "document": sample}, content_type="application/json")
+                self.assertEqual(response.status_code, 201, response.content)
+                project_id = response.json()["project"]["id"]
+                loaded = self.client.get(f"/api/projects/{project_id}/")
+                self.assertEqual(loaded.status_code, 200)
+                self.assertEqual(loaded.json()["document"], sample)
