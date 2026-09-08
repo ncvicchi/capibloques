@@ -1,0 +1,10 @@
+**
+!lib/
+!lib/**
+!scripts/
+!scripts/compiler-generate.mjs
+!ops/
+!ops/compiler/
+!ops/compiler/**
+ops/compiler/**/__pycache__
+ops/compiler/generator/node_modules
