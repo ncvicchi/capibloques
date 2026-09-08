@@ -2967,7 +2967,8 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 @media (max-width: 800px) {
   .workbench { height: auto; min-height: 100dvh; overflow: visible; }
   .workbench .topbar { height: auto; padding: 8px; grid-template-columns: 1fr 1fr; }
-  .workbench .header-actions { grid-column: 1 / -1; flex-wrap: wrap; justify-content: flex-start; }
+  .workbench .header-actions { grid-column: 1 / -1; flex-wrap: wrap; justify-content: flex-start; max-width: none; }
+  .workbench .header-actions > button { width: auto; padding: 8px; white-space: nowrap; }
   .workbench .cloud-state { max-width: none; min-width: 90px; }
   .workbench .toolbar { flex-wrap: wrap; }
   .workbench .workspace-grid.functional { display: flex; flex-direction: column; padding: 8px; }

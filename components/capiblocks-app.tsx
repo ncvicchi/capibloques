@@ -1321,7 +1321,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         <button onClick={openCode}>
           <Code2 size={18} /> Ver código ESP32
         </button>
-        <button type="button" className="header-text-button wiring-button" onClick={openWiring} title="Conexiones de la Wemos D1 R32"><Cable size={18} /> Conectar</button>
+        <button type="button" className="wiring-button" onClick={openWiring} title="Conexiones de la Wemos D1 R32"><Cable size={18} /> Conectar</button>
       </section>
 
       <div className="workspace-grid functional">

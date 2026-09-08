@@ -199,5 +199,9 @@ test('mesa de trabajo móvil: texto ampliado y fuentes del sistema sin desborde'
     }));
     await info.attach(`mobile-${family}.json`, { body: JSON.stringify(bounds), contentType: 'application/json' });
     expect(bounds.width, JSON.stringify(bounds.overflowing)).toBeLessThanOrEqual(391);
+    for (const name of ['Guardar', 'Mis proyectos', 'Exportar', 'Conectar']) {
+      const button = page.getByRole('button', { name, exact: true });
+      expect(await button.evaluate(element => element.scrollWidth <= element.clientWidth + 1), `${name}: el texto debe caber en su botón`).toBe(true);
+    }
   }
 });
