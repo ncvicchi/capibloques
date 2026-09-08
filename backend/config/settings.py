@@ -26,7 +26,8 @@ ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
 
 # Modelo propio desde la primera migración de identidad; sin Django admin público.
-INSTALLED_APPS = ["django.contrib.contenttypes", "django.contrib.auth", "django.contrib.sessions", "accounts", "school", "courses", "projects"]
+INSTALLED_APPS = ["django.contrib.contenttypes", "django.contrib.auth", "django.contrib.sessions", "accounts", "school", "courses", "projects", "compiler"]
+COMPILER_ARTIFACT_ROOT = os.environ.get("COMPILER_ARTIFACT_ROOT", "/artifacts")
 AUTH_USER_MODEL = "accounts.User"
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator", "OPTIONS": {"user_attributes": ["username", "display_name"]}},

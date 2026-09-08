@@ -3,10 +3,15 @@ from school import views as school
 from courses import views as courses
 from projects import views as projects
 from projects import review
+from compiler import views as compiler
 
 from .views import live, ready
 
 urlpatterns = [
+    path("api/builds/", compiler.collection),
+    path("api/builds/<uuid:job_id>/", compiler.detail),
+    path("api/builds/<uuid:job_id>/download/", compiler.download),
+    path("api/management/compiler/", compiler.management),
     path("api/review/<uuid:project_id>/", review.status),
     path("api/review/<uuid:project_id>/versions/<int:revision>/", review.version),
     path("api/review/<uuid:project_id>/versions/<int:revision>/copy/", review.make_copy),

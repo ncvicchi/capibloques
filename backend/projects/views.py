@@ -312,6 +312,8 @@ def history_restore(request, actor, project_id, revision):
 
 
 def retire_project(actor, project, operation, operation_digest, action="purged"):
+    from compiler.services import retire_project_builds
+    retire_project_builds(project)
     ProjectDeletion.objects.create(pk=project.pk, owner_id_snapshot=project.owner_id, operation=operation, digest=operation_digest)
     ProjectEvent.objects.create(actor=actor, actor_id_snapshot=actor.pk if actor else uuid.UUID(int=0), project_id_snapshot=project.pk, revision=project.revision, action=action)
     # Exactamente las devoluciones de este proyecto, antes de sus FK PROTECT.
