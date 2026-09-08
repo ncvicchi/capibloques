@@ -1,0 +1,7 @@
+directories:
+  data: /opt/arduino/data
+  downloads: /tmp/arduino-downloads
+  user: /opt/arduino/user
+board_manager:
+  additional_urls:
+    - https://espressif.github.io/arduino-esp32/package_esp32_index.json

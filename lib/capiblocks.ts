@@ -2341,7 +2341,7 @@ function instructionToCpp(
   }
 }
 
-function programUsesWifi(program: CompiledProgram) {
+export function programUsesWifi(program: CompiledProgram) {
   let usesWifi = false;
   visitProgram(program, (node) => {
     if (node.op === 'wifi') usesWifi = true;

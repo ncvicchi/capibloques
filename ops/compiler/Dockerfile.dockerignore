@@ -1,0 +1,8 @@
+**
+!lib/
+!lib/**
+!scripts/
+!scripts/compiler-generate.mjs
+!ops/
+!ops/compiler/
+!ops/compiler/**
