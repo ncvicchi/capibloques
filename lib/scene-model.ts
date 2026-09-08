@@ -1831,7 +1831,7 @@ function validDeviceConfig(
   }
 }
 
-function isSceneDevice(value: unknown): value is SceneDevice {
+function isSceneDevice(value: unknown, incompleteDisplayLayout = false): value is SceneDevice {
   if (!isRecord(value)) return false;
   if (
     !hasOnlyKeys(value, [
@@ -1875,10 +1875,10 @@ function isSceneDevice(value: unknown): value is SceneDevice {
     const pin = pins[requirement.key];
     return pin === null || (typeof pin === 'number' && Number.isInteger(pin));
   });
-  return pinsAreValid && validDeviceConfig(typedKind, value.config);
+  return pinsAreValid && (typedKind === 'display' ? validDisplayConfig(value.config, incompleteDisplayLayout) : validDeviceConfig(typedKind, value.config));
 }
 
-export function isSceneDefinition(value: unknown): value is SceneDefinition {
+export function isSceneDefinition(value: unknown, incompleteDisplayLayout = false): value is SceneDefinition {
   if (!isRecord(value)) return false;
   const candidate = value as Record<string, unknown>;
   if (
@@ -1926,7 +1926,7 @@ export function isSceneDefinition(value: unknown): value is SceneDefinition {
     typeof canvas.snapToGrid === 'boolean' &&
     Array.isArray(devices) &&
     devices.length <= MAX_SCENE_ITEMS &&
-    devices.every(isSceneDevice) &&
+    devices.every(device => isSceneDevice(device, incompleteDisplayLayout)) &&
     Array.isArray(widgets) &&
     widgets.length <= MAX_SCENE_ITEMS &&
     widgets.every(

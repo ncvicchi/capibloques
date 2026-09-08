@@ -319,6 +319,7 @@ function deviceReading(device: RuntimeDeviceState | undefined) {
   switch (device.kind) {
     case 'trafficLight':
       return device.color === 'OFF' ? 'Apagado' : device.color;
+    case 'display': return Object.values(device.texts).some(lines => lines.join('').trim()) ? 'Con texto' : 'Sin texto';
     case 'led':
       return `${Math.round(device.brightness)}%`;
     case 'robot':
@@ -451,8 +452,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
 
   const sourceExample = useMemo(
     () =>
-      examples.find((example) => example.id === scene.sourceTemplate) ?? null,
-    [scene.sourceTemplate],
+      examples.find((example) => example.id === scene.sourceTemplate || (example.id === 'display' && example.scene.id === scene.id)) ?? null,
+    [scene.sourceTemplate, scene.id],
   );
 
   const postToWorker = useCallback((message: Record<string, unknown>) => {
@@ -790,6 +791,10 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     (kind: SceneDeviceKind) => {
       postToWorker({ type: 'STOP' });
       setScene((current) => {
+        if (kind === 'display' && current.devices.some(device => device.kind === 'display')) {
+          setNotice('Cada proyecto admite una pantalla. Configurá la existente desde Armar escena.');
+          return current;
+        }
         const result = addDeviceToScene(current, kind);
         delete result.scene.sourceTemplate;
         setSim(makeInitialState(result.scene));

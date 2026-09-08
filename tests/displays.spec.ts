@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mockEditorSession } from './editor-fixture';
+import { student } from './editor-fixture';
+import { recoveryRows } from './recovery-fixture';
 import { makeProject } from '../lib/capiblocks';
 import { addDeviceToScene, createEmptyScene } from '../lib/scene-model';
 import {
@@ -67,15 +69,24 @@ function sample(profile: DisplayProfile = 'ssd1306') {
     },
   });
 }
-async function importProject(page: Page, profile: DisplayProfile = 'ssd1306') {
+async function importProject(
+  page: Page,
+  profile: DisplayProfile = 'ssd1306',
+  replace = false,
+) {
   const project = sample(profile);
-  await page
-    .locator('input[type=file]')
-    .setInputFiles({
-      name: 'pantalla.json',
-      mimeType: 'application/json',
-      buffer: Buffer.from(JSON.stringify(project)),
-    });
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'pantalla.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(project)),
+  });
+  if (replace)
+    await page
+      .getByRole('button', {
+        name: 'Conservar copia local y abrir',
+        exact: true,
+      })
+      .click();
   await expect(
     page.getByRole('textbox', { name: 'Nombre del proyecto' }),
   ).toHaveValue(project.metadata.title);
@@ -226,7 +237,7 @@ test('pantalla: los cinco modelos se importan, simulan y exportan sin cambiar el
   page.on('pageerror', (error) => errors.push(error.message));
   await open(page);
   for (const profile of Object.keys(displayProfiles) as DisplayProfile[]) {
-    await importProject(page, profile);
+    await importProject(page, profile, profile !== 'lcd1602');
     await page
       .getByRole('combobox', { name: 'Modo de ejecución' })
       .selectOption('guided');
@@ -238,4 +249,53 @@ test('pantalla: los cinco modelos se importan, simulan y exportan sin cambiar el
     expect(saved.scene.devices[0].config.profile).toBe(profile);
   }
   expect(errors).toEqual([]);
+});
+
+test('pantalla: recupera nombre vacío y layout incompleto sin publicarlos', async ({
+  page,
+}) => {
+  await open(page);
+  await importProject(page);
+  await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  const editor = page.getByRole('dialog', {
+    name: 'Arma tu mundo',
+    exact: true,
+  });
+  await editor
+    .getByRole('button', { name: 'Mover Mi pantalla', exact: true })
+    .click();
+  await editor.getByLabel('Nombre de text-1', { exact: true }).fill('');
+  await editor.getByLabel('Fila inicial de second', { exact: true }).fill('0');
+  await expect
+    .poll(async () => {
+      const draft = (await recoveryRows(page, student.id)).find(
+        (row) => row.sceneDraft,
+      )?.sceneDraft;
+      return draft?.inspector?.value;
+    })
+    .toMatchObject({ config: { areas: [{ name: '' }, { row: 0 }] } });
+  await page.reload();
+  await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Recuperar borrador', exact: true })
+    .click();
+  await expect(
+    editor.getByLabel('Nombre de text-1', { exact: true }),
+  ).toHaveValue('');
+  await expect(
+    editor.getByLabel('Fila inicial de second', { exact: true }),
+  ).toHaveValue('0');
+  await editor
+    .getByRole('button', { name: 'Guardar escena', exact: true })
+    .click();
+  await expect(editor).toBeVisible();
+  await editor
+    .getByRole('button', { name: 'Cancelar cambios', exact: true })
+    .click();
+  await expect(
+    editor.getByLabel('Nombre de text-1', { exact: true }),
+  ).toHaveValue('Mensaje');
+  await expect(
+    editor.getByLabel('Fila inicial de second', { exact: true }),
+  ).toHaveValue('5');
 });

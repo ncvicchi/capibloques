@@ -168,7 +168,10 @@ const label = (value: unknown, maximum: number): value is string => {
   return true;
 };
 
-export function validDisplayConfig(value: unknown): value is DisplayConfig {
+export function validDisplayConfig(
+  value: unknown,
+  incompleteLayout = false,
+): value is DisplayConfig {
   if (
     !record(value) ||
     !exact(value, ['profile', 'address', 'areas', 'retiredAreaIds']) ||
@@ -206,21 +209,30 @@ export function validDisplayConfig(value: unknown): value is DisplayConfig {
       !exact(area, ['id', 'name', 'column', 'row', 'columns', 'rows']) ||
       !label(area.id, 128) ||
       ids.has(area.id) ||
-      !label(area.name, 40)
+      !(incompleteLayout
+        ? typeof area.name === 'string' && area.name.length <= 40
+        : label(area.name, 40))
     )
       return false;
-    const name = area.name
+    const name = (area.name as string)
       .normalize('NFKD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/\s+/g, ' ')
       .trim()
       .toLowerCase();
     if (
-      names.has(name) ||
-      !integer(area.column, 0, profile.columns - 1) ||
-      !integer(area.row, 0, profile.rows - 1) ||
-      !integer(area.columns, 1, profile.columns - area.column) ||
-      !integer(area.rows, 1, profile.rows - area.row)
+      incompleteLayout
+        ? !['column', 'row', 'columns', 'rows'].every(
+            (key) =>
+              typeof area[key] === 'number' &&
+              Number.isFinite(area[key]) &&
+              Math.abs(area[key] as number) <= 4096,
+          )
+        : names.has(name) ||
+          !integer(area.column, 0, profile.columns - 1) ||
+          !integer(area.row, 0, profile.rows - 1) ||
+          !integer(area.columns, 1, profile.columns - area.column) ||
+          !integer(area.rows, 1, profile.rows - area.row)
     )
       return false;
     ids.add(area.id);
@@ -231,16 +243,19 @@ export function validDisplayConfig(value: unknown): value is DisplayConfig {
     ids.add(id);
   }
   const areas = value.areas as TextArea[];
-  return !areas.some((area, i) =>
-    areas
-      .slice(i + 1)
-      .some(
-        (other) =>
-          area.column < other.column + other.columns &&
-          other.column < area.column + area.columns &&
-          area.row < other.row + other.rows &&
-          other.row < area.row + area.rows,
-      ),
+  return (
+    incompleteLayout ||
+    !areas.some((area, i) =>
+      areas
+        .slice(i + 1)
+        .some(
+          (other) =>
+            area.column < other.column + other.columns &&
+            other.column < area.column + area.columns &&
+            area.row < other.row + other.rows &&
+            other.row < area.row + area.rows,
+        ),
+    )
   );
 }
 

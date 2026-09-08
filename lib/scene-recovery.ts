@@ -22,11 +22,13 @@ export function isSceneDraft(value: unknown): value is SceneDraft {
   if (!value || typeof value !== 'object' || new TextEncoder().encode(JSON.stringify(value)).byteLength > 2_000_000) return false;
   if (Object.keys(value).some(key => !['version', 'base', 'scene', 'selectedId', 'inspector'].includes(key))) return false;
   const draft = value as SceneDraft;
-  if (draft.version !== 1 || !isSceneDefinition(draft.base) || !isSceneDefinition(draft.scene) || draft.base.id !== draft.scene.id || (draft.selectedId !== undefined && (typeof draft.selectedId !== 'string' || draft.selectedId.length > 128))) return false;
+  // Local drafts may contain unfinished layout fields. The confirmed base and
+  // server project still require strict schema and semantic validation.
+  if (draft.version !== 1 || !isSceneDefinition(draft.base) || !isSceneDefinition(draft.scene, true) || draft.base.id !== draft.scene.id || (draft.selectedId !== undefined && (typeof draft.selectedId !== 'string' || draft.selectedId.length > 128))) return false;
   if (draft.inspector !== null) {
     const item = draft.inspector;
     if (!item?.value || !['device', 'widget'].includes(item.kind) || item.value.id !== draft.selectedId) return false;
     if (!(item.kind === 'device' ? draft.scene.devices : draft.scene.widgets).some(row => row.id === item.value.id)) return false;
   }
-  return isSceneDefinition(sceneDraftPreview(draft));
+  return isSceneDefinition(sceneDraftPreview(draft), true);
 }

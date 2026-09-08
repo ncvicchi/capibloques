@@ -138,6 +138,22 @@ assert.deepEqual(layoutDisplayText('\n\nZ', { columns: 4, rows: 3 }).lines, [
 assert.equal(layoutDisplayText('áñü😀', { columns: 4, rows: 1 }).cells, 'anu?');
 assert.equal(layoutDisplayText('ABCDE', { columns: 4, rows: 1 }).clipped, true);
 const config = displayConfig('ssd1306');
+const unfinished = addDeviceToScene(createEmptyScene('Borrador'), 'display', {
+  config,
+}).scene;
+unfinished.devices[0].config.areas[0].name = '';
+unfinished.devices[0].config.areas[0].rows = 0;
+assert.equal(
+  isSceneDefinition(unfinished),
+  false,
+  'a project cannot use an unfinished layout',
+);
+assert.equal(
+  isSceneDefinition(unfinished, true),
+  true,
+  'a bounded unfinished layout can be recovered locally',
+);
+assert.equal(validateScene(unfinished).canSimulate, false);
 for (const patch of [
   { profile: 'unknown' },
   { address: 0x27 },

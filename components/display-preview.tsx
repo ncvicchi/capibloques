@@ -36,8 +36,8 @@ export function DisplayPreview({
           <rect
             x={area.column * 8}
             y={area.row * 12}
-            width={area.columns * 8}
-            height={area.rows * 12}
+            width={Math.max(0, area.columns) * 8}
+            height={Math.max(0, area.rows) * 12}
             fill="none"
             stroke="#73ab99"
             strokeWidth={0.5}
@@ -54,7 +54,9 @@ export function DisplayPreview({
                 fontSize={12}
                 fill={profile.graphic ? '#fff' : '#baffb8'}
                 xmlSpace="preserve"
-                textLength={line.length * 8}
+                textLength={
+                  Math.min(line.length, Math.max(0, area.columns)) * 8
+                }
                 lengthAdjust="spacingAndGlyphs"
               >
                 {line.slice(0, Math.max(0, area.columns))}
