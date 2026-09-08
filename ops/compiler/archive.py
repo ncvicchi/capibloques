@@ -62,7 +62,7 @@ def bundle(build, framework, uses_wifi):
         f"python -m esptool --chip esp32 --port PUERTO write-flash --flash-mode dio --flash-freq 40m --flash-size 4MB {arguments}\n"
         "Reemplazar PUERTO (por ejemplo COM4 o /dev/ttyUSB0). El programa reemplaza el anterior. No borrar toda la flash/NVS automáticamente.\n"
         "USB desde la web se agrega en la siguiente fase. Compilar no demuestra seguridad eléctrica ni funcionamiento físico.\n"
-        + ("PRIVADO: este firmware contiene la contraseña Wi-Fi. No compartirlo. Retirarlo del servidor no borra copias descargadas ni la placa. Para quitar la clave de la placa, reemplazar este firmware por uno sin ella.\n" if uses_wifi else "")).encode()
+        + ("PRIVADO: este firmware contiene la contraseña Wi-Fi. No compartirlo. Retirarlo del servidor no borra copias descargadas ni la placa. Cambiar el firmware no garantiza borrar residuos de flash o configuraciones NVS anteriores. Un borrado total debe ser explícito, con una persona adulta y respaldo de otros datos; nunca se hace automáticamente.\n" if uses_wifi else "")).encode()
     output = io.BytesIO()
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_STORED) as archive:
         for name, data in contents.items():

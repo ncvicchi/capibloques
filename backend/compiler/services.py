@@ -129,11 +129,15 @@ def dispatch(command, data):
                 if job.recipe != cfg.recipe:
                     forget(job, "failed", "Se actualizaron las herramientas. Volvé a compilar.")
                     continue
+                wifi = json.loads(cipher().decrypt(job.wifi_encrypted.encode()).decode()) if job.wifi_encrypted else None
+                snapshot = job.document
                 job.state, job.attempt, job.started_at = "building", uuid.uuid4(), now
                 job.lease_until = now + timedelta(seconds=45)
+                # Inputs are handed off exactly once. Recovery terminates/fails
+                # the old attempt, it never needs to retain/replay its secret.
+                job.document, job.wifi_encrypted = None, ""
                 job.save()
-                wifi = json.loads(cipher().decrypt(job.wifi_encrypted.encode()).decode()) if job.wifi_encrypted else None
-                return {"job": {"id": str(job.pk), "attempt": str(job.attempt), "recipe": job.recipe, "framework": job.framework, "document": job.document, "wifi": wifi}}
+                return {"job": {"id": str(job.pk), "attempt": str(job.attempt), "recipe": job.recipe, "framework": job.framework, "document": snapshot, "wifi": wifi}}
             return {"job": None}
         job = Build.objects.filter(pk=data.get("id"), attempt=data.get("attempt"), state="building").first()
         if not job:

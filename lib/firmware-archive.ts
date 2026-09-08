@@ -70,7 +70,7 @@ Salir del monitor con Ctrl+]. La placa sigue ejecutándose sin el navegador.
 Si hay bloques Wi-Fi, copiar \`main/wifi_config.example.h\` a \`main/wifi_config.h\` y editar SSID/clave localmente.
 Sin ese archivo se compilan marcadores TU_RED/TU_CLAVE, no credenciales reales. No compartir fuentes/binarios después de agregar una contraseña: el firmware la contiene.
 La configuración de la radio se mantiene en RAM; el programa no borra NVS para recuperar fallos.
-No se proveen credenciales desde la web en esta fase. No hay OTA ni control remoto de actuadores.
+Esta exportación de fuentes no incluye claves. La compilación privada del servidor puede pedirlas por separado con consentimiento; no pasan al JSON ni al historial. No hay OTA ni control remoto de actuadores.
 
 ## Comportamiento y límites
 
