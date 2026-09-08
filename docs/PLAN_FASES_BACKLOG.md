@@ -9,7 +9,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | Fase | Entrega completa | Pedidos del backlog | Dependencia |
 | --- | --- | --- | --- |
 | 11 | Contexto portable y traspaso a otra cuenta | Pedido adicional del propietario | Documentación y estado verificable; sin migrar secretos ni datos |
-| 12 | Editor despejado, sesión sin interrupciones y guía visual Wemos | 1, 6, 8 y 9: Wemos | Traspaso de fase 11; pinout documentado para la guía, sin sustituir ensayo físico |
+| 12 | Editor despejado, navegación de escena, sesión sin interrupciones y guía visual Wemos | 1, 6, 8 y 10; 9: Wemos | Traspaso de fase 11; pinout documentado para la guía, sin sustituir ensayo físico |
 | 13 | Ejecución visual en los bloques y paralelo vertical | 4, 5 y 7 | Distribución de fase 12 |
 | 14 | Componentes y bloques TX/RX serial | 3: TX/RX; 9: conexiones seriales | Wemos actual como primer destino; simulador y ambos generadores |
 | 15 | Soporte completo ESP32-S3 DevKit y selección de placa | 2: DevKit; 9: guía visual DevKit | Modelo exacto identificado; incorporar el contrato TX/RX de fase 14 |
@@ -44,13 +44,15 @@ Esta fase documenta y prepara continuidad: no migra usuarios de CapiBloques, no 
 
 ## Fase 12 — Editor despejado y sesión sin interrupciones
 
-**Objetivo:** recuperar espacio para programar y armar escenas, con una sesión que no interrumpa cada cambio de ventana.
+**Objetivo:** recuperar espacio para programar y armar escenas, poder explorar la escena con desplazamiento/zoom y mantener una sesión que no interrumpa cada cambio de ventana.
 
 Alcance:
 
 - Reorganizar encabezados, acciones de proyecto/cuenta y controles secundarios. Guardar/estado de guardado, deshacer/rehacer, ejecutar y detener deben seguir accesibles; no ocultar errores o cambios pendientes.
 - Como objetivo de diseño en 1366 × 768: no más de dos filas de controles globales y al menos 70 % de altura del editor dedicada a bloques/escena. Medir antes/después; adaptar móvil y zoom sin sacrificar legibilidad para cumplir una cifra.
 - Separar visual y funcionalmente catálogo de componentes y programa. El catálogo podrá ser un panel temporal superpuesto con cierre claro; arrastrar desde él debe seguir funcionando en Chrome/Edge y con alternativas de teclado.
+- Agregar cámara de escena con desplazamiento, zoom hacia una zona y controles «Ver toda la escena»/restablecer, tanto al editar como al simular y revisar en modo docente de sólo lectura. Distinguir herramienta «Mano» o gesto de navegación de mover objetos/accionar controles; incluir botones +/−, ratón, teclado y táctil sin secuestrar el scroll o zoom accesible de la página.
+- Mantener la cámara separada del modelo: navegar no altera posiciones, dimensiones lógicas, simulación, firmware, JSON, autoguardado ni historial. Aplicar la transformación inversa al seleccionar/arrastrar, conservando cuadrícula y límites; respetar permisos y Guardar/Cancelar. El encuadre permanece durante ejecutar/pausar/pasos, sin seguimiento automático de objetos; ofrecer límites y recuperación explícita de la vista completa.
 - Complementar el listado de conexiones con una imagen fiel de la Wemos D1 R32, pines/conectores etiquetados y resaltado por componente. Abrir/ampliar la guía bajo demanda, sin ocupar permanentemente el espacio de programación. Listado e imagen comparten los datos validados del proyecto, distinguen GPIO de etiqueta física y conservan advertencias eléctricas; no dibujar una conexión directa cuando se requiere resistencia, driver o alimentación externa. Usar un recurso propio o autorizado y contrastar el mapa con documentación de la placa, no con un pinout inventado.
 - Eliminar comprobaciones de sesión disparadas exclusivamente por `focus`, `blur` o cambio de visibilidad. Propuesta inicial: chequeo periódico centralizado cada 60 segundos, discreto, sin desmontar el editor ni mostrar una pantalla de validación si sigue vigente; deduplicar solicitudes y temporizadores atrasados.
 - Mantener expiración conocida, señales explícitas de cambio de cuenta/cierre y revocaciones. Cada operación remota conserva autorización en servidor; las guardas de acceso fresco a proyectos, descargas y grabación USB no se eliminan para reducir peticiones.
@@ -61,6 +63,7 @@ Aceptación:
 - Cambiar repetidamente de pestaña dentro del intervalo no produce peticiones de sesión por foco, pantalla intermedia, reinicio del simulador ni pérdida de selección/borradores.
 - Comprobar vencimiento real, revocación, cuenta cambiada, temporizador vencido mientras la pestaña estaba suspendida y red lenta/cortada. No se duplican verificaciones ni se autoriza una operación con permisos retirados.
 - Probar catálogo, arrastre, escenas, guardado manual/automático, recuperación y deshacer/rehacer con ratón y teclado en Chrome/Edge; escritorio de altura limitada, móvil y zoom.
+- Probar navegación de escena ampliada y desplazada: seleccionar/mover sin saltos, controles simulados sin gestos ambiguos, revisión sin edición, ajuste al redimensionar y retorno a vista completa. Navegar no modifica el JSON ni crea operaciones de guardado/deshacer; ejecutar conserva el encuadre y el resultado lógico, sin perder borradores.
 - Verificar que imagen y listado Wemos coinciden al cambiar conexiones, agregar/quitar componentes, importar y deshacer/rehacer. Pines, orientación y etiquetas deben corresponder a la placa documentada; conflictos y conexiones incompletas se identifican sin sugerir un montaje válido. La guía visual no sustituye la aceptación física pendiente de fase 10.
 
 No incluye todavía progreso dentro de bloques, cambio de disposición de paralelo ni nuevas placas/componentes. Esos pedidos tienen su fase propia.

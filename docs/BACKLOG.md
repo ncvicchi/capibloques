@@ -87,6 +87,20 @@ Pedido del 8 de septiembre de 2026: donde se indica cómo conectar los component
 
 Asignación: **fase 12** entrega la guía visual para Wemos; **fase 15** la adapta a DevKit y **fase 16** a Waveshare. La fase 14 debe reflejar también las asignaciones TX/RX en esta guía. Sólo planificación: no iniciar implementación ni alterar el orden de fases.
 
+## 10. Desplazamiento y zoom de la escena
+
+Pedido del 8 de septiembre de 2026: la programación permite desplazarse y ampliar, pero la escena no. Permitir **mover la vista y hacer zoom sobre zonas de la escena**, además de recuperar fácilmente la vista completa.
+
+Estado observado en el código: [Blockly](../components/blockly-workspace.tsx) habilita desplazamiento, rueda y zoom; [SceneStage](../components/scene-stage.tsx) usa una vista ajustada al contenedor, sin cámara de navegación. Sus eventos de arrastre mueven objetos sólo al editar. Esto describe una limitación actual, no una restricción necesaria del simulador ni evidencia de una decisión explícita de prohibir zoom.
+
+- Agregar navegación de la vista en Armar escena y en la simulación, incluida la revisión docente de sólo lectura, sin conceder edición donde no corresponde. Zoom con controles +/−, rueda/gestos acotados a la escena y alternativas de teclado/táctiles; permitir acercarse a la zona indicada por el usuario.
+- Incorporar desplazamiento mediante herramienta «Mano» o gesto explícito, distinguible de seleccionar/mover un componente y de accionar controles simulados. El zoom no debe apropiarse del desplazamiento de toda la página ni impedir su ampliación accesible.
+- Ofrecer «Ver toda la escena» y restablecer zoom/centrado, con límites que eviten perderse en un lienzo vacío. Mantener el encuadre elegido durante ejecutar, pausar y avanzar pasos; no seguir automáticamente al robot ni saltar de zona por resaltados.
+- Separar cámara y modelo: navegar no cambia posiciones, tamaño lógico, distancias, límites del simulador ni firmware. No marca el proyecto como modificado, no dispara autoguardado ni ocupa deshacer/rehacer. La cámara es estado de interfaz, no parte del JSON portable ni de la futura escena física en pantalla.
+- Convertir correctamente coordenadas de pantalla a escena al seleccionar/arrastrar con zoom y desplazamiento, preservando ajuste a cuadrícula y límites. No perder borradores ni romper Guardar/Cancelar o la interacción con sensores/actuadores simulados.
+
+Asignación: **fase 12**, como parte de la usabilidad del editor. Aceptación en Chrome/Edge, teclado y táctil: acercar una sección, desplazar, seleccionar/mover sin saltos, ejecutar conservando encuadre, volver a vista completa y comprobar que navegar no cambia el proyecto ni la simulación. Sólo planificación; no iniciar implementación ni añadir control físico en vivo.
+
 ## Relación actualizada con el plan vigente
 
 El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las nuevas fases](PLAN_FASES_BACKLOG.md) incorporan todos los pedidos. La fase 11 prepara el contexto para continuar desde otra cuenta; no implementa el backlog. El rediseño general sigue pendiente aunque las funciones de fase 6 estén entregadas.
@@ -103,5 +117,6 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 7. Progreso dentro del bloque/componente | 13. Ejecución visual |
 | 8. Sesión sin revalidación por foco | 12. Editor despejado |
 | 9. Imagen de la placa con conexiones | 12. Wemos; 15. DevKit; 16. Waveshare; integración TX/RX en 14 |
+| 10. Desplazamiento y zoom de la escena | 12. Editor despejado |
 
 Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. Ninguna de estas asignaciones demuestra soporte funcional disponible ni habilita cambios en servidores.
