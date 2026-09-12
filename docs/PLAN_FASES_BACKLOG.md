@@ -1,6 +1,6 @@
 # Nuevas fases de CapiBloques
 
-Plan elaborado el 8 de septiembre de 2026 y actualizado el 12 de septiembre de 2026 a pedido del propietario. **Fases 11 y 12 entregadas**, bajo autorización del propietario para ejecutarlas completas y consecutivas. La 11 entrega el [contexto vivo](CONTEXTO_PARA_CONTINUAR.md); la 12 implementa la [mesa de trabajo y navegación](FASE_12_MESA_DE_TRABAJO.md) en DEV. La guía de entrega registra la verificación completa en DEV y CI. Al cerrar la 12 y cada fase futura solicitada se actualiza ese documento. La nueva fase 13 prepara acceso externo persistente a DEV; las fases 13–18 no están implementadas ni autorizadas para ejecución y la Fase final sigue postergada. Complementa el [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y asigna todos los pedidos del [backlog](BACKLOG.md).
+Plan elaborado el 8 de septiembre de 2026 y actualizado el 12 de septiembre de 2026. **Fases 11, 12 y 13 entregadas**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`; las fases 14–18 no están implementadas ni autorizadas y la Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
 
 La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros 11–18; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. El contexto portable se entregó primero y después la UX, bajo la autorización consecutiva de 11 y 12, sin dar por hecha la prueba física. Al insertar acceso externo como fase 13, las fases antes numeradas 13–17 pasan a ser 14–18; no son tareas nuevas ni duplicadas.
 
@@ -73,11 +73,11 @@ Aceptación:
 
 No incluye todavía progreso dentro de bloques, cambio de disposición de paralelo ni nuevas placas/componentes. Esos pedidos tienen su fase propia.
 
-## Fase 13 — Acceso externo persistente a DEV
+## Fase 13 — Acceso externo persistente a DEV · entregada
 
 **Objetivo:** usar el entorno de desarrollo desde una red externa mediante una URL HTTPS estable, sin depender del túnel SSH de la PC y sin convertir DEV en producción.
 
-La [guía específica](FASE_13_ACCESO_EXTERNO_DEV.md) fija topología, límites, reparto de responsabilidades, seguridad, pruebas y reversión. Este pedido autoriza incorporarla al plan; su implementación necesita el inicio explícito de la fase completa.
+La [guía específica](FASE_13_ACCESO_EXTERNO_DEV.md) registra topología, límites, operación, pruebas y reversión de la entrega verificada.
 
 Alcance:
 
@@ -214,7 +214,7 @@ El gateway sigue siendo sólo un salto SSH, con prohibición de cambios. Tampoco
 ## Cómo se trabaja y qué falta decidir
 
 - Una fase completa autorizada por vez, con implementación, pruebas proporcionales, entrega en DEV y commit/push. Informar avances con evidencia y pendientes; no inventar porcentajes ni tiempos exactos.
-- **Fases 11 y 12 autorizadas consecutivamente.** Entregar el contexto y continuar la UX sin otro OK entre ambas. Actualizar la documentación de fase 11 al cerrar la 12 y cada fase futura solicitada. No ejecutar 13–18 ni producción sin autorización explícita de la fase correspondiente.
-- Para fase 13 hacen falta el nombre de dominio elegido, acceso autorizado a la VM Nginx exacta y el registro DNS que crea el propietario. No se necesitan placas para publicar DEV ni para decidir el rediseño. Para fases 16 y 17 sí hacen falta modelos exactos antes de fijar drivers/pines; para cerrar las entregas físicas hace falta hardware identificado y autorización para reemplazar firmware.
+- **Fases 11–13 entregadas.** Actualizar la documentación viva al cerrar cada fase futura solicitada. No ejecutar 14–18 ni producción sin autorización explícita.
+- Para fases 16 y 17 hacen falta modelos exactos antes de fijar drivers/pines; para cerrar las entregas físicas hace falta hardware identificado y autorización para reemplazar firmware.
 - La disposición exacta del paralelo se fija al abordar fase 14; formato de mensajes/timeout en fase 15; prioridad manual/programa y límites gráficos en fase 18. Son decisiones dentro de esas fases, no nuevas fases con letras.
 - No hay estimaciones horarias comprometidas: hardware, alcance de la adaptación gráfica y mediciones en la VM condicionan el esfuerzo. No retrasar ahora la planificación esperando esos datos, ni prometer implementaciones específicas de un modelo no identificado.

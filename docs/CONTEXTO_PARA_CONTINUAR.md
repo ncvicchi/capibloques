@@ -6,7 +6,7 @@ Documento vivo de **fase 11**. Actualización: **12 de septiembre de 2026**. Lee
 
 - Repositorio: [ncvicchi/capibloques](https://github.com/ncvicchi/capibloques). Rama de trabajo actual: `main`. Nuevas ramas, si hacen falta: prefijo `codex/`. Respetar el árbol existente, sin reset/force ni descartar cambios ajenos.
 - El propietario autorizó: **«vamos con 11 y 12»**, consecutivas y completas, sin pedir otro OK entre ellas. También pidió mantener esta documentación al cerrar la 12 y toda fase futura que solicite.
-- **Fases 11 y 12 entregadas.** La 11 es contexto portable con mantenimiento obligatorio; la 12 entrega UX, catálogo separado, cámara de escena, guía Wemos y sesión sin validación por foco, verificados en DEV y CI. El 12 de septiembre el propietario pidió agregar acceso externo persistente a DEV como nueva fase 13, desplazando las anteriores 13–17 a 14–18. **La planificación no autoriza ejecutar 13–18 ni producción.**
+- **Fases 11, 12 y 13 entregadas.** La 11 es contexto portable con mantenimiento obligatorio; la 12 entrega UX, catálogo separado, cámara de escena, guía Wemos y sesión sin validación por foco. La 13 publica DEV de forma persistente y segura en `https://capibloques.dev.nvicchi.com/`. Las fases 14–18 y producción no están autorizadas.
 - Fase 10: software entregado, **aceptación física pendiente**. El propietario no tiene Wemos disponible; no dar por probada la placa ni conectar/programar otro puerto como sustituto.
 - Producción es **Fase final, postergada**, no «fase 11». Los documentos históricos con letras son evidencias antiguas, no fases nuevas ni puntos para pedir OK.
 - Este contexto no transfiere automáticamente credenciales, chats, sesiones ni permisos. Otra cuenta debe tener su propio acceso verificado y la solicitud del propietario antes de operar.
@@ -59,6 +59,18 @@ El estado remoto puede cambiar. Revalidar identidad, commit y salud antes de ope
 
 Este corte sustituye al histórico para continuar, sin borrar su trazabilidad. Consultar nuevamente estado remoto si se retoma en otra fecha. El mantenimiento del contexto acompaña cada fase futura autorizada.
 
+### Entrega de fase 13 — 12 de septiembre de 2026
+
+| Evidencia | Resultado |
+| --- | --- |
+| Código y runtime | `f1944f3`, correcciones operativas `c49f13f` y `1ee0df9`; editor estático Nginx no-root, proxy seguro, firewall y systemd. |
+| DEV | `capi-dev` limpio en `1ee0df9`; editor/API/DB saludables, compilador activo, túnel `localhost:3000` conservado y listener LAN `3080` limitado al edge. Reinicio completo verificado. |
+| Público | `https://capibloques.dev.nvicchi.com/` y `/api/health/ready/` HTTP 200; certificado válido hasta 2026-12-11 y ensayo de renovación correcto. Producción continúa sin vhost/certificado CapiBloques. |
+| Pruebas | 197 backend PostgreSQL, 8 contratos, build de 10 páginas y 18/18 Chrome/Edge externos. PRD no pudo acceder directamente al puerto 3080. |
+| Acceso DEV | Login de CapiBloques sin segunda Basic Auth, decisión documentada; datos sintéticos, rate-limit, cookies Secure, allowlists y proxy confiable acotados. |
+
+Próxima fase posible: **14, ejecución visual dentro de bloques y paralelo vertical**. Requiere autorización expresa; no iniciar 15–18 ni la Fase final.
+
 Validación documental de cierre: **130 destinos locales en ocho documentos**, sin archivos faltantes ni diferencias de mayúsculas/minúsculas; las anclas operativas del túnel y compilador también se contrastaron. Los únicos recursos gráficos publicados son las dos capturas de fixtures sintéticos enlazadas desde la guía.
 
 Al terminar esta entrega se cerró la sesión SSH administrativa y finalizaron las pruebas locales. Se conserva el túnel habitual para navegar DEV; apagar la PC sólo corta ese acceso local, no detiene los servicios de la VM. Los archivos de diagnóstico quedan ignorados en `work/`/`test-results/`; no son parte necesaria del traspaso ni deben publicarse indiscriminadamente.
@@ -100,7 +112,7 @@ Versiones fijadas: Node DEV 22.23.2, React 19.2.8, Blockly 12.5.1, Vinext 1.0.0-
 
 ### Límites de autorización
 
-VM 112 `capi-dev`, desarrollo; VM 113 `capi-prd`, producción. Ambas preparadas con Ubuntu Server 24.04; recursos limitados. **Gateway sólo salto TCP SSH, jamás comandos/configuración/instalación/reinicio ni copia de claves.** Proxmox/router/Nginx tampoco se cambian incidentalmente. La [fase 13 planificada](FASE_13_ACCESO_EXTERNO_DEV.md) limita cualquier futura modificación a la VM Nginx exacta y autorizada; nunca al gateway, host Proxmox, router, PRD u otros sitios. No reenviar agente ni desactivar comprobación de huellas.
+VM 112 `capi-dev`, desarrollo; VM 113 `capi-prd`, producción. Ambas preparadas con Ubuntu Server 24.04; recursos limitados. **Gateway sólo salto TCP SSH, jamás comandos/configuración/instalación/reinicio ni copia de claves.** La [fase 13 entregada](FASE_13_ACCESO_EXTERNO_DEV.md) modificó de forma acotada la VM Nginx autorizada; nunca el gateway, host Proxmox, router, PRD u otros sitios.
 
 ### Acceso de desarrollo desde Windows
 

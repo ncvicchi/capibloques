@@ -112,7 +112,7 @@ Pedido del 12 de septiembre de 2026: poder acceder a DEV desde fuera de la LAN m
 - Activar configuración HTTPS segura de Django: hosts/orígenes exactos, cookies seguras, CSRF y cabeceras de proxy controladas. DEV conserva datos ficticios; antes de publicarlo se acuerda una barrera adicional recomendada o se documenta explícitamente la alternativa elegida. No sustituye producción.
 - Verificar desde una conexión realmente externa en Chrome y Edge, incluida sesión, guardado, simulación, compilación, descarga, contexto seguro para Web Serial, reinicio y renovación de certificado.
 
-Asignación: **fase 13**, planificada en [su guía](FASE_13_ACCESO_EXTERNO_DEV.md). Incorporarla al plan no autoriza todavía las mutaciones de servidor.
+Asignación: **fase 13, implementada y verificada**. Evidencia y operación en [su guía](FASE_13_ACCESO_EXTERNO_DEV.md).
 
 ## Relación actualizada con el plan vigente
 
@@ -131,6 +131,6 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 8. Sesión sin revalidación por foco | 12. Implementado |
 | 9. Imagen de la placa con conexiones | 12. Wemos implementada; pendientes DevKit (16), Waveshare (17) y TX/RX (15) |
 | 10. Desplazamiento y zoom de la escena | 12. Implementado |
-| 11. Acceso externo persistente a DEV | 13. Planificado; no implementado |
+| 11. Acceso externo persistente a DEV | 13. Implementado |
 
-Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. Los pedidos de fases 13–18 siguen sin implementar ni autorizar; su asignación no demuestra soporte disponible ni habilita cambios en servidores.
+Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. Las fases 14–18 siguen sin implementar ni autorizar.

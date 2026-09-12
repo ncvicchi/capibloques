@@ -1,6 +1,19 @@
 # Fase 13 — Acceso externo persistente a DEV
 
-Estado: **planificada el 12 de septiembre de 2026; no implementada**. El propietario pidió anteponerla al backlog funcional. Iniciarla requiere una indicación explícita para ejecutar la fase completa.
+Estado: **entregada y verificada en DEV el 12 de septiembre de 2026**. Versión funcional desplegada: `1ee0df9`.
+
+## Entrega verificada
+
+- URL: `https://capibloques.dev.nvicchi.com/`; HTTP redirige a HTTPS y frontend/API comparten origen.
+- `editor` es un build estático servido por Nginx no-root, sin Node, Vinext ni HMR en ejecución. Conserva `127.0.0.1:3000` para recuperación por túnel y publica `192.168.1.77:3080` únicamente hacia el edge `192.168.1.38`.
+- Django acepta sólo el host/origen HTTPS declarado, usa cookies seguras y confía cabeceras de proxy únicamente desde las IP exactas configuradas. El proxy limpia cabeceras elegidas por el cliente y el límite de intentos de login usa la IP validada.
+- `capibloques-dev-firewall.service` y `capibloques-dev-web.service` quedaron habilitados. Tras reiniciar `capi-dev`, firewall, web, API, PostgreSQL y compilador recuperaron estado saludable automáticamente.
+- Certificado Let's Encrypt válido hasta el 11 de diciembre de 2026; renovación aislada en modo ensayo correcta. El sitio fue instalado en el listener HTTPS interno `8443` de la VM Nginx compartida, sin modificar el gateway, Proxmox, router ni PRD.
+- Se eligió deliberadamente **el login propio de CapiBloques sin una segunda Basic Auth**. DEV mantiene cuentas/datos sintéticos, limitación de intentos en Django, origen cerrado al edge y allowlists exactas. `render_edge.py` conserva Basic Auth opcional para activarla luego sin versionar hashes.
+- Evidencia: 197 pruebas backend en PostgreSQL, 8 contratos del runtime, build de 10 páginas, raíz/API local y pública HTTP 200, 18/18 smoke externos Chrome/Edge, rechazo directo desde PRD (`000`) y prueba negativa de que el dominio de producción no sirve CapiBloques.
+- Commits funcionales: `f1944f3`, `c49f13f` y `1ee0df9`. Se creó respaldo PostgreSQL previo y respaldos privados reversibles de cada cambio de runtime/Nginx.
+
+Operación canónica en DEV: `sudo capibloques-dev-runtime status`, `validate`, `deploy --with-api` y `rollback <tag>`. No usar `docker compose up editor` directamente: systemd supervisa el runtime y el firewall debe estar activo antes del listener LAN.
 
 ## Resultado esperado
 
