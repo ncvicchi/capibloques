@@ -244,12 +244,32 @@ export interface ExecutionEvent {
   message: string;
 }
 
+export type ExecutionTaskStatus =
+  | 'ready'
+  | 'waiting'
+  | 'joining'
+  | 'done'
+  | 'inactive';
+
+/** Transient simulator progress. It is never part of a project snapshot. */
+export interface ExecutionTaskState {
+  id: string;
+  label: string;
+  status: ExecutionTaskStatus;
+  blockId?: string;
+  detail?: string;
+  remainingMs?: number;
+  durationMs?: number;
+  iteration?: number;
+  totalIterations?: number;
+}
+
 export interface SimulatorState {
   execution?: {
     mode: 'normal' | 'guided';
     awaitingFrame: number | null;
     trace: ExecutionEvent[];
-    tasks: { id: string; label: string; status: 'ready' | 'waiting' | 'joining' | 'done' | 'inactive'; remainingMs?: number }[];
+    tasks: ExecutionTaskState[];
   };
   now: number;
   status: 'idle' | 'running' | 'paused' | 'done' | 'stopped';

@@ -508,9 +508,15 @@ select:focus-visible {
 }
 .capi-block-active > .blocklyPath {
   filter: drop-shadow(0 0 7px rgb(255 189 55 / 95%));
-  stroke: #ffbd37;
+  stroke: var(--capi-thread-colour, #6b3fa0);
   stroke-width: 3px;
 }
+.capi-execution-badge { pointer-events: none; }
+.capi-execution-badge-bg { fill: #fffdf7; stroke: var(--capi-thread-colour); stroke-width: 2; }
+.capi-execution-badge-title { fill: #1f2944; font-family: Inter, 'Segoe UI', sans-serif; font-size: 10px; font-weight: 850; }
+.capi-execution-badge-detail { fill: #35415d; font-family: Inter, 'Segoe UI', sans-serif; font-size: 8.5px; font-weight: 650; }
+.capi-execution-progress-track { fill: #d9dce8; }
+.capi-execution-progress-fill { fill: var(--capi-thread-colour); }
 .blockly-shell {
   min-height: 0;
   flex: 1;
@@ -2833,8 +2839,8 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .execution-trace button { text-align: left; padding: 6px; border-radius: 5px; max-width: 100%; cursor: pointer; }
 .execution-trace button:hover { background: #e4e9fa; }
 .scene-device-active { outline: 4px solid #594000; outline-offset: 6px; border-radius: 12px; }
-.device-now { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); padding: 3px 8px; background: #fff0a9; color: #302509; border: 2px solid #594000; border-radius: 8px; white-space: nowrap; }
-.capi-block-active > .blocklyPath { stroke: #201237 !important; stroke-width: 5px !important; filter: drop-shadow(0 0 4px #fff3a0); }
+.device-now { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); width: max-content; max-width: 240px; padding: 3px 8px; background: #fff0a9; color: #302509; border: 2px solid #594000; border-radius: 8px; line-height: 1.25; }
+.capi-block-active > .blocklyPath { stroke: var(--capi-thread-colour, #201237) !important; stroke-width: 5px !important; filter: drop-shadow(0 0 4px #fff3a0); }
 .review-stage .execution-panel { margin: 12px 0; }
 @media (max-width: 540px) { .execution-panel { margin: 0 10px 12px; padding: 12px; } .execution-now { grid-template-columns: minmax(0, 1fr); } .execution-now small { grid-column: 1; } }
 .user-avatar { display: inline-block; flex-shrink: 0; vertical-align: middle; max-width: 100%; }
@@ -2914,11 +2920,20 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .execution-compact .execution-now small { display: none; }
 .execution-compact .execution-detail { font-size: 11px; margin-top: 4px; }
 .execution-compact .execution-detail[open] { position: absolute; z-index: 25; bottom: 0; left: 0; right: 0; max-height: min(420px, 65vh); overflow-y: auto; padding: 12px; background: white; border: 1px solid #bcb0ec; box-shadow: 0 -8px 26px #26204b26; border-radius: 12px 12px 0 0; }
-.execution-follow { display: flex; align-items: center; gap: 6px; padding: 10px 0; font-size: 12px; }
+.execution-focus { margin: 8px 0; padding: 7px 10px; border: 1px solid #8d81bf; border-radius: 8px; background: #f6f2ff; color: #34256b; font-weight: 700; cursor: pointer; }
 .execution-detail summary { cursor: pointer; }
 .blockly-shell .blocklyFlyoutBackground { fill: #edf1fc !important; fill-opacity: 1 !important; stroke: #97a9d0; stroke-width: 2px; }
 .blockly-shell .blocklyFlyout { filter: drop-shadow(6px 0 5px #26396029); }
 .palette-close { position: absolute; top: 8px; right: 14px; z-index: 35; border: 1px solid #9eabd0; background: white; box-shadow: 0 3px 12px #28365a22; color: #343761; border-radius: 9px; padding: 8px 12px; font-size: 12px; min-height: 36px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .capi-block-active > .blocklyPath,
+  .capi-execution-progress-fill,
+  .scene-device-active {
+    transition: none !important;
+    animation: none !important;
+  }
+}
 
 .scene-camera { width: 100%; height: 100%; min-height: 190px; display: flex; flex-direction: column; overflow: hidden; }
 .scene-camera-tools { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 3px 2px 5px; flex-shrink: 0; }

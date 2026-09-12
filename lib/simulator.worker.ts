@@ -10,6 +10,7 @@ import {
   type CompiledProgram,
   type Condition,
   type ExecutionEvent,
+  type ExecutionTaskState,
   type ProgramThread,
   type RuntimeDeviceState,
   type SimulatorState,
@@ -24,8 +25,8 @@ import {
 } from './scene-model.ts';
 
 type Pending =
-  | { kind: 'wait'; until: number; blockId: string }
-  | { kind: 'wifi'; readyAt: number; timeoutAt: number; blockId: string }
+  | { kind: 'wait'; startedAt: number; until: number; blockId: string }
+  | { kind: 'wifi'; startedAt: number; readyAt: number; timeoutAt: number; blockId: string }
   | null;
 
 type ThreadExecution = {
@@ -34,6 +35,7 @@ type ThreadExecution = {
   instructions: FlatInstruction[];
   pc: number;
   loopCounters: number[];
+  loopTotals: number[];
   pending: Pending;
   done: boolean;
   started: boolean;
@@ -304,13 +306,12 @@ function syncCompatibilityProjection() {
 function emit(type = 'SNAPSHOT') {
   state.now = Math.round(virtualNow);
   syncCompatibilityProjection();
+  const showsProgress = state.status === 'running' || state.status === 'paused';
   state.execution = {
-    mode, awaitingFrame, trace: [...trace],
-    tasks: executions.map(execution => ({
-      id: execution.thread.id, label: execution.label,
-      status: !execution.started ? 'inactive' : execution.done ? 'done' : execution.pending ? 'waiting' : execution.instructions[execution.pc]?.op === 'join' ? 'joining' : 'ready',
-      ...(execution.pending ? { remainingMs: Math.max(0, Math.round((execution.pending.kind === 'wait' ? execution.pending.until : state.wifiAvailable ? execution.pending.readyAt : execution.pending.timeoutAt) - virtualNow)) } : {}),
-    })),
+    mode,
+    awaitingFrame,
+    trace: [...trace],
+    tasks: showsProgress ? executions.map(executionTaskState) : [],
   };
   scope.postMessage({
     type,
@@ -320,6 +321,56 @@ function emit(type = 'SNAPSHOT') {
       activeBlockIds: { ...state.activeBlockIds },
     },
   });
+}
+
+function executionTaskState(execution: ThreadExecution): ExecutionTaskState {
+  const node = execution.instructions[execution.pc];
+  const status: ExecutionTaskState['status'] = !execution.started
+    ? 'inactive'
+    : execution.done
+      ? 'done'
+      : execution.pending
+        ? 'waiting'
+        : node?.op === 'join'
+          ? 'joining'
+          : 'ready';
+  const task: ExecutionTaskState = {
+    id: execution.thread.id,
+    label: execution.label,
+    status,
+  };
+  const blockId = state.activeBlockIds[execution.thread.id];
+  if (blockId) task.blockId = blockId;
+  const pending = execution.pending;
+  if (pending) {
+    const target =
+      pending.kind === 'wait'
+        ? pending.until
+        : state.wifiAvailable
+          ? pending.readyAt
+          : pending.timeoutAt;
+    task.remainingMs = Math.max(0, Math.round(target - virtualNow));
+    task.durationMs = Math.max(0, Math.round(target - pending.startedAt));
+    task.detail =
+      pending.kind === 'wait'
+        ? `${(task.remainingMs / 1000).toFixed(2)} s restantes`
+        : state.wifiAvailable
+          ? 'Conectando a Wi-Fi'
+          : 'Esperando la red Wi-Fi';
+  } else if (status === 'joining') {
+    task.detail = 'Espera a los otros caminos';
+  } else if (blockId) {
+    const latest = trace.findLast(
+      item => item.taskId === execution.thread.id && item.blockId === blockId,
+    );
+    task.detail = latest?.message ?? 'Ejecutando';
+  }
+  const activeLoop = execution.loopCounters.findLastIndex(value => value > 0);
+  if (activeLoop >= 0 && execution.loopTotals[activeLoop] > 0) {
+    task.totalIterations = execution.loopTotals[activeLoop];
+    task.iteration = task.totalIterations - execution.loopCounters[activeLoop] + 1;
+  }
+  return task;
 }
 
 function createExecutions(): ThreadExecution[] {
@@ -332,6 +383,7 @@ function createExecutions(): ThreadExecution[] {
       instructions: task.output,
       pc: 0,
       loopCounters: Array.from({ length: task.loopSlots }, () => -1),
+      loopTotals: Array.from({ length: task.loopSlots }, () => 0),
       pending: null,
       done: !task.initial,
       started: task.initial,
@@ -571,6 +623,7 @@ function executeInstruction(
       const child = executions[index];
       child.pc = 0;
       child.loopCounters.fill(-1);
+      child.loopTotals.fill(0);
       child.pending = null;
       child.done = false;
       child.started = true;
@@ -587,9 +640,11 @@ function executeInstruction(
   if (node.op === 'repeatStart') {
     if (execution.loopCounters[node.slot] < 0) {
       execution.loopCounters[node.slot] = node.count;
+      execution.loopTotals[node.slot] = node.count;
     }
     if (execution.loopCounters[node.slot] === 0) {
       execution.loopCounters[node.slot] = -1;
+      execution.loopTotals[node.slot] = 0;
       execution.pc = node.end;
     } else {
       execution.pc += 1;
@@ -601,6 +656,7 @@ function executeInstruction(
     if (execution.loopCounters[node.slot] > 0) execution.pc = node.target;
     else {
       execution.loopCounters[node.slot] = -1;
+      execution.loopTotals[node.slot] = 0;
       execution.pc += 1;
     }
     return 'yield';
@@ -622,6 +678,7 @@ function executeInstruction(
   if (node.op === 'wait') {
     execution.pending = {
       kind: 'wait',
+      startedAt: virtualNow,
       until: virtualNow + Math.max(0, node.ms),
       blockId: node.blockId,
     };
@@ -632,6 +689,7 @@ function executeInstruction(
     appendConsole('Buscando red Wi-Fi…');
     execution.pending = {
       kind: 'wifi',
+      startedAt: virtualNow,
       readyAt: virtualNow + 1200,
       timeoutAt: virtualNow + Math.max(1000, node.timeoutMs),
       blockId: node.blockId,

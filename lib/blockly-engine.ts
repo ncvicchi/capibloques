@@ -859,6 +859,7 @@ function registerBlocks(Blockly: BlocklyApi) {
         },
       ), 'BRANCHES');
       resizeParallel(this, 2);
+      this.setInputsInline(false);
       this.setPreviousStatement(true);
       this.setNextStatement(true);
       this.setColour('#F1A51F');
@@ -879,8 +880,13 @@ function resizeParallel(block: BlocklyBlock, count: number) {
     if (input.name.startsWith('BRANCH') && Number(input.name.slice(6)) >= count) block.removeInput(input.name);
   }
   for (let index = 0; index < count; index++) {
-    if (!block.getInput(`BRANCH${index}`)) block.appendStatementInput(`BRANCH${index}`).appendField(`camino ${index + 1}`);
+    if (!block.getInput(`BRANCH${index}`)) {
+      block
+        .appendStatementInput(`BRANCH${index}`)
+        .appendField(`↓ Camino ${index + 1}`);
+    }
   }
+  block.setInputsInline(false);
 }
 
 /** Repair creation/import/undo in one event group, without clearing history. */

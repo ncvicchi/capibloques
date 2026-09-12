@@ -89,11 +89,7 @@ export default function ReviewSimulation({
       if (event.data.type === 'SNAPSHOT') {
         const next = event.data.state as SimulatorState;
         setState(next);
-        editor.current?.highlight(
-          Object.values(next.activeBlockIds).filter((id): id is string =>
-            Boolean(id),
-          ),
-        );
+        editor.current?.showExecution(next.execution?.tasks);
       }
       if (event.data.type === 'DIAGNOSTICS') {
         setDiagnostics(event.data.diagnostics);
@@ -300,6 +296,7 @@ export default function ReviewSimulation({
         <ExecutionPanel state={state} post={message => worker.current?.postMessage(message)} onFollow={blockId => editor.current?.focusBlock(blockId)} />
         <SceneStage
           activeDeviceId={state?.status === 'stopped' || state?.status === 'done' ? undefined : state?.execution?.trace.at(-1)?.deviceId}
+          activeDeviceMessage={state?.execution?.trace.at(-1)?.message}
           scene={project.scene}
           runtimeDevices={state?.devices}
           counter={state?.counter}

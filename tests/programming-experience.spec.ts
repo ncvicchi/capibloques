@@ -156,19 +156,19 @@ test('paso visible: condición, espera y continuación, guiado y normal sin rein
     .getByRole('combobox', { name: 'Modo de ejecución' })
     .selectOption('guided');
   await page.getByRole('button', { name: 'Paso', exact: true }).click();
-  await expect(page.locator('.execution-now')).toContainText(
+  await expect(page.locator('[data-id="choice"] .capi-execution-badge title')).toContainText(
     'condición es verdadera',
   );
   await expect(
     page.locator('[data-id="choice"].capi-block-active'),
   ).toHaveCount(1);
   await page.getByText(/Últimos .* pasos \(máximo 30\)/).click();
-  await page.getByRole('checkbox', { name: 'Seguir el bloque en pantalla' }).check();
+  await page.getByRole('button', { name: 'Centrar el último bloque' }).click();
   await page.getByText(/Últimos .* pasos \(máximo 30\)/).click();
   await page.getByRole('button', { name: 'Paso', exact: true }).click();
-  await expect(page.locator('.execution-now')).toContainText('Contador = 1');
+  await expect(page.locator('[data-id="yes"] .capi-execution-badge title')).toContainText('Contador = 1');
   await page.getByRole('button', { name: 'Paso', exact: true }).click();
-  await expect(page.locator('.execution-now')).toContainText('Esperamos 0.1');
+  await expect(page.locator('[data-id="wait"] .capi-execution-badge-detail')).toContainText('s restantes');
   await page
     .getByRole('combobox', { name: 'Modo de ejecución' })
     .selectOption('normal');

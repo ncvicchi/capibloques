@@ -194,7 +194,7 @@ test('pantalla: paso visible, zonas independientes y consola separada', async ({
   await expect(page.locator('.scene-device-display')).toHaveClass(
     /scene-device-active/,
   );
-  await expect(page.locator('.execution-now')).toContainText('escribimos');
+  await expect(page.locator('.device-now')).toContainText('escribimos');
   await step.click();
   await expect(preview).toContainText('Sigue aqui');
   await step.click();

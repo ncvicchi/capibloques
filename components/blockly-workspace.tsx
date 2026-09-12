@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { CompiledProgram } from '@/lib/capiblocks';
+import type { CompiledProgram, ExecutionTaskState } from '@/lib/capiblocks';
 import type { SceneDevice } from '@/lib/scene-model';
 import { validFavorite } from '@/lib/user-preferences';
 
@@ -21,6 +21,7 @@ export interface BlocklyWorkspaceHandle {
   load(data: Record<string, unknown>): void;
   compile(): CompiledProgram;
   highlight(blockIds?: string | readonly string[]): void;
+  showExecution(tasks?: readonly ExecutionTaskState[]): void;
   undo(): void;
   redo(): void;
   zoomToFit(): void;
@@ -121,6 +122,189 @@ function refreshBlockAccessibility(workspace: BlocklyWorkspaceSvg) {
     path.setAttribute('role', 'img');
     path.setAttribute('aria-label', blockAccessibilityLabel(block));
   }
+}
+
+const executionColours = [
+  '#43227a',
+  '#00677a',
+  '#8a4b00',
+  '#08713f',
+  '#9b1b55',
+  '#315373',
+];
+
+function executionColour(taskId: string) {
+  let hash = 0;
+  for (const character of taskId) hash = (hash * 31 + character.charCodeAt(0)) | 0;
+  return executionColours[Math.abs(hash) % executionColours.length];
+}
+
+function shortExecutionText(task: ExecutionTaskState) {
+  const iteration =
+    task.iteration !== undefined && task.totalIterations !== undefined
+      ? `Vuelta ${task.iteration}/${task.totalIterations}`
+      : '';
+  const detail = task.detail ??
+    (task.status === 'joining'
+      ? 'Espera a los otros caminos'
+      : task.status === 'waiting'
+        ? 'Esperando'
+        : 'Ejecutando');
+  return [iteration, detail].filter(Boolean).join(' · ');
+}
+
+function badgeExecutionText(task: ExecutionTaskState) {
+  const iteration =
+    task.iteration !== undefined && task.totalIterations !== undefined
+      ? `V${task.iteration}/${task.totalIterations}`
+      : '';
+  const detail =
+    task.remainingMs !== undefined
+      ? `${(task.remainingMs / 1000).toFixed(2)} s restantes`
+      : task.detail ??
+        (task.status === 'joining' ? 'Espera a los otros caminos' : 'Ejecutando');
+  return [iteration, detail].filter(Boolean).join(' · ');
+}
+
+function svgElement<K extends keyof SVGElementTagNameMap>(name: K) {
+  return document.createElementNS('http://www.w3.org/2000/svg', name);
+}
+
+function clearExecutionProgress(
+  workspace: BlocklyWorkspaceSvg,
+  blockIds: ReadonlySet<string>,
+) {
+  for (const id of blockIds) {
+    const root = workspace.getBlockById(id)?.getSvgRoot();
+    if (!root) continue;
+    root.classList.remove('capi-block-active');
+    root.style.removeProperty('--capi-thread-colour');
+    root.querySelectorAll('.capi-execution-badge').forEach(badge => badge.remove());
+    const path = root.querySelector<SVGElement>('.blocklyPath');
+    const baseLabel = path?.getAttribute('data-capi-base-label');
+    if (path && baseLabel) {
+      path.setAttribute('aria-label', baseLabel);
+      path.removeAttribute('data-capi-base-label');
+    }
+  }
+}
+
+function drawExecutionProgress(
+  workspace: BlocklyWorkspaceSvg,
+  tasks: readonly ExecutionTaskState[],
+  previousBlockIds: ReadonlySet<string>,
+) {
+  clearExecutionProgress(workspace, previousBlockIds);
+  const visible = tasks.filter(
+    (task): task is ExecutionTaskState & { blockId: string } =>
+      Boolean(task.blockId) && task.status !== 'done' && task.status !== 'inactive',
+  );
+  const byBlock = new Map<string, typeof visible>();
+  for (const task of visible) {
+    const group = byBlock.get(task.blockId) ?? [];
+    group.push(task);
+    byBlock.set(task.blockId, group);
+  }
+  for (const [blockId, blockTasks] of byBlock) {
+    const block = workspace.getBlockById(blockId);
+    const root = block?.getSvgRoot();
+    if (!block || !root) continue;
+    const size = block.getHeightWidth();
+    const rootBounds = root.getBoundingClientRect();
+    const canvasBounds = root.ownerSVGElement?.getBoundingClientRect();
+    const scale = workspace.scale || 1;
+    const badgeWidth = 162 * scale;
+    const badgeX =
+      canvasBounds && canvasBounds.right - rootBounds.right >= badgeWidth
+        ? Math.max(96, size.width + 8)
+        : canvasBounds && rootBounds.left - canvasBounds.left >= badgeWidth
+          ? -162
+          : Math.max(0, size.width - 154);
+    const badgeY =
+      canvasBounds &&
+      canvasBounds.right - rootBounds.right < badgeWidth &&
+      rootBounds.left - canvasBounds.left < badgeWidth
+        ? -43
+        : 0;
+    root.classList.add('capi-block-active');
+    root.style.setProperty('--capi-thread-colour', executionColour(blockTasks[0].id));
+    const descriptions: string[] = [];
+    blockTasks.forEach((task, index) => {
+      const colour = executionColour(task.id);
+      const detail = shortExecutionText(task);
+      const badgeDetail = badgeExecutionText(task);
+      descriptions.push(`${task.label}: ${detail}`);
+      const badge = svgElement('g');
+      badge.classList.add('capi-execution-badge');
+      badge.setAttribute('data-task-id', task.id);
+      badge.setAttribute(
+        'transform',
+        `translate(${badgeX} ${badgeY + index * 43})`,
+      );
+      badge.style.setProperty('--capi-thread-colour', colour);
+      badge.setAttribute('aria-hidden', 'true');
+      const title = svgElement('title');
+      title.textContent = `${task.label}: ${detail}`;
+      badge.appendChild(title);
+      const background = svgElement('rect');
+      background.classList.add('capi-execution-badge-bg');
+      background.setAttribute('width', '154');
+      background.setAttribute('height', '38');
+      background.setAttribute('rx', '8');
+      badge.appendChild(background);
+      const heading = svgElement('text');
+      heading.classList.add('capi-execution-badge-title');
+      heading.setAttribute('x', '8');
+      heading.setAttribute('y', '14');
+      heading.textContent = task.label.length > 22 ? `${task.label.slice(0, 21)}…` : task.label;
+      badge.appendChild(heading);
+      const status = svgElement('text');
+      status.classList.add('capi-execution-badge-detail');
+      status.setAttribute('x', '8');
+      status.setAttribute('y', task.durationMs ? '27' : '30');
+      status.textContent = badgeDetail.length > 28 ? `${badgeDetail.slice(0, 27)}…` : badgeDetail;
+      badge.appendChild(status);
+      if (
+        task.durationMs !== undefined &&
+        task.durationMs > 0 &&
+        task.remainingMs !== undefined
+      ) {
+        const track = svgElement('rect');
+        track.classList.add('capi-execution-progress-track');
+        track.setAttribute('x', '8');
+        track.setAttribute('y', '31');
+        track.setAttribute('width', '138');
+        track.setAttribute('height', '4');
+        track.setAttribute('rx', '2');
+        badge.appendChild(track);
+        const fill = svgElement('rect');
+        fill.classList.add('capi-execution-progress-fill');
+        fill.setAttribute('x', '8');
+        fill.setAttribute('y', '31');
+        fill.setAttribute(
+          'width',
+          String(
+            138 *
+              Math.max(
+                0,
+                Math.min(1, 1 - task.remainingMs / task.durationMs),
+              ),
+          ),
+        );
+        fill.setAttribute('height', '4');
+        fill.setAttribute('rx', '2');
+        badge.appendChild(fill);
+      }
+      root.appendChild(badge);
+    });
+    const path = root.querySelector<SVGElement>('.blocklyPath');
+    if (path) {
+      const baseLabel = path.getAttribute('aria-label') ?? blockAccessibilityLabel(block);
+      path.setAttribute('data-capi-base-label', baseLabel);
+      path.setAttribute('aria-label', `${baseLabel}. ${descriptions.join('. ')}`);
+    }
+  }
+  return new Set(byBlock.keys());
 }
 
 function readableLoadError(error: unknown) {
@@ -466,6 +650,7 @@ const BlocklyWorkspace = forwardRef<
             ?.getSvgRoot()
             ?.classList.remove('capi-block-active');
         }
+        clearExecutionProgress(workspace, highlightedBlockIdsRef.current);
         const nextIds = new Set(
           typeof blockIds === 'string'
             ? [blockIds]
@@ -480,7 +665,15 @@ const BlocklyWorkspace = forwardRef<
             ?.classList.add('capi-block-active');
         }
         highlightedBlockIdsRef.current = nextIds;
-        workspace.highlightBlock([...nextIds][0] ?? null);
+      },
+      showExecution(tasks = []) {
+        const workspace = workspaceRef.current;
+        if (!workspace) return;
+        highlightedBlockIdsRef.current = drawExecutionProgress(
+          workspace,
+          tasks,
+          highlightedBlockIdsRef.current,
+        );
       },
       undo() {
         if (readOnlyRef.current) return;

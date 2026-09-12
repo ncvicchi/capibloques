@@ -79,6 +79,7 @@ import {
   validateProgramForScene,
   type CapiDiagnostic,
   type CompiledProgram,
+  type ExecutionTaskState,
   type ProjectFile,
   type RuntimeDeviceState,
   type SceneId,
@@ -418,7 +419,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const mutedRef = useRef(false);
   const speedRef = useRef(1);
   const pendingHighlightFrameRef = useRef<number | null>(null);
-  const pendingActiveBlocksRef = useRef(new Map<string, string>());
+  const pendingExecutionTasksRef = useRef<ExecutionTaskState[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [projectName, setProjectName] = useState(currentExample.title);
   const [scene, setScene] = useState<SceneDefinition>(initialScene);
@@ -481,9 +482,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     workerRef.current = worker;
     const flushHighlights = () => {
       pendingHighlightFrameRef.current = null;
-      editorRef.current?.highlight([
-        ...pendingActiveBlocksRef.current.values(),
-      ]);
+      editorRef.current?.showExecution(pendingExecutionTasksRef.current);
     };
     const scheduleHighlight = () => {
       if (pendingHighlightFrameRef.current !== null) return;
@@ -493,18 +492,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       if (event.data.type === 'SNAPSHOT') {
         const nextState = event.data.state as SimulatorState;
         setSim(nextState);
-        pendingActiveBlocksRef.current = new Map(
-          Object.entries(nextState.activeBlockIds).filter(
-            (entry): entry is [string, string] => typeof entry[1] === 'string',
-          ),
-        );
-        scheduleHighlight();
-      }
-      if (event.data.type === 'BLOCK_ACTIVE') {
-        pendingActiveBlocksRef.current.set(
-          String(event.data.threadId ?? 'main'),
-          String(event.data.blockId ?? ''),
-        );
+        pendingExecutionTasksRef.current = nextState.execution?.tasks ?? [];
         scheduleHighlight();
       }
       if (event.data.type === 'SOUND') {
@@ -745,8 +733,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const reset = useCallback(() => {
     postToWorker({ type: 'RESET' });
     stopSound();
-    pendingActiveBlocksRef.current.clear();
-    editorRef.current?.highlight();
+    pendingExecutionTasksRef.current = [];
+    editorRef.current?.showExecution();
     setSim(makeInitialState(scene));
     setNotice('Escena reiniciada');
     setNoticeTone('ok');
@@ -769,7 +757,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         stopSound();
       } else {
         setSim(makeInitialState(scene));
-        editorRef.current?.highlight();
+        editorRef.current?.showExecution();
       }
       setSceneBuilderOpen(nextOpen);
     },
@@ -1290,8 +1278,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           onClick={() => {
             postToWorker({ type: 'STOP' });
             stopSound();
-            pendingActiveBlocksRef.current.clear();
-            editorRef.current?.highlight();
+            pendingExecutionTasksRef.current = [];
+            editorRef.current?.showExecution();
           }}
         >
           <CircleStop size={18} /> Detener
@@ -1406,6 +1394,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
               <div className="sim-stage composed-scene">
                 <SceneStage
                   activeDeviceId={sim.status === 'stopped' || sim.status === 'done' ? undefined : sim.execution?.trace.at(-1)?.deviceId}
+                  activeDeviceMessage={sim.execution?.trace.at(-1)?.message}
                   scene={scene}
                   runtimeDevices={sim.devices}
                   counter={sim.counter}

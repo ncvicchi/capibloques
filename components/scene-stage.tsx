@@ -36,6 +36,7 @@ export type RuntimeVisualDevice = {
 
 interface SceneStageProps {
   activeDeviceId?: string;
+  activeDeviceMessage?: string;
   scene: SceneDefinition;
   runtimeDevices?: Record<string, RuntimeVisualDevice>;
   counter?: number;
@@ -184,6 +185,7 @@ function DeviceVisual({
 
 export default function SceneStage({
   activeDeviceId,
+  activeDeviceMessage,
   scene,
   runtimeDevices = {},
   counter = 0,
@@ -476,10 +478,18 @@ export default function SceneStage({
               data-device-id={device.id}
               className={`scene-device scene-device-${device.kind}${activeDeviceId === device.id ? ' scene-device-active' : ''}`}
               style={style}
-              aria-label={device.name}
+              aria-label={
+                activeDeviceId === device.id && activeDeviceMessage
+                  ? `${device.name}. ${activeDeviceMessage}`
+                  : device.name
+              }
             >
               {contents}
-              {activeDeviceId === device.id && <strong className="device-now">➜ Ahora</strong>}
+              {activeDeviceId === device.id && (
+                <strong className="device-now">
+                  ➜ {activeDeviceMessage ?? 'Ahora'}
+                </strong>
+              )}
             </article>
           );
         }

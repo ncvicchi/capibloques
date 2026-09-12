@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect } from 'react';
 import type { SimulatorState } from '@/lib/capiblocks';
 
 export default function ExecutionPanel({
@@ -14,8 +14,6 @@ export default function ExecutionPanel({
   onFollow: (blockId: string) => void;
   compact?: boolean;
 }) {
-  const [follow, setFollow] = useState(false);
-  const lastFollowed = useRef(0);
   const execution = state?.execution;
   const latest = execution?.trace.at(-1);
   const awaiting = execution?.awaitingFrame;
@@ -32,12 +30,6 @@ export default function ExecutionPanel({
       cancelAnimationFrame(second);
     };
   }, [awaiting, post]);
-  useEffect(() => {
-    if (follow && latest && lastFollowed.current !== latest.seq) {
-      lastFollowed.current = latest.seq;
-      onFollow(latest.blockId);
-    }
-  }, [follow, latest, onFollow]);
   const labels = {
     ready: 'Listo',
     waiting: 'Esperando',
@@ -45,6 +37,19 @@ export default function ExecutionPanel({
     done: 'Terminó',
     inactive: 'Aún no comenzó',
   };
+  const activeTasks = execution?.tasks.filter(
+    task => task.status !== 'done' && task.status !== 'inactive',
+  ) ?? [];
+  const globalMessage =
+    state?.status === 'stopped'
+      ? 'Los indicadores del programa se limpiaron.'
+      : state?.status === 'done'
+        ? 'Todos los caminos terminaron.'
+        : activeTasks.length > 1
+          ? `${activeTasks.length} caminos activos`
+          : activeTasks.length === 1
+            ? '1 camino activo'
+            : 'Presioná Ejecutar o Paso para comenzar.';
   return (
     <section className={`execution-panel${compact ? ' execution-compact' : ''}`} aria-label="Qué se está ejecutando">
       <div className="execution-options">
@@ -73,25 +78,33 @@ export default function ExecutionPanel({
       >
         <strong>{state?.status === 'stopped' ? '■ Detenido' : state?.status === 'done' ? '✓ Terminado' : '➜ Ahora'}</strong>
         <span>
-          {latest?.message ??
-            'Presioná Ejecutar o Paso para ver qué hace tu programa.'}
+          {globalMessage}
         </span>
         {latest && (
           <small>
-            {latest.label} · {(latest.now / 1000).toFixed(3)} s
+            {(latest.now / 1000).toFixed(3)} s simulados
           </small>
         )}
       </div>
       <details className="execution-detail">
         <summary>Últimos {execution?.trace.length ?? 0} pasos (máximo 30)</summary>
-        <label className="execution-follow"><input type="checkbox" checked={follow} onChange={event => { lastFollowed.current = 0; setFollow(event.target.checked); }} /> Seguir el bloque en pantalla</label>
+        {latest && (
+          <button
+            className="execution-focus"
+            type="button"
+            onClick={() => onFollow(latest.blockId)}
+          >
+            Centrar el último bloque
+          </button>
+        )}
       {execution && execution.tasks.length > 0 && (
         <ul className="execution-paths" aria-label="Estado de los caminos">
           {execution.tasks.map((task) => (
             <li key={task.id}>
               <strong>{task.label}</strong>: {labels[task.status]}
-              {task.remainingMs !== undefined
-                ? ` · ${(task.remainingMs / 1000).toFixed(2)} s restantes`
+              {task.detail ? ` · ${task.detail}` : ''}
+              {task.iteration !== undefined && task.totalIterations !== undefined
+                ? ` · vuelta ${task.iteration} de ${task.totalIterations}`
                 : ''}
             </li>
           ))}

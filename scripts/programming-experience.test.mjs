@@ -240,6 +240,46 @@ assert.ok(
 );
 send({ type: 'STOP' });
 assert.equal(state().status, 'stopped');
+assert.deepEqual(state().execution.tasks, [], 'Stop clears every transient path indicator');
+assert.deepEqual(state().activeBlockIds, {});
+
+send({
+  type: 'LOAD',
+  scene,
+  program: wrap([
+    parallel('progress-roads', [
+      [
+        {
+          op: 'repeat',
+          count: 2,
+          blockId: 'progress-loop',
+          body: [wait('short-delay', 500)],
+        },
+      ],
+      [wait('long-delay', 1000)],
+    ]),
+  ]),
+});
+send({ type: 'RUN' });
+advance(16);
+const progress = state().execution.tasks.filter(task => task.status === 'waiting');
+assert.deepEqual(progress.map(task => task.label), ['Camino 1', 'Camino 2']);
+assert.deepEqual(progress.map(task => task.blockId), ['short-delay', 'long-delay']);
+assert.deepEqual(progress.map(task => task.durationMs), [500, 1000]);
+assert.ok(progress[0].remainingMs < progress[1].remainingMs);
+assert.equal(progress[0].iteration, 1);
+assert.equal(progress[0].totalIterations, 2);
+send({ type: 'PAUSE' });
+const pausedProgress = structuredClone(state().execution.tasks);
+advance(1000);
+assert.deepEqual(
+  state().execution.tasks,
+  pausedProgress,
+  'pause freezes each path progress on the logical clock',
+);
+send({ type: 'STOP' });
+assert.deepEqual(state().execution.tasks, []);
+
 const excessive = wrap([
   parallel(
     'too-wide',
