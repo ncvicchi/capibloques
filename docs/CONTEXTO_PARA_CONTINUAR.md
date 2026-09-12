@@ -64,10 +64,10 @@ Este corte sustituye al histórico para continuar, sin borrar su trazabilidad. C
 | Evidencia | Resultado |
 | --- | --- |
 | Código y runtime | `f1944f3`, correcciones operativas `c49f13f` y `1ee0df9`; editor estático Nginx no-root, proxy seguro, firewall y systemd. |
-| DEV | `capi-dev` limpio en `1ee0df9`; editor/API/DB saludables, compilador activo, túnel `localhost:3000` conservado y listener LAN `3080` limitado al edge. Reinicio completo verificado. |
+| DEV | `capi-dev` limpio en `2597284` (runtime funcional `1ee0df9`); editor/API/DB saludables, compilador activo, túnel `localhost:3000` conservado y listener LAN `3080` limitado al edge. Reinicio completo verificado. |
 | Público | `https://capibloques.dev.nvicchi.com/` y `/api/health/ready/` HTTP 200; certificado válido hasta 2026-12-11 y ensayo de renovación correcto. Producción continúa sin vhost/certificado CapiBloques. |
 | Pruebas | 197 backend PostgreSQL, 8 contratos, build de 10 páginas y 18/18 Chrome/Edge externos. PRD no pudo acceder directamente al puerto 3080. |
-| Acceso DEV | Login de CapiBloques sin segunda Basic Auth, decisión documentada; datos sintéticos, rate-limit, cookies Secure, allowlists y proxy confiable acotados. |
+| Acceso DEV | Login de CapiBloques sin segunda Basic Auth, decisión documentada; datos sintéticos, rate-limit, cookies Secure, allowlists y proxy confiable acotados. El 12 de septiembre se verificó el ingreso real por HTTPS de la cuenta `administrador` después de restablecer su clave; la clave no se documenta ni se transfiere. |
 
 Próxima fase posible: **14, ejecución visual dentro de bloques y paralelo vertical**. Requiere autorización expresa; no iniciar 15–18 ni la Fase final.
 
@@ -124,7 +124,7 @@ El checkout de la VM está en `/home/capi/capibloques`. El propietario configura
 .\scripts\connect-dev.ps1 -DirectLan
 ```
 
-Mientras fase 13 no esté implementada, mantener **un túnel dedicado** y una sesión administrativa separada. Reutilizar túnel existente; no arrancar duplicados. Navegación: `http://localhost:3000/`; salud: `/api/health/live/` y `/api/health/ready/`. `localhost` es la entrada local al servidor remoto, no evidencia de un servidor en la PC. Otro puerto/host cambia el origen y sus borradores locales. La futura URL HTTPS será otro origen: no hereda IndexedDB del localhost.
+La entrada normal de DEV es `https://capibloques.dev.nvicchi.com/`; salud pública: `/api/health/live/` y `/api/health/ready/`. El túnel dedicado a `http://localhost:3000/` se conserva sólo para recuperación y tareas acotadas: reutilizar el existente y no arrancar duplicados. `localhost` es una entrada local al servidor remoto, no evidencia de un servidor en la PC. Ambos son orígenes distintos y no comparten IndexedDB, borradores ni preferencias del navegador.
 
 No hay autenticación SSH desatendida garantizada: durante el traspaso la conexión sin contraseña fue rechazada y se ingresó interactivamente. Que GitHub funcione por SSH en la VM no significa que el acceso a la VM use la misma autenticación. Si faltan credenciales, pedir al propietario que las configure por canal privado; no rotarlas ni crear una cuenta del asistente.
 
@@ -198,7 +198,7 @@ El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BAC
 - 10: prueba física Wemos de ambos frameworks y recuperación USB.
 - 11: entregada y comprobada; mantenimiento obligatorio en futuras fases, no requiere reiniciar el traspaso.
 - 12: **entregada y verificada en DEV/CI**; [guía, pruebas y cierre](FASE_12_MESA_DE_TRABAJO.md). Encabezados/catálogo reorganizados, zoom/desplazamiento de escena, imagen técnica Wemos sincronizada y chequeo periódico sin interrupciones por foco.
-- 13: [acceso externo persistente a DEV](FASE_13_ACCESO_EXTERNO_DEV.md), HTTPS mediante VM Nginx, runtime como servicio y origen restringido; el propietario crea el DNS GoDaddy indicado.
+- 13: **entregada y verificada externamente**; [acceso persistente a DEV](FASE_13_ACCESO_EXTERNO_DEV.md), HTTPS mediante VM Nginx, runtime como servicio y origen restringido. DNS, certificado, reinicio y acceso Chrome/Edge están comprobados.
 - 14: paralelo vertical, lienzo de bloques estático e indicadores locales de progreso.
 - 15: TX/RX serial configurable con mensajes completos, espera no bloqueante y bifurcación.
 - 16: DevKit S3 exacta, perfiles, imagen de conexiones, fuentes/compilación/USB.
@@ -206,11 +206,11 @@ El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BAC
 - 18: escena y controles locales en display, prioridad manual/programa explícita.
 - Final: producción/HTTPS, restauración/backups externos, carga, monitoreo, rollback y piloto; postergada.
 
-La próxima fase de desarrollo es **13, aún no autorizada para ejecución**. Para iniciarla hacen falta el FQDN elegido, acceso autorizado a la VM Nginx identificada y que el propietario cree el registro DNS exacto cuando se lo indiquen; no pedir credenciales de GoDaddy. No esperar hardware para esta publicación ni para mejorar UX. Sí exigir modelo/documentación y ensayo físico antes de anunciar soporte de placa. El diagrama Wemos fue contrastado con las fuentes enlazadas; conservar esa verificación al ampliarlo, porque existen pinouts públicos contradictorios. No convertir una ilustración en fuente única de verdad.
+La próxima fase de desarrollo posible es **14, aún no autorizada para ejecución**. No esperar hardware para mejorar esa ejecución visual, pero conservar separada la aceptación física pendiente de fase 10. Sí exigir modelo/documentación y ensayo físico antes de anunciar soporte de una placa nueva. El diagrama Wemos fue contrastado con las fuentes enlazadas; conservar esa verificación al ampliarlo, porque existen pinouts públicos contradictorios. No convertir una ilustración en fuente única de verdad.
 
 ## 9. Mensaje listo para otra conversación
 
-> Continuá CapiBloques desde este repositorio. Primero leé AGENTS.md y docs/CONTEXTO_PARA_CONTINUAR.md, luego el plan y la guía de la fase vigente. Confirmá rama, cambios locales y versión desplegada antes de operar. El contexto indica qué fases están autorizadas y cuáles no: no infieras autorización por estar en el backlog. Trabajá una fase completa por vez, informá avances, probá, hacé commit/push y actualizá este contexto al terminar. La próxima fase planificada es 13, acceso externo persistente a DEV; no está implementada. Producción está postergada. El gateway es exclusivamente un salto SSH y está prohibido modificarlo. Si se autoriza fase 13, identificá la VM Nginx y no la confundas con el host Proxmox. No copies secretos ni borres datos para recuperar acceso. La aceptación física de fase 10 sigue pendiente salvo evidencia posterior explícita. Decime qué contexto o acceso privado falta sin pedir contraseñas en Git o documentación.
+> Continuá CapiBloques desde este repositorio. Primero leé AGENTS.md y docs/CONTEXTO_PARA_CONTINUAR.md, luego el plan y la guía de la fase vigente. Confirmá rama, cambios locales y versión desplegada antes de operar. Las fases 11–13 están entregadas; DEV funciona públicamente en https://capibloques.dev.nvicchi.com/ y la próxima fase posible es 14, pero no está autorizada. No infieras autorización por estar en el backlog. Trabajá una fase completa por vez, informá avances, probá, hacé commit/push y actualizá este contexto al terminar. Producción es la Fase final y está postergada. El gateway es exclusivamente un salto SSH y está prohibido modificarlo; tampoco modifiques Proxmox, router, PRD u otros sitios. No copies secretos, no documentes contraseñas ni borres datos para recuperar acceso. La aceptación física de fase 10 sigue pendiente salvo evidencia posterior explícita. Decime qué contexto o acceso privado falta sin pedir credenciales en Git o documentación.
 
 ## 10. Lista de cierre y mantenimiento obligatorio
 
