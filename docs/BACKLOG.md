@@ -114,6 +114,29 @@ Pedido del 12 de septiembre de 2026: poder acceder a DEV desde fuera de la LAN m
 
 Asignación: **fase 13, implementada y verificada**. Evidencia y operación en [su guía](FASE_13_ACCESO_EXTERNO_DEV.md).
 
+## 12. Desafíos progresivos
+
+Pedido del 12 de septiembre de 2026: agregar una sección de **desafíos de complejidad creciente**, entretenidos y suficientemente exigentes para que los chicos mejoren tanto en el uso de CapiBloques como en programación.
+
+- Organizar un recorrido gradual, con objetivos claros, una escena o situación atractiva y criterios de éxito observables. No exigir una única secuencia de bloques si distintas soluciones tienen el mismo comportamiento correcto.
+- Enseñar de forma acumulativa: manejo del editor y la simulación; secuencias; esperas y estado; bucles; condiciones y sensores; contadores; caminos paralelos; mensajes y pantallas. Separar los retos que requieren hardware físico de los que se pueden completar enteramente en el navegador.
+- Permitir abrir un proyecto inicial como copia personal, trabajar sin sobrescribir el enunciado, guardar y retomar. Ofrecer pistas graduales y explicaciones después de validar, sin convertir el reto en copiar una solución completa.
+- Validar con varios escenarios o entradas cuando corresponda, para que una respuesta fija no pase por casualidad. Explicar qué falta sin revelar datos privados, código interno o el trabajo de otro alumno.
+- Registrar progreso por cuenta con reglas explícitas de privacidad y revisión. No introducir rankings públicos, comparación entre alumnos ni recompensas que oculten si el concepto fue comprendido.
+- Mantener accesibilidad, teclado, móvil, texto ampliado, importación/exportación y compatibilidad de proyectos. El catálogo de desafíos debe poder versionarse sin invalidar avances ya obtenidos.
+
+Asignación: **Fase 19**, agregada al plan y pendiente de autorización propia. La cantidad y selección final del catálogo inicial se fijan al autorizarla; el plan propone una base verificable sin hacer depender los primeros retos de hardware.
+
+## 13. Barra de desplazamiento residual del catálogo
+
+Pedido del 12 de septiembre de 2026: al elegir un bloque aparece una barra de desplazamiento; al cerrar o retirar el área del catálogo desaparece el área de bloques, pero **la barra queda visible**.
+
+- Reproducirlo al abrir categorías cortas y largas, cerrar con el botón, Escape y después de arrastrar un bloque al programa.
+- La barra propia del catálogo debe ocultarse o retirarse junto con el catálogo. Las barras necesarias del programa continúan funcionando y no cambian de posición ni tamaño por ese cierre.
+- Verificar ratón, teclado, escritorio de altura limitada, móvil y Chrome/Edge; el arreglo no debe recortar bloques, dejar una franja vacía ni mover el lienzo.
+
+Pendiente de priorización y asignación a una fase autorizada. Se registra durante la Fase 14 sin ampliar su alcance ni presentarlo como resuelto.
+
 ## Relación actualizada con el plan vigente
 
 El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las nuevas fases](PLAN_FASES_BACKLOG.md) incorporan todos los pedidos. La fase 11 conserva el contexto vivo; la fase 12 implementó la reorganización general y navegación; la fase 13 publicó DEV de forma controlada y está entregada. La ejecución dentro de bloques y paralelo vertical siguen en fase 14, no se dan por resueltos al redistribuir la UI.
@@ -132,5 +155,7 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 9. Imagen de la placa con conexiones | 12. Wemos implementada; pendientes DevKit (16), Waveshare (17) y TX/RX (15) |
 | 10. Desplazamiento y zoom de la escena | 12. Implementado |
 | 11. Acceso externo persistente a DEV | 13. Implementado |
+| 12. Desafíos progresivos | 19. Pendiente de autorización |
+| 13. Barra residual del catálogo | Pendiente de priorización y asignación |
 
-Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. Las fases 14–18 siguen sin implementar ni autorizar.
+Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 14 está autorizada en curso; las fases 15–19 y el pedido 13 requieren autorización o priorización propia.

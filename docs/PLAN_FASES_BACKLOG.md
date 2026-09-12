@@ -1,8 +1,8 @@
 # Nuevas fases de CapiBloques
 
-Plan elaborado el 8 de septiembre de 2026 y actualizado el 12 de septiembre de 2026. **Fases 11, 12 y 13 entregadas**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`; las fases 14–18 no están implementadas ni autorizadas y la Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
+Plan elaborado el 8 de septiembre de 2026 y actualizado el 12 de septiembre de 2026. **Fases 11, 12 y 13 entregadas; fase 14 autorizada en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`; las fases 15–19 no están implementadas ni autorizadas y la Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
 
-La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros 11–18; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. El contexto portable se entregó primero y después la UX, bajo la autorización consecutiva de 11 y 12, sin dar por hecha la prueba física. Al insertar acceso externo como fase 13, las fases antes numeradas 13–17 pasan a ser 14–18; no son tareas nuevas ni duplicadas.
+La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros 11–19; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. El contexto portable se entregó primero y después la UX, bajo la autorización consecutiva de 11 y 12, sin dar por hecha la prueba física. Al insertar acceso externo como fase 13, las fases antes numeradas 13–17 pasan a ser 14–18; no son tareas nuevas ni duplicadas. La fase 19 se agrega por pedido posterior del propietario para reunir los desafíos progresivos.
 
 ## Orden y cobertura
 
@@ -16,9 +16,10 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 16 | Soporte completo ESP32-S3 DevKit y selección de placa | 2: DevKit; 9: guía visual DevKit | Modelo exacto identificado; incorporar el contrato TX/RX de fase 15 |
 | 17 | Perfil Waveshare ESP32-S3 con pantalla de 5 pulgadas | 2: Waveshare; 9: guía visual Waveshare | Perfiles de fase 16 y modelo/revisión exactos identificados |
 | 18 | Escena gráfica y controles locales en el display | 3: display interactivo | Perfiles de pantalla de fase 17 y ejecución/componentes existentes |
+| 19 | Sección de desafíos progresivos | 12: desafíos | Funciones educativas ya entregadas; primeros retos utilizables sin hardware obligatorio |
 | Final | Producción, HTTPS, respaldos y piloto | Antigua fase 11 | Postergada hasta autorización explícita y validaciones de salida |
 
-Primero se asegura la continuidad desde otra cuenta sin depender de este chat; después se atienden los problemas cotidianos del editor y se vuelve DEV accesible desde fuera mediante un servicio controlado. TX/RX se incorpora antes de las placas nuevas para tener un contrato de comportamiento que luego se valide en cada destino. Separar DevKit, Waveshare y display interactivo permite comprobar por separado placa, pantalla y aplicación gráfica: no son el mismo soporte.
+Primero se asegura la continuidad desde otra cuenta sin depender de este chat; después se atienden los problemas cotidianos del editor y se vuelve DEV accesible desde fuera mediante un servicio controlado. TX/RX se incorpora antes de las placas nuevas para tener un contrato de comportamiento que luego se valide en cada destino. Separar DevKit, Waveshare y display interactivo permite comprobar por separado placa, pantalla y aplicación gráfica: no son el mismo soporte. Los desafíos aprovechan esas funciones como recorrido educativo propio y no bloquean las fases de hardware.
 
 ## Fase 11 — Contexto portable y traspaso a otra cuenta
 
@@ -201,6 +202,29 @@ Aceptación:
 - Equivalencia lógica entre simulación y firmware; capacidad gráfica declarada por perfil, compilación en ambos frameworks y ensayo físico en la Waveshare identificada. No extender automáticamente esa certificación a otro display sin probar su adaptación.
 - Arranque y salida de modo manual seguros para el montaje verificado; no presentar el control gráfico como paro de emergencia ni confundir cerrar la pestaña con detener la placa.
 
+## Fase 19 — Desafíos progresivos
+
+**Objetivo:** ofrecer un recorrido de retos atractivos y cada vez más complejos para aprender a usar CapiBloques y desarrollar conceptos de programación mediante la práctica.
+
+Alcance:
+
+- Crear una sección de desafíos con niveles o tramos visibles, objetivos concretos, dificultad creciente y un catálogo inicial suficiente para recorrer desde una secuencia simple hasta bucles, condiciones, sensores, contadores, concurrencia, mensajes y pantallas. Los primeros tramos deben poder completarse enteramente en el simulador.
+- Cada desafío parte de una escena y, cuando ayude, de un proyecto inicial copiado a la biblioteca personal. Abrir, reiniciar o volver a intentar nunca sobrescribe el enunciado ni otro proyecto del alumno.
+- Validar el comportamiento observable, admitiendo soluciones distintas. Usar varios escenarios o entradas para condiciones y sensores; no aprobar sólo porque coincide la forma de los bloques o una salida fija casual.
+- Incorporar pistas graduales, explicación del concepto practicado y devolución comprensible sobre qué condición falta. La solución completa no se muestra antes de completar el reto salvo una decisión explícita de diseño educativo.
+- Guardar avance por cuenta, versión del desafío e intentos necesarios para retomar, con privacidad y permisos consistentes con cursos y proyectos. No agregar rankings públicos ni exponer resultados de otros alumnos.
+- Versionar el catálogo y sus validadores. Una corrección futura no borra un logro anterior sin explicación; proyectos creados desde una versión vieja siguen siendo proyectos portables normales.
+- Integrar accesibilidad por teclado, texto ampliado, móvil, modo sin movimiento innecesario y recuperación ante desconexión. Diferenciar claramente reto completado, progreso sólo local, sesión vencida y fallo del validador.
+
+Aceptación:
+
+- Un alumno puede descubrir la sección, elegir un desafío adecuado, crear su copia, guardar/salir/retomar, simular, pedir pistas y validar sin perder el proyecto. Completar uno habilita o recomienda el siguiente de forma comprensible, sin encerrar al alumno si el docente elige otro orden.
+- El catálogo inicial cubre dificultad creciente y tiene pruebas para la solución esperada, alternativas válidas y respuestas incorrectas cercanas. Condiciones, bucles y paralelo se prueban con entradas distintas; detener o reiniciar no produce un logro falso.
+- Progreso aislado por cuenta, reintentos idempotentes, revocación y cambio de cuenta; docentes y administradores sólo ven lo permitido por una regla definida, no por su rol global por sí solo.
+- Chrome y Edge, teclado, móvil y texto ampliado permiten recorrer el flujo. Los desafíos sin hardware funcionan en DEV; los que exijan una placa identifican ese requisito y nunca confunden compilación con validación física.
+
+No incluye una competencia pública, chat o tutor de IA, creación libre de desafíos por cualquier usuario ni soporte de hardware que no haya sido entregado y validado en su fase correspondiente. La cantidad exacta y los contenidos del catálogo inicial se fijan al autorizar la fase.
+
 ## Fase final — Producción y piloto, postergada
 
 Es la antigua fase 11, renombrada por decisión del propietario. No se ejecuta como consecuencia de terminar una fase del backlog.
@@ -214,7 +238,7 @@ El gateway sigue siendo sólo un salto SSH, con prohibición de cambios. Tampoco
 ## Cómo se trabaja y qué falta decidir
 
 - Una fase completa autorizada por vez, con implementación, pruebas proporcionales, entrega en DEV y commit/push. Informar avances con evidencia y pendientes; no inventar porcentajes ni tiempos exactos.
-- **Fases 11–13 entregadas.** Actualizar la documentación viva al cerrar cada fase futura solicitada. No ejecutar 14–18 ni producción sin autorización explícita.
+- **Fases 11–13 entregadas; fase 14 autorizada en curso.** Actualizar la documentación viva al cerrar cada fase futura solicitada. No ejecutar 15–19 ni producción sin autorización explícita.
 - Para fases 16 y 17 hacen falta modelos exactos antes de fijar drivers/pines; para cerrar las entregas físicas hace falta hardware identificado y autorización para reemplazar firmware.
-- La disposición exacta del paralelo se fija al abordar fase 14; formato de mensajes/timeout en fase 15; prioridad manual/programa y límites gráficos en fase 18. Son decisiones dentro de esas fases, no nuevas fases con letras.
+- La fase 14 fija el paralelo como un contenedor con caminos apilados de arriba hacia abajo y mantiene fork/join. Formato de mensajes/timeout se fija en fase 15; prioridad manual/programa y límites gráficos en fase 18; catálogo inicial y visibilidad docente en fase 19. Son decisiones dentro de esas fases, no nuevas fases con letras.
 - No hay estimaciones horarias comprometidas: hardware, alcance de la adaptación gráfica y mediciones en la VM condicionan el esfuerzo. No retrasar ahora la planificación esperando esos datos, ni prometer implementaciones específicas de un modelo no identificado.
