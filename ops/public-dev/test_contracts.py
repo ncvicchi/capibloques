@@ -2,6 +2,7 @@ import argparse
 import importlib.util
 import ipaddress
 from pathlib import Path
+import re
 import unittest
 from unittest.mock import patch
 
@@ -97,6 +98,9 @@ class PublicRuntimeContracts(unittest.TestCase):
     def test_static_runtime_is_pinned_and_contains_no_node_runtime(self):
         dockerfile = (OPS / "Dockerfile").read_text(encoding="utf-8")
         self.assertIn("nginxinc/nginx-unprivileged:1.30.4-alpine@sha256:b8c179", dockerfile)
+        digest = re.search(r"nginxinc/nginx-unprivileged:[^@]+@sha256:([0-9a-f]+)", dockerfile)
+        self.assertIsNotNone(digest)
+        self.assertEqual(len(digest.group(1)), 64)
         runtime = dockerfile.split("FROM nginxinc/", 1)[1]
         self.assertNotIn("wrangler", runtime.lower())
         self.assertNotIn("vinext", runtime.lower())

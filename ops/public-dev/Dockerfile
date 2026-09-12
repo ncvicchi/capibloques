@@ -17,7 +17,7 @@ COPY .openai/hosting.json ./.openai/hosting.json
 COPY next.config.ts tsconfig.json vite.config.ts ./
 RUN npm run build
 
-FROM nginxinc/nginx-unprivileged:1.30.4-alpine@sha256:b8c179cd3c2ae222a873dd59fbae240fadc03836cae5198afc9e99c19919c3880
+FROM nginxinc/nginx-unprivileged:1.30.4-alpine@sha256:b8c179cd3c2ae222a873dd59fbae240fadc03836cae5198afc9e9c19919c3880
 
 ARG CAPIBLOQUES_BUILD_REVISION=unknown
 LABEL org.opencontainers.image.title="CapiBloques DEV static editor" \
