@@ -1,12 +1,12 @@
 # CapiBloques — contexto para continuar
 
-Documento vivo de **fase 11**. Actualización: **8 de septiembre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
+Documento vivo de **fase 11**. Actualización: **12 de septiembre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
 
 ## 1. Punto de entrada y autorización actual
 
 - Repositorio: [ncvicchi/capibloques](https://github.com/ncvicchi/capibloques). Rama de trabajo actual: `main`. Nuevas ramas, si hacen falta: prefijo `codex/`. Respetar el árbol existente, sin reset/force ni descartar cambios ajenos.
 - El propietario autorizó: **«vamos con 11 y 12»**, consecutivas y completas, sin pedir otro OK entre ellas. También pidió mantener esta documentación al cerrar la 12 y toda fase futura que solicite.
-- **Fases 11 y 12 entregadas.** La 11 es contexto portable con mantenimiento obligatorio; la 12 entrega UX, catálogo separado, cámara de escena, guía Wemos y sesión sin validación por foco, verificados en DEV y CI. **No iniciar 13–17 ni producción por esta autorización.**
+- **Fases 11 y 12 entregadas.** La 11 es contexto portable con mantenimiento obligatorio; la 12 entrega UX, catálogo separado, cámara de escena, guía Wemos y sesión sin validación por foco, verificados en DEV y CI. El 12 de septiembre el propietario pidió agregar acceso externo persistente a DEV como nueva fase 13, desplazando las anteriores 13–17 a 14–18. **La planificación no autoriza ejecutar 13–18 ni producción.**
 - Fase 10: software entregado, **aceptación física pendiente**. El propietario no tiene Wemos disponible; no dar por probada la placa ni conectar/programar otro puerto como sustituto.
 - Producción es **Fase final, postergada**, no «fase 11». Los documentos históricos con letras son evidencias antiguas, no fases nuevas ni puntos para pedir OK.
 - Este contexto no transfiere automáticamente credenciales, chats, sesiones ni permisos. Otra cuenta debe tener su propio acceso verificado y la solicitud del propietario antes de operar.
@@ -100,7 +100,7 @@ Versiones fijadas: Node DEV 22.23.2, React 19.2.8, Blockly 12.5.1, Vinext 1.0.0-
 
 ### Límites de autorización
 
-VM 112 `capi-dev`, desarrollo; VM 113 `capi-prd`, producción. Ambas preparadas con Ubuntu Server 24.04; recursos limitados. **Gateway sólo salto TCP SSH, jamás comandos/configuración/instalación/reinicio ni copia de claves.** Proxmox/router/Nginx tampoco se cambian incidentalmente. No reenviar agente ni desactivar comprobación de huellas. No modificar PRD por estar disponible.
+VM 112 `capi-dev`, desarrollo; VM 113 `capi-prd`, producción. Ambas preparadas con Ubuntu Server 24.04; recursos limitados. **Gateway sólo salto TCP SSH, jamás comandos/configuración/instalación/reinicio ni copia de claves.** Proxmox/router/Nginx tampoco se cambian incidentalmente. La [fase 13 planificada](FASE_13_ACCESO_EXTERNO_DEV.md) limita cualquier futura modificación a la VM Nginx exacta y autorizada; nunca al gateway, host Proxmox, router, PRD u otros sitios. No reenviar agente ni desactivar comprobación de huellas.
 
 ### Acceso de desarrollo desde Windows
 
@@ -112,7 +112,7 @@ El checkout de la VM está en `/home/capi/capibloques`. El propietario configura
 .\scripts\connect-dev.ps1 -DirectLan
 ```
 
-Mantener **un túnel dedicado** y una sesión administrativa separada. Reutilizar túnel existente; no arrancar duplicados. Navegación: `http://localhost:3000/`; salud: `/api/health/live/` y `/api/health/ready/`. `localhost` es la entrada local al servidor remoto, no evidencia de un servidor en la PC. Otro puerto/host cambia el origen y sus borradores locales.
+Mientras fase 13 no esté implementada, mantener **un túnel dedicado** y una sesión administrativa separada. Reutilizar túnel existente; no arrancar duplicados. Navegación: `http://localhost:3000/`; salud: `/api/health/live/` y `/api/health/ready/`. `localhost` es la entrada local al servidor remoto, no evidencia de un servidor en la PC. Otro puerto/host cambia el origen y sus borradores locales. La futura URL HTTPS será otro origen: no hereda IndexedDB del localhost.
 
 No hay autenticación SSH desatendida garantizada: durante el traspaso la conexión sin contraseña fue rechazada y se ingresó interactivamente. Que GitHub funcione por SSH en la VM no significa que el acceso a la VM use la misma autenticación. Si faltan credenciales, pedir al propietario que las configure por canal privado; no rotarlas ni crear una cuenta del asistente.
 
@@ -134,7 +134,7 @@ No imprimir `.env`, secretos, logs de proyectos/credenciales ni configurar `set 
 
 ### Cambios de DEV: procedimientos, no ejecutarlos automáticamente
 
-- Usar **tres Compose** al crear/recrear API: [editor](../compose.dev.yaml), [backend](../compose.backend.dev.yaml), [compilador](../compose.compiler.dev.yaml). El tercero conserva el montaje privado de firmware. API/DB no publican puertos al host; editor sólo loopback.
+- Usar **tres Compose** al crear/recrear API: [editor](../compose.dev.yaml), [backend](../compose.backend.dev.yaml), [compilador](../compose.compiler.dev.yaml). El tercero conserva el montaje privado de firmware. API/DB no publican puertos al host; editor sólo loopback hasta implementar el origen restringido de fase 13. No exponer el `vinext dev` actual a Internet.
 - Antes de pull/dependencias, detener **sólo editor** para evitar HMR sobre código incompleto y presión de RAM. No solapar instalación/build con editor; no iniciar un servidor alternativo para simular haber probado DEV.
 - Si sólo cambia frontend: árbol remoto limpio → detener editor → `git pull --ff-only origin main` → instalar con `npm ci` en contenedor sólo si cambió lockfile → levantar editor con tres Compose → esperar salud → probar el commit correcto. No reinstalar toolchains ni recrear base por un cambio CSS/React.
 - Si cambia backend: revisar migraciones, hacer respaldo privado previo y seguir [fase 1](FASE_1_BASE_REPRODUCIBLE.md), sus ampliaciones y [operación de fase 9](FASE_9_COMPILACION_Y_DESCARGA.md#operación-dev). No usar la receta histórica de un solo Compose.
@@ -186,18 +186,19 @@ El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BAC
 - 10: prueba física Wemos de ambos frameworks y recuperación USB.
 - 11: entregada y comprobada; mantenimiento obligatorio en futuras fases, no requiere reiniciar el traspaso.
 - 12: **entregada y verificada en DEV/CI**; [guía, pruebas y cierre](FASE_12_MESA_DE_TRABAJO.md). Encabezados/catálogo reorganizados, zoom/desplazamiento de escena, imagen técnica Wemos sincronizada y chequeo periódico sin interrupciones por foco.
-- 13: paralelo vertical, lienzo de bloques estático e indicadores locales de progreso.
-- 14: TX/RX serial configurable con mensajes completos, espera no bloqueante y bifurcación.
-- 15: DevKit S3 exacta, perfiles, imagen de conexiones, fuentes/compilación/USB.
-- 16: Waveshare S3 5 pulgadas exacta, pantalla/entrada y guía visual de conectores.
-- 17: escena y controles locales en display, prioridad manual/programa explícita.
+- 13: [acceso externo persistente a DEV](FASE_13_ACCESO_EXTERNO_DEV.md), HTTPS mediante VM Nginx, runtime como servicio y origen restringido; el propietario crea el DNS GoDaddy indicado.
+- 14: paralelo vertical, lienzo de bloques estático e indicadores locales de progreso.
+- 15: TX/RX serial configurable con mensajes completos, espera no bloqueante y bifurcación.
+- 16: DevKit S3 exacta, perfiles, imagen de conexiones, fuentes/compilación/USB.
+- 17: Waveshare S3 5 pulgadas exacta, pantalla/entrada y guía visual de conectores.
+- 18: escena y controles locales en display, prioridad manual/programa explícita.
 - Final: producción/HTTPS, restauración/backups externos, carga, monitoreo, rollback y piloto; postergada.
 
-La próxima fase de desarrollo es **13, aún no autorizada**. No esperar hardware para documentar o mejorar UX. Sí exigir modelo/documentación y ensayo físico antes de anunciar soporte de placa. El diagrama Wemos fue contrastado con las fuentes enlazadas; conservar esa verificación al ampliarlo, porque existen pinouts públicos contradictorios. No convertir una ilustración en fuente única de verdad.
+La próxima fase de desarrollo es **13, aún no autorizada para ejecución**. Para iniciarla hacen falta el FQDN elegido, acceso autorizado a la VM Nginx identificada y que el propietario cree el registro DNS exacto cuando se lo indiquen; no pedir credenciales de GoDaddy. No esperar hardware para esta publicación ni para mejorar UX. Sí exigir modelo/documentación y ensayo físico antes de anunciar soporte de placa. El diagrama Wemos fue contrastado con las fuentes enlazadas; conservar esa verificación al ampliarlo, porque existen pinouts públicos contradictorios. No convertir una ilustración en fuente única de verdad.
 
 ## 9. Mensaje listo para otra conversación
 
-> Continuá CapiBloques desde este repositorio. Primero leé AGENTS.md y docs/CONTEXTO_PARA_CONTINUAR.md, luego el plan y la guía de la fase vigente. Confirmá rama, cambios locales y versión desplegada antes de operar. El contexto indica qué fases están autorizadas y cuáles no: no infieras autorización por estar en el backlog. Trabajá una fase completa por vez, informá avances, probá, hacé commit/push y actualizá este contexto al terminar. Producción está postergada. El gateway es exclusivamente un salto SSH y está prohibido modificarlo. No copies secretos ni borres datos para recuperar acceso. La aceptación física de fase 10 sigue pendiente salvo evidencia posterior explícita. Decime qué contexto o acceso privado falta sin pedir contraseñas en Git o documentación.
+> Continuá CapiBloques desde este repositorio. Primero leé AGENTS.md y docs/CONTEXTO_PARA_CONTINUAR.md, luego el plan y la guía de la fase vigente. Confirmá rama, cambios locales y versión desplegada antes de operar. El contexto indica qué fases están autorizadas y cuáles no: no infieras autorización por estar en el backlog. Trabajá una fase completa por vez, informá avances, probá, hacé commit/push y actualizá este contexto al terminar. La próxima fase planificada es 13, acceso externo persistente a DEV; no está implementada. Producción está postergada. El gateway es exclusivamente un salto SSH y está prohibido modificarlo. Si se autoriza fase 13, identificá la VM Nginx y no la confundas con el host Proxmox. No copies secretos ni borres datos para recuperar acceso. La aceptación física de fase 10 sigue pendiente salvo evidencia posterior explícita. Decime qué contexto o acceso privado falta sin pedir contraseñas en Git o documentación.
 
 ## 10. Lista de cierre y mantenimiento obligatorio
 

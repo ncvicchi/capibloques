@@ -85,7 +85,7 @@ Pedido del 8 de septiembre de 2026: donde se indica cómo conectar los component
 - Conservar advertencias y requisitos eléctricos del montaje, incluidas alimentación, masa común, resistencias o drivers cuando correspondan. La imagen no debe sugerir conectar directamente un actuador que necesita una etapa intermedia ni presentar un conflicto como cableado válido.
 - Usar imágenes propias o con permiso/licencia documentados y contrastar etiquetas/coordenadas con la documentación de la placa exacta; no generar ni adivinar pinouts. Para Waveshare, representar los conectores realmente accesibles y los recursos reservados por pantalla/táctil según el modelo confirmado.
 
-Asignación: **fase 12 implementa la guía visual Wemos**, con dibujo propio, mapa contrastado y selección por componente/GPIO sincronizada con listado. **Fase 15** la adaptará a DevKit y **fase 16** a Waveshare; la fase 14 reflejará TX/RX. Esas ampliaciones siguen pendientes, sin autorización para iniciarlas. La ilustración no sustituye una prueba eléctrica.
+Asignación: **fase 12 implementa la guía visual Wemos**, con dibujo propio, mapa contrastado y selección por componente/GPIO sincronizada con listado. **Fase 16** la adaptará a DevKit y **fase 17** a Waveshare; la fase 15 reflejará TX/RX. Esas ampliaciones siguen pendientes, sin autorización para iniciarlas. La ilustración no sustituye una prueba eléctrica.
 
 ## 10. Desplazamiento y zoom de la escena
 
@@ -101,22 +101,36 @@ Estado histórico anterior a fase 12: Blockly permitía navegación y SceneStage
 
 Asignación: **fase 12**, implementada como parte de la usabilidad del editor. Pruebas en Chrome/Edge, teclado y gesto táctil sintético: acercar una sección, desplazar, seleccionar/mover, ejecutar conservando encuadre, volver a vista completa y comprobar que navegar no cambia JSON. No añade control físico en vivo.
 
+## 11. Acceso externo persistente a DEV
+
+Pedido del 12 de septiembre de 2026: poder acceder a DEV desde fuera de la LAN mediante el Nginx existente en la infraestructura Proxmox y un dominio administrado por el propietario en GoDaddy, quedando operativo como servicio aun cuando la PC de trabajo se cierre.
+
+- Usar un subdominio HTTPS dedicado y mantener frontend/API en el mismo origen. El propietario crea el registro DNS exacto después de recibir los valores verificados; sus credenciales no se comparten ni se versionan.
+- Modificar únicamente la VM Nginx identificada y autorizada. No tocar el gateway, host Proxmox, router, PRD ni otros sitios como efecto incidental.
+- No exponer directamente el servidor con HMR. Preparar un runtime persistente, con arranque al reiniciar, healthcheck, logs acotados y rollback.
+- Permitir el origen interno sólo desde la VM Nginx. No publicar PostgreSQL, Docker, compilador o administración y conservar el túnel localhost para recuperación.
+- Activar configuración HTTPS segura de Django: hosts/orígenes exactos, cookies seguras, CSRF y cabeceras de proxy controladas. DEV conserva datos ficticios; antes de publicarlo se acuerda una barrera adicional recomendada o se documenta explícitamente la alternativa elegida. No sustituye producción.
+- Verificar desde una conexión realmente externa en Chrome y Edge, incluida sesión, guardado, simulación, compilación, descarga, contexto seguro para Web Serial, reinicio y renovación de certificado.
+
+Asignación: **fase 13**, planificada en [su guía](FASE_13_ACCESO_EXTERNO_DEV.md). Incorporarla al plan no autoriza todavía las mutaciones de servidor.
+
 ## Relación actualizada con el plan vigente
 
-El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las nuevas fases](PLAN_FASES_BACKLOG.md) incorporan todos los pedidos. La fase 11 conserva el contexto vivo; la fase 12 implementa la reorganización general y navegación. La ejecución dentro de bloques y paralelo vertical siguen en fase 13, no se dan por resueltos al redistribuir la UI.
+El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las nuevas fases](PLAN_FASES_BACKLOG.md) incorporan todos los pedidos. La fase 11 conserva el contexto vivo; la fase 12 implementa la reorganización general y navegación; la fase 13 publicará DEV de forma controlada. La ejecución dentro de bloques y paralelo vertical siguen en fase 14, no se dan por resueltos al redistribuir la UI.
 
 | Pedido | Fase y estado |
 | --- | --- |
 | 1. Redistribución de interfaz | 12. Implementado |
-| 2. ESP32-S3 | 15. DevKit y 16. Waveshare de 5 pulgadas |
-| 3. Display interactivo | 17. Escena y controles locales en pantalla |
-| 3. TX/RX serial | 14. TX/RX programable |
-| 4. Paralelo vertical | 13. Ejecución visual |
-| 5. Bloques estáticos | 13. Ejecución visual |
+| 2. ESP32-S3 | 16. DevKit y 17. Waveshare de 5 pulgadas |
+| 3. Display interactivo | 18. Escena y controles locales en pantalla |
+| 3. TX/RX serial | 15. TX/RX programable |
+| 4. Paralelo vertical | 14. Ejecución visual |
+| 5. Bloques estáticos | 14. Ejecución visual |
 | 6. Catálogo separado | 12. Implementado |
-| 7. Progreso dentro del bloque/componente | 13. Ejecución visual |
+| 7. Progreso dentro del bloque/componente | 14. Ejecución visual |
 | 8. Sesión sin revalidación por foco | 12. Implementado |
-| 9. Imagen de la placa con conexiones | 12. Wemos implementada; pendientes DevKit (15), Waveshare (16) y TX/RX (14) |
+| 9. Imagen de la placa con conexiones | 12. Wemos implementada; pendientes DevKit (16), Waveshare (17) y TX/RX (15) |
 | 10. Desplazamiento y zoom de la escena | 12. Implementado |
+| 11. Acceso externo persistente a DEV | 13. Planificado; no implementado |
 
-Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. Los pedidos de fases 13–17 siguen sin implementar ni autorizar; su asignación no demuestra soporte disponible ni habilita cambios en servidores.
+Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. Los pedidos de fases 13–18 siguen sin implementar ni autorizar; su asignación no demuestra soporte disponible ni habilita cambios en servidores.

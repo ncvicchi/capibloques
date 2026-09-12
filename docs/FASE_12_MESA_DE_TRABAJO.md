@@ -1,6 +1,6 @@
 # Fase 12 — Mesa de trabajo, cámara y sesión
 
-Estado: **entregada y verificada en DEV**. Fecha: 8 de septiembre de 2026. Código funcional y DEV: **`668be43`**. Autorización: fases 11 y 12 completas y consecutivas. No incluye la 13 ni producción. La documentación viva de la 11 está actualizada en [CONTEXTO_PARA_CONTINUAR](CONTEXTO_PARA_CONTINUAR.md).
+Estado: **entregada y verificada en DEV**. Fecha: 8 de septiembre de 2026. Código funcional y DEV: **`668be43`**. Autorización: fases 11 y 12 completas y consecutivas. No incluye ninguna fase posterior ni producción. La documentación viva de la 11 está actualizada en [CONTEXTO_PARA_CONTINUAR](CONTEXTO_PARA_CONTINUAR.md).
 
 ## Alcance implementado
 
@@ -61,7 +61,7 @@ Despliegue de aplicación únicamente en DEV, checkout limpio en `668be43`; edit
 
 ## Qué queda fuera
 
-La aceptación física de fase 10 continúa abierta. La fase 13 requiere nueva autorización: paralelo vertical, programa estático al ejecutar y progreso dentro de bloques. TX/RX y S3/Waveshare siguen en sus fases 14–17. Fase final de producción postergada.
+La aceptación física de fase 10 continúa abierta. La nueva fase 13 planifica acceso externo persistente a DEV. Paralelo vertical, programa estático y progreso dentro de bloques pasaron a fase 14; TX/RX, S3/Waveshare y display interactivo siguen en fases 15–18. Todas requieren autorización de ejecución. Fase final de producción postergada.
 
 ## Recorrido breve para el propietario
 

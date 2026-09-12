@@ -1,8 +1,8 @@
 # Nuevas fases de CapiBloques
 
-Plan elaborado el 8 de septiembre de 2026 a pedido del propietario. **Fases 11 y 12 entregadas**, bajo autorización del propietario para ejecutarlas completas y consecutivas. La 11 entrega el [contexto vivo](CONTEXTO_PARA_CONTINUAR.md); la 12 implementa la [mesa de trabajo y navegación](FASE_12_MESA_DE_TRABAJO.md) en DEV. La guía de entrega registra la verificación completa en DEV y CI. Al cerrar la 12 y cada fase futura solicitada se actualiza ese documento. Las fases 13–17 no están autorizadas y la Fase final sigue postergada. Complementa el [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y asigna todos los pedidos del [backlog](BACKLOG.md).
+Plan elaborado el 8 de septiembre de 2026 y actualizado el 12 de septiembre de 2026 a pedido del propietario. **Fases 11 y 12 entregadas**, bajo autorización del propietario para ejecutarlas completas y consecutivas. La 11 entrega el [contexto vivo](CONTEXTO_PARA_CONTINUAR.md); la 12 implementa la [mesa de trabajo y navegación](FASE_12_MESA_DE_TRABAJO.md) en DEV. La guía de entrega registra la verificación completa en DEV y CI. Al cerrar la 12 y cada fase futura solicitada se actualiza ese documento. La nueva fase 13 prepara acceso externo persistente a DEV; las fases 13–18 no están implementadas ni autorizadas para ejecución y la Fase final sigue postergada. Complementa el [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y asigna todos los pedidos del [backlog](BACKLOG.md).
 
-La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros 11–17; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. El contexto portable se entregó primero y después la UX, bajo la autorización consecutiva de 11 y 12, sin dar por hecha la prueba física.
+La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros 11–18; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. El contexto portable se entregó primero y después la UX, bajo la autorización consecutiva de 11 y 12, sin dar por hecha la prueba física. Al insertar acceso externo como fase 13, las fases antes numeradas 13–17 pasan a ser 14–18; no son tareas nuevas ni duplicadas.
 
 ## Orden y cobertura
 
@@ -10,14 +10,15 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | --- | --- | --- | --- |
 | 11 | Contexto portable documentado; mantenimiento obligatorio en cada entrega | Pedido adicional del propietario | Documentación y estado verificable; sin migrar secretos ni datos |
 | 12 | Entregada y verificada en DEV/CI: editor despejado, navegación de escena, sesión sin interrupciones y guía visual Wemos | 1, 6, 8 y 10; 9: Wemos | Traspaso de fase 11; pinout documentado para la guía, sin sustituir ensayo físico |
-| 13 | Ejecución visual en los bloques y paralelo vertical | 4, 5 y 7 | Distribución de fase 12 |
-| 14 | Componentes y bloques TX/RX serial | 3: TX/RX; 9: conexiones seriales | Wemos actual como primer destino; simulador y ambos generadores |
-| 15 | Soporte completo ESP32-S3 DevKit y selección de placa | 2: DevKit; 9: guía visual DevKit | Modelo exacto identificado; incorporar el contrato TX/RX de fase 14 |
-| 16 | Perfil Waveshare ESP32-S3 con pantalla de 5 pulgadas | 2: Waveshare; 9: guía visual Waveshare | Perfiles de fase 15 y modelo/revisión exactos identificados |
-| 17 | Escena gráfica y controles locales en el display | 3: display interactivo | Perfiles de pantalla de fase 16 y ejecución/componentes existentes |
+| 13 | Acceso externo persistente y seguro a DEV | 11: publicar DEV controladamente | Acceso autorizado a la VM Nginx existente; dominio/registro DNS creado por el propietario; sin tocar gateway ni host Proxmox |
+| 14 | Ejecución visual en los bloques y paralelo vertical | 4, 5 y 7 | Distribución de fase 12 |
+| 15 | Componentes y bloques TX/RX serial | 3: TX/RX; 9: conexiones seriales | Wemos actual como primer destino; simulador y ambos generadores |
+| 16 | Soporte completo ESP32-S3 DevKit y selección de placa | 2: DevKit; 9: guía visual DevKit | Modelo exacto identificado; incorporar el contrato TX/RX de fase 15 |
+| 17 | Perfil Waveshare ESP32-S3 con pantalla de 5 pulgadas | 2: Waveshare; 9: guía visual Waveshare | Perfiles de fase 16 y modelo/revisión exactos identificados |
+| 18 | Escena gráfica y controles locales en el display | 3: display interactivo | Perfiles de pantalla de fase 17 y ejecución/componentes existentes |
 | Final | Producción, HTTPS, respaldos y piloto | Antigua fase 11 | Postergada hasta autorización explícita y validaciones de salida |
 
-Primero se asegura la continuidad desde otra cuenta sin depender de este chat; después se atienden los problemas cotidianos del editor. TX/RX se incorpora antes de las placas nuevas para tener un contrato de comportamiento que luego se valide en cada destino. Separar DevKit, Waveshare y display interactivo permite comprobar por separado placa, pantalla y aplicación gráfica: no son el mismo soporte.
+Primero se asegura la continuidad desde otra cuenta sin depender de este chat; después se atienden los problemas cotidianos del editor y se vuelve DEV accesible desde fuera mediante un servicio controlado. TX/RX se incorpora antes de las placas nuevas para tener un contrato de comportamiento que luego se valide en cada destino. Separar DevKit, Waveshare y display interactivo permite comprobar por separado placa, pantalla y aplicación gráfica: no son el mismo soporte.
 
 ## Fase 11 — Contexto portable y traspaso a otra cuenta
 
@@ -72,7 +73,33 @@ Aceptación:
 
 No incluye todavía progreso dentro de bloques, cambio de disposición de paralelo ni nuevas placas/componentes. Esos pedidos tienen su fase propia.
 
-## Fase 13 — Ejecución visual y paralelo vertical
+## Fase 13 — Acceso externo persistente a DEV
+
+**Objetivo:** usar el entorno de desarrollo desde una red externa mediante una URL HTTPS estable, sin depender del túnel SSH de la PC y sin convertir DEV en producción.
+
+La [guía específica](FASE_13_ACCESO_EXTERNO_DEV.md) fija topología, límites, reparto de responsabilidades, seguridad, pruebas y reversión. Este pedido autoriza incorporarla al plan; su implementación necesita el inicio explícito de la fase completa.
+
+Alcance:
+
+- Reutilizar la **VM Nginx existente dentro de Proxmox** como proxy inverso. Antes de modificarla, identificar inequívocamente la VM, obtener acceso autorizado, inspeccionar su configuración y respaldar sólo los archivos que se tocarán. No instalar ni configurar Nginx en el host Proxmox y no ejecutar comandos en el gateway, que continúa siendo exclusivamente un salto SSH.
+- Publicar un nombre dedicado de DEV con HTTPS válido. El propietario elige el nombre y crea en GoDaddy el registro exacto que se le indique; las credenciales de GoDaddy nunca se comparten ni se guardan en Git. No crear registros comodín, AAAA sin IPv6 operativo ni nuevas reglas del router por suposición.
+- Mantener aplicación y API bajo el mismo origen. Preparar en `capi-dev` un runtime estable y versionado, separado del servidor con HMR: arranque automático, reinicio controlado, healthcheck y logs acotados. Un navegador público no se conecta directamente a `vinext dev` ni a un puerto de administración.
+- Exponer hacia la LAN sólo el origen interno indispensable y permitirlo únicamente desde la IP de la VM Nginx mediante firewall. PostgreSQL, Docker, compilador y SSH no se publican. El acceso por túnel localhost se conserva como vía administrativa y de recuperación.
+- Configurar en Django una lista exacta de hosts/orígenes, cookies `Secure`, CSRF para el dominio y confianza limitada en las cabeceras del proxy. Preservar límites de login sin tratar a todos como la IP del proxy ni confiar en una IP enviada por el cliente. En Nginx, TLS, headers, límites y timeouts deben admitir guardado y descarga de firmware sin abrir CORS ni filtrar errores internos.
+- Mantener DEV con datos ficticios. Acordar antes de publicar una barrera adicional de acceso en el proxy para el equipo de desarrollo —recomendada, con secreto fuera de Git— o documentar explícitamente la alternativa elegida; si se pretende dar acceso directo a docentes/alumnos, debe redefinirse el alcance porque DEV no reemplaza el piloto de producción.
+- Documentar instalación, actualización, estado, logs, certificado/renovación, reinicio y rollback. Ningún secreto, IP privada sensible o configuración específica de otros sitios compartidos entra al repositorio.
+
+Aceptación:
+
+- Desde una conexión realmente externa, Chrome y Edge abren la URL HTTPS sin advertencias ni contenido mixto; logo, login/logout, sesión, guardado/autoguardado, importación/exportación, simulación, compilación y descarga funcionan bajo el mismo origen. Web Serial reconoce el contexto seguro, sin dar por cerrada la prueba física de fase 10.
+- Reiniciar `capi-dev` recupera automáticamente el servicio y la URL vuelve a estar saludable sin iniciar una terminal. La configuración Nginx valida antes de recargar; la renovación del certificado tiene una prueba no destructiva. Reiniciar una VM compartida de Nginx requiere autorización específica, no es una prueba implícita.
+- Sólo el proxy público acepta tráfico web externo. El origen DEV rechaza clientes distintos del proxy y no quedan expuestos PostgreSQL, Docker, compilador, SSH, endpoints de depuración ni listados de archivos.
+- Se comprueba la protección de acceso acordada, los errores 401/403/404/429/5xx sin filtraciones, archivos grandes permitidos dentro de la cuota, desconexión/reconexión y persistencia tras actualización. El túnel localhost sigue funcionando como recuperación.
+- Se registra dominio elegido, tipo de DNS sin credenciales, certificado, commit desplegado, servicios, pruebas externas, cambios exactos y rollback. Código/documentación se prueban, se hacen commit/push y se actualiza el contexto vivo de fase 11.
+
+No incluye producción, datos reales de alumnos, cambios del router, host Proxmox o gateway, ni soporte de nuevas placas. El monitoreo básico del servicio pertenece a esta fase; backups externos, carga de aula, alertas operativas y piloto completo permanecen en la Fase final.
+
+## Fase 14 — Ejecución visual y paralelo vertical
 
 **Objetivo:** entender qué está pasando mirando el propio programa, sin que el lienzo se desplace solo.
 
@@ -92,7 +119,7 @@ Aceptación:
 
 No incorpora seguimiento físico de bloques ni cambia la lógica del firmware para imitar una animación de la web.
 
-## Fase 14 — TX/RX serial programable
+## Fase 15 — TX/RX serial programable
 
 **Objetivo:** que el programa pueda enviar mensajes y tomar decisiones según mensajes recibidos por un puerto serial configurable.
 
@@ -112,7 +139,7 @@ Aceptación:
 - El resto de los bloques sigue avanzando mientras RX espera. Resultados del simulador y firmware concuerdan; ambas salidas compilan y se validan en una Wemos identificada con un emisor serial de prueba.
 - Consola USB/monitor y UART del componente no se confunden. No se agrega envío de órdenes desde el monitor web de fase 10: esto es comunicación del programa autónomo, no control remoto de la placa desde el navegador.
 
-## Fase 15 — ESP32-S3 DevKit y perfiles de placa
+## Fase 16 — ESP32-S3 DevKit y perfiles de placa
 
 **Objetivo:** elegir explícitamente el destino y completar para DevKit el recorrido proyecto → simulación → fuentes → compilación → USB.
 
@@ -134,7 +161,7 @@ Aceptación:
 - Un firmware de otra placa, memoria desconocida o rango inválido se rechaza. Guardar/cachear una compilación nunca mezcla destinos, cuentas o credenciales.
 - Grabación y ejecución autónoma verificadas en la DevKit concreta, incluidas consola, PWM y un caso TX/RX. Registrar por separado pruebas de software y de hardware; no cerrar soporte físico sólo con mocks.
 
-## Fase 16 — Waveshare ESP32-S3 de 5 pulgadas
+## Fase 17 — Waveshare ESP32-S3 de 5 pulgadas
 
 **Objetivo:** incorporar el perfil real de la Waveshare, su pantalla y las entradas disponibles antes de construir una aplicación gráfica interactiva.
 
@@ -142,7 +169,7 @@ Requisito: modelo/revisión exactos y documentación del display, controlador, i
 
 Alcance:
 
-- Extender perfiles de fase 15 con los recursos y pines reservados de esta placa; rechazar conexiones incompatibles y revisar consumo de memoria.
+- Extender perfiles de fase 16 con los recursos y pines reservados de esta placa; rechazar conexiones incompatibles y revisar consumo de memoria.
 - Incorporar la imagen de la Waveshare ESP32-S3 de 5 pulgadas exacta en la guía de conexiones, además del listado. Señalar conectores/pines realmente disponibles y los reservados, con la cara/orientación necesaria para localizarlos; validar contra documentación del modelo/revisión y registrar procedencia/permiso del recurso gráfico. No representar un GPIO interno como conector accesible ni reutilizar el mapa de DevKit.
 - Inicialización y refresco no bloqueante de su pantalla para Arduino y ESP-IDF. Integrar los mensajes y zonas de texto existentes; conservar **una sola pantalla por proyecto**.
 - Si la unidad tiene táctil, incorporar lectura, orientación/coordenadas y una prueba local de entrada. Esto valida el dispositivo de entrada, no agrega aún controles de actuadores ni un diseñador de escenas gráficas.
@@ -154,9 +181,9 @@ Aceptación:
 - Presupuesto medido de memoria/tiempo, errores comprensibles y validación de pines ocupados; ambas herramientas y USB probados sin romper Wemos/DevKit ni las pantallas anteriores.
 - Contrastar imagen, listado y unidad física de Waveshare: las marcas identifican el conector correcto para cada componente y se actualizan ante cambios de proyecto, sin ocultar conflictos con pantalla/táctil u otros recursos reservados.
 
-La escena gráfica y la interacción con dispositivos se entregan en fase 17. Esta fase entrega soporte de placa/pantalla, no promete un tablero interactivo antes de implementarlo.
+La escena gráfica y la interacción con dispositivos se entregan en fase 18. Esta fase entrega soporte de placa/pantalla, no promete un tablero interactivo antes de implementarlo.
 
-## Fase 17 — Escena y controles locales en pantalla
+## Fase 18 — Escena y controles locales en pantalla
 
 **Objetivo:** representar la escena en una pantalla gráfica y permitir accionar sus dispositivos desde controles locales del display.
 
@@ -187,7 +214,7 @@ El gateway sigue siendo sólo un salto SSH, con prohibición de cambios. Tampoco
 ## Cómo se trabaja y qué falta decidir
 
 - Una fase completa autorizada por vez, con implementación, pruebas proporcionales, entrega en DEV y commit/push. Informar avances con evidencia y pendientes; no inventar porcentajes ni tiempos exactos.
-- **Fases 11 y 12 autorizadas consecutivamente.** Entregar el contexto y continuar la UX sin otro OK entre ambas. Actualizar la documentación de fase 11 al cerrar la 12 y cada fase futura solicitada. No avanzar a 13–17 ni producción sin autorización.
-- No se necesitan placas para decidir el rediseño. Para fases 15 y 16 sí hacen falta modelos exactos antes de fijar drivers/pines; para cerrar las entregas físicas hace falta hardware identificado y autorización para reemplazar firmware.
-- La disposición exacta del paralelo se fija al abordar fase 13; formato de mensajes/timeout en fase 14; prioridad manual/programa y límites gráficos en fase 17. Son decisiones dentro de esas fases, no nuevas fases con letras.
+- **Fases 11 y 12 autorizadas consecutivamente.** Entregar el contexto y continuar la UX sin otro OK entre ambas. Actualizar la documentación de fase 11 al cerrar la 12 y cada fase futura solicitada. No ejecutar 13–18 ni producción sin autorización explícita de la fase correspondiente.
+- Para fase 13 hacen falta el nombre de dominio elegido, acceso autorizado a la VM Nginx exacta y el registro DNS que crea el propietario. No se necesitan placas para publicar DEV ni para decidir el rediseño. Para fases 16 y 17 sí hacen falta modelos exactos antes de fijar drivers/pines; para cerrar las entregas físicas hace falta hardware identificado y autorización para reemplazar firmware.
+- La disposición exacta del paralelo se fija al abordar fase 14; formato de mensajes/timeout en fase 15; prioridad manual/programa y límites gráficos en fase 18. Son decisiones dentro de esas fases, no nuevas fases con letras.
 - No hay estimaciones horarias comprometidas: hardware, alcance de la adaptación gráfica y mediciones en la VM condicionan el esfuerzo. No retrasar ahora la planificación esperando esos datos, ni prometer implementaciones específicas de un modelo no identificado.

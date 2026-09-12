@@ -14,4 +14,4 @@ Puntos sensibles: A2 = GPIO35, A4 = GPIO36. No copiar diagramas de terceros que 
 
 La imagen y la tabla reciben las mismas filas, incluidas las salidas avanzadas. Seleccionar un GPIO destaca todas sus filas, sin ocultar conflictos. Un pin sin ubicación no se dibuja en un lugar inventado. Las capacidades y validaciones siguen en `lib/scene-model.ts`; la imagen no certifica cableado, polaridad, alimentación ni corriente.
 
-El perfil activo sigue siendo Wemos D1 R32. Los dibujos de ESP32-S3 DevKit y Waveshare pertenecen a las fases 15 y 16, aún pendientes.
+El perfil activo sigue siendo Wemos D1 R32. Los dibujos de ESP32-S3 DevKit y Waveshare pertenecen a las fases 16 y 17, aún pendientes.

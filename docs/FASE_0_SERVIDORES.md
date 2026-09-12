@@ -91,7 +91,7 @@ Pendiente de la siguiente subfase o de su fase correspondiente:
 1. Checkout remoto y configuración de identidad Git de desarrollo según el propietario; no copiar credenciales a producción ni dar por probado permiso de escritura remota.
 2. Entorno reproducible del editor con Node compatible, dependencias y acceso de prueba restringido. No hay aplicación corriendo todavía en las VMs.
 3. Separación backend/base y datos de prueba en fase 1; toolchains Arduino/ESP-IDF en su fase de compilación.
-4. Dominio, certificado y proxy Nginx en su fase autorizada, sin nuevas reglas en el router.
+4. Dominio DEV, certificado, runtime persistente y proxy Nginx en la [fase 13 planificada](FASE_13_ACCESO_EXTERNO_DEV.md), sin nuevas reglas en el router; dominio de producción separado en la Fase final.
 5. Antes de exponer la aplicación: backups fuera del host, revisión de accesos y sustitución de credenciales temporales. No se cambiaron contraseñas ni se deshabilitó acceso SSH por contraseña en esta entrega.
 
 Esta fase no certifica rendimiento del compilador ni seguridad de producción: verifica la base instalada sin ampliar el alcance al desarrollo de la aplicación.
