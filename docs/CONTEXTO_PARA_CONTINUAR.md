@@ -75,6 +75,14 @@ Validación documental de cierre: **130 destinos locales en ocho documentos**, s
 
 Al terminar esta entrega se cerró la sesión SSH administrativa y finalizaron las pruebas locales. Se conserva el túnel habitual para navegar DEV; apagar la PC sólo corta ese acceso local, no detiene los servicios de la VM. Los archivos de diagnóstico quedan ignorados en `work/`/`test-results/`; no son parte necesaria del traspaso ni deben publicarse indiscriminadamente.
 
+### Corrección documental — 12 de septiembre de 2026
+
+Autorización del propietario: **«Corregi la documentacion, luego dame una lista de las fases pendiente»**. Se corrigen el estado de fase 13, la disponibilidad de USB y las recetas de operación anteriores al runtime público. La [operación vigente](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente) se contrasta con el código del runtime; las guías antiguas conservan su evidencia histórica y remiten a ella.
+
+Esta entrega sólo cambia documentación. El punto de partida local es `a74b427`, rama `main`, árbol limpio; el commit de corrección queda identificado en Git. La validación documental abarca diff y coherencia, más **189 enlaces locales y 37 anclas en 28 documentos**, con comprobación de nombres exactos y repetición desde un checkout limpio antes de publicar. No se repiten pruebas de aplicación ni consultas a las VMs: el último registro remoto sigue siendo `2597284`, runtime funcional `1ee0df9`, observado al cierre de fase 13. No corresponde desplegar por estos cambios.
+
+Pendientes sin cambio: aceptación física de fase 10; fases 14–18 sin autorización y Fase final postergada. El script de pruebas backend conserva una limitación operativa: `--restart` no carga la configuración pública; su uso directo queda excluido de la receta DEV vigente, sin afirmar que el script se haya corregido.
+
 ## 4. Arquitectura y mapa de archivos
 
 | Área | Punto de entrada y responsabilidad |
@@ -92,7 +100,7 @@ Al terminar esta entrega se cerró la sesión SSH administrativa y finalizaron l
 | USB | [usb-board](../components/usb-board.tsx), [usb-firmware](../lib/usb-firmware.ts), [usb-session](../lib/usb-session.ts), [usb-esptool](../lib/usb-esptool.ts). ZIP/hashes, autorización, exclusividad, cancelación y adaptador. |
 | Verificación | [scripts](../scripts), [tests](../tests), [backend/tests](../backend/tests), [CI](../.github/workflows/ci.yml), [Playwright](../playwright.config.ts). Pruebas sintéticas separadas de datos reales. |
 
-Versiones fijadas: Node DEV 22.23.2, React 19.2.8, Blockly 12.5.1, Vinext 1.0.0-beta.9, Django 5.2.17, PostgreSQL 17.11 observado, Arduino CLI 1.5.1/core ESP32 3.3.11 y ESP-IDF 5.5.5. Confirmar declaraciones en [package.json](../package.json), lockfile, [requirements](../backend/requirements.txt), Compose y Dockerfiles. Node local observado al iniciar: 22.20.0/npm 11.10.0, no idéntico al contenedor. No actualizar versiones incidentalmente.
+Versiones fijadas: Node 22.23.2 en la etapa de construcción del frontend, React 19.2.8, Blockly 12.5.1, Vinext 1.0.0-beta.9, Django 5.2.17, PostgreSQL 17.11 observado, Arduino CLI 1.5.1/core ESP32 3.3.11 y ESP-IDF 5.5.5. El contenedor público `editor` sirve archivos estáticos y no ejecuta Node. Confirmar declaraciones en [package.json](../package.json), lockfile, [requirements](../backend/requirements.txt), Compose y Dockerfiles. Node local observado al iniciar: 22.20.0/npm 11.10.0, no idéntico al builder. No actualizar versiones incidentalmente.
 
 ## 5. Contratos críticos y riesgos de regresión
 
@@ -135,7 +143,8 @@ test "$(hostname)" = capi-dev || exit 1
 cd /home/capi/capibloques
 git status --short --branch
 git rev-parse HEAD
-sudo docker compose -f compose.dev.yaml -f compose.backend.dev.yaml -f compose.compiler.dev.yaml ps
+sudo capibloques-dev-runtime status
+sudo capibloques-dev-runtime validate
 systemctl is-active capibloques-compiler
 df -h /
 free -m
@@ -146,12 +155,12 @@ No imprimir `.env`, secretos, logs de proyectos/credenciales ni configurar `set 
 
 ### Cambios de DEV: procedimientos, no ejecutarlos automáticamente
 
-- Usar **tres Compose** al crear/recrear API: [editor](../compose.dev.yaml), [backend](../compose.backend.dev.yaml), [compilador](../compose.compiler.dev.yaml). El tercero conserva el montaje privado de firmware. API/DB no publican puertos al host; editor sólo loopback hasta implementar el origen restringido de fase 13. No exponer el `vinext dev` actual a Internet.
-- Antes de pull/dependencias, detener **sólo editor** para evitar HMR sobre código incompleto y presión de RAM. No solapar instalación/build con editor; no iniciar un servidor alternativo para simular haber probado DEV.
-- Si sólo cambia frontend: árbol remoto limpio → detener editor → `git pull --ff-only origin main` → instalar con `npm ci` en contenedor sólo si cambió lockfile → levantar editor con tres Compose → esperar salud → probar el commit correcto. No reinstalar toolchains ni recrear base por un cambio CSS/React.
-- Si cambia backend: revisar migraciones, hacer respaldo privado previo y seguir [fase 1](FASE_1_BASE_REPRODUCIBLE.md), sus ampliaciones y [operación de fase 9](FASE_9_COMPILACION_Y_DESCARGA.md#operación-dev). No usar la receta histórica de un solo Compose.
-- Si cambia receta/compilador: pausar admisión, dejar terminar trabajos y comprobar ausencia de activos; seguir fase 9. No invalidar intentos ni liberar reservas a mano. Mantener concurrencia/techo 1.
-- No `down -v`, `docker system prune`, `git reset --hard`, regeneración de secretos ni borrado de checkout para recuperar. Un rollback necesita revisar compatibilidad de datos y alcance; no restaurar sobre la base real como prueba.
+- La fuente operativa es [fase 13: operación vigente](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente). El runtime combina **tres Compose** y la configuración privada: [editor](../compose.dev.yaml), [backend](../compose.backend.dev.yaml) y [compilador](../compose.compiler.dev.yaml). Conserva el montaje privado de firmware, API/DB sin puertos públicos y el origen LAN restringido al edge.
+- Antes de actualizar código o construir, confirmar identidad y árbol limpio; pausar admisión, dejar terminar trabajos y detener el planificador. El backend está montado desde el checkout: si cambia, preparar una ventana específica y respaldo antes del pull. El runtime público no usa HMR; el builder Node no se solapa con editor ni con compilaciones de proyectos.
+- Para una actualización sólo de frontend, actualizar por avance rápido y usar `sudo capibloques-dev-runtime deploy`. El runtime construye la imagen versionada, gestiona la parada/arranque mediante systemd y espera salud. No ejecutar `npm ci` dentro de `editor` ni levantarlo manualmente con Compose. Tras verificar versión, salud y recorrido funcional, restituir planificador/admisión según la guía.
+- Si cambia backend o la configuración de confianza del proxy, revisar respaldo, imagen/dependencias y migraciones antes de `deploy --with-api`. Esa opción recrea API con el entorno privado, pero **no construye su imagen ni ejecuta migraciones**. Las recetas antiguas de fases 1/2/9 no sustituyen el procedimiento público vigente.
+- Si cambia receta/compilador, conservar además los contratos de [fase 9](FASE_9_COMPILACION_Y_DESCARGA.md#operación-dev). No invalidar intentos ni liberar reservas a mano. Mantener concurrencia/techo 1.
+- `rollback <tag>` sólo revierte la imagen frontend; no revierte backend, checkout ni datos. No usar `down -v`, `docker system prune`, `git reset --hard`, regeneración de secretos ni borrado de checkout para recuperar. No restaurar sobre la base real como prueba.
 
 ### Pruebas locales y contra DEV
 
@@ -179,7 +188,7 @@ npm run test:e2e -- --project=chrome --project=edge --workers=1
 
 Una URL externa deshabilita el servidor alternativo de Playwright. Las pruebas UI interceptan identidad/API con fixtures: describirlo, no confundirlo con login real o permisos PostgreSQL. `PLAYWRIGHT_API=1` habilita comprobaciones de salud cuando el caso lo requiere. Eliminar las variables de esa terminal al volver a tests locales. No aumentar timeouts/reintentos para ocultar un fallo.
 
-Backend en DEV: `sudo sh scripts/verify-backend-dev.sh`, en base separada `test_capibloques`. **`--restart` recrea servicios y no se usa con compilaciones activas**. CI contiene sus propias pruebas y no despliega ni en Proxmox ni en Pages. Los casos de UI nunca deben modificar proyectos o contraseñas de personas reales.
+Backend en DEV: `sudo sh scripts/verify-backend-dev.sh`, **sin `--restart`**, usa API/DB ya iniciadas y migradas, con base separada `test_capibloques`; puede crear esa base de pruebas. El script no carga la configuración privada de fase 13: su opción `--restart` recrearía API/DB sin conservar necesariamente hosts, CSRF, proxies y cookies del entorno público. No usarla tal cual en DEV; CI la usa en su entorno aislado. Toda recreación pública debe preservar los tres Compose y el entorno privado, con mantenimiento y verificaciones de [fase 13](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente). CI no despliega en Proxmox ni Pages. Los casos de UI nunca deben modificar proyectos o contraseñas de personas reales.
 
 ## 7. Datos, respaldo y recuperación de acceso
 

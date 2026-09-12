@@ -2,6 +2,8 @@
 
 Fecha: 6 de septiembre de 2026. Subfase entregada en DEV tras la confirmación del propietario de que pudo ingresar. No se cambió su cuenta ni su contraseña. Sólo se trabajó en `capi-dev`, mediante SSH directo en LAN; sin usar ni modificar gateway, PRD, router, Proxmox o Nginx.
 
+**Registro histórico de esa entrega.** La [fase 12](FASE_12_MESA_DE_TRABAJO.md) sustituyó las consultas de sesión por foco y la [fase 13](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente), entregada el 12 de septiembre, sustituyó la operación del editor Node por el runtime estático HTTPS. Seguir esa operación vigente para web/API, manteniendo las garantías del ABM descritas aquí.
+
 ## Qué se puede probar
 
 Con el túnel dedicado activo, abrir `http://localhost:3000/cuenta/`, ingresar como administrador y elegir **Gestionar usuarios**. También se puede abrir `/gestion/usuarios/` directamente; sin una sesión administrativa válida no muestra cuentas.
@@ -36,14 +38,14 @@ Docente es un rol de identidad en esta subfase: cursos, membresías y supervisi�
 - La API sólo acepta campos, tipos y roles declarados. No permite enviar privilegios Django ni IDs para elegir la identidad de una cuenta nueva. Normalización de alias consistente con el login.
 - Modificar, restablecer y eliminar requieren la versión opaca obtenida al leer. Si otra pestaña cambió la cuenta, responde 409 y conserva el formulario: cancelar, actualizar y volver a abrir. También detecta cambios del nombre visible sin forzar una revocación de sesión.
 - Ante corte de red durante una escritura, la UI informa que el resultado no se puede confirmar: revisar el listado antes de repetir. No reenvía una baja o un restablecimiento automáticamente.
-- Pérdida de sesión/permiso bloquea la pantalla y retira datos privados y diálogos. Verificación al recuperar foco/visibilidad, ante cambios de sesión entre pestañas y cada 15 segundos mientras es visible. Una mutación ya rechazada por la API no espera ese intervalo.
+- Pérdida de sesión/permiso bloquea la pantalla y retira datos privados y diálogos. Desde [fase 12](FASE_12_MESA_DE_TRABAJO.md), la verificación usa el reloj compartido de 60 segundos mientras es visible y conserva cambios explícitos de sesión entre pestañas, sin consultas por foco/visibilidad. Una mutación ya rechazada por la API no espera ese intervalo; se mantiene la expiración conocida.
 - `ManagementEvent` registra acción, UUID del actor/destino y nombres de campos cambiados, dentro de la misma transacción. No guarda contraseñas ni valores de campos. Los UUID de auditoría sobreviven a la baja; el registro aún no tiene pantalla de consulta. Definir retención antes del piloto.
 
 Antes de incorporar cursos, proyectos o comentarios, revisar la eliminación de cuentas y sus relaciones: añadir conteos, respaldo real y confirmación del alcance; no introducir cascadas silenciosas. No extrapolar el ABM actual a una biblioteca que aún no existe.
 
 ## Operación en DEV
 
-Desde la PC con su configuración SSH privada existente:
+La entrada normal de DEV es HTTPS; para estado, mantenimiento y recuperación de web/API seguir la [operación vigente de fase 13](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente). El túnel se conserva para recuperación. Desde la PC, estando realmente en LAN y con su configuración SSH privada existente:
 
 ```powershell
 .\scripts\connect-dev.ps1 -DirectLan
@@ -55,19 +57,9 @@ Se creó una copia lógica PostgreSQL en formato custom, no vacía, bajo el dire
 
 Durante la actualización en caliente de las dependencias de UI, el kernel registró un OOM del contenedor `editor` y Docker lo reinició. La primera prueba Chrome quedó esperando hidratación y falló. No se aumentaron RAM, límites ni timeouts. Con el servidor estabilizado pasaron las 16 pruebas siguientes de Chrome/Edge. Es una limitación observada del servidor de desarrollo en la VM de 2 GB, no una medición de capacidad de producción.
 
-En actualizaciones posteriores, confirmar `hostname` = `capi-dev`, conservar el túnel y detener sólo el frontend durante el pull/instalación para evitar la reoptimización en caliente. No correr pruebas mientras se está desplegando:
+La corrección operativa adoptada en ese cierre fue detener el frontend Node antes de instalar dependencias, evitando HMR sobre un checkout en actualización. **La receta de dos Compose quedó sustituida por fase 13:** no iniciar `editor` manualmente ni instalar dependencias dentro del Nginx actual. Confirmar `hostname` = `capi-dev`, conservar el túnel y preparar la ventana de mantenimiento según la [operación vigente](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente). No correr pruebas mientras se despliega.
 
-```bash
-test "$(hostname)" = capi-dev && cd /home/capi/capibloques
-# Continuar sólo si la comprobación anterior tuvo éxito.
-sudo docker compose -f compose.dev.yaml -f compose.backend.dev.yaml stop editor
-git pull --ff-only
-# Si cambia backend: backup previo, build api, migrate y up -d --wait api,
-# según fase 1. Si cambia el lockfile: seguir allí la instalación reproducible.
-sudo docker compose -f compose.dev.yaml -f compose.backend.dev.yaml up -d --wait editor
-```
-
-No iniciar otro servidor para aparentar que DEV responde. Si vuelve a reiniciarse sin despliegue, revisar logs del contenedor y OOM del kernel antes de aumentar recursos. El entorno web sigue restringido a loopback por SSH; la exposición pública y configuración PRD pertenecen a otra fase.
+No iniciar otro servidor para aparentar que DEV responde. Si vuelve a reiniciarse sin despliegue, revisar eventos y OOM antes de aumentar recursos, sin divulgar datos privados de logs. El acceso externo DEV se entregó en fase 13; PRD sigue en la Fase final postergada.
 
 ## Evidencia de validación
 

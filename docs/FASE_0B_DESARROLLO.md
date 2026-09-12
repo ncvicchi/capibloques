@@ -3,9 +3,9 @@
 Fecha: 5 de septiembre de 2026.
 Alcance: ejecutar y probar el editor existente en la VM de desarrollo. No habilita cuentas, base de datos, compilación remota ni producción.
 
-**Guía histórica del editor solo.** Desde el 6 de septiembre, el entorno DEV incluye API y PostgreSQL: usar [fase 1](FASE_1_BASE_REPRODUCIBLE.md) para arrancar, actualizar o recuperar con **ambos** archivos Compose. Las recetas de un solo archivo de esta página no conservan el proxy de API del entorno completo. La sección del túnel SSH sigue vigente.
+**Guía histórica del editor solo, verificado el 5 de septiembre de 2026.** API/PostgreSQL se incorporaron en fase 1 y el runtime estático público en fase 13, entregada el 12 de septiembre. Para arrancar, actualizar o recuperar la web/API actuales, usar la [operación vigente de fase 13](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente). La sección del túnel SSH sigue vigente; la descripción de Node/HMR y sus mediciones corresponde al entorno de 0B.
 
-## Entorno
+## Entorno observado al cerrar 0B
 
 - VM autorizada: `capi-dev`. Checkout: `/home/capi/capibloques`, propiedad de `capi` (UID/GID 1000).
 - Clonado por Git SSH usando la autenticación configurada por el propietario. No se copiaron claves ni se cambió la identidad Git global. Los commits de esta entrega salen de la PC de trabajo.
@@ -24,42 +24,9 @@ Referencias de configuración: [imagen oficial Node](https://github.com/nodejs/d
 
 ## Arrancar o actualizar en desarrollo
 
-Dentro de una sesión SSH en la **VM de desarrollo**:
+La receta de 0B detenía el servidor Node, instalaba el lockfile en su contenedor y lo iniciaba con un único Compose. **Esa receta fue sustituida y no debe ejecutarse contra DEV actual.** Desde fase 13, `editor` contiene Nginx estático; systemd y el firewall coordinan su arranque. Usar [fase 13: operación vigente](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente), sin iniciar `editor` manualmente ni ejecutar `npm ci` en ese contenedor.
 
-```bash
-test "$(hostname)" = capi-dev || exit 1
-cd /home/capi/capibloques
-git status --short --branch
-```
-
-Si hay cambios propios sin guardar, detenerse y resolverlos: no usar reset, force ni sobrescribir el checkout. Con árbol limpio:
-
-```bash
-(
-  set -eu
-  test "$(hostname)" = capi-dev
-  cd /home/capi/capibloques
-  test -z "$(git status --porcelain)"
-  git pull --ff-only origin main
-  sudo docker compose -f compose.dev.yaml config --quiet
-  sudo docker compose -f compose.dev.yaml pull
-  sudo docker compose -f compose.dev.yaml stop editor
-  sudo docker compose -f compose.dev.yaml run --rm --no-deps editor npm ci --no-audit --no-fund
-  sudo docker compose -f compose.dev.yaml up -d --wait --wait-timeout 180
-)
-```
-
-El bloque corta ante un error: si falla la instalación, no intenta levantar un entorno incompleto. Detener antes de reinstalar dependencias evita modificar `node_modules` mientras Vite lo usa. No ejecutar `npm ci` simultáneamente con el editor ni compartir esta carpeta entre Windows y Linux. En otro host Linux, confirmar primero que el propietario del checkout tenga UID/GID 1000 o adaptar explícitamente `user` en Compose; no resolver permisos ejecutando el editor como root.
-
-Para consultar o detener:
-
-```bash
-sudo docker compose -f compose.dev.yaml ps
-sudo docker compose -f compose.dev.yaml logs --tail 80 editor
-sudo docker compose -f compose.dev.yaml stop editor
-```
-
-`stop` no elimina código ni proyectos; `up -d --wait` vuelve a levantarlo. Los proyectos actuales se guardan en el navegador, no en el contenedor. No utilizar `docker system prune`, borrar volúmenes ni eliminar el checkout para solucionar un fallo.
+Antes de cualquier mantenimiento siguen siendo obligatorios comprobar `hostname` = `capi-dev`, revisar el árbol Git y conservar cambios ajenos. No usar reset/force, `docker system prune`, borrar volúmenes ni eliminar el checkout para solucionar un fallo. La biblioteca del servidor incorporada después de 0B vive en PostgreSQL; los borradores locales permanecen separados por cuenta y origen de navegador.
 
 ## Conectarse desde Windows
 
@@ -108,14 +75,7 @@ No se desactiva la verificación de huellas para sortear un error SSH. La config
 
 ## Probar el entorno correcto
 
-Con el editor detenido, se pueden ejecutar checks en un contenedor temporal bajo los mismos límites:
-
-```bash
-sudo docker compose -f compose.dev.yaml run --rm --no-deps editor \
-  sh -c 'npm run typecheck && npm run lint && npm run test:smoke'
-```
-
-Luego levantar el editor. Los navegadores de prueba se ejecutan en la PC para no consumir la RAM de la VM:
+En 0B, tipos/lint/smoke se ejecutaron en el contenedor Node limitado. El `editor` estático actual no incluye esas herramientas: seguir los checks locales/CI y la [verificación operativa vigente](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente). Los navegadores de prueba se ejecutan en la PC para no consumir la RAM de la VM; el túnel de recuperación permite dirigirlos a DEV:
 
 ```powershell
 $env:PLAYWRIGHT_BASE_URL = 'http://localhost:3000'
@@ -148,4 +108,4 @@ La configuración y documentación se publican con commit/push. Los resultados d
 
 0B queda completada con el editor de desarrollo disponible por el túnel. El servidor permanece en la VM; no quedan pruebas ejecutándose al cerrar la entrega. Mantener anotadas las demoras observadas: si reaparecen, revisar transporte y logs de DEV, no ampliar tiempos indefinidamente ni confundirlas con fallos funcionales sin evidencia.
 
-La siguiente fase requiere un nuevo OK: incorporar Django y PostgreSQL de forma reproducible, sin comenzar todavía el ABM ni la biblioteca de usuarios. La configuración de producción, HTTPS público y endurecimiento de accesos pertenecen a sus etapas autorizadas.
+Al cerrar 0B, incorporar Django y PostgreSQL requería un nuevo OK. Esas funciones y el acceso HTTPS público a DEV se entregaron después; consultar [el contexto vigente](CONTEXTO_PARA_CONTINUAR.md) antes de continuar. Producción permanece en la Fase final postergada.

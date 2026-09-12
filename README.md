@@ -212,8 +212,8 @@ En **Mensajes** están los bloques de escribir/borrar en el destino elegido y el
 
 ### Hardware y flujo disponible
 
-- La aplicación descarga el `.ino`, pero no flashea la placa desde el navegador.
-- Wi-Fi se simula y el usuario completa las credenciales antes de compilar o subir el sketch.
+- La aplicación exporta fuentes Arduino/ESP-IDF, compila y descarga firmware, y permite grabarlo por USB desde Chrome/Edge de escritorio. La implementación de fase 10 está disponible; su aceptación física en Wemos sigue pendiente.
+- Wi-Fi se simula en el navegador. Para compilar firmware privado, la fase 9 solicita las credenciales por separado y con consentimiento para su uso temporal en el servidor; no entran en JSON, historial ni logs. El firmware contiene la clave y no debe compartirse; su descarga privada del servidor vence a las 24 horas. Las fuentes exportadas conservan marcadores para configuración local.
 - El perfil de motor generado está pensado para un puente H DRV8833; otros drivers pueden requerir cambios de cableado y código.
 - Un servo se controla por posición entre 0° y 180°; la interfaz simplifica los motores y LED a potencia o brillo porcentual.
 - La disponibilidad física de GPIO impone un límite: una escena puede simularse aunque todavía tenga conflictos o pines sin asignar, pero no estará lista para descargar al hardware hasta corregirlos.

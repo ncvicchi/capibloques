@@ -1,5 +1,7 @@
 # Fase 7 — Mensajes y pantallas
 
+Guía histórica de esta entrega. Sus pruebas, contratos, pendientes y recetas describen ese momento. Consultar el [contexto vigente](CONTEXTO_PARA_CONTINUAR.md) para estado y autorizaciones, y la [operación vigente de DEV](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente) para desplegar o mantener el entorno.
+
 Autorizada y cerrada el 7 de septiembre de 2026 (hora Argentina). **Implementada y verificada en DEV y CI.** No se probó hardware físico; sus límites y comprobaciones pendientes se detallan debajo.
 
 ## Alcance acordado

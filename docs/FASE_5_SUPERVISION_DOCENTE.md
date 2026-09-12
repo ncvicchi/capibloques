@@ -1,5 +1,7 @@
 # Fase 5: supervisión docente
 
+Guía histórica de esta entrega. Sus pruebas, contratos, pendientes y recetas describen ese momento. Consultar el [contexto vigente](CONTEXTO_PARA_CONTINUAR.md) para estado y autorizaciones, y la [operación vigente de DEV](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente) para desplegar o mantener el entorno.
+
 Fecha: 7 de septiembre de 2026. Estado: **implementada y verificada en DEV; lista para validación del propietario**. No habilita las fases posteriores 6–11: experiencia/programación, mensajes/pantalla, Arduino/ESP-IDF, compilación, USB y producción/piloto.
 
 ## Recorrido de uso
@@ -73,7 +75,7 @@ Migración aditiva `projects.0004_supervision`: procedencia opcional en proyecto
 
 Antes de aplicarla se detuvieron editor/API y se generó un `pg_dump -Fc` privado de la base existente, fuera de Git, con permisos restringidos. Se comprobó que no estuviera vacío y que `pg_restore --list` pudiera leerlo. Esto **no es un ensayo de restauración ni una copia fuera de la VM**; ambos siguen pendientes antes del piloto real.
 
-Desarrollo continúa sólo en la VM `capi-dev`, con backend/base internos y acceso por el túnel dedicado a localhost. No se tocó producción, Proxmox, gateway, router o Nginx. No se reactivó Pages ni se publicó en otro hosting. No hubo cambios de credenciales ni cuentas reales.
+En esta entrega, el desarrollo continuó sólo en la VM `capi-dev`, con backend/base internos y acceso por el túnel dedicado a localhost. No se tocó producción, Proxmox, gateway, router o Nginx. No se reactivó Pages ni se publicó en otro hosting. No hubo cambios de credenciales ni cuentas reales.
 
 ## Validación
 

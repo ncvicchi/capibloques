@@ -1,5 +1,7 @@
 # Fase 4: guardado, recuperación e historial
 
+Guía histórica de esta entrega. Sus pruebas, contratos, pendientes y recetas describen ese momento. Consultar el [contexto vigente](CONTEXTO_PARA_CONTINUAR.md) para estado y autorizaciones, y la [operación vigente de DEV](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente) para desplegar o mantener el entorno.
+
 7 de septiembre de 2026. **Fase 4 completa, implementada y validada en DEV.** El propietario autorizó completar toda la fase, sin aprobaciones entre subfases. No habilita la fase 5 ni producción.
 
 Este documento amplía y reemplaza los pendientes de las entregas históricas [4A](FASE_4A_AUTOGUARDADO.md), [4B.1](FASE_4B1_RECUPERACION.md) y [4B.2a](FASE_4B2A_SALIDA.md). Se mantienen sus garantías de identidad, revisión optimista, operaciones durables, cuotas locales y salida confirmada.

@@ -1,5 +1,7 @@
 # Fase 4B.2a: salida en computadoras compartidas
 
+Guía histórica de esta entrega. Sus pruebas, contratos, pendientes y recetas describen ese momento. Consultar el [contexto vigente](CONTEXTO_PARA_CONTINUAR.md) para estado y autorizaciones, y la [operación vigente de DEV](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente) para desplegar o mantener el entorno.
+
 Documento histórico de la primera entrega de salida compartida. Sus pendientes y puntos de pausa quedan reemplazados por el [cierre de toda la fase 4](FASE_4_RECUPERACION_E_HISTORIAL.md), autorizado sin OK entre subfases. Conservar esta guía como evidencia de pruebas y garantías de limpieza, no como estado actual del producto.
 
 Subfase acotada del 7 de septiembre de 2026, autorizada después de recuperar el acceso del propietario. Implementada y probada en DEV. **No completa toda 4B.2**: el comportamiento ante desconexión queda en 4B.2b, con otro OK. Historial y recuperación del borrador de Armar escena siguen en 4C.

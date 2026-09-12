@@ -1,5 +1,7 @@
 # Fase 4A: autoguardado del proyecto abierto
 
+Guía histórica de esta entrega. Sus pruebas, contratos, pendientes y recetas describen ese momento. Consultar el [contexto vigente](CONTEXTO_PARA_CONTINUAR.md) para estado y autorizaciones, y la [operación vigente de DEV](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente) para desplegar o mantener el entorno.
+
 Estado histórico de la entrega 4A. La operación en memoria y el borrador único descritos aquí fueron ampliados por [4B.1: recuperación local](FASE_4B1_RECUPERACION.md); consultar ese documento para el comportamiento actual y sus límites. El planificador y las pausas de esta fase se conservan.
 
 Entrega acotada de la fase 4. Se conserva el guardado explícito, la revisión optimista y la operación idempotente existentes. No cambia el esquema de PostgreSQL ni la API, y no habilita producción.

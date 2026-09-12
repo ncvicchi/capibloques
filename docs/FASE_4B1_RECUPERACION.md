@@ -1,5 +1,7 @@
 # Fase 4B.1: recuperar proyectos y envíos pendientes
 
+Guía histórica de esta entrega. Sus pruebas, contratos, pendientes y recetas describen ese momento. Consultar el [contexto vigente](CONTEXTO_PARA_CONTINUAR.md) para estado y autorizaciones, y la [operación vigente de DEV](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente) para desplegar o mantener el entorno.
+
 Entrega acotada de recuperación local en el navegador, sobre el autoguardado 4A. No cambia PostgreSQL, la API ni los generadores. No habilita producción ni edición offline. La política de salida en equipos compartidos queda en 4B.2, con otro OK.
 
 Actualización posterior: [4B.2a](FASE_4B2A_SALIDA.md) amplía la salida con la elección de conservar o retirar las copias locales confirmadas de esa cuenta. Las referencias de este documento a conservar siempre al salir describen la entrega original de 4B.1. Desconexión sigue pendiente en 4B.2b.

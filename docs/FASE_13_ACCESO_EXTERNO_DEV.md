@@ -13,7 +13,53 @@ Estado: **entregada y verificada en DEV el 12 de septiembre de 2026**. Versión 
 - Evidencia: 197 pruebas backend en PostgreSQL, 8 contratos del runtime, build de 10 páginas, raíz/API local y pública HTTP 200, 18/18 smoke externos Chrome/Edge, rechazo directo desde PRD (`000`) y prueba negativa de que el dominio de producción no sirve CapiBloques.
 - Commits funcionales: `f1944f3`, `c49f13f` y `1ee0df9`. Se creó respaldo PostgreSQL previo y respaldos privados reversibles de cada cambio de runtime/Nginx.
 
-Operación canónica en DEV: `sudo capibloques-dev-runtime status`, `validate`, `deploy --with-api` y `rollback <tag>`. No usar `docker compose up editor` directamente: systemd supervisa el runtime y el firewall debe estar activo antes del listener LAN.
+Operación canónica en DEV: `sudo capibloques-dev-runtime status`, `validate`, `deploy`/`deploy --with-api` y `rollback <tag>`. No usar `docker compose up editor` directamente: systemd supervisa el runtime y el firewall debe estar activo antes del listener LAN. Alcance y precondiciones en [operación vigente](#operación-vigente).
+
+## Operación vigente
+
+Procedimiento contrastado con [runtime.py](../ops/public-dev/runtime.py), [install.py](../ops/public-dev/install.py), [Compose del editor](../compose.dev.yaml) y [verificación backend](../scripts/verify-backend-dev.sh) durante la corrección documental del 12 de septiembre de 2026. Esta revisión local no agrega pruebas remotas a la evidencia de entrega anterior. Esta sección sustituye las recetas de despliegue de las guías históricas de fases 0–12; sus contratos funcionales y resultados fechados se conservan.
+
+### Consultar estado
+
+Después de autenticar, comprobar identidad antes de operar:
+
+```sh
+test "$(hostname)" = capi-dev || exit 1
+cd /home/capi/capibloques
+git status --short --branch
+git rev-parse HEAD
+sudo capibloques-dev-runtime status
+sudo capibloques-dev-runtime validate
+systemctl is-active capibloques-compiler
+curl --fail --max-time 12 http://127.0.0.1:3000/api/health/ready/
+```
+
+El runtime exige root en `capi-dev` y toma el checkout de su configuración privada. `status` muestra web, contenedores y firewall; hay que leer sus estados, no asumir que el retorno del comando certifica todos los servicios. `validate` comprueba Compose y reglas del firewall, con la configuración de confianza de API marcada vigente. Ninguno verifica por sí solo DNS, certificado, cookies ni acceso externo. No imprimir archivos de configuración privada, secretos ni logs de proyectos.
+
+### Actualizar frontend
+
+1. Confirmar identidad, árbol limpio, commit objetivo y alcance del diff. Si sólo cambian documentos, publicar en Git sin desplegar. Si cambia backend, dependencias, migraciones, Compose o compilador, preparar además el mantenimiento específico descrito debajo.
+2. Desde Administración → Compilaciones, pausar admisión/arranques; dejar terminar los trabajos y comprobar que no queden intentos activos. Detener entonces `capibloques-compiler.service`. No liberar cupos ni matar trabajos para forzar la actualización.
+3. Con el checkout limpio y el planificador detenido, actualizar mediante `git pull --ff-only origin main` al commit verificado. Para código backend montado desde el checkout, preparar previamente su ventana de mantenimiento; no tratar ese pull como una actualización exclusivamente visual.
+4. Ejecutar `sudo capibloques-dev-runtime deploy`. El runtime comprueba que el planificador esté detenido y no haya contenedores compiladores en ejecución; detiene web/editor, construye la imagen estática versionada y arranca mediante systemd, esperando salud. Node y `npm ci` pertenecen a la etapa de construcción; el contenedor `editor` final no contiene Node/HMR. No arrancarlo manualmente con Compose.
+5. Comprobar commit/imagen, `status`, `validate`, salud por túnel y HTTPS público, y el recorrido afectado. Después iniciar `capibloques-compiler.service`, verificar su estado y restituir la admisión acordada. El runtime **no pausa la cola ni reinicia el planificador ni quita la pausa automáticamente**. Si el mantenimiento falla, conservar la pausa y registrar el estado pendiente.
+
+La compilación normal de proyectos sí funciona con editor/API activos; la exclusión anterior corresponde al build y mantenimiento del runtime en esta VM limitada, con techo de compilación 1.
+
+### Backend, configuración y pruebas
+
+- El runtime utiliza la configuración privada junto con los tres archivos Compose: editor, backend y compilador. El tercero conserva el montaje privado de firmware. Toda operación adicional de build, migración o recreación debe preservar esa combinación y el entorno vigente; no copiar una receta antigua con valores por defecto.
+- `deploy --with-api` recrea API con la configuración privada y espera salud. Es obligatorio si el instalador marcó un cambio en hosts/proxies/cookies. **No construye la imagen API ni ejecuta migraciones.** Si cambian dependencias o esquema, preparar respaldo privado, construcción y migración según el diff, antes de habilitar el servicio. No presentar esos pasos como ejecutados por este comando.
+- El código Python está montado desde el checkout. Un pull puede modificar archivos utilizados por API aunque la imagen frontend no cambie; evaluar la parada/recreación necesaria antes de actualizar. No recrear API/base ni cambiar receta del compilador con intentos activos.
+- El [instalador público](../ops/public-dev/install.py) copia runtime, firewall y unidades al sistema; actualizar Git por sí solo no actualiza esas copias instaladas. Revisar su instalación respaldada si cambian esos archivos o la configuración de red. No reinstalarlo como efecto de un cambio de documentación o frontend. Ninguno de estos comandos modifica la VM Nginx; cualquier cambio allí necesita el alcance correspondiente.
+- `sudo sh scripts/verify-backend-dev.sh`, **sin `--restart`**, usa API/DB existentes y migradas, ejecuta comprobaciones y pruebas en `test_capibloques`, y crea esa base de pruebas si falta. Django prepara el esquema de pruebas; el script no migra la base principal `capibloques` ni trabaja sobre proyectos reales como fixtures.
+- El script de pruebas no carga la configuración privada pública. **No ejecutar su opción `--restart` tal cual en DEV:** recrea API/DB y podría aplicar hosts, CSRF, proxies y cookies por defecto. Se conserva en CI aislado; un ensayo equivalente en DEV requiere adaptar y verificar la operación con el entorno público, además de pausar y esperar los trabajos. Esta corrección documental no modifica el script.
+
+### Límites de reversión
+
+`sudo capibloques-dev-runtime rollback <tag>` requiere una imagen frontend local con revisión Git válida. Restaura esa imagen y espera salud; **no revierte checkout, backend, migraciones ni datos**. Antes de usarlo, comprobar compatibilidad con API y esquema actuales.
+
+Ante un fallo de deploy, el runtime intenta recuperar la configuración/imagen frontend anterior; una API ya recreada no se revierte por ese mecanismo. Si la imagen anterior falta o tampoco queda saludable, el listener se deshabilita. Consultar estado y preparar la recuperación correspondiente, sin regenerar secretos, borrar volúmenes o restaurar sobre la base real como prueba. La [reversión de publicación](#reversión) tiene otro alcance y exige coordinar los cambios del edge/DNS.
 
 ## Resultado esperado
 

@@ -116,7 +116,7 @@ Asignación: **fase 13, implementada y verificada**. Evidencia y operación en [
 
 ## Relación actualizada con el plan vigente
 
-El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las nuevas fases](PLAN_FASES_BACKLOG.md) incorporan todos los pedidos. La fase 11 conserva el contexto vivo; la fase 12 implementa la reorganización general y navegación; la fase 13 publicará DEV de forma controlada. La ejecución dentro de bloques y paralelo vertical siguen en fase 14, no se dan por resueltos al redistribuir la UI.
+El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las nuevas fases](PLAN_FASES_BACKLOG.md) incorporan todos los pedidos. La fase 11 conserva el contexto vivo; la fase 12 implementó la reorganización general y navegación; la fase 13 publicó DEV de forma controlada y está entregada. La ejecución dentro de bloques y paralelo vertical siguen en fase 14, no se dan por resueltos al redistribuir la UI.
 
 | Pedido | Fase y estado |
 | --- | --- |

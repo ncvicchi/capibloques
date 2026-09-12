@@ -1,5 +1,7 @@
 # Fase 8 — Arduino y ESP-IDF
 
+Guía histórica de esta entrega. Sus pruebas, contratos, pendientes y recetas describen ese momento. Consultar el [contexto vigente](CONTEXTO_PARA_CONTINUAR.md) para estado y autorizaciones, y la [operación vigente de DEV](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente) para desplegar o mantener el entorno.
+
 Autorizada por el propietario: «Vamos con 8». **Implementada y verificada en DEV** (7 de septiembre de 2026). Arduino conservado y ZIP ESP-IDF nativo disponible; no incluye compilación en servidor ni grabación web. Pruebas físicas pendientes.
 
 ## Alcance

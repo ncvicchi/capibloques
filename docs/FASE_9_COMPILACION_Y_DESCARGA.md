@@ -2,6 +2,8 @@
 
 Autorización: «Vamos con el 9», ampliada con «Quiero resolver también la configuración Wi-Fi ahora» y «Autorizo enviar la clave al servidor para una compilación privada y temporal». **Fase completa implementada, verificada y entregada en DEV el 8 de septiembre de 2026.** No incluye producción ni grabación USB.
 
+La evidencia de esta guía corresponde al cierre del 8 de septiembre. Desde el 12 de septiembre, la integración de web/API pública sigue [fase 13: operación vigente](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente); las garantías de cola, aislamiento, privacidad y mantenimiento del compilador permanecen vigentes.
+
 ## Alcance y decisiones de implementación
 
 - Compilar una instantánea guardada de un proyecto propio. Los docentes hacen una copia personal antes de compilar un trabajo ajeno. El servidor carga el documento: no recibe fuentes, ZIP, CMake, rutas o flags arbitrarios del navegador.
@@ -49,7 +51,7 @@ Esto es retiro lógico, **no borrado forense**: WAL/backups de PostgreSQL, swap,
 
 Arduino usa `WiFi.persistent(false)` y ESP-IDF `WIFI_STORAGE_RAM`; eso evita pedir persistencia adicional de la configuración nueva en NVS, pero no borra residuos de firmware o NVS anteriores. Cambiar firmware o retirar un ZIP no permite retirar copias previas ni garantiza eliminar una clave de la placa.
 
-DEV sigue por loopback y túnel SSH; no exponer el formulario con claves por HTTP en LAN/Internet. La futura fase 13 exige HTTPS y restricciones específicas para publicar DEV; producción conserva su HTTPS separado en la Fase final, postergada.
+DEV dispone de HTTPS desde la [fase 13 entregada](FASE_13_ACCESO_EXTERNO_DEV.md); loopback y túnel SSH quedan para recuperación. No exponer el formulario con claves por HTTP en LAN/Internet. Mantener las restricciones del acceso público DEV; producción conserva su HTTPS separado en la Fase final, postergada.
 
 ## Operación DEV
 
@@ -57,32 +59,35 @@ Versiones: Arduino CLI 1.5.1, core ESP32 3.3.11, ESP-IDF 5.5.5, Node 22.23.2, Bl
 
 Sólo operar en `capi-dev`, dentro de `/home/capi/capibloques`. No ejecutar estos pasos en gateway, Proxmox, PRD o Nginx. El instalador comprueba hostname/root. Los secretos del entorno existente no se regeneran.
 
-Para mantenimiento: pausar admisión desde administración, dejar terminar los intentos y confirmar que no hay activos antes de cambiar receta. Detener `editor` antes de pull/dependencias/build de imagen. Conservar el túnel dedicado. La compilación de proyectos **sí** se verifica con el editor encendido; detenerlo sólo es una precaución de despliegue, no una condición de uso.
+Para mantenimiento: pausar admisión desde administración, dejar terminar los intentos y confirmar que no hay activos antes de cambiar receta. Preparar la parada de web/planificador, la actualización del checkout y la integración de API según la [operación vigente de fase 13](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente). No iniciar ni detener `editor` manualmente con Compose: systemd coordina su listener con el firewall. Conservar el túnel dedicado. La compilación normal de proyectos **sí** funciona con editor/API activos; la ventana de mantenimiento no es una condición de uso.
+
+Con esa ventana preparada, checkout verificado y sin compiladores activos, estos son los pasos propios de la imagen y del instalador del compilador; no constituyen una receta completa de despliegue web/API:
 
 ```sh
-sudo docker compose -f compose.dev.yaml -f compose.backend.dev.yaml -f compose.compiler.dev.yaml stop editor
-git pull --ff-only
 sudo docker build --memory=1024m --memory-swap=1600m --cpu-period=100000 --cpu-quota=80000 \
   -f ops/compiler/Dockerfile -t capibloques-compiler-dev:phase9 .
 sudo python3 ops/compiler/install.py
-sudo docker compose -f compose.dev.yaml -f compose.backend.dev.yaml -f compose.compiler.dev.yaml up -d --build api
-sudo docker compose -f compose.dev.yaml -f compose.backend.dev.yaml exec -T api python manage.py migrate --noinput < /dev/null
 ```
 
-`install.py` detiene el planificador e instala archivos root-owned; **no activa el servicio ni cambia la receta DB**. Si había intentos interrumpidos, reconciliarlos primero con la receta anterior; no liberar reservas mediante SQL ni borrar contenedores ajenos. Copiar el hash de receta impreso por el instalador en el siguiente comando, sin el prefijo `sha256:`:
+`install.py` detiene el planificador e instala archivos root-owned; **no activa el servicio ni cambia la receta DB**. Si había intentos interrumpidos, reconciliarlos primero con la receta anterior; no liberar reservas mediante SQL ni borrar contenedores ajenos. Cualquier construcción/recreación o migración de API debe seguir fase 13, conservando sus variables privadas y el montaje de artefactos. El runtime no reconstruye la imagen API ni ejecuta migraciones automáticamente.
+
+Con API preparada y migrada, copiar el hash de receta impreso por el instalador en el siguiente comando, sin el prefijo `sha256:`. Es un `exec` sobre la API existente; no recrea sus servicios ni cambia la frontera pública:
 
 ```sh
 printf '%s' '{"recipe":"REEMPLAZAR_POR_HASH_DE_64_HEX","ceiling":1}' | \
   sudo docker compose -f compose.dev.yaml -f compose.backend.dev.yaml exec -T api python manage.py compiler_dispatch register
+```
+
+La receta se registra sólo sin intentos activos; invalida trabajos pendientes de herramientas anteriores con un mensaje de recompilación. Completar cualquier build/despliegue web antes de reactivar el planificador: `capibloques-dev-runtime deploy` rechaza la construcción mientras ese servicio esté activo. Después, habilitarlo y comprobarlo:
+
+```sh
 sudo systemctl enable --now capibloques-compiler.service
-sudo docker compose -f compose.dev.yaml -f compose.backend.dev.yaml -f compose.compiler.dev.yaml up -d editor
-sudo docker compose -f compose.dev.yaml -f compose.backend.dev.yaml -f compose.compiler.dev.yaml ps
 sudo systemctl is-active capibloques-compiler.service
 ```
 
-La receta se registra sólo sin intentos activos; invalida trabajos pendientes de herramientas anteriores con un mensaje de recompilación. La pausa administrativa se conserva: quitarla desde la web después de verificar salud. En una primera instalación el estado comienza pausado.
+Verificar web/API/firewall mediante fase 13 y comprobar el compilador antes de quitar la pausa administrativa desde la web. En una primera instalación el estado comienza pausado.
 
-**Usar los tres archivos Compose al crear/recrear el servicio API de DEV.** El tercero monta `/var/lib/capibloques-compiler/artifacts` de sólo lectura en `/artifacts`; debe crearlo el instalador antes. Directorio 0700 y ZIP 0600, propietario UID/GID 1000 de la API. Omitir ese archivo al recrear la API deja la aplicación sin sus descargas. `exec` sobre la API ya creada puede usar los dos archivos base. CI sin compilador host sigue usando los dos archivos base.
+**Usar los tres archivos Compose y la configuración pública privada al crear/recrear el servicio API de DEV**, según fase 13. El tercero monta `/var/lib/capibloques-compiler/artifacts` de sólo lectura en `/artifacts`; debe crearlo el instalador antes. Directorio 0700 y ZIP 0600, propietario UID/GID 1000 de la API. Omitir ese archivo al recrear la API deja la aplicación sin sus descargas; omitir la configuración pública pierde sus hosts/proxies/cookies configurados. `exec` sobre la API ya creada puede usar los dos archivos base. CI sin compilador host sigue usando los dos archivos base. No usar `verify-backend-dev.sh --restart` sobre DEV público: su recreación no carga esa configuración privada.
 
 La imagen queda identificada por SHA-256, además del tag de construcción. No actualizar toolchains en cada pedido, usar `latest`, hacer prune global ni borrar imágenes/volúmenes ajenos para ganar espacio. El filesystem real de DEV, no la suma virtual de tamaños de capas de Docker, determina el margen disponible.
 
@@ -101,7 +106,7 @@ Para comprobaciones, `python manage.py compiler_probe` ofrece crear/repetir/medi
 - [CI final completo, commit ca36952](https://github.com/ncvicchi/capibloques/actions/runs/34186145649): los cuatro jobs correctos tras el ajuste final del planificador y del script de mantenimiento. La entrega posterior sólo actualiza documentación; no cambia código probado. Imagen DEV `sha256:6a2e6876ecbd7da000f9bfb01c1cb48b0707f93359abd200fd8fc5396e6de178`, servicio habilitado y activo, concurrencia/techo 1, sin pausa ni trabajos/artefactos de prueba pendientes.
 - Recuperación real: SIGKILL del proceso principal con un único intento sintético confirmado activo; systemd pasó de 0 a 1 reinicios y volvió a `active`. El ejecutor anterior fue retirado, el pedido quedó fallido con mensaje de interrupción, no se duplicó y no quedaron contenedores/cupos activos. El comando de señal informó un error sobre procesos auxiliares, pero la caída del principal y toda la recuperación se comprobaron por separado; no se interpretó su exit code como evidencia suficiente.
 
-- Mantenimiento real con cola vacía: otras **179 pruebas** correctas en 41,028 s; `verify-backend-dev.sh --restart` recreó API/PostgreSQL conservando el registro persistente de migración. Las descargas IDF/Wi-Fi y Arduino/caché volvieron a verificarse después. Montaje `/artifacts` confirmado `writable=false`; editor, API y DB saludables.
+- Mantenimiento real del 8 de septiembre, anterior a fase 13, con cola vacía: otras **179 pruebas** correctas en 41,028 s; `verify-backend-dev.sh --restart` recreó API/PostgreSQL conservando el registro persistente de migración. Es evidencia histórica, no una receta para DEV público actual. Las descargas IDF/Wi-Fi y Arduino/caché volvieron a verificarse después. Montaje `/artifacts` confirmado `writable=false`; editor, API y DB saludables.
 - Ajuste final del planificador para liberar referencias temporales incluso cuando queda ocioso: cuatro pruebas correctas en Windows y Linux/DEV; repetición real Arduino/Wi-Fi con descarga verificada en **196,1 s**, sin OOM, y otras **8/8 pruebas Chrome/Edge** tras desplegarlo. No requirió cambiar la imagen de herramientas.
 - Memoria: ningún build final alcanzó OOM. Con compilación y pruebas de navegador, una muestra tuvo 431 MiB disponibles y 162 MiB de swap usados. Filesystem raíz real quedó con **11 GiB libres** (de 31 GiB), aproximadamente 19 GiB usados. El tamaño virtual sumado de las capas de imagen no equivale a espacio adicional exclusivo ocupado. No se aumentaron recursos ni se borraron volúmenes/imágenes ajenos.
 

@@ -2,6 +2,8 @@
 
 Estado: **entregada y verificada en DEV**. Fecha: 8 de septiembre de 2026. Código funcional y DEV: **`668be43`**. Autorización: fases 11 y 12 completas y consecutivas. No incluye ninguna fase posterior ni producción. La documentación viva de la 11 está actualizada en [CONTEXTO_PARA_CONTINUAR](CONTEXTO_PARA_CONTINUAR.md).
 
+Los commits y resultados de esta guía corresponden al cierre del 8 de septiembre. La fase 13 entregó el runtime HTTPS persistente el 12 de septiembre; para operar la web/API actuales usar su [operación vigente](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente).
+
 ## Alcance implementado
 
 - Dos filas globales: proyecto/guardado/biblioteca/exportación/cuenta y controles de ejecución/código/conexiones. El contexto de escena, su edición y la ejecución detallada viven junto al simulador. Guardar, estado de guardado, Deshacer/Rehacer, Ejecutar y Detener siguen visibles. La cuenta/sonidos/salida se agrupan bajo «Opciones de mi cuenta»; el avatar conserva acceso directo. Errores de guardado siguen visibles, no se esconden en un menú.
@@ -49,23 +51,23 @@ Evidencia durante el cierre:
 - CI `34288613908` sobre `f72b820`: backend, siete Arduino y siete ESP-IDF correctos; UI 167 correctas y cinco fallos. Tres eran selectores antiguos (dos recorridos del botón Conectar y un visor ahora con dos lienzos accesibles); dos detectaron desborde móvil. `05fc446` corrige selectores y cabecera sin quitar pruebas ni relajar timeouts/reintentos. Estos CI fallidos no se presentan como aprobación global.
 - Sobre **`05fc446`: 84/84 correctas en Chrome/Edge** contra DEV, sin reintentos. Sin embargo, CI Linux `34289878161` conservaba dos fallos móviles (171 correctas). El diagnóstico rápido `d3d1fcd` identificó texto sobresaliendo de botones de ancho fijo; `0c75ca9` y `63c96b2` lo corrigen. Por eso los resultados Windows no se usan como sustituto de CI Linux.
 - Regresión amplia sobre **`63c96b2`: 124/124 correctas en Chrome/Edge**, sin reintentos: acceso, autoguardado, mesa de trabajo, móvil/fuentes, programación, compilación/Wi-Fi, revisión docente y salida.
-- La prueba de scroll móvil detectó además superposición de las dos barras fijas; `668be43` deja fija sólo la barra de ejecución al bajar a la escena. Las pruebas existentes no se interrumpen para desplegar: esperar su final, reiniciar sólo editor y comprobar la nueva versión.
+- La prueba de scroll móvil detectó además superposición de las dos barras fijas; `668be43` deja fija sólo la barra de ejecución al bajar a la escena. No interrumpir pruebas para desplegar; el mantenimiento actual sigue la operación de fase 13 y después se comprueba la nueva versión.
 - Sobre **`668be43`: 46/46 correctas en Chrome/Edge**, sin reintentos, contra DEV: desplazamiento móvil con Ejecutar/Detener alcanzables, cámara/catálogo/Wemos/sesiones, tipografía, programación y salida segura.
 - **CI final completo correcto:** [34291829169](https://github.com/ncvicchi/capibloques/actions/runs/34291829169), commit `668be43832c99b23f09295f8356d44d1c495503b`, cuatro jobs aprobados. Dos regresiones rápidas y **174/174 pruebas Chromium**; **179 pruebas backend**, preparación de secretos y persistencia tras recreación en CI; siete Arduino y siete ESP-IDF nativos. Tipos/lint, núcleo, drivers, USB, aislamiento, auditoría y build correctos; 10 páginas estáticas verificadas. No hubo casos flaky en el reporte final.
 
 CI comprueba primero las dos regresiones de texto ampliado, sin reintentos, y luego mantiene la batería completa original. Si falla conserva `test-results/` como artefacto `ui-diagnostics` durante tres días: capturas/trazas de fixtures sintéticos, nunca datos reales de usuarios. Los mensajes de fallo incluyen geometría de viewport para distinguir caja y texto desbordado.
 
-Implementación inicial `6143bbe`, refinamiento visual `4955c59`, cuadrícula/dependencia `0aae1b7`, conexiones/pruebas `f9afdd5`, Exportar `f72b820`, móvil/selectores `05fc446`, diagnóstico `d3d1fcd`, anchos de botones `0c75ca9`/`63c96b2` y scroll móvil `668be43`. Operación DEV: detener sólo editor, actualizar checkout; si cambió lockfile, `npm ci` dentro del contenedor limitado; iniciar editor y esperar salud. Mantener los tres archivos Compose para preservar configuración existente. API/DB y servicio compilador no se recrean para esta fase.
+Implementación inicial `6143bbe`, refinamiento visual `4955c59`, cuadrícula/dependencia `0aae1b7`, conexiones/pruebas `f9afdd5`, Exportar `f72b820`, móvil/selectores `05fc446`, diagnóstico `d3d1fcd`, anchos de botones `0c75ca9`/`63c96b2` y scroll móvil `668be43`. La operación de ese cierre detenía el editor Node y actualizaba dependencias dentro de su contenedor limitado; API/DB y compilador no se recrearon para esta fase. **Esa receta fue sustituida por fase 13**: el Nginx actual no contiene Node y su arranque se coordina con systemd/firewall. Seguir la [operación vigente](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente), sin iniciar `editor` manualmente.
 
 Despliegue de aplicación únicamente en DEV, checkout limpio en `668be43`; editor/API/DB saludables, planificador activo y salud `ok` por VM y túnel. PRD, gateway, Proxmox, router y Nginx no se modificaron. Sesión administrativa cerrada; se conserva sólo el túnel de navegación normal. GitHub Pages/Sites siguen sin usarse. El commit documental de cierre no cambia el código verificado ni requiere otro despliegue.
 
 ## Qué queda fuera
 
-La aceptación física de fase 10 continúa abierta. La nueva fase 13 planifica acceso externo persistente a DEV. Paralelo vertical, programa estático y progreso dentro de bloques pasaron a fase 14; TX/RX, S3/Waveshare y display interactivo siguen en fases 15–18. Todas requieren autorización de ejecución. Fase final de producción postergada.
+La aceptación física de fase 10 continúa abierta. El acceso externo persistente a DEV se entregó después en [fase 13](FASE_13_ACCESO_EXTERNO_DEV.md). Paralelo vertical, programa estático y progreso dentro de bloques pasaron a fase 14; TX/RX, S3/Waveshare y display interactivo siguen en fases 15–18. Las fases 14–18 requieren autorización de ejecución. Fase final de producción postergada.
 
 ## Recorrido breve para el propietario
 
-1. Ingresar en DEV con el túnel habitual. Comprobar las dos filas superiores y abrir/cerrar una categoría con «Cerrar catálogo» o Escape; arrastrar un bloque al programa.
+1. Ingresar en [DEV por HTTPS](https://capibloques.dev.nvicchi.com/); el túnel habitual queda para recuperación. Comprobar las dos filas superiores y abrir/cerrar una categoría con «Cerrar catálogo» o Escape; arrastrar un bloque al programa.
 2. En Escena, probar +/−, Mano y Ajustar; ejecutar, pausar y volver desde Estado sin perder el encuadre. Para zoom accesible de toda la página siguen funcionando los controles del navegador.
 3. En Armar escena, ampliar, mover un componente, Deshacer/Rehacer y Guardar o Cancelar. Navegar sin mover componentes no agrega cambios pendientes.
 4. Abrir Conectar, elegir un componente en «Resaltar conexiones de» y comparar sus pines con el listado. Esto no confirma automáticamente los requisitos eléctricos ni habilita grabar un circuito no revisado.

@@ -1,5 +1,7 @@
 # Fase 6 — Experiencia y programación
 
+Guía histórica de esta entrega. Sus pruebas, contratos, pendientes y recetas describen ese momento. Consultar el [contexto vigente](CONTEXTO_PARA_CONTINUAR.md) para estado y autorizaciones, y la [operación vigente de DEV](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente) para desplegar o mantener el entorno.
+
 Autorizada y **completada en DEV el 7 de septiembre de 2026**. Implementación verificada: `81b79ee`. No habilita las fases 7–11 ni los pedidos nuevos del [backlog](BACKLOG.md).
 
 ## Funciones

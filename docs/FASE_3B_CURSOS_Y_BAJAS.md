@@ -1,5 +1,7 @@
 # Fase 3B: proyectos de curso y bajas con respaldo
 
+Guía histórica de esta entrega. Sus pruebas, contratos, pendientes y recetas describen ese momento. Consultar el [contexto vigente](CONTEXTO_PARA_CONTINUAR.md) para estado y autorizaciones, y la [operación vigente de DEV](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente) para desplegar o mantener el entorno.
+
 ## Alcance y límites
 
 El alumno elige explícitamente el curso de cada proyecto guardado desde **Mis proyectos → Elegir curso**. No se comparten todos los trabajos de la cuenta por inscribirla a un grupo. Los proyectos anteriores siguen siendo personales. Importar, duplicar y recuperar un JSON crean trabajos personales independientes, sin conservar el ID del servidor ni compartir automáticamente.

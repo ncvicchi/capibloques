@@ -3,6 +3,8 @@
 Fecha: 5 de septiembre de 2026.
 Alcance: preparar y comprobar las dos VMs autorizadas, retirar GitHub Pages y conservar CI. No implementar funciones de aplicación ni desplegar servicios del proyecto todavía.
 
+**Registro histórico del 5 de septiembre de 2026.** La fase 13 entregó el acceso HTTPS persistente a DEV el 12 de septiembre. Para operar la web o API actuales, seguir la [operación vigente de fase 13](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente); el inventario y los pendientes de este documento corresponden al cierre de 0A.
+
 ## Inventario comprobado
 
 | Dato | VM 112: desarrollo | VM 113: producción |
@@ -82,16 +84,16 @@ Ambas VMs tenían `/var/run/reboot-required` después de las actualizaciones pre
 
 ## Punto de control y pendientes
 
-La preparación base está comprobada y Git SSH ya fue validado en ambas VMs. Detenerse aquí antes de 0B; el propietario debe aprobar continuar.
+Al cerrar 0A, la preparación base estaba comprobada y Git SSH validado en ambas VMs. En ese momento, continuar con 0B requería autorización del propietario.
 
 Actualización posterior: el propietario aprobó 0B. Su entorno, pruebas y recuperación se documentan por separado en [FASE_0B_DESARROLLO.md](FASE_0B_DESARROLLO.md). Los resultados anteriores corresponden al cierre de 0A y se conservan como registro histórico.
 
-Pendiente de la siguiente subfase o de su fase correspondiente:
+Pendientes registrados al cerrar 0A, conservados como evidencia histórica:
 
 1. Checkout remoto y configuración de identidad Git de desarrollo según el propietario; no copiar credenciales a producción ni dar por probado permiso de escritura remota.
 2. Entorno reproducible del editor con Node compatible, dependencias y acceso de prueba restringido. No hay aplicación corriendo todavía en las VMs.
 3. Separación backend/base y datos de prueba en fase 1; toolchains Arduino/ESP-IDF en su fase de compilación.
-4. Dominio DEV, certificado, runtime persistente y proxy Nginx en la [fase 13 planificada](FASE_13_ACCESO_EXTERNO_DEV.md), sin nuevas reglas en el router; dominio de producción separado en la Fase final.
+4. Dominio DEV, certificado, runtime persistente y proxy Nginx, luego entregados en [fase 13](FASE_13_ACCESO_EXTERNO_DEV.md), sin nuevas reglas en el router; dominio de producción separado en la Fase final.
 5. Antes de exponer la aplicación: backups fuera del host, revisión de accesos y sustitución de credenciales temporales. No se cambiaron contraseñas ni se deshabilitó acceso SSH por contraseña en esta entrega.
 
 Esta fase no certifica rendimiento del compilador ni seguridad de producción: verifica la base instalada sin ampliar el alcance al desarrollo de la aplicación.

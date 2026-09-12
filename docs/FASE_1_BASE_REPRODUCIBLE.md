@@ -2,9 +2,9 @@
 
 Fecha: 6 de septiembre de 2026. Alcance: editor existente + API Django mínima + PostgreSQL persistente en `capi-dev`. **No implementa cuentas, roles, biblioteca ni guardado servidor.** Producción permanece sin aplicación. Gateway usado sólo como salto TCP SSH; Proxmox, router y Nginx no se modificaron.
 
-Evidencia histórica de fase 1. El acceso y las migraciones de cuentas incorporados después se documentan en [fase 2A](FASE_2A_ACCESO.md); sus comandos operativos extienden esta guía. Los dos Compose son la base. **Desde la instalación del compilador de fase 9, añadir también `-f compose.compiler.dev.yaml` al crear/recrear la API de DEV**, para conservar el montaje privado de firmware. Ver [operación vigente](FASE_9_COMPILACION_Y_DESCARGA.md#operación-dev); el verificador detecta ese directorio y conserva el montaje. No usar `--restart` mientras haya compilaciones activas.
+**Evidencia histórica del 6 de septiembre de 2026.** El acceso y las migraciones de cuentas incorporados después se documentan en [fase 2A](FASE_2A_ACCESO.md). Desde el 12 de septiembre, la web/API de DEV se operan según [fase 13: operación vigente](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente), con runtime estático, systemd, firewall, tres Compose y configuración pública privada. Las recetas de Node/HMR y dos Compose de fase 1 fueron sustituidas. No usar `verify-backend-dev.sh --restart` sobre DEV actual: ese modo no carga la configuración pública al recrear API/base.
 
-## Entorno comprobado
+## Entorno comprobado al cerrar fase 1
 
 | Servicio | Versión observada | Acceso y límites |
 | --- | --- | --- |
@@ -35,61 +35,32 @@ python3 scripts/init_dev_secrets.py /home/capi/.config/capibloques-dev
 
 El script conserva un conjunto completo válido y rechaza conjuntos parciales, enlaces de archivo y destinos dentro del repositorio o ancestros. No es un mecanismo de rotación: PostgreSQL sólo usa los secretos de inicialización cuando su volumen está vacío. Si se pierden los secretos con una base ya creada, **restaurarlos desde una copia segura**, no generar otros ni borrar la base. Si falta todo el directorio, el script por sí solo no puede detectar la existencia del volumen.
 
-El volumen resiste la recreación de contenedores, **no es un backup**. Aún no hay copia automatizada fuera de Proxmox ni procedimiento de restauración integral ensayado; deben estar listos antes de guardar trabajo real de alumnos. Los proyectos del editor siguen en el navegador y se transportan con JSON, no en PostgreSQL.
+El volumen resiste la recreación de contenedores, **no es un backup**. Aún no hay copia automatizada fuera de Proxmox ni procedimiento de restauración integral ensayado; deben estar listos antes de guardar trabajo real de alumnos. En fase 1 los proyectos del editor sólo vivían en el navegador; la biblioteca PostgreSQL se incorporó después, sin sustituir la exportación JSON.
 
-## Actualizar o recuperar el entorno actual
+## Actualizar o recuperar DEV
 
-Entrar por SSH a la VM de desarrollo, no al gateway. Conservar cambios locales; detenerse si el checkout no está limpio. En esta VM ya existen secretos y volumen: el bloque siguiente **no genera ni rota credenciales**.
+Seguir exclusivamente la [operación vigente de fase 13](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente) para estado, actualización, migraciones y recuperación de web/API. La receta de fase 1 instalaba dependencias dentro del antiguo editor Node y arrancaba servicios con dos Compose; ya no corresponde al runtime actual. `capibloques-dev-runtime` conserva la configuración privada y coordina web con systemd/firewall; no iniciar `editor` manualmente.
 
-```bash
-(
-  set -eu
-  test "$(hostname)" = capi-dev
-  cd /home/capi/capibloques
-  test -z "$(git status --porcelain)"
-  git pull --ff-only origin main
-  dc() { sudo docker compose --ansi never -f compose.dev.yaml -f compose.backend.dev.yaml "$@"; }
-  dc config --quiet
-  dc pull editor db
-  dc stop editor
-  dc run --rm --no-deps editor npm ci --no-audit --no-fund
-  dc build api
-  dc up -d --wait --wait-timeout 120 db
-  dc stop api
-  dc run --rm -T api python manage.py migrate --noinput
-  dc up -d --wait --wait-timeout 180 api editor
-  dc ps
-)
-```
+Entrar por SSH a `capi-dev`, nunca ejecutar comandos en el gateway. Conservar cambios locales y revisar el árbol antes de actualizar. Las migraciones siguen siendo explícitas y requieren revisar su alcance y respaldo; no se ejecutan automáticamente al arrancar API. No usar reset/force, `down -v`, borrado del checkout, limpieza global de Docker ni regeneración de secretos para recuperar el entorno.
 
-Detener editor antes de instalar evita cambiar `node_modules` en uso y libera memoria durante la construcción. Si falla un paso, el bloque se detiene; corregir la causa y repetir, sin reset/force, `down -v`, borrado del checkout ni limpieza global de Docker. Las migraciones son explícitas, no ocurren automáticamente al arrancar API. Esta receta es para DEV, no para aplicar futuras migraciones destructivas a producción sin respaldo/revisión.
-
-Para consultar estado, ver logs acotados o reiniciar únicamente API después de editar Python:
-
-```bash
-sudo docker compose --ansi never -f compose.dev.yaml -f compose.backend.dev.yaml ps
-sudo docker compose --ansi never -f compose.dev.yaml -f compose.backend.dev.yaml logs --tail 40 api db
-sudo docker compose --ansi never -f compose.dev.yaml -f compose.backend.dev.yaml restart api
-```
-
-Desde Windows usar `scripts/connect-dev.ps1` como en [fase 0B](FASE_0B_DESARROLLO.md#conectarse-desde-windows), manteniendo un túnel dedicado separado de la sesión administrativa. No hay un servidor alternativo en la PC:
+La entrada normal es el HTTPS de fase 13. Para recuperación desde Windows se conserva `scripts/connect-dev.ps1` como en [fase 0B](FASE_0B_DESARROLLO.md#conectarse-desde-windows), con túnel dedicado separado de la sesión administrativa. No hay un servidor alternativo en la PC:
 
 - Editor: `http://localhost:3000/`.
 - API viva, independiente de la base: `http://localhost:3000/api/health/live/`.
 - API y base listas: `http://localhost:3000/api/health/ready/` → `{"status":"ok"}`.
 
-`ready` devuelve 503 genérico si la base no responde. No expone versiones, credenciales ni detalles de errores. Las rutas de cuentas y administrador aún no existen.
+`ready` devuelve 503 genérico si la base no responde. No expone versiones, credenciales ni detalles de errores. En el cierre histórico de fase 1 aún no existían rutas de cuentas; se incorporaron después.
 
 ## Evidencia y pruebas repetibles
 
-En DEV, con API/base migradas:
+Para comprobar sin recrear los servicios de DEV, con API/base migradas y dentro de una verificación autorizada:
 
 ```bash
 python3 scripts/test_init_dev_secrets.py
-sudo sh scripts/verify-backend-dev.sh --restart
+sudo sh scripts/verify-backend-dev.sh
 ```
 
-El primer comando prueba el bootstrap con archivos temporales, no con credenciales de la instalación. El segundo ejecuta ocho pruebas Django y prepara una base separada `test_capibloques` usando el administrador de PostgreSQL; **no concede CREATEDB a la API**. Conserva esa base de pruebas en DEV. `--restart` interrumpe brevemente API/base, recrea sus contenedores y compara el registro real de migración antes/después. Omitirlo para probar sin recreación.
+El primer comando prueba el bootstrap con archivos temporales, no con credenciales de la instalación. El segundo ejecuta la suite backend vigente y prepara una base separada `test_capibloques` usando el administrador de PostgreSQL; **no concede CREATEDB a la API**. Conserva esa base de pruebas en DEV. Las ocho pruebas y el ensayo con recreación descritos abajo corresponden al cierre de fase 1. El modo `--restart` se conserva en CI aislado; no usarlo sobre DEV público porque no carga la configuración privada de fase 13 al recrear servicios.
 
 Resultados de esta fase:
 
@@ -111,6 +82,6 @@ npm run test:e2e -- --project=chrome --project=edge --workers=1 --grep 'base pri
 
 Muestra puntual tras calentar el editor: editor ~721 MiB, API ~67 MiB, PostgreSQL ~21 MiB; VM con ~775 MiB disponibles, 38 MiB de swap usados y 22 GiB de disco libres. **No es una prueba de carga ni garantía de concurrencia**; los límites agregados tampoco reservan memoria para el sistema. No se instalaron compiladores pesados en las VMs.
 
-## Próxima fase, pendiente de OK
+## Próxima fase prevista al cierre histórico
 
-Fase 2: identidad, cuentas administradas, roles administrador/docente/alumno y sus pruebas de permisos, según el plan. Esta entrega no cambia el diseño del editor ni exige una validación funcional nueva del propietario; opcionalmente puede abrir el editor y el indicador `ready`. No habilitar producción ni comenzar otra fase automáticamente.
+Al cerrar fase 1, la fase 2 requería autorización para identidad, cuentas administradas, roles administrador/docente/alumno y sus pruebas. Esas funciones se entregaron después. Consultar [el contexto vigente](CONTEXTO_PARA_CONTINUAR.md) para continuar; no habilitar producción ni comenzar otra fase automáticamente.

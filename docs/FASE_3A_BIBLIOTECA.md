@@ -1,5 +1,7 @@
 # Fase 3A: biblioteca personal y guardado manual
 
+Guía histórica de esta entrega. Sus pruebas, contratos, pendientes y recetas describen ese momento. Consultar el [contexto vigente](CONTEXTO_PARA_CONTINUAR.md) para estado y autorizaciones, y la [operación vigente de DEV](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente) para desplegar o mantener el entorno.
+
 ## Alcance
 
 Subfase acotada de la fase 3. En el editor, **Guardar** sube una instantánea a PostgreSQL y **Mis proyectos** abre la biblioteca de la cuenta. Permite buscar, abrir, renombrar, duplicar, exportar JSON y enviar a papelera/restaurar. **Nuevo proyecto** crea una escena vacía con un bloque de inicio. Importar JSON conserva el importador v1/v2 existente y crea un trabajo independiente: nunca conserva el UUID de servidor del proyecto anterior.
