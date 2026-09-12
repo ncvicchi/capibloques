@@ -24,6 +24,9 @@ class PublicRuntimeContracts(unittest.TestCase):
         self.assertIn("CHAIN=CAPIBLOQUES_DEV_IN", script)
         self.assertNotIn('-F DOCKER-USER', script)
         self.assertIn("--filter label=com.docker.compose.service=editor", script)
+        self.assertIn('${RUNTIME_DIRECTORY:-/run/capibloques-dev-firewall}', script)
+        unit = (OPS / "capibloques-dev-firewall.service").read_text(encoding="utf-8")
+        self.assertIn("RuntimeDirectory=capibloques-dev-firewall", unit)
 
     def test_compose_defaults_keep_both_ports_on_loopback(self):
         compose = (ROOT / "compose.dev.yaml").read_text(encoding="utf-8")

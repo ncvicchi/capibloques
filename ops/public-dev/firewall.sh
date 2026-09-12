@@ -101,8 +101,9 @@ status_rules() {
   "$IPTABLES" -w 5 -S "$CHAIN"
 }
 
-mkdir -p /run/lock
-exec 9>/run/lock/capibloques-dev-firewall.lock
+LOCK_DIR=${RUNTIME_DIRECTORY:-/run/capibloques-dev-firewall}
+mkdir -p "$LOCK_DIR"
+exec 9>"$LOCK_DIR/lock"
 flock -x 9
 
 case "${1:-}" in
