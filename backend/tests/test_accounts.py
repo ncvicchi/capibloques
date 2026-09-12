@@ -144,6 +144,84 @@ class AccountTests(TestCase):
         with patch("accounts.security.timezone.now", return_value=timezone.now() + timedelta(minutes=6)):
             self.assertEqual(self.sign_in().status_code, 200)
 
+    def test_rate_limit_identity_ignores_direct_forwarded_header(self):
+        browser = Client(REMOTE_ADDR="198.51.100.10", HTTP_X_FORWARDED_FOR="203.0.113.90")
+        with patch("accounts.views.consume_attempt", return_value=True) as consume:
+            self.sign_in(browser)
+        self.assertEqual(consume.call_args_list[0].args, ("ip", "198.51.100.10", 120))
+
+    @override_settings(CAPIBLOQUES_TRUSTED_PROXY_IPS=frozenset({"10.0.0.2", "10.0.0.3"}))
+    def test_rate_limit_distinguishes_clients_behind_trusted_proxy_chain(self):
+        identities = []
+        for forwarded in ("203.0.113.10, 10.0.0.2", "203.0.113.11, 10.0.0.2"):
+            browser = Client(REMOTE_ADDR="10.0.0.3", HTTP_X_FORWARDED_FOR=forwarded)
+            with patch("accounts.views.consume_attempt", return_value=True) as consume:
+                self.sign_in(browser)
+            identities.append(consume.call_args_list[0].args)
+        self.assertEqual(identities, [("ip", "203.0.113.10", 120), ("ip", "203.0.113.11", 120)])
+
+    @override_settings(
+        ALLOWED_HOSTS=["capibloques.dev.nvicchi.com"],
+        CAPIBLOQUES_EXTERNAL_HOSTS=frozenset({"capibloques.dev.nvicchi.com"}),
+        CAPIBLOQUES_HTTPS_HOSTS=frozenset({"capibloques.dev.nvicchi.com"}),
+        CAPIBLOQUES_SECURE_COOKIES=True,
+        CAPIBLOQUES_TRUSTED_PROXY_IPS=frozenset({"10.0.0.3"}),
+        CSRF_TRUSTED_ORIGINS=["https://capibloques.dev.nvicchi.com"],
+    )
+    def test_https_overlay_marks_session_and_csrf_cookies_secure(self):
+        browser = Client(
+            HTTP_HOST="capibloques.dev.nvicchi.com",
+            HTTP_X_FORWARDED_FOR="203.0.113.10",
+            HTTP_X_FORWARDED_PROTO="https",
+            REMOTE_ADDR="10.0.0.3",
+        )
+        csrf_response = browser.get("/api/auth/session/")
+        self.assertTrue(csrf_response.cookies["csrftoken"]["secure"])
+        login_response = self.sign_in(browser)
+        self.assertTrue(login_response.cookies["sessionid"]["secure"])
+
+    @override_settings(
+        CAPIBLOQUES_HTTPS_HOSTS=frozenset({"capibloques.dev.nvicchi.com"}),
+        CAPIBLOQUES_EXTERNAL_HOSTS=frozenset({"capibloques.dev.nvicchi.com"}),
+        CAPIBLOQUES_SECURE_COOKIES=True,
+    )
+    def test_https_overlay_keeps_localhost_tunnel_session_working(self):
+        csrf_response = self.client.get("/api/auth/session/", HTTP_HOST="localhost")
+        self.assertFalse(csrf_response.cookies["csrftoken"]["secure"])
+        login_response = self.sign_in()
+        self.assertFalse(login_response.cookies["sessionid"]["secure"])
+        self.assertEqual(self.state()["user"]["alias"], "luna")
+
+    @override_settings(
+        ALLOWED_HOSTS=["capibloques.dev.nvicchi.com"],
+        CAPIBLOQUES_EXTERNAL_HOSTS=frozenset({"capibloques.dev.nvicchi.com"}),
+        CAPIBLOQUES_HTTPS_HOSTS=frozenset({"capibloques.dev.nvicchi.com"}),
+        CAPIBLOQUES_SECURE_COOKIES=True,
+        CAPIBLOQUES_TRUSTED_PROXY_IPS=frozenset({"10.0.0.3"}),
+    )
+    def test_public_host_without_trusted_https_is_rejected_before_login(self):
+        browser = Client(HTTP_HOST="capibloques.dev.nvicchi.com", REMOTE_ADDR="10.0.0.3")
+        response = self.sign_in(browser)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "https_required")
+        self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+        self.assertFalse(AccessEvent.objects.filter(action="login").exists())
+
+    @override_settings(
+        ALLOWED_HOSTS=["capibloques.dev.nvicchi.com", "extra.dev.nvicchi.com"],
+        CAPIBLOQUES_EXTERNAL_HOSTS=frozenset({"capibloques.dev.nvicchi.com", "extra.dev.nvicchi.com"}),
+        CAPIBLOQUES_HTTPS_HOSTS=frozenset({"capibloques.dev.nvicchi.com"}),
+        CAPIBLOQUES_SECURE_COOKIES=True,
+        CAPIBLOQUES_TRUSTED_PROXY_IPS=frozenset({"10.0.0.3"}),
+    )
+    def test_uncovered_external_host_is_still_rejected_by_http_guard(self):
+        browser = Client(HTTP_HOST="extra.dev.nvicchi.com", REMOTE_ADDR="10.0.0.3")
+        response = self.sign_in(browser)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "https_required")
+        self.assertNotIn("sessionid", response.cookies)
+        self.assertFalse(AccessEvent.objects.filter(action="login").exists())
+
     def test_fields_cannot_inject_roles_or_accept_unbounded_inputs(self):
         self.assertEqual(self.post("login", {"alias": "luna", "password": PASSWORD, "is_administrator": True}).status_code, 400)
         self.assertEqual(self.sign_in(password="x" * 257).status_code, 400)

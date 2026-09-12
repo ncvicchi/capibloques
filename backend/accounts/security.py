@@ -9,6 +9,16 @@ from django.utils.crypto import salted_hmac
 from .models import LoginBucket
 
 
+def client_ip(request):
+    """Identidad de red calculada por la frontera de proxy, nunca por una cabecera."""
+    value = getattr(request, "capibloques_client_ip", None)
+    if value:
+        return value
+    # Defensa para llamadas unitarias directas que no recorrieron middleware.
+    from config.proxy import canonical_ip
+    return canonical_ip(request.META.get("REMOTE_ADDR")) or "unknown"
+
+
 def consume_attempt(scope, identity, limit):
     now = timezone.now()
     key = salted_hmac("capibloques.login." + scope, identity, algorithm="sha256").hexdigest()

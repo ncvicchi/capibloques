@@ -13,7 +13,7 @@ from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import AccessEvent, User, access_lock, normalize_alias
-from .security import consume_attempt, require_account
+from .security import client_ip, consume_attempt, require_account
 
 
 def csrf_failure(request, reason=""):
@@ -75,9 +75,9 @@ def sign_in(request, data):
         alias = normalize_alias(data["alias"])
     except ValidationError:
         alias = None
-    # REMOTE_ADDR sólo; no aceptar un X-Forwarded-For elegido por el cliente.
-    # En DEV Vite agrupa clientes por su IP de proxy; documentado, no límite de PRD.
-    if not consume_attempt("ip", request.META.get("REMOTE_ADDR", "unknown"), 120) or not consume_attempt("alias", alias or "<invalid>", 8):
+    # La IP fue resuelta por la frontera de proxies explícitos. Un cliente
+    # directo no puede elegirla con X-Forwarded-For.
+    if not consume_attempt("ip", client_ip(request), 120) or not consume_attempt("alias", alias or "<invalid>", 8):
         response = JsonResponse({"error": "Hubo muchos intentos. Esperá 5 minutos y volvé a intentar.", "code": "too_many_attempts"}, status=429)
         response["Retry-After"] = "300"
         return response

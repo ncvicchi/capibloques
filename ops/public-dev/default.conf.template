@@ -1,0 +1,112 @@
+upstream capibloques_api {
+    server api-public:8000;
+    keepalive 8;
+}
+
+# La VM Nginx sobrescribe X-Forwarded-For con la IP que observó. Este salto
+# agrega únicamente la IP de ese edge; Django recorre la cadena desde la derecha.
+map $http_x_forwarded_for $capibloques_public_chain {
+    ""      $remote_addr;
+    default "$http_x_forwarded_for, $remote_addr";
+}
+
+server {
+    listen 8080;
+    server_name _;
+    server_tokens off;
+    root /usr/share/nginx/html;
+    index index.html;
+    client_max_body_size 3m;
+
+    allow ${CAPIBLOQUES_EDGE_IP};
+    deny all;
+
+    location ^~ /api/ {
+        proxy_pass http://capibloques_api;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header Connection "";
+        proxy_set_header Authorization "";
+        proxy_set_header Proxy "";
+        proxy_set_header Forwarded "";
+        proxy_set_header X-Real-IP "";
+        proxy_set_header X-Forwarded-Host "";
+        proxy_set_header X-Forwarded-Port "";
+        proxy_set_header X-Forwarded-Ssl "";
+        proxy_set_header X-Client-IP "";
+        proxy_set_header X-Capibloques-Trusted-Proto "";
+        proxy_set_header X-Forwarded-For $capibloques_public_chain;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_connect_timeout 3s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 60s;
+    }
+
+    location ^~ /_next/static/ {
+        try_files $uri =404;
+        expires 1y;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        add_header X-Content-Type-Options nosniff always;
+    }
+
+    location / {
+        try_files $uri $uri/ $uri/index.html =404;
+        add_header Cache-Control "no-store" always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header X-Frame-Options DENY always;
+        add_header Referrer-Policy same-origin always;
+        add_header Permissions-Policy "camera=(), geolocation=(), microphone=(), serial=(self), usb=(self)" always;
+    }
+
+    error_page 404 /404.html;
+}
+
+# Túnel de recuperación. El host publica este listener sólo en loopback y se
+# eliminan todas las cabeceras que un cliente local pudiera intentar inyectar.
+server {
+    listen 8081;
+    server_name _;
+    server_tokens off;
+    root /usr/share/nginx/html;
+    index index.html;
+    client_max_body_size 3m;
+
+    location ^~ /api/ {
+        proxy_pass http://capibloques_api;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header Connection "";
+        proxy_set_header Authorization "";
+        proxy_set_header Proxy "";
+        proxy_set_header Forwarded "";
+        proxy_set_header X-Real-IP "";
+        proxy_set_header X-Forwarded-Host "";
+        proxy_set_header X-Forwarded-Port "";
+        proxy_set_header X-Forwarded-Ssl "";
+        proxy_set_header X-Client-IP "";
+        proxy_set_header X-Capibloques-Trusted-Proto "";
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto http;
+        proxy_connect_timeout 3s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 60s;
+    }
+
+    location ^~ /_next/static/ {
+        try_files $uri =404;
+        expires 1y;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        add_header X-Content-Type-Options nosniff always;
+    }
+
+    location / {
+        try_files $uri $uri/ $uri/index.html =404;
+        add_header Cache-Control "no-store" always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header X-Frame-Options DENY always;
+        add_header Referrer-Policy same-origin always;
+        add_header Permissions-Policy "camera=(), geolocation=(), microphone=(), serial=(self), usb=(self)" always;
+    }
+
+    error_page 404 /404.html;
+}

@@ -1,0 +1,26 @@
+[Unit]
+Description=CapiBloques static DEV web runtime
+After=docker.service capibloques-dev-firewall.service
+Requires=docker.service capibloques-dev-firewall.service
+BindsTo=capibloques-dev-firewall.service
+PartOf=docker.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/capibloques-dev-runtime supervise
+ExecStop=/usr/local/sbin/capibloques-dev-runtime stop
+Restart=always
+RestartSec=5
+TimeoutStartSec=30
+TimeoutStopSec=30
+KillMode=control-group
+UMask=0077
+NoNewPrivileges=true
+ProtectHome=read-only
+ProtectSystem=full
+PrivateTmp=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

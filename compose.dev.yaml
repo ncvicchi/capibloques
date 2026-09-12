@@ -1,45 +1,48 @@
 name: capibloques-dev
 
-# Sólo desarrollo en Linux. No publicar este servidor en LAN/Internet.
+# Runtime estable de DEV. El editor interactivo se ejecuta en la PC de trabajo;
+# esta VM sirve únicamente un build estático, sin Vinext dev, HMR ni Wrangler.
 services:
   editor:
-    image: node:22.23.2-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5
-    user: "1000:1000"
-    working_dir: /workspace
+    build:
+      context: .
+      dockerfile: ops/public-dev/Dockerfile
+      args:
+        CAPIBLOQUES_BUILD_REVISION: ${CAPIBLOQUES_BUILD_REVISION:-unknown}
+    image: capibloques-editor-dev:${CAPIBLOQUES_WEB_IMAGE_TAG:-local}
+    pull_policy: never
+    user: "101:101"
     init: true
-    command: ["npm", "run", "dev", "--", "--hostname", "0.0.0.0", "--port", "3000"]
     environment:
-      NODE_ENV: development
-      NODE_OPTIONS: --max-old-space-size=768
-      NPM_CONFIG_CACHE: /workspace/.cache/npm
-      NPM_CONFIG_UPDATE_NOTIFIER: "false"
-      WRANGLER_SEND_METRICS: "false"
+      CAPIBLOQUES_EDGE_IP: ${CAPIBLOQUES_EDGE_IP:-127.0.0.1}
+      NGINX_ENVSUBST_FILTER: ^CAPIBLOQUES_EDGE_IP$$
     ports:
-      - "127.0.0.1:3000:3000"
-    volumes:
-      # Checkout propio de la VM, incluidos sus node_modules Linux.
-      # No montar /home/capi, .ssh ni el socket de Docker.
-      - type: bind
-        source: .
-        target: /workspace
-        bind:
-          create_host_path: false
+      # Recuperación: sólo loopback, normalmente mediante túnel SSH.
+      - "${CAPIBLOQUES_LOCAL_BIND_IP:-127.0.0.1}:${CAPIBLOQUES_LOCAL_PORT:-3000}:8081"
+      # El valor seguro por defecto tampoco sale de loopback. El instalador de
+      # fase 13 fija aquí la IP LAN exacta de capi-dev.
+      - "${CAPIBLOQUES_PUBLIC_BIND_IP:-127.0.0.1}:${CAPIBLOQUES_PUBLIC_PORT:-3080}:8080"
+    networks:
+      web_edge: {}
+      public_api:
+        ipv4_address: ${CAPIBLOQUES_WEB_PROXY_IP:-172.30.13.2}
     read_only: true
     tmpfs:
-      - /tmp:rw,nosuid,nodev,size=128m,mode=1777
-      - /home/node:rw,nosuid,nodev,size=32m,uid=1000,gid=1000,mode=0700
-      # Los PID del contenedor se reutilizan al reiniciar. El lock de Vinext
-      # debe morir con él, no persistir en el checkout y simular otro servidor.
-      - /workspace/.vinext:rw,nosuid,nodev,size=32m,uid=1000,gid=1000,mode=0755
+      - /tmp:rw,nosuid,nodev,size=8m,uid=101,gid=101,mode=0700
+      - /var/cache/nginx:rw,nosuid,nodev,size=8m,uid=101,gid=101,mode=0700
+      # El entrypoint oficial materializa aquí la plantilla ya validada.
+      - /etc/nginx/conf.d:rw,nosuid,nodev,size=1m,uid=101,gid=101,mode=0750
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
-    cpus: 1.0
-    mem_limit: 1280m
-    memswap_limit: 1536m
-    pids_limit: 256
-    restart: unless-stopped
-    stop_grace_period: 20s
+    cpus: 0.25
+    mem_limit: 64m
+    memswap_limit: 64m
+    pids_limit: 32
+    # systemd inicia este contenedor sólo después del firewall; evitar que
+    # Docker lo publique por su cuenta durante el arranque.
+    restart: "no"
+    stop_grace_period: 15s
     logging:
       driver: json-file
       options:
@@ -47,11 +50,21 @@ services:
         max-file: "2"
     healthcheck:
       test:
-        - CMD
-        - node
-        - -e
-        - "fetch('http://127.0.0.1:3000/', {method: 'HEAD', signal: AbortSignal.timeout(8000)}).then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
-      interval: 30s
-      timeout: 10s
-      start_period: 120s
+        - CMD-SHELL
+        - "wget -q -O /dev/null --header='Host: localhost' http://127.0.0.1:8081/api/health/ready/"
+      interval: 20s
+      timeout: 8s
+      start_period: 20s
       retries: 3
+
+networks:
+  # Tiene salida sólo para que Docker pueda publicar puertos; no contiene API,
+  # base, compilador ni otro servicio de la aplicación.
+  web_edge: {}
+  # Frontera estática editor/API. El instalador valida que las IP pertenezcan a
+  # la subred y no colisionen antes de escribir la configuración privada.
+  public_api:
+    internal: true
+    ipam:
+      config:
+        - subnet: ${CAPIBLOQUES_PROXY_SUBNET:-172.30.13.0/29}

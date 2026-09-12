@@ -1,0 +1,48 @@
+# Segunda etapa: instalar sólo cuando certificado y clave ya existan.
+server {
+    # Es el puerto interno de esta VM; puede diferir del 443 que publica el router.
+    # Sintaxis compatible con el Nginx 1.24 del edge. No se agrega un listener
+    # IPv6 implícito: el servidor puede tener otro sitio compartiendo ese puerto.
+    listen ${CAPIBLOQUES_DEV_HTTPS_PORT} ssl http2;
+    server_name ${CAPIBLOQUES_DEV_FQDN};
+    server_tokens off;
+${CAPIBLOQUES_DEV_BASIC_AUTH}
+
+    ssl_certificate ${CAPIBLOQUES_DEV_CERTIFICATE};
+    ssl_certificate_key ${CAPIBLOQUES_DEV_CERTIFICATE_KEY};
+    # Reutilizar la política TLS administrada por Certbot en esta VM evita
+    # declarar dos veces protocolos, curvas o parámetros DH incompatibles.
+    include ${CAPIBLOQUES_DEV_TLS_OPTIONS};
+    ssl_dhparam ${CAPIBLOQUES_DEV_DHPARAM};
+
+    client_max_body_size 3m;
+    proxy_connect_timeout 3s;
+    proxy_send_timeout 30s;
+    proxy_read_timeout 60s;
+
+    # Si se habilitó Basic Auth, la cabecera se consume en el edge y nunca se
+    # entrega a CapiBloques.
+    location / {
+        proxy_pass http://${CAPIBLOQUES_DEV_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Host ${CAPIBLOQUES_DEV_FQDN};
+        proxy_set_header Connection "";
+        proxy_set_header Authorization "";
+        proxy_set_header Proxy "";
+        proxy_set_header Forwarded "";
+        proxy_set_header X-Real-IP "";
+        proxy_set_header X-Forwarded-Host "";
+        proxy_set_header X-Forwarded-Port "";
+        proxy_set_header X-Forwarded-Ssl "";
+        proxy_set_header X-Client-IP "";
+        proxy_set_header X-Capibloques-Trusted-Proto "";
+        # Sobrescribir: nunca conservar una cadena elegida por Internet.
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    add_header Strict-Transport-Security "max-age=604800" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options DENY always;
+    add_header Referrer-Policy same-origin always;
+}

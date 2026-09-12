@@ -1,0 +1,17 @@
+# Primera etapa: este bloque puede instalarse antes de emitir el certificado.
+server {
+    listen ${CAPIBLOQUES_DEV_HTTP_PORT};
+    server_name ${CAPIBLOQUES_DEV_FQDN};
+    server_tokens off;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root ${CAPIBLOQUES_DEV_ACME_ROOT};
+        default_type text/plain;
+        try_files $uri =404;
+    }
+
+    location / {
+        # Destino fijo: el Host enviado por Internet no participa del redirect.
+        return 308 https://${CAPIBLOQUES_DEV_FQDN}$request_uri;
+    }
+}

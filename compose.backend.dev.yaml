@@ -1,8 +1,9 @@
 # Añadir a compose.dev.yaml; nunca es una configuración de producción.
 services:
   editor:
-    environment:
-      CAPIBLOQUES_API_TARGET: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
 
   api:
     build:
@@ -19,7 +20,18 @@ services:
     environment:
       DJANGO_SECRET_KEY_FILE: /run/secrets/django_key
       DB_PASSWORD_FILE: /run/secrets/db_app_password
-    networks: [default, database]
+      # Vacíos/falso mantienen el túnel local y no habilitan una publicación
+      # accidental. install.py escribe los valores exactos fuera de Git.
+      CAPIBLOQUES_ALLOWED_HOSTS: ${CAPIBLOQUES_ALLOWED_HOSTS:-}
+      CAPIBLOQUES_CSRF_TRUSTED_ORIGINS: ${CAPIBLOQUES_CSRF_TRUSTED_ORIGINS:-}
+      CAPIBLOQUES_TRUSTED_PROXY_IPS: ${CAPIBLOQUES_TRUSTED_PROXY_IPS:-}
+      CAPIBLOQUES_SECURE_COOKIES: ${CAPIBLOQUES_SECURE_COOKIES:-false}
+    networks:
+      default: {}
+      database: {}
+      public_api:
+        ipv4_address: ${CAPIBLOQUES_API_PROXY_IP:-172.30.13.3}
+        aliases: [api-public]
     depends_on:
       db:
         condition: service_healthy

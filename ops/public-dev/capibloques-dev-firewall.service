@@ -1,0 +1,25 @@
+[Unit]
+Description=CapiBloques DEV restricted Docker ingress
+After=docker.service network-online.target
+Requires=docker.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment=CAPIBLOQUES_PUBLIC_ENV_FILE=/etc/capibloques/public-dev.env
+ExecStart=/usr/local/sbin/capibloques-dev-firewall apply
+ExecStop=/usr/local/sbin/capibloques-dev-firewall remove
+TimeoutStartSec=20
+TimeoutStopSec=20
+UMask=0077
+NoNewPrivileges=true
+ProtectHome=true
+ProtectSystem=strict
+PrivateTmp=true
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

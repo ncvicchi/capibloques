@@ -115,6 +115,11 @@ jobs:
       - name: Construir sitio estático
         run: npm run build
 
+      - name: Validar y construir el runtime público de desarrollo
+        run: |
+          python ops/public-dev/test_contracts.py
+          docker compose -f compose.dev.yaml build editor
+
       - name: Conservar diagnóstico UI sintético si falla
         if: failure()
         uses: actions/upload-artifact@v4

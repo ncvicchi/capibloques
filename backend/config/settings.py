@@ -1,6 +1,8 @@
 """Base de desarrollo privada; no es una configuración de producción."""
+import ipaddress
 import os
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -19,9 +21,97 @@ def read_secret(variable):
     return value
 
 
+def read_csv(variable, default=()):
+    """Lee una lista explícita sin aceptar entradas vacías ni duplicadas."""
+    raw = os.environ.get(variable)
+    if raw is None:
+        return tuple(default)
+    if not raw.strip():
+        return ()
+    values = tuple(part.strip() for part in raw.split(","))
+    if any(not value for value in values) or len(set(values)) != len(values):
+        raise ImproperlyConfigured(f"Lista inválida en {variable}")
+    return values
+
+
+def read_bool(variable, default=False):
+    raw = os.environ.get(variable)
+    if raw is None:
+        return default
+    values = {"true": True, "false": False, "1": True, "0": False}
+    try:
+        return values[raw.strip().lower()]
+    except KeyError:
+        raise ImproperlyConfigured(f"Booleano inválido en {variable}") from None
+
+
+def read_allowed_hosts(variable):
+    hosts = read_csv(variable)
+    for host in hosts:
+        # Esta instalación usa nombres exactos: no permitir comodines, esquemas,
+        # rutas, puertos ni variantes ambiguas dentro del valor de Host.
+        if (host != host.lower() or host.endswith(".") or host == "*" or host.startswith(".") or "://" in host
+                or any(character in host for character in "/?#@:") or any(character.isspace() for character in host)):
+            raise ImproperlyConfigured(f"Host inválido en {variable}")
+    return hosts
+
+
+def read_https_origins(variable):
+    origins = read_csv(variable)
+    for origin in origins:
+        parsed = urlsplit(origin)
+        try:
+            parsed.port
+        except ValueError:
+            raise ImproperlyConfigured(f"Origen HTTPS inválido en {variable}") from None
+        if (origin != origin.lower() or parsed.scheme != "https" or not parsed.hostname
+                or parsed.hostname.endswith(".") or "*" in parsed.hostname
+                or parsed.hostname.startswith(".") or parsed.username or parsed.password
+                or parsed.path or parsed.query or parsed.fragment):
+            raise ImproperlyConfigured(f"Origen HTTPS inválido en {variable}")
+    return origins
+
+
+def read_proxy_ips(variable):
+    values = read_csv(variable)
+    try:
+        # Canonizar para que distintas escrituras de IPv6 no creen identidades
+        # diferentes. No se aceptan rangos: cada salto debe estar identificado.
+        addresses = tuple(str(ipaddress.ip_address(value)) for value in values)
+    except ValueError:
+        raise ImproperlyConfigured(f"IP de proxy inválida en {variable}") from None
+    if len(set(addresses)) != len(addresses):
+        raise ImproperlyConfigured(f"IP de proxy duplicada en {variable}")
+    return frozenset(addresses)
+
+
+def validate_public_https(external_hosts, https_hosts, trusted_proxies, secure_cookies):
+    """Valida como una unidad la superficie pública declarada por entorno."""
+    if not secure_cookies:
+        return
+    if not https_hosts or not trusted_proxies:
+        raise ImproperlyConfigured("La entrada HTTPS requiere origen y proxy explícitos")
+    if frozenset(external_hosts) != frozenset(https_hosts):
+        raise ImproperlyConfigured("Los hosts externos y HTTPS deben coincidir exactamente")
+
+
 SECRET_KEY = read_secret("DJANGO_SECRET_KEY_FILE")
 DEBUG = False
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "api"]
+CAPIBLOQUES_LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "api"})
+CAPIBLOQUES_EXTERNAL_HOSTS = frozenset(read_allowed_hosts("CAPIBLOQUES_ALLOWED_HOSTS"))
+if CAPIBLOQUES_LOCAL_HOSTS.intersection(CAPIBLOQUES_EXTERNAL_HOSTS):
+    raise ImproperlyConfigured("CAPIBLOQUES_ALLOWED_HOSTS sólo admite hosts externos")
+ALLOWED_HOSTS = [*sorted(CAPIBLOQUES_LOCAL_HOSTS), *sorted(CAPIBLOQUES_EXTERNAL_HOSTS)]
+CSRF_TRUSTED_ORIGINS = list(read_https_origins("CAPIBLOQUES_CSRF_TRUSTED_ORIGINS"))
+CAPIBLOQUES_TRUSTED_PROXY_IPS = read_proxy_ips("CAPIBLOQUES_TRUSTED_PROXY_IPS")
+CAPIBLOQUES_SECURE_COOKIES = read_bool("CAPIBLOQUES_SECURE_COOKIES", False)
+CAPIBLOQUES_HTTPS_HOSTS = frozenset(urlsplit(origin).hostname for origin in CSRF_TRUSTED_ORIGINS)
+validate_public_https(
+    CAPIBLOQUES_EXTERNAL_HOSTS,
+    CAPIBLOQUES_HTTPS_HOSTS,
+    CAPIBLOQUES_TRUSTED_PROXY_IPS,
+    CAPIBLOQUES_SECURE_COOKIES,
+)
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
 
@@ -42,7 +132,13 @@ DATA_UPLOAD_MAX_NUMBER_FILES = 1
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 20
 CSRF_FAILURE_VIEW = "accounts.views.csrf_failure"
 MIDDLEWARE = [
+    # Debe ejecutarse antes de SecurityMiddleware: elimina cualquier cabecera
+    # interna inyectada y sólo vuelve a crearla para un peer permitido.
+    "config.proxy.TrustedProxyHeadersMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    # Ubicado dentro de SecurityMiddleware para que incluso el rechazo HTTP
+    # reciba las cabeceras defensivas normales.
+    "config.proxy.RequirePublicHttpsMiddleware",
     "school.middleware.SchoolUploadLimit",
     "projects.middleware.ProjectUploadLimit",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -76,10 +172,16 @@ CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = "Lax"
 X_FRAME_OPTIONS = "DENY"
 SECURE_CONTENT_TYPE_NOSNIFF = True
-# Sólo HTTP en localhost mediante SSH. HTTPS/cookies Secure se activarán antes
-# de publicar; no confiar en X-Forwarded-* enviados por clientes.
+# Django no tiene una opción global capaz de servir a la vez el HTTPS público y
+# el túnel HTTP de recuperación. La frontera de proxy marca Secure las cookies
+# emitidas en HTTPS; estos valores base mantienen funcional sólo a localhost.
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
+# Django sólo confía en la cabecera interna creada por TrustedProxyHeadersMiddleware,
+# nunca en X-Forwarded-Proto recibido directamente. El Host sigue validándose
+# contra ALLOWED_HOSTS y no se toma de X-Forwarded-Host.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_CAPIBLOQUES_TRUSTED_PROTO", "https")
+USE_X_FORWARDED_HOST = False
 
 LOGGING = {
     "version": 1,
