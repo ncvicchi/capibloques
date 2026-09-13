@@ -144,24 +144,43 @@ test('cámara: teclado, zoom táctil con Mano y revisión docente de sólo lectu
   await expect(page.getByRole('button', { name: /^Mover Semáforo/ })).toHaveCount(0);
 });
 
-test('catálogo separado: fondo opaco, cierre explícito y Escape, arrastre funcional', async ({ page }) => {
+test('catálogo separado: cierre retira su barra con botón, Escape y arrastre', async ({ page }, info) => {
   await open(page);
-  await page.getByRole('treeitem', { name: 'Bucles', exact: true }).click();
+  const visibleScrollbars = (selector: string) => page.locator(selector).evaluateAll(elements => elements.filter(element => {
+    const style = getComputedStyle(element);
+    const box = element.getBoundingClientRect();
+    return style.display !== 'none' && style.visibility !== 'hidden' && box.width > 0 && box.height > 0;
+  }).length);
+  const expectCatalogClosed = async () => {
+    await expect(page.locator('.blocklyToolboxFlyout')).not.toBeVisible();
+    await expect.poll(() => visibleScrollbars('.blocklyFlyoutScrollbar')).toBe(0);
+    expect(await visibleScrollbars('.blocklyMainWorkspaceScrollbar')).toBeGreaterThan(0);
+  };
+  await expectCatalogClosed();
+  await page.getByRole('treeitem', { name: 'En paralelo', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Cerrar catálogo de bloques' })).toBeVisible();
+  expect(await visibleScrollbars('.blocklyFlyoutScrollbar')).toBeGreaterThan(0);
   const opacity = await page.locator('.blocklyToolboxFlyout .blocklyFlyoutBackground').evaluate(element => getComputedStyle(element).fillOpacity);
   expect(opacity).toBe('1');
   await page.getByRole('button', { name: 'Cerrar catálogo de bloques' }).click();
-  await expect(page.locator('.blocklyToolboxFlyout')).not.toBeVisible();
-  await page.getByRole('treeitem', { name: 'Bucles', exact: true }).click(); await page.keyboard.press('Escape');
-  await expect(page.locator('.blocklyToolboxFlyout')).not.toBeVisible();
+  await expectCatalogClosed();
+  await page.getByRole('treeitem', { name: 'Condiciones', exact: true }).click(); await page.keyboard.press('Escape');
+  await expectCatalogClosed();
   await page.getByRole('treeitem', { name: 'Bucles', exact: true }).click();
   const block = page.locator('.blocklyToolboxFlyout .blocklyDraggable').first(), box = (await block.boundingBox())!;
   const host = (await page.getByLabel('Editor visual de bloques').boundingBox())!;
   const before = await page.locator('.blocklyWorkspace > .blocklyBlockCanvas > .blocklyDraggable').count();
   await page.mouse.move(box.x + 40, box.y + 18); await page.mouse.down();
   await page.mouse.move(host.x + host.width - 140, host.y + host.height / 2, { steps: 20 }); await page.mouse.up();
-  await expect(page.locator('.blocklyToolboxFlyout')).not.toBeVisible();
+  await expectCatalogClosed();
   await expect.poll(() => page.locator('.blocklyWorkspace > .blocklyBlockCanvas > .blocklyDraggable').count()).toBeGreaterThan(before);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('treeitem', { name: 'Condiciones', exact: true }).click();
+  expect(await visibleScrollbars('.blocklyFlyoutScrollbar')).toBeGreaterThan(0);
+  await page.screenshot({ path: info.outputPath('catalog-mobile-open.png') });
+  await page.getByRole('button', { name: 'Cerrar catálogo de bloques' }).click();
+  await expectCatalogClosed();
+  await page.screenshot({ path: info.outputPath('catalog-mobile-closed.png') });
 });
 
 test('sesión lenta: una consulta en curso, sin tapar el editor; señal explícita sí bloquea', async ({ page }) => {

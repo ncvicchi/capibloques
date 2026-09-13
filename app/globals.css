@@ -2924,6 +2924,7 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .execution-detail summary { cursor: pointer; }
 .blockly-shell .blocklyFlyoutBackground { fill: #edf1fc !important; fill-opacity: 1 !important; stroke: #97a9d0; stroke-width: 2px; }
 .blockly-shell .blocklyFlyout { filter: drop-shadow(6px 0 5px #26396029); }
+.blockly-shell[data-palette-open='false'] .blocklyFlyoutScrollbar { display: none !important; }
 .palette-close { position: absolute; top: 8px; right: 14px; z-index: 35; border: 1px solid #9eabd0; background: white; box-shadow: 0 3px 12px #28365a22; color: #343761; border-radius: 9px; padding: 8px 12px; font-size: 12px; min-height: 36px; }
 
 @media (prefers-reduced-motion: reduce) {
