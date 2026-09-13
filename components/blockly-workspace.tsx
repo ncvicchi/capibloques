@@ -401,6 +401,8 @@ const BlocklyWorkspace = forwardRef<
     let disposed = false;
     let resizeObserver: ResizeObserver | undefined;
     let resizeFrame: number | undefined;
+    let dragConfigurationFrame: number | undefined;
+    let dragConfigurationPending = false;
     let keyboardHost: HTMLDivElement | null = null;
     let activateKeyboardNavigation: ((event: KeyboardEvent) => void) | null =
       null;
@@ -458,6 +460,15 @@ const BlocklyWorkspace = forwardRef<
           Blockly,
           workspace,
         );
+        const configureBlockDraggingWhenIdle = () => {
+          dragConfigurationFrame = undefined;
+          if (workspace.isDragging()) {
+            dragConfigurationPending = true;
+            return;
+          }
+          dragConfigurationPending = false;
+          configureBlockDragging();
+        };
         configureBlockDraggingRef.current = configureBlockDragging;
         workspaceRef.current = workspace;
         workspace.registerButtonCallback('CAPI_CHOOSE_FAVORITES', () => onChooseFavoritesRef.current?.());
@@ -485,7 +496,10 @@ const BlocklyWorkspace = forwardRef<
           if (readOnlyRef.current) return;
           if (event.type === Blockly.Events.TOOLBOX_ITEM_SELECT) setPaletteOpen(Boolean(workspace.getFlyout()?.isVisible()));
           if (event.type === Blockly.Events.BLOCK_DRAG) {
-            if (!(event as import('blockly').Events.BlockDrag).isStart) workspace.getToolbox()?.clearSelection();
+            if (!(event as import('blockly').Events.BlockDrag).isStart) {
+              workspace.getToolbox()?.clearSelection();
+              if (dragConfigurationPending) configureBlockDraggingWhenIdle();
+            }
             setPaletteOpen(Boolean(workspace.getFlyout()?.isVisible()));
           }
           if (event.isUiEvent) return;
@@ -494,7 +508,12 @@ const BlocklyWorkspace = forwardRef<
             Blockly.Events.setGroup(event.group || true);
             try { ensureSingleStart(Blockly, workspace); } catch (error) { onErrorRef.current?.(readableLoadError(error)); }
             finally { Blockly.Events.setGroup(group); }
-            configureBlockDragging();
+            if (dragConfigurationFrame !== undefined) {
+              cancelAnimationFrame(dragConfigurationFrame);
+            }
+            dragConfigurationFrame = requestAnimationFrame(
+              configureBlockDraggingWhenIdle,
+            );
           }
           if (event.type === Blockly.Events.BLOCK_MOVE && event.recordUndo)
             onBlockSnapRef.current?.();
@@ -602,6 +621,9 @@ const BlocklyWorkspace = forwardRef<
       }
       resizeObserver?.disconnect();
       if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
+      if (dragConfigurationFrame !== undefined) {
+        cancelAnimationFrame(dragConfigurationFrame);
+      }
       if (changeTimerRef.current) clearTimeout(changeTimerRef.current);
       configureBlockDraggingRef.current = () => {};
       workspaceRef.current?.dispose();
