@@ -50,4 +50,5 @@ La ejecución visual representa la simulación del navegador. No sigue un firmwa
 
 - Fases 15–19 requieren autorización propia; producción continúa como Fase final postergada.
 - La barra de desplazamiento residual del catálogo estaba fuera del alcance de esta fase y se corrigió después como mantenimiento autorizado en `d096fd9`; el [backlog](BACKLOG.md#13-barra-de-desplazamiento-residual-del-catálogo) conserva su evidencia.
+- El arrastre individual por defecto y grupal con `Control`/`Comando` se corrigió después como mantenimiento autorizado, desplegado en `0fc9ff2`; el [backlog](BACKLOG.md#16-movimiento-individual-y-grupal-de-bloques) conserva su evidencia.
 - La Fase 19 de desafíos progresivos quedó agregada al [plan](PLAN_FASES_BACKLOG.md#fase-19--desafíos-progresivos), sin iniciar su implementación.

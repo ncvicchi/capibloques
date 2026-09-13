@@ -6,7 +6,7 @@ Documento vivo de **fase 11**. Actualización: **13 de septiembre de 2026**. Lee
 
 - Repositorio: [ncvicchi/capibloques](https://github.com/ncvicchi/capibloques). Rama de trabajo actual: `main`. Nuevas ramas, si hacen falta: prefijo `codex/`. Respetar el árbol existente, sin reset/force ni descartar cambios ajenos.
 - El propietario autorizó: **«vamos con 11 y 12»**, consecutivas y completas, y después **«Vams con el 14 pues»**. También pidió mantener esta documentación al cerrar toda fase futura que solicite. La fase 14 ya se cerró; estas autorizaciones no habilitan la 15.
-- **Fases 11–14 entregadas.** La 11 es contexto portable con mantenimiento obligatorio; la 12 entrega UX, catálogo separado, cámara de escena, guía Wemos y sesión sin validación por foco; la 13 publica DEV de forma persistente y segura en `https://capibloques.dev.nvicchi.com/`; la 14 agrega paralelo vertical, lienzo estático y progreso local por camino. La corrección posterior de la barra residual del catálogo está desplegada en `d096fd9`. Las fases 15–19 y producción no están autorizadas.
+- **Fases 11–14 entregadas.** La 11 es contexto portable con mantenimiento obligatorio; la 12 entrega UX, catálogo separado, cámara de escena, guía Wemos y sesión sin validación por foco; la 13 publica DEV de forma persistente y segura en `https://capibloques.dev.nvicchi.com/`; la 14 agrega paralelo vertical, lienzo estático y progreso local por camino. Las correcciones posteriores de la barra residual del catálogo (`d096fd9`) y del arrastre individual/grupal (`0fc9ff2`) están desplegadas. Las fases 15–19 y producción no están autorizadas.
 - Fase 10: software entregado, **aceptación física pendiente**. El propietario no tiene Wemos disponible; no dar por probada la placa ni conectar/programar otro puerto como sustituto.
 - Producción es **Fase final, postergada**, no «fase 11». Los documentos históricos con letras son evidencias antiguas, no fases nuevas ni puntos para pedir OK.
 - Este contexto no transfiere automáticamente credenciales, chats, sesiones ni permisos. Otra cuenta debe tener su propio acceso verificado y la solicitud del propietario antes de operar.
@@ -102,6 +102,14 @@ Los recursos 2D de avatar se conservaron en versiones [detalladas](../public/ava
 El propietario autorizó «corrijamo la barra residual del catalogo». La revisión funcional `d096fd9` oculta la barra propia de Blockly junto con el catálogo y conserva las barras del programa. La regresión cubre botón, Escape, arrastre, categorías cortas y largas, escritorio de altura limitada y móvil; pasó en Chrome y Edge localmente y 2/2 contra DEV público. Typecheck, lint, smoke y build fueron correctos. El CI completo [34737668650](https://github.com/ncvicchi/capibloques/actions/runs/34737668650) pasó sus cuatro trabajos, incluidos backend, firmware, ESP-IDF y runtime público.
 
 `capi-dev` avanzó de `c681af2` a `d096fd9f5410bd35ee880cbc94870ee7d9c12aa2` mediante `capibloques-dev-runtime deploy`; el editor `capibloques-editor-dev:d096fd9f5410`, API y PostgreSQL quedaron saludables sin recrear API/base. Las comprobaciones local y pública respondieron `ok`, Compose/firewall fueron válidos y la admisión se restauró con `paused=False`, cero trabajos activos y planificador `active`. No se modificaron PRD, gateway, Proxmox, router ni Nginx. Esta entrega es mantenimiento posterior a la Fase 14: no altera la numeración ni autoriza la Fase 15.
+
+### Corrección del arrastre individual y grupal — 13 de septiembre de 2026
+
+El propietario decidió invertir el gesto de Blockly: arrastrar sin modificadores mueve sólo el bloque señalado y recompone la cadena; `Control` + arrastre mueve también los bloques siguientes, con `Comando` como equivalente en macOS. La revisión funcional `d818093` implementó el comportamiento, la ayuda accesible y Deshacer; `0fc9ff2` difirió la instalación de la estrategia durante el arrastre para conservar la creación desde el catálogo.
+
+La regresión construye tres bloques, comprueba ambas estructuras y restaura cada una con Deshacer. Pasó localmente en Chromium y en Chrome/Edge junto con el caso de arrastre desde el catálogo; también pasaron typecheck, lint, smoke, build y el archivo completo de experiencia de programación. El CI completo [34740573404](https://github.com/ncvicchi/capibloques/actions/runs/34740573404) pasó interfaz, runtime público, backend, firmware Arduino y los siete proyectos ESP-IDF.
+
+`capi-dev` avanzó de `d096fd9` a `0fc9ff2d2eee681a14cc22e276db371e34712e03` mediante `capibloques-dev-runtime deploy`. El editor `capibloques-editor-dev:0fc9ff2d2eee`, API y PostgreSQL quedaron saludables sin recrear API/base; salud local y pública, Compose y firewall fueron válidos. La admisión volvió a `paused=False` con cero trabajos activos y el planificador quedó `active`. Los dos recorridos afectados pasaron **4/4** sobre DEV público en Chrome/Edge. No se modificaron PRD, gateway, Proxmox, router ni Nginx; la Fase 15 sigue sin autorización.
 
 ## 4. Arquitectura y mapa de archivos
 
@@ -234,7 +242,7 @@ El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BAC
 - 17: Waveshare S3 5 pulgadas exacta, pantalla/entrada y guía visual de conectores.
 - 18: escena y controles locales en display, prioridad manual/programa explícita.
 - 19: desafíos progresivos, con primeros retos utilizables sin hardware obligatorio.
-- Backlog sin fase asignada: reacciones animadas del avatar ante éxito/fallo. La barra residual del catálogo quedó corregida en `d096fd9`.
+- Backlog sin fase asignada: reacciones animadas del avatar ante éxito/fallo; asistente grande, secuencial y accesible para compilar/grabar sin quitar guardas; y comprensión, medición y mejora de la cola/compilación con progreso real para el usuario. La barra residual del catálogo quedó corregida en `d096fd9` y el arrastre individual/grupal quedó desplegado en `0fc9ff2`.
 - Final: producción/HTTPS, restauración/backups externos, carga, monitoreo, rollback y piloto; postergada.
 
 La próxima fase numerada es **15, aún no autorizada para ejecución**. La aceptación física de fase 10 sigue separada. Exigir modelo/documentación y ensayo físico antes de anunciar soporte de una placa nueva. El diagrama Wemos fue contrastado con las fuentes enlazadas; conservar esa verificación al ampliarlo, porque existen pinouts públicos contradictorios. No convertir una ilustración en fuente única de verdad.

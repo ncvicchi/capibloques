@@ -155,6 +155,45 @@ Los conceptos 2D de cuerpo completo ya están guardados en dos juegos: [detallad
 
 Pendiente de priorización y asignación a una fase autorizada. Tiene relación directa con la futura Fase 19 de desafíos, pero debe cubrir también compilación y grabación sin ampliar esa fase hasta que el propietario defina el alcance.
 
+## 15. Asistente grande para compilar y grabar la placa
+
+Pedido del 13 de septiembre de 2026: el flujo actual exige compilar, esperar la cola, revisar condiciones, habilitar acciones, conectar la placa y grabar. Conservar esas garantías, pero presentarlas como un **asistente grande y secuencial** para que los chicos no tengan que descubrir varios controles separados.
+
+- Mostrar una sola tarea principal por paso, con título claro, explicación breve, indicador «Paso N de M» y botón grande. Permitir volver cuando sea seguro, cancelar sin perder el proyecto y retomar una compilación que siga vigente.
+- Recorrer como mínimo: revisar programa y cableado; elegir opciones necesarias; confirmar el envío privado de datos temporales cuando corresponda; compilar y mostrar la espera; revisar el resultado; conectar/elegir la placa; aceptar las condiciones específicas de grabación; grabar; informar el resultado y los próximos pasos.
+- Mantener visibles los estados reales: en cola, compilando, compilación correcta, binario listo, placa detectada, grabando, grabación correcta o error recuperable. No presentar «compiló» como «se grabó» ni «se grabó» como prueba física del circuito.
+- No eliminar consentimientos, permisos, comprobaciones de sesión/cuenta, guardas de cableado, vigencia del binario, idempotencia, cuotas ni límites del compilador. Un retroceso o doble clic no debe crear trabajos o grabaciones duplicadas.
+- Usar texto grande, alto contraste, controles táctiles amplios, foco administrado, lector de pantalla y teclado. Los detalles técnicos pueden desplegarse, pero el error principal debe explicar qué puede hacer el alumno a continuación.
+- Conservar las pantallas actuales como base funcional y reutilizar sus estados; el asistente coordina el recorrido, no introduce otra definición de compilación o grabación.
+
+Pendiente de priorización y asignación a una fase autorizada. Debe coordinarse con las reacciones de avatar del pedido 14, sin hacer que una animación sustituya el estado textual ni la acción siguiente.
+
+## 16. Movimiento individual y grupal de bloques
+
+Decisión del propietario del 13 de septiembre de 2026: invertir el gesto original de Blockly después de comprobarlo en la interfaz.
+
+- El arrastre normal mueve solamente el bloque señalado y recompone la cadena anterior con el bloque que seguía, cuando las conexiones son compatibles.
+- `Control` + arrastre mueve el bloque y todos los bloques siguientes como grupo. `Comando` ofrece el mismo comportamiento en macOS.
+- El comportamiento se aplica a proyectos iniciales, importados, recargados y restaurados con Deshacer; no cambia el JSON ni introduce una selección persistente.
+- La ayuda accesible explica ambos gestos. Deshacer restaura en una sola operación la estructura y posición anteriores.
+
+**Implementado el 13 de septiembre de 2026** en `d818093`, con la compatibilidad del arrastre desde el catálogo corregida en `0fc9ff2`. La regresión real arma tres bloques, mueve el intermedio solo y con su continuación, y verifica la estructura exportada antes y después de Deshacer. Pasó en Chromium y en Chrome/Edge junto con el arrastre desde el catálogo; también pasaron el archivo completo de experiencia de programación, typecheck, lint, smoke y build. El CI completo [34740573404](https://github.com/ncvicchi/capibloques/actions/runs/34740573404) fue correcto y ambos recorridos pasaron 4/4 sobre DEV público. DEV quedó desplegado en `0fc9ff2`, saludable, con admisión abierta y planificador activo.
+
+## 17. Comprender, medir y mejorar la compilación de binarios
+
+Pedido del 13 de septiembre de 2026: explicar con precisión cómo se genera un binario para ESP32, cómo entra y avanza por la cola, y revisar oportunidades de mejora. La interfaz debe dejar de mostrar solamente «Compilando» durante una espera larga y comunicar progreso real sin exponer información privada ni inventar exactitud.
+
+- Documentar el recorrido vigente de extremo a extremo: validación y guardado del proyecto; admisión e idempotencia; posición/espera en cola; planificador, reserva y lease; preparación del trabajo aislado; generación de fuentes; compilación y enlace; empaquetado, hash, disponibilidad y vencimiento del binario; cancelación, error, reintento y limpieza.
+- Medir con fixtures sintéticos cuánto tarda cada etapa, cuánto se espera por capacidad y dónde se consume CPU, memoria, disco e imágenes. Contrastar los límites de DEV antes de proponer concurrencia, cachés o cambios de receta.
+- Exponer estados verificables al alumno: «validando», «en cola», «esperando turno», «preparando compilador», «compilando», «enlazando firmware», «preparando descarga» y resultado. Mostrar tiempo transcurrido y última actividad; indicar posición sólo si la cola puede calcularla sin mentir.
+- No mostrar un porcentaje preciso cuando la herramienta no suministra unidades confiables. Si se estima tiempo restante, usar un rango basado en mediciones suficientes, identificarlo como estimación y actualizarlo sin saltos engañosos.
+- Permitir desplegar detalles comprensibles y diagnósticos sanitizados. Nunca mostrar código o proyectos de otra cuenta, SSID/clave, secretos, comandos internos peligrosos ni logs crudos que puedan contenerlos.
+- Revisar confiabilidad: doble envío, ACK perdido, cancelación pendiente, lease vencido, reinicio del planificador, proceso Docker todavía activo, artefacto vencido y actualización de la interfaz después de desconexiones. Conservar reserva hasta confirmar que el compilador terminó.
+- Agregar una vista administrativa con etapas, tiempos y fallos agregados que permita detectar cuellos de botella sin abrir proyectos privados. Toda optimización debe compararse con una línea base y conservar aislamiento, techo de recursos, compilación sin red y limpieza de secretos.
+- Coordinar esta información con el asistente del pedido 15: el asistente presenta el recorrido al alumno; este pedido define y mejora los estados reales que lo alimentan.
+
+Pendiente de priorización y asignación a una fase autorizada. La investigación puede producir documentación y métricas antes de cambiar la receta, pero no habilita aumentar recursos de la VM ni relajar aislamiento, privacidad o límites de concurrencia.
+
 ## Relación actualizada con el plan vigente
 
 El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las nuevas fases](PLAN_FASES_BACKLOG.md) incorporan todos los pedidos. La fase 11 conserva el contexto vivo; la fase 12 implementó la reorganización general y navegación; la fase 13 publicó DEV de forma controlada; la fase 14 entregó la ejecución dentro de bloques, el lienzo estático y el paralelo vertical.
@@ -176,5 +215,8 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 12. Desafíos progresivos | 19. Pendiente de autorización |
 | 13. Barra residual del catálogo | Implementado el 13 de septiembre de 2026, revisión `d096fd9` |
 | 14. Reacciones animadas del avatar | Pendiente de priorización y asignación; relacionada con desafíos, compilación y grabación |
+| 15. Asistente grande para compilar y grabar | Pendiente de priorización y asignación; conserva todas las guardas del flujo actual |
+| 16. Movimiento individual y grupal de bloques | Implementado y desplegado el 13 de septiembre de 2026, revisión `0fc9ff2` |
+| 17. Comprender, medir y mejorar la compilación | Pendiente de priorización y asignación; alimenta el progreso real del asistente |
 
-Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 14 y la corrección del pedido 13 están entregadas; las fases 15–19 y el pedido 14 requieren autorización o priorización propia.
+Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 14 y las correcciones de los pedidos 13 y 16 están entregadas; las fases 15–19 y los pedidos 14–15 y 17 requieren autorización o priorización propia.
