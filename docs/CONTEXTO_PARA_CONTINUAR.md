@@ -1,12 +1,12 @@
 # CapiBloques — contexto para continuar
 
-Documento vivo de **fase 11**. Actualización: **12 de septiembre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
+Documento vivo de **fase 11**. Actualización: **13 de septiembre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
 
 ## 1. Punto de entrada y autorización actual
 
 - Repositorio: [ncvicchi/capibloques](https://github.com/ncvicchi/capibloques). Rama de trabajo actual: `main`. Nuevas ramas, si hacen falta: prefijo `codex/`. Respetar el árbol existente, sin reset/force ni descartar cambios ajenos.
-- El propietario autorizó: **«vamos con 11 y 12»**, consecutivas y completas, sin pedir otro OK entre ellas. También pidió mantener esta documentación al cerrar la 12 y toda fase futura que solicite.
-- **Fases 11, 12 y 13 entregadas.** La 11 es contexto portable con mantenimiento obligatorio; la 12 entrega UX, catálogo separado, cámara de escena, guía Wemos y sesión sin validación por foco. La 13 publica DEV de forma persistente y segura en `https://capibloques.dev.nvicchi.com/`. Las fases 14–18 y producción no están autorizadas.
+- El propietario autorizó: **«vamos con 11 y 12»**, consecutivas y completas, y después **«Vams con el 14 pues»**. También pidió mantener esta documentación al cerrar toda fase futura que solicite. La fase 14 ya se cerró; estas autorizaciones no habilitan la 15.
+- **Fases 11–14 entregadas.** La 11 es contexto portable con mantenimiento obligatorio; la 12 entrega UX, catálogo separado, cámara de escena, guía Wemos y sesión sin validación por foco; la 13 publica DEV de forma persistente y segura en `https://capibloques.dev.nvicchi.com/`; la 14 agrega paralelo vertical, lienzo estático y progreso local por camino. Las fases 15–19 y producción no están autorizadas.
 - Fase 10: software entregado, **aceptación física pendiente**. El propietario no tiene Wemos disponible; no dar por probada la placa ni conectar/programar otro puerto como sustituto.
 - Producción es **Fase final, postergada**, no «fase 11». Los documentos históricos con letras son evidencias antiguas, no fases nuevas ni puntos para pedir OK.
 - Este contexto no transfiere automáticamente credenciales, chats, sesiones ni permisos. Otra cuenta debe tener su propio acceso verificado y la solicitud del propietario antes de operar.
@@ -69,7 +69,7 @@ Este corte sustituye al histórico para continuar, sin borrar su trazabilidad. C
 | Pruebas | 197 backend PostgreSQL, 8 contratos, build de 10 páginas y 18/18 Chrome/Edge externos. PRD no pudo acceder directamente al puerto 3080. |
 | Acceso DEV | Login de CapiBloques sin segunda Basic Auth, decisión documentada; datos sintéticos, rate-limit, cookies Secure, allowlists y proxy confiable acotados. El 12 de septiembre se verificó el ingreso real por HTTPS de la cuenta `administrador` después de restablecer su clave; la clave no se documenta ni se transfiere. |
 
-Próxima fase posible: **14, ejecución visual dentro de bloques y paralelo vertical**. Requiere autorización expresa; no iniciar 15–18 ni la Fase final.
+Próxima fase posible: **15, TX/RX serial programable**. Requiere autorización expresa; no iniciar 15–19 ni la Fase final por inferencia.
 
 Validación documental de cierre: **130 destinos locales en ocho documentos**, sin archivos faltantes ni diferencias de mayúsculas/minúsculas; las anclas operativas del túnel y compilador también se contrastaron. Los únicos recursos gráficos publicados son las dos capturas de fixtures sintéticos enlazadas desde la guía.
 
@@ -81,7 +81,21 @@ Autorización del propietario: **«Corregi la documentacion, luego dame una list
 
 Esta entrega sólo cambia documentación. El punto de partida local es `a74b427`, rama `main`, árbol limpio; el commit de corrección queda identificado en Git. La validación documental abarca diff y coherencia, más **189 enlaces locales y 37 anclas en 28 documentos**, con comprobación de nombres exactos y repetición desde un checkout limpio antes de publicar. No se repiten pruebas de aplicación ni consultas a las VMs: el último registro remoto sigue siendo `2597284`, runtime funcional `1ee0df9`, observado al cierre de fase 13. No corresponde desplegar por estos cambios.
 
-Pendientes sin cambio: aceptación física de fase 10; fases 14–18 sin autorización y Fase final postergada. El script de pruebas backend conserva una limitación operativa: `--restart` no carga la configuración pública; su uso directo queda excluido de la receta DEV vigente, sin afirmar que el script se haya corregido.
+En ese corte documental del 12 de septiembre seguían pendientes la aceptación física de fase 10 y las fases 14–18; la entrega posterior de fase 14 se registra debajo. El script de pruebas backend conserva una limitación operativa: `--restart` no carga la configuración pública; su uso directo queda excluido de la receta DEV vigente, sin afirmar que el script se haya corregido.
+
+### Entrega de fase 14 — 13 de septiembre de 2026
+
+| Evidencia | Resultado |
+| --- | --- |
+| Código y recursos | Funcional `897c6e0`; documentación y conceptos de avatar incorporados hasta `c681af2`. El detalle funcional está en la [guía de fase 14](FASE_14_EJECUCION_VISUAL.md). |
+| Comportamiento | «Al mismo tiempo» presenta caminos verticales; la ejecución conserva la cámara de Blockly y muestra progreso independiente en el bloque y el dispositivo. El estado visual no entra al JSON, autoguardado, historial ni firmware. |
+| Pruebas locales | Typecheck, lint, smoke y build correctos. Playwright afectado 4/4 en Chrome/Edge; la corrida Chromium completa detectó una lectura anticipada de pausa, se estabilizó la espera y el caso pasó. |
+| CI | [34735466824](https://github.com/ncvicchi/capibloques/actions/runs/34735466824), commit `c681af2`: cuatro jobs correctos, incluidos backend, firmware y ESP-IDF. |
+| DEV desplegado | `capi-dev` actualizado por avance rápido a `c681af2c527b90eeb602f37f3a289235dc6e3317`; editor `capibloques-editor-dev:c681af2c527b`, API y DB saludables. API/base no fueron recreados. |
+| Verificación posterior | Salud local y pública `ok`; Compose/firewall válidos; 4/4 Playwright externo Chrome/Edge. Admisión restaurada con cero trabajos activos y planificador `active`. |
+| Límites operativos | No se modificaron PRD, gateway, Proxmox, router ni Nginx. La Fase 14 no demuestra funcionamiento físico ni agrega seguimiento del firmware. |
+
+Los recursos 2D de avatar se conservaron en versiones [detalladas](../public/avatars/full-body/README.md) y [simples](../public/avatars/full-body-simple/README.md). Son conceptos de cuerpo completo para una futura adaptación a impresión 3D; no son STL ni quedaron integrados como animaciones. La barra residual del catálogo y las reacciones de avatar siguen como pedidos separados del backlog.
 
 ## 4. Arquitectura y mapa de archivos
 
@@ -208,18 +222,20 @@ El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BAC
 - 11: entregada y comprobada; mantenimiento obligatorio en futuras fases, no requiere reiniciar el traspaso.
 - 12: **entregada y verificada en DEV/CI**; [guía, pruebas y cierre](FASE_12_MESA_DE_TRABAJO.md). Encabezados/catálogo reorganizados, zoom/desplazamiento de escena, imagen técnica Wemos sincronizada y chequeo periódico sin interrupciones por foco.
 - 13: **entregada y verificada externamente**; [acceso persistente a DEV](FASE_13_ACCESO_EXTERNO_DEV.md), HTTPS mediante VM Nginx, runtime como servicio y origen restringido. DNS, certificado, reinicio y acceso Chrome/Edge están comprobados.
-- 14: paralelo vertical, lienzo de bloques estático e indicadores locales de progreso.
+- 14: **entregada y verificada en DEV/CI**; [paralelo vertical, lienzo estático e indicadores locales](FASE_14_EJECUCION_VISUAL.md).
 - 15: TX/RX serial configurable con mensajes completos, espera no bloqueante y bifurcación.
 - 16: DevKit S3 exacta, perfiles, imagen de conexiones, fuentes/compilación/USB.
 - 17: Waveshare S3 5 pulgadas exacta, pantalla/entrada y guía visual de conectores.
 - 18: escena y controles locales en display, prioridad manual/programa explícita.
+- 19: desafíos progresivos, con primeros retos utilizables sin hardware obligatorio.
+- Backlog sin fase asignada: barra residual del catálogo y reacciones animadas del avatar ante éxito/fallo.
 - Final: producción/HTTPS, restauración/backups externos, carga, monitoreo, rollback y piloto; postergada.
 
-La próxima fase de desarrollo posible es **14, aún no autorizada para ejecución**. No esperar hardware para mejorar esa ejecución visual, pero conservar separada la aceptación física pendiente de fase 10. Sí exigir modelo/documentación y ensayo físico antes de anunciar soporte de una placa nueva. El diagrama Wemos fue contrastado con las fuentes enlazadas; conservar esa verificación al ampliarlo, porque existen pinouts públicos contradictorios. No convertir una ilustración en fuente única de verdad.
+La próxima fase numerada es **15, aún no autorizada para ejecución**. La aceptación física de fase 10 sigue separada. Exigir modelo/documentación y ensayo físico antes de anunciar soporte de una placa nueva. El diagrama Wemos fue contrastado con las fuentes enlazadas; conservar esa verificación al ampliarlo, porque existen pinouts públicos contradictorios. No convertir una ilustración en fuente única de verdad.
 
 ## 9. Mensaje listo para otra conversación
 
-> Continuá CapiBloques desde este repositorio. Primero leé AGENTS.md y docs/CONTEXTO_PARA_CONTINUAR.md, luego el plan y la guía de la fase vigente. Confirmá rama, cambios locales y versión desplegada antes de operar. Las fases 11–13 están entregadas; DEV funciona públicamente en https://capibloques.dev.nvicchi.com/ y la próxima fase posible es 14, pero no está autorizada. No infieras autorización por estar en el backlog. Trabajá una fase completa por vez, informá avances, probá, hacé commit/push y actualizá este contexto al terminar. Producción es la Fase final y está postergada. El gateway es exclusivamente un salto SSH y está prohibido modificarlo; tampoco modifiques Proxmox, router, PRD u otros sitios. No copies secretos, no documentes contraseñas ni borres datos para recuperar acceso. La aceptación física de fase 10 sigue pendiente salvo evidencia posterior explícita. Decime qué contexto o acceso privado falta sin pedir credenciales en Git o documentación.
+> Continuá CapiBloques desde este repositorio. Primero leé AGENTS.md y docs/CONTEXTO_PARA_CONTINUAR.md, luego el plan y la guía de la fase vigente. Confirmá rama, cambios locales y versión desplegada antes de operar. Las fases 11–14 están entregadas; DEV funciona públicamente en https://capibloques.dev.nvicchi.com/ y la próxima fase posible es 15, pero no está autorizada. No infieras autorización por estar en el backlog. Trabajá una fase completa por vez, informá avances, probá, hacé commit/push y actualizá este contexto al terminar. Producción es la Fase final y está postergada. El gateway es exclusivamente un salto SSH y está prohibido modificarlo; tampoco modifiques Proxmox, router, PRD u otros sitios. No copies secretos, no documentes contraseñas ni borres datos para recuperar acceso. La aceptación física de fase 10 sigue pendiente salvo evidencia posterior explícita. Decime qué contexto o acceso privado falta sin pedir credenciales en Git o documentación.
 
 ## 10. Lista de cierre y mantenimiento obligatorio
 

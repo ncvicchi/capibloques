@@ -1,6 +1,6 @@
 # Nuevas fases de CapiBloques
 
-Plan elaborado el 8 de septiembre de 2026 y actualizado el 12 de septiembre de 2026. **Fases 11, 12 y 13 entregadas; fase 14 autorizada en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`; las fases 15–19 no están implementadas ni autorizadas y la Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
+Plan elaborado el 8 de septiembre de 2026 y actualizado el 13 de septiembre de 2026. **Fases 11–14 entregadas y verificadas en DEV**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`; las fases 15–19 no están implementadas ni autorizadas y la Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
 
 La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros 11–19; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. El contexto portable se entregó primero y después la UX, bajo la autorización consecutiva de 11 y 12, sin dar por hecha la prueba física. Al insertar acceso externo como fase 13, las fases antes numeradas 13–17 pasan a ser 14–18; no son tareas nuevas ni duplicadas. La fase 19 se agrega por pedido posterior del propietario para reunir los desafíos progresivos.
 
@@ -11,7 +11,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 11 | Contexto portable documentado; mantenimiento obligatorio en cada entrega | Pedido adicional del propietario | Documentación y estado verificable; sin migrar secretos ni datos |
 | 12 | Entregada y verificada en DEV/CI: editor despejado, navegación de escena, sesión sin interrupciones y guía visual Wemos | 1, 6, 8 y 10; 9: Wemos | Traspaso de fase 11; pinout documentado para la guía, sin sustituir ensayo físico |
 | 13 | Acceso externo persistente y seguro a DEV | 11: publicar DEV controladamente | Acceso autorizado a la VM Nginx existente; dominio/registro DNS creado por el propietario; sin tocar gateway ni host Proxmox |
-| 14 | Ejecución visual en los bloques y paralelo vertical | 4, 5 y 7 | Distribución de fase 12 |
+| 14 | Entregada y verificada en DEV: ejecución visual en los bloques y paralelo vertical | 4, 5 y 7 | Distribución de fase 12 |
 | 15 | Componentes y bloques TX/RX serial | 3: TX/RX; 9: conexiones seriales | Wemos actual como primer destino; simulador y ambos generadores |
 | 16 | Soporte completo ESP32-S3 DevKit y selección de placa | 2: DevKit; 9: guía visual DevKit | Modelo exacto identificado; incorporar el contrato TX/RX de fase 15 |
 | 17 | Perfil Waveshare ESP32-S3 con pantalla de 5 pulgadas | 2: Waveshare; 9: guía visual Waveshare | Perfiles de fase 16 y modelo/revisión exactos identificados |
@@ -103,6 +103,8 @@ No incluye producción, datos reales de alumnos, cambios del router, host Proxmo
 ## Fase 14 — Ejecución visual y paralelo vertical
 
 **Objetivo:** entender qué está pasando mirando el propio programa, sin que el lienzo se desplace solo.
+
+**Entregada y verificada en DEV:** código funcional `897c6e0`, assets complementarios hasta la revisión desplegada `c681af2` y [guía de entrega](FASE_14_EJECUCION_VISUAL.md). Las pruebas externas específicas pasaron 4/4 en Chrome y Edge; la admisión y el planificador quedaron activos después del despliegue. Los criterios siguientes conservan el alcance acordado.
 
 Alcance:
 
@@ -238,7 +240,7 @@ El gateway sigue siendo sólo un salto SSH, con prohibición de cambios. Tampoco
 ## Cómo se trabaja y qué falta decidir
 
 - Una fase completa autorizada por vez, con implementación, pruebas proporcionales, entrega en DEV y commit/push. Informar avances con evidencia y pendientes; no inventar porcentajes ni tiempos exactos.
-- **Fases 11–13 entregadas; fase 14 autorizada en curso.** Actualizar la documentación viva al cerrar cada fase futura solicitada. No ejecutar 15–19 ni producción sin autorización explícita.
+- **Fases 11–14 entregadas.** Actualizar la documentación viva al cerrar cada fase futura solicitada. No ejecutar 15–19 ni producción sin autorización explícita.
 - Para fases 16 y 17 hacen falta modelos exactos antes de fijar drivers/pines; para cerrar las entregas físicas hace falta hardware identificado y autorización para reemplazar firmware.
 - La fase 14 fija el paralelo como un contenedor con caminos apilados de arriba hacia abajo y mantiene fork/join. Formato de mensajes/timeout se fija en fase 15; prioridad manual/programa y límites gráficos en fase 18; catálogo inicial y visibilidad docente en fase 19. Son decisiones dentro de esas fases, no nuevas fases con letras.
 - No hay estimaciones horarias comprometidas: hardware, alcance de la adaptación gráfica y mediciones en la VM condicionan el esfuerzo. No retrasar ahora la planificación esperando esos datos, ni prometer implementaciones específicas de un modelo no identificado.

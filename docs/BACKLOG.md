@@ -1,6 +1,6 @@
 # Backlog de CapiBloques
 
-Pedidos del propietario desde el 7 de septiembre de 2026, registrados durante distintas entregas. El 8 de septiembre se asignaron a las [nuevas fases](PLAN_FASES_BACKLOG.md), precedidas por una fase de contexto portable para otra cuenta. **La fase 12 implementa los pedidos 1, 6, 8 y 10, y la parte Wemos del 9**; alcance, pruebas y límites en su [guía de entrega](FASE_12_MESA_DE_TRABAJO.md). Los restantes siguen pendientes. Los números de este archivo identifican pedidos, no fases. Las notas de «no interrumpir» son históricas, referidas a la entrega que transcurría cuando se hizo cada solicitud; no sustituyen el estado ni las autorizaciones del plan vigente.
+Pedidos del propietario desde el 7 de septiembre de 2026, registrados durante distintas entregas. El 8 de septiembre se asignaron a las [nuevas fases](PLAN_FASES_BACKLOG.md), precedidas por una fase de contexto portable para otra cuenta. **La fase 12 implementa los pedidos 1, 6, 8 y 10, y la parte Wemos del 9; la fase 14 implementa los pedidos 4, 5 y 7**. Alcance, pruebas y límites en sus guías de entrega. Los restantes siguen pendientes. Los números de este archivo identifican pedidos, no fases. Las notas de «no interrumpir» son históricas, referidas a la entrega que transcurría cuando se hizo cada solicitud; no sustituyen el estado ni las autorizaciones del plan vigente.
 
 ## 1. Redistribuir la interfaz
 
@@ -43,11 +43,11 @@ Precisar al diseñar: selección de UART, TX/RX, velocidad, fin de mensaje, codi
 
 ## 4. Disposición de «Al mismo tiempo»
 
-Pedido durante la implementación de fase 7: cambiar la disposición del bloque a **vertical en lugar de horizontal**, para poder ver los hilos en paralelo. Validar la propuesta visual con el propietario antes de implementarla, preservando orden, conexiones, deshacer/rehacer y proyectos existentes. Sólo registrado; no cambia la fase 7 en curso.
+Pedido durante la implementación de fase 7: cambiar la disposición del bloque a **vertical en lugar de horizontal**, para poder ver los hilos en paralelo. **Implementado en fase 14** con caminos apilados y conexiones `BRANCH0…BRANCH15`, preservando orden, importación/exportación y deshacer/rehacer.
 
 ## 5. Bloques estáticos al ejecutar
 
-La vista se desplaza sola en cada paso, incluso cuando el programa completo ya está visible; al crecer, los saltos confunden. El propietario pide **dejar estático el programa durante la ejecución**. Mantener resaltado del paso actual sin mover automáticamente el lienzo. Sólo registrado; no cambiar ahora el seguimiento de ejecución.
+La vista se desplaza sola en cada paso, incluso cuando el programa completo ya está visible; al crecer, los saltos confunden. El propietario pide **dejar estático el programa durante la ejecución**. **Implementado en fase 14:** el resaltado no mueve el lienzo y centrar el último bloque requiere una acción manual.
 
 ## 6. Separar catálogo y programa
 
@@ -62,7 +62,7 @@ Pedido durante el cierre de fase 9: trasladar la información de progreso del «
 - Preservar legibilidad, pausas/reanudación y pasos guiados; si hay caminos concurrentes, cada uno debe mostrar su propio progreso sin mover el lienzo ni mezclar sus tiempos.
 - Este pedido se relaciona con la redistribución de la interfaz y los bloques estáticos; no implica cambiar el reloj lógico del simulador o del firmware ni agregar seguimiento físico en vivo.
 
-**Sólo registrado. No modificar ni interrumpir la implementación, pruebas o cierre de fase 9 por este pedido.**
+**Implementado en fase 14:** cada camino muestra bloque, espera, tiempo restante, barra e iteración cuando corresponde; los dispositivos muestran su acción local. El estado es transitorio y se limpia al detener, reiniciar o cambiar de proyecto.
 
 ## 8. No revalidar la sesión al recuperar el foco
 
@@ -149,11 +149,13 @@ Pedido del 12 de septiembre de 2026: usar el avatar elegido por cada alumno como
 - Resolver el avatar desde la cuenta activa y limpiar la reacción al cambiar de cuenta o revocar sesión. La reacción es estado transitorio de interfaz: no forma parte del JSON del proyecto, autoguardado, historial ni firmware.
 - Preparar poses y piezas reutilizables para los conceptos 2D de cuerpo completo y sus futuros modelos 3D, sin afirmar que una ilustración 2D ya es imprimible o animable en 3D.
 
+Los conceptos 2D de cuerpo completo ya están guardados en dos juegos: [detallados](../public/avatars/full-body/README.md) y [simples](../public/avatars/full-body-simple/README.md). Son referencias visuales para la futura adaptación 3D; todavía no son modelos STL ni animaciones integradas a la interfaz.
+
 Pendiente de priorización y asignación a una fase autorizada. Tiene relación directa con la futura Fase 19 de desafíos, pero debe cubrir también compilación y grabación sin ampliar esa fase hasta que el propietario defina el alcance.
 
 ## Relación actualizada con el plan vigente
 
-El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las nuevas fases](PLAN_FASES_BACKLOG.md) incorporan todos los pedidos. La fase 11 conserva el contexto vivo; la fase 12 implementó la reorganización general y navegación; la fase 13 publicó DEV de forma controlada y está entregada. La ejecución dentro de bloques y paralelo vertical siguen en fase 14, no se dan por resueltos al redistribuir la UI.
+El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las nuevas fases](PLAN_FASES_BACKLOG.md) incorporan todos los pedidos. La fase 11 conserva el contexto vivo; la fase 12 implementó la reorganización general y navegación; la fase 13 publicó DEV de forma controlada; la fase 14 entregó la ejecución dentro de bloques, el lienzo estático y el paralelo vertical.
 
 | Pedido | Fase y estado |
 | --- | --- |
@@ -161,10 +163,10 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 2. ESP32-S3 | 16. DevKit y 17. Waveshare de 5 pulgadas |
 | 3. Display interactivo | 18. Escena y controles locales en pantalla |
 | 3. TX/RX serial | 15. TX/RX programable |
-| 4. Paralelo vertical | 14. Ejecución visual |
-| 5. Bloques estáticos | 14. Ejecución visual |
+| 4. Paralelo vertical | 14. Implementado |
+| 5. Bloques estáticos | 14. Implementado |
 | 6. Catálogo separado | 12. Implementado |
-| 7. Progreso dentro del bloque/componente | 14. Ejecución visual |
+| 7. Progreso dentro del bloque/componente | 14. Implementado |
 | 8. Sesión sin revalidación por foco | 12. Implementado |
 | 9. Imagen de la placa con conexiones | 12. Wemos implementada; pendientes DevKit (16), Waveshare (17) y TX/RX (15) |
 | 10. Desplazamiento y zoom de la escena | 12. Implementado |
@@ -173,4 +175,4 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 13. Barra residual del catálogo | Pendiente de priorización y asignación |
 | 14. Reacciones animadas del avatar | Pendiente de priorización y asignación; relacionada con desafíos, compilación y grabación |
 
-Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 14 está autorizada en curso; las fases 15–19 y el pedido 13 requieren autorización o priorización propia.
+Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 14 está entregada; las fases 15–19 y los pedidos 13–14 requieren autorización o priorización propia.

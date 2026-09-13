@@ -1,15 +1,15 @@
 # Plan de CapiBloques: multiusuario, enseñanza y programación de Wemos
 
-Estado: **fases 0–9 y 11–13 implementadas y verificadas en DEV**. La fase 10 conserva aceptación física pendiente por falta de Wemos. La [fase 13](FASE_13_ACCESO_EXTERNO_DEV.md) publicó DEV de forma persistente y segura; las fases 14–18 requieren autorización. Producción es la **Fase final**, postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) contiene el detalle y la evidencia vigente.
-Fecha de actualización: 12 de septiembre de 2026.
-Backlog posterior: [pedidos completos](BACKLOG.md), asignados a las [fases 12–18](PLAN_FASES_BACKLOG.md), precedidas por la fase 11 de contexto portable. Las fases 12 y 13 están entregadas; los pedidos de las fases 14–18 requieren autorización propia.
+Estado: **fases 0–9 y 11–14 implementadas y verificadas en DEV**. La fase 10 conserva aceptación física pendiente por falta de Wemos. La [fase 13](FASE_13_ACCESO_EXTERNO_DEV.md) publicó DEV de forma persistente y segura y la [fase 14](FASE_14_EJECUCION_VISUAL.md) entregó la ejecución visual; las fases 15–19 requieren autorización. Producción es la **Fase final**, postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) contiene el detalle y la evidencia vigente.
+Fecha de actualización: 13 de septiembre de 2026.
+Backlog posterior: [pedidos completos](BACKLOG.md), asignados a las [fases 12–19](PLAN_FASES_BACKLOG.md), precedidas por la fase 11 de contexto portable. Las fases 12–14 están entregadas; los pedidos de las fases 15–19 requieren autorización propia.
 Actualización: ABM en `/gestion/usuarios/`, marca institucional en `/gestion/colegio/`, cursos en `/gestion/cursos/` y biblioteca personal en el editor → Mis proyectos. Guardado manual y automático del proyecto vinculado en PostgreSQL con revisión optimista, importación/exportación y papelera recuperable. IndexedDB conserva documento y operación de Guardar antes de la red, con recuperación tras cierre y listado de otras copias de la cuenta. Al salir, elección explícita de conservar o retirar copias locales después de confirmar logout; no se limpian otras cuentas, archivos descargados ni equipos remotos. No es una cola general ni un respaldo. La continuidad local durante cortes exige un proyecto ya cargado y una sesión no vencida; al reconectar se revalidan acceso y conflictos. El historial y los borradores de escena se conservan por separado, sin publicarlos implícitamente. Arduino + ESP-IDF y la compilación/descarga privada con concurrencia configurable están implementados en DEV; USB/monitor también, con aceptación física pendiente. Producción no está activada y su Fase final queda postergada.
 
 ## 1. Decisiones acordadas
 
 - Desplegar en una PC del propietario con Proxmox, sin dependencia de GitHub Pages, Render o Sites.
 - Una fase completa por vez: trabajar, probar, informar y esperar OK antes de la siguiente fase. No detenerse para pedir aprobación entre subfases. Dar actualizaciones breves y hacer commit/push de los cambios versionables de cada entrega; no incluir secretos.
-- Numeración actualizada por el propietario: 11 contexto portable para otra cuenta, 12 UX, 13 acceso externo a DEV, 14–18 backlog funcional y **Fase final** de producción sin número, postergada. El [plan detallado](PLAN_FASES_BACKLOG.md) define alcances y aceptación; planificar no equivale a autorizar implementación.
+- Numeración actualizada por el propietario: 11 contexto portable para otra cuenta, 12 UX, 13 acceso externo a DEV, 14–19 backlog funcional y **Fase final** de producción sin número, postergada. El [plan detallado](PLAN_FASES_BACKLOG.md) define alcances y aceptación; planificar no equivale a autorizar implementación.
 - Desactivar GitHub Pages desde ahora por indicación del propietario, conservando CI. No esperar al nuevo despliegue ni reactivar Pages automáticamente.
 - Usar el gateway existente EXCLUSIVAMENTE como salto SSH. Está prohibido modificarlo, instalar, reiniciar o ejecutar comandos de administración allí; tampoco copiar claves privadas ni reenviar el agente SSH. Preparar sólo las VMs autorizadas.
 - Dos VMs Ubuntu Server 24.04 LTS, desarrollo y producción, con los recursos que el propietario pueda asignar. Las configuraciones amplias sugeridas anteriormente no son requisitos mínimos ni compromisos de capacidad.
@@ -273,7 +273,7 @@ El backup lógico de PostgreSQL está documentado como copia consistente mientra
 
 ## 10. Etapas y criterios de aceptación
 
-Numeración vigente: fases consecutivas 0–18, sin letras, más **Fase final** de producción, sin número y postergada. Las fases 0–9 y 11–13 están entregadas; fase 10 conserva aceptación física pendiente. Las fases 14–18 necesitan autorización de ejecución.
+Numeración vigente: fases consecutivas 0–19, sin letras, más **Fase final** de producción, sin número y postergada. Las fases 0–9 y 11–14 están entregadas; fase 10 conserva aceptación física pendiente. Las fases 15–19 necesitan autorización de ejecución.
 
 | Etapa | Entrega | Se considera terminada cuando… |
 | --- | --- | --- |
@@ -291,16 +291,17 @@ Numeración vigente: fases consecutivas 0–18, sin letras, más **Fase final** 
 | 11. Contexto portable · documentada, mantenimiento continuo | Documentación para continuar desde otra cuenta, punto de entrada y mensaje inicial | Desde un checkout limpio se reconstruyen estado, decisiones, reglas, pruebas y próximos pasos sin leer el chat; no se publican secretos ni datos infantiles. |
 | 12. Editor despejado · entregada y verificada en DEV/CI | Encabezados compactos, catálogo separado, desplazamiento/zoom de escena, sesión sin interrupciones por foco y conexiones sobre imagen Wemos | Se recupera espacio útil, arrastrar/editar funciona en Chrome/Edge y cambiar de ventana no dispara validaciones por foco ni interrumpe el editor; se conservan permisos y trabajo. Navegar la escena no modifica coordenadas/JSON ni simulación; se puede recuperar la vista completa. Listado e imagen de conexiones concuerdan con el proyecto y el pinout documentado, conservando advertencias. |
 | 13. Acceso externo a DEV · entregada y verificada | Subdominio HTTPS, runtime persistente, proxy Nginx y origen interno restringido; [cierre y evidencia](FASE_13_ACCESO_EXTERNO_DEV.md) | Acceso externo real en Chrome/Edge, servicio tras reinicio, certificado renovable, mismo origen y sin publicar HMR, base, Docker, compilador o administración; DNS creado por el propietario. |
-| 14. Ejecución visual · planificada | Paralelo vertical, lienzo estático e indicadores de progreso en bloques/componentes | Varios hilos muestran avance propio sin mover scroll/zoom ni alterar tiempos lógicos, proyectos, autoguardado o historial. |
+| 14. Ejecución visual · entregada y verificada | Paralelo vertical, lienzo estático e indicadores de progreso en bloques/componentes; [cierre y evidencia](FASE_14_EJECUCION_VISUAL.md) | Varios hilos muestran avance propio sin mover scroll/zoom ni alterar tiempos lógicos, proyectos, autoguardado o historial. |
 | 15. TX/RX serial · planificada | UART configurable, mensajes y bifurcación igual/distinto, integrados en la guía de conexiones | Simulación, Arduino e IDF coinciden ante mensajes completos, ausencia, timeout y fragmentos; espera no bloqueante, TX/RX visibles en listado/imagen y ensayo físico en Wemos. |
 | 16. ESP32-S3 DevKit · planificada | Perfiles de placa, guía visual de conexiones DevKit y recorrido completo hasta USB | Modelo exacto, pines y memoria validados; ambas salidas compilan y se graban/ejecutan en la DevKit identificada; listado e imagen corresponden al perfil y Wemos conserva compatibilidad. |
 | 17. Waveshare de 5 pulgadas · planificada | Perfil de placa, imagen con conexiones, pantalla y entrada táctil si existe | Modelo/revisión identificados, conectores disponibles/reservados correctamente señalados y mensajes/zonas funcionando físicamente con ambas herramientas, límites medidos y USB validado; no implica aún escena interactiva. |
 | 18. Escena en pantalla · planificada | Representación gráfica y controles locales de dispositivos | Simulación y firmware concuerdan; prioridad manual/programa explícita, edición recuperable y ensayo físico en la pantalla identificada. |
+| 19. Desafíos progresivos · planificada | Recorrido educativo de complejidad creciente, pistas y validación por comportamiento | Los primeros retos funcionan en navegador sin hardware obligatorio, aceptan soluciones equivalentes y preservan privacidad, accesibilidad y compatibilidad de proyectos. |
 | Final. Producción y piloto · postergada | Configuración de producción, HTTPS, backups, carga y reversión | Con autorización nueva y aceptación física de los destinos del piloto: restauración en entorno aislado, carga acordada, servicios internos protegidos y flujo con administrador, docentes y alumnos de prueba. |
 
 Alcance, dependencias y aceptación completos en el [plan de fases pendientes](PLAN_FASES_BACKLOG.md).
 
-La unidad de entrega y validación es la **fase completa**. Las fases 0–9 y 11–13 están entregadas; fase 10 conserva aceptación física pendiente; 14–18 requieren autorización propia y la Fase final está postergada.
+La unidad de entrega y validación es la **fase completa**. Las fases 0–9 y 11–14 están entregadas; fase 10 conserva aceptación física pendiente; 15–19 requieren autorización propia y la Fase final está postergada.
 
 Pruebas obligatorias adicionales:
 
@@ -345,7 +346,7 @@ Estado de las confirmaciones y pendientes para próximos despliegues:
 6. Módulo de pantalla disponible (controlador, resolución, interfaz y alimentación), antes de cerrar su perfil de hardware.
 7. Logo y nombre institucional suministrados por el propietario; techo de compilación seguro según medición de las VMs y margen del host compartido.
 
-DEV ya está publicado conforme a la fase 13. No se abren puertos del router, se copian datos reales ni se modifica el host/gateway. Los pasos de despliegue posteriores se coordinan por fase; las fases 14–18 requieren autorización propia y producción continúa postergada.
+DEV ya está publicado conforme a la fase 13 y sirve la revisión de fase 14. No se abren puertos del router, se copian datos reales ni se modifica el host/gateway. Los pasos de despliegue posteriores se coordinan por fase; las fases 15–19 requieren autorización propia y producción continúa postergada.
 
 ### Antecedente de fase 0: preparación de ambas VMs y trabajo en desarrollo
 
