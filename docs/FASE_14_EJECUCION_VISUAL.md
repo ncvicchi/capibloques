@@ -49,5 +49,5 @@ La ejecución visual representa la simulación del navegador. No sigue un firmwa
 ## Pendientes posteriores
 
 - Fases 15–19 requieren autorización propia; producción continúa como Fase final postergada.
-- El pedido de barra de desplazamiento residual del catálogo quedó registrado en el [backlog](BACKLOG.md#13-barra-de-desplazamiento-residual-del-catálogo), pendiente de priorización y fuera del alcance de esta fase.
+- La barra de desplazamiento residual del catálogo estaba fuera del alcance de esta fase y se corrigió después como mantenimiento autorizado en `d096fd9`; el [backlog](BACKLOG.md#13-barra-de-desplazamiento-residual-del-catálogo) conserva su evidencia.
 - La Fase 19 de desafíos progresivos quedó agregada al [plan](PLAN_FASES_BACKLOG.md#fase-19--desafíos-progresivos), sin iniciar su implementación.

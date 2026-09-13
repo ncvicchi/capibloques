@@ -135,7 +135,9 @@ Pedido del 12 de septiembre de 2026: al elegir un bloque aparece una barra de de
 - La barra propia del catálogo debe ocultarse o retirarse junto con el catálogo. Las barras necesarias del programa continúan funcionando y no cambian de posición ni tamaño por ese cierre.
 - Verificar ratón, teclado, escritorio de altura limitada, móvil y Chrome/Edge; el arreglo no debe recortar bloques, dejar una franja vacía ni mover el lienzo.
 
-Pendiente de priorización y asignación a una fase autorizada. Se registra durante la Fase 14 sin ampliar su alcance ni presentarlo como resuelto.
+**Implementado el 13 de septiembre de 2026** como corrección de mantenimiento autorizada por el propietario con «corrijamo la barra residual del catalogo». La causa era que Blockly ocultaba el `flyout`, pero conservaba visibles sus elementos `.blocklyFlyoutScrollbar`. La revisión `d096fd9` los oculta cuando el catálogo está cerrado sin afectar `.blocklyMainWorkspaceScrollbar`.
+
+La prueba automatizada cubre categorías cortas y largas, cierre con botón y Escape, cierre después de arrastrar, escritorio de altura limitada y móvil. Pasó en Chrome y Edge tanto localmente como contra DEV público; typecheck, lint, smoke, build y el CI completo también quedaron correctos. DEV quedó desplegado en `d096fd9` con API/base saludables, admisión abierta y planificador activo. Esta corrección no cambia la numeración de fases ni autoriza la Fase 15.
 
 ## 14. Reacciones animadas del avatar ante resultados
 
@@ -172,7 +174,7 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 10. Desplazamiento y zoom de la escena | 12. Implementado |
 | 11. Acceso externo persistente a DEV | 13. Implementado |
 | 12. Desafíos progresivos | 19. Pendiente de autorización |
-| 13. Barra residual del catálogo | Pendiente de priorización y asignación |
+| 13. Barra residual del catálogo | Implementado el 13 de septiembre de 2026, revisión `d096fd9` |
 | 14. Reacciones animadas del avatar | Pendiente de priorización y asignación; relacionada con desafíos, compilación y grabación |
 
-Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 14 está entregada; las fases 15–19 y los pedidos 13–14 requieren autorización o priorización propia.
+Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 14 y la corrección del pedido 13 están entregadas; las fases 15–19 y el pedido 14 requieren autorización o priorización propia.

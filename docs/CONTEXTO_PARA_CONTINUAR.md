@@ -6,7 +6,7 @@ Documento vivo de **fase 11**. Actualización: **13 de septiembre de 2026**. Lee
 
 - Repositorio: [ncvicchi/capibloques](https://github.com/ncvicchi/capibloques). Rama de trabajo actual: `main`. Nuevas ramas, si hacen falta: prefijo `codex/`. Respetar el árbol existente, sin reset/force ni descartar cambios ajenos.
 - El propietario autorizó: **«vamos con 11 y 12»**, consecutivas y completas, y después **«Vams con el 14 pues»**. También pidió mantener esta documentación al cerrar toda fase futura que solicite. La fase 14 ya se cerró; estas autorizaciones no habilitan la 15.
-- **Fases 11–14 entregadas.** La 11 es contexto portable con mantenimiento obligatorio; la 12 entrega UX, catálogo separado, cámara de escena, guía Wemos y sesión sin validación por foco; la 13 publica DEV de forma persistente y segura en `https://capibloques.dev.nvicchi.com/`; la 14 agrega paralelo vertical, lienzo estático y progreso local por camino. Las fases 15–19 y producción no están autorizadas.
+- **Fases 11–14 entregadas.** La 11 es contexto portable con mantenimiento obligatorio; la 12 entrega UX, catálogo separado, cámara de escena, guía Wemos y sesión sin validación por foco; la 13 publica DEV de forma persistente y segura en `https://capibloques.dev.nvicchi.com/`; la 14 agrega paralelo vertical, lienzo estático y progreso local por camino. La corrección posterior de la barra residual del catálogo está desplegada en `d096fd9`. Las fases 15–19 y producción no están autorizadas.
 - Fase 10: software entregado, **aceptación física pendiente**. El propietario no tiene Wemos disponible; no dar por probada la placa ni conectar/programar otro puerto como sustituto.
 - Producción es **Fase final, postergada**, no «fase 11». Los documentos históricos con letras son evidencias antiguas, no fases nuevas ni puntos para pedir OK.
 - Este contexto no transfiere automáticamente credenciales, chats, sesiones ni permisos. Otra cuenta debe tener su propio acceso verificado y la solicitud del propietario antes de operar.
@@ -95,7 +95,13 @@ En ese corte documental del 12 de septiembre seguían pendientes la aceptación 
 | Verificación posterior | Salud local y pública `ok`; Compose/firewall válidos; 4/4 Playwright externo Chrome/Edge. Admisión restaurada con cero trabajos activos y planificador `active`. |
 | Límites operativos | No se modificaron PRD, gateway, Proxmox, router ni Nginx. La Fase 14 no demuestra funcionamiento físico ni agrega seguimiento del firmware. |
 
-Los recursos 2D de avatar se conservaron en versiones [detalladas](../public/avatars/full-body/README.md) y [simples](../public/avatars/full-body-simple/README.md). Son conceptos de cuerpo completo para una futura adaptación a impresión 3D; no son STL ni quedaron integrados como animaciones. La barra residual del catálogo y las reacciones de avatar siguen como pedidos separados del backlog.
+Los recursos 2D de avatar se conservaron en versiones [detalladas](../public/avatars/full-body/README.md) y [simples](../public/avatars/full-body-simple/README.md). Son conceptos de cuerpo completo para una futura adaptación a impresión 3D; no son STL ni quedaron integrados como animaciones. Las reacciones de avatar siguen como pedido separado del backlog.
+
+### Corrección de la barra del catálogo — 13 de septiembre de 2026
+
+El propietario autorizó «corrijamo la barra residual del catalogo». La revisión funcional `d096fd9` oculta la barra propia de Blockly junto con el catálogo y conserva las barras del programa. La regresión cubre botón, Escape, arrastre, categorías cortas y largas, escritorio de altura limitada y móvil; pasó en Chrome y Edge localmente y 2/2 contra DEV público. Typecheck, lint, smoke y build fueron correctos. El CI completo [34737668650](https://github.com/ncvicchi/capibloques/actions/runs/34737668650) pasó sus cuatro trabajos, incluidos backend, firmware, ESP-IDF y runtime público.
+
+`capi-dev` avanzó de `c681af2` a `d096fd9f5410bd35ee880cbc94870ee7d9c12aa2` mediante `capibloques-dev-runtime deploy`; el editor `capibloques-editor-dev:d096fd9f5410`, API y PostgreSQL quedaron saludables sin recrear API/base. Las comprobaciones local y pública respondieron `ok`, Compose/firewall fueron válidos y la admisión se restauró con `paused=False`, cero trabajos activos y planificador `active`. No se modificaron PRD, gateway, Proxmox, router ni Nginx. Esta entrega es mantenimiento posterior a la Fase 14: no altera la numeración ni autoriza la Fase 15.
 
 ## 4. Arquitectura y mapa de archivos
 
@@ -228,7 +234,7 @@ El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BAC
 - 17: Waveshare S3 5 pulgadas exacta, pantalla/entrada y guía visual de conectores.
 - 18: escena y controles locales en display, prioridad manual/programa explícita.
 - 19: desafíos progresivos, con primeros retos utilizables sin hardware obligatorio.
-- Backlog sin fase asignada: barra residual del catálogo y reacciones animadas del avatar ante éxito/fallo.
+- Backlog sin fase asignada: reacciones animadas del avatar ante éxito/fallo. La barra residual del catálogo quedó corregida en `d096fd9`.
 - Final: producción/HTTPS, restauración/backups externos, carga, monitoreo, rollback y piloto; postergada.
 
 La próxima fase numerada es **15, aún no autorizada para ejecución**. La aceptación física de fase 10 sigue separada. Exigir modelo/documentación y ensayo físico antes de anunciar soporte de una placa nueva. El diagrama Wemos fue contrastado con las fuentes enlazadas; conservar esa verificación al ampliarlo, porque existen pinouts públicos contradictorios. No convertir una ilustración en fuente única de verdad.
