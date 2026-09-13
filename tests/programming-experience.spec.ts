@@ -49,6 +49,78 @@ async function exportWorkspace(page: Page) {
   return JSON.parse(Buffer.concat(chunks).toString()).workspace;
 }
 
+function threeBlockProgram() {
+  return start('drag-root', {
+    ...block('counter_change', 'drag-first', { DELTA: 1 }),
+    next: {
+      block: {
+        ...block('wait', 'drag-middle', { SECONDS: 1 }),
+        next: { block: block('counter_change', 'drag-last', { DELTA: 2 }) },
+      },
+    },
+  });
+}
+
+async function dragProgramBlock(page: Page, id: string, withControl: boolean) {
+  const path = page
+    .locator(`.blocklyBlockCanvas [data-id="${id}"] .blocklyPath`)
+    .first();
+  const box = (await path.boundingBox())!;
+  if (withControl) await page.keyboard.down('Control');
+  await page.mouse.move(
+    box.x + Math.min(45, box.width / 2),
+    box.y + Math.min(18, box.height / 2),
+  );
+  await page.mouse.down();
+  await page.mouse.move(box.x + 260, box.y + 135, { steps: 12 });
+  await page.mouse.up();
+  if (withControl) await page.keyboard.up('Control');
+}
+
+function savedBlock(value: unknown, id: string): Record<string, unknown> | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const candidate = value as Record<string, unknown>;
+  if (candidate.id === id) return candidate;
+  for (const child of Object.values(candidate)) {
+    const found = savedBlock(child, id);
+    if (found) return found;
+  }
+}
+
+function nextBlockId(value: Record<string, unknown> | undefined) {
+  const next = value?.next;
+  if (!next || typeof next !== 'object') return undefined;
+  const nested = (next as Record<string, unknown>).block;
+  if (!nested || typeof nested !== 'object') return undefined;
+  return (nested as Record<string, unknown>).id;
+}
+
+test('arrastre normal mueve sólo el bloque y Control mueve los siguientes', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await open(page);
+  await importBlocks(page, [threeBlockProgram()]);
+
+  await dragProgramBlock(page, 'drag-middle', false);
+  let saved = await exportWorkspace(page);
+  expect(nextBlockId(savedBlock(saved, 'drag-first'))).toBe('drag-last');
+  expect(nextBlockId(savedBlock(saved, 'drag-middle'))).toBeUndefined();
+
+  await page.getByRole('button', { name: 'Deshacer', exact: true }).click();
+  saved = await exportWorkspace(page);
+  expect(nextBlockId(savedBlock(saved, 'drag-first'))).toBe('drag-middle');
+  expect(nextBlockId(savedBlock(saved, 'drag-middle'))).toBe('drag-last');
+
+  await dragProgramBlock(page, 'drag-middle', true);
+  saved = await exportWorkspace(page);
+  expect(nextBlockId(savedBlock(saved, 'drag-first'))).toBeUndefined();
+  expect(nextBlockId(savedBlock(saved, 'drag-middle'))).toBe('drag-last');
+
+  await page.getByRole('button', { name: 'Deshacer', exact: true }).click();
+  saved = await exportWorkspace(page);
+  expect(nextBlockId(savedBlock(saved, 'drag-first'))).toBe('drag-middle');
+  expect(nextBlockId(savedBlock(saved, 'drag-middle'))).toBe('drag-last');
+});
+
 test('inicio único: obligatorio, sin categoría y protegido de borrar/copiar; acciones editables', async ({
   page,
 }) => {

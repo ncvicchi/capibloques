@@ -15,6 +15,7 @@ import { validFavorite } from '@/lib/user-preferences';
 type BlocklyApi = typeof import('blockly');
 type BlocklyWorkspaceSvg = import('blockly').WorkspaceSvg;
 type BlocklyBlock = import('blockly').Block;
+type BlocklyBlockSvg = import('blockly').BlockSvg;
 
 export interface BlocklyWorkspaceHandle {
   save(): Record<string, unknown>;
@@ -122,6 +123,26 @@ function refreshBlockAccessibility(workspace: BlocklyWorkspaceSvg) {
     path.setAttribute('role', 'img');
     path.setAttribute('aria-label', blockAccessibilityLabel(block));
   }
+}
+
+function createBlockDraggingConfigurator(
+  Blockly: BlocklyApi,
+  workspace: BlocklyWorkspaceSvg,
+) {
+  class CapiBlockDragStrategy extends Blockly.dragging.BlockDragStrategy {
+    protected override shouldHealStack(event: PointerEvent | undefined) {
+      return !(event?.ctrlKey || event?.metaKey);
+    }
+  }
+  const configured = new WeakSet<BlocklyBlockSvg>();
+  return () => {
+    for (const block of workspace.getAllBlocks(false)) {
+      const renderedBlock = block as BlocklyBlockSvg;
+      if (configured.has(renderedBlock)) continue;
+      renderedBlock.setDragStrategy(new CapiBlockDragStrategy(renderedBlock));
+      configured.add(renderedBlock);
+    }
+  };
 }
 
 const executionColours = [
@@ -335,6 +356,7 @@ const BlocklyWorkspace = forwardRef<
   const hostRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<BlocklyWorkspaceSvg | null>(null);
   const blocklyRef = useRef<BlocklyApi | null>(null);
+  const configureBlockDraggingRef = useRef<() => void>(() => {});
   const changeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialWorkspaceRef = useRef(initialWorkspace);
   // El modo no cambia durante la vida de un workspace; revisión monta el suyo.
@@ -432,6 +454,11 @@ const BlocklyWorkspace = forwardRef<
           grid: { spacing: 22, length: 2, colour: '#d9dced', snap: false },
           sounds: false,
         });
+        const configureBlockDragging = createBlockDraggingConfigurator(
+          Blockly,
+          workspace,
+        );
+        configureBlockDraggingRef.current = configureBlockDragging;
         workspaceRef.current = workspace;
         workspace.registerButtonCallback('CAPI_CHOOSE_FAVORITES', () => onChooseFavoritesRef.current?.());
         workspace.registerToolboxCategoryCallback('CAPI_FAVORITES', () => [
@@ -445,6 +472,7 @@ const BlocklyWorkspace = forwardRef<
         } catch (error) {
           onErrorRef.current?.(readableLoadError(error));
         }
+        configureBlockDragging();
         refreshBlockAccessibility(workspace);
         appliedRevisionRef.current = revisionRef.current;
         onChangeRef.current(
@@ -466,6 +494,7 @@ const BlocklyWorkspace = forwardRef<
             Blockly.Events.setGroup(event.group || true);
             try { ensureSingleStart(Blockly, workspace); } catch (error) { onErrorRef.current?.(readableLoadError(error)); }
             finally { Blockly.Events.setGroup(group); }
+            configureBlockDragging();
           }
           if (event.type === Blockly.Events.BLOCK_MOVE && event.recordUndo)
             onBlockSnapRef.current?.();
@@ -574,6 +603,7 @@ const BlocklyWorkspace = forwardRef<
       resizeObserver?.disconnect();
       if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
       if (changeTimerRef.current) clearTimeout(changeTimerRef.current);
+      configureBlockDraggingRef.current = () => {};
       workspaceRef.current?.dispose();
       workspaceRef.current = null;
     };
@@ -599,6 +629,7 @@ const BlocklyWorkspace = forwardRef<
       onErrorRef.current?.(readableLoadError(error));
       return;
     }
+    configureBlockDraggingRef.current();
     appliedRevisionRef.current = revision;
     onChangeRef.current(
       saveWorkspace(blocklyRef.current, workspaceRef.current) as Record<string, unknown>,
@@ -633,6 +664,7 @@ const BlocklyWorkspace = forwardRef<
           onErrorRef.current?.(readableLoadError(error));
           return;
         }
+        configureBlockDraggingRef.current();
         onChangeRef.current(
           saveWorkspace(blocklyRef.current, workspaceRef.current) as Record<string, unknown>,
         );
@@ -710,7 +742,7 @@ const BlocklyWorkspace = forwardRef<
       {!ready && <div className="editor-loading">Preparando los bloques…</div>}
       <p id="blockly-keyboard-help" className="visually-hidden">
         Usa Tab para recorrer el editor. Las flechas permiten navegar por los
-        controles de Blockly. {readOnly ? 'Sólo lectura: no se pueden modificar los bloques.' : 'Control Z deshace y Control Y rehace.'}
+        controles de Blockly. {readOnly ? 'Sólo lectura: no se pueden modificar los bloques.' : 'Al arrastrar se mueve sólo el bloque elegido; mantén Control, o Comando en Mac, para moverlo con los bloques siguientes. Control Z deshace y Control Y rehace.'}
       </p>
       <output
         ref={keyboardStatusRef}
