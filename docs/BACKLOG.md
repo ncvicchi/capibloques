@@ -137,6 +137,20 @@ Pedido del 12 de septiembre de 2026: al elegir un bloque aparece una barra de de
 
 Pendiente de priorización y asignación a una fase autorizada. Se registra durante la Fase 14 sin ampliar su alcance ni presentarlo como resuelto.
 
+## 14. Reacciones animadas del avatar ante resultados
+
+Pedido del 12 de septiembre de 2026: usar el avatar elegido por cada alumno como acompañante visual y mostrar una reacción breve cuando consigue o supera un desafío, compila o graba una placa, y también cuando una de esas acciones falla.
+
+- **Éxito:** alternar acciones como saltar y levantar los brazos, dar una vuelta corta, lanzar confeti, mostrar una estrella o pulgar arriba y felicitar con una frase breve. Los animales pueden mover orejas o cola; los robots pueden iluminar ojos/paneles o hacer un pequeño baile.
+- **Fallo recuperable:** comunicar qué ocurrió sin castigar ni avergonzar. Usar gestos como quedar pensativo, inclinarse, una lágrima breve, negar suavemente con la cabeza o mostrar un pequeño indicador de error; después recuperar una pose de ánimo e invitar a intentar otra vez. Reservar el enojo para una caricatura muy leve y nunca dirigirlo al alumno.
+- Distinguir completar/superar un desafío, compilación correcta, grabación correcta, error de compilación, placa no detectada y error de grabación. No presentar «compiló» como «se grabó» ni «se grabó» como validación física del circuito.
+- Reproducir cada reacción una sola vez por resultado idempotente y evitar bucles que distraigan. El estado debe seguir expresado con texto accesible y no depender sólo del movimiento, color o sonido.
+- Respetar `prefers-reduced-motion` con una pose estática equivalente, permitir omitir la animación y no reproducir audio automático. Mantener foco, lector de pantalla, contraste y navegación por teclado.
+- Resolver el avatar desde la cuenta activa y limpiar la reacción al cambiar de cuenta o revocar sesión. La reacción es estado transitorio de interfaz: no forma parte del JSON del proyecto, autoguardado, historial ni firmware.
+- Preparar poses y piezas reutilizables para los conceptos 2D de cuerpo completo y sus futuros modelos 3D, sin afirmar que una ilustración 2D ya es imprimible o animable en 3D.
+
+Pendiente de priorización y asignación a una fase autorizada. Tiene relación directa con la futura Fase 19 de desafíos, pero debe cubrir también compilación y grabación sin ampliar esa fase hasta que el propietario defina el alcance.
+
 ## Relación actualizada con el plan vigente
 
 El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las nuevas fases](PLAN_FASES_BACKLOG.md) incorporan todos los pedidos. La fase 11 conserva el contexto vivo; la fase 12 implementó la reorganización general y navegación; la fase 13 publicó DEV de forma controlada y está entregada. La ejecución dentro de bloques y paralelo vertical siguen en fase 14, no se dan por resueltos al redistribuir la UI.
@@ -157,5 +171,6 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 11. Acceso externo persistente a DEV | 13. Implementado |
 | 12. Desafíos progresivos | 19. Pendiente de autorización |
 | 13. Barra residual del catálogo | Pendiente de priorización y asignación |
+| 14. Reacciones animadas del avatar | Pendiente de priorización y asignación; relacionada con desafíos, compilación y grabación |
 
 Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 14 está autorizada en curso; las fases 15–19 y el pedido 13 requieren autorización o priorización propia.
