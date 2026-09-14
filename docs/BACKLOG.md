@@ -194,6 +194,32 @@ Pedido del 13 de septiembre de 2026: explicar con precisión cómo se genera un 
 
 Pendiente de priorización y asignación a una fase autorizada. La investigación puede producir documentación y métricas antes de cambiar la receta, pero no habilita aumentar recursos de la VM ni relajar aislamiento, privacidad o límites de concurrencia.
 
+## 18. Display gráfico Winstar monocromático 128 × 64 con adaptador I2C
+
+Pedido del 14 de septiembre de 2026: agregar el módulo Winstar monocromático de 128 × 64 píxeles que se utiliza con un adaptador o serializador I2C.
+
+- Tratarlo como un perfil distinto del **OLED SSD1306 I2C 128 × 64 ya implementado** hasta identificar el módulo, controlador y adaptador exactos. Compartir resolución y bus no garantiza comandos, direccionamiento, alimentación ni tiempos compatibles.
+- Antes de fijar el perfil, registrar código de producto del display Winstar, controlador de pantalla, modelo/controlador del adaptador, dirección I2C configurable, tensión de lógica/alimentación, pinout y documentación del fabricante.
+- Definir si ofrece sólo texto y zonas como las pantallas vigentes o también dibujo por píxeles; conservar una sola pantalla por proyecto salvo que se autorice cambiar ese contrato.
+- Incorporar selección, simulación, JSON, validación, dirección/pines, guía de conexiones, generación Arduino y ESP-IDF, compilación y diagnóstico ante ausencia o error de bus.
+- Mantener actualizaciones acotadas y no bloqueantes, con límites de memoria medidos. No reutilizar el driver SSD1306 ni el mapeo de una mochila PCF8574 sin comprobar el hardware.
+- Verificar el módulo físico con texto, zonas o gráficos acordados, limpieza, actualización repetida, dirección incorrecta y convivencia con los demás caminos del programa. Compilar no demuestra compatibilidad eléctrica ni visual.
+
+Pendiente de identificación, priorización y asignación a una fase autorizada.
+
+## 19. Matriz de LED encadenable con controlador integrado
+
+Pedido del 14 de septiembre de 2026: incorporar matrices de LED que incluyen un controlador y permiten conectar varios módulos en cadena.
+
+- Identificar el módulo exacto antes de diseñar el perfil: controlador, cantidad y disposición de LED por módulo, monocromático/RGB, interfaz y señales, tensión, corriente máxima, orientación y cantidad objetivo de módulos encadenados. No asumir MAX7219, HT16K33 o LED direccionables sólo por la descripción.
+- Modelar la cadena explícitamente: cantidad de módulos, orden, orientación y coordenadas globales. Guardar la configuración en JSON y conservarla al importar, deshacer/rehacer y cambiar conexiones.
+- Definir operaciones educativas simples —por ejemplo limpiar, brillo, píxel, fila/columna, icono o patrón— y sus límites. El alcance de texto desplazable o animaciones se acuerda al identificar el hardware y la capacidad necesaria.
+- Simular la misma disposición y estado en el navegador. Generar servicios cooperativos para Arduino y ESP-IDF, con buffers, frecuencia de refresco, memoria y corriente acotados para que la matriz no detenga delays, sensores, UART u otros caminos.
+- Validar pines y conflictos según la placa, mostrar conexiones de entrada/salida entre módulos y distinguir alimentación de señales. No sugerir alimentar una cadena desde un GPIO ni omitir fuente, masa común, desacoplo o adaptación de nivel cuando correspondan.
+- Probar uno y varios módulos físicos: orden, orientación, brillo, actualización, extremo de cadena, desconexión y carga máxima acordada. Separar simulación, compilación y aceptación eléctrica real.
+
+Pendiente de identificación, priorización y asignación a una fase autorizada.
+
 ## Pedidos externos a analizar
 
 Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus observaciones para reproducirlas, contrastarlas con el comportamiento vigente y proponer soluciones antes de priorizar. **No confirma que cada problema exista, no define todavía criterios de aceptación y no autoriza implementar ninguno de estos cambios.** Las prioridades «vital» y «sutil» pertenecen al informe de origen; deben revisarse junto con el propietario.
@@ -257,5 +283,7 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 15. Asistente grande para compilar y grabar | Pendiente de priorización y asignación; conserva todas las guardas del flujo actual |
 | 16. Movimiento individual y grupal de bloques | Implementado y desplegado el 13 de septiembre de 2026, revisión `0fc9ff2` |
 | 17. Comprender, medir y mejorar la compilación | Pendiente de priorización y asignación; alimenta el progreso real del asistente |
+| 18. Display Winstar 128 × 64 con adaptador I2C | Pendiente de identificar módulo, controlador y adaptador; sin fase asignada |
+| 19. Matriz de LED encadenable | Pendiente de identificar módulo, controlador y cadena objetivo; sin fase asignada |
 
-Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 14 y las correcciones de los pedidos 13 y 16 están entregadas; las fases 15–19 y los pedidos 14–15 y 17 requieren autorización o priorización propia.
+Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 14 y las correcciones de los pedidos 13 y 16 están entregadas; las fases 15–19 y los pedidos 14–15 y 17–19 requieren autorización o priorización propia. Los números de pedido 18–19 no son las fases 18–19.
