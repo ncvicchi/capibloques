@@ -219,6 +219,59 @@ Pedido aclarado el 14 de septiembre de 2026: incorporar el módulo de la fotogra
 
 El controlador y la geometría principal ya están identificados. Quedan por confirmar el color, modelo/revisión de la placa, tensión/corriente declaradas, orientación interna, cantidad máxima de unidades 32 × 8 a encadenar y comportamiento educativo deseado. Pendiente de priorización y asignación a una fase autorizada.
 
+## 20. Panel web local para controlar y observar desde un celular
+
+Pedido del 14 de septiembre de 2026: aclarar qué hace el componente Wi-Fi actual y agregar una forma de enviar información, usar controles virtuales o ver la escena desde un celular. Propuesta: separar la **conexión de red** del **servicio web** que utiliza esa conexión.
+
+Este pedido cambia deliberadamente el límite vigente que excluye control físico en vivo desde la web. La solicitud autoriza documentar y diseñar la propuesta, pero su implementación necesita un alcance de fase explícito, pruebas de seguridad y una regla clara de quién puede controlar la placa.
+
+### Aclaración del componente vigente
+
+El componente actual representa la radio Wi-Fi integrada del ESP32; no ocupa GPIO externos. Habilita los bloques «conectar a Wi-Fi» con timeout y «Wi-Fi conectado». En la simulación sólo permite indicar si hay una red disponible; al compilar solicita SSID/clave por el flujo privado. **No envía ni recibe datos de aplicación, no aloja páginas y no controla componentes.**
+
+- Renombrarlo en la interfaz como **«Red Wi-Fi de la placa»** o **«Conectar la placa a Wi-Fi»** y explicar en la tarjeta, inspector y bloques: «Conecta la placa al router para que otros servicios puedan comunicarse».
+- Mostrar por separado los estados sin configurar, buscando red, conectado, sin conexión y error/timeout. No representar un router dibujado como si ya existiera un canal de mensajes.
+- Mantener las credenciales fuera del JSON, historial y logs; pedirlas sólo al exportar/configurar localmente o en la compilación privada ya autorizada.
+
+### Nuevo componente propuesto: Panel web para celular
+
+Agregar a la escena un servicio **«Panel web para celular»** que genere una página pequeña y autocontenida, servida por HTTP desde el ESP32 en la red local. No debe intentar alojar el editor React completo ni código HTML arbitrario creado por el usuario.
+
+Modos combinables elegidos al configurar el componente:
+
+1. **Controles:** botones momentáneos, interruptores, deslizador y campo para enviar texto. Cada control tiene nombre, tipo y límites; su valor entra al programa y los bloques del alumno deciden cómo actuar sobre LED, semáforo, robot, pantalla u otros componentes.
+2. **Información:** etiquetas, valores, indicadores y texto publicados por el programa para verlos desde el celular.
+3. **Escena:** vista compacta y de sólo lectura de la escena, actualizada con los estados lógicos que informa el firmware. No equivale al simulador completo, no permite editar el proyecto y no afirma medir el estado eléctrico real.
+4. **Mixto:** controles e información junto con la escena, dentro de límites explícitos de memoria, tráfico y tamaño de página.
+
+Bloques iniciales propuestos:
+
+- condiciones «botón web [nombre] está presionado» e «interruptor web [nombre] está encendido»;
+- valores «deslizador web [nombre]» y «último texto recibido de [nombre]»;
+- espera cooperativa «esperar acción de [control]» con timeout opcional;
+- acciones «mostrar [texto/valor] en [indicador web]» y «actualizar la escena del panel»;
+- una marca de mensaje nuevo para que el mismo texto no dispare una acción indefinidamente.
+
+El diseño recomendado conserva «al comenzar» como entrada única del programa y trata los controles web como sensores/entradas que pueden consultarse o esperarse dentro de caminos normales. No vincular directamente un botón del celular con un motor por fuera del programa: las plantillas pueden preparar bloques sencillos, pero la decisión queda visible y programable por el alumno.
+
+### Acceso y funcionamiento
+
+- Primera versión recomendada: celular y placa en la **misma red Wi-Fi**, sin nube, reenvío de puertos ni acceso desde Internet. Un modo de punto de acceso propio de la placa se evalúa después como alcance separado.
+- La placa publica un nombre local cuando sea compatible y siempre informa una dirección IP de respaldo. Integrar con el asistente de grabación una pantalla grande y un QR para abrir el panel, sin suponer que mDNS funciona en todos los celulares.
+- Exponer un protocolo mínimo y acotado: página de sólo lectura, canal de estados y operaciones de entrada con IDs/tipos previamente generados. Evaluar eventos HTTP/SSE más `POST` o polling acotado según mediciones en Arduino y ESP-IDF; no introducir endpoints arbitrarios.
+- Definir emparejamiento antes de implementar: código breve o token temporal, vencimiento/revocación y política de uno o varios celulares. Estar en la misma LAN no autoriza por sí solo a controlar una placa.
+- Limitar clientes, tamaño/frecuencia de mensajes, texto, controles y actualizaciones. Sanitizar todo contenido, aplicar backpressure y continuar el programa aunque el celular se desconecte o envíe datos inválidos.
+- Conservar ejecución cooperativa: atender HTTP nunca bloquea delays, sensores, PWM, UART, pantallas ni caminos paralelos. Arduino y ESP-IDF deben implementar el mismo contrato y compilar con dependencias fijadas y sin descarga de código en ejecución.
+
+### Simulación y aceptación propuestas
+
+- El editor ofrece una vista previa adaptable al tamaño de un celular y permite accionar los controles simulados sin una placa. El JSON guarda la definición del panel, no credenciales de red, tokens activos ni sesiones de celulares.
+- Ejemplos de aceptación: dos botones web controlan el sentido de un robot mediante bloques; un texto enviado se muestra en una pantalla; un deslizador regula brillo/velocidad; el celular ve una escena de semáforo actualizada.
+- Probar conexión tardía, reconexión, texto vacío/largo, pulsos rápidos, dos clientes, orden de eventos, timeout, pérdida de Wi-Fi, programa detenido y cambio de proyecto. Definir quién puede escribir si hay más de un celular y mostrarlo claramente.
+- Verificar consumo de RAM/flash, latencia y capacidad con fixtures sintéticos y placa física. No presentar la simulación, la compilación o una página abierta como validación del control físico.
+
+Decisiones pendientes antes de asignarlo a una fase: conjunto inicial de controles; escena completa o subconjunto; un controlador o varios; método de emparejamiento; necesidad futura de modo punto de acceso; frecuencia de actualización y límites medidos. Pendiente de priorización y autorización propia; no amplía por inferencia las fases 15–19.
+
 ## Pedidos externos a analizar
 
 Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus observaciones para reproducirlas, contrastarlas con el comportamiento vigente y proponer soluciones antes de priorizar. **No confirma que cada problema exista, no define todavía criterios de aceptación y no autoriza implementar ninguno de estos cambios.** Las prioridades «vital» y «sutil» pertenecen al informe de origen; deben revisarse junto con el propietario.
@@ -284,5 +337,6 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 17. Comprender, medir y mejorar la compilación | Pendiente de priorización y asignación; alimenta el progreso real del asistente |
 | 18. LCD 20 × 4 PCF8574 y OLED SSD1306 128 × 64 | Ambos perfiles implementados; pendiente validar físicamente el Winstar/2004A y su mochila |
 | 19. Matriz de LED 32 × 8 con cuatro MAX7219 | Controlador y geometría identificados; pendientes datos eléctricos, orientación y cadena objetivo; sin fase asignada |
+| 20. Panel web local para celular | Propuesta pendiente de decisiones, priorización y autorización; sin fase asignada |
 
-Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 14 y las correcciones de los pedidos 13 y 16 están entregadas; las fases 15–19 y los pedidos 14–15 y 17–19 requieren autorización o priorización propia. Los números de pedido 18–19 no son las fases 18–19.
+Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 14 y las correcciones de los pedidos 13 y 16 están entregadas; las fases 15–19 y los pedidos 14–15 y 17–20 requieren autorización o priorización propia. Los números de pedido 18–20 no son fases nuevas.
