@@ -194,31 +194,30 @@ Pedido del 13 de septiembre de 2026: explicar con precisión cómo se genera un 
 
 Pendiente de priorización y asignación a una fase autorizada. La investigación puede producir documentación y métricas antes de cambiar la receta, pero no habilita aumentar recursos de la VM ni relajar aislamiento, privacidad o límites de concurrencia.
 
-## 18. Display gráfico Winstar monocromático 128 × 64 con adaptador I2C
+## 18. Displays I2C: LCD alfanumérico 20 × 4 y OLED SSD1306 128 × 64
 
-Pedido del 14 de septiembre de 2026: agregar el módulo Winstar monocromático de 128 × 64 píxeles que se utiliza con un adaptador o serializador I2C.
+Pedido aclarado el 14 de septiembre de 2026: considerar ambos tipos de pantalla. La fotografía aportada muestra un **LCD alfanumérico 2004A de 20 columnas × 4 filas** con una mochila `LCM2004 IIC`, del tipo PCF8574, con `GND`, `VCC`, `SDA`, `SCL`, selectores de dirección y ajuste de contraste. No es el display gráfico Winstar 128 × 64 descrito inicialmente.
 
-- Tratarlo como un perfil distinto del **OLED SSD1306 I2C 128 × 64 ya implementado** hasta identificar el módulo, controlador y adaptador exactos. Compartir resolución y bus no garantiza comandos, direccionamiento, alimentación ni tiempos compatibles.
-- Antes de fijar el perfil, registrar código de producto del display Winstar, controlador de pantalla, modelo/controlador del adaptador, dirección I2C configurable, tensión de lógica/alimentación, pinout y documentación del fabricante.
-- Definir si ofrece sólo texto y zonas como las pantallas vigentes o también dibujo por píxeles; conservar una sola pantalla por proyecto salvo que se autorice cambiar ese contrato.
-- Incorporar selección, simulación, JSON, validación, dirección/pines, guía de conexiones, generación Arduino y ESP-IDF, compilación y diagnóstico ante ausencia o error de bus.
-- Mantener actualizaciones acotadas y no bloqueantes, con límites de memoria medidos. No reutilizar el driver SSD1306 ni el mapeo de una mochila PCF8574 sin comprobar el hardware.
-- Verificar el módulo físico con texto, zonas o gráficos acordados, limpieza, actualización repetida, dirección incorrecta y convivencia con los demás caminos del programa. Compilar no demuestra compatibilidad eléctrica ni visual.
+- CapiBloques ya implementa el perfil **LCD 20 × 4 · PCF8574 I2C**: texto directo en 20 × 4 celdas, mochila estándar, direcciones PCF8574 `0x20–0x27` y PCF8574A `0x38–0x3F`. La unidad física Winstar/2004A y su mochila deben comprobarse antes de afirmar compatibilidad: código exacto, integrado, mapeo de pines del expansor, dirección configurada, tensión y niveles I2C.
+- También conservar el perfil ya implementado **OLED SSD1306 128 × 64 · I2C**. Es una pantalla gráfica monocromática por píxeles, habitualmente en `0x3C` o `0x3D`; CapiBloques la presenta actualmente como una rejilla de zonas de texto de 16 × 8 celdas con fuente de 8 × 8.
+- Ambos perfiles siguen siendo opciones distintas dentro del contrato de una pantalla por proyecto. Elegir uno no convierte proyectos, direcciones, drivers ni cableado del otro.
+- Verificar físicamente el LCD 20 × 4 aportado con texto, las cuatro filas, limpieza, actualización, contraste y dirección incorrecta en Arduino y ESP-IDF. Mantener diagnósticos de bus y actualización cooperativa; compilar no demuestra compatibilidad eléctrica ni visual.
+- Si más adelante aparece un Winstar **gráfico** 128 × 64 diferente del SSD1306, registrarlo por su código de producto, controlador y adaptador antes de agregar otro perfil.
 
-Pendiente de identificación, priorización y asignación a una fase autorizada.
+Los dos tipos ya están considerados por software. Queda pendiente la aceptación física del LCD Winstar/2004A exacto y la identificación de su mochila; no requiere crear un perfil nuevo si coincide con el PCF8574 estándar vigente.
 
-## 19. Matriz de LED encadenable con controlador integrado
+## 19. Matriz de LED 32 × 8 con cuatro MAX7219 encadenados
 
-Pedido del 14 de septiembre de 2026: incorporar matrices de LED que incluyen un controlador y permiten conectar varios módulos en cadena.
+Pedido aclarado el 14 de septiembre de 2026: incorporar el módulo de la fotografía, formado por **cuatro matrices monocromáticas de 8 × 8**, cada una controlada por MAX7219 y conectadas en cadena sobre una misma placa. La superficie lógica inicial es de 32 × 8 LED.
 
-- Identificar el módulo exacto antes de diseñar el perfil: controlador, cantidad y disposición de LED por módulo, monocromático/RGB, interfaz y señales, tensión, corriente máxima, orientación y cantidad objetivo de módulos encadenados. No asumir MAX7219, HT16K33 o LED direccionables sólo por la descripción.
-- Modelar la cadena explícitamente: cantidad de módulos, orden, orientación y coordenadas globales. Guardar la configuración en JSON y conservarla al importar, deshacer/rehacer y cambiar conexiones.
-- Definir operaciones educativas simples —por ejemplo limpiar, brillo, píxel, fila/columna, icono o patrón— y sus límites. El alcance de texto desplazable o animaciones se acuerda al identificar el hardware y la capacidad necesaria.
-- Simular la misma disposición y estado en el navegador. Generar servicios cooperativos para Arduino y ESP-IDF, con buffers, frecuencia de refresco, memoria y corriente acotados para que la matriz no detenga delays, sensores, UART u otros caminos.
-- Validar pines y conflictos según la placa, mostrar conexiones de entrada/salida entre módulos y distinguir alimentación de señales. No sugerir alimentar una cadena desde un GPIO ni omitir fuente, masa común, desacoplo o adaptación de nivel cuando correspondan.
-- Probar uno y varios módulos físicos: orden, orientación, brillo, actualización, extremo de cadena, desconexión y carga máxima acordada. Separar simulación, compilación y aceptación eléctrica real.
+- Usar la interfaz serie del MAX7219 (`DIN`, `CLK`, `CS/LOAD`) y modelar explícitamente los cuatro dispositivos en cascada, su orden y orientación. No presentarlo como I2C ni confundirlo con una matriz RGB o LED direccionables individualmente.
+- Permitir agregar una unidad 32 × 8 y dejar preparada una cantidad máxima explícita de unidades encadenadas, que se fijará según el hardware y el presupuesto de corriente/memoria. Guardar cantidad, orden y orientación en JSON y conservarlos al importar y deshacer/rehacer.
+- Definir operaciones educativas simples: limpiar, brillo, píxel, fila/columna, icono o patrón. Incluir texto desplazable y animaciones sólo dentro de límites de tamaño, velocidad y memoria acordados.
+- Simular la disposición y el estado en el navegador. Generar servicios cooperativos para Arduino y ESP-IDF, con buffers y frecuencia de refresco acotados para que la matriz no detenga delays, sensores, UART u otros caminos.
+- Validar pines y conflictos según la placa; mostrar `VCC`, `GND`, `DIN`, `CLK`, `CS/LOAD` y el sentido de entrada/salida de la cadena. Documentar alimentación, masa común, desacoplo y adaptación de nivel si la unidad de 5 V no reconoce de forma confiable la lógica de 3,3 V. No alimentar la matriz desde un GPIO.
+- Probar la unidad física completa: orden de los cuatro paneles, orientación, color, brillo, actualización, texto/patrones, desconexión y corriente máxima acordada. Probar más de una unidad sólo si ese encadenamiento entra en el alcance autorizado.
 
-Pendiente de identificación, priorización y asignación a una fase autorizada.
+El controlador y la geometría principal ya están identificados. Quedan por confirmar el color, modelo/revisión de la placa, tensión/corriente declaradas, orientación interna, cantidad máxima de unidades 32 × 8 a encadenar y comportamiento educativo deseado. Pendiente de priorización y asignación a una fase autorizada.
 
 ## Pedidos externos a analizar
 
@@ -283,7 +282,7 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 15. Asistente grande para compilar y grabar | Pendiente de priorización y asignación; conserva todas las guardas del flujo actual |
 | 16. Movimiento individual y grupal de bloques | Implementado y desplegado el 13 de septiembre de 2026, revisión `0fc9ff2` |
 | 17. Comprender, medir y mejorar la compilación | Pendiente de priorización y asignación; alimenta el progreso real del asistente |
-| 18. Display Winstar 128 × 64 con adaptador I2C | Pendiente de identificar módulo, controlador y adaptador; sin fase asignada |
-| 19. Matriz de LED encadenable | Pendiente de identificar módulo, controlador y cadena objetivo; sin fase asignada |
+| 18. LCD 20 × 4 PCF8574 y OLED SSD1306 128 × 64 | Ambos perfiles implementados; pendiente validar físicamente el Winstar/2004A y su mochila |
+| 19. Matriz de LED 32 × 8 con cuatro MAX7219 | Controlador y geometría identificados; pendientes datos eléctricos, orientación y cadena objetivo; sin fase asignada |
 
 Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 14 y las correcciones de los pedidos 13 y 16 están entregadas; las fases 15–19 y los pedidos 14–15 y 17–19 requieren autorización o priorización propia. Los números de pedido 18–19 no son las fases 18–19.
