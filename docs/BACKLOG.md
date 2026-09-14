@@ -237,12 +237,20 @@ El componente actual representa la radio Wi-Fi integrada del ESP32; no ocupa GPI
 
 Agregar a la escena un servicio **«Panel web para celular»** que genere una página pequeña y autocontenida, servida por HTTP desde el ESP32 en la red local. No debe intentar alojar el editor React completo ni código HTML arbitrario creado por el usuario.
 
-Modos combinables elegidos al configurar el componente:
+Decisiones del propietario del 14 de septiembre de 2026:
 
-1. **Controles:** botones momentáneos, interruptores, deslizador y campo para enviar texto. Cada control tiene nombre, tipo y límites; su valor entra al programa y los bloques del alumno deciden cómo actuar sobre LED, semáforo, robot, pantalla u otros componentes.
-2. **Información:** etiquetas, valores, indicadores y texto publicados por el programa para verlos desde el celular.
-3. **Escena:** vista compacta y de sólo lectura de la escena, actualizada con los estados lógicos que informa el firmware. No equivale al simulador completo, no permite editar el proyecto y no afirma medir el estado eléctrico real.
-4. **Mixto:** controles e información junto con la escena, dentro de límites explícitos de memoria, tráfico y tamaño de página.
+- Se admite **un solo celular emparejado** por vez. Una segunda sesión no toma el control ni desplaza silenciosamente a la primera; la liberación, reconexión y transferencia deben ser explícitas.
+- El servicio funciona solamente en la **misma LAN** que la placa, a través del router. No incluye nube, acceso desde Internet ni modo punto de acceso propio del ESP32.
+- Cada proyecto conserva **una sola escena activa**. La página del celular tiene dos vistas fijas: **Escena** y **Controles**.
+- **Escena** representa la escena del proyecto que está ejecutando el firmware y se actualiza con sus estados lógicos reales. Es de sólo lectura: no edita posiciones, conexiones, bloques ni el proyecto y no afirma medir el estado eléctrico físico.
+- **Controles** se genera dinámicamente y puede quedar vacío. Todos los tipos de entrada que tengan sentido pueden estar disponibles, pero ninguno aparece sólo por existir un actuador: se muestra únicamente cuando el alumno agregó un input virtual y lo relacionó mediante su programación.
+
+Entradas y salidas dinámicas propuestas:
+
+- Incorporar elementos virtuales sin GPIO: botón momentáneo, interruptor, deslizador, joystick, número y campo de texto. Su presencia y nombre forman el manifiesto web generado con el proyecto.
+- Filtrar o sugerir inputs según los componentes de la escena —por ejemplo joystick para robot, deslizador para servo/motor/LED y texto para display—, sin crear una conexión automática. Los bloques visibles hacen la relación y permiten soluciones distintas.
+- Si el programa recibe texto del celular y decide escribirlo en una pantalla, aparece el campo correspondiente. Agregar una pantalla sin esos bloques no crea por sí solo un input web.
+- El programa puede publicar etiquetas, valores, indicadores y mensajes en Controles. La vista Escena obtiene los estados de los componentes desde el runtime, sin duplicar bloques de publicación para cada cambio normal.
 
 Bloques iniciales propuestos:
 
@@ -252,25 +260,33 @@ Bloques iniciales propuestos:
 - acciones «mostrar [texto/valor] en [indicador web]» y «actualizar la escena del panel»;
 - una marca de mensaje nuevo para que el mismo texto no dispare una acción indefinidamente.
 
-El diseño recomendado conserva «al comenzar» como entrada única del programa y trata los controles web como sensores/entradas que pueden consultarse o esperarse dentro de caminos normales. No vincular directamente un botón del celular con un motor por fuera del programa: las plantillas pueden preparar bloques sencillos, pero la decisión queda visible y programable por el alumno.
+El diseño recomendado conserva «al comenzar» como entrada única del programa y trata los controles web como sensores/entradas que pueden consultarse o esperarse dentro de caminos normales. No vincular directamente un botón del celular con un motor por fuera del programa: las plantillas pueden preparar bloques sencillos, pero la decisión queda visible y programable por el alumno. El generador deriva de escena y programa un manifiesto cerrado de vistas, inputs, outputs y estados; el firmware no acepta que el celular agregue controles o código en ejecución.
+
+### Ejecución desde el celular
+
+- En un proyecto que contiene Panel web, al encender la placa primero se conecta a la LAN, inicia el servidor y queda en estado **«Lista para ejecutar»**. El botón grande **«Ejecutar»** del único celular emparejado inicia desde «al comenzar» el programa real del ESP32 y crea una nueva identidad de ejecución.
+- Mientras corre, Escena y Controles pertenecen a esa misma ejecución. Cada input lleva orden e identidad para que un evento atrasado de una ejecución anterior no se aplique después de reiniciar.
+- Cuando ya está corriendo, la acción cambia a **«Reiniciar programa»** y requiere confirmación. Reiniciar limpia estado cooperativo, eventos web pendientes y salidas conforme a una política segura antes de volver a «al comenzar»; no simula un reset eléctrico completo.
+- **«Detener»** finaliza la ejecución actual y lleva actuadores a estados seguros definidos por tipo. Soltar el botón, perder foco o perder conexión libera inmediatamente botones momentáneos y centra el joystick; los demás valores y el tratamiento de una desconexión prolongada deben fijarse antes de implementar.
+- Un proyecto sin Panel web conserva el arranque autónomo vigente al encender. La espera por «Ejecutar» es una propiedad explícita del servicio web, no un cambio silencioso para proyectos existentes.
 
 ### Acceso y funcionamiento
 
-- Primera versión recomendada: celular y placa en la **misma red Wi-Fi**, sin nube, reenvío de puertos ni acceso desde Internet. Un modo de punto de acceso propio de la placa se evalúa después como alcance separado.
+- Primera versión: celular y placa en la **misma red Wi-Fi**, sin nube, reenvío de puertos, acceso desde Internet ni punto de acceso propio de la placa.
 - La placa publica un nombre local cuando sea compatible y siempre informa una dirección IP de respaldo. Integrar con el asistente de grabación una pantalla grande y un QR para abrir el panel, sin suponer que mDNS funciona en todos los celulares.
 - Exponer un protocolo mínimo y acotado: página de sólo lectura, canal de estados y operaciones de entrada con IDs/tipos previamente generados. Evaluar eventos HTTP/SSE más `POST` o polling acotado según mediciones en Arduino y ESP-IDF; no introducir endpoints arbitrarios.
-- Definir emparejamiento antes de implementar: código breve o token temporal, vencimiento/revocación y política de uno o varios celulares. Estar en la misma LAN no autoriza por sí solo a controlar una placa.
+- Definir emparejamiento antes de implementar: código breve o token temporal, vencimiento/revocación y exclusión de una segunda sesión. Estar en la misma LAN no autoriza por sí solo a controlar una placa.
 - Limitar clientes, tamaño/frecuencia de mensajes, texto, controles y actualizaciones. Sanitizar todo contenido, aplicar backpressure y continuar el programa aunque el celular se desconecte o envíe datos inválidos.
 - Conservar ejecución cooperativa: atender HTTP nunca bloquea delays, sensores, PWM, UART, pantallas ni caminos paralelos. Arduino y ESP-IDF deben implementar el mismo contrato y compilar con dependencias fijadas y sin descarga de código en ejecución.
 
 ### Simulación y aceptación propuestas
 
 - El editor ofrece una vista previa adaptable al tamaño de un celular y permite accionar los controles simulados sin una placa. El JSON guarda la definición del panel, no credenciales de red, tokens activos ni sesiones de celulares.
-- Ejemplos de aceptación: dos botones web controlan el sentido de un robot mediante bloques; un texto enviado se muestra en una pantalla; un deslizador regula brillo/velocidad; el celular ve una escena de semáforo actualizada.
+- Ejemplos de aceptación: dos botones o un joystick web controlan el sentido de un robot mediante bloques; un texto enviado se muestra en una pantalla sólo porque el programa lo relaciona; un deslizador regula brillo/velocidad; el celular ve la única escena activa de un semáforo actualizada mientras el firmware se ejecuta; un proyecto sin inputs muestra Controles vacío con una explicación.
 - Probar conexión tardía, reconexión, texto vacío/largo, pulsos rápidos, dos clientes, orden de eventos, timeout, pérdida de Wi-Fi, programa detenido y cambio de proyecto. Definir quién puede escribir si hay más de un celular y mostrarlo claramente.
 - Verificar consumo de RAM/flash, latencia y capacidad con fixtures sintéticos y placa física. No presentar la simulación, la compilación o una página abierta como validación del control físico.
 
-Decisiones pendientes antes de asignarlo a una fase: conjunto inicial de controles; escena completa o subconjunto; un controlador o varios; método de emparejamiento; necesidad futura de modo punto de acceso; frecuencia de actualización y límites medidos. Pendiente de priorización y autorización propia; no amplía por inferencia las fases 15–19.
+Decisiones pendientes antes de asignarlo a una fase: comportamiento ante una desconexión prolongada del único celular; estados seguros exactos por actuador; método de emparejamiento; frecuencia de actualización y límites medidos. Pendiente de priorización y autorización propia; no amplía por inferencia las fases 15–19.
 
 ## Pedidos externos a analizar
 
