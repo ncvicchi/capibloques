@@ -194,6 +194,45 @@ Pedido del 13 de septiembre de 2026: explicar con precisión cómo se genera un 
 
 Pendiente de priorización y asignación a una fase autorizada. La investigación puede producir documentación y métricas antes de cambiar la receta, pero no habilita aumentar recursos de la VM ni relajar aislamiento, privacidad o límites de concurrencia.
 
+## Pedidos externos a analizar
+
+Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus observaciones para reproducirlas, contrastarlas con el comportamiento vigente y proponer soluciones antes de priorizar. **No confirma que cada problema exista, no define todavía criterios de aceptación y no autoriza implementar ninguno de estos cambios.** Las prioridades «vital» y «sutil» pertenecen al informe de origen; deben revisarse junto con el propietario.
+
+### Señalados como de vital importancia
+
+1. **Progreso de compilación paso a paso.** Informar qué está sucediendo con cada pedido y, cuando exista una medida real, su avance. Se analiza dentro del [pedido 17](#17-comprender-medir-y-mejorar-la-compilación-de-binarios); no mostrar porcentajes inventados.
+2. **Proyecto sin guardar al abrir Compilar y descargar firmware.** Dar mayor jerarquía al aviso «Hay cambios sin guardar o el proyecto todavía es local…», con color de advertencia, icono y una acción para Guardar desde ese recorrido. Analizar cómo reutilizar el guardado vigente, sus conflictos, su estado pendiente y la reanudación del flujo sin duplicar operaciones. Coordinarlo con el [asistente del pedido 15](#15-asistente-grande-para-compilar-y-grabar-la-placa).
+3. **Reinicio automático después de grabar.** Verificar con hardware por qué la Wemos necesita actualmente pulsar RESET después del flasheo y si Web Serial/esptool puede controlar de forma confiable DTR/RTS o ejecutar el reinicio correspondiente. Conservar mensajes y recuperación cuando la placa o el adaptador no lo permitan; una grabación correcta no demuestra que el circuito funcione.
+4. **Evitar bloques superpuestos.** Reproducir la superposición entre bloques sueltos y debajo del programa principal. Diseñar una separación automática que encuentre una posición libre sin alterar conexiones, orden, coordenadas portables o una cadena que el usuario esté intentando encastrar; cubrir zoom, desplazamiento, Deshacer y proyectos importados.
+
+### Señalados como cambios sutiles
+
+1. **Nombre de proyecto reconocible como editable.** Agregar una señal visual y accesible de edición, manteniendo lectura clara del nombre y funcionamiento con teclado, táctil y texto ampliado.
+2. **Colores traducidos durante la ejecución guiada.** Mostrar nombres en español en los tooltips de la escena —por ejemplo, «Semáforo principal: rojo»— usando el mismo vocabulario visible de los bloques, sin modificar los valores internos del proyecto.
+3. **Advertencias de conexionado más visibles y controlables.** Reproducir el tooltip de la barra inferior que dificulta la lectura; evaluar cierre explícito y un triángulo de advertencia con texto accesible. No depender sólo del color o del icono ni ocultar un conflicto eléctrico pendiente.
+4. **Acciones de selección de avatar más grandes y claras.** Evaluar botones amplios con los textos «Seleccionar avatar» y «No cambiar mi avatar», conservando foco, teclado, táctil y confirmación de la elección.
+5. **Escribir «segundos» en el bloque de Wi-Fi.** Sustituir la abreviación «s» donde corresponda sin cambiar el valor temporal, la serialización ni el código generado.
+6. **Emoji de chincheta en el bloque de pin.** Evaluar `📌` para «pin … en encendido» sólo después de comprobar que no se use en otro bloque y que mejore la identificación con lector de pantalla y fuentes disponibles.
+7. **Saludo personalizado en el encabezado.** Evaluar «Hola, {nombre visible}» acompañado por el alias en gris. Definir textos para docentes y administradores, evitar exponer identidad en pantallas compartidas y mantener contraste y espacio útil.
+8. **Atenuar bloques fuera del programa ejecutable.** Definir con precisión qué significa «inactivo» —bloque suelto, desconectado de «al comenzar» o camino no ejecutado— y reducir saturación sin volver ilegible el bloque ni usar sólo color para comunicar el estado.
+
+### Observaciones para posibles cambios futuros
+
+1. **Auto-conectar y borrador de escena.** Reproducir que Auto-conectar no refleja cambios hasta «Guardar cambios» y que los componentes no pueden moverse durante el borrador. Analizar una vista previa inmediata y coherente con Guardar/Cancelar, sin persistir silenciosamente, mezclar escena pendiente con confirmada ni romper Deshacer, autoguardado o simulación.
+2. **Simplificación adicional de barras y acciones superiores.** Auditar la interfaz posterior a fase 12 con chicos de 5–11 años, medir espacio vacío y cantidad de decisiones, y proponer lenguaje más cotidiano. Se relaciona con el [pedido 1](#1-redistribuir-la-interfaz), ya entregado en su alcance original; una nueva simplificación requiere alcance y pruebas propios.
+3. **Avatar como asistente emocional.** Analizar personalidad, ubicación, frecuencia y mensajes del avatar. Coordinarlo con las [reacciones del pedido 14](#14-reacciones-animadas-del-avatar-ante-resultados), sin sustituir instrucciones, estados textuales ni accesibilidad.
+4. **Compartir proyectos mediante enlace y QR.** Definir quién puede compartir y abrir, duración y revocación del enlace, copia frente a edición, proyectos de curso y protección de datos infantiles. No convertir un UUID en autorización ni publicar proyectos privados por defecto.
+5. **Menús desplegables dentro de bloques más distinguibles.** Evaluar fondo, borde, icono y estados de foco comparándolos con los campos numéricos, con contraste suficiente en todos los colores de bloque.
+6. **Operadores expresados con palabras.** Evaluar reemplazar o acompañar `=`, `<`, `≠` y otros símbolos con «igual a», «menor que» y «distinto de» en comparadores, contadores y bloques relacionados. Verificar tamaño, traducción, compatibilidad de proyectos y comprensión con alumnos.
+7. **Mayor visibilidad de los emojis de bloques.** Revisar tamaño, contraste, posición, consistencia y alternativas textuales antes de aumentar todos de forma global; comprobar plataformas y fuentes distintas.
+8. **Acceso de alumnos sin contraseña.** Investigar un ingreso de aula autorizado por el docente que también pueda registrar asistencia. Requiere un modelo explícito de identidad, sesión, caducidad, revocación, suplantación y equipos compartidos; no quitar contraseñas ni debilitar el acceso actual como ajuste de interfaz.
+
+### Idea experimental — no implementar ni usar
+
+- **Selector de ángulos con reloj.** Explorar en prototipos futuros una esfera con agujas para elegir grados, comparándola con el control numérico y conservando valor exacto, teclado, lector de pantalla y comprensión de ángulos. El informe pide expresamente no implementarla ni usarla en el producto actual.
+
+Antes de asignar estos pedidos a una fase: reproducir cada observación sobre la versión DEV vigente, registrar evidencia sin datos reales, detectar duplicados o conflictos con contratos existentes y presentar al propietario opciones con costo, dependencia y riesgo. La revisión puede descartar o reformular un pedido; esta sección no cambia el orden de fases 15–19.
+
 ## Relación actualizada con el plan vigente
 
 El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las nuevas fases](PLAN_FASES_BACKLOG.md) incorporan todos los pedidos. La fase 11 conserva el contexto vivo; la fase 12 implementó la reorganización general y navegación; la fase 13 publicó DEV de forma controlada; la fase 14 entregó la ejecución dentro de bloques, el lienzo estático y el paralelo vertical.
