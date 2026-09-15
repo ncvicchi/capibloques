@@ -288,6 +288,14 @@ El diseño recomendado conserva «al comenzar» como entrada única del programa
 
 Decisiones pendientes antes de asignarlo a una fase: comportamiento ante una desconexión prolongada del único celular; estados seguros exactos por actuador; método de emparejamiento; frecuencia de actualización y límites medidos. Pendiente de priorización y autorización propia; no amplía por inferencia las fases 15–19.
 
+## 21. Guardado estable durante el arrastre de bloques
+
+Error informado el 15 de septiembre de 2026: durante ciertos arrastres aparecía «Una conexión del bloque … apunta a un bloque vacío» y el navegador no podía guardar. La causa era un estado transitorio de Blockly: al mostrar el marcador que anticipa dónde se encastrará el bloque, su serializador emitía momentáneamente una conexión `block: null`. Esa representación no es un documento válido y podía llegar tanto al autoguardado como al render de React.
+
+**Implementado y desplegado el 15 de septiembre de 2026** en `2b97af9`. El editor conserva la última instantánea válida mientras hay un arrastre y publica el resultado estable al soltar. La validación de importaciones no se relajó: un archivo realmente corrupto con una conexión vacía continúa rechazándose.
+
+La regresión mantiene un bloque sobre un punto de inserción durante más tiempo que los temporizadores de cambio y guardado, comprueba que el editor siga montado, que no aparezca el error y que el proyecto final sea exportable. Pasó localmente en Chromium, Chrome y Edge; también pasaron typecheck, lint, smoke, el archivo completo de experiencia de programación y build. El CI completo [34974885825](https://github.com/ncvicchi/capibloques/actions/runs/34974885825) fue correcto. Contra DEV público pasó 2/2 en Chrome/Edge. DEV quedó saludable en `2b97af9`, con admisión abierta, cero trabajos activos y planificador activo; API/base no se recrearon.
+
 ## Pedidos externos a analizar
 
 Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus observaciones para reproducirlas, contrastarlas con el comportamiento vigente y proponer soluciones antes de priorizar. **No confirma que cada problema exista, no define todavía criterios de aceptación y no autoriza implementar ninguno de estos cambios.** Las prioridades «vital» y «sutil» pertenecen al informe de origen; deben revisarse junto con el propietario.
@@ -354,5 +362,6 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 18. LCD 20 × 4 PCF8574 y OLED SSD1306 128 × 64 | Ambos perfiles implementados; pendiente validar físicamente el Winstar/2004A y su mochila |
 | 19. Matriz de LED 32 × 8 con cuatro MAX7219 | Controlador y geometría identificados; pendientes datos eléctricos, orientación y cadena objetivo; sin fase asignada |
 | 20. Panel web local para celular | Propuesta pendiente de decisiones, priorización y autorización; sin fase asignada |
+| 21. Guardado estable durante el arrastre | Implementado y desplegado el 15 de septiembre de 2026, revisión `2b97af9` |
 
-Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 14 y las correcciones de los pedidos 13 y 16 están entregadas; las fases 15–19 y los pedidos 14–15 y 17–20 requieren autorización o priorización propia. Los números de pedido 18–20 no son fases nuevas.
+Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 14 y las correcciones de los pedidos 13, 16 y 21 están entregadas; las fases 15–19 y los pedidos 14–15 y 17–20 requieren autorización o priorización propia. Los números de pedido 18–21 no son fases nuevas.
