@@ -121,6 +121,41 @@ test('arrastre normal mueve sólo el bloque y Control mueve los siguientes', asy
   expect(nextBlockId(savedBlock(saved, 'drag-middle'))).toBe('drag-last');
 });
 
+test('el autoguardado conserva un proyecto válido durante un arrastre prolongado', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await open(page);
+  await importBlocks(page, [threeBlockProgram()]);
+  await page.waitForTimeout(600);
+
+  const path = page
+    .locator('.blocklyBlockCanvas [data-id="drag-middle"] .blocklyPath')
+    .first();
+  const box = (await path.boundingBox())!;
+  await page.mouse.move(box.x + Math.min(45, box.width / 2), box.y + 18);
+  await page.mouse.down();
+  await page.mouse.move(box.x + Math.min(45, box.width / 2) + 8, box.y + 26, {
+    steps: 12,
+  });
+  await expect(page.locator('.blocklyInsertionMarker')).toBeVisible();
+  await page.waitForTimeout(900);
+
+  await expect(page.getByLabel('Editor visual de bloques')).toBeVisible();
+  expect((await page.locator('.notice').allTextContents()).join(' ')).not.toContain(
+    'No pudimos guardar en este navegador',
+  );
+
+  await page.mouse.up();
+  await page.waitForTimeout(600);
+  const saved = await exportWorkspace(page);
+  expect(savedBlock(saved, 'drag-middle')).toBeDefined();
+  await expect(page.getByLabel('Editor visual de bloques')).toBeVisible();
+  expect((await page.locator('.notice').allTextContents()).join(' ')).not.toContain(
+    'No pudimos guardar en este navegador',
+  );
+});
+
 test('inicio único: obligatorio, sin categoría y protegido de borrar/copiar; acciones editables', async ({
   page,
 }) => {

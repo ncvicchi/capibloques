@@ -356,6 +356,7 @@ const BlocklyWorkspace = forwardRef<
   const hostRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<BlocklyWorkspaceSvg | null>(null);
   const blocklyRef = useRef<BlocklyApi | null>(null);
+  const stableWorkspaceRef = useRef<Record<string, unknown>>(initialWorkspace);
   const configureBlockDraggingRef = useRef<() => void>(() => {});
   const changeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialWorkspaceRef = useRef(initialWorkspace);
@@ -378,6 +379,19 @@ const BlocklyWorkspace = forwardRef<
   const deviceSignature = JSON.stringify(
     devices.map(device => [device.id, device.kind, device.name, device.kind === 'display' ? device.config : null]),
   );
+
+  const captureStableWorkspace = () => {
+    const workspace = workspaceRef.current;
+    const Blockly = blocklyRef.current;
+    if (!workspace || !Blockly) return stableWorkspaceRef.current;
+    // Blockly connects an insertion marker while a block is being dragged.
+    // Its serializer represents that temporary connection as `block: null`,
+    // which is deliberately not a valid CapiBloques document.
+    if (workspace.isDragging()) return stableWorkspaceRef.current;
+    const snapshot = saveWorkspace(Blockly, workspace) as Record<string, unknown>;
+    stableWorkspaceRef.current = snapshot;
+    return snapshot;
+  };
 
   useEffect(() => {
     initialWorkspaceRef.current = initialWorkspace;
@@ -486,12 +500,23 @@ const BlocklyWorkspace = forwardRef<
         configureBlockDragging();
         refreshBlockAccessibility(workspace);
         appliedRevisionRef.current = revisionRef.current;
-        onChangeRef.current(
-          saveWorkspace(Blockly, workspace) as Record<
-            string,
-            unknown
-          >,
-        );
+        onChangeRef.current(captureStableWorkspace());
+        let workspaceChangePending = false;
+        const publishWorkspaceChange = () => {
+          changeTimerRef.current = null;
+          if (workspace.isDragging()) {
+            workspaceChangePending = true;
+            return;
+          }
+          workspaceChangePending = false;
+          refreshBlockAccessibility(workspace);
+          onChangeRef.current(captureStableWorkspace());
+          onHistoryChangeRef.current?.(historyState(workspace));
+        };
+        const scheduleWorkspaceChange = (delay = 180) => {
+          if (changeTimerRef.current) clearTimeout(changeTimerRef.current);
+          changeTimerRef.current = setTimeout(publishWorkspaceChange, delay);
+        };
         workspace.addChangeListener((event) => {
           if (readOnlyRef.current) return;
           if (event.type === Blockly.Events.TOOLBOX_ITEM_SELECT) setPaletteOpen(Boolean(workspace.getFlyout()?.isVisible()));
@@ -499,6 +524,9 @@ const BlocklyWorkspace = forwardRef<
             if (!(event as import('blockly').Events.BlockDrag).isStart) {
               workspace.getToolbox()?.clearSelection();
               if (dragConfigurationPending) configureBlockDraggingWhenIdle();
+              if (workspaceChangePending || changeTimerRef.current) {
+                scheduleWorkspaceChange(0);
+              }
             }
             setPaletteOpen(Boolean(workspace.getFlyout()?.isVisible()));
           }
@@ -544,15 +572,7 @@ const BlocklyWorkspace = forwardRef<
               refreshDeviceFields(Blockly, workspace);
             }
           }
-          if (changeTimerRef.current) clearTimeout(changeTimerRef.current);
-          changeTimerRef.current = setTimeout(() => {
-            if (!workspaceRef.current) return;
-            refreshBlockAccessibility(workspaceRef.current);
-            onChangeRef.current(
-              saveWorkspace(Blockly, workspaceRef.current) as Record<string, unknown>,
-            );
-            onHistoryChangeRef.current?.(historyState(workspaceRef.current));
-          }, 180);
+          scheduleWorkspaceChange();
         });
         activateKeyboardNavigation = (event: KeyboardEvent) => {
           if (event.key === 'Escape' && workspace.getFlyout()?.isVisible()) { workspace.getToolbox()?.clearSelection(); setPaletteOpen(false); }
@@ -653,9 +673,7 @@ const BlocklyWorkspace = forwardRef<
     }
     configureBlockDraggingRef.current();
     appliedRevisionRef.current = revision;
-    onChangeRef.current(
-      saveWorkspace(blocklyRef.current, workspaceRef.current) as Record<string, unknown>,
-    );
+    onChangeRef.current(captureStableWorkspace());
     refreshBlockAccessibility(workspaceRef.current);
   }, [ready, revision]);
 
@@ -664,9 +682,7 @@ const BlocklyWorkspace = forwardRef<
     workspaceDevices.set(workspaceRef.current, devicesRef.current);
     if (refreshDeviceFields(blocklyRef.current, workspaceRef.current)) {
       refreshBlockAccessibility(workspaceRef.current);
-      onChangeRef.current(
-        saveWorkspace(blocklyRef.current, workspaceRef.current) as Record<string, unknown>,
-      );
+      onChangeRef.current(captureStableWorkspace());
     }
   }, [deviceSignature, ready]);
 
@@ -676,7 +692,7 @@ const BlocklyWorkspace = forwardRef<
       save() {
         if (!workspaceRef.current || !blocklyRef.current)
           return initialWorkspaceRef.current;
-        return saveWorkspace(blocklyRef.current, workspaceRef.current) as Record<string, unknown>;
+        return captureStableWorkspace();
       },
       load(data) {
         if (!workspaceRef.current || !blocklyRef.current) return;
@@ -687,9 +703,7 @@ const BlocklyWorkspace = forwardRef<
           return;
         }
         configureBlockDraggingRef.current();
-        onChangeRef.current(
-          saveWorkspace(blocklyRef.current, workspaceRef.current) as Record<string, unknown>,
-        );
+        onChangeRef.current(captureStableWorkspace());
       },
       compile() {
         if (!workspaceRef.current) return { version: 2, threads: [] };
