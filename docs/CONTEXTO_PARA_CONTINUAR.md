@@ -145,6 +145,8 @@ La exclusividad Matriz LED/Pantalla de texto es deliberada. Tras una observació
 
 La escena también expone un tachito en la cabecera para el objeto seleccionado. `Supr/Delete` o `Backspace`, fuera de campos de texto, abren la misma confirmación. Quitar sigue siendo reversible desde deshacer y deja los bloques huérfanos visibles para elegir otro destino; no los elimina a escondidas.
 
+Esta mejora quedó en `7afdf2a` y su ajuste E2E en `94f2112`. La CI completa 35473606856 pasó los cuatro trabajos. DEV fue desplegado en `94f21129f577ddc64fd55f0ff1fac3920a895f7d`, con salud interna/pública correcta y E2E específico **8/8** en Chrome/Edge públicos. El compilador quedó activo, admisión abierta en revisión 24 y cola vacía.
+
 ## 4. Arquitectura y mapa de archivos
 
 | Área | Punto de entrada y responsabilidad |

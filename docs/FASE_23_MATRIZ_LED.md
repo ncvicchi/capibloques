@@ -46,11 +46,13 @@ La guía muestra `VCC`, `GND`, `DIN`, `CLK` y `CS/LOAD`, y aclara que `DIN` entr
 - `npm run test:smoke`, incluido modelo, límites, píxeles, desplazamiento cooperativo y ambos generadores;
 - `npm run test:idf`, `npm run test:idf-driver`, drivers de pantallas y Mensajes;
 - `npm run build` y verificación de rutas estáticas;
-- Playwright específico: 4/4 local en Chrome y Edge para configuración/editor y simulación;
+- Playwright específico local y público en Chrome y Edge para configuración/editor, simulación, explicación de exclusividad y eliminación mediante tachito/Supr;
 - validación Django de tipo, configuración, pines, bloques y exclusividad de salida visual;
 - CI nativa con compilación Arduino-ESP32 3.3.11 y ESP-IDF 5.5.5 de la matriz generada.
 
 La CI completa [35449365576](https://github.com/ncvicchi/capibloques/actions/runs/35449365576) pasó sus cuatro trabajos en `fa9ec15`, incluidos ocho proyectos nativos por framework y 202 pruebas de backend. DEV quedó en `fa9ec1534571e7afc194ecda5e28dc827cb237b8`; editor, API y base quedaron saludables, Compose/firewall válidos y salud interna/pública `ok`. La prueba específica pasó **4/4** sobre DEV público en Chrome y Edge. El compilador quedó activo, con admisión abierta, concurrencia/techo 1 y cola vacía. No se modificaron PRD, gateway, Proxmox, router ni Nginx.
+
+La mejora de claridad y borrado quedó en `7afdf2a`, con el ajuste de regresión E2E en `94f2112`. La CI completa [35473606856](https://github.com/ncvicchi/capibloques/actions/runs/35473606856) pasó sus cuatro trabajos. DEV quedó desplegado en `94f21129f577ddc64fd55f0ff1fac3920a895f7d`, coincidente con la etiqueta de la imagen; Compose/firewall y salud interna/pública quedaron correctos. El E2E actualizado pasó **8/8** sobre DEV público en Chrome y Edge. El compilador quedó activo, admisión abierta en revisión 24, concurrencia/techo 1 y cola vacía. No se modificaron PRD, gateway, Proxmox, router ni Nginx.
 
 ## Aceptación física pendiente
 
