@@ -149,6 +149,14 @@ La escena también expone un tachito en la cabecera para el objeto seleccionado.
 
 Esta mejora quedó en `7afdf2a` y su ajuste E2E en `94f2112`. La CI completa 35473606856 pasó los cuatro trabajos. DEV fue desplegado en `94f21129f577ddc64fd55f0ff1fac3920a895f7d`, con salud interna/pública correcta y E2E específico **8/8** en Chrome/Edge públicos. El compilador quedó activo, admisión abierta en revisión 24 y cola vacía.
 
+### Animaciones no bloqueantes y despliegue reanudable — 19 de septiembre de 2026
+
+La implementación funcional de animaciones cooperativas quedó en `6999242` y el ajuste de prueba en `08b67e3`. Texto, dibujos y desplazamiento de Matriz LED continúan en segundo plano; cada bloque permite una vez, N veces o sin parar, y el bloque `esperar a que termine` es la sincronización explícita. La CI completa [35476496407](https://github.com/ncvicchi/capibloques/actions/runs/35476496407) pasó backend, interfaz/runtime, ocho Arduino y ocho ESP-IDF. La aceptación física continúa pendiente.
+
+Un corte eléctrico ocurrió antes de autenticar la ventana de despliegue: no se había pausado, actualizado ni detenido DEV, cuyo último estado observado seguía en `94f2112`, saludable, admisión abierta en revisión 24 y planificador activo. No afirmar un despliegue posterior sin volver a auditarlo al encender.
+
+Para evitar operación manual repetitiva se agregaron `scripts/update-dev.sh`, `scripts/deploy-dev.ps1` y el orquestador remoto reanudable. La orden habitual desde la propia VM será `cd /home/capi/capibloques && ./scripts/update-dev.sh`; verifica los cuatro trabajos CI del commit exacto, pausa de forma auditada, elige API automáticamente cuando corresponde, prueba, valida y restaura el estado previo. Un marcador privado permite repetir la misma orden después de un corte. La guía y límites están en [FASE_13_ACCESO_EXTERNO_DEV.md](FASE_13_ACCESO_EXTERNO_DEV.md). Esta automatización aún debe publicarse y probarse en DEV cuando la VM vuelva a estar disponible.
+
 ## 4. Arquitectura y mapa de archivos
 
 | Área | Punto de entrada y responsabilidad |

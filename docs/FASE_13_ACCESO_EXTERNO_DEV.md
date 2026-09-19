@@ -38,6 +38,19 @@ El runtime exige root en `capi-dev` y toma el checkout de su configuración priv
 
 ### Actualizar frontend
 
+La vía preferida, una vez que esta automatización esté instalada en el checkout, es una sola orden dentro de `capi-dev`:
+
+```sh
+cd /home/capi/capibloques
+./scripts/update-dev.sh
+```
+
+También puede iniciarse desde la PC de trabajo con `powershell -File .\scripts\deploy-dev.ps1`; `-DirectLan` evita el salto cuando la PC está en la LAN y `-CheckOnly` sólo audita. Ninguna variante guarda la contraseña: SSH y sudo la solicitan en la terminal. El comando del servidor hace `fetch`, verifica mediante la API pública de GitHub que `backend`, `verify`, `firmware` y `esp-idf` estén verdes para el commit exacto, y entrega ese Git object al mismo orquestador remoto. Si GitHub no puede comprobarse, no despliega.
+
+El orquestador comprueba identidad, árbol limpio, avance rápido, runtime, salud y cola; rechaza automáticamente migraciones, dependencias o infraestructura porque necesitan un mantenimiento específico. Si cambió `backend/`, selecciona `deploy --with-api` y ejecuta las pruebas Django de DEV. Pausa la admisión con `access_lock()` y `CompilerEvent`, espera trabajos iniciados, detiene el planificador, actualiza, valida salud interna/pública y restaura el estado de pausa original. Un marcador root-only en `/var/lib/capibloques/dev-deploy.state` conserva commit, modo y pausa original: después de un corte se repite la misma orden para reanudar, no se borra el marcador ni se abre la admisión manualmente a ciegas.
+
+La automatización reduce la intervención, no elimina las pruebas del recorrido funcional afectado ni convierte un fallo en éxito. Ante error deja admisión pausada y el marcador para diagnóstico; ejecutar primero `./scripts/update-dev.sh --check-only`, revisar el resultado y reanudar la misma versión.
+
 1. Confirmar identidad, árbol limpio, commit objetivo y alcance del diff. Si sólo cambian documentos, publicar en Git sin desplegar. Si cambia backend, dependencias, migraciones, Compose o compilador, preparar además el mantenimiento específico descrito debajo.
 2. Desde Administración → Compilaciones, pausar admisión/arranques; dejar terminar los trabajos y comprobar que no queden intentos activos. Detener entonces `capibloques-compiler.service`. No liberar cupos ni matar trabajos para forzar la actualización.
 3. Con el checkout limpio y el planificador detenido, actualizar mediante `git pull --ff-only origin main` al commit verificado. Para código backend montado desde el checkout, preparar previamente su ventana de mantenimiento; no tratar ese pull como una actualización exclusivamente visual.

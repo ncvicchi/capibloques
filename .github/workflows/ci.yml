@@ -86,7 +86,10 @@ jobs:
         run: npm ci
 
       - name: Validar configuración del entorno de desarrollo
-        run: docker compose -f compose.dev.yaml config --quiet
+        run: |
+          docker compose -f compose.dev.yaml config --quiet
+          bash -n scripts/deploy-dev-remote.sh
+          bash -n scripts/update-dev.sh
 
       - name: Instalar Chromium para pruebas reales
         run: npx playwright install --with-deps chromium
