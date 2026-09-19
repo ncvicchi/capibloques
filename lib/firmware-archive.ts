@@ -20,7 +20,7 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(capibloques)
 `,
     'main/CMakeLists.txt': `idf_component_register(SRCS "main.cpp" INCLUDE_DIRS "."
-  PRIV_REQUIRES esp_driver_gpio esp_driver_ledc esp_driver_i2c esp_driver_spi
+  PRIV_REQUIRES esp_driver_gpio esp_driver_ledc esp_driver_i2c esp_driver_spi esp_driver_uart
   esp_adc esp_timer esp_wifi esp_event esp_netif nvs_flash freertos)
 target_compile_features(\${COMPONENT_LIB} PRIVATE cxx_std_17)
 `,

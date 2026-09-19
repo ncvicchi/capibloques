@@ -37,6 +37,7 @@ for (const auxiliary of [false, true]) {
   const files = espIdfProjectFiles(native);
   assert.equal(files['main/main.cpp'], native.code);
   assert.match(files['main/CMakeLists.txt'], /\$\{COMPONENT_LIB\}/);
+  assert.match(files['main/CMakeLists.txt'], /esp_driver_uart/);
   assert.match(files['sdkconfig.defaults'], /CONFIG_FREERTOS_HZ=1000/);
   assert.match(files['main/wifi_config.example.h'], /TU_RED/);
   assert.ok(!Object.keys(files).includes('main/wifi_config.h'));

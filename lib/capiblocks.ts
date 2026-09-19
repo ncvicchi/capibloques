@@ -2534,6 +2534,13 @@ function messageRuntimeSupport(scene: SceneDefinition, native: boolean) {
   return `${native ? '' : 'HardwareSerial CAPI_UART_1(1);\nHardwareSerial CAPI_UART_2(2);\nHardwareSerial& capiMessagePort(const MessageDevice& device) { return device.port == 1 ? CAPI_UART_1 : CAPI_UART_2; }'}
 struct CapiMessageParser { uint8_t state = 0; uint16_t length = 0; uint16_t position = 0; uint16_t crc = 0xFFFF; uint16_t receivedCrc = 0; char text[121] = {}; };
 CapiMessageParser capiMessageParsers[2];
+// Explicit prototypes keep Arduino's sketch preprocessor from moving declarations
+// that use CapiMessageParser ahead of the struct definition.
+uint16_t capiMessageCrcByte(uint16_t crc, uint8_t value);
+void capiMessageReset(CapiMessageParser& parser);
+int capiMessageConsume(CapiMessageParser& parser, uint8_t byte, char* output);
+int capiMessagePoll(const MessageDevice& device, char* output);
+bool capiMessageSend(const MessageDevice& device, const char* text);
 uint16_t capiMessageCrcByte(uint16_t crc, uint8_t value) {
   crc ^= (uint16_t)value << 8;
   for (uint8_t bit = 0; bit < 8; ++bit) crc = (crc & 0x8000) ? (uint16_t)((crc << 1) ^ 0x1021) : (uint16_t)(crc << 1);

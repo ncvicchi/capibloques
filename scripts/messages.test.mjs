@@ -38,15 +38,15 @@ const receive = graph[0].output.find(item => item.op === 'messageReceiveWait');
 assert(receive && receive.op === 'messageReceiveWait');
 assert(receive.equalTarget !== receive.differentTarget && receive.differentTarget !== receive.timeoutTarget);
 
-for (const generated of [
-  generateEsp32CodeResult(program, 'Mensajes', scene),
-  generateEspIdfCodeResult(program, 'Mensajes', scene),
-]) {
+const arduino = generateEsp32CodeResult(program, 'Mensajes', scene);
+const idf = generateEspIdfCodeResult(program, 'Mensajes', scene);
+for (const generated of [arduino, idf]) {
   assert.equal(generated.diagnostics.some(item => item.severity === 'error'), false);
   assert.match(generated.code, /capiMessageSend/);
   assert.match(generated.code, /capiMessagePoll/);
   assert.match(generated.code, /0x43, 0x42, 1/);
   assert.doesNotMatch(generated.code, /delay\s*\(/);
 }
+assert.ok(arduino.code.indexOf('struct CapiMessageParser') < arduino.code.indexOf('void capiMessageReset(CapiMessageParser& parser);'));
 
 console.log('Messages component smoke tests passed.');
