@@ -1,6 +1,6 @@
 # Nuevas fases de CapiBloques
 
-Plan elaborado el 8 de septiembre de 2026 y actualizado el 19 de septiembre de 2026. **Fases 11–14 entregadas y verificadas en DEV**. DEV está publicado en `https://capibloques.dev.nvicchi.com/` y sirve además las correcciones posteriores de la barra residual del catálogo (`d096fd9`), del arrastre individual/grupal (`0fc9ff2`) y del guardado estable durante un arrastre (`2b97af9`); las fases 15–26 no están implementadas ni autorizadas y la Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
+Plan elaborado el 8 de septiembre de 2026 y actualizado el 19 de septiembre de 2026. **Fases 11–14 entregadas; fase 15 terminada en software y fase 23 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/` y sirve Mensajes, la Matriz LED y las correcciones de catálogo/arrastre/guardado. Fase 15 conserva aceptación física Wemos; fase 23 conserva aceptación física de matriz y displays. Las fases 16–22 y 24–26 no están implementadas y la Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
 
 La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros 11–26; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. El contexto portable se entregó primero y después la UX, bajo la autorización consecutiva de 11 y 12, sin dar por hecha la prueba física. Al insertar acceso externo como fase 13, las fases antes numeradas 13–17 pasan a ser 14–18; no son tareas nuevas ni duplicadas. Las fases 19–26 asignan todos los pedidos posteriores que seguían sin fase: desafíos, compilación/grabación guiada, UX educativa, avatar, displays y matriz, panel móvil, compartir y acceso de aula.
 
@@ -12,7 +12,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 12 | Entregada y verificada en DEV/CI: editor despejado, navegación de escena, sesión sin interrupciones y guía visual Wemos | 1, 6, 8 y 10; 9: Wemos | Traspaso de fase 11; pinout documentado para la guía, sin sustituir ensayo físico |
 | 13 | Acceso externo persistente y seguro a DEV | 11: publicar DEV controladamente | Acceso autorizado a la VM Nginx existente; dominio/registro DNS creado por el propietario; sin tocar gateway ni host Proxmox |
 | 14 | Entregada y verificada en DEV: ejecución visual en los bloques y paralelo vertical | 4, 5 y 7 | Distribución de fase 12 |
-| 15 | Componentes y bloques TX/RX serial | 3: TX/RX; 9: conexiones seriales | Wemos actual como primer destino; simulador y ambos generadores |
+| 15 | Software entregado: componente y bloques TX/RX; aceptación Wemos pendiente | 3: TX/RX; 9: conexiones seriales | Wemos actual como primer destino; simulador y ambos generadores |
 | 16 | Soporte completo ESP32-S3 DevKit y selección de placa | 2: DevKit; 9: guía visual DevKit | Modelo exacto identificado; incorporar el contrato TX/RX de fase 15 |
 | 17 | Perfil Waveshare ESP32-S3 con pantalla de 5 pulgadas | 2: Waveshare; 9: guía visual Waveshare | Perfiles de fase 16 y modelo/revisión exactos identificados |
 | 18 | Escena gráfica y controles locales en el display | 3: display interactivo | Perfiles de pantalla de fase 17 y ejecución/componentes existentes |
@@ -20,7 +20,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 20 | Compilación y grabación guiadas, medibles y comprensibles | 15 y 17; informe externo vital 1–3 | Fase 10 aceptada físicamente para cerrar el recorrido USB; métricas sintéticas previas a optimizar |
 | 21 | Claridad y ergonomía educativa del editor | Informe externo vital 4, sutiles 1–8 y futuras 1–2, 5–7 | Fases 12 y 14; reproducción previa de cada observación |
 | 22 | Avatar acompañante y reacciones accesibles | 14; informe futuro 3 | Fase 19 para reacciones de desafíos y fase 20 para resultados de compilar/grabar |
-| 23 | Displays físicos y matriz MAX7219 | 18 y 19 | Módulos exactos identificados; fase 10 para el recorrido físico por USB |
+| 23 | En curso: software de matriz MAX7219 implementado; aceptación física de matriz y displays pendiente | 18 y 19 | Módulos exactos identificados; fase 10 para el recorrido físico por USB |
 | 24 | Panel web local para celular | 20 | Contrato Wi-Fi vigente, seguridad/emparejamiento y límites medidos |
 | 25 | Compartir proyectos por enlace y QR | Informe futuro 4 | Biblioteca/permisos existentes; modelo explícito de copia, caducidad y revocación |
 | 26 | Acceso de aula sin contraseña y asistencia | Informe futuro 8 | Identidad/sesiones/cursos existentes; modelo contra suplantación y equipos compartidos |
@@ -293,6 +293,8 @@ Aceptación:
 
 **Objetivo:** cerrar la validación de los perfiles de pantalla existentes e incorporar la matriz LED 32 × 8 solicitada como componente completo.
 
+**Estado:** el [componente Matriz LED](FASE_23_MATRIZ_LED.md) está implementado en software con una unidad 32 × 8, simulación y ambos generadores. La fase no está cerrada: faltan su ensayo eléctrico y la aceptación física de LCD/OLED/TFT.
+
 Alcance:
 
 - Identificar y probar físicamente LCD PCF8574 16×2/20×4 —incluido el Winstar/2004A y su mochila—, OLED SSD1306 128×64 y unidades TFT ILI9341/ILI9488 concretas; documentar dirección, mapeo, tensión, controlador y límites sin crear perfiles duplicados.
@@ -367,7 +369,7 @@ El gateway sigue siendo sólo un salto SSH, con prohibición de cambios. Tampoco
 ## Cómo se trabaja y qué falta decidir
 
 - Una fase completa autorizada por vez, con implementación, pruebas proporcionales, entrega en DEV y commit/push. Informar avances con evidencia y pendientes; no inventar porcentajes ni tiempos exactos.
-- **Fases 11–14 entregadas.** Actualizar la documentación viva al cerrar cada fase futura solicitada. No ejecutar 15–26 ni producción sin autorización explícita.
+- **Fases 11–14 entregadas, fase 15 terminada en software y fase 23 en curso.** Actualizar la documentación viva al cerrar cada entrega solicitada. No ejecutar las fases restantes, completar la aceptación física ni avanzar a producción sin autorización y hardware correspondientes.
 - Para fases 16 y 17 hacen falta modelos exactos antes de fijar drivers/pines; para cerrar las entregas físicas hace falta hardware identificado y autorización para reemplazar firmware.
 - La fase 14 fija el paralelo como un contenedor con caminos apilados de arriba hacia abajo y mantiene fork/join. Formato de mensajes/timeout se fija en fase 15; prioridad manual/programa y límites gráficos en fase 18; catálogo inicial y visibilidad docente en fase 19; métricas/asistente en 20; UX en 21; avatar en 22; displays/matriz en 23; panel móvil en 24; compartir en 25; acceso de aula en 26. Son decisiones dentro de esas fases, no nuevas fases con letras.
 - No hay estimaciones horarias comprometidas: hardware, alcance de la adaptación gráfica y mediciones en la VM condicionan el esfuerzo. No retrasar ahora la planificación esperando esos datos, ni prometer implementaciones específicas de un modelo no identificado.

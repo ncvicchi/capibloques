@@ -87,7 +87,7 @@ Pedido del 8 de septiembre de 2026: donde se indica cómo conectar los component
 - Conservar advertencias y requisitos eléctricos del montaje, incluidas alimentación, masa común, resistencias o drivers cuando correspondan. La imagen no debe sugerir conectar directamente un actuador que necesita una etapa intermedia ni presentar un conflicto como cableado válido.
 - Usar imágenes propias o con permiso/licencia documentados y contrastar etiquetas/coordenadas con la documentación de la placa exacta; no generar ni adivinar pinouts. Para Waveshare, representar los conectores realmente accesibles y los recursos reservados por pantalla/táctil según el modelo confirmado.
 
-Asignación: **fase 12 implementa la guía visual Wemos**, con dibujo propio, mapa contrastado y selección por componente/GPIO sincronizada con listado. **Fase 16** la adaptará a DevKit y **fase 17** a Waveshare; la fase 15 reflejará TX/RX. Esas ampliaciones siguen pendientes, sin autorización para iniciarlas. La ilustración no sustituye una prueba eléctrica.
+Asignación: **fase 12 implementó la guía visual Wemos**, con dibujo propio, mapa contrastado y selección por componente/GPIO sincronizada con listado; fase 15 ya incorporó TX/RX. **Fase 16** la adaptará a DevKit y **fase 17** a Waveshare. Esas dos ampliaciones siguen pendientes. La ilustración no sustituye una prueba eléctrica.
 
 ## 10. Desplazamiento y zoom de la escena
 
@@ -210,6 +210,8 @@ Los dos tipos ya están considerados por software. Queda pendiente la aceptació
 
 ## 19. Matriz de LED 32 × 8 con cuatro MAX7219 encadenados
 
+**Software implementado; aceptación física pendiente.** La [guía del componente](FASE_23_MATRIZ_LED.md) registra el contrato acordado: una unidad 32 × 8 por proyecto, editor de hasta 12 dibujos, brillo/orden/giro de 180°, cuatro bloques, simulación cooperativa y generación Arduino/ESP-IDF. La fase 23 completa sigue abierta por las pruebas eléctricas de esta matriz y de los displays existentes.
+
 Pedido aclarado el 14 de septiembre de 2026: incorporar el módulo de la fotografía, formado por **cuatro matrices monocromáticas de 8 × 8**, cada una controlada por MAX7219 y conectadas en cadena sobre una misma placa. La superficie lógica inicial es de 32 × 8 LED.
 
 - Usar la interfaz serie del MAX7219 (`DIN`, `CLK`, `CS/LOAD`) y modelar explícitamente los cuatro dispositivos en cascada, su orden y orientación. No presentarlo como I2C ni confundirlo con una matriz RGB o LED direccionables individualmente.
@@ -219,7 +221,7 @@ Pedido aclarado el 14 de septiembre de 2026: incorporar el módulo de la fotogra
 - Validar pines y conflictos según la placa; mostrar `VCC`, `GND`, `DIN`, `CLK`, `CS/LOAD` y el sentido de entrada/salida de la cadena. Documentar alimentación, masa común, desacoplo y adaptación de nivel si la unidad de 5 V no reconoce de forma confiable la lógica de 3,3 V. No alimentar la matriz desde un GPIO.
 - Probar la unidad física completa: orden de los cuatro paneles, orientación, color, brillo, actualización, texto/patrones, desconexión y corriente máxima acordada. Probar más de una unidad sólo si ese encadenamiento entra en el alcance autorizado.
 
-El controlador y la geometría principal ya están identificados. Quedan por confirmar el color, modelo/revisión de la placa, tensión/corriente declaradas, orientación interna, cantidad máxima de unidades 32 × 8 a encadenar y comportamiento educativo deseado. Asignación: **fase 23**, junto con la aceptación física de los perfiles LCD/OLED/TFT existentes.
+El comportamiento educativo inicial ya quedó fijado e implementado. Quedan por confirmar el color, modelo/revisión de la placa, tensión/corriente declaradas y orientación interna. La cantidad permanece en una unidad 32 × 8 hasta que una medición física justifique ampliarla. Asignación: **fase 23**, junto con la aceptación física de los perfiles LCD/OLED/TFT existentes.
 
 ## 20. Panel web local para controlar y observar desde un celular
 
@@ -380,4 +382,4 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 20. Panel web local para celular | 24. Panel local seguro y programable en la misma LAN |
 | 21. Guardado estable durante el arrastre | Implementado y desplegado el 15 de septiembre de 2026, revisión `2b97af9` |
 
-Las observaciones externas quedan asignadas así: fase 20 (progreso/guardado/reinicio de compilación), fase 21 (superposición y claridad/escena), fase 22 (avatar), fase 25 (enlaces/QR) y fase 26 (acceso de aula/asistencia). Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 14 y las correcciones de los pedidos 13, 16 y 21 están entregadas; las fases 15–26 requieren autorización propia. Los números de pedido no son fases nuevas.
+Las observaciones externas quedan asignadas así: fase 20 (progreso/guardado/reinicio de compilación), fase 21 (superposición y claridad/escena), fase 22 (avatar), fase 25 (enlaces/QR) y fase 26 (acceso de aula/asistencia). Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 15 está implementada en software y la fase 23 está en curso con la matriz implementada; el resto requiere autorización propia. Los números de pedido no son fases nuevas.
