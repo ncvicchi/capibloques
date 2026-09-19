@@ -133,13 +133,15 @@ No incorpora seguimiento físico de bloques ni cambia la lógica del firmware pa
 
 **Objetivo:** que el programa pueda enviar mensajes y tomar decisiones según mensajes recibidos por un puerto serial configurable.
 
+**Estado:** software implementado; aceptación física Wemos pendiente. Ver [contrato, protocolo y pruebas](FASE_15_MENSAJES.md).
+
 Alcance:
 
-- Componente de conexión serial con puerto y pines válidos para el perfil de placa. Opciones de velocidad y fin de mensaje con valores iniciales simples y ayuda; validar conflictos y compatibilidad eléctrica antes de cablear.
-- Bloque TX para enviar texto y bloque RX para comparar con un mensaje prearmado y bifurcar en igual/distinto. La comparación usa mensajes completos, no fragmentos arbitrarios de una lectura.
-- Definir delimitador, codificación, normalización y límites. Si todavía no llegó un mensaje, RX espera cooperativamente: no ejecuta «distinto». Dar una salida/estado de timeout explícito y comprensible.
+- Componente **Mensajes**, con modos Enviar, Recibir o ambos, pines válidos para el perfil y velocidad inicial 9600 configurable sólo en la escena.
+- Bloque de envío y bloque de recepción condicional con contenedores igual/distinto/no llegó. La comparación usa mensajes prearmados completos.
+- Trama automática con cabecera, versión, tamaño, UTF-8, CRC-16 y cierre; máximo 120 bytes. Un paquete dañado se descarta y no ejecuta «distinto».
 - Buffers y colas acotados, política visible para mensajes excesivos, cancelación al detener y tratamiento determinista cuando más de un hilo usa el mismo puerto.
-- Simular recepción desde un panel de pruebas del navegador y visualizar lo enviado. Generar el equivalente autónomo para Arduino y ESP-IDF, inicialmente en Wemos.
+- Simular recepción mediante botones creados desde una lista editable previa, sin texto libre durante la ejecución, y visualizar lo enviado. Generar el equivalente autónomo para Arduino y ESP-IDF, inicialmente en Wemos.
 - Guardar/restaurar configuración y bloques con el proyecto; actualizar validación de servidor, exportación/importación, compilación y guía de conexiones. Reservar/rechazar puertos en conflicto con programación o consola según el perfil.
 - Reflejar TX/RX y sus reasignaciones tanto en el listado como sobre la imagen de la placa de fase 12, con la misma validación de pines y conflictos.
 

@@ -79,13 +79,14 @@ export function firmwareFixture(auxiliary = false) {
   // Together they compile every operation and condition emitted by the editor.
   if (auxiliary) {
     scene = createEmptyScene('Motor y buzzer activo');
-    for (const kind of ['motor', 'activeBuzzer']) {
+    for (const kind of ['motor', 'activeBuzzer', 'messages']) {
       scene = addDeviceToScene(scene, kind).scene;
     }
     const motor = scene.devices.find((device) => device.kind === 'motor');
     const activeBuzzer = scene.devices.find(
       (device) => device.kind === 'activeBuzzer',
     );
+    const messages = scene.devices.find((device) => device.kind === 'messages');
     program.threads = [
       {
         id: 'auxiliary',
@@ -105,6 +106,14 @@ export function firmwareFixture(auxiliary = false) {
             frequency: 1000,
             durationMs: 100,
             blockId: 'active-tone',
+          },
+          { op: 'messageSend', deviceId: messages.id, text: 'AVANZAR', blockId: 'message-send' },
+          {
+            op: 'messageReceive', deviceId: messages.id, expected: 'DETENER', timeoutMs: 100,
+            equal: [{ op: 'serial', text: 'igual', blockId: 'message-equal' }],
+            different: [{ op: 'serial', text: 'distinto', blockId: 'message-different' }],
+            timeout: [{ op: 'serial', text: 'timeout', blockId: 'message-timeout' }],
+            blockId: 'message-receive',
           },
           { op: 'pin', pin: 18, value: true, blockId: 'raw-output' },
           { op: 'wait', ms: 100, blockId: 'motor-wait' },
@@ -216,4 +225,3 @@ export function firmwareFixture(auxiliary = false) {
   
   return { scene, program };
 }
-

@@ -47,7 +47,7 @@ interface BlocklyWorkspaceProps {
   onHistoryChange?: (state: BlocklyHistoryState) => void;
 }
 
-import { DEVICE_FIELD, AREA_FIELD, EMPTY_FAVORITES, serializedAreaIds, workspaceDevices, serializedDeviceIds, toolbox, collectSerializedDeviceIds, registerBlocks, refreshAreaField, refreshDeviceFields, updateDeviceWarning, ensureSingleStart, compileWorkspace } from '@/lib/blockly-engine';
+import { DEVICE_FIELD, AREA_FIELD, EMPTY_FAVORITES, serializedAreaIds, workspaceDevices, serializedDeviceIds, toolbox, collectSerializedDeviceIds, registerBlocks, refreshAreaField, refreshMessageField, refreshDeviceFields, updateDeviceWarning, ensureSingleStart, compileWorkspace } from '@/lib/blockly-engine';
 
 function saveWorkspace(Blockly: BlocklyApi, workspace: BlocklyWorkspaceSvg) {
   const snapshot = Blockly.serialization.workspaces.save(workspace);
@@ -558,7 +558,7 @@ const BlocklyWorkspace = forwardRef<
             ) {
               serializedDeviceIds.get(workspace)?.delete(change.blockId);
               const block = workspace.getBlockById(change.blockId);
-              if (block) { refreshAreaField(block); updateDeviceWarning(block); }
+              if (block) { refreshAreaField(block); refreshMessageField(block); updateDeviceWarning(block); }
             }
             if (change.element === 'field' && change.name === AREA_FIELD && change.blockId) {
               serializedAreaIds.get(workspace)?.delete(change.blockId);

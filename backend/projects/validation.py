@@ -15,6 +15,7 @@ TARGET = {"family": "esp32", "framework": "arduino", "coreMajor": 3, "coreVersio
 BLOCKS = {"capi_" + name for name in ("start", "forever", "repeat", "wait", "if", "compare", "counter_compare", "counter_set", "counter_change", "traffic", "led", "pin_write", "robot", "motor", "servo", "buzzer", "tone", "button_pressed", "sensor_compare", "wifi_connect", "wifi_connected", "serial")}
 BLOCKS.add("capi_parallel")
 BLOCKS.update(("capi_display_write", "capi_display_clear"))
+BLOCKS.update(("capi_message_send", "capi_message_receive"))
 PINS = {"trafficLight": ["red", "yellow", "green"], "robot": ["leftIn1", "leftIn2", "rightIn1", "rightIn2"], "motor": ["in1", "in2"], **{kind: ["signal"] for kind in ("led", "servo", "activeBuzzer", "passiveBuzzer", "button", "lightSensor", "potentiometer")}, "wifiNode": []}
 CONFIGS = {
     "trafficLight": {"redBrightness": (0, 100), "yellowBrightness": (0, 100), "greenBrightness": (0, 100)},
@@ -27,6 +28,8 @@ CONFIGS = {
     "counter": {"value": (-1e308, 1e308), "mascot": 32},
 }
 PINS["display"] = ["sda", "scl", "sck", "mosi", "cs", "dc", "rst"]
+PINS["messages"] = ["tx", "rx"]
+CONFIGS["messages"] = {"mode": ["send", "receive", "both"], "baudRate": [9600, 19200, 38400, 57600, 115200]}
 DISPLAY_PROFILES = {"lcd1602": (16, 2, False, "i2c"), "lcd2004": (20, 4, False, "i2c"), "ssd1306": (16, 8, True, "i2c"), "ili9341": (26, 15, True, "spi"), "ili9488": (40, 20, True, "spi")}
 
 
@@ -166,6 +169,7 @@ def scene(value):
     require(isinstance(value["devices"], list) and isinstance(value["widgets"], list) and len(value["devices"]) + len(value["widgets"]) <= 256 and len(value["widgets"]) <= 1)
     ids, names = set(), set()
     display_count = 0
+    messages_count = 0
     for is_widget, items in ((False, value["devices"]), (True, value["widgets"])):
         for item in items:
             exact(item, ("schemaVersion", "id", "kind", "name", "position", "config") if is_widget else ("schemaVersion", "id", "kind", "name", "position", "config", "pins", "rotation"))
@@ -187,10 +191,19 @@ def scene(value):
                 used_pins = display_config(config)
                 require(isinstance(item["pins"], dict) and all(item["pins"].get(key) is None for key in PINS[kind] if key not in used_pins))
             else:
-                exact(config, CONFIGS[kind])
+                if kind == "messages":
+                    messages_count += 1
+                    require(messages_count <= 2, "La placa admite hasta dos componentes Mensajes.")
+                exact(config, (*CONFIGS[kind], "messages") if kind == "messages" else CONFIGS[kind])
             for key, rule in CONFIGS.get(kind, {}).items():
                 setting = config[key]
                 require(type(setting) is bool if rule is bool else number(setting, *rule) if isinstance(rule, tuple) else text(setting, rule) if type(rule) is int else setting in rule)
+            if kind == "messages":
+                messages = config["messages"]
+                require(isinstance(messages, list) and 1 <= len(messages) <= 24 and len(set(messages)) == len(messages))
+                require(all(text(message, 120, 1) and message.strip() and len(message.encode("utf-8")) <= 120 for message in messages))
+                require(config["mode"] != "send" or item["pins"]["rx"] is None)
+                require(config["mode"] != "receive" or item["pins"]["tx"] is None)
             if not is_widget:
                 require(number(item["rotation"], 0, 360) and item["rotation"] < 360)
                 exact(item["pins"], PINS[kind])

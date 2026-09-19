@@ -351,4 +351,30 @@ assert.equal(
 send({ type: 'RUN' });
 assert.equal(latestState().status, 'idle');
 
+// Mensajes espera cooperativamente y elige la rama a partir de un botón de
+// entrada predefinido, sin confundir una recepción con el monitor USB.
+const link = {
+  schemaVersion: 1, id: 'messages-test', kind: 'messages', name: 'Robot del portón',
+  position: { x: 80, y: 80 }, rotation: 0, pins: { tx: 17, rx: 16 },
+  config: { mode: 'both', baudRate: 9600, messages: ['AVANZAR', 'DETENER'] },
+};
+send({
+  type: 'LOAD', scene: baseScene([link]), program: { version: 2, threads: [{
+    id: 'messages-thread', startBlockId: 'messages-start', nodes: [{
+      op: 'messageReceive', deviceId: link.id, expected: 'DETENER', timeoutMs: 5000, blockId: 'receive',
+      equal: [{ op: 'serial', text: 'rama igual', blockId: 'equal' }],
+      different: [{ op: 'serial', text: 'rama distinta', blockId: 'different' }],
+      timeout: [{ op: 'serial', text: 'rama timeout', blockId: 'timeout' }],
+    }],
+  }] },
+});
+send({ type: 'RUN' });
+advance(16);
+assert.equal(latestState().execution.tasks[0].status, 'waiting');
+send({ type: 'SET_INPUT', deviceId: link.id, value: 'DETENER' });
+advance(16);
+advance(16);
+assert.ok(latestState().console.some(line => line.includes('rama igual')));
+assert.equal(latestState().devices[link.id].received.at(-1), 'DETENER');
+
 console.log('Simulator worker smoke checks passed.');

@@ -28,6 +28,7 @@ export const sceneDeviceKinds = [
   'potentiometer',
   'wifiNode',
   'display',
+  'messages',
 ] as const;
 
 export type SceneDeviceKind = (typeof sceneDeviceKinds)[number];
@@ -141,6 +142,17 @@ export type WifiNodeDevice = SceneDeviceBase<
   }
 >;
 
+export type MessagesMode = 'send' | 'receive' | 'both';
+export type MessagesDevice = SceneDeviceBase<
+  'messages',
+  { tx: PinNumber; rx: PinNumber },
+  {
+    mode: MessagesMode;
+    baudRate: 9600 | 19200 | 38400 | 57600 | 115200;
+    messages: string[];
+  }
+>;
+
 export interface SceneDeviceByKind {
   display: DisplayDevice;
   trafficLight: TrafficLightDevice;
@@ -154,6 +166,7 @@ export interface SceneDeviceByKind {
   lightSensor: LightSensorDevice;
   potentiometer: PotentiometerDevice;
   wifiNode: WifiNodeDevice;
+  messages: MessagesDevice;
 }
 
 export type SceneDevice = SceneDeviceByKind[SceneDeviceKind];
@@ -357,9 +370,14 @@ const requirementsByKind: Record<SceneDeviceKind, readonly PinRequirement[]> = {
   ],
   wifiNode: [],
   display: displayPinKeys.map(key => ({ key, label: key.toUpperCase(), capability: 'pwmOutput' })),
+  messages: [
+    { key: 'tx', label: 'Enviar', capability: 'pwmOutput' },
+    { key: 'rx', label: 'Recibir', capability: 'digitalInput' },
+  ],
 };
 
 export const sceneComponentCatalog: readonly SceneComponentCatalogEntry[] = [
+  { kind: 'messages', icon: '↔️', name: 'Mensajes', description: 'Envía y recibe mensajes de texto protegidos por cable.', childFriendlyControl: 'Enviar, recibir o ambas cosas', pinRequirements: requirementsByKind.messages },
   { kind: 'display', icon: '📺', name: 'Pantalla de mensajes', description: 'LCD, OLED o TFT con zonas de texto.', childFriendlyControl: 'Escribir y borrar mensajes', pinRequirements: requirementsByKind.display },
   {
     kind: 'trafficLight',
@@ -469,6 +487,7 @@ const kindIdBases: Record<SceneDeviceKind, string> = {
   potentiometer: 'potentiometer',
   wifiNode: 'wifi-node',
   display: 'display',
+  messages: 'messages',
 };
 
 const defaultCanvas: SceneCanvas = {
@@ -763,6 +782,23 @@ function unassignedDevice<K extends SceneDeviceKind>(
         config: { status: 'idle', ssid: 'CapiRed' },
       };
       break;
+    case 'messages':
+      {
+      const mode = (options.config as Partial<MessagesDevice['config']> | undefined)?.mode ?? 'both';
+      const modeName = mode === 'send' ? 'Enviar' : mode === 'receive' ? 'Recibir' : 'Enviar y recibir';
+      device = {
+        ...base,
+        name: options.name ?? createUniqueVisibleName(`${modeName} ${sameKindCount + 1}`, existingDevices.map(item => item.name), modeName),
+        kind,
+        pins: { tx: null, rx: null },
+        config: {
+          mode,
+          baudRate: 9600,
+          messages: ['AVANZAR', 'DETENER', 'IZQUIERDA', 'DERECHA'],
+        },
+      };
+      break;
+      }
   }
 
   return {
@@ -953,6 +989,7 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
     );
   }
   if (kind === 'display' && scene.devices.some(device => device.kind === 'display')) throw new Error('Cada proyecto admite una sola pantalla. Configurá la pantalla existente.');
+  if (kind === 'messages' && scene.devices.filter(device => device.kind === 'messages').length >= 2) throw new Error('La placa admite hasta dos componentes Mensajes.');
   const reservedIds = [
     ...scene.devices.map((item) => item.id),
     ...scene.widgets.map((item) => item.id),
@@ -1329,7 +1366,9 @@ export type SceneValidationIssueCode =
   | 'external-servo-power'
   | 'led-resistor-required'
   | 'invalid-display'
-  | 'display-limit';
+  | 'display-limit'
+  | 'messages-limit'
+  | 'invalid-messages-pin';
 
 export interface SceneValidationIssue {
   code: SceneValidationIssueCode;
@@ -1436,6 +1475,12 @@ export function validateScene(scene: SceneDefinition): SceneValidationResult {
     }
     const required = requiredDisplayPins(device.config);
     if (displayPinKeys.some(key => !required.includes(key) && device.pins[key] !== null)) issues.push({ code: 'invalid-display', severity: 'error', deviceId: device.id, message: `${device.name}: hay pines configurados que no pertenecen a este modelo.` });
+  }
+  const messageLinks = scene.devices.filter((device): device is MessagesDevice => device.kind === 'messages');
+  if (messageLinks.length > 2) issues.push({ code: 'messages-limit', severity: 'error', message: 'La placa admite hasta dos componentes Mensajes; la conexión de programación queda reservada.' });
+  for (const device of messageLinks) {
+    if (device.config.mode === 'send' && device.pins.rx !== null) issues.push({ code: 'invalid-messages-pin', severity: 'error', deviceId: device.id, message: `${device.name}: el pin de recibir debe quedar libre en modo Enviar.` });
+    if (device.config.mode === 'receive' && device.pins.tx !== null) issues.push({ code: 'invalid-messages-pin', severity: 'error', deviceId: device.id, message: `${device.name}: el pin de enviar debe quedar libre en modo Recibir.` });
   }
   for (const device of scene.devices) {
     if (!itemIdIsValid(device.id)) {
@@ -1829,6 +1874,21 @@ function validDeviceConfig(
         typeof config.ssid === 'string' &&
         config.ssid.length <= 64
       );
+    case 'messages':
+      return (
+        hasOnlyKeys(config, ['mode', 'baudRate', 'messages']) &&
+        ['send', 'receive', 'both'].includes(String(config.mode)) &&
+        [9600, 19200, 38400, 57600, 115200].includes(Number(config.baudRate)) &&
+        Array.isArray(config.messages) &&
+        config.messages.length >= 1 &&
+        config.messages.length <= 24 &&
+        config.messages.every(message =>
+          typeof message === 'string' &&
+          message.trim().length >= 1 &&
+          new TextEncoder().encode(message).length <= 120
+        ) &&
+        new Set(config.messages).size === config.messages.length
+      );
   }
 }
 
@@ -2019,6 +2079,13 @@ export function migrateSceneDefinition(
 
 export function getPinRequirements(device: SceneDeviceKind | SceneDevice) {
   if (typeof device === 'string') return requirementsByKind[device];
+  if (device.kind === 'messages') {
+    return requirementsByKind.messages.filter(requirement =>
+      device.config.mode === 'both' ||
+      (device.config.mode === 'send' && requirement.key === 'tx') ||
+      (device.config.mode === 'receive' && requirement.key === 'rx')
+    );
+  }
   if (device.kind !== 'display') return requirementsByKind[device.kind];
   if (!validDisplayConfig(device.config, true)) return [];
   const keys = requiredDisplayPins(device.config);

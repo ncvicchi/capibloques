@@ -838,7 +838,7 @@ function SceneBuilderSession({
                     <button
                       type="button"
                       key={component.kind}
-                      disabled={component.kind === 'display' && previewScene.devices.some(device => device.kind === 'display')}
+                      disabled={(component.kind === 'display' && previewScene.devices.some(device => device.kind === 'display')) || (component.kind === 'messages' && previewScene.devices.filter(device => device.kind === 'messages').length >= 2)}
                       onClick={() => addComponent(component.kind)}
                       title={component.description}
                       aria-label={`Agregar ${component.name}. ${component.childFriendlyControl}`}
@@ -846,7 +846,7 @@ function SceneBuilderSession({
                       <span aria-hidden="true">{component.icon}</span>
                       <span>
                         <strong>{component.name}</strong>
-                        <small>{component.kind === 'display' && previewScene.devices.some(device => device.kind === 'display') ? 'Una por proyecto: configurá la existente' : component.childFriendlyControl}</small>
+                        <small>{component.kind === 'display' && previewScene.devices.some(device => device.kind === 'display') ? 'Una por proyecto: configurá la existente' : component.kind === 'messages' && previewScene.devices.filter(device => device.kind === 'messages').length >= 2 ? 'Máximo dos por proyecto' : component.childFriendlyControl}</small>
                       </span>
                       <b aria-hidden="true">＋</b>
                     </button>
@@ -960,6 +960,60 @@ function SceneBuilderSession({
                   </label>
 
                   {selected.kind === 'display' && <DisplayProperties key={selected.id} device={selected} onChange={next => updateSelectedDraft(() => next)} />}
+                  {selected.kind === 'messages' && (
+                    <div className="messages-properties">
+                      <label htmlFor="messages-mode">
+                        <span>Qué puede hacer</span>
+                        <NativeSelect
+                          id="messages-mode"
+                          value={selected.config.mode}
+                          aria-label={`Modo de ${selected.name}`}
+                          onChange={(event) => updateSelectedDraft(device => {
+                            if (device.kind !== 'messages') return device;
+                            const mode = event.target.value as typeof device.config.mode;
+                            return {
+                              ...device,
+                              config: { ...device.config, mode },
+                              pins: {
+                                tx: mode === 'receive' ? null : device.pins.tx,
+                                rx: mode === 'send' ? null : device.pins.rx,
+                              },
+                            };
+                          })}
+                        >
+                          <NativeSelectOption value="send">Enviar</NativeSelectOption>
+                          <NativeSelectOption value="receive">Recibir</NativeSelectOption>
+                          <NativeSelectOption value="both">Enviar y recibir</NativeSelectOption>
+                        </NativeSelect>
+                      </label>
+                      <label htmlFor="messages-speed">
+                        <span>Velocidad</span>
+                        <NativeSelect
+                          id="messages-speed"
+                          value={String(selected.config.baudRate)}
+                          aria-label={`Velocidad de ${selected.name}`}
+                          onChange={(event) => updateSelectedDraft(device => device.kind === 'messages' ? { ...device, config: { ...device.config, baudRate: Number(event.target.value) as typeof device.config.baudRate } } : device)}
+                        >
+                          {[9600, 19200, 38400, 57600, 115200].map(value => <NativeSelectOption key={value} value={value}>{value}</NativeSelectOption>)}
+                        </NativeSelect>
+                      </label>
+                      <label htmlFor="messages-list">
+                        <span>Mensajes disponibles · uno por línea</span>
+                        <textarea
+                          id="messages-list"
+                          aria-label={`Mensajes disponibles de ${selected.name}`}
+                          rows={6}
+                          value={selected.config.messages.join('\n')}
+                          onChange={(event) => updateSelectedDraft(device => {
+                            if (device.kind !== 'messages') return device;
+                            const messages = [...new Set(event.target.value.split(/\r?\n/).map(value => value.trim()).filter(Boolean))].slice(0, 24);
+                            return { ...device, config: { ...device.config, messages } };
+                          })}
+                        />
+                        <small>Hasta 24 mensajes; cada uno puede ocupar 120 bytes.</small>
+                      </label>
+                    </div>
+                  )}
                   <div className="pin-editor">
                     <h4>Conexiones</h4>
                     {getPinRequirements(selected).length ? (

@@ -6,7 +6,7 @@ El editor exige ingreso con alias y contraseña. En la VM de desarrollo corren D
 
 El alcance está en [el plan de implementación](docs/PLAN_MULTIUSUARIO_PROXMOX.md) y el estado de preparación en [fase 0: servidores](docs/FASE_0_SERVIDORES.md). Trabajamos una fase por vez, con pruebas, commit/push y aprobación del propietario antes de avanzar.
 
-El [backlog](docs/BACKLOG.md) distingue lo implementado en fases 12–14 y las correcciones posteriores de lo pendiente. Cada pedido tiene una fase: TX/RX, perfiles ESP32-S3, display interactivo, desafíos, compilación/grabación guiada, UX, avatar, displays/matriz MAX7219, panel móvil, compartir por enlace/QR y acceso de aula.
+El [backlog](docs/BACKLOG.md) distingue lo implementado en fases 12–15 y las correcciones posteriores de lo pendiente. [Mensajes](docs/FASE_15_MENSAJES.md) ya ofrece envío/recepción protegido y simulado; quedan perfiles ESP32-S3, display interactivo, desafíos, compilación/grabación guiada, UX, avatar, displays/matriz MAX7219, panel móvil, compartir por enlace/QR y acceso de aula.
 
 La [configuración del colegio de fase 2](docs/FASE_2B2_COLEGIO.md) incorpora nombre y logo antes del ingreso. Se configuran desde **Mi cuenta → Configurar colegio**, con vista previa y Guardar/Cancelar, sólo para administradores. Acepta PNG/JPEG/WebP con validación y optimización; nombre e imagen quedan en PostgreSQL y su volumen persistente. No se necesita un logo para ingresar.
 

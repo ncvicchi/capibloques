@@ -27,6 +27,7 @@ import {
 type Pending =
   | { kind: 'wait'; startedAt: number; until: number; blockId: string }
   | { kind: 'wifi'; startedAt: number; readyAt: number; timeoutAt: number; blockId: string }
+  | { kind: 'message'; startedAt: number; timeoutAt: number; deviceId: string; expected: string; equalTarget: number; differentTarget: number; timeoutTarget: number; blockId: string }
   | null;
 
 type ThreadExecution = {
@@ -90,6 +91,7 @@ let pendingBlockActivity: { threadId: string; blockId: string } | null = null;
 const pendingSounds = new Map<string, { frequency: number }>();
 const inputOverrides = new Map<string, unknown>();
 const legacyInputOverrides = new Map<string, unknown>();
+const messageQueues = new Map<string, string[]>();
 let wifiAvailableOverride: boolean | undefined;
 let diagnostics: CapiDiagnostic[] = [];
 let simulationBlocked = false;
@@ -151,6 +153,7 @@ import { displayTargets, layoutDisplayText } from './display-model.ts';
 function runtimeForDevice(device: SceneDevice): RuntimeDeviceState {
   switch (device.kind) {
     case 'display': return { kind: 'display', texts: Object.fromEntries(displayTargets(device.config).map(area => [area.id, layoutDisplayText('', area).lines])) };
+    case 'messages': return { kind: 'messages', received: [], transmitted: [], damaged: 0 };
     case 'trafficLight':
       return { kind: 'trafficLight', color: 'OFF' };
     case 'led':
@@ -346,17 +349,21 @@ function executionTaskState(execution: ThreadExecution): ExecutionTaskState {
     const target =
       pending.kind === 'wait'
         ? pending.until
-        : state.wifiAvailable
-          ? pending.readyAt
-          : pending.timeoutAt;
+        : pending.kind === 'message'
+          ? pending.timeoutAt
+          : state.wifiAvailable
+            ? pending.readyAt
+            : pending.timeoutAt;
     task.remainingMs = Math.max(0, Math.round(target - virtualNow));
     task.durationMs = Math.max(0, Math.round(target - pending.startedAt));
     task.detail =
       pending.kind === 'wait'
         ? `${(task.remainingMs / 1000).toFixed(2)} s restantes`
-        : state.wifiAvailable
-          ? 'Conectando a Wi-Fi'
-          : 'Esperando la red Wi-Fi';
+        : pending.kind === 'message'
+          ? `Esperando “${pending.expected}” · ${(task.remainingMs / 1000).toFixed(1)} s`
+          : state.wifiAvailable
+            ? 'Conectando a Wi-Fi'
+            : 'Esperando la red Wi-Fi';
   } else if (status === 'joining') {
     task.detail = 'Espera a los otros caminos';
   } else if (blockId) {
@@ -451,6 +458,7 @@ function resetExecution(status: SimulatorState['status'] = 'idle') {
   lastSoundRealTime = Number.NEGATIVE_INFINITY;
   pendingBlockActivity = null;
   pendingSounds.clear();
+  messageQueues.clear();
   clearBlockActivity();
   emit();
 }
@@ -574,6 +582,23 @@ function resolvePending(
     execution.pc += 1;
     return 'advanced';
   }
+  if (pending.kind === 'message') {
+    const queue = messageQueues.get(pending.deviceId) ?? [];
+    const received = queue.shift();
+    if (received !== undefined) {
+      execution.pending = null;
+      execution.pc = received === pending.expected ? pending.equalTarget : pending.differentTarget;
+      appendConsole(`${deviceName(pending.deviceId)} recibió “${received}”: ${received === pending.expected ? 'igual' : 'distinto'}`);
+      return 'advanced';
+    }
+    if (virtualNow >= pending.timeoutAt) {
+      execution.pending = null;
+      execution.pc = pending.timeoutTarget;
+      appendConsole(`${deviceName(pending.deviceId)}: no llegó ningún mensaje a tiempo`);
+      return 'advanced';
+    }
+    return 'waiting';
+  }
   if (state.wifiAvailable && virtualNow >= pending.readyAt) {
     state.wifi = 'connected';
     appendConsole('Wi-Fi conectado (simulación)');
@@ -696,6 +721,20 @@ function executeInstruction(
     };
     return 'wait';
   }
+  if (node.op === 'messageReceiveWait') {
+    execution.pending = {
+      kind: 'message',
+      startedAt: virtualNow,
+      timeoutAt: virtualNow + Math.max(100, node.timeoutMs),
+      deviceId: node.deviceId,
+      expected: node.expected,
+      equalTarget: node.equalTarget,
+      differentTarget: node.differentTarget,
+      timeoutTarget: node.timeoutTarget,
+      blockId: node.blockId,
+    };
+    return 'wait';
+  }
 
   execution.pc += 1;
   switch (node.op) {
@@ -798,6 +837,14 @@ function executeInstruction(
     case 'serial':
       appendConsole(node.text);
       break;
+    case 'messageSend': {
+      const device = state.devices[node.deviceId];
+      if (device?.kind === 'messages') {
+        device.transmitted = [...device.transmitted.slice(-15), node.text];
+        appendConsole(`${deviceName(node.deviceId)} envió “${node.text}”`);
+      }
+      break;
+    }
   }
   return 'action';
 }
@@ -821,7 +868,7 @@ function executeOne(execution: ThreadExecution) {
   if (wasDone || !node) return result;
   let message = '';
   if (pending) {
-    if (!execution.pending) message = pending.kind === 'wait' ? 'Terminó la espera; seguimos.' : state.wifi === 'connected' ? 'Wi-Fi conectado.' : 'No se pudo conectar a Wi-Fi.';
+    if (!execution.pending) message = pending.kind === 'wait' ? 'Terminó la espera; seguimos.' : pending.kind === 'message' ? (state.console.at(-1)?.replace(/^[^·]*· /, '') ?? 'Terminó la espera de mensaje.') : state.wifi === 'connected' ? 'Wi-Fi conectado.' : 'No se pudo conectar a Wi-Fi.';
   } else {
     switch (node.op) {
       case 'jumpIfFalse': message = execution.pc === node.target ? 'La condición es falsa: vamos por «si no».' : 'La condición es verdadera: vamos por «si».'; break;
@@ -833,6 +880,7 @@ function executeOne(execution: ThreadExecution) {
       case 'halt': message = 'Este camino terminó.'; break;
       case 'wait': message = `Esperamos ${Math.max(0, node.ms) / 1000} segundos sin bloquear los otros caminos.`; break;
       case 'wifi': message = 'Buscamos una red Wi-Fi.'; break;
+      case 'messageReceiveWait': message = `Esperamos “${node.expected}” sin detener los otros caminos.`; break;
       case 'buzzer': case 'tone': message = `${deviceName(node.deviceId)}: suena durante ${node.durationMs / 1000} segundos.`; break;
       case 'displayWrite': message = `${deviceName(node.deviceId)}: escribimos «${node.text.slice(0, 80)}».`; break;
       case 'displayClear': message = `${deviceName(node.deviceId)}: borramos la zona de texto elegida.`; break;
@@ -1016,6 +1064,15 @@ function stopOutputs() {
 }
 
 function setInputById(deviceId: string, value: unknown) {
+  const device = state.devices[deviceId];
+  if (device?.kind === 'messages' && typeof value === 'string') {
+    const queue = messageQueues.get(deviceId) ?? [];
+    if (queue.length < 16) queue.push(value);
+    messageQueues.set(deviceId, queue);
+    device.received = [...device.received.slice(-15), value];
+    appendConsole(`${deviceName(deviceId)} recibió un paquete “${value}”`);
+    return;
+  }
   inputOverrides.set(deviceId, value);
   applyInputValue(deviceId, value);
 }

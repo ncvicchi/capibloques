@@ -34,12 +34,14 @@ Precisar al diseñar: qué vista corre en el navegador y cuál en el display fí
 
 ### TX/RX serial reasignable
 
+**Implementado en software en fase 15; aceptación física Wemos pendiente.** El nombre visible es **Mensajes**, con modos Enviar, Recibir o ambos. La [guía de fase](FASE_15_MENSAJES.md) fija bloques, trama protegida, simulación, límites y evidencia.
+
 - **TX:** enviar mensajes por el puerto serial elegido.
 - **RX:** recibir mensajes y compararlos con mensajes fijos/prearmados, con caminos **igual / distinto**.
 - Puerto y asignaciones configurables según las capacidades/pines de la placa; no asumir que todo se transmite por la consola USB de diagnóstico.
 - Permitir probar envío/recepción y bifurcaciones en el navegador antes de programar la placa.
 
-Precisar al diseñar: selección de UART, TX/RX, velocidad, fin de mensaje, codificación, tamaño máximo, espera/timeout y estado «sin mensaje». No confundir ausencia de datos con una comparación distinta. Las lecturas y esperas deben ser no bloqueantes; validar conflictos con otros componentes y puertos reservados.
+Decisión cerrada: velocidad inicial 9600 en la escena; mensajes UTF-8 prearmados de hasta 120 bytes; cabecera, versión, tamaño, CRC-16 y cierre automáticos; ramas igual/distinto/no llegó y espera cooperativa. La consola USB permanece separada.
 
 ## 4. Disposición de «Al mismo tiempo»
 

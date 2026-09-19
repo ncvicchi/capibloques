@@ -82,6 +82,7 @@ import {
   type ExecutionTaskState,
   type ProjectFile,
   type RuntimeDeviceState,
+  type ExampleId,
   type SceneId,
   type SimulatorState,
   type FirmwareFramework,
@@ -199,6 +200,7 @@ function runtimeFromDevice(
 ): RuntimeDeviceState {
   switch (device.kind) {
     case 'display': return { kind: 'display', texts: {} };
+    case 'messages': return { kind: 'messages', received: [], transmitted: [], damaged: 0 };
     case 'trafficLight':
       return { kind: device.kind, color: 'OFF' };
     case 'led':
@@ -351,6 +353,8 @@ function deviceReading(device: RuntimeDeviceState | undefined) {
           : device.status === 'error'
             ? 'Sin red'
             : 'Listo';
+    case 'messages':
+      return `${device.received.length} recibidos · ${device.transmitted.length} enviados`;
   }
 }
 
@@ -374,6 +378,7 @@ function DeviceStateCard({
     potentiometer: '🎚️',
     wifiNode: '📶',
     display: '📺',
+    messages: '↔️',
   };
   return (
     <article>
@@ -765,7 +770,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   );
 
   const loadExample = useCallback(
-    (id: SceneId | 'display') => {
+    (id: ExampleId) => {
       const applyExample = () => {
       libraryRef.current?.detach();
       const example = examples.find((item) => item.id === id) ?? examples[0];
@@ -1051,7 +1056,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   );
 
   const setDeviceInput = useCallback(
-    (deviceId: string, value: boolean | number) => {
+    (deviceId: string, value: boolean | number | string) => {
       postToWorker({ type: 'SET_INPUT', deviceId, value });
     },
     [postToWorker],
@@ -1142,7 +1147,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   }, [addSceneComponent, loadExample, draftStore]);
 
   const inputDevices = scene.devices.filter((device) =>
-    ['button', 'lightSensor', 'potentiometer'].includes(device.kind),
+    ['button', 'lightSensor', 'potentiometer'].includes(device.kind) ||
+    (device.kind === 'messages' && device.config.mode !== 'send'),
   );
   const programNodeCount = lastProgram.threads.reduce(
     (total, thread) => total + thread.nodes.length,
@@ -1431,6 +1437,23 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                   <h3>Entradas para probar</h3>
                   {inputDevices.map((device) => {
                     const runtime = sim.devices[device.id];
+                    if (device.kind === 'messages') {
+                      return (
+                        <div className="message-test-panel" key={device.id}>
+                          <span>↔️ {device.name}</span>
+                          <div className="message-test-buttons">
+                            {device.config.messages.map(message => (
+                              <button type="button" key={message} onClick={() => setDeviceInput(device.id, message)}>
+                                {message}
+                              </button>
+                            ))}
+                          </div>
+                          {runtime?.kind === 'messages' && (
+                            <small>Último recibido: {runtime.received.at(-1) ?? 'ninguno'}</small>
+                          )}
+                        </div>
+                      );
+                    }
                     if (device.kind === 'button') {
                       const checked =
                         runtime?.kind === 'button' ? runtime.pressed : false;

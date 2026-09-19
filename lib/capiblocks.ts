@@ -26,6 +26,8 @@ import { displayArduinoSupport } from './display-arduino.ts';
 import { displayIdfSupport } from './display-idf.ts';
 // @ts-expect-error Node strip-types runner.
 import { allocateIdfPwm, idfRuntimeSupport, IDF_VERSION } from './idf-runtime.ts';
+// @ts-expect-error Node strip-types runner.
+import { MAX_MESSAGE_BYTES } from './messages-protocol.ts';
 
 export type FirmwareFramework = 'arduino' | 'esp-idf';
 
@@ -91,6 +93,17 @@ export type ProgramNode =
   | { op: 'counterSet'; value: number; blockId: string }
   | { op: 'counterChange'; delta: number; blockId: string }
   | { op: 'serial'; text: string; blockId: string }
+  | { op: 'messageSend'; deviceId: string; text: string; blockId: string }
+  | {
+      op: 'messageReceive';
+      deviceId: string;
+      expected: string;
+      timeoutMs: number;
+      equal: ProgramNode[];
+      different: ProgramNode[];
+      timeout: ProgramNode[];
+      blockId: string;
+    }
   | { op: 'displayWrite'; deviceId: string; areaId: string; text: string; blockId: string }
   | { op: 'displayClear'; deviceId: string; areaId: string; blockId: string }
   | {
@@ -172,8 +185,9 @@ export interface ProjectDecodeResult {
   diagnostics: CapiDiagnostic[];
 }
 
+export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages';
 export interface ExampleDefinition {
-  id: SceneId | 'display';
+  id: ExampleId;
   title: string;
   mission: string;
   description: string;
@@ -232,7 +246,8 @@ export type RuntimeDeviceState =
   | { kind: 'button'; pressed: boolean }
   | { kind: 'lightSensor'; value: number }
   | { kind: 'potentiometer'; value: number }
-  | { kind: 'wifiNode'; status: WifiRuntimeState };
+  | { kind: 'wifiNode'; status: WifiRuntimeState }
+  | { kind: 'messages'; received: string[]; transmitted: string[]; damaged: number };
 
 export interface ExecutionEvent {
   seq: number;
@@ -513,6 +528,20 @@ const counterWorkspace = startWorkspace(
   ),
 );
 
+const robotMessagesScene = addDeviceToScene(createSceneFromTemplate('robot'), 'messages', {
+  id: 'messages-1', name: 'Órdenes del robot', config: { mode: 'receive', baudRate: 9600, messages: ['AVANZAR', 'DETENER'] },
+}).scene;
+const trafficMessagesScene = addDeviceToScene(createSceneFromTemplate('traffic'), 'messages', {
+  id: 'messages-1', name: 'Órdenes del semáforo', config: { mode: 'receive', baudRate: 9600, messages: ['VERDE', 'ROJO'] },
+}).scene;
+const messageReceiver = (expected: string, equal: Record<string, unknown>, different: Record<string, unknown>, timeout: Record<string, unknown>) => ({
+  type: 'capi_forever', id: `listen-${expected.toLowerCase()}`, inputs: { DO: { block: {
+    type: 'capi_message_receive', id: `receive-${expected.toLowerCase()}`,
+    fields: { DEVICE_ID: 'messages-1', MESSAGE: expected, TIMEOUT: 5 },
+    inputs: { EQUAL: { block: equal }, DIFFERENT: { block: different }, TIMEOUT_DO: { block: timeout } },
+  } } },
+});
+
 export const examples: ExampleDefinition[] = [
   {
     id: 'traffic',
@@ -564,6 +593,30 @@ export const examples: ExampleDefinition[] = [
       { type: 'capi_wait', id: 'display-read', fields: { SECONDS: 3 } },
       { type: 'capi_display_clear', id: 'display-clean', fields: { DEVICE_ID: 'display-1', AREA_ID: 'screen' } },
       { type: 'capi_serial', id: 'display-console', fields: { TEXT: 'Este mensaje va a la consola.' } },
+    )),
+  },
+  {
+    id: 'robot-messages', title: 'Robot por mensajes', icon: '📥', level: 'Intermedio',
+    mission: 'Probá órdenes predefinidas y hacé que el robot responda sin congelar otros caminos.',
+    description: 'Recepción protegida, comparación y tres resultados posibles.',
+    scene: robotMessagesScene,
+    workspace: startWorkspace(messageReceiver(
+      'AVANZAR',
+      { type: 'capi_robot', id: 'message-robot-forward', fields: { DEVICE_ID: 'robot-1', ACTION: 'FORWARD', SPEED: 70 } },
+      { type: 'capi_robot', id: 'message-robot-stop', fields: { DEVICE_ID: 'robot-1', ACTION: 'STOP', SPEED: 0 } },
+      { type: 'capi_serial', id: 'message-robot-timeout', fields: { TEXT: 'No llegó una orden' } },
+    )),
+  },
+  {
+    id: 'traffic-messages', title: 'Semáforo por mensajes', icon: '🚦', level: 'Intermedio',
+    mission: 'Encendé verde al recibir VERDE y rojo frente a cualquier otra orden.',
+    description: 'Mensajes completos, respuesta distinta y timeout visible.',
+    scene: trafficMessagesScene,
+    workspace: startWorkspace(messageReceiver(
+      'VERDE',
+      { type: 'capi_traffic', id: 'message-traffic-green', fields: { DEVICE_ID: 'traffic-light-1', COLOR: 'GREEN' } },
+      { type: 'capi_traffic', id: 'message-traffic-red', fields: { DEVICE_ID: 'traffic-light-1', COLOR: 'RED' } },
+      { type: 'capi_traffic', id: 'message-traffic-timeout', fields: { DEVICE_ID: 'traffic-light-1', COLOR: 'YELLOW' } },
     )),
   },
 ];
@@ -687,6 +740,8 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_wifi_connect',
   'capi_wifi_connected',
   'capi_serial',
+  'capi_message_send',
+  'capi_message_receive',
   'capi_display_write',
   'capi_display_clear',
 ]);
@@ -1132,6 +1187,8 @@ const blockKind = (block: Record<string, unknown>): SceneDeviceKind | null => {
   switch (type) {
     case 'capi_display_write':
     case 'capi_display_clear': return 'display';
+    case 'capi_message_send':
+    case 'capi_message_receive': return 'messages';
     case 'capi_traffic':
       return 'trafficLight';
     case 'capi_led':
@@ -1466,6 +1523,8 @@ const compatibleKindsForNode = (
   switch (node.op) {
     case 'displayWrite':
     case 'displayClear': return ['display'];
+    case 'messageSend':
+    case 'messageReceive': return ['messages'];
     case 'traffic':
       return ['trafficLight'];
     case 'led':
@@ -1706,6 +1765,21 @@ function normalizeNodes(
           blockId,
         });
         break;
+      case 'messageSend':
+        result.push({ op: 'messageSend', deviceId: typeof node.deviceId === 'string' ? node.deviceId : '', text: typeof node.text === 'string' ? node.text : '', blockId });
+        break;
+      case 'messageReceive':
+        result.push({
+          op: 'messageReceive',
+          deviceId: typeof node.deviceId === 'string' ? node.deviceId : '',
+          expected: typeof node.expected === 'string' ? node.expected : '',
+          timeoutMs: Math.max(100, finiteNumber(node.timeoutMs, 5000)),
+          equal: normalizeNodes(node.equal, scene),
+          different: normalizeNodes(node.different, scene),
+          timeout: normalizeNodes(node.timeout, scene),
+          blockId,
+        });
+        break;
       case 'displayWrite':
         result.push({ op: 'displayWrite', deviceId: typeof node.deviceId === 'string' ? node.deviceId : '', areaId: typeof node.areaId === 'string' ? node.areaId : '', text: typeof node.text === 'string' ? node.text : '', blockId });
         break;
@@ -1761,6 +1835,11 @@ function collectRequiredKindsFromNodes(
     }
     if (node.op === 'repeat') collectRequiredKindsFromNodes(node.body, result);
     if (node.op === 'parallel' && Array.isArray(node.branches)) node.branches.forEach(branch => collectRequiredKindsFromNodes(branch, result));
+    if (node.op === 'messageReceive') {
+      collectRequiredKindsFromNodes(node.equal, result);
+      collectRequiredKindsFromNodes(node.different, result);
+      collectRequiredKindsFromNodes(node.timeout, result);
+    }
   }
 }
 
@@ -1845,6 +1924,11 @@ function visitProgram(
       if (node.op === 'if') {
         visit(node.consequent);
         visit(node.otherwise);
+      }
+      if (node.op === 'messageReceive') {
+        visit(node.equal);
+        visit(node.different);
+        visit(node.timeout);
       }
     }
   };
@@ -1937,6 +2021,18 @@ export function validateProgramForScene(
     diagnostics.push({ severity: 'error', code: 'parallel-limit', message: error instanceof Error ? error.message : 'Demasiados caminos paralelos.' });
   }
   visitProgram(program, (node) => {
+    if (node.op === 'messageSend' || node.op === 'messageReceive') {
+      const text = node.op === 'messageSend' ? node.text : node.expected;
+      const bytes = new TextEncoder().encode(text).length;
+      if (!bytes || bytes > MAX_MESSAGE_BYTES) diagnostics.push({ severity: 'error', code: 'message-text-limit', message: `Un mensaje debe ocupar entre 1 y ${MAX_MESSAGE_BYTES} bytes.`, blockId: node.blockId, deviceId: node.deviceId });
+      const device = deviceMap.get(node.deviceId);
+      if (device?.kind === 'messages') {
+        const incompatible = node.op === 'messageSend' ? device.config.mode === 'receive' : device.config.mode === 'send';
+        if (incompatible) diagnostics.push({ severity: 'error', code: 'message-mode-mismatch', message: `${device.name} no está configurado para ${node.op === 'messageSend' ? 'enviar' : 'recibir'}.`, blockId: node.blockId, deviceId: node.deviceId });
+        if (!device.config.messages.includes(text)) diagnostics.push({ severity: 'error', code: 'message-not-configured', message: `“${text}” ya no está en la lista de ${device.name}.`, blockId: node.blockId, deviceId: node.deviceId });
+      }
+      if (node.op === 'messageReceive' && (!Number.isFinite(node.timeoutMs) || node.timeoutMs < 100 || node.timeoutMs > 300_000)) diagnostics.push({ severity: 'error', code: 'message-timeout', message: 'La espera debe durar entre 0,1 y 300 segundos.', blockId: node.blockId, deviceId: node.deviceId });
+    }
     if (node.op === 'displayWrite' || node.op === 'displayClear') {
       const device = deviceMap.get(node.deviceId);
       const area = device?.kind === 'display' && validDisplayConfig(device.config) ? displayTargets(device.config).find(area => area.id === node.areaId) : undefined;
@@ -2028,7 +2124,8 @@ export function validateProgramForScene(
 }
 
 export type FlatInstruction =
-  | Exclude<ProgramNode, { op: 'repeat' } | { op: 'if' } | { op: 'parallel' }>
+  | Exclude<ProgramNode, { op: 'repeat' } | { op: 'if' } | { op: 'parallel' } | { op: 'messageReceive' }>
+  | { op: 'messageReceiveWait'; deviceId: string; expected: string; timeoutMs: number; equalTarget: number; differentTarget: number; timeoutTarget: number; blockId: string }
   | { op: 'fork' | 'join'; children: number[]; blockId: string }
   | {
       op: 'repeatStart';
@@ -2105,6 +2202,23 @@ function flattenProgram(nodes: ProgramNode[], branchTask: (nodes: ProgramNode[],
         visit(node.otherwise);
         (output[jumpIndex] as Extract<FlatInstruction, { op: 'jump' }>).target =
           output.length;
+      } else if (node.op === 'messageReceive') {
+        const receiveIndex = output.length;
+        output.push({ op: 'messageReceiveWait', deviceId: node.deviceId, expected: node.expected, timeoutMs: node.timeoutMs, equalTarget: -1, differentTarget: -1, timeoutTarget: -1, blockId: node.blockId });
+        const equalTarget = output.length;
+        visit(node.equal);
+        const equalJump = output.length;
+        output.push({ op: 'jump', target: -1, blockId: node.blockId });
+        const differentTarget = output.length;
+        visit(node.different);
+        const differentJump = output.length;
+        output.push({ op: 'jump', target: -1, blockId: node.blockId });
+        const timeoutTarget = output.length;
+        visit(node.timeout);
+        const end = output.length;
+        Object.assign(output[receiveIndex], { equalTarget, differentTarget, timeoutTarget });
+        (output[equalJump] as Extract<FlatInstruction, { op: 'jump' }>).target = end;
+        (output[differentJump] as Extract<FlatInstruction, { op: 'jump' }>).target = end;
       } else {
         output.push(node);
       }
@@ -2341,6 +2455,10 @@ function instructionToCpp(
     case 'serial':
       if (native) return `${comment}\n        if (!capiPrintln(${cppString(instruction.text)})) return; // bounded Serial backpressure, other paths continue\n        ${pc} = ${nextPc};\n        break;`;
       return `${comment}\n        Serial.println(${cppString(instruction.text)});\n        ${pc} = ${nextPc};\n        break;`;
+    case 'messageSend':
+      return `${comment}\n        if (!capiMessageSend(DEV_${deviceSymbol(context, instruction.deviceId)}, ${cppString(instruction.text)})) return;\n        ${pc} = ${nextPc};\n        break;`;
+    case 'messageReceiveWait':
+      return `${comment}\n        if (!${waiting}) { ${waitStarted} = now; ${waiting} = true; }\n        { char received[121] = {}; const int result = capiMessagePoll(DEV_${deviceSymbol(context, instruction.deviceId)}, received);\n          if (result == 1) { ${waiting} = false; ${pc} = strcmp(received, ${cppString(instruction.expected)}) == 0 ? ${instruction.equalTarget} : ${instruction.differentTarget}; break; }\n          if ((uint32_t)(now - ${waitStarted}) >= ${Math.max(100, Math.round(instruction.timeoutMs))}U) { ${waiting} = false; ${pc} = ${instruction.timeoutTarget}; break; }\n        }\n        return;`;
     case 'displayWrite':
     case 'displayClear': {
       const device = context.scene.devices.find(device => device.id === instruction.deviceId);
@@ -2380,6 +2498,7 @@ function deviceDeclarations(
   scene: SceneDefinition,
   symbols: Map<string, string>,
 ) {
+  const messageDevices = scene.devices.filter(device => device.kind === 'messages');
   return scene.devices
     .map((device) => {
       const symbol = symbols.get(device.id) ?? cppIdentifier(device.id);
@@ -2395,11 +2514,73 @@ function deviceDeclarations(
         case 'wifiNode':
           return `// ${cppLineComment(device.name)}: radio Wi-Fi integrada, sin GPIO externo.`;
         case 'display': return '// Pantalla configurada en capiScreen.';
+        case 'messages': return `constexpr MessageDevice DEV_${symbol}{${messageDevices.findIndex(item => item.id === device.id) + 1}, ${gpioOrPlaceholder(device.pins.tx)}, ${gpioOrPlaceholder(device.pins.rx)}, ${device.config.baudRate}}; // ${cppLineComment(device.name)}`;
         default:
           return `constexpr uint8_t PIN_${symbol} = ${label(device.pins.signal)}`;
       }
     })
     .join('\n');
+}
+
+function messageRuntimeSupport(scene: SceneDefinition, native: boolean) {
+  if (!scene.devices.some(device => device.kind === 'messages')) return '';
+  const stream = native
+    ? `int count = uart_read_bytes((uart_port_t)device.port, &byte, 1, 0); if (count != 1) break;`
+    : `if (!port.available()) break; byte = (uint8_t)port.read();`;
+  const portLine = native ? '' : `HardwareSerial& port = device.port == 1 ? CAPI_UART_1 : CAPI_UART_2;`;
+  const writePacket = native
+    ? `uart_write_bytes((uart_port_t)device.port, (const char*)packet, total)`
+    : `capiMessagePort(device).write(packet, total)`;
+  return `${native ? '' : 'HardwareSerial CAPI_UART_1(1);\nHardwareSerial CAPI_UART_2(2);\nHardwareSerial& capiMessagePort(const MessageDevice& device) { return device.port == 1 ? CAPI_UART_1 : CAPI_UART_2; }'}
+struct CapiMessageParser { uint8_t state = 0; uint16_t length = 0; uint16_t position = 0; uint16_t crc = 0xFFFF; uint16_t receivedCrc = 0; char text[121] = {}; };
+CapiMessageParser capiMessageParsers[2];
+uint16_t capiMessageCrcByte(uint16_t crc, uint8_t value) {
+  crc ^= (uint16_t)value << 8;
+  for (uint8_t bit = 0; bit < 8; ++bit) crc = (crc & 0x8000) ? (uint16_t)((crc << 1) ^ 0x1021) : (uint16_t)(crc << 1);
+  return crc;
+}
+void capiMessageReset(CapiMessageParser& parser) { parser = CapiMessageParser{}; }
+int capiMessageConsume(CapiMessageParser& parser, uint8_t byte, char* output) {
+  switch (parser.state) {
+    case 0: if (byte == 0x43) parser.state = 1; return 0;
+    case 1: if (byte == 0x42) parser.state = 2; else parser.state = byte == 0x43 ? 1 : 0; return 0;
+    case 2: if (byte != 1) { capiMessageReset(parser); return -1; } parser.crc = capiMessageCrcByte(0xFFFF, byte); parser.state = 3; return 0;
+    case 3: parser.length = byte; parser.crc = capiMessageCrcByte(parser.crc, byte); parser.state = 4; return 0;
+    case 4: parser.length |= (uint16_t)byte << 8; parser.crc = capiMessageCrcByte(parser.crc, byte); if (!parser.length || parser.length > 120) { capiMessageReset(parser); return -1; } parser.position = 0; parser.state = 5; return 0;
+    case 5: parser.text[parser.position++] = (char)byte; parser.crc = capiMessageCrcByte(parser.crc, byte); if (parser.position == parser.length) { parser.text[parser.position] = 0; parser.state = 6; } return 0;
+    case 6: parser.receivedCrc = byte; parser.state = 7; return 0;
+    case 7: parser.receivedCrc |= (uint16_t)byte << 8; parser.state = 8; return 0;
+    case 8: if (byte != 0x0D) { capiMessageReset(parser); return -1; } parser.state = 9; return 0;
+    case 9: { bool valid = byte == 0x0A && parser.receivedCrc == parser.crc; if (valid) memcpy(output, parser.text, parser.length + 1); capiMessageReset(parser); return valid ? 1 : -1; }
+  }
+  capiMessageReset(parser); return -1;
+}
+int capiMessagePoll(const MessageDevice& device, char* output) {
+  CapiMessageParser& parser = capiMessageParsers[device.port - 1];
+  ${portLine}
+  for (uint8_t budget = 0; budget < 64; ++budget) {
+    uint8_t byte = 0; ${stream}
+    const int result = capiMessageConsume(parser, byte, output);
+    if (result != 0) return result;
+  }
+  return 0;
+}
+bool capiMessageSend(const MessageDevice& device, const char* text) {
+  const size_t length = strlen(text); if (!length || length > 120) return false;
+  uint8_t packet[129] = { 0x43, 0x42, 1, (uint8_t)(length & 0xFF), (uint8_t)(length >> 8) };
+  memcpy(packet + 5, text, length);
+  uint16_t crc = 0xFFFF; for (size_t index = 2; index < 5 + length; ++index) crc = capiMessageCrcByte(crc, packet[index]);
+  packet[5 + length] = (uint8_t)(crc & 0xFF); packet[6 + length] = (uint8_t)(crc >> 8); packet[7 + length] = 0x0D; packet[8 + length] = 0x0A;
+  const size_t total = length + 9; return ${writePacket} == ${native ? '(int)total' : 'total'};
+}`;
+}
+
+function messageSetupLines(scene: SceneDefinition, symbols: Map<string, string>, native: boolean) {
+  return scene.devices.filter(device => device.kind === 'messages').map(device => {
+    const symbol = symbols.get(device.id) ?? cppIdentifier(device.id);
+    if (native) return `  { uart_config_t config = {}; config.baud_rate = DEV_${symbol}.baud; config.data_bits = UART_DATA_8_BITS; config.parity = UART_PARITY_DISABLE; config.stop_bits = UART_STOP_BITS_1; config.flow_ctrl = UART_HW_FLOWCTRL_DISABLE; config.source_clk = UART_SCLK_DEFAULT; ESP_ERROR_CHECK(uart_param_config((uart_port_t)DEV_${symbol}.port, &config)); ESP_ERROR_CHECK(uart_set_pin((uart_port_t)DEV_${symbol}.port, DEV_${symbol}.tx == 255 ? UART_PIN_NO_CHANGE : DEV_${symbol}.tx, DEV_${symbol}.rx == 255 ? UART_PIN_NO_CHANGE : DEV_${symbol}.rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE)); ESP_ERROR_CHECK(uart_driver_install((uart_port_t)DEV_${symbol}.port, 512, 512, 0, nullptr, 0)); }`;
+    return `  capiMessagePort(DEV_${symbol}).begin(DEV_${symbol}.baud, SERIAL_8N1, DEV_${symbol}.rx == 255 ? -1 : DEV_${symbol}.rx, DEV_${symbol}.tx == 255 ? -1 : DEV_${symbol}.tx);`;
+  }).join('\n');
 }
 
 function buzzerDeclarations(
@@ -2481,6 +2662,8 @@ function setupLines(scene: SceneDefinition, symbols: Map<string, string>) {
       case 'lightSensor':
       case 'potentiometer':
       case 'wifiNode':
+      case 'display':
+      case 'messages':
         break;
     }
   }
@@ -2626,11 +2809,14 @@ ${wifiHeader}${diagnosticHeader}
 struct TrafficDevice { uint8_t red; uint8_t yellow; uint8_t green; };
 struct RobotDevice { uint8_t leftIn1; uint8_t leftIn2; uint8_t rightIn1; uint8_t rightIn2; };
 struct MotorDevice { uint8_t in1; uint8_t in2; };
+struct MessageDevice { uint8_t port; uint8_t tx; uint8_t rx; uint32_t baud; };
 enum class TrafficColor { RED, YELLOW, GREEN, OFF };
 
 ${displaySupport}
 
 ${deviceDeclarations(scene, symbols)}
+
+${messageRuntimeSupport(scene, native)}
 
 int32_t counterValue = 0;
 uint32_t lastSchedulerTick = 0;
@@ -2683,6 +2869,7 @@ ${threadFunctions}
 
 ${native ? `extern "C" void app_main() {
   capiHardwareBegin();
+${messageSetupLines(scene, symbols, true)}
 ${scene.devices.filter(device => device.kind === 'servo').map(device => `  setServoAngle(PIN_${symbols.get(device.id)}, ${Math.max(0, Math.min(180, Math.round(device.config.angle)))});`).join('\n')}
 ${displaySupport ? '  capiDisplayBegin();' : ''}
   for (;;) {
@@ -2698,6 +2885,7 @@ ${runThreads}
 }` : `void setup() {
   Serial.begin(115200);
 ${setupLines(scene, symbols)}
+${messageSetupLines(scene, symbols, false)}
 ${displaySupport ? '  capiDisplayBegin();' : ''}
 }
 

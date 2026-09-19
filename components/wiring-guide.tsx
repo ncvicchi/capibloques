@@ -46,6 +46,7 @@ const deviceAdvice: Record<SceneDevice['kind'], string> = {
   lightSensor: 'La señal analógica debe permanecer entre 0 y 3,3 V.',
   potentiometer: 'Extremos a 3,3 V y GND; cursor central al GPIO analógico.',
   wifiNode: 'No necesita cables: Wi-Fi está integrado en el ESP32.',
+  messages: 'Cruza las señales: Enviar va a Recibir del otro equipo y Recibir va a Enviar. Uní también las masas (GND). Solo 3,3 V.',
 };
 
 function sceneSignature(scene: SceneDefinition, rawPins: number[]) {

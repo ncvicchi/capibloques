@@ -125,10 +125,18 @@ int spi_device_queue_trans(void*, spi_transaction_t* transaction, int ticks) {
 int spi_device_get_trans_result(void*, spi_transaction_t** result, int ticks) {
   assert(ticks==20); if (busFails) return 1; *result=pendingTransfer; pendingTransfer=nullptr; return ESP_OK;
 }
+using uart_port_t=int;
+constexpr int UART_DATA_8_BITS=8, UART_PARITY_DISABLE=0, UART_STOP_BITS_1=1, UART_HW_FLOWCTRL_DISABLE=0, UART_SCLK_DEFAULT=0, UART_PIN_NO_CHANGE=-1;
+struct uart_config_t { int baud_rate, data_bits, parity, stop_bits, flow_ctrl, source_clk; };
+int uart_param_config(uart_port_t, const uart_config_t*) { return ESP_OK; }
+int uart_set_pin(uart_port_t, int, int, int, int) { return ESP_OK; }
+int uart_driver_install(uart_port_t, int, int, int, void*, int) { return ESP_OK; }
+int uart_read_bytes(uart_port_t, uint8_t*, int, int) { return 0; }
+int uart_write_bytes(uart_port_t, const char*, size_t length) { return (int)length; }
 `;
 await mkdir(directory, { recursive: true });
 await writeFile(resolve(directory, 'hal.h'), stub);
-for (const header of ['freertos/FreeRTOS.h','freertos/task.h','freertos/queue.h','driver/gpio.h','driver/ledc.h','esp_timer.h','esp_idf_version.h','esp_adc/adc_oneshot.h','esp_wifi.h','esp_event.h','esp_netif.h','nvs_flash.h','wifi_config.example.h','driver/i2c_master.h','driver/spi_master.h']) {
+for (const header of ['freertos/FreeRTOS.h','freertos/task.h','freertos/queue.h','driver/gpio.h','driver/ledc.h','driver/uart.h','esp_timer.h','esp_idf_version.h','esp_adc/adc_oneshot.h','esp_wifi.h','esp_event.h','esp_netif.h','nvs_flash.h','wifi_config.example.h','driver/i2c_master.h','driver/spi_master.h']) {
   const path = resolve(directory, header); await mkdir(dirname(path), { recursive: true });
   await writeFile(path, '#pragma once\n#include "hal.h"\n');
 }
@@ -193,8 +201,8 @@ int main() {
   stopAtMicros=1000000;
   try { app_main(); } catch(const TestStop&) {} // run the actual scheduler and timed buzzer service
   assert(!active_T0 && !active_T1 && !active_T2);
-  assert(messages.size()==2 && strcmp(messages.front(),"Comenzar")==0 && strcmp(messages.back(),"Todos terminaron")==0);
-  assert(messageTimes[1]>=100000); // parent cannot cross join before the motor wait
+  assert(messages.size()==3 && strcmp(messages.front(),"Comenzar")==0 && strcmp(messages.back(),"Todos terminaron")==0);
+  assert(messageTimes.back()>=100000); // parent cannot cross join before motor and message waits
   for(const auto& pwm:capiPwm) if(!pwm.tone) assert(duties[pwm.bank][pwm.channel]==0);
   assert(levels[18]==1);
 }

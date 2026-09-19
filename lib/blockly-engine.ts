@@ -11,6 +11,7 @@ type BlocklyMenuOption = import('blockly').MenuOption;
 
 const DEVICE_FIELD = 'DEVICE_ID';
 const AREA_FIELD = 'AREA_ID';
+const MESSAGE_FIELD = 'MESSAGE';
 const serializedAreaIds = new WeakMap<BlocklyWorkspaceSvg, Map<string, string>>();
 const EMPTY_FAVORITES: readonly string[] = [];
 const DEVICE_EXTENSION = 'capi_device_target_v2';
@@ -40,6 +41,7 @@ const deviceLabels: Record<SceneDeviceKind, string> = {
   potentiometer: 'un potenciómetro',
   wifiNode: 'una conexión Wi-Fi',
   display: 'una pantalla',
+  messages: 'un componente Mensajes',
 };
 
 function targetWorkspaceForBlock(block: BlocklyBlock) {
@@ -51,6 +53,8 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
   switch (block.type) {
     case 'capi_display_write':
     case 'capi_display_clear': return ['display'];
+    case 'capi_message_send':
+    case 'capi_message_receive': return ['messages'];
     case 'capi_traffic':
       return ['trafficLight'];
     case 'capi_led':
@@ -89,9 +93,13 @@ function isMissingDeviceValue(value: string | null | undefined) {
 function devicesForBlock(block: BlocklyBlock) {
   const workspace = targetWorkspaceForBlock(block);
   const kinds = acceptedDeviceKinds(block);
-  return (workspaceDevices.get(workspace) ?? []).filter((device) =>
-    kinds.includes(device.kind),
-  );
+  return (workspaceDevices.get(workspace) ?? []).filter((device) => {
+    if (!kinds.includes(device.kind)) return false;
+    if (device.kind !== 'messages') return true;
+    if (block.type === 'capi_message_send') return device.config.mode !== 'receive';
+    if (block.type === 'capi_message_receive') return device.config.mode !== 'send';
+    return true;
+  });
 }
 
 function deviceOptions(
@@ -170,6 +178,20 @@ function areaMenuGenerator(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
   return options.length ? options : [['Agregá una zona de texto', '__missing_area__']];
 }
 
+function messageMenuGenerator(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
+  const block = this.getSourceBlock();
+  if (!block) return [['Configurá un mensaje', '__missing_message__']];
+  const deviceId = block.getFieldValue(DEVICE_FIELD);
+  const device = devicesForBlock(block).find(item => item.id === deviceId);
+  const options: BlocklyMenuOption[] = device?.kind === 'messages'
+    ? device.config.messages.map(message => [message, message])
+    : [];
+  const current = this.getValue();
+  if (current && current !== '__missing_message__' && !options.some(option => option[1] === current))
+    options.push([`⚠️ ${current}`, current]);
+  return options.length ? options : [['Configurá un mensaje', '__missing_message__']];
+}
+
 function refreshAreaField(block: BlocklyBlock) {
   const field = block.getField(AREA_FIELD) as BlocklyFieldDropdown | null;
   if (!field) return;
@@ -178,6 +200,15 @@ function refreshAreaField(block: BlocklyBlock) {
   if (field.getOptions(false).some(option => option[1] === previous)) field.setValue(previous);
   field.forceRerender();
   updateDeviceWarning(block);
+}
+
+function refreshMessageField(block: BlocklyBlock) {
+  const field = block.getField(MESSAGE_FIELD) as BlocklyFieldDropdown | null;
+  if (!field) return;
+  const previous = field.getValue();
+  field.setOptions(messageMenuGenerator);
+  if (field.getOptions(false).some(option => option[1] === previous)) field.setValue(previous);
+  field.forceRerender();
 }
 
 function refreshDeviceField(block: BlocklyBlock) {
@@ -203,6 +234,7 @@ function refreshDeviceField(block: BlocklyBlock) {
   dropdown.setValue(nextValue);
   dropdown.forceRerender();
   refreshAreaField(block);
+  refreshMessageField(block);
   updateDeviceWarning(block);
   return previous !== nextValue;
 }
@@ -338,7 +370,7 @@ const toolbox = {
       kind: 'category',
       name: 'Mensajes',
       colour: '#59627D',
-      contents: [{ kind: 'block', type: 'capi_serial' }, { kind: 'block', type: 'capi_display_write' }, { kind: 'block', type: 'capi_display_clear' }],
+      contents: [{ kind: 'block', type: 'capi_serial' }, { kind: 'block', type: 'capi_message_send' }, { kind: 'block', type: 'capi_message_receive' }, { kind: 'block', type: 'capi_display_write' }, { kind: 'block', type: 'capi_display_clear' }],
     },
   ],
 };
@@ -353,6 +385,7 @@ function registerBlocks(Blockly: BlocklyApi) {
         ) as BlocklyFieldDropdown | null;
         field?.setOptions(deviceMenuGenerator);
         (this.getField(AREA_FIELD) as BlocklyFieldDropdown | null)?.setOptions(areaMenuGenerator);
+        (this.getField(MESSAGE_FIELD) as BlocklyFieldDropdown | null)?.setOptions(messageMenuGenerator);
         updateDeviceWarning(this);
       },
     );
@@ -830,6 +863,39 @@ function registerBlocks(Blockly: BlocklyApi) {
         'Escribe un mensaje en el monitor serial y en la consola simulada.',
     },
     {
+      type: 'capi_message_send',
+      message0: '📤 enviar %1 usando %2',
+      args0: [
+        { type: 'field_dropdown', name: MESSAGE_FIELD, options: [['AVANZAR', 'AVANZAR']] },
+        deviceField('Elegí Mensajes'),
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#59627D',
+      extensions: [DEVICE_EXTENSION],
+      tooltip: 'Envía un paquete de texto protegido con tamaño y checksum.',
+    },
+    {
+      type: 'capi_message_receive',
+      message0: '📥 esperar en %1 el mensaje %2 durante %3 s',
+      args0: [
+        deviceField('Elegí Mensajes'),
+        { type: 'field_dropdown', name: MESSAGE_FIELD, options: [['AVANZAR', 'AVANZAR']] },
+        { type: 'field_number', name: 'TIMEOUT', value: 5, min: 0.1, max: 300, precision: 0.1 },
+      ],
+      message1: 'si es igual %1',
+      args1: [{ type: 'input_statement', name: 'EQUAL' }],
+      message2: 'si es distinto %1',
+      args2: [{ type: 'input_statement', name: 'DIFFERENT' }],
+      message3: 'si no llegó %1',
+      args3: [{ type: 'input_statement', name: 'TIMEOUT_DO' }],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#59627D',
+      extensions: [DEVICE_EXTENSION],
+      tooltip: 'Espera sin detener los otros caminos y elige una de tres ramas.',
+    },
+    {
       type: 'capi_display_write', message0: '📺 en %1 zona %2 escribir %3',
       args0: [deviceField('Elegí una pantalla'), { type: 'field_dropdown', name: AREA_FIELD, options: [['Elegí una zona', '__missing_area__']] }, { type: 'field_input', name: 'TEXT', text: 'Hola, mundo!' }],
       previousStatement: null, nextStatement: null, colour: '#59627D', extensions: [DEVICE_EXTENSION],
@@ -1095,6 +1161,26 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           blockId,
         });
         break;
+      case 'capi_message_send':
+        result.push({
+          op: 'messageSend',
+          deviceId: selectedDeviceId(block),
+          text: String(block.getFieldValue(MESSAGE_FIELD) ?? ''),
+          blockId,
+        });
+        break;
+      case 'capi_message_receive':
+        result.push({
+          op: 'messageReceive',
+          deviceId: selectedDeviceId(block),
+          expected: String(block.getFieldValue(MESSAGE_FIELD) ?? ''),
+          timeoutMs: numberField(block, 'TIMEOUT', 5) * 1000,
+          equal: compileStack(block.getInputTargetBlock('EQUAL')),
+          different: compileStack(block.getInputTargetBlock('DIFFERENT')),
+          timeout: compileStack(block.getInputTargetBlock('TIMEOUT_DO')),
+          blockId,
+        });
+        break;
       case 'capi_display_write':
         result.push({ op: 'displayWrite', deviceId: selectedDeviceId(block), areaId: String(block.getFieldValue(AREA_FIELD) ?? ''), text: String(block.getFieldValue('TEXT') ?? ''), blockId });
         break;
@@ -1121,4 +1207,4 @@ function compileWorkspace(workspace: BlocklyWorkspaceSvg): CompiledProgram {
   };
 }
 
-export { DEVICE_FIELD, AREA_FIELD, EMPTY_FAVORITES, serializedAreaIds, workspaceDevices, serializedDeviceIds, toolbox, collectSerializedDeviceIds, registerBlocks, refreshAreaField, refreshDeviceFields, updateDeviceWarning, ensureSingleStart, compileWorkspace };
+export { DEVICE_FIELD, AREA_FIELD, EMPTY_FAVORITES, serializedAreaIds, workspaceDevices, serializedDeviceIds, toolbox, collectSerializedDeviceIds, registerBlocks, refreshAreaField, refreshMessageField, refreshDeviceFields, updateDeviceWarning, ensureSingleStart, compileWorkspace };

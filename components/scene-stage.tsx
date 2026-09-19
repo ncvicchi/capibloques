@@ -63,6 +63,7 @@ const icons: Record<SceneDevice['kind'], string> = {
   potentiometer: '🎚️',
   wifiNode: '📶',
   display: '📺',
+  messages: '↔️',
 };
 
 const clamp = (value: number, minimum: number, maximum: number) =>
@@ -78,6 +79,7 @@ function DeviceVisual({
   runtime?: RuntimeVisualDevice;
 }) {
   if (device.kind === 'display') return <DisplayPreview device={device} texts={runtime?.texts} />;
+  if (device.kind === 'messages') return <span className="stage-messages" aria-hidden="true">↔️<small>{device.config.mode === 'send' ? 'enviar' : device.config.mode === 'receive' ? 'recibir' : 'ambos'}</small></span>;
   if (device.kind === 'trafficLight') {
     const color = runtime?.color ?? 'OFF';
     return (

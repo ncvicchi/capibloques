@@ -47,6 +47,7 @@ export function allocateIdfPwm(scene: SceneDefinition): PwmAssignment[] | null {
 export function idfRuntimeSupport(scene: SceneDefinition, usesWifi: boolean) {
   const assignments = allocateIdfPwm(scene) ?? [];
   const hasAdc = scene.devices.some(device => device.kind === 'lightSensor' || device.kind === 'potentiometer');
+  const hasMessages = scene.devices.some(device => device.kind === 'messages');
   const setup: string[] = [];
   for (const device of scene.devices) {
     if (device.kind === 'trafficLight') for (const pin of Object.values(device.pins)) setup.push(`  capiOutput(${pin ?? 255});`);
@@ -65,6 +66,7 @@ export function idfRuntimeSupport(scene: SceneDefinition, usesWifi: boolean) {
 #include "freertos/queue.h"
 #include "driver/gpio.h"
 #include "driver/ledc.h"
+${hasMessages ? '#include "driver/uart.h"' : ''}
 #include "esp_timer.h"
 #include "esp_idf_version.h"
 #if ESP_IDF_VERSION != ESP_IDF_VERSION_VAL(5, 5, 5) || !CONFIG_IDF_TARGET_ESP32

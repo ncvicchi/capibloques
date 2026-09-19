@@ -1027,6 +1027,30 @@ select:focus-visible {
 .range-row [data-slot='slider-range'] {
   background: var(--purple);
 }
+.message-test-panel {
+  display: grid;
+  gap: 8px;
+  padding: 9px 0;
+  border-top: 1px solid #edf0f8;
+  font-size: 12px;
+  font-weight: 700;
+}
+.message-test-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.message-test-buttons button {
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid #9ba6c5;
+  border-radius: 9px;
+  background: #f5f7ff;
+  color: #26304e;
+  font-weight: 800;
+  cursor: pointer;
+}
+.message-test-panel small { color: var(--muted); font-weight: 600; }
 .console-content {
   background: #172037;
   color: #d8e7ff;
@@ -2187,6 +2211,26 @@ select:focus-visible {
   padding-top: 13px;
   border-top: 1px solid var(--line);
 }
+.messages-properties {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f8faff;
+}
+.messages-properties label { display: grid; gap: 5px; font-size: 12px; font-weight: 750; }
+.messages-properties textarea {
+  width: 100%;
+  min-height: 112px;
+  resize: vertical;
+  border: 1px solid #a2b8b1;
+  border-radius: 8px;
+  padding: 8px;
+  background: #fff;
+  font: 12px/1.45 'Cascadia Code', monospace;
+}
+.messages-properties small { color: var(--muted); font-weight: 600; }
 .pin-editor h4 {
   margin-bottom: 9px;
 }
