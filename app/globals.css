@@ -9,6 +9,36 @@
 .display-portable-note { padding: 8px; background: #edf4f1; border-radius: 6px; }
 .display-preview { display: block; width: 210px; max-width: 100%; height: auto; min-height: 36px; }
 .scene-device.scene-device-display { width: 220px; max-width: 42%; }
+.scene-device.scene-device-ledMatrix { width: 250px; max-width: 48%; }
+.led-matrix-preview, .matrix-pattern-editor {
+  display: grid;
+  grid-template-columns: repeat(32, minmax(3px, 1fr));
+  gap: 2px;
+  padding: 8px;
+  border: 4px solid #263238;
+  border-radius: 8px;
+  background: #090b0c;
+  aspect-ratio: 4 / 1;
+}
+.led-matrix-preview i, .matrix-pattern-editor button {
+  width: 100%;
+  aspect-ratio: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #352c0a;
+  box-shadow: inset 0 0 1px #000;
+}
+.led-matrix-preview i.on, .matrix-pattern-editor button.on { background: #ffd43b; box-shadow: 0 0 5px #ffb700; }
+.matrix-properties { display: grid; gap: 12px; font-size: 13px; }
+.matrix-properties > label, .matrix-properties fieldset label { display: grid; gap: 5px; font-weight: 700; }
+.matrix-properties fieldset { display: grid; gap: 10px; padding: 10px; border: 1px solid #a2b8b1; border-radius: 8px; min-width: 0; }
+.matrix-pattern-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; }
+.matrix-pattern-editor { gap: 1px; padding: 5px; }
+.matrix-pattern-editor button { cursor: pointer; }
+.matrix-pattern-editor button:focus-visible { outline: 2px solid white; outline-offset: 1px; }
 .component-palette button:disabled { opacity: .55; cursor: not-allowed; }
 
 @theme inline {

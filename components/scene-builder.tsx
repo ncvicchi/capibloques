@@ -1,5 +1,6 @@
 'use client';
 import { DisplayProperties } from '@/components/display-properties';
+import { LedMatrixProperties } from '@/components/led-matrix-properties';
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { InspectorDraft, SceneDraft } from '@/lib/scene-recovery';
@@ -838,7 +839,7 @@ function SceneBuilderSession({
                     <button
                       type="button"
                       key={component.kind}
-                      disabled={(component.kind === 'display' && previewScene.devices.some(device => device.kind === 'display')) || (component.kind === 'messages' && previewScene.devices.filter(device => device.kind === 'messages').length >= 2)}
+                      disabled={((component.kind === 'display' || component.kind === 'ledMatrix') && previewScene.devices.some(device => device.kind === 'display' || device.kind === 'ledMatrix')) || (component.kind === 'messages' && previewScene.devices.filter(device => device.kind === 'messages').length >= 2)}
                       onClick={() => addComponent(component.kind)}
                       title={component.description}
                       aria-label={`Agregar ${component.name}. ${component.childFriendlyControl}`}
@@ -846,7 +847,7 @@ function SceneBuilderSession({
                       <span aria-hidden="true">{component.icon}</span>
                       <span>
                         <strong>{component.name}</strong>
-                        <small>{component.kind === 'display' && previewScene.devices.some(device => device.kind === 'display') ? 'Una por proyecto: configurá la existente' : component.kind === 'messages' && previewScene.devices.filter(device => device.kind === 'messages').length >= 2 ? 'Máximo dos por proyecto' : component.childFriendlyControl}</small>
+                        <small>{(component.kind === 'display' || component.kind === 'ledMatrix') && previewScene.devices.some(device => device.kind === 'display' || device.kind === 'ledMatrix') ? 'Una pantalla o matriz por proyecto' : component.kind === 'messages' && previewScene.devices.filter(device => device.kind === 'messages').length >= 2 ? 'Máximo dos por proyecto' : component.childFriendlyControl}</small>
                       </span>
                       <b aria-hidden="true">＋</b>
                     </button>
@@ -960,6 +961,7 @@ function SceneBuilderSession({
                   </label>
 
                   {selected.kind === 'display' && <DisplayProperties key={selected.id} device={selected} onChange={next => updateSelectedDraft(() => next)} />}
+                  {selected.kind === 'ledMatrix' && <LedMatrixProperties key={selected.id} device={selected} onChange={next => updateSelectedDraft(() => next)} />}
                   {selected.kind === 'messages' && (
                     <div className="messages-properties">
                       <label htmlFor="messages-mode">
@@ -1112,8 +1114,8 @@ function SceneBuilderSession({
                       type="button"
                       variant="outline"
                       onClick={duplicateSelected}
-                      disabled={selected.kind === 'display'}
-                      title={selected.kind === 'display' ? 'Una sola pantalla por proyecto' : undefined}
+                      disabled={selected.kind === 'display' || selected.kind === 'ledMatrix'}
+                      title={selected.kind === 'display' || selected.kind === 'ledMatrix' ? 'Una sola pantalla o matriz por proyecto' : undefined}
                     >
                       📄 Duplicar
                     </Button>

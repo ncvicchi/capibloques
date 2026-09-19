@@ -1,5 +1,6 @@
 'use client';
 import { DisplayPreview } from '@/components/display-preview';
+import { LedMatrixPreview } from '@/components/led-matrix-preview';
 import SceneViewport from '@/components/scene-viewport';
 
 import {
@@ -18,6 +19,7 @@ import type {
 
 export type RuntimeVisualDevice = {
   texts?: Record<string, string[]>;
+  rows?: number[];
   kind: string;
   color?: 'RED' | 'YELLOW' | 'GREEN' | 'OFF';
   brightness?: number;
@@ -63,6 +65,7 @@ const icons: Record<SceneDevice['kind'], string> = {
   potentiometer: '🎚️',
   wifiNode: '📶',
   display: '📺',
+  ledMatrix: '🟨',
   messages: '↔️',
 };
 
@@ -79,6 +82,7 @@ function DeviceVisual({
   runtime?: RuntimeVisualDevice;
 }) {
   if (device.kind === 'display') return <DisplayPreview device={device} texts={runtime?.texts} />;
+  if (device.kind === 'ledMatrix') return <LedMatrixPreview device={device} rows={runtime?.rows} />;
   if (device.kind === 'messages') return <span className="stage-messages" aria-hidden="true">↔️<small>{device.config.mode === 'send' ? 'enviar' : device.config.mode === 'receive' ? 'recibir' : 'ambos'}</small></span>;
   if (device.kind === 'trafficLight') {
     const color = runtime?.color ?? 'OFF';

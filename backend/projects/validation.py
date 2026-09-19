@@ -16,6 +16,7 @@ BLOCKS = {"capi_" + name for name in ("start", "forever", "repeat", "wait", "if"
 BLOCKS.add("capi_parallel")
 BLOCKS.update(("capi_display_write", "capi_display_clear"))
 BLOCKS.update(("capi_message_send", "capi_message_receive"))
+BLOCKS.update(("capi_matrix_clear", "capi_matrix_pixel", "capi_matrix_pattern", "capi_matrix_scroll"))
 PINS = {"trafficLight": ["red", "yellow", "green"], "robot": ["leftIn1", "leftIn2", "rightIn1", "rightIn2"], "motor": ["in1", "in2"], **{kind: ["signal"] for kind in ("led", "servo", "activeBuzzer", "passiveBuzzer", "button", "lightSensor", "potentiometer")}, "wifiNode": []}
 CONFIGS = {
     "trafficLight": {"redBrightness": (0, 100), "yellowBrightness": (0, 100), "greenBrightness": (0, 100)},
@@ -29,6 +30,7 @@ CONFIGS = {
 }
 PINS["display"] = ["sda", "scl", "sck", "mosi", "cs", "dc", "rst"]
 PINS["messages"] = ["tx", "rx"]
+PINS["ledMatrix"] = ["din", "clk", "cs"]
 CONFIGS["messages"] = {"mode": ["send", "receive", "both"], "baudRate": [9600, 19200, 38400, 57600, 115200]}
 DISPLAY_PROFILES = {"lcd1602": (16, 2, False, "i2c"), "lcd2004": (20, 4, False, "i2c"), "ssd1306": (16, 8, True, "i2c"), "ili9341": (26, 15, True, "spi"), "ili9488": (40, 20, True, "spi")}
 
@@ -57,6 +59,22 @@ def display_config(config):
         require(identifier(key) and key not in ids)
         ids.add(key)
     return ["sda", "scl"] if bus == "i2c" else ["sck", "mosi", "cs", "dc", "rst"]
+
+
+def matrix_config(config):
+    exact(config, ("brightness", "order", "orientation", "patterns"))
+    require(type(config["brightness"]) is int and 0 <= config["brightness"] <= 15)
+    require(config["order"] in ("left-to-right", "right-to-left") and config["orientation"] in ("normal", "rotated"))
+    patterns = config["patterns"]
+    require(isinstance(patterns, list) and 1 <= len(patterns) <= 12)
+    ids, names = set(), set()
+    for pattern in patterns:
+        exact(pattern, ("id", "name", "rows"))
+        require(isinstance(pattern["id"], str) and re.fullmatch(r"[a-z0-9][a-z0-9-]{0,31}", pattern["id"]) and pattern["id"] not in ids)
+        normalized = pattern["name"].strip().lower() if isinstance(pattern["name"], str) else ""
+        require(text(pattern["name"], 30, 1) and normalized and normalized not in names)
+        require(isinstance(pattern["rows"], list) and len(pattern["rows"]) == 8 and all(type(row) is int and 0 <= row <= 0xffffffff for row in pattern["rows"]))
+        ids.add(pattern["id"]); names.add(normalized)
 
 
 def require(condition, message="El proyecto contiene una estructura o valores no compatibles."):
@@ -187,9 +205,13 @@ def scene(value):
             config = item["config"]
             if kind == "display":
                 display_count += 1
-                require(display_count <= 1, "Cada proyecto admite una sola pantalla.")
+                require(display_count <= 1, "Cada proyecto admite una sola pantalla o matriz.")
                 used_pins = display_config(config)
                 require(isinstance(item["pins"], dict) and all(item["pins"].get(key) is None for key in PINS[kind] if key not in used_pins))
+            elif kind == "ledMatrix":
+                display_count += 1
+                require(display_count <= 1, "Cada proyecto admite una sola pantalla o matriz.")
+                matrix_config(config)
             else:
                 if kind == "messages":
                     messages_count += 1

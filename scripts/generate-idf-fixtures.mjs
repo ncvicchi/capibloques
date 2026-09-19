@@ -1,12 +1,12 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
-import { firmwareFixture } from './firmware-fixtures.mjs';
+import { firmwareFixture, matrixFirmwareFixture } from './firmware-fixtures.mjs';
 import { generateEspIdfCodeResult } from '../lib/capiblocks.ts';
 import { addDeviceToScene, createEmptyScene } from '../lib/scene-model.ts';
 import { displayConfig, displayProfiles, displayTargets } from '../lib/display-model.ts';
 import { espIdfProjectFiles, createEspIdfArchive } from '../lib/firmware-archive.ts';
 
-const fixtures = [['main', firmwareFixture()], ['auxiliary', firmwareFixture(true)]];
+const fixtures = [['main', firmwareFixture()], ['auxiliary', firmwareFixture(true)], ['matrix', matrixFirmwareFixture()]];
 for (const profile of Object.keys(displayProfiles)) {
   const { scene, device } = addDeviceToScene(createEmptyScene('Pantalla'), 'display', { config: displayConfig(profile) });
   const led = addDeviceToScene(scene, 'led');

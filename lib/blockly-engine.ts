@@ -12,6 +12,7 @@ type BlocklyMenuOption = import('blockly').MenuOption;
 const DEVICE_FIELD = 'DEVICE_ID';
 const AREA_FIELD = 'AREA_ID';
 const MESSAGE_FIELD = 'MESSAGE';
+const PATTERN_FIELD = 'PATTERN_ID';
 const serializedAreaIds = new WeakMap<BlocklyWorkspaceSvg, Map<string, string>>();
 const EMPTY_FAVORITES: readonly string[] = [];
 const DEVICE_EXTENSION = 'capi_device_target_v2';
@@ -41,6 +42,7 @@ const deviceLabels: Record<SceneDeviceKind, string> = {
   potentiometer: 'un potenciómetro',
   wifiNode: 'una conexión Wi-Fi',
   display: 'una pantalla',
+  ledMatrix: 'una matriz LED',
   messages: 'un componente Mensajes',
 };
 
@@ -53,6 +55,10 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
   switch (block.type) {
     case 'capi_display_write':
     case 'capi_display_clear': return ['display'];
+    case 'capi_matrix_clear':
+    case 'capi_matrix_pixel':
+    case 'capi_matrix_pattern':
+    case 'capi_matrix_scroll': return ['ledMatrix'];
     case 'capi_message_send':
     case 'capi_message_receive': return ['messages'];
     case 'capi_traffic':
@@ -164,6 +170,11 @@ function updateDeviceWarning(block: BlocklyBlock) {
     const areaId = block.getFieldValue(AREA_FIELD);
     block.setWarningText(device?.kind === 'display' && displayTargets(device.config).some(area => area.id === areaId) ? null : 'Elegí una zona de texto existente en esta pantalla.', 'display-area');
   }
+  if (block.getField(PATTERN_FIELD)) {
+    const device = devicesForBlock(block).find(device => device.id === value);
+    const patternId = block.getFieldValue(PATTERN_FIELD);
+    block.setWarningText(device?.kind === 'ledMatrix' && device.config.patterns.some(pattern => pattern.id === patternId) ? null : 'Elegí un dibujo guardado en esta matriz.', 'matrix-pattern');
+  }
 }
 
 function areaMenuGenerator(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
@@ -192,6 +203,16 @@ function messageMenuGenerator(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
   return options.length ? options : [['Configurá un mensaje', '__missing_message__']];
 }
 
+function patternMenuGenerator(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
+  const block = this.getSourceBlock();
+  if (!block) return [['Configurá un dibujo', '__missing_pattern__']];
+  const device = devicesForBlock(block).find(item => item.id === block.getFieldValue(DEVICE_FIELD));
+  const options: BlocklyMenuOption[] = device?.kind === 'ledMatrix' ? device.config.patterns.map(pattern => [pattern.name, pattern.id]) : [];
+  const current = this.getValue();
+  if (current && current !== '__missing_pattern__' && !options.some(option => option[1] === current)) options.push([`⚠️ Dibujo retirado (${current})`, current]);
+  return options.length ? options : [['Configurá un dibujo', '__missing_pattern__']];
+}
+
 function refreshAreaField(block: BlocklyBlock) {
   const field = block.getField(AREA_FIELD) as BlocklyFieldDropdown | null;
   if (!field) return;
@@ -209,6 +230,16 @@ function refreshMessageField(block: BlocklyBlock) {
   field.setOptions(messageMenuGenerator);
   if (field.getOptions(false).some(option => option[1] === previous)) field.setValue(previous);
   field.forceRerender();
+}
+
+function refreshPatternField(block: BlocklyBlock) {
+  const field = block.getField(PATTERN_FIELD) as BlocklyFieldDropdown | null;
+  if (!field) return;
+  const previous = field.getValue();
+  field.setOptions(patternMenuGenerator);
+  if (field.getOptions(false).some(option => option[1] === previous)) field.setValue(previous);
+  field.forceRerender();
+  updateDeviceWarning(block);
 }
 
 function refreshDeviceField(block: BlocklyBlock) {
@@ -235,6 +266,7 @@ function refreshDeviceField(block: BlocklyBlock) {
   dropdown.forceRerender();
   refreshAreaField(block);
   refreshMessageField(block);
+  refreshPatternField(block);
   updateDeviceWarning(block);
   return previous !== nextValue;
 }
@@ -372,6 +404,15 @@ const toolbox = {
       colour: '#59627D',
       contents: [{ kind: 'block', type: 'capi_serial' }, { kind: 'block', type: 'capi_message_send' }, { kind: 'block', type: 'capi_message_receive' }, { kind: 'block', type: 'capi_display_write' }, { kind: 'block', type: 'capi_display_clear' }],
     },
+    {
+      kind: 'category', name: 'Matriz LED', colour: '#B47B00',
+      contents: [
+        { kind: 'block', type: 'capi_matrix_clear' },
+        { kind: 'block', type: 'capi_matrix_pixel' },
+        { kind: 'block', type: 'capi_matrix_pattern' },
+        { kind: 'block', type: 'capi_matrix_scroll' },
+      ],
+    },
   ],
 };
 
@@ -386,6 +427,7 @@ function registerBlocks(Blockly: BlocklyApi) {
         field?.setOptions(deviceMenuGenerator);
         (this.getField(AREA_FIELD) as BlocklyFieldDropdown | null)?.setOptions(areaMenuGenerator);
         (this.getField(MESSAGE_FIELD) as BlocklyFieldDropdown | null)?.setOptions(messageMenuGenerator);
+        (this.getField(PATTERN_FIELD) as BlocklyFieldDropdown | null)?.setOptions(patternMenuGenerator);
         updateDeviceWarning(this);
       },
     );
@@ -907,6 +949,35 @@ function registerBlocks(Blockly: BlocklyApi) {
       previousStatement: null, nextStatement: null, colour: '#59627D', extensions: [DEVICE_EXTENSION],
       tooltip: 'Borra solamente el destino elegido. Las otras zonas conservan sus mensajes.',
     },
+    {
+      type: 'capi_matrix_clear', message0: '⬛ limpiar %1', args0: [deviceField('Elegí una matriz')],
+      previousStatement: null, nextStatement: null, colour: '#B47B00', extensions: [DEVICE_EXTENSION],
+      tooltip: 'Apaga todos los puntos de la matriz.',
+    },
+    {
+      type: 'capi_matrix_pixel', message0: '✨ en %1 punto x %2 y %3 %4', args0: [
+        deviceField('Elegí una matriz'),
+        { type: 'field_number', name: 'X', value: 0, min: 0, max: 31, precision: 1 },
+        { type: 'field_number', name: 'Y', value: 0, min: 0, max: 7, precision: 1 },
+        { type: 'field_dropdown', name: 'ENABLED', options: [['encender', 'ON'], ['apagar', 'OFF']] },
+      ], previousStatement: null, nextStatement: null, colour: '#B47B00', extensions: [DEVICE_EXTENSION],
+      tooltip: 'Enciende o apaga un punto. La esquina superior izquierda es x 0, y 0.',
+    },
+    {
+      type: 'capi_matrix_pattern', message0: '🎨 en %1 mostrar dibujo %2', args0: [
+        deviceField('Elegí una matriz'),
+        { type: 'field_dropdown', name: PATTERN_FIELD, options: [['Corazón', 'heart']] },
+      ], previousStatement: null, nextStatement: null, colour: '#B47B00', extensions: [DEVICE_EXTENSION],
+      tooltip: 'Muestra uno de los dibujos creados en la escena.',
+    },
+    {
+      type: 'capi_matrix_scroll', message0: '📰 en %1 desplazar texto %2 cada %3 ms', args0: [
+        deviceField('Elegí una matriz'),
+        { type: 'field_input', name: 'TEXT', text: 'HOLA' },
+        { type: 'field_number', name: 'SPEED', value: 120, min: 40, max: 1000, precision: 10 },
+      ], previousStatement: null, nextStatement: null, colour: '#B47B00', extensions: [DEVICE_EXTENSION],
+      tooltip: 'Mueve el texto sin detener los otros caminos y sigue al terminar.',
+    },
   ]);
   Blockly.Blocks['capi_parallel'] = {
     init(this: BlocklyBlock) {
@@ -1187,6 +1258,18 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
       case 'capi_display_clear':
         result.push({ op: 'displayClear', deviceId: selectedDeviceId(block), areaId: String(block.getFieldValue(AREA_FIELD) ?? ''), blockId });
         break;
+      case 'capi_matrix_clear':
+        result.push({ op: 'matrixClear', deviceId: selectedDeviceId(block), blockId });
+        break;
+      case 'capi_matrix_pixel':
+        result.push({ op: 'matrixPixel', deviceId: selectedDeviceId(block), x: numberField(block, 'X', 0), y: numberField(block, 'Y', 0), enabled: block.getFieldValue('ENABLED') === 'ON', blockId });
+        break;
+      case 'capi_matrix_pattern':
+        result.push({ op: 'matrixPattern', deviceId: selectedDeviceId(block), patternId: String(block.getFieldValue(PATTERN_FIELD) ?? ''), blockId });
+        break;
+      case 'capi_matrix_scroll':
+        result.push({ op: 'matrixScroll', deviceId: selectedDeviceId(block), text: String(block.getFieldValue('TEXT') ?? ''), speedMs: numberField(block, 'SPEED', 120), blockId });
+        break;
     }
     block = block.getNextBlock();
   }
@@ -1207,4 +1290,4 @@ function compileWorkspace(workspace: BlocklyWorkspaceSvg): CompiledProgram {
   };
 }
 
-export { DEVICE_FIELD, AREA_FIELD, EMPTY_FAVORITES, serializedAreaIds, workspaceDevices, serializedDeviceIds, toolbox, collectSerializedDeviceIds, registerBlocks, refreshAreaField, refreshMessageField, refreshDeviceFields, updateDeviceWarning, ensureSingleStart, compileWorkspace };
+export { DEVICE_FIELD, AREA_FIELD, EMPTY_FAVORITES, serializedAreaIds, workspaceDevices, serializedDeviceIds, toolbox, collectSerializedDeviceIds, registerBlocks, refreshAreaField, refreshMessageField, refreshPatternField, refreshDeviceFields, updateDeviceWarning, ensureSingleStart, compileWorkspace };

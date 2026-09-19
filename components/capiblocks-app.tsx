@@ -118,7 +118,7 @@ function wiringReviewSignature(
   program: CompiledProgram,
 ) {
   return JSON.stringify([
-    scene.devices.map((device) => [device.id, device.kind, device.pins, device.kind === 'display' ? device.config : null]),
+    scene.devices.map((device) => [device.id, device.kind, device.pins, device.kind === 'display' || device.kind === 'ledMatrix' ? device.config : null]),
     collectRawOutputPins(program, scene),
   ]);
 }
@@ -200,6 +200,7 @@ function runtimeFromDevice(
 ): RuntimeDeviceState {
   switch (device.kind) {
     case 'display': return { kind: 'display', texts: {} };
+    case 'ledMatrix': return { kind: 'ledMatrix', rows: Array.from({ length: 8 }, () => 0), scrolling: false };
     case 'messages': return { kind: 'messages', received: [], transmitted: [], damaged: 0 };
     case 'trafficLight':
       return { kind: device.kind, color: 'OFF' };
@@ -329,6 +330,7 @@ function deviceReading(device: RuntimeDeviceState | undefined) {
     case 'trafficLight':
       return device.color === 'OFF' ? 'Apagado' : device.color;
     case 'display': return Object.values(device.texts).some(lines => lines.join('').trim()) ? 'Con texto' : 'Sin texto';
+    case 'ledMatrix': return device.scrolling ? 'Texto en movimiento' : device.rows.some(row => row !== 0) ? 'Con dibujo' : 'Apagada';
     case 'led':
       return `${Math.round(device.brightness)}%`;
     case 'robot':
@@ -378,6 +380,7 @@ function DeviceStateCard({
     potentiometer: '🎚️',
     wifiNode: '📶',
     display: '📺',
+    ledMatrix: '🟨',
     messages: '↔️',
   };
   return (
@@ -798,8 +801,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     (kind: SceneDeviceKind) => {
       postToWorker({ type: 'STOP' });
       setScene((current) => {
-        if (kind === 'display' && current.devices.some(device => device.kind === 'display')) {
-          setNotice('Cada proyecto admite una pantalla. Configurá la existente desde Armar escena.');
+        if ((kind === 'display' || kind === 'ledMatrix') && current.devices.some(device => device.kind === 'display' || device.kind === 'ledMatrix')) {
+          setNotice('Cada proyecto admite una sola pantalla o matriz. Configurá la existente desde Armar escena.');
           return current;
         }
         const result = addDeviceToScene(current, kind);

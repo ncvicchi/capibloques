@@ -33,6 +33,7 @@ interface WiringGuideProps {
 
 const deviceAdvice: Record<SceneDevice['kind'], string> = {
   display: 'GPIO sólo a 3,3 V. LCD con backpack de 5 V: revisar pull-ups y usar adaptador de nivel I2C si corresponde. TFT: alimentación y retroiluminación según el módulo, nunca desde un GPIO. No se usa MISO ni el touch.',
+  ledMatrix: 'MAX7219 suele alimentarse a 5 V y puede consumir bastante corriente: fuente externa adecuada, masa común y desacoplo. Nunca alimentes la matriz desde un GPIO; si 3,3 V no se reconoce de forma confiable, usá adaptación de nivel en DIN, CLK y CS.',
   trafficLight: 'Una resistencia de 220–330 Ω en serie con cada LED.',
   robot: 'DRV8833, fuente para motores y GND compartido con la Wemos.',
   motor: 'DRV8833 y fuente para el motor; nunca lo conectes directo al GPIO.',
@@ -51,7 +52,7 @@ const deviceAdvice: Record<SceneDevice['kind'], string> = {
 
 function sceneSignature(scene: SceneDefinition, rawPins: number[]) {
   return JSON.stringify([
-    scene.devices.map((device) => [device.id, device.kind, device.pins, device.kind === 'display' ? device.config : null]),
+    scene.devices.map((device) => [device.id, device.kind, device.pins, device.kind === 'display' || device.kind === 'ledMatrix' ? device.config : null]),
     rawPins,
   ]);
 }
@@ -240,6 +241,7 @@ export default function WiringGuide({
                 <article key={device.id}>
                   <strong>{device.name}</strong>
                   {device.kind === 'display' && <span>{displayProfiles[device.config.profile].name}{displayProfiles[device.config.profile].bus === 'i2c' ? ` · dirección 0x${device.config.address.toString(16).toUpperCase()}` : ' · orientación horizontal'}</span>}
+                  {device.kind === 'ledMatrix' && <span>4 × MAX7219 · DIN → primer módulo · {device.config.order === 'left-to-right' ? 'entrada a la izquierda' : 'entrada a la derecha'} · brillo {device.config.brightness}/15</span>}
                   <span>{deviceAdvice[device.kind]}</span>
                 </article>
               ))}

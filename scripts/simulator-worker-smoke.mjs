@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { ledMatrixConfig } from '../lib/led-matrix.ts';
 
 let clock = 0;
 let messageListener;
@@ -376,5 +377,23 @@ advance(16);
 advance(16);
 assert.ok(latestState().console.some(line => line.includes('rama igual')));
 assert.equal(latestState().devices[link.id].received.at(-1), 'DETENER');
+
+// El texto de la matriz espera de forma cooperativa: otro camino continúa.
+const matrix = {
+  schemaVersion: 1, id: 'matrix-test', kind: 'ledMatrix', name: 'Cartel',
+  position: { x: 120, y: 90 }, rotation: 0, pins: { din: 26, clk: 25, cs: 27 }, config: ledMatrixConfig(),
+};
+send({ type: 'LOAD', scene: baseScene([matrix]), program: { version: 2, threads: [
+  { id: 'matrix-thread', startBlockId: 'matrix-start', nodes: [
+    { op: 'matrixPattern', deviceId: matrix.id, patternId: 'heart', blockId: 'pattern' },
+    { op: 'matrixScroll', deviceId: matrix.id, text: 'HOLA', speedMs: 40, blockId: 'scroll' },
+  ] },
+  { id: 'counter-thread', startBlockId: 'counter-start', nodes: [{ op: 'counterChange', delta: 1, blockId: 'counter-during-scroll' }] },
+] } });
+send({ type: 'RUN' });
+advance(16); advance(16); advance(16);
+assert.equal(latestState().devices[matrix.id].scrolling, true);
+assert.equal(latestState().counter, 1);
+assert.equal(latestState().execution.tasks[0].status, 'waiting');
 
 console.log('Simulator worker smoke checks passed.');

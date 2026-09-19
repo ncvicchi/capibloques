@@ -32,12 +32,12 @@ jobs:
           node-version: 22
       - name: Generar proyectos nativos y ZIP
         run: node --experimental-strip-types scripts/generate-idf-fixtures.mjs
-      - name: Compilar siete proyectos ESP-IDF nativos para ESP32
+      - name: Compilar ocho proyectos ESP-IDF nativos para ESP32
         run: |
           . "$IDF_PATH/export.sh" >/dev/null
           python scripts/verify-idf-archives.py
           mkdir -p .idf-ci/build-project
-          for profile in main auxiliary lcd1602 lcd2004 ssd1306 ili9341 ili9488; do
+          for profile in main auxiliary matrix lcd1602 lcd2004 ssd1306 ili9341 ili9488; do
             # Same IDF/configuration: reuse framework objects, not the generated app.
             # Do NOT preserve timestamps: each extracted main.cpp must rebuild.
             cp -R ".idf-ci/from-zip/$profile/capibloques/." .idf-ci/build-project/
@@ -155,6 +155,8 @@ jobs:
           arduino-cli compile --fqbn esp32:esp32:d1_uno32 .arduino-ci/capibloques-ci
           node --experimental-strip-types scripts/generate-arduino-fixture.mjs .arduino-ci/auxiliary/auxiliary.ino auxiliary
           arduino-cli compile --fqbn esp32:esp32:d1_uno32 .arduino-ci/auxiliary
+          node --experimental-strip-types scripts/generate-arduino-fixture.mjs .arduino-ci/matrix/matrix.ino matrix
+          arduino-cli compile --fqbn esp32:esp32:d1_uno32 .arduino-ci/matrix
 
       - name: Compilar los cinco perfiles de pantalla
         run: |

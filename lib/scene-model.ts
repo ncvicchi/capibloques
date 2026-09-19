@@ -8,6 +8,8 @@
 
 // @ts-expect-error Node strip-types tests import the source extension.
 import { displayConfig, displayPins, displayPinKeys, requiredDisplayPins, validDisplayConfig, type DisplayConfig, type DisplayPinKey } from './display-model.ts';
+// @ts-expect-error Node strip-types tests import the source extension.
+import { ledMatrixConfig, validMatrixConfig, type LedMatrixConfig } from './led-matrix.ts';
 
 export const SCENE_SCHEMA_VERSION = 1 as const;
 
@@ -28,6 +30,7 @@ export const sceneDeviceKinds = [
   'potentiometer',
   'wifiNode',
   'display',
+  'ledMatrix',
   'messages',
 ] as const;
 
@@ -153,8 +156,15 @@ export type MessagesDevice = SceneDeviceBase<
   }
 >;
 
+export type LedMatrixDevice = SceneDeviceBase<
+  'ledMatrix',
+  { din: PinNumber; clk: PinNumber; cs: PinNumber },
+  LedMatrixConfig
+>;
+
 export interface SceneDeviceByKind {
   display: DisplayDevice;
+  ledMatrix: LedMatrixDevice;
   trafficLight: TrafficLightDevice;
   robot: RobotDevice;
   motor: MotorDevice;
@@ -370,6 +380,11 @@ const requirementsByKind: Record<SceneDeviceKind, readonly PinRequirement[]> = {
   ],
   wifiNode: [],
   display: displayPinKeys.map(key => ({ key, label: key.toUpperCase(), capability: 'pwmOutput' })),
+  ledMatrix: [
+    { key: 'din', label: 'Datos (DIN)', capability: 'pwmOutput' },
+    { key: 'clk', label: 'Reloj (CLK)', capability: 'pwmOutput' },
+    { key: 'cs', label: 'Selección (CS/LOAD)', capability: 'pwmOutput' },
+  ],
   messages: [
     { key: 'tx', label: 'Enviar', capability: 'pwmOutput' },
     { key: 'rx', label: 'Recibir', capability: 'digitalInput' },
@@ -377,6 +392,7 @@ const requirementsByKind: Record<SceneDeviceKind, readonly PinRequirement[]> = {
 };
 
 export const sceneComponentCatalog: readonly SceneComponentCatalogEntry[] = [
+  { kind: 'ledMatrix', icon: '🟨', name: 'Matriz LED', description: 'Panel de 32 × 8 luces con cuatro MAX7219.', childFriendlyControl: 'Píxeles, dibujos y texto en movimiento', pinRequirements: requirementsByKind.ledMatrix },
   { kind: 'messages', icon: '↔️', name: 'Mensajes', description: 'Envía y recibe mensajes de texto protegidos por cable.', childFriendlyControl: 'Enviar, recibir o ambas cosas', pinRequirements: requirementsByKind.messages },
   { kind: 'display', icon: '📺', name: 'Pantalla de mensajes', description: 'LCD, OLED o TFT con zonas de texto.', childFriendlyControl: 'Escribir y borrar mensajes', pinRequirements: requirementsByKind.display },
   {
@@ -487,6 +503,7 @@ const kindIdBases: Record<SceneDeviceKind, string> = {
   potentiometer: 'potentiometer',
   wifiNode: 'wifi-node',
   display: 'display',
+  ledMatrix: 'led-matrix',
   messages: 'messages',
 };
 
@@ -682,6 +699,9 @@ function unassignedDevice<K extends SceneDeviceKind>(
 
   let device: SceneDevice;
   switch (kind) {
+    case 'ledMatrix':
+      device = { ...base, kind, pins: { din: null, clk: null, cs: null }, config: ledMatrixConfig() };
+      break;
     case 'display':
       device = { ...base, kind, pins: displayPins(), config: displayConfig((options.config as Partial<DisplayConfig> | undefined)?.profile) };
       break;
@@ -988,7 +1008,7 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
       `Una escena admite hasta ${MAX_SCENE_ITEMS} componentes para mantener el editor fluido.`,
     );
   }
-  if (kind === 'display' && scene.devices.some(device => device.kind === 'display')) throw new Error('Cada proyecto admite una sola pantalla. Configurá la pantalla existente.');
+  if ((kind === 'display' || kind === 'ledMatrix') && scene.devices.some(device => device.kind === 'display' || device.kind === 'ledMatrix')) throw new Error('Cada proyecto admite una sola pantalla o matriz. Configurá la existente.');
   if (kind === 'messages' && scene.devices.filter(device => device.kind === 'messages').length >= 2) throw new Error('La placa admite hasta dos componentes Mensajes.');
   const reservedIds = [
     ...scene.devices.map((item) => item.id),
@@ -997,7 +1017,7 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
   ];
   const device = createSceneDevice(kind, scene.devices, {
     ...options,
-    ...(kind === 'display' && !options.position ? { position: { x: scene.canvas.width * 0.7, y: scene.canvas.height * 0.55 } } : {}),
+    ...((kind === 'display' || kind === 'ledMatrix') && !options.position ? { position: { x: scene.canvas.width * 0.7, y: scene.canvas.height * 0.55 } } : {}),
     id: options.id ?? createStableDeviceId(kind, reservedIds),
   });
   device.name = createUniqueVisibleName(
@@ -1021,7 +1041,7 @@ export function duplicateSceneDevice(
 ): AddDeviceResult | null {
   const original = source.devices.find((device) => device.id === deviceId);
   if (!original) return null;
-  if (original.kind === 'display') return null;
+  if (original.kind === 'display' || original.kind === 'ledMatrix') return null;
   const pins = Object.fromEntries(
     Object.keys(original.pins).map((key) => [key, null]),
   );
@@ -1367,6 +1387,7 @@ export type SceneValidationIssueCode =
   | 'led-resistor-required'
   | 'invalid-display'
   | 'display-limit'
+  | 'invalid-led-matrix'
   | 'messages-limit'
   | 'invalid-messages-pin';
 
@@ -1467,7 +1488,8 @@ export function validateScene(scene: SceneDefinition): SceneValidationResult {
   const visibleNames = new Map<string, string>();
   const occupied = new Map<number, PinSlot>();
   const displays = scene.devices.filter((device): device is DisplayDevice => device.kind === 'display');
-  if (displays.length > 1) issues.push({ code: 'display-limit', severity: 'error', message: 'Cada proyecto admite una sola pantalla. Podés crear varias zonas de texto dentro de una pantalla gráfica.' });
+  const visualOutputs = scene.devices.filter(device => device.kind === 'display' || device.kind === 'ledMatrix');
+  if (visualOutputs.length > 1) issues.push({ code: 'display-limit', severity: 'error', message: 'Cada proyecto admite una sola pantalla o matriz LED.' });
   for (const device of displays) {
     if (!validDisplayConfig(device.config)) {
       issues.push({ code: 'invalid-display', severity: 'error', deviceId: device.id, message: `${device.name}: revisá el modelo, los nombres y las zonas de texto. Deben caber en pantalla, sin superponerse.` });
@@ -1481,6 +1503,9 @@ export function validateScene(scene: SceneDefinition): SceneValidationResult {
   for (const device of messageLinks) {
     if (device.config.mode === 'send' && device.pins.rx !== null) issues.push({ code: 'invalid-messages-pin', severity: 'error', deviceId: device.id, message: `${device.name}: el pin de recibir debe quedar libre en modo Enviar.` });
     if (device.config.mode === 'receive' && device.pins.tx !== null) issues.push({ code: 'invalid-messages-pin', severity: 'error', deviceId: device.id, message: `${device.name}: el pin de enviar debe quedar libre en modo Recibir.` });
+  }
+  for (const device of scene.devices.filter(device => device.kind === 'ledMatrix')) {
+    if (!validMatrixConfig(device.config)) issues.push({ code: 'invalid-led-matrix', severity: 'error', deviceId: device.id, message: `${device.name}: revisá brillo, orientación y dibujos guardados.` });
   }
   for (const device of scene.devices) {
     if (!itemIdIsValid(device.id)) {
@@ -1787,6 +1812,7 @@ function validDeviceConfig(
   config: Record<string, unknown>,
 ) {
   switch (kind) {
+    case 'ledMatrix': return validMatrixConfig(config);
     case 'display': return validDisplayConfig(config);
     case 'trafficLight':
       return (

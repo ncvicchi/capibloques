@@ -23,11 +23,14 @@ import {
   type SceneDevice,
   // @ts-expect-error Node's type-stripping smoke runner needs the explicit suffix.
 } from './scene-model.ts';
+// @ts-expect-error Node strip-types tests import the source extension.
+import { matrixPixel, matrixScrollRows, matrixScrollSteps } from './led-matrix.ts';
 
 type Pending =
   | { kind: 'wait'; startedAt: number; until: number; blockId: string }
   | { kind: 'wifi'; startedAt: number; readyAt: number; timeoutAt: number; blockId: string }
   | { kind: 'message'; startedAt: number; timeoutAt: number; deviceId: string; expected: string; equalTarget: number; differentTarget: number; timeoutTarget: number; blockId: string }
+  | { kind: 'matrix'; startedAt: number; until: number; deviceId: string; text: string; speedMs: number; blockId: string }
   | null;
 
 type ThreadExecution = {
@@ -153,6 +156,7 @@ import { displayTargets, layoutDisplayText } from './display-model.ts';
 function runtimeForDevice(device: SceneDevice): RuntimeDeviceState {
   switch (device.kind) {
     case 'display': return { kind: 'display', texts: Object.fromEntries(displayTargets(device.config).map(area => [area.id, layoutDisplayText('', area).lines])) };
+    case 'ledMatrix': return { kind: 'ledMatrix', rows: Array.from({ length: 8 }, () => 0), scrolling: false };
     case 'messages': return { kind: 'messages', received: [], transmitted: [], damaged: 0 };
     case 'trafficLight':
       return { kind: 'trafficLight', color: 'OFF' };
@@ -351,6 +355,8 @@ function executionTaskState(execution: ThreadExecution): ExecutionTaskState {
         ? pending.until
         : pending.kind === 'message'
           ? pending.timeoutAt
+          : pending.kind === 'matrix'
+            ? pending.until
           : state.wifiAvailable
             ? pending.readyAt
             : pending.timeoutAt;
@@ -361,6 +367,8 @@ function executionTaskState(execution: ThreadExecution): ExecutionTaskState {
         ? `${(task.remainingMs / 1000).toFixed(2)} s restantes`
         : pending.kind === 'message'
           ? `Esperando “${pending.expected}” · ${(task.remainingMs / 1000).toFixed(1)} s`
+          : pending.kind === 'matrix'
+            ? `Texto en movimiento · ${(task.remainingMs / 1000).toFixed(1)} s`
           : state.wifiAvailable
             ? 'Conectando a Wi-Fi'
             : 'Esperando la red Wi-Fi';
@@ -599,6 +607,16 @@ function resolvePending(
     }
     return 'waiting';
   }
+  if (pending.kind === 'matrix') {
+    const device = state.devices[pending.deviceId];
+    if (device?.kind === 'ledMatrix') {
+      const offset = Math.floor((virtualNow - pending.startedAt) / pending.speedMs);
+      device.rows = matrixScrollRows(pending.text, offset);
+      device.scrolling = virtualNow < pending.until;
+    }
+    if (virtualNow < pending.until) return 'waiting';
+    execution.pending = null; execution.pc += 1; return 'advanced';
+  }
   if (state.wifiAvailable && virtualNow >= pending.readyAt) {
     state.wifi = 'connected';
     appendConsole('Wi-Fi conectado (simulación)');
@@ -735,6 +753,13 @@ function executeInstruction(
     };
     return 'wait';
   }
+  if (node.op === 'matrixScroll') {
+    const duration = matrixScrollSteps(node.text) * Math.max(40, node.speedMs);
+    const device = state.devices[node.deviceId];
+    if (device?.kind === 'ledMatrix') device.scrolling = true;
+    execution.pending = { kind: 'matrix', startedAt: virtualNow, until: virtualNow + duration, deviceId: node.deviceId, text: node.text, speedMs: Math.max(40, node.speedMs), blockId: node.blockId };
+    return 'wait';
+  }
 
   execution.pc += 1;
   switch (node.op) {
@@ -830,6 +855,23 @@ function executeInstruction(
       if (device?.kind === 'display' && area) device.texts[node.areaId] = layoutDisplayText(node.op === 'displayWrite' ? node.text : '', area).lines;
       break;
     }
+    case 'matrixClear': {
+      const device = state.devices[node.deviceId];
+      if (device?.kind === 'ledMatrix') { device.rows = Array.from({ length: 8 }, () => 0); device.scrolling = false; }
+      break;
+    }
+    case 'matrixPixel': {
+      const device = state.devices[node.deviceId];
+      if (device?.kind === 'ledMatrix') { device.rows = matrixPixel(device.rows, node.x, node.y, node.enabled); device.scrolling = false; }
+      break;
+    }
+    case 'matrixPattern': {
+      const device = state.devices[node.deviceId];
+      const definition = scene.devices.find(device => device.id === node.deviceId);
+      const pattern = definition?.kind === 'ledMatrix' ? definition.config.patterns.find(pattern => pattern.id === node.patternId) : undefined;
+      if (device?.kind === 'ledMatrix' && pattern) { device.rows = [...pattern.rows]; device.scrolling = false; }
+      break;
+    }
     case 'counterChange':
       state.counter = addCounterValues(state.counter, node.delta);
       appendConsole(`Contador = ${state.counter}`);
@@ -868,7 +910,7 @@ function executeOne(execution: ThreadExecution) {
   if (wasDone || !node) return result;
   let message = '';
   if (pending) {
-    if (!execution.pending) message = pending.kind === 'wait' ? 'Terminó la espera; seguimos.' : pending.kind === 'message' ? (state.console.at(-1)?.replace(/^[^·]*· /, '') ?? 'Terminó la espera de mensaje.') : state.wifi === 'connected' ? 'Wi-Fi conectado.' : 'No se pudo conectar a Wi-Fi.';
+    if (!execution.pending) message = pending.kind === 'wait' ? 'Terminó la espera; seguimos.' : pending.kind === 'message' ? (state.console.at(-1)?.replace(/^[^·]*· /, '') ?? 'Terminó la espera de mensaje.') : pending.kind === 'matrix' ? 'El texto terminó de cruzar la matriz.' : state.wifi === 'connected' ? 'Wi-Fi conectado.' : 'No se pudo conectar a Wi-Fi.';
   } else {
     switch (node.op) {
       case 'jumpIfFalse': message = execution.pc === node.target ? 'La condición es falsa: vamos por «si no».' : 'La condición es verdadera: vamos por «si».'; break;
@@ -881,6 +923,10 @@ function executeOne(execution: ThreadExecution) {
       case 'wait': message = `Esperamos ${Math.max(0, node.ms) / 1000} segundos sin bloquear los otros caminos.`; break;
       case 'wifi': message = 'Buscamos una red Wi-Fi.'; break;
       case 'messageReceiveWait': message = `Esperamos “${node.expected}” sin detener los otros caminos.`; break;
+      case 'matrixScroll': message = `Desplazamos “${node.text.slice(0, 32)}” sin detener los otros caminos.`; break;
+      case 'matrixClear': message = `${deviceName(node.deviceId)}: apagamos todos los puntos.`; break;
+      case 'matrixPixel': message = `${deviceName(node.deviceId)}: ${node.enabled ? 'encendemos' : 'apagamos'} x ${node.x}, y ${node.y}.`; break;
+      case 'matrixPattern': message = `${deviceName(node.deviceId)}: mostramos el dibujo elegido.`; break;
       case 'buzzer': case 'tone': message = `${deviceName(node.deviceId)}: suena durante ${node.durationMs / 1000} segundos.`; break;
       case 'displayWrite': message = `${deviceName(node.deviceId)}: escribimos «${node.text.slice(0, 80)}».`; break;
       case 'displayClear': message = `${deviceName(node.deviceId)}: borramos la zona de texto elegida.`; break;

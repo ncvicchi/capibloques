@@ -28,6 +28,10 @@ import { displayIdfSupport } from './display-idf.ts';
 import { allocateIdfPwm, idfRuntimeSupport, IDF_VERSION } from './idf-runtime.ts';
 // @ts-expect-error Node strip-types runner.
 import { MAX_MESSAGE_BYTES } from './messages-protocol.ts';
+// @ts-expect-error Node strip-types runner.
+import { MAX_MATRIX_TEXT, normalizeMatrixText, validMatrixConfig } from './led-matrix.ts';
+// @ts-expect-error Node strip-types runner.
+import { matrixFirmwareSupport, normalizedMatrixTextLiteral } from './led-matrix-firmware.ts';
 
 export type FirmwareFramework = 'arduino' | 'esp-idf';
 
@@ -106,6 +110,10 @@ export type ProgramNode =
     }
   | { op: 'displayWrite'; deviceId: string; areaId: string; text: string; blockId: string }
   | { op: 'displayClear'; deviceId: string; areaId: string; blockId: string }
+  | { op: 'matrixClear'; deviceId: string; blockId: string }
+  | { op: 'matrixPixel'; deviceId: string; x: number; y: number; enabled: boolean; blockId: string }
+  | { op: 'matrixPattern'; deviceId: string; patternId: string; blockId: string }
+  | { op: 'matrixScroll'; deviceId: string; text: string; speedMs: number; blockId: string }
   | {
       op: 'tone';
       deviceId: string;
@@ -185,7 +193,7 @@ export interface ProjectDecodeResult {
   diagnostics: CapiDiagnostic[];
 }
 
-export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages';
+export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix';
 export interface ExampleDefinition {
   id: ExampleId;
   title: string;
@@ -216,6 +224,7 @@ export type WifiRuntimeState =
 
 export type RuntimeDeviceState =
   | { kind: 'display'; texts: Record<string, string[]> }
+  | { kind: 'ledMatrix'; rows: number[]; scrolling: boolean }
   | {
       kind: 'trafficLight';
       color: 'RED' | 'YELLOW' | 'GREEN' | 'OFF';
@@ -534,6 +543,7 @@ const robotMessagesScene = addDeviceToScene(createSceneFromTemplate('robot'), 'm
 const trafficMessagesScene = addDeviceToScene(createSceneFromTemplate('traffic'), 'messages', {
   id: 'messages-1', name: 'Órdenes del semáforo', config: { mode: 'receive', baudRate: 9600, messages: ['VERDE', 'ROJO'] },
 }).scene;
+const matrixExample = addDeviceToScene(createEmptyScene('Cartel de bienvenida'), 'ledMatrix', { id: 'led-matrix-1', position: { x: 480, y: 270 } });
 const messageReceiver = (expected: string, equal: Record<string, unknown>, different: Record<string, unknown>, timeout: Record<string, unknown>) => ({
   type: 'capi_forever', id: `listen-${expected.toLowerCase()}`, inputs: { DO: { block: {
     type: 'capi_message_receive', id: `receive-${expected.toLowerCase()}`,
@@ -593,6 +603,18 @@ export const examples: ExampleDefinition[] = [
       { type: 'capi_wait', id: 'display-read', fields: { SECONDS: 3 } },
       { type: 'capi_display_clear', id: 'display-clean', fields: { DEVICE_ID: 'display-1', AREA_ID: 'screen' } },
       { type: 'capi_serial', id: 'display-console', fields: { TEXT: 'Este mensaje va a la consola.' } },
+    )),
+  },
+  {
+    id: 'led-matrix', title: 'Cartel luminoso', icon: '🟨', level: 'Inicial',
+    mission: 'Mostrá un corazón y después hacé cruzar un saludo sin frenar otros caminos.',
+    description: 'Dibujos de 32 × 8, píxeles y texto desplazable.',
+    scene: matrixExample.scene,
+    workspace: startWorkspace(chain(
+      { type: 'capi_matrix_pattern', id: 'matrix-heart', fields: { DEVICE_ID: matrixExample.device.id, PATTERN_ID: 'heart' } },
+      { type: 'capi_wait', id: 'matrix-heart-wait', fields: { SECONDS: 1 } },
+      { type: 'capi_matrix_scroll', id: 'matrix-hello', fields: { DEVICE_ID: matrixExample.device.id, TEXT: 'HOLA CAPI', SPEED: 100 } },
+      { type: 'capi_matrix_clear', id: 'matrix-clean', fields: { DEVICE_ID: matrixExample.device.id } },
     )),
   },
   {
@@ -744,6 +766,10 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_message_receive',
   'capi_display_write',
   'capi_display_clear',
+  'capi_matrix_clear',
+  'capi_matrix_pixel',
+  'capi_matrix_pattern',
+  'capi_matrix_scroll',
 ]);
 
 interface WorkspaceDecodeResult {
@@ -1187,6 +1213,10 @@ const blockKind = (block: Record<string, unknown>): SceneDeviceKind | null => {
   switch (type) {
     case 'capi_display_write':
     case 'capi_display_clear': return 'display';
+    case 'capi_matrix_clear':
+    case 'capi_matrix_pixel':
+    case 'capi_matrix_pattern':
+    case 'capi_matrix_scroll': return 'ledMatrix';
     case 'capi_message_send':
     case 'capi_message_receive': return 'messages';
     case 'capi_traffic':
@@ -1523,6 +1553,10 @@ const compatibleKindsForNode = (
   switch (node.op) {
     case 'displayWrite':
     case 'displayClear': return ['display'];
+    case 'matrixClear':
+    case 'matrixPixel':
+    case 'matrixPattern':
+    case 'matrixScroll': return ['ledMatrix'];
     case 'messageSend':
     case 'messageReceive': return ['messages'];
     case 'traffic':
@@ -1786,6 +1820,18 @@ function normalizeNodes(
       case 'displayClear':
         result.push({ op: 'displayClear', deviceId: typeof node.deviceId === 'string' ? node.deviceId : '', areaId: typeof node.areaId === 'string' ? node.areaId : '', blockId });
         break;
+      case 'matrixClear':
+        result.push({ op: 'matrixClear', deviceId, blockId });
+        break;
+      case 'matrixPixel':
+        result.push({ op: 'matrixPixel', deviceId, x: finiteNumber(node.x, 0), y: finiteNumber(node.y, 0), enabled: node.enabled === true, blockId });
+        break;
+      case 'matrixPattern':
+        result.push({ op: 'matrixPattern', deviceId, patternId: typeof node.patternId === 'string' ? node.patternId : '', blockId });
+        break;
+      case 'matrixScroll':
+        result.push({ op: 'matrixScroll', deviceId, text: typeof node.text === 'string' ? node.text : '', speedMs: finiteNumber(node.speedMs, 120), blockId });
+        break;
       case 'repeat':
         result.push({
           op: 'repeat',
@@ -2044,6 +2090,17 @@ export function validateProgramForScene(
           if (layout.converted) diagnostics.push({ severity: 'warning', code: 'display-text-converted', message: 'Pantalla: se quitan tildes y los símbolos no compatibles se muestran como ?. La vista previa usa el mismo texto que la placa.', blockId: node.blockId });
           if (layout.clipped) diagnostics.push({ severity: 'warning', code: 'display-text-clipped', message: 'El mensaje no cabe completo en su destino. Se muestra solamente la parte que entra.', blockId: node.blockId });
         }
+      }
+    }
+    if (node.op === 'matrixClear' || node.op === 'matrixPixel' || node.op === 'matrixPattern' || node.op === 'matrixScroll') {
+      const device = deviceMap.get(node.deviceId);
+      if (device?.kind === 'ledMatrix' && !validMatrixConfig(device.config)) diagnostics.push({ severity: 'error', code: 'matrix-config-invalid', message: `${device.name}: la configuración de la matriz está dañada.`, blockId: node.blockId, deviceId: node.deviceId });
+      if (node.op === 'matrixPixel' && (!Number.isInteger(node.x) || node.x < 0 || node.x > 31 || !Number.isInteger(node.y) || node.y < 0 || node.y > 7)) diagnostics.push({ severity: 'error', code: 'matrix-pixel-range', message: 'El punto debe estar entre x 0–31 e y 0–7.', blockId: node.blockId, deviceId: node.deviceId });
+      if (node.op === 'matrixPattern' && device?.kind === 'ledMatrix' && !device.config.patterns.some(pattern => pattern.id === node.patternId)) diagnostics.push({ severity: 'error', code: 'matrix-pattern-missing', message: `${device.name}: elegí un dibujo que todavía exista.`, blockId: node.blockId, deviceId: node.deviceId });
+      if (node.op === 'matrixScroll') {
+        if (!node.text.trim() || node.text.length > MAX_MATRIX_TEXT) diagnostics.push({ severity: 'error', code: 'matrix-text-limit', message: `El texto debe tener entre 1 y ${MAX_MATRIX_TEXT} caracteres.`, blockId: node.blockId, deviceId: node.deviceId });
+        if (!Number.isFinite(node.speedMs) || node.speedMs < 40 || node.speedMs > 1000) diagnostics.push({ severity: 'error', code: 'matrix-speed-range', message: 'La velocidad debe estar entre 40 y 1000 ms por paso.', blockId: node.blockId, deviceId: node.deviceId });
+        if (normalizeMatrixText(node.text) !== node.text.toUpperCase()) diagnostics.push({ severity: 'warning', code: 'matrix-text-converted', message: 'La matriz convierte el texto a mayúsculas sin tildes y reemplaza símbolos no disponibles.', blockId: node.blockId, deviceId: node.deviceId });
       }
     }
     if (node.op === 'parallel' && (node.branches.length < 2 || node.branches.length > 16)) diagnostics.push({ severity: 'error', code: 'parallel-branches', message: '«Al mismo tiempo» necesita entre 2 y 16 caminos.', blockId: node.blockId });
@@ -2466,6 +2523,14 @@ function instructionToCpp(
       const call = area ? `capiDisplayWrite(${area.column}, ${area.row}, ${area.columns}, ${area.rows}, ${instruction.op === 'displayWrite' ? cppString(layoutDisplayText(instruction.text, area).cells) : 'nullptr'});` : '// Destino inválido: revisar el diagnóstico #error.';
       return `${comment}\n        ${call}\n        ${pc} = ${nextPc};\n        break;`;
     }
+    case 'matrixClear':
+      return `${comment}\n        capiMatrixClear();\n        ${pc} = ${nextPc};\n        break;`;
+    case 'matrixPixel':
+      return `${comment}\n        capiMatrixPixel(${Math.round(instruction.x)}, ${Math.round(instruction.y)}, ${instruction.enabled ? 'true' : 'false'});\n        ${pc} = ${nextPc};\n        break;`;
+    case 'matrixPattern':
+      return `${comment}\n        capiMatrixPattern(PATTERN_${deviceSymbol(context, instruction.deviceId)}_${cppIdentifier(instruction.patternId)});\n        ${pc} = ${nextPc};\n        break;`;
+    case 'matrixScroll':
+      return `${comment}\n        if (!capiMatrixScroll(${cppString(normalizedMatrixTextLiteral(instruction.text))}, ${Math.max(40, Math.min(1000, Math.round(instruction.speedMs)))}, now)) return;\n        ${pc} = ${nextPc};\n        break;`;
     case 'repeatStart':
       return `${comment}\n        if (${loops}[${instruction.slot}] < 0) ${loops}[${instruction.slot}] = ${instruction.count};\n        if (${loops}[${instruction.slot}] == 0) { ${loops}[${instruction.slot}] = -1; ${pc} = ${instruction.end}; }\n        else { ${pc} = ${nextPc}; }\n        break;`;
     case 'repeatNext':
@@ -2514,6 +2579,7 @@ function deviceDeclarations(
         case 'wifiNode':
           return `// ${cppLineComment(device.name)}: radio Wi-Fi integrada, sin GPIO externo.`;
         case 'display': return '// Pantalla configurada en capiScreen.';
+        case 'ledMatrix': return device.config.patterns.map(pattern => `constexpr uint32_t PATTERN_${symbol}_${cppIdentifier(pattern.id)}[8] = { ${pattern.rows.map(row => `${row >>> 0}UL`).join(', ')} }; // ${cppLineComment(pattern.name)}`).join('\n');
         case 'messages': return `constexpr MessageDevice DEV_${symbol}{${messageDevices.findIndex(item => item.id === device.id) + 1}, ${gpioOrPlaceholder(device.pins.tx)}, ${gpioOrPlaceholder(device.pins.rx)}, ${device.config.baudRate}}; // ${cppLineComment(device.name)}`;
         default:
           return `constexpr uint8_t PIN_${symbol} = ${label(device.pins.signal)}`;
@@ -2670,6 +2736,7 @@ function setupLines(scene: SceneDefinition, symbols: Map<string, string>) {
       case 'potentiometer':
       case 'wifiNode':
       case 'display':
+      case 'ledMatrix':
       case 'messages':
         break;
     }
@@ -2738,6 +2805,7 @@ export function generateEsp32CodeResult(
   );
   const usesWifi = programUsesWifi(program);
   const displaySupport = native ? displayIdfSupport(scene) : displayArduinoSupport(scene);
+  const matrixSupport = matrixFirmwareSupport(scene, native);
   const wifiHeader = usesWifi && !native
     ? `#include <WiFi.h>
 
@@ -2821,6 +2889,8 @@ enum class TrafficColor { RED, YELLOW, GREEN, OFF };
 
 ${displaySupport}
 
+${matrixSupport}
+
 ${deviceDeclarations(scene, symbols)}
 
 ${messageRuntimeSupport(scene, native)}
@@ -2879,6 +2949,7 @@ ${native ? `extern "C" void app_main() {
 ${messageSetupLines(scene, symbols, true)}
 ${scene.devices.filter(device => device.kind === 'servo').map(device => `  setServoAngle(PIN_${symbols.get(device.id)}, ${Math.max(0, Math.min(180, Math.round(device.config.angle)))});`).join('\n')}
 ${displaySupport ? '  capiDisplayBegin();' : ''}
+${matrixSupport ? '  capiMatrixBegin();' : ''}
   for (;;) {
     const uint32_t now = capiMillis();
 ${serviceBuzzerLines(scene, symbols, framework)}
@@ -2894,6 +2965,7 @@ ${runThreads}
 ${setupLines(scene, symbols)}
 ${messageSetupLines(scene, symbols, false)}
 ${displaySupport ? '  capiDisplayBegin();' : ''}
+${matrixSupport ? '  capiMatrixBegin();' : ''}
 }
 
 void loop() {
