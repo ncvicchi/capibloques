@@ -240,7 +240,7 @@ test.describe('CapiBloques', () => {
     await redo.click();
     await expect(object).toHaveAttribute('style', after!);
 
-    await editor.getByRole('button', { name: 'Quitar', exact: false }).click();
+    await editor.getByRole('button', { name: '🗑 Quitar', exact: true }).click();
     const confirmation = page.getByRole('alertdialog', {
       name: '¿Quitar este componente?',
     });
@@ -248,7 +248,7 @@ test.describe('CapiBloques', () => {
     await page.keyboard.press('Control+z');
     await confirmation.getByRole('button', { name: 'Volver' }).click();
     await expect(object).toHaveAttribute('style', after!);
-    await editor.getByRole('button', { name: 'Quitar', exact: false }).click();
+    await editor.getByRole('button', { name: '🗑 Quitar', exact: true }).click();
     await confirmation.getByRole('button', { name: 'Sí, quitar' }).click();
     await expect(editor.getByText(/^1 objeto ·/)).toBeVisible();
     await undo.click();
