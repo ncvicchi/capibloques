@@ -220,7 +220,9 @@ test('favoritos: primera categoría, estrellas, cancelar, guardar y recargar sin
     name: 'Elegí tus bloques favoritos',
   });
   await dialog.getByRole('checkbox', { name: /Semáforo/ }).check();
-  await dialog.getByRole('checkbox', { name: /Esperar/ }).check();
+  await dialog
+    .getByRole('checkbox', { name: 'Esperar Bucles', exact: true })
+    .check();
   await dialog.getByRole('button', { name: 'Cancelar favoritos' }).click();
   expect(state.writes).toBe(0);
   await page
@@ -231,10 +233,12 @@ test('favoritos: primera categoría, estrellas, cancelar, guardar y recargar sin
     .filter({ hasText: '☆ Elegir favoritos' })
     .click();
   await expect(
-    dialog.getByRole('checkbox', { name: /Esperar/ }),
+    dialog.getByRole('checkbox', { name: 'Esperar Bucles', exact: true }),
   ).not.toBeChecked();
   await dialog.getByRole('checkbox', { name: /Semáforo/ }).check();
-  await dialog.getByRole('checkbox', { name: /Esperar/ }).check();
+  await dialog
+    .getByRole('checkbox', { name: 'Esperar Bucles', exact: true })
+    .check();
   await dialog.getByRole('button', { name: 'Guardar favoritos' }).click();
   await expect(dialog).toHaveCount(0);
   expect(state.value.favorites).toEqual(['capi_traffic', 'capi_wait']);
