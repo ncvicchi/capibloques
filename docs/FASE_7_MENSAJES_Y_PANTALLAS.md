@@ -26,7 +26,7 @@ Fuera de esta fase: Waveshare de 5 pulgadas, ESP32-S3, representar la escena com
 
 ## Uso y contrato implementado
 
-1. Abrir **Armar escena → Pantalla de mensajes**. Se admite una por proyecto; no se puede duplicar.
+1. Abrir **Armar escena → Pantalla de texto**. Se admite una por proyecto; no se puede duplicar. El cambio es sólo de nombre visible: los proyectos existentes conservan el mismo tipo `display` y siguen siendo compatibles.
 2. Elegir el modelo. Cambiarlo requiere confirmación, reinicia conexiones y retira las zonas gráficas anteriores. **Cancelar cambios** restaura la configuración previa; después de **Guardar cambios**, deshacer/rehacer conserva configuración e identidades.
 3. En LCD el destino es «Pantalla completa». En OLED/TFT se configuran hasta 8 zonas con nombre, columna/fila inicial (desde cero), ancho y alto. Deben caber y no superponerse. Quitar una zona conserva su identidad retirada; ningún bloque antiguo se reasigna a otra zona silenciosamente.
 4. Asignar pines manualmente o usar **Guardar cambios → Auto conectar**. Guardar la escena para confirmar el proyecto. Una configuración de layout incompleta sigue siendo recuperable localmente, pero no se publica como proyecto válido.

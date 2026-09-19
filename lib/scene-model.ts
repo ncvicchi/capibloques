@@ -394,7 +394,7 @@ const requirementsByKind: Record<SceneDeviceKind, readonly PinRequirement[]> = {
 export const sceneComponentCatalog: readonly SceneComponentCatalogEntry[] = [
   { kind: 'ledMatrix', icon: '🟨', name: 'Matriz LED', description: 'Panel de 32 × 8 luces con cuatro MAX7219.', childFriendlyControl: 'Píxeles, dibujos y texto en movimiento', pinRequirements: requirementsByKind.ledMatrix },
   { kind: 'messages', icon: '↔️', name: 'Mensajes', description: 'Envía y recibe mensajes de texto protegidos por cable.', childFriendlyControl: 'Enviar, recibir o ambas cosas', pinRequirements: requirementsByKind.messages },
-  { kind: 'display', icon: '📺', name: 'Pantalla de mensajes', description: 'LCD, OLED o TFT con zonas de texto.', childFriendlyControl: 'Escribir y borrar mensajes', pinRequirements: requirementsByKind.display },
+  { kind: 'display', icon: '📺', name: 'Pantalla de texto', description: 'LCD, OLED o TFT para escribir mensajes.', childFriendlyControl: 'Escribir y borrar mensajes', pinRequirements: requirementsByKind.display },
   {
     kind: 'trafficLight',
     icon: '🚦',

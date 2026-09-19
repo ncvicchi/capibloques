@@ -116,7 +116,7 @@ test('pantalla: crear, cambiar modelo con confirmación y autoconectar SPI', asy
     exact: true,
   });
   await editor
-    .getByRole('button', { name: /^Agregar Pantalla de mensajes/ })
+    .getByRole('button', { name: /^Agregar Pantalla de texto/ })
     .click();
   const model = editor.getByRole('combobox', {
     name: 'Modelo de pantalla',
@@ -225,7 +225,7 @@ test('pantalla: Guardar/Cancelar y deshacer/rehacer conservan zonas e identidade
     .getByRole('button', { name: 'Mover Mi pantalla', exact: true })
     .click();
   await expect(
-    editor.getByRole('button', { name: /^Agregar Pantalla de mensajes/ }),
+    editor.getByRole('button', { name: /^Agregar Pantalla de texto/ }),
   ).toBeDisabled();
   await expect(
     editor.getByRole('button', { name: /Duplicar/, exact: false }),

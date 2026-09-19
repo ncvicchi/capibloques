@@ -31,7 +31,7 @@ test('Matriz LED: configura hardware y edita un dibujo de 32 × 8', async ({ pag
   const cell = editor.getByRole('button', { name: 'Columna 32, fila 8' });
   await cell.click();
   await expect(cell).toHaveAttribute('aria-pressed', 'true');
-  await expect(editor.getByRole('button', { name: /^Agregar Pantalla de mensajes/ })).toBeDisabled();
+  await expect(editor.getByRole('button', { name: /^Agregar Pantalla de texto/ })).toBeDisabled();
   await expect(editor.getByRole('combobox', { name: /^Datos \(DIN\) de/ })).toHaveCount(1);
 });
 

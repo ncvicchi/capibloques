@@ -206,7 +206,7 @@ La escena describe **qué existe y cómo está conectado**; los bloques describe
 
 ### Mensajes y pantallas
 
-Una pantalla por proyecto: LCD I2C 16×2/20×4, OLED SSD1306 o TFT SPI ILI9341/ILI9488. Se agrega desde **Armar escena → Pantalla de mensajes**. LCD recibe texto directamente; OLED/TFT permiten zonas de texto con nombre, posición y tamaño. Guardar/Cancelar, deshacer/rehacer y recuperación local conservan su configuración.
+Una pantalla por proyecto: LCD I2C 16×2/20×4, OLED SSD1306 o TFT SPI ILI9341/ILI9488. Se agrega desde **Armar escena → Pantalla de texto**. LCD recibe texto directamente; OLED/TFT permiten zonas de texto con nombre, posición y tamaño. Guardar/Cancelar, deshacer/rehacer y recuperación local conservan su configuración.
 
 En **Mensajes** están los bloques de escribir/borrar en el destino elegido y el de escribir en consola/Serial, independiente. El ejemplo **Mensajes para la plaza** permite empezar. Texto portable, ajuste por filas y avisos de caracteres no compatibles o recorte; agregar una espera entre mensajes para leerlos. Consultar [perfiles, bibliotecas y precauciones de fase 7](docs/FASE_7_MENSAJES_Y_PANTALLAS.md). La compilación no sustituye verificar físicamente el módulo antes de usarlo con alumnos.
 

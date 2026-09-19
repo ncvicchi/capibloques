@@ -263,7 +263,7 @@ El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BAC
 - 20: compilación/grabación guiadas, estados reales, medición, Guardar integrado y reinicio posgrabación validado.
 - 21: claridad y ergonomía educativa: superposición de bloques, borrador de escena, operadores/menús/emojis, textos, advertencias y nueva auditoría de interfaz.
 - 22: avatar acompañante con reacciones accesibles ante desafíos, compilación y grabación.
-- 23: **en curso**; matriz 32 × 8 con cuatro MAX7219 implementada en software. Falta su aceptación eléctrica y la de LCD PCF8574, OLED SSD1306 y TFT ILI9341/ILI9488.
+- 23: **en curso**; matriz 32 × 8 con cuatro MAX7219 implementada en software. El componente existente de LCD/OLED/TFT se presenta como **Pantalla de texto**; sus perfiles LCD PCF8574 16 × 2 y 20 × 4 fueron revalidados localmente en Chrome y Edge sin cambiar el JSON `display`. Falta la aceptación eléctrica de matriz, LCD, OLED y TFT.
 - 24: panel web local para un celular emparejado, misma LAN, vistas Escena/Controles e inputs relacionados mediante bloques.
 - 25: compartir proyectos por enlace/QR con copia/vista, caducidad y revocación.
 - 26: acceso de aula sin contraseña y asistencia con identidad, sesión y revocación explícitas.
