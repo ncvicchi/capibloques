@@ -34,7 +34,7 @@ Precisar al diseñar: qué vista corre en el navegador y cuál en el display fí
 
 ### TX/RX serial reasignable
 
-**Implementado en software en fase 15; aceptación física Wemos pendiente.** El nombre visible es **Mensajes**, con modos Enviar, Recibir o ambos. La [guía de fase](FASE_15_MENSAJES.md) fija bloques, trama protegida, simulación, límites y evidencia.
+**Entregado y verificado en DEV/CI en fase 15; aceptación física Wemos pendiente.** El nombre visible es **Mensajes**, con modos Enviar, Recibir o ambos. La [guía de fase](FASE_15_MENSAJES.md) fija bloques, trama protegida, simulación, límites y evidencia.
 
 - **TX:** enviar mensajes por el puerto serial elegido.
 - **RX:** recibir mensajes y compararlos con mensajes fijos/prearmados, con caminos **igual / distinto**.

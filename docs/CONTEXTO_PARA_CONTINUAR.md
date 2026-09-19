@@ -117,6 +117,12 @@ El error «Una conexión del bloque … apunta a un bloque vacío» se reprodujo
 
 Pasaron typecheck, lint, smoke, build, 6/6 del archivo de experiencia en Chromium y la regresión específica en Chromium/Chrome/Edge. El CI completo [34974885825](https://github.com/ncvicchi/capibloques/actions/runs/34974885825) pasó backend, interfaz/runtime, Arduino y ESP-IDF. `capi-dev` avanzó de `0fc9ff2` a `2b97af95051e47566167bcbfb2117757d37a192b`; editor, API y PostgreSQL quedaron saludables, Compose/firewall válidos y salud local/pública `ok`. La admisión se restauró con `paused=False`, cero trabajos activos y planificador `active`; el caso pasó 2/2 sobre DEV público en Chrome/Edge. API/base no fueron recreados y no se modificaron PRD, gateway, Proxmox, router ni Nginx.
 
+### Fase 15 — Mensajes — 19 de septiembre de 2026
+
+Los commits funcionales `036fe61` y `b2ebd05` incorporan el componente **Mensajes**, sus modos Enviar/Recibir/Ambos, lista predefinida, velocidad y pines configurados en escena, bloques de envío y recepción condicional cooperativa, simulación por botones y trama protegida común a Arduino/ESP-IDF. Los ejemplos Robot y Semáforo por mensajes están incluidos. El contrato y los límites se conservan en [FASE_15_MENSAJES.md](FASE_15_MENSAJES.md).
+
+El CI completo [35444477812](https://github.com/ncvicchi/capibloques/actions/runs/35444477812) pasó interfaz/runtime, 200 pruebas de backend, Wemos Arduino 3.3.11 con los cinco perfiles de pantalla y siete proyectos ESP-IDF 5.5. DEV avanzó a `b2ebd05bf91f9a8e94267155c21da5f532b9f99c`; editor, API y PostgreSQL quedaron saludables, Compose/firewall válidos y salud pública `ok`. La admisión se restauró con `paused=False`, concurrencia 1 y cola vacía; la prueba específica pasó **4/4** en Chrome/Edge contra DEV público. No se modificaron PRD, gateway, Proxmox, router ni Nginx. La prueba eléctrica con Wemos sigue pendiente y no se confunde con compilación.
+
 ## 4. Arquitectura y mapa de archivos
 
 | Área | Punto de entrada y responsabilidad |
@@ -243,7 +249,7 @@ El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BAC
 - 12: **entregada y verificada en DEV/CI**; [guía, pruebas y cierre](FASE_12_MESA_DE_TRABAJO.md). Encabezados/catálogo reorganizados, zoom/desplazamiento de escena, imagen técnica Wemos sincronizada y chequeo periódico sin interrupciones por foco.
 - 13: **entregada y verificada externamente**; [acceso persistente a DEV](FASE_13_ACCESO_EXTERNO_DEV.md), HTTPS mediante VM Nginx, runtime como servicio y origen restringido. DNS, certificado, reinicio y acceso Chrome/Edge están comprobados.
 - 14: **entregada y verificada en DEV/CI**; [paralelo vertical, lienzo estático e indicadores locales](FASE_14_EJECUCION_VISUAL.md).
-- 15: **software implementado**, componente Mensajes con modos Enviar/Recibir/Ambos, trama protegida, simulación por botones y ambos generadores; falta aceptación física Wemos.
+- 15: **software entregado y verificado en DEV/CI**, componente Mensajes con modos Enviar/Recibir/Ambos, trama protegida, simulación por botones y ambos generadores; falta aceptación física Wemos.
 - 16: DevKit S3 exacta, perfiles, imagen de conexiones, fuentes/compilación/USB.
 - 17: Waveshare S3 5 pulgadas exacta, pantalla/entrada y guía visual de conectores.
 - 18: escena y controles locales en display, prioridad manual/programa explícita.

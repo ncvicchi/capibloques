@@ -2,7 +2,7 @@
 
 ## Estado
 
-Implementación de software terminada y verificada localmente el 19 de septiembre de 2026. Queda pendiente únicamente la aceptación eléctrica con una Wemos D1 R32 identificada y otro emisor/receptor de 3,3 V; las pruebas automáticas y la compilación no se presentan como prueba física.
+Implementación de software terminada, desplegada en DEV y verificada el 19 de septiembre de 2026. Queda pendiente únicamente la aceptación eléctrica con una Wemos D1 R32 identificada y otro emisor/receptor de 3,3 V; las pruebas automáticas y la compilación no se presentan como prueba física.
 
 ## Contrato acordado
 
@@ -46,5 +46,8 @@ El CRC cubre versión, tamaño y contenido. El lector valida cabecera, versión,
 - Playwright específico: 4/4 en Chrome y Edge, configuración de modo/lista/pines y recorrido de simulación por botones
 - validación Django agregada para bloques, configuración, UTF-8, pines no usados y límite de dos; la ejecución local requiere el entorno Django de contenedor/DEV
 
-La CI compila las fuentes Arduino y ESP-IDF representativas, incluida esta función. La comprobación física pendiente debe probar envío, igualdad, diferencia, timeout, paquete corrupto, fragmentación y dos paquetes consecutivos antes de retirar esta salvedad.
+La CI completa [35444477812](https://github.com/ncvicchi/capibloques/actions/runs/35444477812) quedó correcta en `b2ebd05`: compila el firmware Wemos con Arduino 3.3.11, los cinco perfiles de pantalla y siete proyectos ESP-IDF 5.5, incluidos envío y recepción. Backend, interfaz Chromium y runtime público también pasaron. El primer intento detectó y permitió corregir el orden de prototipos impuesto por el preprocesador Arduino y la dependencia explícita `esp_driver_uart`; ambos casos quedaron cubiertos por regresión.
 
+DEV quedó desplegado con la imagen `capibloques-editor-dev:b2ebd05bf91f`. La salud pública respondió `ok`, Compose/firewall fueron válidos, el compilador quedó activo con admisión abierta y cola vacía, y el recorrido específico pasó **4/4** sobre el dominio público en Chrome y Edge. No se modificaron PRD, gateway, Proxmox, router ni Nginx.
+
+La comprobación física pendiente debe probar envío, igualdad, diferencia, timeout, paquete corrupto, fragmentación y dos paquetes consecutivos antes de retirar esta salvedad.
