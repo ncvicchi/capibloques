@@ -1,8 +1,8 @@
 # Nuevas fases de CapiBloques
 
-Plan elaborado el 8 de septiembre de 2026 y actualizado el 15 de septiembre de 2026. **Fases 11–14 entregadas y verificadas en DEV**. DEV está publicado en `https://capibloques.dev.nvicchi.com/` y sirve además las correcciones posteriores de la barra residual del catálogo (`d096fd9`), del arrastre individual/grupal (`0fc9ff2`) y del guardado estable durante un arrastre (`2b97af9`); las fases 15–19 no están implementadas ni autorizadas y la Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
+Plan elaborado el 8 de septiembre de 2026 y actualizado el 19 de septiembre de 2026. **Fases 11–14 entregadas y verificadas en DEV**. DEV está publicado en `https://capibloques.dev.nvicchi.com/` y sirve además las correcciones posteriores de la barra residual del catálogo (`d096fd9`), del arrastre individual/grupal (`0fc9ff2`) y del guardado estable durante un arrastre (`2b97af9`); las fases 15–26 no están implementadas ni autorizadas y la Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
 
-La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros 11–19; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. El contexto portable se entregó primero y después la UX, bajo la autorización consecutiva de 11 y 12, sin dar por hecha la prueba física. Al insertar acceso externo como fase 13, las fases antes numeradas 13–17 pasan a ser 14–18; no son tareas nuevas ni duplicadas. La fase 19 se agrega por pedido posterior del propietario para reunir los desafíos progresivos.
+La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros 11–26; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. El contexto portable se entregó primero y después la UX, bajo la autorización consecutiva de 11 y 12, sin dar por hecha la prueba física. Al insertar acceso externo como fase 13, las fases antes numeradas 13–17 pasan a ser 14–18; no son tareas nuevas ni duplicadas. Las fases 19–26 asignan todos los pedidos posteriores que seguían sin fase: desafíos, compilación/grabación guiada, UX educativa, avatar, displays y matriz, panel móvil, compartir y acceso de aula.
 
 ## Orden y cobertura
 
@@ -17,9 +17,16 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 17 | Perfil Waveshare ESP32-S3 con pantalla de 5 pulgadas | 2: Waveshare; 9: guía visual Waveshare | Perfiles de fase 16 y modelo/revisión exactos identificados |
 | 18 | Escena gráfica y controles locales en el display | 3: display interactivo | Perfiles de pantalla de fase 17 y ejecución/componentes existentes |
 | 19 | Sección de desafíos progresivos | 12: desafíos | Funciones educativas ya entregadas; primeros retos utilizables sin hardware obligatorio |
+| 20 | Compilación y grabación guiadas, medibles y comprensibles | 15 y 17; informe externo vital 1–3 | Fase 10 aceptada físicamente para cerrar el recorrido USB; métricas sintéticas previas a optimizar |
+| 21 | Claridad y ergonomía educativa del editor | Informe externo vital 4, sutiles 1–8 y futuras 1–2, 5–7 | Fases 12 y 14; reproducción previa de cada observación |
+| 22 | Avatar acompañante y reacciones accesibles | 14; informe futuro 3 | Fase 19 para reacciones de desafíos y fase 20 para resultados de compilar/grabar |
+| 23 | Displays físicos y matriz MAX7219 | 18 y 19 | Módulos exactos identificados; fase 10 para el recorrido físico por USB |
+| 24 | Panel web local para celular | 20 | Contrato Wi-Fi vigente, seguridad/emparejamiento y límites medidos |
+| 25 | Compartir proyectos por enlace y QR | Informe futuro 4 | Biblioteca/permisos existentes; modelo explícito de copia, caducidad y revocación |
+| 26 | Acceso de aula sin contraseña y asistencia | Informe futuro 8 | Identidad/sesiones/cursos existentes; modelo contra suplantación y equipos compartidos |
 | Final | Producción, HTTPS, respaldos y piloto | Antigua fase 11 | Postergada hasta autorización explícita y validaciones de salida |
 
-Primero se asegura la continuidad desde otra cuenta sin depender de este chat; después se atienden los problemas cotidianos del editor y se vuelve DEV accesible desde fuera mediante un servicio controlado. TX/RX se incorpora antes de las placas nuevas para tener un contrato de comportamiento que luego se valide en cada destino. Separar DevKit, Waveshare y display interactivo permite comprobar por separado placa, pantalla y aplicación gráfica: no son el mismo soporte. Los desafíos aprovechan esas funciones como recorrido educativo propio y no bloquean las fases de hardware.
+Primero se asegura la continuidad desde otra cuenta sin depender de este chat; después se atienden los problemas cotidianos del editor y se vuelve DEV accesible desde fuera mediante un servicio controlado. TX/RX se incorpora antes de las placas nuevas para tener un contrato de comportamiento que luego se valide en cada destino. Separar DevKit, Waveshare y display interactivo permite comprobar por separado placa, pantalla y aplicación gráfica: no son el mismo soporte. Los desafíos aprovechan esas funciones como recorrido educativo propio. Las fases 20–26 separan flujos de compilación, pulido de edición, motivación, periféricos, control local, intercambio e identidad de aula para no mezclar permisos o hardware distintos en una entrega inmanejable.
 
 ## Fase 11 — Contexto portable y traspaso a otra cuenta
 
@@ -227,6 +234,124 @@ Aceptación:
 
 No incluye una competencia pública, chat o tutor de IA, creación libre de desafíos por cualquier usuario ni soporte de hardware que no haya sido entregado y validado en su fase correspondiente. La cantidad exacta y los contenidos del catálogo inicial se fijan al autorizar la fase.
 
+## Fase 20 — Compilación y grabación guiadas, medibles y comprensibles
+
+**Objetivo:** convertir el recorrido ya seguro de guardar, compilar y grabar en un asistente secuencial para chicos, alimentado por estados reales y mediciones del compilador.
+
+Alcance:
+
+- Documentar y medir con fixtures sintéticos validación, cola, reserva, preparación, generación, compilación, enlace, empaquetado y publicación; registrar espera, duración, CPU, RAM y disco en frío/caliente.
+- Exponer estados verificables, tiempo transcurrido y última actividad. Posición o tiempo restante sólo se muestran cuando pueden calcularse honestamente; no inventar porcentajes.
+- Crear un asistente grande «Paso N de M» que integre Guardar, revisión de cableado, opciones/Wi-Fi privado, cola, resultado, conexión USB, confirmaciones, grabación y resultado final, sin duplicar operaciones ni quitar permisos, cuotas, consentimiento o idempotencia.
+- Dar jerarquía al proyecto todavía local o con cambios, permitir Guardar desde el flujo y reanudarlo después de ACK/conflicto.
+- Investigar y validar con la Wemos real el reinicio posterior a la grabación y la capacidad DTR/RTS. Si no es confiable, conservar una instrucción física clara; no presentar compilación o transferencia como ejecución observada.
+- Agregar una vista administrativa de etapas, tiempos y fallos agregados, sin abrir fuentes, proyectos, credenciales o logs crudos.
+
+Aceptación:
+
+- Doble clic, recarga, desconexión, ACK perdido, cancelación, lease vencido y reinicio del planificador no duplican trabajos ni liberan cupo antes de terminar el ejecutor.
+- Un alumno completa el recorrido con teclado, táctil, lector de pantalla y texto ampliado, pudiendo cancelar o retomar sin perder el proyecto.
+- Toda mejora de rendimiento se compara con línea base y conserva techo, aislamiento sin red, privacidad y concurrencia configurada. Para cerrar la grabación y reinicio se requiere la aceptación física de fase 10.
+
+## Fase 21 — Claridad y ergonomía educativa del editor
+
+**Objetivo:** resolver en una entrega comprobable las observaciones de comprensión y manipulación del editor que quedaron fuera del alcance original de fases 12 y 14.
+
+Alcance:
+
+- Reproducir y evitar superposición accidental de bloques sin alterar conexiones, coordenadas portables, Deshacer ni un encastre en curso.
+- Hacer reconocible la edición del nombre; traducir colores en ejecución; mejorar advertencias de cableado cerrables; ampliar acciones del selector de avatar; escribir «segundos»; evaluar el pin `📌`; saludo con privacidad; y distinguir bloques desconectados sin depender sólo del color.
+- Distinguir menús desplegables de campos numéricos, expresar operadores con palabras cuando mejore comprensión y revisar tamaño/contraste de emojis con alternativas accesibles.
+- Hacer que Auto-conectar y el movimiento de componentes tengan una vista previa coherente dentro del borrador de escena, manteniendo Guardar/Cancelar, historial y autoguardado separados.
+- Auditar nuevamente encabezados y acciones con el público infantil objetivo, pantallas pequeñas, texto ampliado y teclado. Una simplificación nueva se mide; no elimina estados ni controles críticos.
+
+Aceptación:
+
+- Cada observación se reproduce primero o se descarta con evidencia. Los cambios pasan Chrome/Edge, móvil, teclado, zoom y movimiento reducido.
+- Importar, arrastrar, deshacer/rehacer, Guardar/Cancelar y recuperación no cambian silenciosamente el modelo ni pierden trabajo.
+- Una revisión breve con usuarios representativos o, mientras no estén disponibles, pruebas moderadas documentadas distingue preferencias de problemas reales; no se declaran resultados infantiles inventados.
+
+## Fase 22 — Avatar acompañante y reacciones accesibles
+
+**Objetivo:** convertir el avatar elegido en acompañante visual breve y no invasivo ante desafíos, compilación y grabación.
+
+Alcance:
+
+- Reacciones diferenciadas para éxito, fallo recuperable, placa ausente y error de compilación/grabación; nunca avergonzar al alumno ni confundir etapas.
+- Reproducir una sola reacción por resultado idempotente, con texto accesible, opción de omitir, sin audio automático y equivalente estático con movimiento reducido.
+- Resolver el avatar desde la cuenta activa y limpiar estado ante cambio/revocación. No guardar reacciones en proyecto, historial o firmware.
+- Reutilizar los conceptos 2D detallados/simples y preparar piezas coherentes para una futura adaptación, sin afirmar que son STL o modelos 3D listos.
+
+Aceptación:
+
+- Desafío, compilación y grabación disparan exactamente la reacción correspondiente; reintentos o refrescos no repiten celebraciones indebidamente.
+- Teclado, lector de pantalla, foco, contraste y movimiento reducido mantienen el resultado comprensible aunque la animación esté desactivada.
+
+## Fase 23 — Displays físicos y matriz MAX7219
+
+**Objetivo:** cerrar la validación de los perfiles de pantalla existentes e incorporar la matriz LED 32 × 8 solicitada como componente completo.
+
+Alcance:
+
+- Identificar y probar físicamente LCD PCF8574 16×2/20×4 —incluido el Winstar/2004A y su mochila—, OLED SSD1306 128×64 y unidades TFT ILI9341/ILI9488 concretas; documentar dirección, mapeo, tensión, controlador y límites sin crear perfiles duplicados.
+- Agregar la matriz de cuatro MAX7219 encadenados: cantidad, orden, orientación, brillo, píxel, fila/columna, iconos/patrones y texto desplazable dentro de límites definidos.
+- Integrar escena, simulador, JSON, bloques, cableado, Arduino y ESP-IDF con refresco cooperativo y buffers acotados.
+- Documentar alimentación, masa, corriente, desacoplo y nivel lógico; no alimentar la matriz desde GPIO ni confundirla con I2C/RGB.
+
+Aceptación:
+
+- Los perfiles existentes muestran y limpian texto en el hardware identificado con ambos frameworks; una dirección/controlador equivocado produce diagnóstico comprensible y no bloquea indefinidamente.
+- La matriz física confirma orden/orientación, brillo y patrones/texto, sin detener delays, UART, sensores o PWM. La cantidad máxima encadenable se fija por medición, no por suposición.
+
+## Fase 24 — Panel web local para celular
+
+**Objetivo:** permitir que un único celular emparejado observe la escena y aporte entradas programables al ESP32 dentro de la misma LAN.
+
+Alcance:
+
+- Separar «Red Wi-Fi de la placa» del nuevo «Panel web para celular». Sin nube, Internet, punto de acceso propio ni editor React alojado en la placa.
+- Dos vistas: Escena de sólo lectura y Controles generados únicamente a partir de inputs/outputs virtuales relacionados por bloques.
+- Botón, interruptor, deslizador, joystick, número y texto; indicadores y mensajes. Ningún actuador obtiene control directo fuera del programa.
+- Emparejamiento temporal/revocable, exclusión de segundo cliente, identidad/orden por ejecución, QR/IP, límites de frecuencia/tamaño y backpressure.
+- Definir estados seguros y política de desconexión; proyectos con panel esperan «Ejecutar» desde el celular, los demás conservan arranque autónomo.
+- Contrato equivalente en simulación, Arduino y ESP-IDF, medido en RAM, flash y latencia.
+
+Aceptación:
+
+- Robot, semáforo, texto y brillo funcionan mediante bloques con conexión tardía, reconexión, eventos rápidos, dos clientes y pérdida de Wi-Fi.
+- El celular no puede editar proyecto/escena ni agregar controles/código en ejecución. Desconexión libera controles momentáneos y aplica la política segura documentada.
+
+## Fase 25 — Compartir proyectos por enlace y QR
+
+**Objetivo:** compartir una copia o vista autorizada de un proyecto sin convertir su UUID en permiso ni publicar trabajos infantiles por defecto.
+
+Alcance:
+
+- Definir quién puede crear enlaces, para qué revisión, con modo vista/copia, caducidad, revocación y límite de usos; cursos y proyectos personales conservan permisos diferentes.
+- QR representa el mismo enlace autorizado, no contiene proyecto, sesión ni credenciales. Abrir como copia crea identidad propia y nunca edita el original.
+- Evitar indexación, enumeración, filtración de metadatos y reutilización después de revocar; registrar eventos mínimos sin exponer contenido.
+
+Aceptación:
+
+- Enlace válido, vencido, revocado, reutilizado y abierto por otra cuenta producen resultados coherentes; perder membresía revoca lo que corresponda.
+- Compartir/exportar explica que una copia descargada no puede revocarse. No aparecen proyectos privados en listados públicos.
+
+## Fase 26 — Acceso de aula sin contraseña y asistencia
+
+**Objetivo:** ofrecer ingreso rápido supervisado para alumnos en clase sin debilitar las cuentas normales ni permitir suplantación silenciosa.
+
+Alcance:
+
+- Diseñar una sesión de aula creada por docente autorizado, acotada a curso, duración y dispositivo, con revocación inmediata y alternativa de alias/contraseña.
+- Definir selección/confirmación de identidad en equipos compartidos, prevención de reutilización y límites de intentos. Un código común no debe permitir elegir cualquier alumno sin control adicional.
+- Registrar asistencia como evento explícito y revisable, diferenciando ingreso técnico de presencia confirmada; definir visibilidad, correcciones y retención.
+- Conservar UUID, propiedad, borradores por cuenta, cierre seguro y autorización fresca. No crear cuentas automáticamente ni almacenar contraseñas recuperables.
+
+Aceptación:
+
+- Curso incorrecto, sesión vencida/revocada, segundo dispositivo, cambio de alumno y equipo compartido no exponen proyectos ni atribuyen trabajo a otra persona.
+- Docente sólo opera sus cursos; administrador conserva gestión global sin convertirse en docente implícito. Se prueban revocación, auditoría, privacidad y recuperación.
+
 ## Fase final — Producción y piloto, postergada
 
 Es la antigua fase 11, renombrada por decisión del propietario. No se ejecuta como consecuencia de terminar una fase del backlog.
@@ -240,7 +365,7 @@ El gateway sigue siendo sólo un salto SSH, con prohibición de cambios. Tampoco
 ## Cómo se trabaja y qué falta decidir
 
 - Una fase completa autorizada por vez, con implementación, pruebas proporcionales, entrega en DEV y commit/push. Informar avances con evidencia y pendientes; no inventar porcentajes ni tiempos exactos.
-- **Fases 11–14 entregadas.** Actualizar la documentación viva al cerrar cada fase futura solicitada. No ejecutar 15–19 ni producción sin autorización explícita.
+- **Fases 11–14 entregadas.** Actualizar la documentación viva al cerrar cada fase futura solicitada. No ejecutar 15–26 ni producción sin autorización explícita.
 - Para fases 16 y 17 hacen falta modelos exactos antes de fijar drivers/pines; para cerrar las entregas físicas hace falta hardware identificado y autorización para reemplazar firmware.
-- La fase 14 fija el paralelo como un contenedor con caminos apilados de arriba hacia abajo y mantiene fork/join. Formato de mensajes/timeout se fija en fase 15; prioridad manual/programa y límites gráficos en fase 18; catálogo inicial y visibilidad docente en fase 19. Son decisiones dentro de esas fases, no nuevas fases con letras.
+- La fase 14 fija el paralelo como un contenedor con caminos apilados de arriba hacia abajo y mantiene fork/join. Formato de mensajes/timeout se fija en fase 15; prioridad manual/programa y límites gráficos en fase 18; catálogo inicial y visibilidad docente en fase 19; métricas/asistente en 20; UX en 21; avatar en 22; displays/matriz en 23; panel móvil en 24; compartir en 25; acceso de aula en 26. Son decisiones dentro de esas fases, no nuevas fases con letras.
 - No hay estimaciones horarias comprometidas: hardware, alcance de la adaptación gráfica y mediciones en la VM condicionan el esfuerzo. No retrasar ahora la planificación esperando esos datos, ni prometer implementaciones específicas de un modelo no identificado.

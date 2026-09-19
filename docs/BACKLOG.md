@@ -153,7 +153,7 @@ Pedido del 12 de septiembre de 2026: usar el avatar elegido por cada alumno como
 
 Los conceptos 2D de cuerpo completo ya están guardados en dos juegos: [detallados](../public/avatars/full-body/README.md) y [simples](../public/avatars/full-body-simple/README.md). Son referencias visuales para la futura adaptación 3D; todavía no son modelos STL ni animaciones integradas a la interfaz.
 
-Pendiente de priorización y asignación a una fase autorizada. Tiene relación directa con la futura Fase 19 de desafíos, pero debe cubrir también compilación y grabación sin ampliar esa fase hasta que el propietario defina el alcance.
+Asignación: **fase 22**. Depende de los resultados que expondrán fase 19 (desafíos) y fase 20 (compilación/grabación); la asignación no autoriza todavía su ejecución.
 
 ## 15. Asistente grande para compilar y grabar la placa
 
@@ -166,7 +166,7 @@ Pedido del 13 de septiembre de 2026: el flujo actual exige compilar, esperar la 
 - Usar texto grande, alto contraste, controles táctiles amplios, foco administrado, lector de pantalla y teclado. Los detalles técnicos pueden desplegarse, pero el error principal debe explicar qué puede hacer el alumno a continuación.
 - Conservar las pantallas actuales como base funcional y reutilizar sus estados; el asistente coordina el recorrido, no introduce otra definición de compilación o grabación.
 
-Pendiente de priorización y asignación a una fase autorizada. Debe coordinarse con las reacciones de avatar del pedido 14, sin hacer que una animación sustituya el estado textual ni la acción siguiente.
+Asignación: **fase 20**, junto con medición/progreso real del pedido 17. Se coordina después con las reacciones de fase 22, sin hacer que una animación sustituya el estado textual ni la acción siguiente.
 
 ## 16. Movimiento individual y grupal de bloques
 
@@ -192,7 +192,7 @@ Pedido del 13 de septiembre de 2026: explicar con precisión cómo se genera un 
 - Agregar una vista administrativa con etapas, tiempos y fallos agregados que permita detectar cuellos de botella sin abrir proyectos privados. Toda optimización debe compararse con una línea base y conservar aislamiento, techo de recursos, compilación sin red y limpieza de secretos.
 - Coordinar esta información con el asistente del pedido 15: el asistente presenta el recorrido al alumno; este pedido define y mejora los estados reales que lo alimentan.
 
-Pendiente de priorización y asignación a una fase autorizada. La investigación puede producir documentación y métricas antes de cambiar la receta, pero no habilita aumentar recursos de la VM ni relajar aislamiento, privacidad o límites de concurrencia.
+Asignación: **fase 20**, antes y como fundamento del asistente de compilación/grabación. No habilita aumentar recursos de la VM ni relajar aislamiento, privacidad o límites de concurrencia.
 
 ## 18. Displays I2C: LCD alfanumérico 20 × 4 y OLED SSD1306 128 × 64
 
@@ -217,7 +217,7 @@ Pedido aclarado el 14 de septiembre de 2026: incorporar el módulo de la fotogra
 - Validar pines y conflictos según la placa; mostrar `VCC`, `GND`, `DIN`, `CLK`, `CS/LOAD` y el sentido de entrada/salida de la cadena. Documentar alimentación, masa común, desacoplo y adaptación de nivel si la unidad de 5 V no reconoce de forma confiable la lógica de 3,3 V. No alimentar la matriz desde un GPIO.
 - Probar la unidad física completa: orden de los cuatro paneles, orientación, color, brillo, actualización, texto/patrones, desconexión y corriente máxima acordada. Probar más de una unidad sólo si ese encadenamiento entra en el alcance autorizado.
 
-El controlador y la geometría principal ya están identificados. Quedan por confirmar el color, modelo/revisión de la placa, tensión/corriente declaradas, orientación interna, cantidad máxima de unidades 32 × 8 a encadenar y comportamiento educativo deseado. Pendiente de priorización y asignación a una fase autorizada.
+El controlador y la geometría principal ya están identificados. Quedan por confirmar el color, modelo/revisión de la placa, tensión/corriente declaradas, orientación interna, cantidad máxima de unidades 32 × 8 a encadenar y comportamiento educativo deseado. Asignación: **fase 23**, junto con la aceptación física de los perfiles LCD/OLED/TFT existentes.
 
 ## 20. Panel web local para controlar y observar desde un celular
 
@@ -286,7 +286,7 @@ El diseño recomendado conserva «al comenzar» como entrada única del programa
 - Probar conexión tardía, reconexión, texto vacío/largo, pulsos rápidos, dos clientes, orden de eventos, timeout, pérdida de Wi-Fi, programa detenido y cambio de proyecto. Definir quién puede escribir si hay más de un celular y mostrarlo claramente.
 - Verificar consumo de RAM/flash, latencia y capacidad con fixtures sintéticos y placa física. No presentar la simulación, la compilación o una página abierta como validación del control físico.
 
-Decisiones pendientes antes de asignarlo a una fase: comportamiento ante una desconexión prolongada del único celular; estados seguros exactos por actuador; método de emparejamiento; frecuencia de actualización y límites medidos. Pendiente de priorización y autorización propia; no amplía por inferencia las fases 15–19.
+Decisiones que se fijarán al iniciar su fase: comportamiento ante una desconexión prolongada del único celular; estados seguros exactos por actuador; método de emparejamiento; frecuencia de actualización y límites medidos. Asignación: **fase 24**; requiere autorización propia y no amplía por inferencia las fases anteriores.
 
 ## 21. Guardado estable durante el arrastre de bloques
 
@@ -298,7 +298,7 @@ La regresión mantiene un bloque sobre un punto de inserción durante más tiemp
 
 ## Pedidos externos a analizar
 
-Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus observaciones para reproducirlas, contrastarlas con el comportamiento vigente y proponer soluciones antes de priorizar. **No confirma que cada problema exista, no define todavía criterios de aceptación y no autoriza implementar ninguno de estos cambios.** Las prioridades «vital» y «sutil» pertenecen al informe de origen; deben revisarse junto con el propietario.
+Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus observaciones para reproducirlas y contrastarlas con el comportamiento vigente. **No confirma que cada problema exista y la asignación no autoriza implementarlos.** Progreso/guardado/reinicio corresponden a fase 20; superposición y los ajustes de claridad/escena corresponden a fase 21; avatar a fase 22; compartir a fase 25; acceso de aula a fase 26. Las prioridades «vital» y «sutil» pertenecen al informe de origen y cada observación debe reproducirse antes de cambiar código.
 
 ### Señalados como de vital importancia
 
@@ -329,11 +329,25 @@ Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus
 7. **Mayor visibilidad de los emojis de bloques.** Revisar tamaño, contraste, posición, consistencia y alternativas textuales antes de aumentar todos de forma global; comprobar plataformas y fuentes distintas.
 8. **Acceso de alumnos sin contraseña.** Investigar un ingreso de aula autorizado por el docente que también pueda registrar asistencia. Requiere un modelo explícito de identidad, sesión, caducidad, revocación, suplantación y equipos compartidos; no quitar contraseñas ni debilitar el acceso actual como ajuste de interfaz.
 
-### Idea experimental — no implementar ni usar
+### Asignación completa del informe externo
 
-- **Selector de ángulos con reloj.** Explorar en prototipos futuros una esfera con agujas para elegir grados, comparándola con el control numérico y conservando valor exacto, teclado, lector de pantalla y comprensión de ángulos. El informe pide expresamente no implementarla ni usarla en el producto actual.
+| Observación | Fase |
+| --- | --- |
+| Progreso real de compilación; proyecto sin guardar; reinicio posgrabación | 20 |
+| Bloques superpuestos | 21 |
+| Nombre editable; colores traducidos; advertencias; selector de avatar; «segundos»; pin; saludo; bloques inactivos | 21 |
+| Auto-conectar/mover en borrador; simplificación de barras; menús; operadores; emojis | 21 |
+| Avatar como asistente emocional | 22 |
+| Compartir mediante enlace y QR | 25 |
+| Acceso de alumnos sin contraseña y asistencia | 26 |
 
-Antes de asignar estos pedidos a una fase: reproducir cada observación sobre la versión DEV vigente, registrar evidencia sin datos reales, detectar duplicados o conflictos con contratos existentes y presentar al propietario opciones con costo, dependencia y riesgo. La revisión puede descartar o reformular un pedido; esta sección no cambia el orden de fases 15–19.
+Esta tabla asigna cada observación implementable. No garantiza que el problema exista: fase 21 exige reproducir o descartar cada informe antes de modificar el producto.
+
+### Idea experimental descartada — no implementar ni usar
+
+- **Selector de ángulos con reloj.** El informe pide expresamente no implementarlo ni usarlo en el producto actual. No es trabajo pendiente ni requiere fase; se conserva sólo para evitar que otra conversación lo trate por error como requisito.
+
+Antes de implementar estos pedidos: reproducir cada observación sobre la versión DEV vigente, registrar evidencia sin datos reales y detectar duplicados o conflictos con contratos existentes. La revisión puede descartar o reformular una observación; las asignaciones están en fases 20–26 y no cambian el orden de las fases 15–19.
 
 ## Relación actualizada con el plan vigente
 
@@ -355,13 +369,13 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 11. Acceso externo persistente a DEV | 13. Implementado |
 | 12. Desafíos progresivos | 19. Pendiente de autorización |
 | 13. Barra residual del catálogo | Implementado el 13 de septiembre de 2026, revisión `d096fd9` |
-| 14. Reacciones animadas del avatar | Pendiente de priorización y asignación; relacionada con desafíos, compilación y grabación |
-| 15. Asistente grande para compilar y grabar | Pendiente de priorización y asignación; conserva todas las guardas del flujo actual |
+| 14. Reacciones animadas del avatar | 22. Avatar acompañante y reacciones accesibles |
+| 15. Asistente grande para compilar y grabar | 20. Compilación y grabación guiadas, medibles y comprensibles |
 | 16. Movimiento individual y grupal de bloques | Implementado y desplegado el 13 de septiembre de 2026, revisión `0fc9ff2` |
-| 17. Comprender, medir y mejorar la compilación | Pendiente de priorización y asignación; alimenta el progreso real del asistente |
-| 18. LCD 20 × 4 PCF8574 y OLED SSD1306 128 × 64 | Ambos perfiles implementados; pendiente validar físicamente el Winstar/2004A y su mochila |
-| 19. Matriz de LED 32 × 8 con cuatro MAX7219 | Controlador y geometría identificados; pendientes datos eléctricos, orientación y cadena objetivo; sin fase asignada |
-| 20. Panel web local para celular | Propuesta pendiente de decisiones, priorización y autorización; sin fase asignada |
+| 17. Comprender, medir y mejorar la compilación | 20. Medición, estados reales y mejoras antes del asistente |
+| 18. LCD 20 × 4 PCF8574 y OLED SSD1306 128 × 64 | 23. Aceptación física de perfiles LCD/OLED/TFT existentes |
+| 19. Matriz de LED 32 × 8 con cuatro MAX7219 | 23. Nuevo componente, simulación, ambos generadores y ensayo físico |
+| 20. Panel web local para celular | 24. Panel local seguro y programable en la misma LAN |
 | 21. Guardado estable durante el arrastre | Implementado y desplegado el 15 de septiembre de 2026, revisión `2b97af9` |
 
-Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 14 y las correcciones de los pedidos 13, 16 y 21 están entregadas; las fases 15–19 y los pedidos 14–15 y 17–20 requieren autorización o priorización propia. Los números de pedido 18–21 no son fases nuevas.
+Las observaciones externas quedan asignadas así: fase 20 (progreso/guardado/reinicio de compilación), fase 21 (superposición y claridad/escena), fase 22 (avatar), fase 25 (enlaces/QR) y fase 26 (acceso de aula/asistencia). Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 14 y las correcciones de los pedidos 13, 16 y 21 están entregadas; las fases 15–26 requieren autorización propia. Los números de pedido no son fases nuevas.

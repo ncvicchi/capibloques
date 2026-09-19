@@ -63,7 +63,7 @@ Despliegue de aplicación únicamente en DEV, checkout limpio en `668be43`; edit
 
 ## Qué queda fuera
 
-La aceptación física de fase 10 continúa abierta. El acceso externo persistente a DEV se entregó después en [fase 13](FASE_13_ACCESO_EXTERNO_DEV.md). Paralelo vertical, programa estático y progreso dentro de bloques pasaron a fase 14; TX/RX, S3/Waveshare y display interactivo siguen en fases 15–18. Las fases 14–18 requieren autorización de ejecución. Fase final de producción postergada.
+La aceptación física de fase 10 continúa abierta. El acceso externo persistente a DEV se entregó después en [fase 13](FASE_13_ACCESO_EXTERNO_DEV.md) y la ejecución visual se entregó en fase 14. TX/RX, S3/Waveshare, display interactivo y el backlog posterior están asignados a fases 15–26, todas pendientes de autorización. Fase final de producción postergada.
 
 ## Recorrido breve para el propietario
 

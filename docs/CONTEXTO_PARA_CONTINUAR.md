@@ -1,12 +1,12 @@
 # CapiBloques — contexto para continuar
 
-Documento vivo de **fase 11**. Actualización: **13 de septiembre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
+Documento vivo de **fase 11**. Actualización: **19 de septiembre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
 
 ## 1. Punto de entrada y autorización actual
 
 - Repositorio: [ncvicchi/capibloques](https://github.com/ncvicchi/capibloques). Rama de trabajo actual: `main`. Nuevas ramas, si hacen falta: prefijo `codex/`. Respetar el árbol existente, sin reset/force ni descartar cambios ajenos.
 - El propietario autorizó: **«vamos con 11 y 12»**, consecutivas y completas, y después **«Vams con el 14 pues»**. También pidió mantener esta documentación al cerrar toda fase futura que solicite. La fase 14 ya se cerró; estas autorizaciones no habilitan la 15.
-- **Fases 11–14 entregadas.** La 11 es contexto portable con mantenimiento obligatorio; la 12 entrega UX, catálogo separado, cámara de escena, guía Wemos y sesión sin validación por foco; la 13 publica DEV de forma persistente y segura en `https://capibloques.dev.nvicchi.com/`; la 14 agrega paralelo vertical, lienzo estático y progreso local por camino. Las correcciones posteriores de la barra residual del catálogo (`d096fd9`), del arrastre individual/grupal (`0fc9ff2`) y del guardado estable durante el arrastre (`2b97af9`) están desplegadas. Las fases 15–19 y producción no están autorizadas.
+- **Fases 11–14 entregadas.** La 11 es contexto portable con mantenimiento obligatorio; la 12 entrega UX, catálogo separado, cámara de escena, guía Wemos y sesión sin validación por foco; la 13 publica DEV de forma persistente y segura en `https://capibloques.dev.nvicchi.com/`; la 14 agrega paralelo vertical, lienzo estático y progreso local por camino. Las correcciones posteriores de la barra residual del catálogo (`d096fd9`), del arrastre individual/grupal (`0fc9ff2`) y del guardado estable durante el arrastre (`2b97af9`) están desplegadas. Todos los pedidos pendientes están asignados a fases 15–26; ninguna está autorizada todavía.
 - Fase 10: software entregado, **aceptación física pendiente**. El propietario no tiene Wemos disponible; no dar por probada la placa ni conectar/programar otro puerto como sustituto.
 - Producción es **Fase final, postergada**, no «fase 11». Los documentos históricos con letras son evidencias antiguas, no fases nuevas ni puntos para pedir OK.
 - Este contexto no transfiere automáticamente credenciales, chats, sesiones ni permisos. Otra cuenta debe tener su propio acceso verificado y la solicitud del propietario antes de operar.
@@ -69,7 +69,7 @@ Este corte sustituye al histórico para continuar, sin borrar su trazabilidad. C
 | Pruebas | 197 backend PostgreSQL, 8 contratos, build de 10 páginas y 18/18 Chrome/Edge externos. PRD no pudo acceder directamente al puerto 3080. |
 | Acceso DEV | Login de CapiBloques sin segunda Basic Auth, decisión documentada; datos sintéticos, rate-limit, cookies Secure, allowlists y proxy confiable acotados. El 12 de septiembre se verificó el ingreso real por HTTPS de la cuenta `administrador` después de restablecer su clave; la clave no se documenta ni se transfiere. |
 
-Próxima fase posible: **15, TX/RX serial programable**. Requiere autorización expresa; no iniciar 15–19 ni la Fase final por inferencia.
+Próxima fase posible: **15, TX/RX serial programable**. Requiere autorización expresa; no iniciar 15–26 ni la Fase final por inferencia.
 
 Validación documental de cierre: **130 destinos locales en ocho documentos**, sin archivos faltantes ni diferencias de mayúsculas/minúsculas; las anclas operativas del túnel y compilador también se contrastaron. Los únicos recursos gráficos publicados son las dos capturas de fixtures sintéticos enlazadas desde la guía.
 
@@ -248,14 +248,21 @@ El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BAC
 - 17: Waveshare S3 5 pulgadas exacta, pantalla/entrada y guía visual de conectores.
 - 18: escena y controles locales en display, prioridad manual/programa explícita.
 - 19: desafíos progresivos, con primeros retos utilizables sin hardware obligatorio.
-- Backlog sin fase asignada: reacciones animadas del avatar ante éxito/fallo; asistente grande, secuencial y accesible para compilar/grabar sin quitar guardas; comprensión, medición y mejora de la cola/compilación con progreso real; validación física del LCD Winstar/2004A 20 × 4 con mochila I2C; matriz 32 × 8 de cuatro MAX7219; y panel web local para controlar/observar desde un celular. El LCD 20 × 4 PCF8574 y el OLED SSD1306 128 × 64 ya tienen perfiles distintos; la matriz y el panel web requieren componentes nuevos. Para el panel se acordaron un solo celular, misma LAN, una escena activa y dos vistas —Escena y Controles—; los inputs aparecen dinámicamente sólo al agregarlos y relacionarlos mediante bloques. Los proyectos con panel esperan «Ejecutar» desde el celular y los demás conservan arranque autónomo; falta fijar desconexión segura, emparejamiento y límites. El [informe externo del 14 de septiembre](BACKLOG.md#pedidos-externos-a-analizar) agrega observaciones pendientes de reproducción y análisis, sin autorizar su implementación ni alterar las fases 15–19. La barra residual del catálogo quedó corregida en `d096fd9`, el arrastre individual/grupal en `0fc9ff2` y el guardado estable durante el arrastre en `2b97af9`.
+- 20: compilación/grabación guiadas, estados reales, medición, Guardar integrado y reinicio posgrabación validado.
+- 21: claridad y ergonomía educativa: superposición de bloques, borrador de escena, operadores/menús/emojis, textos, advertencias y nueva auditoría de interfaz.
+- 22: avatar acompañante con reacciones accesibles ante desafíos, compilación y grabación.
+- 23: aceptación física de LCD PCF8574, OLED SSD1306 y TFT ILI9341/ILI9488, más matriz 32 × 8 con cuatro MAX7219.
+- 24: panel web local para un celular emparejado, misma LAN, vistas Escena/Controles e inputs relacionados mediante bloques.
+- 25: compartir proyectos por enlace/QR con copia/vista, caducidad y revocación.
+- 26: acceso de aula sin contraseña y asistencia con identidad, sesión y revocación explícitas.
+- El [informe externo del 14 de septiembre](BACKLOG.md#pedidos-externos-a-analizar) queda distribuido entre 20–22 y 25–26. El selector angular con reloj está expresamente descartado y no es trabajo pendiente. La barra residual, el arrastre individual/grupal y el guardado estable ya están corregidos en `d096fd9`, `0fc9ff2` y `2b97af9`.
 - Final: producción/HTTPS, restauración/backups externos, carga, monitoreo, rollback y piloto; postergada.
 
 La próxima fase numerada es **15, aún no autorizada para ejecución**. La aceptación física de fase 10 sigue separada. Exigir modelo/documentación y ensayo físico antes de anunciar soporte de una placa nueva. El diagrama Wemos fue contrastado con las fuentes enlazadas; conservar esa verificación al ampliarlo, porque existen pinouts públicos contradictorios. No convertir una ilustración en fuente única de verdad.
 
 ## 9. Mensaje listo para otra conversación
 
-> Continuá CapiBloques desde este repositorio. Primero leé AGENTS.md y docs/CONTEXTO_PARA_CONTINUAR.md, luego el plan y la guía de la fase vigente. Confirmá rama, cambios locales y versión desplegada antes de operar. Las fases 11–14 están entregadas; DEV funciona públicamente en https://capibloques.dev.nvicchi.com/ y la próxima fase posible es 15, pero no está autorizada. No infieras autorización por estar en el backlog. Trabajá una fase completa por vez, informá avances, probá, hacé commit/push y actualizá este contexto al terminar. Producción es la Fase final y está postergada. El gateway es exclusivamente un salto SSH y está prohibido modificarlo; tampoco modifiques Proxmox, router, PRD u otros sitios. No copies secretos, no documentes contraseñas ni borres datos para recuperar acceso. La aceptación física de fase 10 sigue pendiente salvo evidencia posterior explícita. Decime qué contexto o acceso privado falta sin pedir credenciales en Git o documentación.
+> Continuá CapiBloques desde este repositorio. Primero leé AGENTS.md y docs/CONTEXTO_PARA_CONTINUAR.md, luego el plan y la guía de la fase vigente. Confirmá rama, cambios locales y versión desplegada antes de operar. Las fases 11–14 están entregadas; DEV funciona públicamente en https://capibloques.dev.nvicchi.com/ y todos los pedidos pendientes están asignados a fases 15–26. La próxima fase posible es 15, pero no está autorizada. No infieras autorización por estar en el backlog. Trabajá una fase completa por vez, informá avances, probá, hacé commit/push y actualizá este contexto al terminar. Producción es la Fase final y está postergada. El gateway es exclusivamente un salto SSH y está prohibido modificarlo; tampoco modifiques Proxmox, router, PRD u otros sitios. No copies secretos, no documentes contraseñas ni borres datos para recuperar acceso. La aceptación física de fase 10 sigue pendiente salvo evidencia posterior explícita. Decime qué contexto o acceso privado falta sin pedir credenciales en Git o documentación.
 
 ## 10. Lista de cierre y mantenimiento obligatorio
 
