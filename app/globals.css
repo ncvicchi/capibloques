@@ -8,6 +8,28 @@
 .display-area-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .display-portable-note { padding: 8px; background: #edf4f1; border-radius: 6px; }
 .display-preview { display: block; width: 210px; max-width: 100%; height: auto; min-height: 36px; }
+.display-artwork-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; }
+.display-artwork-editor {
+  display: grid;
+  grid-template-columns: repeat(16, minmax(8px, 1fr));
+  gap: 2px;
+  padding: 7px;
+  border: 3px solid #263238;
+  border-radius: 8px;
+  background: #101c24;
+  aspect-ratio: 2 / 1;
+}
+.display-artwork-editor button {
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: #25373d;
+  cursor: pointer;
+}
+.display-artwork-editor button.on { background: #9fffd5; box-shadow: 0 0 4px #62e7ba; }
+.display-artwork-editor button:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
 .scene-device.scene-device-display { width: 220px; max-width: 42%; }
 .scene-device.scene-device-ledMatrix { width: 250px; max-width: 48%; }
 .led-matrix-preview, .matrix-pattern-editor {

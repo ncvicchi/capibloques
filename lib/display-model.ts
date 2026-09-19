@@ -1,3 +1,6 @@
+// @ts-expect-error Node strip-types runners need the explicit extension.
+import { defaultDisplayArtworks, DISPLAY_ART_HEIGHT, MAX_DISPLAY_ARTWORKS, type DisplayAnimationSpeed, type DisplayArtwork } from './display-graphics.ts';
+
 /** Portable text destinations. Coordinates are character cells, not GPIOs. */
 export const displayProfiles = {
   lcd1602: {
@@ -66,6 +69,10 @@ export type DisplayConfig = {
   address: number;
   areas: TextArea[];
   retiredAreaIds: string[];
+  /** Optional only so projects exported before drawings existed remain valid. */
+  animationSpeed?: DisplayAnimationSpeed;
+  artworks?: DisplayArtwork[];
+  retiredArtworkIds?: string[];
 };
 export const DISPLAY_SCREEN = 'screen';
 export const MAX_DISPLAY_TEXT = 512;
@@ -104,7 +111,30 @@ export function displayConfig(
         ]
       : [],
     retiredAreaIds: [],
+    animationSpeed: 'normal',
+    artworks: displayProfiles[profile].graphic ? defaultDisplayArtworks() : [],
+    retiredArtworkIds: [],
   };
+}
+
+export function displayArtworks(config: DisplayConfig) {
+  return config.artworks ?? [];
+}
+
+export function retiredDisplayArtworkIds(config: DisplayConfig) {
+  return config.retiredArtworkIds ?? [];
+}
+
+export function nextDisplayArtworkId(config: DisplayConfig) {
+  const taken = new Set([
+    ...displayArtworks(config).map((item) => item.id),
+    ...retiredDisplayArtworkIds(config),
+  ]);
+  for (let index = 1; index <= MAX_DISPLAY_ARTWORKS; index += 1) {
+    const id = `mi-dibujo-${index}`;
+    if (!taken.has(id)) return id;
+  }
+  return '';
 }
 
 export function displayTargets(config: DisplayConfig): TextArea[] {
@@ -174,7 +204,18 @@ export function validDisplayConfig(
 ): value is DisplayConfig {
   if (
     !record(value) ||
-    !exact(value, ['profile', 'address', 'areas', 'retiredAreaIds']) ||
+    !(
+      exact(value, ['profile', 'address', 'areas', 'retiredAreaIds']) ||
+      exact(value, [
+        'profile',
+        'address',
+        'areas',
+        'retiredAreaIds',
+        'animationSpeed',
+        'artworks',
+        'retiredArtworkIds',
+      ])
+    ) ||
     typeof value.profile !== 'string' ||
     !Object.hasOwn(displayProfiles, value.profile)
   )
@@ -193,6 +234,42 @@ export function validDisplayConfig(
       : !addresses.includes(value.address))
   )
     return false;
+  if (Object.hasOwn(value, 'animationSpeed')) {
+    if (!['slow', 'normal', 'fast'].includes(String(value.animationSpeed))) return false;
+    if (!Array.isArray(value.artworks) || value.artworks.length > MAX_DISPLAY_ARTWORKS)
+      return false;
+    if (!profile.graphic && value.artworks.length) return false;
+    if (!Array.isArray(value.retiredArtworkIds) || value.retiredArtworkIds.length > 4096)
+      return false;
+    const artworkIds = new Set<string>();
+    const artworkNames = new Set<string>();
+    for (const item of value.artworks) {
+      if (
+        !record(item) ||
+        !exact(item, ['id', 'name', 'rows']) ||
+        typeof item.id !== 'string' ||
+        !/^[a-z0-9][a-z0-9-]{0,31}$/.test(item.id) ||
+        artworkIds.has(item.id) ||
+        !label(item.name, 30) ||
+        artworkNames.has(item.name.trim().toLocaleLowerCase('es')) ||
+        !Array.isArray(item.rows) ||
+        item.rows.length !== DISPLAY_ART_HEIGHT ||
+        !item.rows.every((row) => integer(row, 0, 0xffff))
+      )
+        return false;
+      artworkIds.add(item.id);
+      artworkNames.add(item.name.trim().toLocaleLowerCase('es'));
+    }
+    for (const id of value.retiredArtworkIds) {
+      if (
+        typeof id !== 'string' ||
+        !/^[a-z0-9][a-z0-9-]{0,31}$/.test(id) ||
+        artworkIds.has(id)
+      )
+        return false;
+      artworkIds.add(id);
+    }
+  }
   if (
     !Array.isArray(value.areas) ||
     value.areas.length > 8 ||

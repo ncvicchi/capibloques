@@ -4,13 +4,24 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   displayConfig,
+  displayArtworks,
   displayPins,
   displayProfiles,
+  nextDisplayArtworkId,
   nextTextAreaId,
+  retiredDisplayArtworkIds,
   validDisplayConfig,
   type DisplayProfile,
   type TextArea,
 } from '@/lib/display-model';
+import {
+  BUILTIN_DISPLAY_ARTWORKS,
+  DISPLAY_ART_HEIGHT,
+  DISPLAY_ART_WIDTH,
+  displayArtworkPixel,
+  MAX_DISPLAY_ARTWORKS,
+  type DisplayArtwork,
+} from '@/lib/display-graphics';
 import type { DisplayDevice } from '@/lib/scene-model';
 
 export function DisplayProperties({
@@ -25,6 +36,36 @@ export function DisplayProperties({
   );
   const config = device.config;
   const profile = displayProfiles[config.profile];
+  const artworks = displayArtworks(config);
+  const retiredArtworkIds = retiredDisplayArtworkIds(config);
+  const animationSpeed = config.animationSpeed ?? 'normal';
+  const [selectedArtworkId, setSelectedArtworkId] = useState(
+    artworks[0]?.id ?? '',
+  );
+  const selectedArtwork =
+    artworks.find((item) => item.id === selectedArtworkId) ?? artworks[0];
+  const completeGraphicConfig = (
+    patch: Partial<Pick<typeof config, 'animationSpeed' | 'artworks' | 'retiredArtworkIds'>>,
+  ) => ({
+    ...config,
+    animationSpeed,
+    artworks,
+    retiredArtworkIds,
+    ...patch,
+  });
+  const updateArtworks = (next: DisplayArtwork[]) =>
+    onChange({
+      ...device,
+      config: completeGraphicConfig({ artworks: next }),
+    });
+  const updateArtwork = (change: (item: DisplayArtwork) => DisplayArtwork) => {
+    if (!selectedArtwork) return;
+    updateArtworks(
+      artworks.map((item) =>
+        item.id === selectedArtwork.id ? change(item) : item,
+      ),
+    );
+  };
   const updateArea = (id: string, patch: Partial<TextArea>) =>
     onChange({
       ...device,
@@ -43,6 +84,18 @@ export function DisplayProperties({
     ];
     if (nextConfig.areas[0])
       nextConfig.areas[0].id = nextTextAreaId({ ...nextConfig, areas: [] });
+    if (displayProfiles[next].graphic && profile.graphic) {
+      nextConfig.artworks = artworks;
+      nextConfig.retiredArtworkIds = retiredArtworkIds;
+      nextConfig.animationSpeed = animationSpeed;
+    } else if (!displayProfiles[next].graphic && profile.graphic) {
+      nextConfig.artworks = [];
+      nextConfig.retiredArtworkIds = [
+        ...retiredArtworkIds,
+        ...artworks.map((item) => item.id),
+      ];
+      nextConfig.animationSpeed = animationSpeed;
+    }
     onChange({ ...device, pins: displayPins(), config: nextConfig });
     setPendingProfile(null);
   };
@@ -141,6 +194,25 @@ export function DisplayProperties({
           </select>
         </label>
       )}
+      <label>
+        Velocidad de animaciones
+        <select
+          aria-label="Velocidad de animaciones"
+          value={animationSpeed}
+          onChange={(event) =>
+            onChange({
+              ...device,
+              config: completeGraphicConfig({
+                animationSpeed: event.target.value as typeof animationSpeed,
+              }),
+            })
+          }
+        >
+          <option value="slow">Tranquila</option>
+          <option value="normal">Normal</option>
+          <option value="fast">Rápida</option>
+        </select>
+      </label>
       {profile.graphic && (
         <>
           <h4>Zonas de texto</h4>
@@ -228,6 +300,127 @@ export function DisplayProperties({
             Quitar zonas queda pendiente hasta Guardar cambios; Cancelar las
             recupera.
           </small>
+          <fieldset className="display-artwork-section">
+            <legend>Dibujos propios</legend>
+            <p>
+              Dibujá con puntos en una cuadrícula simple. También podés usar
+              {` ${BUILTIN_DISPLAY_ARTWORKS.length} dibujos y avatares incluidos`}.
+            </p>
+            <div className="display-artwork-actions">
+              <select
+                aria-label="Dibujo de pantalla a editar"
+                value={selectedArtwork?.id ?? ''}
+                onChange={(event) => setSelectedArtworkId(event.target.value)}
+              >
+                {artworks.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={artworks.length >= MAX_DISPLAY_ARTWORKS}
+                onClick={() => {
+                  const id = nextDisplayArtworkId(config);
+                  if (!id) return;
+                  const next = {
+                    id,
+                    name: `Mi dibujo ${id.slice('mi-dibujo-'.length)}`,
+                    rows: Array.from({ length: DISPLAY_ART_HEIGHT }, () => 0),
+                  };
+                  updateArtworks([...artworks, next]);
+                  setSelectedArtworkId(id);
+                }}
+              >
+                Nuevo
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={artworks.length <= 1 || retiredArtworkIds.length >= 4096}
+                onClick={() => {
+                  if (!selectedArtwork) return;
+                  const next = artworks.filter(
+                    (item) => item.id !== selectedArtwork.id,
+                  );
+                  onChange({
+                    ...device,
+                    config: completeGraphicConfig({
+                      artworks: next,
+                      retiredArtworkIds: [
+                        ...retiredArtworkIds,
+                        selectedArtwork.id,
+                      ],
+                    }),
+                  });
+                  setSelectedArtworkId(next[0]?.id ?? '');
+                }}
+              >
+                Quitar
+              </Button>
+            </div>
+            {selectedArtwork && (
+              <>
+                <label>
+                  Nombre del dibujo
+                  <input
+                    aria-label="Nombre del dibujo de pantalla"
+                    maxLength={30}
+                    value={selectedArtwork.name}
+                    onChange={(event) =>
+                      updateArtwork((item) => ({
+                        ...item,
+                        name: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <div
+                  className="display-artwork-editor"
+                  aria-label={`Editar ${selectedArtwork.name}`}
+                >
+                  {Array.from({ length: DISPLAY_ART_HEIGHT }, (_, y) =>
+                    Array.from({ length: DISPLAY_ART_WIDTH }, (_, x) => {
+                      const bit = 2 ** (DISPLAY_ART_WIDTH - 1 - x);
+                      const on = (selectedArtwork.rows[y] ?? 0) % (bit * 2) >= bit;
+                      return (
+                        <button
+                          type="button"
+                          key={`${x}-${y}`}
+                          aria-label={`Columna ${x + 1}, fila ${y + 1}`}
+                          aria-pressed={on}
+                          className={on ? 'on' : ''}
+                          onClick={() =>
+                            updateArtwork((item) => ({
+                              ...item,
+                              rows: displayArtworkPixel(item.rows, x, y, !on),
+                            }))
+                          }
+                        />
+                      );
+                    }),
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    updateArtwork((item) => ({
+                      ...item,
+                      rows: Array.from(
+                        { length: DISPLAY_ART_HEIGHT },
+                        () => 0,
+                      ),
+                    }))
+                  }
+                >
+                  Borrar dibujo
+                </Button>
+              </>
+            )}
+          </fieldset>
         </>
       )}
       {!validDisplayConfig(config) && (

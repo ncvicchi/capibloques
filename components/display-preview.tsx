@@ -1,12 +1,15 @@
 import { displayProfiles, displayTargets } from '@/lib/display-model';
+import { DISPLAY_ART_HEIGHT, DISPLAY_ART_WIDTH } from '@/lib/display-graphics';
 import type { DisplayDevice } from '@/lib/scene-model';
 
 export function DisplayPreview({
   device,
   texts = {},
+  artworkRows = [],
 }: {
   device: DisplayDevice;
   texts?: Record<string, string[]>;
+  artworkRows?: readonly number[];
 }) {
   const profile = displayProfiles[device.config.profile];
   const linesFor = (id: string) =>
@@ -24,7 +27,7 @@ export function DisplayPreview({
           (area) =>
             `${area.name}: ${linesFor(area.id)?.join(' ').trim() || 'sin texto'}`,
         )
-        .join('; ')}`}
+        .join('; ')}${artworkRows.some((row) => row !== 0) ? '; dibujo visible' : ''}`}
     >
       <title>{device.name}</title>
       <rect
@@ -35,6 +38,32 @@ export function DisplayPreview({
         rx={3}
         fill={profile.graphic ? '#101c24' : '#193b2a'}
       />
+      {profile.graphic &&
+        Array.from({ length: DISPLAY_ART_HEIGHT }, (_, artY) =>
+          Array.from({ length: DISPLAY_ART_WIDTH }, (_, artX) => {
+            const bit = 2 ** (DISPLAY_ART_WIDTH - 1 - artX);
+            const on = (artworkRows[artY] ?? 0) % (bit * 2) >= bit;
+            if (!on) return null;
+            const scale = Math.max(
+              1,
+              Math.floor(
+                Math.min(width / DISPLAY_ART_WIDTH, height / DISPLAY_ART_HEIGHT),
+              ),
+            );
+            const offsetX = (width - DISPLAY_ART_WIDTH * scale) / 2;
+            const offsetY = (height - DISPLAY_ART_HEIGHT * scale) / 2;
+            return (
+              <rect
+                key={`art-${artX}-${artY}`}
+                x={offsetX + artX * scale}
+                y={offsetY + artY * scale}
+                width={scale}
+                height={scale}
+                fill="#9fffd5"
+              />
+            );
+          }),
+        )}
       {displayTargets(device.config).map((area) => (
         <g key={area.id}>
           <rect

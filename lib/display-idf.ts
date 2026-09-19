@@ -4,6 +4,8 @@ import { displayProfiles, validDisplayConfig } from './display-model.ts';
 import { IDF_FONT } from './idf-font.ts';
 // @ts-expect-error Node strip-types runner.
 import { IDF_TFT_INIT } from './idf-tft-init.ts';
+// @ts-expect-error Node strip-types runner.
+import { displayAnimationFirmwareSupport } from './display-animation-firmware.ts';
 import type { SceneDefinition } from './scene-model.ts';
 
 /** Native, write-only text drivers; one display and no shared external bus. */
@@ -120,7 +122,7 @@ bool capiDisplayDeviceBegin() {
 }
 bool capiDisplayGlyph(uint16_t x, uint16_t y, uint8_t character) {
   uint8_t data[9] = {0x40};
-  for (int column = 0; column < 5; ++column) data[column + 2] = capiGlyphColumn(character, column);
+  for (int column = 0; column < 8; ++column) data[column + 1] = character == 0x7f ? 0xff : (column < 5 ? capiGlyphColumn(character, column) : 0);
   return capiOledPosition(x * 8, y) && capiDisplayTransfer(data, sizeof(data));
 }
 ` : `
@@ -143,7 +145,7 @@ ${init}
 bool capiDisplayGlyph(uint16_t x, uint16_t y, uint8_t character) {
   uint8_t pixels[12 * 16 * CAPI_PIXEL_BYTES];
   for (int row = 0; row < 16; ++row) for (int column = 0; column < 12; ++column) {
-    const bool on = (capiGlyphColumn(character, column / 2) >> (row / 2)) & 1;
+    const bool on = character == 0x7f || ((capiGlyphColumn(character, column / 2) >> (row / 2)) & 1);
     for (int byte = 0; byte < CAPI_PIXEL_BYTES; ++byte) pixels[(row * 12 + column) * CAPI_PIXEL_BYTES + byte] = on ? 0xff : 0;
   }
   return capiDisplayWindow(x * 12, y * 16, 12, 16) && capiDisplayTransfer(true, pixels, sizeof(pixels));
@@ -154,13 +156,7 @@ constexpr uint16_t CAPI_DISPLAY_COLUMNS = ${profile.columns}, CAPI_DISPLAY_ROWS 
 constexpr uint16_t CAPI_DISPLAY_CELLS = CAPI_DISPLAY_COLUMNS * CAPI_DISPLAY_ROWS;
 char capiDisplayWanted[CAPI_DISPLAY_CELLS], capiDisplaySent[CAPI_DISPLAY_CELLS];
 bool capiDisplayReady = false;
-void capiDisplayWrite(uint16_t column, uint16_t row, uint16_t columns, uint16_t rows, const char* cells) {
-  if (column + columns > CAPI_DISPLAY_COLUMNS || row + rows > CAPI_DISPLAY_ROWS) return;
-  for (uint16_t y = 0; y < rows; ++y) {
-    char* destination = capiDisplayWanted + (row + y) * CAPI_DISPLAY_COLUMNS + column;
-    if (cells) memcpy(destination, cells + y * columns, columns); else memset(destination, ' ', columns);
-  }
-}
+${displayAnimationFirmwareSupport()}
 void capiDisplayBegin() {
   memset(capiDisplayWanted, ' ', CAPI_DISPLAY_CELLS); memset(capiDisplaySent, ' ', CAPI_DISPLAY_CELLS);
   capiDisplayReady = capiDisplayDeviceBegin();

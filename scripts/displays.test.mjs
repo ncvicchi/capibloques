@@ -1,12 +1,17 @@
 import assert from 'node:assert/strict';
 import {
   displayConfig,
+  displayArtworks,
   displayProfiles,
   displayTargets,
   layoutDisplayText,
   nextTextAreaId,
   validDisplayConfig,
 } from '../lib/display-model.ts';
+import {
+  BUILTIN_DISPLAY_ARTWORKS,
+  displayArtworkPixel,
+} from '../lib/display-graphics.ts';
 import {
   addDeviceToScene,
   cloneScene,
@@ -66,6 +71,25 @@ for (const profile of Object.keys(displayProfiles)) {
       blockId: 'clear',
     },
   ];
+  if (displayProfiles[profile].graphic) {
+    nodes.push(
+      {
+        op: 'displayAnimateText',
+        deviceId: device.id,
+        areaId: target.id,
+        text: 'Hola animado',
+        effect: 'type',
+        blockId: 'animate',
+      },
+      {
+        op: 'displayArtwork',
+        deviceId: device.id,
+        artworkId: 'builtin-robot',
+        effect: 'slide',
+        blockId: 'artwork',
+      },
+    );
+  }
   const generated = generateEsp32CodeResult(wrap(nodes), profile, scene);
   assert.equal(
     generated.diagnostics.filter((item) => item.severity === 'error').length,
@@ -73,6 +97,11 @@ for (const profile of Object.keys(displayProfiles)) {
     profile,
   );
   assert.match(generated.code, /capiDisplayWrite\(0, 0/);
+  if (displayProfiles[profile].graphic) {
+    assert.match(generated.code, /capiDisplayAnimateText\(/);
+    assert.match(generated.code, /capiDisplayArtwork\(/);
+    assert.match(generated.code, /DISPLAY_ART_/);
+  }
   assert.ok(generated.code.indexOf('struct TrafficDevice') < generated.code.indexOf('void capiDisplayWrite'), 'Arduino inserts prototypes before the first sketch function: declare helper types first');
   assert.doesNotMatch(generated.code, /Serial.println\("!Hola/);
   assert.doesNotMatch(generated.code, /delay\(/);
@@ -139,6 +168,17 @@ assert.deepEqual(layoutDisplayText('\n\nZ', { columns: 4, rows: 3 }).lines, [
 assert.equal(layoutDisplayText('áñü😀', { columns: 4, rows: 1 }).cells, 'anu?');
 assert.equal(layoutDisplayText('ABCDE', { columns: 4, rows: 1 }).clipped, true);
 const config = displayConfig('ssd1306');
+assert.equal(displayArtworks(config).length, 1);
+assert.equal(BUILTIN_DISPLAY_ARTWORKS.some(item => item.id === 'builtin-capybara'), true);
+assert.notDeepEqual(
+  displayArtworkPixel(displayArtworks(config)[0].rows, 3, 2, true),
+  displayArtworks(config)[0].rows,
+);
+const legacyConfig = structuredClone(config);
+delete legacyConfig.animationSpeed;
+delete legacyConfig.artworks;
+delete legacyConfig.retiredArtworkIds;
+assert.equal(validDisplayConfig(legacyConfig), true, 'legacy displays remain importable');
 assert.equal(
   layoutDisplayText(String.fromCharCode(92, 126), { columns: 2, rows: 1 })
     .cells,
@@ -184,6 +224,8 @@ for (const patch of [
   { retiredAreaIds: ['text-1'] },
   { areas: [{ ...config.areas[0], columns: 17 }] },
   { areas: [{ ...config.areas[0], row: -1 }] },
+  { artworks: [{ id: 'bad', name: 'Mal', rows: [1] }] },
+  { animationSpeed: 'turbo' },
 ])
   assert.equal(validDisplayConfig({ ...config, ...patch }), false);
 
@@ -278,6 +320,47 @@ for (const mode of ['normal', 'guided']) {
 assert.deepEqual(...runs);
 send({ type: 'RESET' });
 assert.equal(state().devices[device.id].texts.second.join('').trim(), '');
+const animatedConfig = displayConfig('ssd1306');
+animatedConfig.animationSpeed = 'fast';
+const animated = addDeviceToScene(
+  createEmptyScene('Dibujos animados'),
+  'display',
+  { config: animatedConfig },
+);
+const animatedArea = displayTargets(animatedConfig)[0];
+send({
+  type: 'LOAD',
+  scene: animated.scene,
+  program: wrap([
+    {
+      op: 'displayAnimateText',
+      deviceId: animated.device.id,
+      areaId: animatedArea.id,
+      text: 'Hola',
+      effect: 'type',
+      blockId: 'animated-text',
+    },
+    {
+      op: 'displayArtwork',
+      deviceId: animated.device.id,
+      artworkId: 'builtin-capybara',
+      effect: 'blink',
+      blockId: 'animated-artwork',
+    },
+  ]),
+});
+send({ type: 'SET_MODE', mode: 'normal' });
+send({ type: 'RUN' });
+for (let turn = 0; turn < 400 && state().status !== 'done'; turn += 1) {
+  clock += 16;
+  tick();
+}
+assert.equal(state().status, 'done');
+assert.deepEqual(
+  state().devices[animated.device.id].artworkRows,
+  BUILTIN_DISPLAY_ARTWORKS.find(item => item.id === 'builtin-capybara').rows,
+);
+assert.equal(state().devices[animated.device.id].animation, null);
 console.log(
-  'Displays: five profiles, one screen, JSON, isolated areas, orphan identities, text layout, worker modes and generated adapters passed.',
+  'Displays: five profiles, drawings, animations, JSON, isolated areas, worker modes and generated adapters passed.',
 );

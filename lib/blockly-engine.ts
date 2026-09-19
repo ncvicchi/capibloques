@@ -1,6 +1,8 @@
 // Definitions, field normalization and compiler shared by browser and isolated server.
 // @ts-expect-error Node strip-types runner.
-import { displayTargets } from './display-model.ts';
+import { displayArtworks, displayProfiles, displayTargets } from './display-model.ts';
+// @ts-expect-error Node strip-types runners need the explicit extension.
+import { BUILTIN_DISPLAY_ARTWORKS } from './display-graphics.ts';
 import type { CompiledProgram, Condition, ProgramNode } from './capiblocks.ts';
 import type { SceneDevice, SceneDeviceKind } from './scene-model.ts';
 type BlocklyApi = typeof import('blockly');
@@ -13,6 +15,7 @@ const DEVICE_FIELD = 'DEVICE_ID';
 const AREA_FIELD = 'AREA_ID';
 const MESSAGE_FIELD = 'MESSAGE';
 const PATTERN_FIELD = 'PATTERN_ID';
+const DISPLAY_ARTWORK_FIELD = 'ARTWORK_ID';
 const serializedAreaIds = new WeakMap<BlocklyWorkspaceSvg, Map<string, string>>();
 const EMPTY_FAVORITES: readonly string[] = [];
 const DEVICE_EXTENSION = 'capi_device_target_v2';
@@ -54,7 +57,9 @@ function targetWorkspaceForBlock(block: BlocklyBlock) {
 function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
   switch (block.type) {
     case 'capi_display_write':
-    case 'capi_display_clear': return ['display'];
+    case 'capi_display_clear':
+    case 'capi_display_animate_text':
+    case 'capi_display_artwork': return ['display'];
     case 'capi_matrix_clear':
     case 'capi_matrix_pixel':
     case 'capi_matrix_pattern':
@@ -175,6 +180,22 @@ function updateDeviceWarning(block: BlocklyBlock) {
     const patternId = block.getFieldValue(PATTERN_FIELD);
     block.setWarningText(device?.kind === 'ledMatrix' && device.config.patterns.some(pattern => pattern.id === patternId) ? null : 'Elegí un dibujo guardado en esta matriz.', 'matrix-pattern');
   }
+  if (block.getField(DISPLAY_ARTWORK_FIELD)) {
+    const device = devicesForBlock(block).find(device => device.id === value);
+    const artworkId = block.getFieldValue(DISPLAY_ARTWORK_FIELD);
+    const available =
+      device?.kind === 'display' &&
+      displayProfiles[device.config.profile].graphic &&
+      [...BUILTIN_DISPLAY_ARTWORKS, ...displayArtworks(device.config)].some(
+        (item) => item.id === artworkId,
+      );
+    block.setWarningText(
+      available
+        ? null
+        : 'Elegí un dibujo disponible en una pantalla gráfica.',
+      'display-artwork',
+    );
+  }
 }
 
 function areaMenuGenerator(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
@@ -213,6 +234,32 @@ function patternMenuGenerator(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
   return options.length ? options : [['Configurá un dibujo', '__missing_pattern__']];
 }
 
+function displayArtworkMenuGenerator(
+  this: BlocklyFieldDropdown,
+): BlocklyMenuOption[] {
+  const block = this.getSourceBlock();
+  if (!block) return [['Elegí una pantalla gráfica', '__missing_artwork__']];
+  const device = devicesForBlock(block).find(
+    (item) => item.id === block.getFieldValue(DEVICE_FIELD),
+  );
+  const options: BlocklyMenuOption[] =
+    device?.kind === 'display' && displayProfiles[device.config.profile].graphic
+      ? [...BUILTIN_DISPLAY_ARTWORKS, ...displayArtworks(device.config)].map(
+          (item) => [item.name, item.id],
+        )
+      : [];
+  const current = this.getValue();
+  if (
+    current &&
+    current !== '__missing_artwork__' &&
+    !options.some((option) => option[1] === current)
+  )
+    options.push([`⚠️ Dibujo retirado (${current})`, current]);
+  return options.length
+    ? options
+    : [['Usá OLED o TFT para dibujos', '__missing_artwork__']];
+}
+
 function refreshAreaField(block: BlocklyBlock) {
   const field = block.getField(AREA_FIELD) as BlocklyFieldDropdown | null;
   if (!field) return;
@@ -242,6 +289,19 @@ function refreshPatternField(block: BlocklyBlock) {
   updateDeviceWarning(block);
 }
 
+function refreshDisplayArtworkField(block: BlocklyBlock) {
+  const field = block.getField(
+    DISPLAY_ARTWORK_FIELD,
+  ) as BlocklyFieldDropdown | null;
+  if (!field) return;
+  const previous = field.getValue();
+  field.setOptions(displayArtworkMenuGenerator);
+  if (field.getOptions(false).some((option) => option[1] === previous))
+    field.setValue(previous);
+  field.forceRerender();
+  updateDeviceWarning(block);
+}
+
 function refreshDeviceField(block: BlocklyBlock) {
   const field = block.getField(DEVICE_FIELD);
   if (!field || !('setOptions' in field)) return false;
@@ -267,6 +327,7 @@ function refreshDeviceField(block: BlocklyBlock) {
   refreshAreaField(block);
   refreshMessageField(block);
   refreshPatternField(block);
+  refreshDisplayArtworkField(block);
   updateDeviceWarning(block);
   return previous !== nextValue;
 }
@@ -402,7 +463,7 @@ const toolbox = {
       kind: 'category',
       name: 'Mensajes',
       colour: '#59627D',
-      contents: [{ kind: 'block', type: 'capi_serial' }, { kind: 'block', type: 'capi_message_send' }, { kind: 'block', type: 'capi_message_receive' }, { kind: 'block', type: 'capi_display_write' }, { kind: 'block', type: 'capi_display_clear' }],
+      contents: [{ kind: 'block', type: 'capi_serial' }, { kind: 'block', type: 'capi_message_send' }, { kind: 'block', type: 'capi_message_receive' }, { kind: 'block', type: 'capi_display_write' }, { kind: 'block', type: 'capi_display_animate_text' }, { kind: 'block', type: 'capi_display_artwork' }, { kind: 'block', type: 'capi_display_clear' }],
     },
     {
       kind: 'category', name: 'Matriz LED', colour: '#B47B00',
@@ -428,6 +489,7 @@ function registerBlocks(Blockly: BlocklyApi) {
         (this.getField(AREA_FIELD) as BlocklyFieldDropdown | null)?.setOptions(areaMenuGenerator);
         (this.getField(MESSAGE_FIELD) as BlocklyFieldDropdown | null)?.setOptions(messageMenuGenerator);
         (this.getField(PATTERN_FIELD) as BlocklyFieldDropdown | null)?.setOptions(patternMenuGenerator);
+        (this.getField(DISPLAY_ARTWORK_FIELD) as BlocklyFieldDropdown | null)?.setOptions(displayArtworkMenuGenerator);
         updateDeviceWarning(this);
       },
     );
@@ -950,6 +1012,35 @@ function registerBlocks(Blockly: BlocklyApi) {
       tooltip: 'Borra solamente el destino elegido. Las otras zonas conservan sus mensajes.',
     },
     {
+      type: 'capi_display_animate_text',
+      message0: '🎬 en %1 zona %2 animar %3 como %4',
+      args0: [
+        deviceField('Elegí una pantalla'),
+        { type: 'field_dropdown', name: AREA_FIELD, options: [['Elegí una zona', '__missing_area__']] },
+        { type: 'field_input', name: 'TEXT', text: 'Hola!' },
+        { type: 'field_dropdown', name: 'EFFECT', options: [['aparecer', 'TYPE'], ['desplazarse', 'SCROLL'], ['parpadear', 'BLINK']] },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#59627D',
+      extensions: [DEVICE_EXTENSION],
+      tooltip: 'Anima un mensaje con la velocidad elegida en la escena y continúa al terminar.',
+    },
+    {
+      type: 'capi_display_artwork',
+      message0: '🖼️ en %1 mostrar %2 como %3',
+      args0: [
+        deviceField('Elegí una pantalla gráfica'),
+        { type: 'field_dropdown', name: DISPLAY_ARTWORK_FIELD, options: [['Corazón', 'builtin-heart']] },
+        { type: 'field_dropdown', name: 'EFFECT', options: [['quieto', 'STILL'], ['deslizar', 'SLIDE'], ['parpadear', 'BLINK']] },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#59627D',
+      extensions: [DEVICE_EXTENSION],
+      tooltip: 'Muestra un dibujo incluido o creado en una pantalla OLED/TFT.',
+    },
+    {
       type: 'capi_matrix_clear', message0: '⬛ limpiar %1', args0: [deviceField('Elegí una matriz')],
       previousStatement: null, nextStatement: null, colour: '#B47B00', extensions: [DEVICE_EXTENSION],
       tooltip: 'Apaga todos los puntos de la matriz.',
@@ -1257,6 +1348,25 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
         break;
       case 'capi_display_clear':
         result.push({ op: 'displayClear', deviceId: selectedDeviceId(block), areaId: String(block.getFieldValue(AREA_FIELD) ?? ''), blockId });
+        break;
+      case 'capi_display_animate_text':
+        result.push({
+          op: 'displayAnimateText',
+          deviceId: selectedDeviceId(block),
+          areaId: String(block.getFieldValue(AREA_FIELD) ?? ''),
+          text: String(block.getFieldValue('TEXT') ?? ''),
+          effect: block.getFieldValue('EFFECT') === 'SCROLL' ? 'scroll' : block.getFieldValue('EFFECT') === 'BLINK' ? 'blink' : 'type',
+          blockId,
+        });
+        break;
+      case 'capi_display_artwork':
+        result.push({
+          op: 'displayArtwork',
+          deviceId: selectedDeviceId(block),
+          artworkId: String(block.getFieldValue(DISPLAY_ARTWORK_FIELD) ?? ''),
+          effect: block.getFieldValue('EFFECT') === 'SLIDE' ? 'slide' : block.getFieldValue('EFFECT') === 'BLINK' ? 'blink' : 'still',
+          blockId,
+        });
         break;
       case 'capi_matrix_clear':
         result.push({ op: 'matrixClear', deviceId: selectedDeviceId(block), blockId });

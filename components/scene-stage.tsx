@@ -19,6 +19,7 @@ import type {
 
 export type RuntimeVisualDevice = {
   texts?: Record<string, string[]>;
+  artworkRows?: number[];
   rows?: number[];
   kind: string;
   color?: 'RED' | 'YELLOW' | 'GREEN' | 'OFF';
@@ -81,7 +82,14 @@ function DeviceVisual({
   device: SceneDevice;
   runtime?: RuntimeVisualDevice;
 }) {
-  if (device.kind === 'display') return <DisplayPreview device={device} texts={runtime?.texts} />;
+  if (device.kind === 'display')
+    return (
+      <DisplayPreview
+        device={device}
+        texts={runtime?.texts}
+        artworkRows={runtime?.artworkRows}
+      />
+    );
   if (device.kind === 'ledMatrix') return <LedMatrixPreview device={device} rows={runtime?.rows} />;
   if (device.kind === 'messages') return <span className="stage-messages" aria-hidden="true">↔️<small>{device.config.mode === 'send' ? 'enviar' : device.config.mode === 'receive' ? 'recibir' : 'ambos'}</small></span>;
   if (device.kind === 'trafficLight') {

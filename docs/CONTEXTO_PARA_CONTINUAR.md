@@ -129,6 +129,10 @@ Al retomar el componente LCD se comprobó que los perfiles PCF8574 16 × 2 y 20 
 
 DEV avanzó por fast-forward desde `fa9ec15` hasta `2c1f56455ea33d87df3ebe4324cf4b1a4d214a7c`; la imagen declara la misma revisión. Runtime, Compose, firewall y salud local/pública quedaron correctos, y la suite afectada pasó nuevamente **12/12** contra `https://capibloques.dev.nvicchi.com/` en Chrome y Edge. El planificador quedó `active`, admisión `paused=False`, concurrencia/techo 1 y cola vacía, revisión administrativa 20. API y base no fueron recreadas; no se modificaron PRD, gateway, Proxmox, router ni Nginx. La aceptación física de LCD/OLED/TFT continúa pendiente.
 
+### Dibujos y animaciones de Pantalla de texto — 19 de septiembre de 2026
+
+Se amplió el mismo componente `display`, sin crear otro dispositivo: LCD anima texto; OLED/TFT también muestran figuras predeterminadas o hasta 12 dibujos propios de 16 × 8. La escena conserva la velocidad y los dibujos; los bloques eligen efecto y contenido. Simulador, Arduino y ESP-IDF usan avance cooperativo y el backend acepta tanto JSON histórico como el contrato ampliado. Figuras incluidas: corazón, estrella, sonrisa, capibara, robot, gato y flor. La evidencia definitiva de commit, CI y despliegue se completa al cerrar esta entrega; no declarar prueba física.
+
 ### Fase 23 en curso — Matriz LED — 19 de septiembre de 2026
 
 El commit funcional `fa9ec15` incorpora una unidad **Matriz LED** 32 × 8 de cuatro MAX7219: configuración de brillo/orden/giro, editor de hasta 12 dibujos, cuatro bloques, simulación cooperativa, ejemplo Cartel luminoso, cableado y generación común para Arduino/ESP-IDF. El alcance y lo que sigue abierto están en [FASE_23_MATRIZ_LED.md](FASE_23_MATRIZ_LED.md); no se declara terminada toda la fase 23.

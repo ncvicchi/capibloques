@@ -19,7 +19,9 @@ import {
 
 export type SceneId = LegacySceneId;
 // @ts-expect-error Node strip-types runner.
-import { displayTargets, layoutDisplayText, MAX_DISPLAY_TEXT, validDisplayConfig } from './display-model.ts';
+import { displayArtworks, displayProfiles, displayTargets, layoutDisplayText, MAX_DISPLAY_TEXT, validDisplayConfig } from './display-model.ts';
+// @ts-expect-error Node strip-types runner.
+import { BUILTIN_DISPLAY_ARTWORKS, displayAnimationMs, displayArtworkById, type DisplayArtworkEffect, type DisplayTextEffect } from './display-graphics.ts';
 // @ts-expect-error Node strip-types runner.
 import { displayArduinoSupport } from './display-arduino.ts';
 // @ts-expect-error Node strip-types runner.
@@ -110,6 +112,8 @@ export type ProgramNode =
     }
   | { op: 'displayWrite'; deviceId: string; areaId: string; text: string; blockId: string }
   | { op: 'displayClear'; deviceId: string; areaId: string; blockId: string }
+  | { op: 'displayAnimateText'; deviceId: string; areaId: string; text: string; effect: DisplayTextEffect; blockId: string }
+  | { op: 'displayArtwork'; deviceId: string; artworkId: string; effect: DisplayArtworkEffect; blockId: string }
   | { op: 'matrixClear'; deviceId: string; blockId: string }
   | { op: 'matrixPixel'; deviceId: string; x: number; y: number; enabled: boolean; blockId: string }
   | { op: 'matrixPattern'; deviceId: string; patternId: string; blockId: string }
@@ -223,7 +227,12 @@ export type WifiRuntimeState =
   | 'error';
 
 export type RuntimeDeviceState =
-  | { kind: 'display'; texts: Record<string, string[]> }
+  | {
+      kind: 'display';
+      texts: Record<string, string[]>;
+      artworkRows: number[];
+      animation: string | null;
+    }
   | { kind: 'ledMatrix'; rows: number[]; scrolling: boolean }
   | {
       kind: 'trafficLight';
@@ -766,6 +775,8 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_message_receive',
   'capi_display_write',
   'capi_display_clear',
+  'capi_display_animate_text',
+  'capi_display_artwork',
   'capi_matrix_clear',
   'capi_matrix_pixel',
   'capi_matrix_pattern',
@@ -1212,7 +1223,9 @@ const blockKind = (block: Record<string, unknown>): SceneDeviceKind | null => {
       : {};
   switch (type) {
     case 'capi_display_write':
-    case 'capi_display_clear': return 'display';
+    case 'capi_display_clear':
+    case 'capi_display_animate_text':
+    case 'capi_display_artwork': return 'display';
     case 'capi_matrix_clear':
     case 'capi_matrix_pixel':
     case 'capi_matrix_pattern':
@@ -1552,7 +1565,9 @@ const compatibleKindsForNode = (
 ): SceneDeviceKind[] => {
   switch (node.op) {
     case 'displayWrite':
-    case 'displayClear': return ['display'];
+    case 'displayClear':
+    case 'displayAnimateText':
+    case 'displayArtwork': return ['display'];
     case 'matrixClear':
     case 'matrixPixel':
     case 'matrixPattern':
@@ -1820,6 +1835,25 @@ function normalizeNodes(
       case 'displayClear':
         result.push({ op: 'displayClear', deviceId: typeof node.deviceId === 'string' ? node.deviceId : '', areaId: typeof node.areaId === 'string' ? node.areaId : '', blockId });
         break;
+      case 'displayAnimateText':
+        result.push({
+          op: 'displayAnimateText',
+          deviceId: typeof node.deviceId === 'string' ? node.deviceId : '',
+          areaId: typeof node.areaId === 'string' ? node.areaId : '',
+          text: typeof node.text === 'string' ? node.text : '',
+          effect: ['type', 'scroll', 'blink'].includes(String(node.effect)) ? node.effect as DisplayTextEffect : 'type',
+          blockId,
+        });
+        break;
+      case 'displayArtwork':
+        result.push({
+          op: 'displayArtwork',
+          deviceId: typeof node.deviceId === 'string' ? node.deviceId : '',
+          artworkId: typeof node.artworkId === 'string' ? node.artworkId : '',
+          effect: ['still', 'slide', 'blink'].includes(String(node.effect)) ? node.effect as DisplayArtworkEffect : 'still',
+          blockId,
+        });
+        break;
       case 'matrixClear':
         result.push({ op: 'matrixClear', deviceId, blockId });
         break;
@@ -2079,17 +2113,30 @@ export function validateProgramForScene(
       }
       if (node.op === 'messageReceive' && (!Number.isFinite(node.timeoutMs) || node.timeoutMs < 100 || node.timeoutMs > 300_000)) diagnostics.push({ severity: 'error', code: 'message-timeout', message: 'La espera debe durar entre 0,1 y 300 segundos.', blockId: node.blockId, deviceId: node.deviceId });
     }
-    if (node.op === 'displayWrite' || node.op === 'displayClear') {
+    if (
+      node.op === 'displayWrite' ||
+      node.op === 'displayClear' ||
+      node.op === 'displayAnimateText'
+    ) {
       const device = deviceMap.get(node.deviceId);
       const area = device?.kind === 'display' && validDisplayConfig(device.config) ? displayTargets(device.config).find(area => area.id === node.areaId) : undefined;
       if (device?.kind === 'display' && !area) diagnostics.push({ severity: 'error', code: 'display-area-missing', message: `${device.name}: elegí una zona de texto existente. La anterior fue retirada o cambió el modelo.`, blockId: node.blockId, deviceId: node.deviceId });
-      if (node.op === 'displayWrite') {
+      if (node.op === 'displayWrite' || node.op === 'displayAnimateText') {
         if (node.text.length > MAX_DISPLAY_TEXT) diagnostics.push({ severity: 'error', code: 'display-text-limit', message: `Un mensaje admite hasta ${MAX_DISPLAY_TEXT} caracteres.`, blockId: node.blockId });
         if (area) {
           const layout = layoutDisplayText(node.text, area);
           if (layout.converted) diagnostics.push({ severity: 'warning', code: 'display-text-converted', message: 'Pantalla: se quitan tildes y los símbolos no compatibles se muestran como ?. La vista previa usa el mismo texto que la placa.', blockId: node.blockId });
           if (layout.clipped) diagnostics.push({ severity: 'warning', code: 'display-text-clipped', message: 'El mensaje no cabe completo en su destino. Se muestra solamente la parte que entra.', blockId: node.blockId });
         }
+      }
+    }
+    if (node.op === 'displayArtwork') {
+      const device = deviceMap.get(node.deviceId);
+      if (device?.kind === 'display') {
+        if (!displayProfiles[device.config.profile].graphic)
+          diagnostics.push({ severity: 'error', code: 'display-artwork-profile', message: `${device.name}: los dibujos necesitan una pantalla OLED o TFT.`, blockId: node.blockId, deviceId: node.deviceId });
+        else if (!displayArtworkById(displayArtworks(device.config), node.artworkId))
+          diagnostics.push({ severity: 'error', code: 'display-artwork-missing', message: `${device.name}: elegí un dibujo que todavía exista.`, blockId: node.blockId, deviceId: node.deviceId });
       }
     }
     if (node.op === 'matrixClear' || node.op === 'matrixPixel' || node.op === 'matrixPattern' || node.op === 'matrixScroll') {
@@ -2523,6 +2570,24 @@ function instructionToCpp(
       const call = area ? `capiDisplayWrite(${area.column}, ${area.row}, ${area.columns}, ${area.rows}, ${instruction.op === 'displayWrite' ? cppString(layoutDisplayText(instruction.text, area).cells) : 'nullptr'});` : '// Destino inválido: revisar el diagnóstico #error.';
       return `${comment}\n        ${call}\n        ${pc} = ${nextPc};\n        break;`;
     }
+    case 'displayAnimateText': {
+      const device = context.scene.devices.find(device => device.id === instruction.deviceId);
+      const area = device?.kind === 'display' && validDisplayConfig(device.config) ? displayTargets(device.config).find(area => area.id === instruction.areaId) : undefined;
+      if (!area || device?.kind !== 'display')
+        return `${comment}\n        // Destino inválido: revisar el diagnóstico #error.\n        ${pc} = ${nextPc};\n        break;`;
+      const effect = instruction.effect === 'scroll' ? 1 : instruction.effect === 'blink' ? 2 : 0;
+      const token = Number.parseInt(hashId(instruction.blockId), 16) >>> 0;
+      return `${comment}\n        if (!capiDisplayAnimateText(${token}UL, ${area.column}, ${area.row}, ${area.columns}, ${area.rows}, ${cppString(layoutDisplayText(instruction.text, area).cells)}, ${effect}, ${displayAnimationMs(device.config.animationSpeed)}, now)) return;\n        ${pc} = ${nextPc};\n        break;`;
+    }
+    case 'displayArtwork': {
+      const device = context.scene.devices.find(device => device.id === instruction.deviceId);
+      const artwork = device?.kind === 'display' ? displayArtworkById(displayArtworks(device.config), instruction.artworkId) : undefined;
+      if (!artwork || device?.kind !== 'display')
+        return `${comment}\n        // Dibujo inválido: revisar el diagnóstico #error.\n        ${pc} = ${nextPc};\n        break;`;
+      const effect = instruction.effect === 'slide' ? 1 : instruction.effect === 'blink' ? 2 : 0;
+      const token = Number.parseInt(hashId(instruction.blockId), 16) >>> 0;
+      return `${comment}\n        if (!capiDisplayArtwork(${token}UL, DISPLAY_ART_${deviceSymbol(context, instruction.deviceId)}_${cppIdentifier(artwork.id)}, ${effect}, ${displayAnimationMs(device.config.animationSpeed)}, now)) return;\n        ${pc} = ${nextPc};\n        break;`;
+    }
     case 'matrixClear':
       return `${comment}\n        capiMatrixClear();\n        ${pc} = ${nextPc};\n        break;`;
     case 'matrixPixel':
@@ -2578,7 +2643,13 @@ function deviceDeclarations(
           return `constexpr MotorDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.in1)}, ${gpioOrPlaceholder(device.pins.in2)}}; // ${cppLineComment(device.name)}`;
         case 'wifiNode':
           return `// ${cppLineComment(device.name)}: radio Wi-Fi integrada, sin GPIO externo.`;
-        case 'display': return '// Pantalla configurada en capiScreen.';
+        case 'display': {
+          const profile = displayProfiles[device.config.profile];
+          if (!profile.graphic) return '// Pantalla configurada en capiScreen.';
+          return [...BUILTIN_DISPLAY_ARTWORKS, ...displayArtworks(device.config)]
+            .map(artwork => `constexpr uint16_t DISPLAY_ART_${symbol}_${cppIdentifier(artwork.id)}[8] = { ${artwork.rows.map(row => `${row}U`).join(', ')} }; // ${cppLineComment(artwork.name)}`)
+            .join('\n');
+        }
         case 'ledMatrix': return device.config.patterns.map(pattern => `constexpr uint32_t PATTERN_${symbol}_${cppIdentifier(pattern.id)}[8] = { ${pattern.rows.map(row => `${row >>> 0}UL`).join(', ')} }; // ${cppLineComment(pattern.name)}`).join('\n');
         case 'messages': return `constexpr MessageDevice DEV_${symbol}{${messageDevices.findIndex(item => item.id === device.id) + 1}, ${gpioOrPlaceholder(device.pins.tx)}, ${gpioOrPlaceholder(device.pins.rx)}, ${device.config.baudRate}}; // ${cppLineComment(device.name)}`;
         default:

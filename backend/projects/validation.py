@@ -14,7 +14,7 @@ MAX_FILE_BYTES = 2_000_000
 TARGET = {"family": "esp32", "framework": "arduino", "coreMajor": 3, "coreVersion": "3.3.11", "boardProfile": "wemos-d1-r32", "fqbn": "esp32:esp32:d1_uno32"}
 BLOCKS = {"capi_" + name for name in ("start", "forever", "repeat", "wait", "if", "compare", "counter_compare", "counter_set", "counter_change", "traffic", "led", "pin_write", "robot", "motor", "servo", "buzzer", "tone", "button_pressed", "sensor_compare", "wifi_connect", "wifi_connected", "serial")}
 BLOCKS.add("capi_parallel")
-BLOCKS.update(("capi_display_write", "capi_display_clear"))
+BLOCKS.update(("capi_display_write", "capi_display_clear", "capi_display_animate_text", "capi_display_artwork"))
 BLOCKS.update(("capi_message_send", "capi_message_receive"))
 BLOCKS.update(("capi_matrix_clear", "capi_matrix_pixel", "capi_matrix_pattern", "capi_matrix_scroll"))
 PINS = {"trafficLight": ["red", "yellow", "green"], "robot": ["leftIn1", "leftIn2", "rightIn1", "rightIn2"], "motor": ["in1", "in2"], **{kind: ["signal"] for kind in ("led", "servo", "activeBuzzer", "passiveBuzzer", "button", "lightSensor", "potentiometer")}, "wifiNode": []}
@@ -36,7 +36,9 @@ DISPLAY_PROFILES = {"lcd1602": (16, 2, False, "i2c"), "lcd2004": (20, 4, False, 
 
 
 def display_config(config):
-    exact(config, ("profile", "address", "areas", "retiredAreaIds"))
+    legacy = set(config) == {"profile", "address", "areas", "retiredAreaIds"} if isinstance(config, dict) else False
+    exact(config, ("profile", "address", "areas", "retiredAreaIds"), ("animationSpeed", "artworks", "retiredArtworkIds"))
+    require(legacy or set(config) == {"profile", "address", "areas", "retiredAreaIds", "animationSpeed", "artworks", "retiredArtworkIds"})
     require(isinstance(config["profile"], str) and config["profile"] in DISPLAY_PROFILES)
     columns, rows, graphic, bus = DISPLAY_PROFILES[config["profile"]]
     require(type(config["address"]) is int and (config["address"] == 0 if bus == "spi" else config["address"] in ([0x3c, 0x3d] if config["profile"] == "ssd1306" else [*range(0x20, 0x28), *range(0x38, 0x40)])))
@@ -58,6 +60,22 @@ def display_config(config):
     for key in retired:
         require(identifier(key) and key not in ids)
         ids.add(key)
+    if not legacy:
+        require(config["animationSpeed"] in ("slow", "normal", "fast"))
+        artworks, retired_artworks = config["artworks"], config["retiredArtworkIds"]
+        require(isinstance(artworks, list) and len(artworks) <= 12 and (graphic or not artworks))
+        require(isinstance(retired_artworks, list) and len(retired_artworks) <= 4096)
+        artwork_ids, artwork_names = set(), set()
+        for artwork in artworks:
+            exact(artwork, ("id", "name", "rows"))
+            require(isinstance(artwork["id"], str) and re.fullmatch(r"[a-z0-9][a-z0-9-]{0,31}", artwork["id"]) and artwork["id"] not in artwork_ids)
+            normalized = artwork["name"].strip().lower() if isinstance(artwork["name"], str) else ""
+            require(text(artwork["name"], 30, 1) and normalized and normalized not in artwork_names)
+            require(isinstance(artwork["rows"], list) and len(artwork["rows"]) == 8 and all(type(row) is int and 0 <= row <= 0xffff for row in artwork["rows"]))
+            artwork_ids.add(artwork["id"]); artwork_names.add(normalized)
+        for artwork_id in retired_artworks:
+            require(isinstance(artwork_id, str) and re.fullmatch(r"[a-z0-9][a-z0-9-]{0,31}", artwork_id) and artwork_id not in artwork_ids)
+            artwork_ids.add(artwork_id)
     return ["sda", "scl"] if bus == "i2c" else ["sck", "mosi", "cs", "dc", "rst"]
 
 

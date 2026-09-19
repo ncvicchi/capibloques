@@ -31,7 +31,9 @@ struct TestScreen {
   void setTextSize(int) {} void setTextWrap(bool) {} void fillScreen(int) {}
   void setCursor(int, int) {} void write(uint8_t) { ++draws; }
   void drawGlyph(int, int, uint8_t) { ++draws; }
+  void drawTile(int, int, int, const uint8_t*) { ++draws; }
   void drawChar(int, int, uint8_t, int, int) { ++draws; }
+  void fillRect(int, int, int, int, int) { ++draws; }
 };
 using LiquidCrystal_PCF8574 = TestScreen;
 using U8X8_SSD1306_128X64_NONAME_HW_I2C = TestScreen;

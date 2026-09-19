@@ -31,6 +31,25 @@ for (const profile of Object.keys(displayProfiles)) {
               text: 'Hola ESP32!\nListo',
               blockId: 'write',
             },
+            ...(displayProfiles[profile].graphic
+              ? [
+                  {
+                    op: 'displayAnimateText',
+                    deviceId: device.id,
+                    areaId,
+                    text: 'Hola animado',
+                    effect: 'scroll',
+                    blockId: 'animate',
+                  },
+                  {
+                    op: 'displayArtwork',
+                    deviceId: device.id,
+                    artworkId: 'builtin-robot',
+                    effect: 'slide',
+                    blockId: 'artwork',
+                  },
+                ]
+              : []),
             {
               op: 'led',
               deviceId: led.device.id,

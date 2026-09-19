@@ -10,6 +10,7 @@ import {
   displayTargets,
   type DisplayProfile,
 } from '../lib/display-model';
+import { displayArtworkPixel } from '../lib/display-graphics';
 
 async function open(page: Page) {
   await mockEditorSession(page);
@@ -66,6 +67,59 @@ function sample(profile: DisplayProfile = 'ssd1306') {
           x: 40,
           y: 40,
           inputs: { DO: { block: blocks[0] } },
+        },
+      ],
+    },
+  });
+}
+
+function animatedSample() {
+  const config = displayConfig('ssd1306');
+  config.animationSpeed = 'fast';
+  config.artworks![0] = {
+    ...config.artworks![0],
+    name: 'Mi cohete',
+    rows: displayArtworkPixel(config.artworks![0].rows, 15, 7, true),
+  };
+  const { scene, device } = addDeviceToScene(
+    createEmptyScene('Pantalla animada'),
+    'display',
+    { config, name: 'Cartel divertido' },
+  );
+  return makeProject('Dibujos y avatares', scene, {
+    blocks: {
+      languageVersion: 0,
+      blocks: [
+        {
+          type: 'capi_start',
+          id: 'start-animated',
+          x: 40,
+          y: 40,
+          inputs: {
+            DO: {
+              block: {
+                type: 'capi_display_animate_text',
+                id: 'animate-text',
+                fields: {
+                  DEVICE_ID: device.id,
+                  AREA_ID: 'text-1',
+                  TEXT: 'Hola!',
+                  EFFECT: 'TYPE',
+                },
+                next: {
+                  block: {
+                    type: 'capi_display_artwork',
+                    id: 'animate-artwork',
+                    fields: {
+                      DEVICE_ID: device.id,
+                      ARTWORK_ID: 'builtin-capybara',
+                      EFFECT: 'BLINK',
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       ],
     },
@@ -371,4 +425,47 @@ test('pantalla: recupera nombre vacío y layout incompleto sin publicarlos', asy
   await expect(
     editor.getByLabel('Fila inicial de second', { exact: true }),
   ).toHaveValue('5');
+});
+
+test('pantalla gráfica: crea dibujos, ofrece avatares y anima sin bloquear', async ({
+  page,
+}) => {
+  await open(page);
+  await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  await editor.getByRole('button', { name: /^Agregar Pantalla de texto/ }).click();
+  const model = editor.getByRole('combobox', { name: 'Modelo de pantalla' });
+  await model.selectOption('ssd1306');
+  await editor.getByRole('button', { name: 'Cambiar modelo' }).click();
+  await editor.getByRole('combobox', { name: 'Velocidad de animaciones' }).selectOption('fast');
+  await editor.getByRole('textbox', { name: 'Nombre del dibujo de pantalla' }).fill('Cohete');
+  const pixel = editor.getByRole('button', { name: 'Columna 16, fila 8' });
+  await pixel.click();
+  await expect(pixel).toHaveAttribute('aria-pressed', 'true');
+  await editor.getByRole('button', { name: 'Guardar cambios', exact: false }).click();
+  await editor.getByRole('button', { name: 'Auto conectar', exact: true }).click();
+  await editor.getByRole('button', { name: 'Guardar escena', exact: true }).click();
+  const saved = await exportProject(page);
+  const savedDisplay = saved.scene.devices.find(
+    (device: { kind: string }) => device.kind === 'display',
+  );
+  expect(savedDisplay?.config).toMatchObject({
+    profile: 'ssd1306',
+    animationSpeed: 'fast',
+    artworks: [{ name: 'Cohete' }],
+  });
+
+  const project = animatedSample();
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'pantalla-animada.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(project)),
+  });
+  await page.getByRole('button', { name: 'Conservar copia local y abrir', exact: true }).click();
+  await expect(page.locator('[data-id="animate-text"]')).toContainText('aparecer');
+  await expect(page.locator('[data-id="animate-artwork"]')).toContainText('Capibara');
+  await page.getByRole('button', { name: 'Ejecutar', exact: true }).click();
+  await expect(page.getByText('Programa terminado', { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.simulator-panel .display-preview')).toHaveAttribute('aria-label', /dibujo visible/);
+  await expect(page.locator('.simulator-panel .display-preview rect[fill="#9fffd5"]')).not.toHaveCount(0);
 });

@@ -293,13 +293,14 @@ Aceptación:
 
 **Objetivo:** cerrar la validación de los perfiles de pantalla existentes e incorporar la matriz LED 32 × 8 solicitada como componente completo.
 
-**Estado:** el [componente Matriz LED](FASE_23_MATRIZ_LED.md) está implementado en software con una unidad 32 × 8, simulación y ambos generadores. La fase no está cerrada: faltan su ensayo eléctrico y la aceptación física de LCD/OLED/TFT.
+**Estado:** el [componente Matriz LED](FASE_23_MATRIZ_LED.md) está implementado en software con una unidad 32 × 8, simulación y ambos generadores. Pantalla de texto también permite animaciones, figuras predeterminadas y dibujos infantiles en OLED/TFT. La fase no está cerrada: faltan el ensayo eléctrico de la matriz y la aceptación física de LCD/OLED/TFT.
 
 Alcance:
 
 - Identificar y probar físicamente LCD PCF8574 16×2/20×4 —incluido el Winstar/2004A y su mochila—, OLED SSD1306 128×64 y unidades TFT ILI9341/ILI9488 concretas; documentar dirección, mapeo, tensión, controlador y límites sin crear perfiles duplicados.
 - Agregar la matriz de cuatro MAX7219 encadenados: cantidad, orden, orientación, brillo, píxel, fila/columna, iconos/patrones y texto desplazable dentro de límites definidos.
 - Integrar escena, simulador, JSON, bloques, cableado, Arduino y ESP-IDF con refresco cooperativo y buffers acotados.
+- Mantener la ampliación educativa de displays: texto animado en todos los perfiles y, en los gráficos, figuras predeterminadas o hasta 12 dibujos de 16 × 8 creados por el alumno. Velocidad en la escena; efecto en el bloque; sin edición libre durante la ejecución.
 - Documentar alimentación, masa, corriente, desacoplo y nivel lógico; no alimentar la matriz desde GPIO ni confundirla con I2C/RGB.
 
 Aceptación:

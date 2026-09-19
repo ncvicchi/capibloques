@@ -38,6 +38,40 @@ class DisplayValidationTests(SimpleTestCase):
         with self.assertRaisesMessage(ValidationError, "una sola pantalla"):
             document(data)
 
+    def test_graphic_drawings_animations_and_legacy_config_are_portable(self):
+        legacy = self.sample("ssd1306")
+        self.assertGreater(document(legacy), 0)
+        data = self.sample("ssd1306")
+        config = data["scene"]["devices"][0]["config"]
+        config.update(
+            animationSpeed="fast",
+            artworks=[{"id": "mi-dibujo-1", "name": "Cohete", "rows": [0, 0, 24, 60, 126, 24, 36, 66]}],
+            retiredArtworkIds=[],
+        )
+        data["workspace"] = {"blocks": {"languageVersion": 0, "blocks": [{"type": "capi_start", "id": "start", "inputs": {"DO": {"block": {"type": "capi_display_animate_text", "id": "animate", "fields": {"DEVICE_ID": "screen-1", "AREA_ID": "text-1", "TEXT": "Hola", "EFFECT": "TYPE"}, "next": {"block": {"type": "capi_display_artwork", "id": "art", "fields": {"DEVICE_ID": "screen-1", "ARTWORK_ID": "mi-dibujo-1", "EFFECT": "BLINK"}}}}}}}]}}
+        self.assertGreater(document(data), 0)
+
+    def test_rejects_invalid_drawings_and_lcd_graphics(self):
+        for patch in (
+            {"animationSpeed": "turbo"},
+            {"artworks": [{"id": "bad", "name": "Mal", "rows": [1]}]},
+            {"retiredArtworkIds": ["old", "old"]},
+        ):
+            with self.subTest(patch=patch):
+                data = self.sample("ssd1306")
+                data["scene"]["devices"][0]["config"].update(animationSpeed="normal", artworks=[], retiredArtworkIds=[])
+                data["scene"]["devices"][0]["config"].update(patch)
+                with self.assertRaises(ValidationError):
+                    document(data)
+        lcd = self.sample("lcd1602")
+        lcd["scene"]["devices"][0]["config"].update(
+            animationSpeed="normal",
+            artworks=[{"id": "picture", "name": "No corresponde", "rows": [0] * 8}],
+            retiredArtworkIds=[],
+        )
+        with self.assertRaises(ValidationError):
+            document(lcd)
+
     def test_rejects_invalid_profile_pins_address_and_unknown_config(self):
         for patch in ({"profile": "iliXXXX"}, {"address": 0x27}, {"address": True}, {"extra": 1}, {"retiredAreaIds": ["text-1"]}, {"retiredAreaIds": ["old", "old"]}):
             with self.subTest(patch=patch):

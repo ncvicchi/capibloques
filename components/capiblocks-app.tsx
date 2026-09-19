@@ -199,7 +199,13 @@ function runtimeFromDevice(
   scene: SceneDefinition,
 ): RuntimeDeviceState {
   switch (device.kind) {
-    case 'display': return { kind: 'display', texts: {} };
+    case 'display':
+      return {
+        kind: 'display',
+        texts: {},
+        artworkRows: Array.from({ length: 8 }, () => 0),
+        animation: null,
+      };
     case 'ledMatrix': return { kind: 'ledMatrix', rows: Array.from({ length: 8 }, () => 0), scrolling: false };
     case 'messages': return { kind: 'messages', received: [], transmitted: [], damaged: 0 };
     case 'trafficLight':

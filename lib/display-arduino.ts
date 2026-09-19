@@ -1,5 +1,7 @@
 // @ts-expect-error Node strip-types runner.
 import { displayProfiles, validDisplayConfig } from './display-model.ts';
+// @ts-expect-error Node strip-types runner.
+import { displayAnimationFirmwareSupport } from './display-animation-firmware.ts';
 import type { SceneDefinition } from './scene-model.ts';
 
 /** Only one physical adapter. Blocks update a bounded text buffer, never a draw queue. */
@@ -64,14 +66,7 @@ char capiDisplayWanted[CAPI_DISPLAY_CELLS];
 char capiDisplaySent[CAPI_DISPLAY_CELLS];
 bool capiDisplayReady = false;
 ${probe}
-void capiDisplayWrite(uint16_t column, uint16_t row, uint16_t columns, uint16_t rows, const char* cells) {
-  if (column + columns > CAPI_DISPLAY_COLUMNS || row + rows > CAPI_DISPLAY_ROWS) return;
-  for (uint16_t y = 0; y < rows; ++y) {
-    char* destination = capiDisplayWanted + (row + y) * CAPI_DISPLAY_COLUMNS + column;
-    if (cells) memcpy(destination, cells + y * columns, columns);
-    else memset(destination, ' ', columns);
-  }
-}
+${displayAnimationFirmwareSupport()}
 void capiDisplayBegin() {
   memset(capiDisplayWanted, ' ', CAPI_DISPLAY_CELLS);
   memset(capiDisplaySent, ' ', CAPI_DISPLAY_CELLS);
@@ -104,8 +99,10 @@ ${
     ? `    capiScreen.setCursor(x, y);
     capiScreen.write((uint8_t)character);`
     : i2c
-      ? `    capiScreen.drawGlyph(x, y, (uint8_t)character);`
-      : `    capiScreen.drawChar(x * 12, y * 16, (uint8_t)character, 0xFFFF, 0x0000);`
+      ? `    if ((uint8_t)character == 0x7f) { uint8_t tile[8]; memset(tile, 0xff, sizeof(tile)); capiScreen.drawTile(x, y, 1, tile); }
+    else capiScreen.drawGlyph(x, y, (uint8_t)character);`
+      : `    if ((uint8_t)character == 0x7f) capiScreen.fillRect(x * 12, y * 16, 12, 16, 0xFFFF);
+    else capiScreen.drawChar(x * 12, y * 16, (uint8_t)character, 0xFFFF, 0x0000);`
 }
     capiDisplaySent[index] = character;
     return;
