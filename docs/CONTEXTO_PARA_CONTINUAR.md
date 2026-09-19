@@ -131,7 +131,9 @@ DEV avanzó por fast-forward desde `fa9ec15` hasta `2c1f56455ea33d87df3ebe4324cf
 
 ### Dibujos y animaciones de Pantalla de texto — 19 de septiembre de 2026
 
-Se amplió el mismo componente `display`, sin crear otro dispositivo: LCD anima texto; OLED/TFT también muestran figuras predeterminadas o hasta 12 dibujos propios de 16 × 8. La escena conserva la velocidad y los dibujos; los bloques eligen efecto y contenido. Simulador, Arduino y ESP-IDF usan avance cooperativo y el backend acepta tanto JSON histórico como el contrato ampliado. Figuras incluidas: corazón, estrella, sonrisa, capibara, robot, gato y flor. La evidencia definitiva de commit, CI y despliegue se completa al cerrar esta entrega; no declarar prueba física.
+El commit funcional `5158e1f` amplió el mismo componente `display`, sin crear otro dispositivo: LCD anima texto; OLED/TFT también muestran figuras predeterminadas o hasta 12 dibujos propios de 16 × 8. La escena conserva la velocidad y los dibujos; los bloques eligen efecto y contenido. Simulador, Arduino y ESP-IDF usan avance cooperativo y el backend acepta tanto JSON histórico como el contrato ampliado. Figuras incluidas: corazón, estrella, sonrisa, capibara, robot, gato y flor.
+
+El [CI completo 35471186348](https://github.com/ncvicchi/capibloques/actions/runs/35471186348) pasó sus cuatro trabajos: 204 pruebas backend, 182 de interfaz Chromium, los cinco perfiles Arduino y ocho proyectos ESP-IDF. DEV avanzó a `5158e1f84f6bd7a16c2036e049e3034103bbbf8f`; imagen y checkout coinciden, 204 pruebas backend y el recorrido nuevo **2/2** en Chrome/Edge pasaron, salud interna/pública quedó `ok`, planificador activo, admisión `paused=False`, concurrencia/techo 1 y cola vacía (revisión 22). No se modificaron PRD, gateway, Proxmox, router ni Nginx. No declarar prueba física.
 
 ### Fase 23 en curso — Matriz LED — 19 de septiembre de 2026
 

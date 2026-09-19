@@ -25,6 +25,8 @@ El propietario confirmó LCD I2C 16×2/20×4 y OLED SSD1306 128×64, y pidió su
 - El JSON histórico de cuatro propiedades sigue siendo válido. La forma nueva agrega `animationSpeed`, `artworks` y `retiredArtworkIds`; retirar o cambiar un dibujo no reasigna silenciosamente un bloque existente.
 - Esta ampliación no convierte el display en una pantalla de escena interactiva ni agrega imágenes a color. La aceptación eléctrica de LCD/OLED/TFT continúa pendiente dentro de fase 23.
 
+Evidencia de la ampliación: commit funcional `5158e1f`, [CI completo correcto](https://github.com/ncvicchi/capibloques/actions/runs/35471186348), con 204 pruebas backend, 182 pruebas Chromium, compilación de los cinco perfiles Arduino y ocho proyectos ESP-IDF. En DEV pasaron nuevamente las 204 pruebas backend y el recorrido nuevo 2/2 en Chrome/Edge contra el dominio público. DEV quedó en `5158e1f84f6bd7a16c2036e049e3034103bbbf8f`, salud interna/pública `ok`, admisión activa, concurrencia/techo 1 y cola vacía. Esto valida software y compilación, no el módulo físico.
+
 Fuera de esta fase: Waveshare de 5 pulgadas, ESP32-S3, representar la escena completa/controlar actuadores desde un display, TX/RX configurable, rediseño general de interfaz, ESP-IDF, servidor compilador y USB. Siguen en el plan/backlog; el usuario autorizó ahora específicamente mensajes de texto.
 
 ## Fuentes técnicas revisadas
