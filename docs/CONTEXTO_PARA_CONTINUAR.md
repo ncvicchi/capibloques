@@ -123,6 +123,12 @@ Los commits funcionales `036fe61` y `b2ebd05` incorporan el componente **Mensaje
 
 El CI completo [35444477812](https://github.com/ncvicchi/capibloques/actions/runs/35444477812) pasó interfaz/runtime, 200 pruebas de backend, Wemos Arduino 3.3.11 con los cinco perfiles de pantalla y siete proyectos ESP-IDF 5.5. DEV avanzó a `b2ebd05bf91f9a8e94267155c21da5f532b9f99c`; editor, API y PostgreSQL quedaron saludables, Compose/firewall válidos y salud pública `ok`. La admisión se restauró con `paused=False`, concurrencia 1 y cola vacía; la prueba específica pasó **4/4** en Chrome/Edge contra DEV público. No se modificaron PRD, gateway, Proxmox, router ni Nginx. La prueba eléctrica con Wemos sigue pendiente y no se confunde con compilación.
 
+### Consolidación de Pantalla de texto — 19 de septiembre de 2026
+
+Al retomar el componente LCD se comprobó que los perfiles PCF8574 16 × 2 y 20 × 4 ya estaban implementados junto con OLED/TFT. El commit `2c1f564` corrige el nombre visible de **Pantalla de mensajes** a **Pantalla de texto**, sin cambiar el tipo JSON `display` ni duplicar el componente. Typecheck, lint, smoke, driver C++, build, **12/12 pruebas de pantalla** y **4/4 de matriz** pasaron localmente en Chrome/Edge. El [CI completo 35451594869](https://github.com/ncvicchi/capibloques/actions/runs/35451594869) finalizó correctamente.
+
+DEV avanzó por fast-forward desde `fa9ec15` hasta `2c1f56455ea33d87df3ebe4324cf4b1a4d214a7c`; la imagen declara la misma revisión. Runtime, Compose, firewall y salud local/pública quedaron correctos, y la suite afectada pasó nuevamente **12/12** contra `https://capibloques.dev.nvicchi.com/` en Chrome y Edge. El planificador quedó `active`, admisión `paused=False`, concurrencia/techo 1 y cola vacía, revisión administrativa 20. API y base no fueron recreadas; no se modificaron PRD, gateway, Proxmox, router ni Nginx. La aceptación física de LCD/OLED/TFT continúa pendiente.
+
 ### Fase 23 en curso — Matriz LED — 19 de septiembre de 2026
 
 El commit funcional `fa9ec15` incorpora una unidad **Matriz LED** 32 × 8 de cuatro MAX7219: configuración de brillo/orden/giro, editor de hasta 12 dibujos, cuatro bloques, simulación cooperativa, ejemplo Cartel luminoso, cableado y generación común para Arduino/ESP-IDF. El alcance y lo que sigue abierto están en [FASE_23_MATRIZ_LED.md](FASE_23_MATRIZ_LED.md); no se declara terminada toda la fase 23.
