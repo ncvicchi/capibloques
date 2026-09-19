@@ -19,13 +19,15 @@ constexpr uint8_t CAPI_MATRIX_CS = ${device.pins.cs ?? 255};
 constexpr bool CAPI_MATRIX_REVERSE = ${device.config.order === 'right-to-left' ? 'true' : 'false'};
 constexpr bool CAPI_MATRIX_ROTATED = ${device.config.orientation === 'rotated' ? 'true' : 'false'};
 uint32_t capiMatrixRows[8] = {};
-struct CapiMatrixAnimation { bool active = false; const char* text = nullptr; uint16_t width = 0; uint16_t offset = 0; uint32_t nextAt = 0; };
+struct CapiMatrixAnimation { bool active = false; const char* text = nullptr; uint16_t width = 0; uint16_t offset = 0; uint16_t speedMs = 0; uint16_t repeatsRemaining = 1; uint32_t nextAt = 0; };
 CapiMatrixAnimation capiMatrixAnimation;
 void capiMatrixFlush();
 void capiMatrixClear();
 void capiMatrixPattern(const uint32_t* rows);
 void capiMatrixPixel(uint8_t x, uint8_t y, bool enabled);
-bool capiMatrixScroll(const char* text, uint16_t speedMs, uint32_t now);
+void capiMatrixStartScroll(const char* text, uint16_t speedMs, uint16_t repeatCount, uint32_t now);
+void capiMatrixService(uint32_t now);
+bool capiMatrixAnimationActive();
 void capiMatrixShift16(uint8_t address, uint8_t data) {
   for (int bit = 15; bit >= 0; --bit) {
     ${write}(CAPI_MATRIX_CLK, ${level(false)});
@@ -71,21 +73,30 @@ ${fontCases}
     default: { static const uint8_t glyph[5] = { ${MATRIX_FONT['?'].join(', ')} }; return glyph[column]; }
   }
 }
-bool capiMatrixScroll(const char* text, uint16_t speedMs, uint32_t now) {
-  if (!capiMatrixAnimation.active) {
-    capiMatrixAnimation.active = true; capiMatrixAnimation.text = text;
-    capiMatrixAnimation.width = (uint16_t)(strlen(text) * 6U); capiMatrixAnimation.offset = 0; capiMatrixAnimation.nextAt = now;
-  }
-  if ((int32_t)(now - capiMatrixAnimation.nextAt) < 0) return false;
+bool capiMatrixAnimationActive() { return capiMatrixAnimation.active; }
+void capiMatrixStartScroll(const char* text, uint16_t speedMs, uint16_t repeatCount, uint32_t now) {
+  capiMatrixAnimation.active = true; capiMatrixAnimation.text = text;
+  capiMatrixAnimation.width = (uint16_t)(strlen(text) * 6U); capiMatrixAnimation.offset = 0;
+  capiMatrixAnimation.nextAt = now; capiMatrixAnimation.speedMs = speedMs;
+  capiMatrixAnimation.repeatsRemaining = repeatCount;
+}
+void capiMatrixService(uint32_t now) {
+  if (!capiMatrixAnimation.active || (int32_t)(now - capiMatrixAnimation.nextAt) < 0) return;
+  const char* text = capiMatrixAnimation.text;
   memset(capiMatrixRows, 0, sizeof(capiMatrixRows));
   for (uint8_t x = 0; x < 32; ++x) {
     const int source = (int)capiMatrixAnimation.offset + x - 32; uint8_t column = 0;
     if (source >= 0 && source < capiMatrixAnimation.width) column = capiMatrixGlyph(text[source / 6], (uint8_t)(source % 6));
     for (uint8_t y = 0; y < 7; ++y) if (column & (1U << y)) capiMatrixRows[y] |= 1UL << (31 - x);
   }
-  capiMatrixFlush(); ++capiMatrixAnimation.offset; capiMatrixAnimation.nextAt = now + speedMs;
-  if (capiMatrixAnimation.offset > capiMatrixAnimation.width + 32U) { capiMatrixAnimation.active = false; return true; }
-  return false;
+  capiMatrixFlush(); ++capiMatrixAnimation.offset; capiMatrixAnimation.nextAt = now + capiMatrixAnimation.speedMs;
+  if (capiMatrixAnimation.offset > capiMatrixAnimation.width + 32U) {
+    if (capiMatrixAnimation.repeatsRemaining == 1) capiMatrixAnimation.active = false;
+    else {
+      if (capiMatrixAnimation.repeatsRemaining > 1) --capiMatrixAnimation.repeatsRemaining;
+      capiMatrixAnimation.offset = 0;
+    }
+  }
 }
 void capiMatrixBegin() {
   ${native ? 'capiOutput(CAPI_MATRIX_DIN); capiOutput(CAPI_MATRIX_CLK); capiOutput(CAPI_MATRIX_CS);' : 'pinMode(CAPI_MATRIX_DIN, OUTPUT); pinMode(CAPI_MATRIX_CLK, OUTPUT); pinMode(CAPI_MATRIX_CS, OUTPUT);'}

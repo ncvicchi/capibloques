@@ -30,10 +30,13 @@ type Pending =
   | { kind: 'wait'; startedAt: number; until: number; blockId: string }
   | { kind: 'wifi'; startedAt: number; readyAt: number; timeoutAt: number; blockId: string }
   | { kind: 'message'; startedAt: number; timeoutAt: number; deviceId: string; expected: string; equalTarget: number; differentTarget: number; timeoutTarget: number; blockId: string }
-  | { kind: 'matrix'; startedAt: number; until: number; deviceId: string; text: string; speedMs: number; blockId: string }
-  | { kind: 'displayText'; startedAt: number; until: number; deviceId: string; areaId: string; text: string; effect: 'type' | 'scroll' | 'blink'; speedMs: number; blockId: string }
-  | { kind: 'displayArtwork'; startedAt: number; until: number; deviceId: string; rows: number[]; effect: 'slide' | 'blink'; speedMs: number; blockId: string }
+  | { kind: 'visual'; startedAt: number; deviceId: string; blockId: string }
   | null;
+
+type VisualAnimation =
+  | { kind: 'matrix'; startedAt: number; until: number; cycleMs: number; deviceId: string; text: string; speedMs: number }
+  | { kind: 'displayText'; startedAt: number; until: number; cycleMs: number; deviceId: string; areaId: string; text: string; effect: 'type' | 'scroll' | 'blink'; speedMs: number }
+  | { kind: 'displayArtwork'; startedAt: number; until: number; cycleMs: number; deviceId: string; rows: number[]; effect: 'slide' | 'blink'; speedMs: number };
 
 type ThreadExecution = {
   thread: ProgramThread;
@@ -97,6 +100,7 @@ const pendingSounds = new Map<string, { frequency: number }>();
 const inputOverrides = new Map<string, unknown>();
 const legacyInputOverrides = new Map<string, unknown>();
 const messageQueues = new Map<string, string[]>();
+const visualAnimations = new Map<string, VisualAnimation>();
 let wifiAvailableOverride: boolean | undefined;
 let diagnostics: CapiDiagnostic[] = [];
 let simulationBlocked = false;
@@ -359,34 +363,26 @@ function executionTaskState(execution: ThreadExecution): ExecutionTaskState {
   if (blockId) task.blockId = blockId;
   const pending = execution.pending;
   if (pending) {
-    const target =
-      pending.kind === 'wait'
+    if (pending.kind === 'visual') {
+      task.detail = 'Esperando que termine la animación';
+    } else {
+      const target = pending.kind === 'wait'
         ? pending.until
         : pending.kind === 'message'
           ? pending.timeoutAt
-          : pending.kind === 'matrix'
-            ? pending.until
-            : pending.kind === 'displayText' || pending.kind === 'displayArtwork'
-              ? pending.until
-              : state.wifiAvailable
-                ? pending.readyAt
-                : pending.timeoutAt;
-    task.remainingMs = Math.max(0, Math.round(target - virtualNow));
-    task.durationMs = Math.max(0, Math.round(target - pending.startedAt));
-    task.detail =
-      pending.kind === 'wait'
+          : state.wifiAvailable
+            ? pending.readyAt
+            : pending.timeoutAt;
+      task.remainingMs = Math.max(0, Math.round(target - virtualNow));
+      task.durationMs = Math.max(0, Math.round(target - pending.startedAt));
+      task.detail = pending.kind === 'wait'
         ? `${(task.remainingMs / 1000).toFixed(2)} s restantes`
         : pending.kind === 'message'
           ? `Esperando “${pending.expected}” · ${(task.remainingMs / 1000).toFixed(1)} s`
-          : pending.kind === 'matrix'
-            ? `Texto en movimiento · ${(task.remainingMs / 1000).toFixed(1)} s`
-            : pending.kind === 'displayText'
-              ? `Mensaje animado · ${(task.remainingMs / 1000).toFixed(1)} s`
-              : pending.kind === 'displayArtwork'
-                ? `Dibujo animado · ${(task.remainingMs / 1000).toFixed(1)} s`
-                : state.wifiAvailable
-                  ? 'Conectando a Wi-Fi'
-                  : 'Esperando la red Wi-Fi';
+          : state.wifiAvailable
+            ? 'Conectando a Wi-Fi'
+            : 'Esperando la red Wi-Fi';
+    }
   } else if (status === 'joining') {
     task.detail = 'Espera a los otros caminos';
   } else if (blockId) {
@@ -482,6 +478,7 @@ function resetExecution(status: SimulatorState['status'] = 'idle') {
   pendingBlockActivity = null;
   pendingSounds.clear();
   messageQueues.clear();
+  visualAnimations.clear();
   clearBlockActivity();
   emit();
 }
@@ -594,6 +591,85 @@ function flushSounds(force = false) {
   lastSoundRealTime = now;
 }
 
+function cancelVisualAnimation(deviceId: string) {
+  visualAnimations.delete(deviceId);
+  const device = state.devices[deviceId];
+  if (device?.kind === 'display') device.animation = null;
+  if (device?.kind === 'ledMatrix') device.scrolling = false;
+}
+
+function updateVisualAnimations() {
+  for (const [deviceId, animation] of visualAnimations) {
+    const device = state.devices[deviceId];
+    let done = virtualNow >= animation.until;
+    const elapsed = Math.max(0, virtualNow - animation.startedAt);
+    const cycleElapsed = done ? animation.cycleMs : elapsed % animation.cycleMs;
+    if (animation.kind === 'matrix') {
+      if (device?.kind === 'ledMatrix') {
+        const offset = Math.floor(cycleElapsed / animation.speedMs);
+        device.rows = matrixScrollRows(animation.text, offset);
+        device.scrolling = !done;
+      }
+    } else if (animation.kind === 'displayText') {
+      const definition = scene.devices.find(item => item.id === deviceId);
+      const area = definition?.kind === 'display'
+        ? displayTargets(definition.config).find(item => item.id === animation.areaId)
+        : undefined;
+      if (device?.kind === 'display' && area) {
+        const final = layoutDisplayText(animation.text, area);
+        const step = Math.floor(cycleElapsed / animation.speedMs);
+        if (animation.effect === 'type') {
+          const count = final.cells.length;
+          const chunk = Math.ceil(count / 24);
+          const visible = Math.min(count, (step + 1) * chunk);
+          device.texts[animation.areaId] = layoutDisplayText(
+            `${final.cells.slice(0, visible)}${' '.repeat(count - visible)}`,
+            area,
+          ).lines;
+        } else if (animation.effect === 'scroll') {
+          const offset = Math.min(area.columns, step + 1);
+          device.texts[animation.areaId] = final.lines.map(line =>
+            `${' '.repeat(area.columns - offset)}${line.slice(0, offset)}`,
+          );
+        } else {
+          device.texts[animation.areaId] = step % 2 === 0
+            ? final.lines
+            : Array.from({ length: area.rows }, () => ' '.repeat(area.columns));
+        }
+        device.animation = animation.effect;
+        device.artworkRows = Array.from({ length: 8 }, () => 0);
+        if (done) {
+          device.texts[animation.areaId] = final.lines;
+          device.animation = null;
+        }
+      } else done = true;
+    } else {
+      if (device?.kind === 'display') {
+        const step = Math.floor(cycleElapsed / animation.speedMs);
+        if (animation.effect === 'slide') {
+          const shift = Math.max(0, 16 - (step + 1));
+          device.artworkRows = animation.rows.map(row =>
+            shift ? Math.floor(row / 2 ** shift) : row,
+          );
+        } else {
+          device.artworkRows = step % 2 === 0
+            ? [...animation.rows]
+            : Array.from({ length: 8 }, () => 0);
+        }
+        device.animation = animation.effect;
+        device.texts = Object.fromEntries(
+          Object.entries(device.texts).map(([id, lines]) => [id, lines.map(line => ' '.repeat(line.length))]),
+        );
+        if (done) {
+          device.artworkRows = [...animation.rows];
+          device.animation = null;
+        }
+      } else done = true;
+    }
+    if (done) visualAnimations.delete(deviceId);
+  }
+}
+
 function resolvePending(
   execution: ThreadExecution,
 ): 'none' | 'waiting' | 'advanced' {
@@ -622,81 +698,11 @@ function resolvePending(
     }
     return 'waiting';
   }
-  if (pending.kind === 'matrix') {
-    const device = state.devices[pending.deviceId];
-    if (device?.kind === 'ledMatrix') {
-      const offset = Math.floor((virtualNow - pending.startedAt) / pending.speedMs);
-      device.rows = matrixScrollRows(pending.text, offset);
-      device.scrolling = virtualNow < pending.until;
-    }
-    if (virtualNow < pending.until) return 'waiting';
-    execution.pending = null; execution.pc += 1; return 'advanced';
-  }
-  if (pending.kind === 'displayText') {
-    const device = state.devices[pending.deviceId];
-    const definition = scene.devices.find(item => item.id === pending.deviceId);
-    const area = definition?.kind === 'display'
-      ? displayTargets(definition.config).find(item => item.id === pending.areaId)
-      : undefined;
-    if (device?.kind === 'display' && area) {
-      const final = layoutDisplayText(pending.text, area);
-      const step = Math.floor((virtualNow - pending.startedAt) / pending.speedMs);
-      if (pending.effect === 'type') {
-        const count = final.cells.length;
-        const chunk = Math.ceil(count / 24);
-        const visible = Math.min(count, (step + 1) * chunk);
-        device.texts[pending.areaId] = layoutDisplayText(
-          `${final.cells.slice(0, visible)}${' '.repeat(count - visible)}`,
-          area,
-        ).lines;
-      } else if (pending.effect === 'scroll') {
-        const offset = Math.min(area.columns, step + 1);
-        device.texts[pending.areaId] = final.lines.map(line =>
-          `${' '.repeat(area.columns - offset)}${line.slice(0, offset)}`,
-        );
-      } else {
-        device.texts[pending.areaId] = step % 2 === 0
-          ? final.lines
-          : Array.from({ length: area.rows }, () => ' '.repeat(area.columns));
-      }
-      device.animation = pending.effect;
-      device.artworkRows = Array.from({ length: 8 }, () => 0);
-    }
-    if (virtualNow < pending.until) return 'waiting';
-    if (device?.kind === 'display' && area) {
-      device.texts[pending.areaId] = layoutDisplayText(pending.text, area).lines;
-      device.animation = null;
-    }
-    execution.pending = null; execution.pc += 1; return 'advanced';
-  }
-  if (pending.kind === 'displayArtwork') {
-    const device = state.devices[pending.deviceId];
-    if (device?.kind === 'display') {
-      const step = Math.floor((virtualNow - pending.startedAt) / pending.speedMs);
-      if (pending.effect === 'slide') {
-        const shift = Math.max(0, 16 - (step + 1));
-        device.artworkRows = pending.rows.map(row =>
-          shift ? Math.floor(row / 2 ** shift) : row,
-        );
-      } else {
-        device.artworkRows = step % 2 === 0
-          ? [...pending.rows]
-          : Array.from({ length: 8 }, () => 0);
-      }
-      device.animation = pending.effect;
-      device.texts = Object.fromEntries(
-        Object.entries(device.texts).map(([id, lines]) => [
-          id,
-          lines.map(line => ' '.repeat(line.length)),
-        ]),
-      );
-    }
-    if (virtualNow < pending.until) return 'waiting';
-    if (device?.kind === 'display') {
-      device.artworkRows = [...pending.rows];
-      device.animation = null;
-    }
-    execution.pending = null; execution.pc += 1; return 'advanced';
+  if (pending.kind === 'visual') {
+    if (visualAnimations.has(pending.deviceId)) return 'waiting';
+    execution.pending = null;
+    execution.pc += 1;
+    return 'advanced';
   }
   if (pending.kind !== 'wifi') return 'waiting';
   if (state.wifiAvailable && virtualNow >= pending.readyAt) {
@@ -836,11 +842,13 @@ function executeInstruction(
     return 'wait';
   }
   if (node.op === 'matrixScroll') {
-    const duration = matrixScrollSteps(node.text) * Math.max(40, node.speedMs);
+    const cycleMs = matrixScrollSteps(node.text) * Math.max(40, node.speedMs);
+    const duration = node.repeatCount === 0 ? Number.POSITIVE_INFINITY : cycleMs * node.repeatCount;
     const device = state.devices[node.deviceId];
     if (device?.kind === 'ledMatrix') device.scrolling = true;
-    execution.pending = { kind: 'matrix', startedAt: virtualNow, until: virtualNow + duration, deviceId: node.deviceId, text: node.text, speedMs: Math.max(40, node.speedMs), blockId: node.blockId };
-    return 'wait';
+    visualAnimations.set(node.deviceId, { kind: 'matrix', startedAt: virtualNow, until: virtualNow + duration, cycleMs, deviceId: node.deviceId, text: node.text, speedMs: Math.max(40, node.speedMs) });
+    execution.pc += 1;
+    return 'action';
   }
   if (node.op === 'displayAnimateText') {
     const definition = scene.devices.find(item => item.id === node.deviceId);
@@ -856,18 +864,20 @@ function executeInstruction(
       : node.effect === 'scroll'
         ? area?.columns ?? 1
         : 5;
-    execution.pending = {
+    const cycleMs = Math.max(1, steps) * speedMs;
+    visualAnimations.set(node.deviceId, {
       kind: 'displayText',
       startedAt: virtualNow,
-      until: virtualNow + Math.max(1, steps) * speedMs,
+      until: node.repeatCount === 0 ? Number.POSITIVE_INFINITY : virtualNow + cycleMs * node.repeatCount,
+      cycleMs,
       deviceId: node.deviceId,
       areaId: node.areaId,
       text: node.text,
       effect: node.effect,
       speedMs,
-      blockId: node.blockId,
-    };
-    return 'wait';
+    });
+    execution.pc += 1;
+    return 'action';
   }
   if (node.op === 'displayArtwork') {
     const definition = scene.devices.find(item => item.id === node.deviceId);
@@ -886,6 +896,7 @@ function executeInstruction(
       ]),
     );
     if (node.effect === 'still') {
+      cancelVisualAnimation(node.deviceId);
       device.artworkRows = [...artwork.rows];
       device.animation = null;
       execution.pc += 1;
@@ -894,16 +905,26 @@ function executeInstruction(
     const speedMs = definition?.kind === 'display'
       ? displayAnimationMs(definition.config.animationSpeed)
       : 200;
-    execution.pending = {
+    const cycleMs = (node.effect === 'slide' ? 16 : 5) * speedMs;
+    visualAnimations.set(node.deviceId, {
       kind: 'displayArtwork',
       startedAt: virtualNow,
-      until: virtualNow + (node.effect === 'slide' ? 16 : 5) * speedMs,
+      until: node.repeatCount === 0 ? Number.POSITIVE_INFINITY : virtualNow + cycleMs * node.repeatCount,
+      cycleMs,
       deviceId: node.deviceId,
       rows: [...artwork.rows],
       effect: node.effect,
       speedMs,
-      blockId: node.blockId,
-    };
+    });
+    execution.pc += 1;
+    return 'action';
+  }
+  if (node.op === 'visualWait') {
+    if (!visualAnimations.has(node.deviceId)) {
+      execution.pc += 1;
+      return 'action';
+    }
+    execution.pending = { kind: 'visual', startedAt: virtualNow, deviceId: node.deviceId, blockId: node.blockId };
     return 'wait';
   }
 
@@ -995,6 +1016,7 @@ function executeInstruction(
       break;
     case 'displayWrite':
     case 'displayClear': {
+      cancelVisualAnimation(node.deviceId);
       const device = state.devices[node.deviceId];
       const definition = scene.devices.find(device => device.id === node.deviceId);
       const area = definition?.kind === 'display' ? displayTargets(definition.config).find(area => area.id === node.areaId) : undefined;
@@ -1005,16 +1027,19 @@ function executeInstruction(
       break;
     }
     case 'matrixClear': {
+      cancelVisualAnimation(node.deviceId);
       const device = state.devices[node.deviceId];
       if (device?.kind === 'ledMatrix') { device.rows = Array.from({ length: 8 }, () => 0); device.scrolling = false; }
       break;
     }
     case 'matrixPixel': {
+      cancelVisualAnimation(node.deviceId);
       const device = state.devices[node.deviceId];
       if (device?.kind === 'ledMatrix') { device.rows = matrixPixel(device.rows, node.x, node.y, node.enabled); device.scrolling = false; }
       break;
     }
     case 'matrixPattern': {
+      cancelVisualAnimation(node.deviceId);
       const device = state.devices[node.deviceId];
       const definition = scene.devices.find(device => device.id === node.deviceId);
       const pattern = definition?.kind === 'ledMatrix' ? definition.config.patterns.find(pattern => pattern.id === node.patternId) : undefined;
@@ -1059,7 +1084,15 @@ function executeOne(execution: ThreadExecution) {
   if (wasDone || !node) return result;
   let message = '';
   if (pending) {
-    if (!execution.pending) message = pending.kind === 'wait' ? 'Terminó la espera; seguimos.' : pending.kind === 'message' ? (state.console.at(-1)?.replace(/^[^·]*· /, '') ?? 'Terminó la espera de mensaje.') : pending.kind === 'matrix' ? 'El texto terminó de cruzar la matriz.' : pending.kind === 'displayText' ? 'Terminó la animación del mensaje.' : pending.kind === 'displayArtwork' ? 'Terminó la animación del dibujo.' : state.wifi === 'connected' ? 'Wi-Fi conectado.' : 'No se pudo conectar a Wi-Fi.';
+    if (!execution.pending) message = pending.kind === 'wait'
+      ? 'Terminó la espera; seguimos.'
+      : pending.kind === 'message'
+        ? (state.console.at(-1)?.replace(/^[^·]*· /, '') ?? 'Terminó la espera de mensaje.')
+        : pending.kind === 'visual'
+          ? 'Terminó la animación; seguimos.'
+          : state.wifi === 'connected'
+            ? 'Wi-Fi conectado.'
+            : 'No se pudo conectar a Wi-Fi.';
   } else {
     switch (node.op) {
       case 'jumpIfFalse': message = execution.pc === node.target ? 'La condición es falsa: vamos por «si no».' : 'La condición es verdadera: vamos por «si».'; break;
@@ -1075,6 +1108,7 @@ function executeOne(execution: ThreadExecution) {
       case 'matrixScroll': message = `Desplazamos “${node.text.slice(0, 32)}” sin detener los otros caminos.`; break;
       case 'displayAnimateText': message = `Animamos “${node.text.slice(0, 32)}” sin detener los otros caminos.`; break;
       case 'displayArtwork': message = `${deviceName(node.deviceId)}: mostramos y animamos el dibujo elegido.`; break;
+      case 'visualWait': message = `Esperamos que termine ${deviceName(node.deviceId)} sin detener los otros caminos.`; break;
       case 'matrixClear': message = `${deviceName(node.deviceId)}: apagamos todos los puntos.`; break;
       case 'matrixPixel': message = `${deviceName(node.deviceId)}: ${node.enabled ? 'encendemos' : 'apagamos'} x ${node.x}, y ${node.y}.`; break;
       case 'matrixPattern': message = `${deviceName(node.deviceId)}: mostramos el dibujo elegido.`; break;
@@ -1089,6 +1123,7 @@ function executeOne(execution: ThreadExecution) {
 }
 
 function updatePhysics(deltaMs: number) {
+  updateVisualAnimations();
   for (const [deviceId, device] of Object.entries(state.devices)) {
     if (device.kind === 'robot') {
       const average = (device.left + device.right) / 2;
@@ -1119,7 +1154,7 @@ function updatePhysics(deltaMs: number) {
 }
 
 function finishProgramIfDone() {
-  if (!executions.length || executions.every((execution) => execution.done)) {
+  if ((!executions.length || executions.every((execution) => execution.done)) && !visualAnimations.size) {
     running = false;
     state.status = 'done';
     state.activeBlockIds = {};
@@ -1134,6 +1169,7 @@ function finishProgramIfDone() {
 }
 
 function hasDynamicOutput() {
+  if (visualAnimations.size) return true;
   return Object.values(state.devices).some((device) => {
     if (device.kind === 'robot') return device.left !== 0 || device.right !== 0;
     return (
@@ -1247,6 +1283,7 @@ function stepOnce() {
 }
 
 function stopOutputs() {
+  for (const deviceId of visualAnimations.keys()) cancelVisualAnimation(deviceId);
   for (const device of Object.values(state.devices)) {
     if (device.kind === 'robot') {
       device.left = 0;

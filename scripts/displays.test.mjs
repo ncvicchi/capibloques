@@ -79,6 +79,7 @@ for (const profile of Object.keys(displayProfiles)) {
         areaId: target.id,
         text: 'Hola animado',
         effect: 'type',
+        repeatCount: 1,
         blockId: 'animate',
       },
       {
@@ -86,6 +87,7 @@ for (const profile of Object.keys(displayProfiles)) {
         deviceId: device.id,
         artworkId: 'builtin-robot',
         effect: 'slide',
+        repeatCount: 1,
         blockId: 'artwork',
       },
     );
@@ -98,8 +100,8 @@ for (const profile of Object.keys(displayProfiles)) {
   );
   assert.match(generated.code, /capiDisplayWrite\(0, 0/);
   if (displayProfiles[profile].graphic) {
-    assert.match(generated.code, /capiDisplayAnimateText\(/);
-    assert.match(generated.code, /capiDisplayArtwork\(/);
+    assert.match(generated.code, /capiDisplayStartText\(/);
+    assert.match(generated.code, /capiDisplayStartArtwork\(/);
     assert.match(generated.code, /DISPLAY_ART_/);
   }
   assert.ok(generated.code.indexOf('struct TrafficDevice') < generated.code.indexOf('void capiDisplayWrite'), 'Arduino inserts prototypes before the first sketch function: declare helper types first');
@@ -338,13 +340,16 @@ send({
       areaId: animatedArea.id,
       text: 'Hola',
       effect: 'type',
+      repeatCount: 1,
       blockId: 'animated-text',
     },
+    { op: 'visualWait', deviceId: animated.device.id, blockId: 'wait-text' },
     {
       op: 'displayArtwork',
       deviceId: animated.device.id,
       artworkId: 'builtin-capybara',
       effect: 'blink',
+      repeatCount: 2,
       blockId: 'animated-artwork',
     },
   ]),

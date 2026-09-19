@@ -39,13 +39,16 @@ for (const profile of Object.keys(displayProfiles)) {
                     areaId,
                     text: 'Hola animado',
                     effect: 'scroll',
+                    repeatCount: 2,
                     blockId: 'animate',
                   },
+                  { op: 'visualWait', deviceId: device.id, blockId: 'wait-animation' },
                   {
                     op: 'displayArtwork',
                     deviceId: device.id,
                     artworkId: 'builtin-robot',
                     effect: 'slide',
+                    repeatCount: 1,
                     blockId: 'artwork',
                   },
                 ]

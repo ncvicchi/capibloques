@@ -19,6 +19,7 @@ const DISPLAY_ARTWORK_FIELD = 'ARTWORK_ID';
 const serializedAreaIds = new WeakMap<BlocklyWorkspaceSvg, Map<string, string>>();
 const EMPTY_FAVORITES: readonly string[] = [];
 const DEVICE_EXTENSION = 'capi_device_target_v2';
+const ANIMATION_REPEAT_EXTENSION = 'capi_animation_repeat_v1';
 const DEVICE_WARNING = 'capi-device-target';
 const MISSING_DEVICE_PREFIX = '__missing__:';
 
@@ -60,6 +61,7 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
     case 'capi_display_clear':
     case 'capi_display_animate_text':
     case 'capi_display_artwork': return ['display'];
+    case 'capi_visual_wait': return ['display', 'ledMatrix'];
     case 'capi_matrix_clear':
     case 'capi_matrix_pixel':
     case 'capi_matrix_pattern':
@@ -463,7 +465,7 @@ const toolbox = {
       kind: 'category',
       name: 'Mensajes',
       colour: '#59627D',
-      contents: [{ kind: 'block', type: 'capi_serial' }, { kind: 'block', type: 'capi_message_send' }, { kind: 'block', type: 'capi_message_receive' }, { kind: 'block', type: 'capi_display_write' }, { kind: 'block', type: 'capi_display_animate_text' }, { kind: 'block', type: 'capi_display_artwork' }, { kind: 'block', type: 'capi_display_clear' }],
+      contents: [{ kind: 'block', type: 'capi_serial' }, { kind: 'block', type: 'capi_message_send' }, { kind: 'block', type: 'capi_message_receive' }, { kind: 'block', type: 'capi_display_write' }, { kind: 'block', type: 'capi_display_animate_text' }, { kind: 'block', type: 'capi_display_artwork' }, { kind: 'block', type: 'capi_display_clear' }, { kind: 'block', type: 'capi_visual_wait' }],
     },
     {
       kind: 'category', name: 'Matriz LED', colour: '#B47B00',
@@ -472,6 +474,7 @@ const toolbox = {
         { kind: 'block', type: 'capi_matrix_pixel' },
         { kind: 'block', type: 'capi_matrix_pattern' },
         { kind: 'block', type: 'capi_matrix_scroll' },
+        { kind: 'block', type: 'capi_visual_wait' },
       ],
     },
   ],
@@ -493,6 +496,21 @@ function registerBlocks(Blockly: BlocklyApi) {
         updateDeviceWarning(this);
       },
     );
+  }
+  if (!Blockly.Extensions.isRegistered(ANIMATION_REPEAT_EXTENSION)) {
+    Blockly.Extensions.register(ANIMATION_REPEAT_EXTENSION, function (this: BlocklyBlock) {
+      const mode = this.getField('REPEAT_MODE') as BlocklyFieldDropdown | null;
+      const count = this.getField('REPEAT_COUNT');
+      const showCount = (value: string | null | undefined) => {
+        count?.setVisible(value === 'COUNT');
+        if (this.rendered) (this as BlocklyBlock & { render(): void }).render();
+      };
+      mode?.setValidator((value) => {
+        showCount(String(value));
+        return value;
+      });
+      showCount(String(mode?.getValue() ?? 'ONCE'));
+    });
   }
   if (registeredBlocklies.has(Blockly)) return;
 
@@ -1020,11 +1038,16 @@ function registerBlocks(Blockly: BlocklyApi) {
         { type: 'field_input', name: 'TEXT', text: 'Hola!' },
         { type: 'field_dropdown', name: 'EFFECT', options: [['aparecer', 'TYPE'], ['desplazarse', 'SCROLL'], ['parpadear', 'BLINK']] },
       ],
+      message1: 'repetir %1 %2',
+      args1: [
+        { type: 'field_dropdown', name: 'REPEAT_MODE', options: [['una vez', 'ONCE'], ['varias veces', 'COUNT'], ['sin parar', 'FOREVER']] },
+        { type: 'field_number', name: 'REPEAT_COUNT', value: 2, min: 2, max: 100, precision: 1 },
+      ],
       previousStatement: null,
       nextStatement: null,
       colour: '#59627D',
-      extensions: [DEVICE_EXTENSION],
-      tooltip: 'Anima un mensaje con la velocidad elegida en la escena y continúa al terminar.',
+      extensions: [DEVICE_EXTENSION, ANIMATION_REPEAT_EXTENSION],
+      tooltip: 'Inicia la animación y continúa inmediatamente. Puede ejecutarse una vez, varias veces o sin parar.',
     },
     {
       type: 'capi_display_artwork',
@@ -1034,11 +1057,22 @@ function registerBlocks(Blockly: BlocklyApi) {
         { type: 'field_dropdown', name: DISPLAY_ARTWORK_FIELD, options: [['Corazón', 'builtin-heart']] },
         { type: 'field_dropdown', name: 'EFFECT', options: [['quieto', 'STILL'], ['deslizar', 'SLIDE'], ['parpadear', 'BLINK']] },
       ],
+      message1: 'repetir %1 %2',
+      args1: [
+        { type: 'field_dropdown', name: 'REPEAT_MODE', options: [['una vez', 'ONCE'], ['varias veces', 'COUNT'], ['sin parar', 'FOREVER']] },
+        { type: 'field_number', name: 'REPEAT_COUNT', value: 2, min: 2, max: 100, precision: 1 },
+      ],
       previousStatement: null,
       nextStatement: null,
       colour: '#59627D',
-      extensions: [DEVICE_EXTENSION],
-      tooltip: 'Muestra un dibujo incluido o creado en una pantalla OLED/TFT.',
+      extensions: [DEVICE_EXTENSION, ANIMATION_REPEAT_EXTENSION],
+      tooltip: 'Muestra un dibujo y, si tiene efecto, lo anima en segundo plano.',
+    },
+    {
+      type: 'capi_visual_wait', message0: '⏳ esperar a que termine %1',
+      args0: [deviceField('Elegí una pantalla')],
+      previousStatement: null, nextStatement: null, colour: '#59627D', extensions: [DEVICE_EXTENSION],
+      tooltip: 'Espera solamente en este camino hasta que termine la animación actual. Los otros caminos siguen.',
     },
     {
       type: 'capi_matrix_clear', message0: '⬛ limpiar %1', args0: [deviceField('Elegí una matriz')],
@@ -1066,8 +1100,11 @@ function registerBlocks(Blockly: BlocklyApi) {
         deviceField('Elegí una matriz'),
         { type: 'field_input', name: 'TEXT', text: 'HOLA' },
         { type: 'field_number', name: 'SPEED', value: 120, min: 40, max: 1000, precision: 10 },
-      ], previousStatement: null, nextStatement: null, colour: '#B47B00', extensions: [DEVICE_EXTENSION],
-      tooltip: 'Mueve el texto sin detener los otros caminos y sigue al terminar.',
+      ], message1: 'repetir %1 %2', args1: [
+        { type: 'field_dropdown', name: 'REPEAT_MODE', options: [['una vez', 'ONCE'], ['varias veces', 'COUNT'], ['sin parar', 'FOREVER']] },
+        { type: 'field_number', name: 'REPEAT_COUNT', value: 2, min: 2, max: 100, precision: 1 },
+      ], previousStatement: null, nextStatement: null, colour: '#B47B00', extensions: [DEVICE_EXTENSION, ANIMATION_REPEAT_EXTENSION],
+      tooltip: 'Inicia el desplazamiento y continúa inmediatamente. Puede repetirse o quedar ciclando.',
     },
   ]);
   Blockly.Blocks['capi_parallel'] = {
@@ -1147,6 +1184,13 @@ function ensureSingleStart(Blockly: BlocklyApi, workspace: BlocklyWorkspaceSvg) 
 const numberField = (block: BlocklyBlock, name: string, fallback = 0) => {
   const parsed = Number(block.getFieldValue(name));
   return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const animationRepeatCount = (block: BlocklyBlock) => {
+  const mode = block.getFieldValue('REPEAT_MODE');
+  if (mode === 'FOREVER') return 0;
+  if (mode === 'COUNT') return Math.max(2, Math.min(100, Math.floor(numberField(block, 'REPEAT_COUNT', 2))));
+  return 1;
 };
 
 function compileCondition(block: BlocklyBlock | null): Condition {
@@ -1356,6 +1400,7 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           areaId: String(block.getFieldValue(AREA_FIELD) ?? ''),
           text: String(block.getFieldValue('TEXT') ?? ''),
           effect: block.getFieldValue('EFFECT') === 'SCROLL' ? 'scroll' : block.getFieldValue('EFFECT') === 'BLINK' ? 'blink' : 'type',
+          repeatCount: animationRepeatCount(block),
           blockId,
         });
         break;
@@ -1365,8 +1410,12 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           deviceId: selectedDeviceId(block),
           artworkId: String(block.getFieldValue(DISPLAY_ARTWORK_FIELD) ?? ''),
           effect: block.getFieldValue('EFFECT') === 'SLIDE' ? 'slide' : block.getFieldValue('EFFECT') === 'BLINK' ? 'blink' : 'still',
+          repeatCount: animationRepeatCount(block),
           blockId,
         });
+        break;
+      case 'capi_visual_wait':
+        result.push({ op: 'visualWait', deviceId: selectedDeviceId(block), blockId });
         break;
       case 'capi_matrix_clear':
         result.push({ op: 'matrixClear', deviceId: selectedDeviceId(block), blockId });
@@ -1378,7 +1427,7 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
         result.push({ op: 'matrixPattern', deviceId: selectedDeviceId(block), patternId: String(block.getFieldValue(PATTERN_FIELD) ?? ''), blockId });
         break;
       case 'capi_matrix_scroll':
-        result.push({ op: 'matrixScroll', deviceId: selectedDeviceId(block), text: String(block.getFieldValue('TEXT') ?? ''), speedMs: numberField(block, 'SPEED', 120), blockId });
+        result.push({ op: 'matrixScroll', deviceId: selectedDeviceId(block), text: String(block.getFieldValue('TEXT') ?? ''), speedMs: numberField(block, 'SPEED', 120), repeatCount: animationRepeatCount(block), blockId });
         break;
     }
     block = block.getNextBlock();

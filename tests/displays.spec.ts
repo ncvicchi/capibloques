@@ -105,15 +105,26 @@ function animatedSample() {
                   AREA_ID: 'text-1',
                   TEXT: 'Hola!',
                   EFFECT: 'TYPE',
+                  REPEAT_MODE: 'COUNT',
+                  REPEAT_COUNT: 2,
                 },
                 next: {
                   block: {
-                    type: 'capi_display_artwork',
-                    id: 'animate-artwork',
-                    fields: {
-                      DEVICE_ID: device.id,
-                      ARTWORK_ID: 'builtin-capybara',
-                      EFFECT: 'BLINK',
+                    type: 'capi_visual_wait',
+                    id: 'wait-text-animation',
+                    fields: { DEVICE_ID: device.id },
+                    next: {
+                      block: {
+                        type: 'capi_display_artwork',
+                        id: 'animate-artwork',
+                        fields: {
+                          DEVICE_ID: device.id,
+                          ARTWORK_ID: 'builtin-capybara',
+                          EFFECT: 'BLINK',
+                          REPEAT_MODE: 'ONCE',
+                          REPEAT_COUNT: 2,
+                        },
+                      },
                     },
                   },
                 },
@@ -463,6 +474,8 @@ test('pantalla gráfica: crea dibujos, ofrece avatares y anima sin bloquear', as
   });
   await page.getByRole('button', { name: 'Conservar copia local y abrir', exact: true }).click();
   await expect(page.locator('[data-id="animate-text"]')).toContainText('aparecer');
+  await expect(page.locator('[data-id="animate-text"]')).toContainText('varias veces');
+  await expect(page.locator('[data-id="wait-text-animation"]')).toContainText('esperar a que termine');
   await expect(page.locator('[data-id="animate-artwork"]')).toContainText('Capibara');
   await page.getByRole('button', { name: 'Ejecutar', exact: true }).click();
   await expect(page.getByText('Programa terminado', { exact: true })).toBeVisible({ timeout: 15_000 });

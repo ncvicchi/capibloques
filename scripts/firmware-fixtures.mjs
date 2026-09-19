@@ -234,7 +234,8 @@ export function matrixFirmwareFixture() {
     program: { version: 2, threads: [{ id: 'matrix-thread', startBlockId: 'matrix-start', nodes: [
       { op: 'matrixPattern', deviceId: matrix.id, patternId: matrix.config.patterns[0].id, blockId: 'matrix-pattern' },
       { op: 'matrixPixel', deviceId: matrix.id, x: 31, y: 7, enabled: true, blockId: 'matrix-pixel' },
-      { op: 'matrixScroll', deviceId: matrix.id, text: '¡Hola, Capi!', speedMs: 80, blockId: 'matrix-scroll' },
+      { op: 'matrixScroll', deviceId: matrix.id, text: '¡Hola, Capi!', speedMs: 80, repeatCount: 2, blockId: 'matrix-scroll' },
+      { op: 'visualWait', deviceId: matrix.id, blockId: 'matrix-wait' },
       { op: 'matrixClear', deviceId: matrix.id, blockId: 'matrix-clear' },
     ] }] },
   };

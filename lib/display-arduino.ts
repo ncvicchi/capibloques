@@ -74,6 +74,7 @@ void capiDisplayBegin() {
 ${init}
 }
 void capiDisplayService(uint32_t now) {
+  capiDisplayAnimationService(now);
   static uint32_t last = 0;
   static uint16_t cursor = 0;
   if (!capiDisplayReady || (uint32_t)(now - last) < 2U) return;

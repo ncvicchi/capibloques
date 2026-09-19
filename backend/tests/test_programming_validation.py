@@ -20,3 +20,6 @@ class ParallelWorkspaceTests(SimpleTestCase):
 
     def test_legacy_multiple_starts_remain_readable_without_rewriting_history(self):
         workspace({"blocks": {"languageVersion": 0, "blocks": [{"type": "capi_start", "id": "a"}, {"type": "capi_start", "id": "b"}]}})
+
+    def test_visual_animation_wait_is_portable(self):
+        workspace({"blocks": {"languageVersion": 0, "blocks": [{"type": "capi_start", "id": "start", "inputs": {"DO": {"block": {"type": "capi_visual_wait", "id": "wait-screen", "fields": {"DEVICE_ID": "screen-1"}}}}}]}})

@@ -112,12 +112,13 @@ export type ProgramNode =
     }
   | { op: 'displayWrite'; deviceId: string; areaId: string; text: string; blockId: string }
   | { op: 'displayClear'; deviceId: string; areaId: string; blockId: string }
-  | { op: 'displayAnimateText'; deviceId: string; areaId: string; text: string; effect: DisplayTextEffect; blockId: string }
-  | { op: 'displayArtwork'; deviceId: string; artworkId: string; effect: DisplayArtworkEffect; blockId: string }
+  | { op: 'displayAnimateText'; deviceId: string; areaId: string; text: string; effect: DisplayTextEffect; repeatCount: number; blockId: string }
+  | { op: 'displayArtwork'; deviceId: string; artworkId: string; effect: DisplayArtworkEffect; repeatCount: number; blockId: string }
+  | { op: 'visualWait'; deviceId: string; blockId: string }
   | { op: 'matrixClear'; deviceId: string; blockId: string }
   | { op: 'matrixPixel'; deviceId: string; x: number; y: number; enabled: boolean; blockId: string }
   | { op: 'matrixPattern'; deviceId: string; patternId: string; blockId: string }
-  | { op: 'matrixScroll'; deviceId: string; text: string; speedMs: number; blockId: string }
+  | { op: 'matrixScroll'; deviceId: string; text: string; speedMs: number; repeatCount: number; blockId: string }
   | {
       op: 'tone';
       deviceId: string;
@@ -777,6 +778,7 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_display_clear',
   'capi_display_animate_text',
   'capi_display_artwork',
+  'capi_visual_wait',
   'capi_matrix_clear',
   'capi_matrix_pixel',
   'capi_matrix_pattern',
@@ -1568,6 +1570,7 @@ const compatibleKindsForNode = (
     case 'displayClear':
     case 'displayAnimateText':
     case 'displayArtwork': return ['display'];
+    case 'visualWait': return ['display', 'ledMatrix'];
     case 'matrixClear':
     case 'matrixPixel':
     case 'matrixPattern':
@@ -1842,6 +1845,7 @@ function normalizeNodes(
           areaId: typeof node.areaId === 'string' ? node.areaId : '',
           text: typeof node.text === 'string' ? node.text : '',
           effect: ['type', 'scroll', 'blink'].includes(String(node.effect)) ? node.effect as DisplayTextEffect : 'type',
+          repeatCount: node.repeatCount === 0 ? 0 : Math.max(1, Math.min(100, Math.floor(finiteNumber(node.repeatCount, 1)))),
           blockId,
         });
         break;
@@ -1851,8 +1855,12 @@ function normalizeNodes(
           deviceId: typeof node.deviceId === 'string' ? node.deviceId : '',
           artworkId: typeof node.artworkId === 'string' ? node.artworkId : '',
           effect: ['still', 'slide', 'blink'].includes(String(node.effect)) ? node.effect as DisplayArtworkEffect : 'still',
+          repeatCount: node.repeatCount === 0 ? 0 : Math.max(1, Math.min(100, Math.floor(finiteNumber(node.repeatCount, 1)))),
           blockId,
         });
+        break;
+      case 'visualWait':
+        result.push({ op: 'visualWait', deviceId: typeof node.deviceId === 'string' ? node.deviceId : '', blockId });
         break;
       case 'matrixClear':
         result.push({ op: 'matrixClear', deviceId, blockId });
@@ -1864,7 +1872,7 @@ function normalizeNodes(
         result.push({ op: 'matrixPattern', deviceId, patternId: typeof node.patternId === 'string' ? node.patternId : '', blockId });
         break;
       case 'matrixScroll':
-        result.push({ op: 'matrixScroll', deviceId, text: typeof node.text === 'string' ? node.text : '', speedMs: finiteNumber(node.speedMs, 120), blockId });
+        result.push({ op: 'matrixScroll', deviceId, text: typeof node.text === 'string' ? node.text : '', speedMs: finiteNumber(node.speedMs, 120), repeatCount: node.repeatCount === 0 ? 0 : Math.max(1, Math.min(100, Math.floor(finiteNumber(node.repeatCount, 1)))), blockId });
         break;
       case 'repeat':
         result.push({
@@ -2100,7 +2108,15 @@ export function validateProgramForScene(
   try { compileTaskGraph(program); } catch (error) {
     diagnostics.push({ severity: 'error', code: 'parallel-limit', message: error instanceof Error ? error.message : 'Demasiados caminos paralelos.' });
   }
+  const foreverVisualDevices = new Set<string>();
+  const visualWaitBlocks = new Map<string, string>();
   visitProgram(program, (node) => {
+    if (node.op === 'displayAnimateText' || node.op === 'displayArtwork' || node.op === 'matrixScroll') {
+      if (!Number.isInteger(node.repeatCount) || node.repeatCount < 0 || node.repeatCount > 100)
+        diagnostics.push({ severity: 'error', code: 'animation-repeat-range', message: 'La animación debe repetirse entre 1 y 100 veces, o quedar sin parar.', blockId: node.blockId, deviceId: node.deviceId });
+      if (node.repeatCount === 0 && !(node.op === 'displayArtwork' && node.effect === 'still')) foreverVisualDevices.add(node.deviceId);
+    }
+    if (node.op === 'visualWait') visualWaitBlocks.set(node.deviceId, node.blockId);
     if (node.op === 'messageSend' || node.op === 'messageReceive') {
       const text = node.op === 'messageSend' ? node.text : node.expected;
       const bytes = new TextEncoder().encode(text).length;
@@ -2215,6 +2231,10 @@ export function validateProgramForScene(
       );
     }
   });
+  for (const deviceId of foreverVisualDevices) {
+    const blockId = visualWaitBlocks.get(deviceId);
+    if (blockId) diagnostics.push({ severity: 'warning', code: 'wait-for-forever-animation', message: 'Esta pantalla tiene una animación “sin parar”: la espera sólo finalizará si otro camino la reemplaza, escribe o borra.', blockId, deviceId });
+  }
   return diagnostics.filter(
     (diagnostic, index, all) =>
       all.findIndex(
@@ -2576,8 +2596,7 @@ function instructionToCpp(
       if (!area || device?.kind !== 'display')
         return `${comment}\n        // Destino inválido: revisar el diagnóstico #error.\n        ${pc} = ${nextPc};\n        break;`;
       const effect = instruction.effect === 'scroll' ? 1 : instruction.effect === 'blink' ? 2 : 0;
-      const token = Number.parseInt(hashId(instruction.blockId), 16) >>> 0;
-      return `${comment}\n        if (!capiDisplayAnimateText(${token}UL, ${area.column}, ${area.row}, ${area.columns}, ${area.rows}, ${cppString(layoutDisplayText(instruction.text, area).cells)}, ${effect}, ${displayAnimationMs(device.config.animationSpeed)}, now)) return;\n        ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        capiDisplayStartText(${area.column}, ${area.row}, ${area.columns}, ${area.rows}, ${cppString(layoutDisplayText(instruction.text, area).cells)}, ${effect}, ${displayAnimationMs(device.config.animationSpeed)}, ${Math.max(0, Math.min(100, Math.round(instruction.repeatCount)))}U, now);\n        ${pc} = ${nextPc};\n        break;`;
     }
     case 'displayArtwork': {
       const device = context.scene.devices.find(device => device.id === instruction.deviceId);
@@ -2585,8 +2604,16 @@ function instructionToCpp(
       if (!artwork || device?.kind !== 'display')
         return `${comment}\n        // Dibujo inválido: revisar el diagnóstico #error.\n        ${pc} = ${nextPc};\n        break;`;
       const effect = instruction.effect === 'slide' ? 1 : instruction.effect === 'blink' ? 2 : 0;
-      const token = Number.parseInt(hashId(instruction.blockId), 16) >>> 0;
-      return `${comment}\n        if (!capiDisplayArtwork(${token}UL, DISPLAY_ART_${deviceSymbol(context, instruction.deviceId)}_${cppIdentifier(artwork.id)}, ${effect}, ${displayAnimationMs(device.config.animationSpeed)}, now)) return;\n        ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        capiDisplayStartArtwork(DISPLAY_ART_${deviceSymbol(context, instruction.deviceId)}_${cppIdentifier(artwork.id)}, ${effect}, ${displayAnimationMs(device.config.animationSpeed)}, ${Math.max(0, Math.min(100, Math.round(instruction.repeatCount)))}U, now);\n        ${pc} = ${nextPc};\n        break;`;
+    }
+    case 'visualWait': {
+      const device = context.scene.devices.find(device => device.id === instruction.deviceId);
+      const active = device?.kind === 'display'
+        ? 'capiDisplayAnimationActive()'
+        : device?.kind === 'ledMatrix'
+          ? 'capiMatrixAnimationActive()'
+          : 'false';
+      return `${comment}\n        if (${active}) return;\n        ${pc} = ${nextPc};\n        break;`;
     }
     case 'matrixClear':
       return `${comment}\n        capiMatrixClear();\n        ${pc} = ${nextPc};\n        break;`;
@@ -2595,7 +2622,7 @@ function instructionToCpp(
     case 'matrixPattern':
       return `${comment}\n        capiMatrixPattern(PATTERN_${deviceSymbol(context, instruction.deviceId)}_${cppIdentifier(instruction.patternId)});\n        ${pc} = ${nextPc};\n        break;`;
     case 'matrixScroll':
-      return `${comment}\n        if (!capiMatrixScroll(${cppString(normalizedMatrixTextLiteral(instruction.text))}, ${Math.max(40, Math.min(1000, Math.round(instruction.speedMs)))}, now)) return;\n        ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        capiMatrixStartScroll(${cppString(normalizedMatrixTextLiteral(instruction.text))}, ${Math.max(40, Math.min(1000, Math.round(instruction.speedMs)))}, ${Math.max(0, Math.min(100, Math.round(instruction.repeatCount)))}U, now);\n        ${pc} = ${nextPc};\n        break;`;
     case 'repeatStart':
       return `${comment}\n        if (${loops}[${instruction.slot}] < 0) ${loops}[${instruction.slot}] = ${instruction.count};\n        if (${loops}[${instruction.slot}] == 0) { ${loops}[${instruction.slot}] = -1; ${pc} = ${instruction.end}; }\n        else { ${pc} = ${nextPc}; }\n        break;`;
     case 'repeatNext':
@@ -3025,6 +3052,7 @@ ${matrixSupport ? '  capiMatrixBegin();' : ''}
     const uint32_t now = capiMillis();
 ${serviceBuzzerLines(scene, symbols, framework)}
 ${displaySupport ? '    capiDisplayService(now);' : ''}
+${matrixSupport ? '    capiMatrixService(now);' : ''}
     if ((uint32_t)(now - lastSchedulerTick) >= SCHEDULER_QUANTUM_MS) {
       lastSchedulerTick = now;
 ${runThreads}
@@ -3043,6 +3071,7 @@ void loop() {
   const uint32_t now = millis();
 ${serviceBuzzerLines(scene, symbols)}
 ${displaySupport ? '  capiDisplayService(now);' : ''}
+${matrixSupport ? '  capiMatrixService(now);' : ''}
   if ((uint32_t)(now - lastSchedulerTick) < SCHEDULER_QUANTUM_MS) {
     yield();
     return;

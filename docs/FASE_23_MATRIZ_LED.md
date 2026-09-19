@@ -32,7 +32,7 @@ La categoría **Matriz LED** incorpora cuatro acciones:
 
 El texto se normaliza a una fuente 5 × 7 portable de mayúsculas, números y signos básicos. Los caracteres no representables se convierten en `?`; el comportamiento es igual en navegador y firmware.
 
-La escena muestra los 256 puntos y el editor permite cambiarlos con botones accesibles. El texto desplazable es cooperativo: sólo espera el camino que lo ejecuta, actualiza su progreso visible y deja continuar sensores, delays, mensajes y otros caminos de `Al mismo tiempo`. Detener o reiniciar cancela el desplazamiento. Se agregó el ejemplo **Cartel luminoso**.
+La escena muestra los 256 puntos y el editor permite cambiarlos con botones accesibles. El texto desplazable corre en segundo plano y el mismo camino sigue inmediatamente. Puede ejecutarse una vez, entre 2 y 100 veces o sin parar. El bloque `esperar a que termine [matriz]` permite sincronizar sólo cuando hace falta; limpiar, cambiar un píxel, mostrar un dibujo o iniciar otro desplazamiento cancela el anterior. Detener o reiniciar también lo cancela. Se agregó el ejemplo **Cartel luminoso**.
 
 ## Firmware y cableado
 

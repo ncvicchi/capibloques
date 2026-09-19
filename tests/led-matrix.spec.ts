@@ -14,7 +14,7 @@ function sample() {
   return makeProject('Cartel luminoso', scene, { blocks: { languageVersion: 0, blocks: [{
     type: 'capi_start', id: 'start', x: 40, y: 40, inputs: { DO: { block: {
       type: 'capi_matrix_pattern', id: 'pattern', fields: { DEVICE_ID: device.id, PATTERN_ID: 'heart' }, next: { block: {
-        type: 'capi_matrix_scroll', id: 'scroll', fields: { DEVICE_ID: device.id, TEXT: 'HOLA', SPEED: 80 },
+        type: 'capi_matrix_scroll', id: 'scroll', fields: { DEVICE_ID: device.id, TEXT: 'HOLA', SPEED: 80, REPEAT_MODE: 'FOREVER', REPEAT_COUNT: 2 },
       } },
     } } },
   }] } });

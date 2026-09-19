@@ -36,6 +36,7 @@ class PreferenceTests(TestCase):
         self.assertEqual(session["avatarId"], "capybara")
         self.assertNotIn("favorites", session)
         self.assertNotIn("capi_start", BLOCKS)
+        self.assertIn("capi_visual_wait", BLOCKS)
         self.assertGreaterEqual(len(AVATARS), 12)
 
     def test_patch_persists_across_sessions_without_revoking_or_changing_roles(self):

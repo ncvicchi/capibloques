@@ -1,12 +1,20 @@
-/** C++ shared by Arduino and ESP-IDF display adapters. Effects are cooperative. */
+/** C++ shared by Arduino and ESP-IDF display adapters. Effects run in background. */
 export function displayAnimationFirmwareSupport() {
   return `struct CapiDisplayAnimation {
   bool active = false;
-  uint32_t token = 0;
+  uint8_t kind = 0;
+  uint8_t effect = 0;
   uint16_t step = 0;
+  uint16_t speedMs = 0;
+  uint16_t repeatsRemaining = 1;
   uint32_t nextAt = 0;
+  uint16_t column = 0, row = 0, columns = 0, rows = 0;
+  const char* cells = nullptr;
+  const uint16_t* artwork = nullptr;
 };
 CapiDisplayAnimation capiDisplayAnimation;
+void capiDisplayCancelAnimation() { capiDisplayAnimation.active = false; }
+bool capiDisplayAnimationActive() { return capiDisplayAnimation.active; }
 void capiDisplayWriteCells(uint16_t column, uint16_t row, uint16_t columns, uint16_t rows, const char* cells) {
   if (column + columns > CAPI_DISPLAY_COLUMNS || row + rows > CAPI_DISPLAY_ROWS) return;
   for (uint16_t y = 0; y < rows; ++y) {
@@ -15,44 +23,8 @@ void capiDisplayWriteCells(uint16_t column, uint16_t row, uint16_t columns, uint
   }
 }
 void capiDisplayWrite(uint16_t column, uint16_t row, uint16_t columns, uint16_t rows, const char* cells) {
-  capiDisplayAnimation.active = false;
+  capiDisplayCancelAnimation();
   capiDisplayWriteCells(column, row, columns, rows, cells);
-}
-bool capiDisplayAnimationTurn(uint32_t token, uint16_t speedMs, uint32_t now) {
-  if (!capiDisplayAnimation.active) {
-    capiDisplayAnimation.active = true; capiDisplayAnimation.token = token;
-    capiDisplayAnimation.step = 0; capiDisplayAnimation.nextAt = now;
-  }
-  if (capiDisplayAnimation.token != token || (int32_t)(now - capiDisplayAnimation.nextAt) < 0) return false;
-  capiDisplayAnimation.nextAt = now + speedMs;
-  return true;
-}
-bool capiDisplayAnimateText(uint32_t token, uint16_t column, uint16_t row, uint16_t columns, uint16_t rows, const char* cells, uint8_t effect, uint16_t speedMs, uint32_t now) {
-  if (!capiDisplayAnimationTurn(token, speedMs, now)) return false;
-  const uint16_t count = columns * rows;
-  char frame[CAPI_DISPLAY_CELLS]; memset(frame, ' ', count);
-  bool done = false;
-  if (effect == 0) { // aparece en hasta 24 pasos
-    const uint16_t chunk = (count + 23U) / 24U;
-    const uint32_t reveal = (uint32_t)(capiDisplayAnimation.step + 1U) * chunk;
-    const uint16_t visible = (uint16_t)(reveal < count ? reveal : count);
-    memcpy(frame, cells, visible); done = visible >= count;
-  } else if (effect == 1) { // entra desde la derecha
-    const uint16_t offset = (uint16_t)((uint32_t)capiDisplayAnimation.step + 1U < columns ? (uint32_t)capiDisplayAnimation.step + 1U : columns);
-    for (uint16_t y = 0; y < rows; ++y) for (uint16_t x = 0; x < columns; ++x) {
-      const int source = (int)x - (int)(columns - offset);
-      if (source >= 0) frame[y * columns + x] = cells[y * columns + (uint16_t)source];
-    }
-    done = offset >= columns;
-  } else { // dos parpadeos y termina visible
-    const bool visible = capiDisplayAnimation.step % 2U == 0;
-    if (visible) memcpy(frame, cells, count);
-    done = capiDisplayAnimation.step >= 4U;
-  }
-  capiDisplayWriteCells(column, row, columns, rows, frame);
-  ++capiDisplayAnimation.step;
-  if (done) capiDisplayAnimation.active = false;
-  return done;
 }
 void capiDisplayArtworkFrame(const uint16_t* rows, int16_t shift, bool visible) {
   memset(capiDisplayWanted, ' ', CAPI_DISPLAY_CELLS);
@@ -65,20 +37,63 @@ void capiDisplayArtworkFrame(const uint16_t* rows, int16_t shift, bool visible) 
       capiDisplayWanted[targetY * CAPI_DISPLAY_COLUMNS + targetX] = 0x7f;
   }
 }
-bool capiDisplayArtwork(uint32_t token, const uint16_t* rows, uint8_t effect, uint16_t speedMs, uint32_t now) {
-  if (effect == 0) { capiDisplayAnimation.active = false; capiDisplayArtworkFrame(rows, 0, true); return true; }
-  if (!capiDisplayAnimationTurn(token, speedMs, now)) return false;
+void capiDisplayStartText(uint16_t column, uint16_t row, uint16_t columns, uint16_t rows, const char* cells, uint8_t effect, uint16_t speedMs, uint16_t repeatCount, uint32_t now) {
+  capiDisplayAnimation = {};
+  capiDisplayAnimation.active = true; capiDisplayAnimation.kind = 1; capiDisplayAnimation.effect = effect;
+  capiDisplayAnimation.speedMs = speedMs; capiDisplayAnimation.nextAt = now;
+  capiDisplayAnimation.repeatsRemaining = repeatCount;
+  capiDisplayAnimation.column = column; capiDisplayAnimation.row = row;
+  capiDisplayAnimation.columns = columns; capiDisplayAnimation.rows = rows; capiDisplayAnimation.cells = cells;
+}
+void capiDisplayStartArtwork(const uint16_t* rows, uint8_t effect, uint16_t speedMs, uint16_t repeatCount, uint32_t now) {
+  capiDisplayCancelAnimation();
+  if (effect == 0) { capiDisplayArtworkFrame(rows, 0, true); return; }
+  capiDisplayAnimation = {};
+  capiDisplayAnimation.active = true; capiDisplayAnimation.kind = 2; capiDisplayAnimation.effect = effect;
+  capiDisplayAnimation.speedMs = speedMs; capiDisplayAnimation.nextAt = now; capiDisplayAnimation.artwork = rows;
+  capiDisplayAnimation.repeatsRemaining = repeatCount;
+}
+void capiDisplayAnimationService(uint32_t now) {
+  if (!capiDisplayAnimation.active || (int32_t)(now - capiDisplayAnimation.nextAt) < 0) return;
+  capiDisplayAnimation.nextAt = now + capiDisplayAnimation.speedMs;
   bool done = false;
-  if (effect == 1) {
-    const int remaining = 16 - (int)capiDisplayAnimation.step;
-    const int16_t shift = (int16_t)(remaining > 0 ? remaining : 0);
-    capiDisplayArtworkFrame(rows, shift, true); done = shift == 0;
-  } else {
-    capiDisplayArtworkFrame(rows, 0, capiDisplayAnimation.step % 2U == 0);
-    done = capiDisplayAnimation.step >= 4U;
+  if (capiDisplayAnimation.kind == 1) {
+    const uint16_t count = capiDisplayAnimation.columns * capiDisplayAnimation.rows;
+    char frame[CAPI_DISPLAY_CELLS]; memset(frame, ' ', count);
+    if (capiDisplayAnimation.effect == 0) {
+      const uint16_t chunk = (count + 23U) / 24U;
+      const uint32_t reveal = (uint32_t)(capiDisplayAnimation.step + 1U) * chunk;
+      const uint16_t visible = (uint16_t)(reveal < count ? reveal : count);
+      memcpy(frame, capiDisplayAnimation.cells, visible); done = visible >= count;
+    } else if (capiDisplayAnimation.effect == 1) {
+      const uint16_t offset = (uint16_t)((uint32_t)capiDisplayAnimation.step + 1U < capiDisplayAnimation.columns ? (uint32_t)capiDisplayAnimation.step + 1U : capiDisplayAnimation.columns);
+      for (uint16_t y = 0; y < capiDisplayAnimation.rows; ++y) for (uint16_t x = 0; x < capiDisplayAnimation.columns; ++x) {
+        const int source = (int)x - (int)(capiDisplayAnimation.columns - offset);
+        if (source >= 0) frame[y * capiDisplayAnimation.columns + x] = capiDisplayAnimation.cells[y * capiDisplayAnimation.columns + (uint16_t)source];
+      }
+      done = offset >= capiDisplayAnimation.columns;
+    } else {
+      if (capiDisplayAnimation.step % 2U == 0) memcpy(frame, capiDisplayAnimation.cells, count);
+      done = capiDisplayAnimation.step >= 4U;
+    }
+    capiDisplayWriteCells(capiDisplayAnimation.column, capiDisplayAnimation.row, capiDisplayAnimation.columns, capiDisplayAnimation.rows, frame);
+  } else if (capiDisplayAnimation.kind == 2) {
+    if (capiDisplayAnimation.effect == 1) {
+      const int remaining = 16 - (int)capiDisplayAnimation.step;
+      const int16_t shift = (int16_t)(remaining > 0 ? remaining : 0);
+      capiDisplayArtworkFrame(capiDisplayAnimation.artwork, shift, true); done = shift == 0;
+    } else {
+      capiDisplayArtworkFrame(capiDisplayAnimation.artwork, 0, capiDisplayAnimation.step % 2U == 0);
+      done = capiDisplayAnimation.step >= 4U;
+    }
   }
   ++capiDisplayAnimation.step;
-  if (done) capiDisplayAnimation.active = false;
-  return done;
+  if (done) {
+    if (capiDisplayAnimation.repeatsRemaining == 1) capiDisplayAnimation.active = false;
+    else {
+      if (capiDisplayAnimation.repeatsRemaining > 1) --capiDisplayAnimation.repeatsRemaining;
+      capiDisplayAnimation.step = 0;
+    }
+  }
 }`;
 }

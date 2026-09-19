@@ -42,6 +42,7 @@
     { "type": "capi_display_write", "name": "Escribir en pantalla", "category": "Mensajes" },
     { "type": "capi_display_animate_text", "name": "Animar texto", "category": "Mensajes" },
     { "type": "capi_display_artwork", "name": "Mostrar dibujo", "category": "Mensajes" },
+    { "type": "capi_visual_wait", "name": "Esperar animación", "category": "Mensajes" },
     { "type": "capi_display_clear", "name": "Borrar texto de pantalla", "category": "Mensajes" }
   ]
 }

@@ -378,7 +378,8 @@ advance(16);
 assert.ok(latestState().console.some(line => line.includes('rama igual')));
 assert.equal(latestState().devices[link.id].received.at(-1), 'DETENER');
 
-// El texto de la matriz espera de forma cooperativa: otro camino continúa.
+// El texto de la matriz arranca en segundo plano: el mismo camino continúa y
+// sólo el bloque de espera explícito se detiene.
 const matrix = {
   schemaVersion: 1, id: 'matrix-test', kind: 'ledMatrix', name: 'Cartel',
   position: { x: 120, y: 90 }, rotation: 0, pins: { din: 26, clk: 25, cs: 27 }, config: ledMatrixConfig(),
@@ -386,14 +387,25 @@ const matrix = {
 send({ type: 'LOAD', scene: baseScene([matrix]), program: { version: 2, threads: [
   { id: 'matrix-thread', startBlockId: 'matrix-start', nodes: [
     { op: 'matrixPattern', deviceId: matrix.id, patternId: 'heart', blockId: 'pattern' },
-    { op: 'matrixScroll', deviceId: matrix.id, text: 'HOLA', speedMs: 40, blockId: 'scroll' },
+    { op: 'matrixScroll', deviceId: matrix.id, text: 'HOLA', speedMs: 40, repeatCount: 0, blockId: 'scroll' },
+    { op: 'counterChange', delta: 1, blockId: 'same-path-counter' },
+    { op: 'visualWait', deviceId: matrix.id, blockId: 'wait-matrix' },
+    { op: 'serial', text: 'matriz lista', blockId: 'matrix-done' },
   ] },
-  { id: 'counter-thread', startBlockId: 'counter-start', nodes: [{ op: 'counterChange', delta: 1, blockId: 'counter-during-scroll' }] },
+  { id: 'counter-thread', startBlockId: 'counter-start', nodes: [
+    { op: 'counterChange', delta: 1, blockId: 'counter-during-scroll' },
+    { op: 'wait', ms: 64, blockId: 'wait-before-clear' },
+    { op: 'matrixClear', deviceId: matrix.id, blockId: 'cancel-scroll' },
+  ] },
 ] } });
 send({ type: 'RUN' });
 advance(16); advance(16); advance(16);
 assert.equal(latestState().devices[matrix.id].scrolling, true);
-assert.equal(latestState().counter, 1);
+assert.equal(latestState().counter, 2);
 assert.equal(latestState().execution.tasks[0].status, 'waiting');
+for (let turn = 0; turn < 8 && latestState().status !== 'done'; turn++) advance(16);
+assert.equal(latestState().status, 'done');
+assert.equal(latestState().devices[matrix.id].scrolling, false);
+assert.ok(latestState().console.some(line => line.includes('matriz lista')));
 
 console.log('Simulator worker smoke checks passed.');

@@ -19,9 +19,9 @@ El propietario confirmó LCD I2C 16×2/20×4 y OLED SSD1306 128×64, y pidió su
 ### Ampliación educativa de gráficos y animaciones — 19 de septiembre de 2026
 
 - LCD conserva texto y suma animaciones **aparecer**, **desplazarse** y **parpadear**. OLED/TFT suman los mismos efectos y dibujos monocromáticos de 16 × 8 con modos **quieto**, **deslizar** y **parpadear**.
-- La escena fija una velocidad común lenta, normal o rápida. El bloque elige contenido y efecto; no pide parámetros técnicos a los chicos.
+- La escena fija una velocidad común lenta, normal o rápida. El bloque elige contenido, efecto y si ocurre una vez, entre 2 y 100 veces o sin parar; no pide parámetros técnicos a los chicos.
 - Hay corazón, estrella, sonrisa, capibara, robot, gato y flor predeterminados. Cada proyecto puede guardar hasta 12 dibujos propios, con nombre y editor de píxeles; se conservan en JSON y pueden usarse como pequeños avatares.
-- Las animaciones son cooperativas en simulador, Arduino y ESP-IDF: cada paso cede el control para no detener delays, UART u otros hilos. Una escritura o borrado posterior reemplaza el estado del destino de forma determinista.
+- Las animaciones corren en segundo plano en simulador, Arduino y ESP-IDF. El mismo camino continúa inmediatamente; `esperar a que termine [pantalla]` es la única sincronización explícita y sólo detiene ese camino. Una escritura, borrado, dibujo u otra animación posterior cancela y reemplaza la anterior de forma determinista. Una espera sobre un efecto `sin parar` se advierte porque sólo terminará si otro camino lo reemplaza.
 - El JSON histórico de cuatro propiedades sigue siendo válido. La forma nueva agrega `animationSpeed`, `artworks` y `retiredArtworkIds`; retirar o cambiar un dibujo no reasigna silenciosamente un bloque existente.
 - Esta ampliación no convierte el display en una pantalla de escena interactiva ni agrega imágenes a color. La aceptación eléctrica de LCD/OLED/TFT continúa pendiente dentro de fase 23.
 
