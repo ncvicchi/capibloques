@@ -141,6 +141,10 @@ El commit funcional `fa9ec15` incorpora una unidad **Matriz LED** 32 × 8 de cua
 
 El CI completo [35449365576](https://github.com/ncvicchi/capibloques/actions/runs/35449365576) pasó sus cuatro trabajos, incluida la compilación nativa de ocho proyectos Arduino y ocho ESP-IDF. En DEV pasaron 202 pruebas Django y el recorrido específico **4/4** en Chrome/Edge. `capi-dev` avanzó a `fa9ec1534571e7afc194ecda5e28dc827cb237b8`; editor `capibloques-editor-dev:fa9ec1534571`, API y PostgreSQL quedaron saludables, Compose/firewall válidos y salud interna/pública `ok`. La admisión quedó `paused=False`, concurrencia/techo 1, cola vacía y planificador activo. No se modificaron PRD, gateway, Proxmox, router ni Nginx. Falta probar la matriz física y los displays LCD/OLED/TFT.
 
+La exclusividad Matriz LED/Pantalla de texto es deliberada. Tras una observación de UX, el catálogo pasó a explicar en un aviso visible qué salida visual existente bloquea las tarjetas grises, cómo reemplazarla y a mostrar el motivo dentro de cada tarjeta; no se amplió la cantidad permitida.
+
+La escena también expone un tachito en la cabecera para el objeto seleccionado. `Supr/Delete` o `Backspace`, fuera de campos de texto, abren la misma confirmación. Quitar sigue siendo reversible desde deshacer y deja los bloques huérfanos visibles para elegir otro destino; no los elimina a escondidas.
+
 ## 4. Arquitectura y mapa de archivos
 
 | Área | Punto de entrada y responsabilidad |

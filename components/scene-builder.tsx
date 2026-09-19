@@ -395,7 +395,7 @@ function SceneBuilderSession({
     if (!open) return;
     const handleShortcut = (event: KeyboardEvent) => {
       if (finishingRef.current) { event.preventDefault(); return; }
-      if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+      if (event.defaultPrevented) return;
       const key = event.key.toLowerCase();
       if (deleteTarget || pendingSelectionId || discardSceneOpen) {
         // Browsers can undo the last edited input even when a button has focus.
@@ -403,6 +403,20 @@ function SceneBuilderSession({
         if (['s', 'z', 'y'].includes(key)) event.preventDefault();
         return;
       }
+      if ((event.key === 'Delete' || event.key === 'Backspace') && !isTextEditingTarget(event.target)) {
+        if (!selectedItem) return;
+        event.preventDefault();
+        if (inspectorDirty) {
+          setMessage('Primero guarda o cancela los cambios del objeto antes de quitarlo.');
+          return;
+        }
+        setDeleteTarget({
+          kind: 'pins' in selectedItem ? 'device' : 'widget',
+          id: selectedItem.id,
+        });
+        return;
+      }
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
       if (key === 's') {
         event.preventDefault();
         saveAndClose();
@@ -646,6 +660,10 @@ function SceneBuilderSession({
     setPendingSelectionId(null);
   };
 
+  const visualOutput = previewScene.devices.find(
+    (device) => device.kind === 'display' || device.kind === 'ledMatrix',
+  );
+
   return (
     <>
       <Dialog
@@ -834,24 +852,45 @@ function SceneBuilderSession({
               <section>
                 <h3>Componentes</h3>
                 <p>Haz clic para sumar uno a la mesa.</p>
+                {visualOutput && (
+                  <div className="visual-output-limit" role="note">
+                    <strong>📺 Salida visual ocupada</strong>
+                    <span>
+                      Ya usás <b>{visualOutput.name}</b>. Cada proyecto admite una sola:
+                      Pantalla de texto o Matriz LED. Para elegir otra, primero quitá la actual.
+                    </span>
+                  </div>
+                )}
                 <div className="component-palette">
-                  {sceneComponentCatalog.map((component) => (
-                    <button
-                      type="button"
-                      key={component.kind}
-                      disabled={((component.kind === 'display' || component.kind === 'ledMatrix') && previewScene.devices.some(device => device.kind === 'display' || device.kind === 'ledMatrix')) || (component.kind === 'messages' && previewScene.devices.filter(device => device.kind === 'messages').length >= 2)}
-                      onClick={() => addComponent(component.kind)}
-                      title={component.description}
-                      aria-label={`Agregar ${component.name}. ${component.childFriendlyControl}`}
-                    >
-                      <span aria-hidden="true">{component.icon}</span>
-                      <span>
-                        <strong>{component.name}</strong>
-                        <small>{(component.kind === 'display' || component.kind === 'ledMatrix') && previewScene.devices.some(device => device.kind === 'display' || device.kind === 'ledMatrix') ? 'Una pantalla o matriz por proyecto' : component.kind === 'messages' && previewScene.devices.filter(device => device.kind === 'messages').length >= 2 ? 'Máximo dos por proyecto' : component.childFriendlyControl}</small>
-                      </span>
-                      <b aria-hidden="true">＋</b>
-                    </button>
-                  ))}
+                  {sceneComponentCatalog.map((component) => {
+                    const visualBlocked = Boolean(
+                      visualOutput &&
+                      (component.kind === 'display' || component.kind === 'ledMatrix'),
+                    );
+                    const messagesBlocked = component.kind === 'messages' && previewScene.devices.filter(device => device.kind === 'messages').length >= 2;
+                    const reason = visualBlocked
+                      ? `No disponible: ya usás ${visualOutput?.name}`
+                      : messagesBlocked
+                        ? 'No disponible: máximo dos por proyecto'
+                        : component.childFriendlyControl;
+                    return (
+                      <button
+                        type="button"
+                        key={component.kind}
+                        disabled={visualBlocked || messagesBlocked}
+                        onClick={() => addComponent(component.kind)}
+                        title={visualBlocked ? `${reason}. Para cambiar, quitá primero la salida visual actual.` : component.description}
+                        aria-label={`Agregar ${component.name}. ${reason}`}
+                      >
+                        <span aria-hidden="true">{component.icon}</span>
+                        <span>
+                          <strong>{component.name}</strong>
+                          <small>{reason}</small>
+                        </span>
+                        <b aria-hidden="true">{visualBlocked || messagesBlocked ? '🔒' : '＋'}</b>
+                      </button>
+                    );
+                  })}
                 </div>
               </section>
             </aside>
@@ -861,11 +900,27 @@ function SceneBuilderSession({
               aria-label="Lienzo de la escena"
             >
               <div className="canvas-label">
-                <span>Tu mesa de pruebas</span>
-                <small>
-                  Arrastra o usa flechas. Supr quita y Ctrl/Cmd+D duplica
-                  componentes.
-                </small>
+                <div>
+                  <span>Tu mesa de pruebas</span>
+                  <small>
+                    Arrastra o usa flechas. Supr quita y Ctrl/Cmd+D duplica
+                    componentes.
+                  </small>
+                </div>
+                {selectedItem && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    aria-keyshortcuts="Delete Backspace"
+                    onClick={() => requestDelete({
+                      kind: 'pins' in selectedItem ? 'device' : 'widget',
+                      id: selectedItem.id,
+                    })}
+                  >
+                    🗑 Quitar {selectedItem.name}
+                  </Button>
+                )}
               </div>
               <SceneStage
                 scene={previewScene}

@@ -8,6 +8,10 @@ La parte de software del componente **Matriz LED** está implementada, desplegad
 
 El catálogo ofrece **Matriz LED**, una unidad lógica de 32 × 8 píxeles formada por cuatro módulos MAX7219 de 8 × 8 encadenados. El primer alcance admite una sola unidad por proyecto y una sola salida visual: un proyecto puede tener una pantalla o una matriz, no ambas. No se admiten varias unidades ni giros de 90° hasta medir el hardware real.
 
+Cuando el proyecto ya tiene una salida visual, ambas tarjetas quedan deshabilitadas deliberadamente. El editor muestra un aviso visible con el nombre del componente que ocupa ese lugar y explica que hay que quitarlo antes de elegir Pantalla de texto o Matriz LED; las tarjetas muestran el mismo motivo y un candado. No se debe presentar sólo un botón gris sin explicación.
+
+Al seleccionar cualquier objeto, la cabecera del lienzo muestra un tachito **Quitar [nombre]**. `Supr/Delete` y `Backspace` hacen lo mismo cuando no se está escribiendo en un campo. Ambas vías usan la confirmación existente, conservan deshacer/rehacer y no borran silenciosamente los bloques que todavía apuntan al componente.
+
 La escena configura:
 
 - brillo de 0 a 15, con valor inicial 5;

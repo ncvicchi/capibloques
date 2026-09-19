@@ -32,7 +32,36 @@ test('Matriz LED: configura hardware y edita un dibujo de 32 × 8', async ({ pag
   await cell.click();
   await expect(cell).toHaveAttribute('aria-pressed', 'true');
   await expect(editor.getByRole('button', { name: /^Agregar Pantalla de texto/ })).toBeDisabled();
+  await expect(editor.getByRole('note')).toContainText('Ya usás Matriz LED 1');
+  await expect(editor.getByRole('note')).toContainText('Pantalla de texto o Matriz LED');
+  await expect(editor.getByRole('button', { name: /Agregar Pantalla de texto.*No disponible: ya usás Matriz LED 1/ })).toBeDisabled();
   await expect(editor.getByRole('combobox', { name: /^Datos \(DIN\) de/ })).toHaveCount(1);
+});
+
+test('Matriz LED: explica por qué no puede agregarse si ya hay una pantalla', async ({ page }) => {
+  await open(page);
+  await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  await editor.getByRole('button', { name: /^Agregar Pantalla de texto/ }).click();
+  await expect(editor.getByRole('note')).toContainText('Ya usás Pantalla de texto 1');
+  await expect(editor.getByRole('note')).toContainText('Para elegir otra, primero quitá la actual');
+  await expect(editor.getByRole('button', { name: /Agregar Matriz LED.*No disponible: ya usás Pantalla de texto 1/ })).toBeDisabled();
+});
+
+test('Escena: el tachito y Supr permiten quitar la salida visual', async ({ page }) => {
+  await open(page);
+  await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  await editor.getByRole('button', { name: /^Agregar Matriz LED/ }).click();
+  await editor.getByRole('button', { name: /Quitar Matriz LED 1/ }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Sí, quitar' }).click();
+  await expect(editor.getByRole('button', { name: /^Agregar Pantalla de texto/ })).toBeEnabled();
+
+  await editor.getByRole('button', { name: /^Agregar Matriz LED/ }).click();
+  const matrix = editor.getByRole('button', { name: 'Mover Matriz LED 1', exact: true });
+  await matrix.focus();
+  await page.keyboard.press('Delete');
+  await expect(page.getByRole('alertdialog')).toContainText('¿Quitar este componente?');
 });
 
 test('Matriz LED: muestra patrón y deja visible el progreso del texto', async ({ page }) => {
