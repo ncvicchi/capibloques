@@ -14,9 +14,12 @@ if (-not (Test-Path -LiteralPath $capiRemoteScript -PathType Leaf)) {
     throw 'Falta el orquestador remoto versionado.'
 }
 
-$capiGit = (Get-Command git -CommandType Application -ErrorAction Stop).Source
-$capiGh = (Get-Command gh -CommandType Application -ErrorAction Stop).Source
-$capiSsh = (Get-Command ssh -CommandType Application -ErrorAction Stop).Source
+$capiGit = Get-Command git -CommandType Application -ErrorAction Stop |
+    Select-Object -First 1 -ExpandProperty Source
+$capiGh = Get-Command gh -CommandType Application -ErrorAction Stop |
+    Select-Object -First 1 -ExpandProperty Source
+$capiSsh = Get-Command ssh -CommandType Application -ErrorAction Stop |
+    Select-Object -First 1 -ExpandProperty Source
 
 Push-Location $capiRepo
 try {
