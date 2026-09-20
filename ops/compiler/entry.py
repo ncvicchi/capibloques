@@ -54,7 +54,7 @@ def main():
         idf_target = "esp32" if board == "wemos-d1-r32" else "esp32s3"
         run(["bash", "-c", f'. /opt/esp/idf/export.sh >/dev/null && idf.py -C /work/project -B /work/build -DIDF_TARGET={idf_target} build'], maximum=4_000_000)
     else:
-        fqbn = "esp32:esp32:d1_uno32:FlashFreq=40" if board == "wemos-d1-r32" else "esp32:esp32:esp32s3:FlashMode=qio,FlashSize=16M,PartitionScheme=app3M_fat9M_16MB,PSRAM=opi,FlashFreq=80,USBMode=hwcdc"
+        fqbn = "esp32:esp32:d1_uno32:FlashFreq=40" if board == "wemos-d1-r32" else "esp32:esp32:esp32s3:FlashMode=qio,FlashSize=16M,PartitionScheme=app3M_fat9M_16MB,PSRAM=opi,USBMode=hwcdc"
         run(["arduino-cli", "--config-file", "/opt/arduino/arduino-cli.yaml", "compile", "--fqbn", fqbn, "--jobs", "1", "--build-path", "/work/build", "/work/project/capibloques"], maximum=4_000_000)
     stage = "artifact"
     archive = bundle("/work/build", framework, generated["usesWifi"], board)
