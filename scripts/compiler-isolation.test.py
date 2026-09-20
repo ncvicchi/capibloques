@@ -81,8 +81,8 @@ class FirmwareIsolationTests(unittest.TestCase):
             with tempfile.TemporaryDirectory() as temporary:
                 directory = Path(temporary) / "build"; directory.mkdir()
                 self.fixture(directory, framework)
-                raw = bundle(directory, framework, True)
-                job = {"id": str(uuid.uuid4()), "attempt": str(uuid.uuid4()), "recipe": "a" * 64, "framework": framework, "wifi": {"ssid": "synthetic", "password": "test-only"}}
+                raw = bundle(directory, framework, True, "wemos-d1-r32")
+                job = {"id": str(uuid.uuid4()), "attempt": str(uuid.uuid4()), "recipe": "a" * 64, "framework": framework, "wifi": {"ssid": "synthetic", "password": "test-only"}, "document": {"target": {"boardProfile": "wemos-d1-r32"}}}
                 published = runner.validate_archive(raw, job)
                 with zipfile.ZipFile(io.BytesIO(published)) as archive:
                     manifest = json.loads(archive.read("manifest.json"))
@@ -101,12 +101,12 @@ class FirmwareIsolationTests(unittest.TestCase):
             args = directory / "flash_args"
             text = args.read_text()
             args.write_text(text.replace("0x8000", "0x1000"))
-            self.assertRaises(ValueError, bundle, directory, "arduino", False)
+            self.assertRaises(ValueError, bundle, directory, "arduino", False, "wemos-d1-r32")
             args.write_text(text.replace("4MB", "8MB"))
-            self.assertRaises(ValueError, bundle, directory, "arduino", False)
+            self.assertRaises(ValueError, bundle, directory, "arduino", False, "wemos-d1-r32")
             outside = Path(temporary) / "outside.bin"; outside.write_bytes(b"x")
             args.write_text(text.replace("app.bin", "../outside.bin"))
-            self.assertRaises(ValueError, bundle, directory, "arduino", False)
+            self.assertRaises(ValueError, bundle, directory, "arduino", False, "wemos-d1-r32")
 
 
 if __name__ == "__main__": unittest.main()

@@ -5,6 +5,8 @@ import { displayArtworks, displayProfiles, displayTargets } from './display-mode
 import { BUILTIN_DISPLAY_ARTWORKS } from './display-graphics.ts';
 import type { CompiledProgram, Condition, ProgramNode } from './capiblocks.ts';
 import type { SceneDevice, SceneDeviceKind } from './scene-model.ts';
+// @ts-expect-error Node strip-types runner.
+import { boardProfile, type BoardProfileId } from './board-profiles.ts';
 type BlocklyApi = typeof import('blockly');
 type BlocklyWorkspaceSvg = import('blockly').WorkspaceSvg;
 type BlocklyBlock = import('blockly').Block;
@@ -20,6 +22,7 @@ const serializedAreaIds = new WeakMap<BlocklyWorkspaceSvg, Map<string, string>>(
 const EMPTY_FAVORITES: readonly string[] = [];
 const DEVICE_EXTENSION = 'capi_device_target_v2';
 const ANIMATION_REPEAT_EXTENSION = 'capi_animation_repeat_v1';
+const BOARD_PIN_EXTENSION = 'capi_board_pin_v1';
 const DEVICE_WARNING = 'capi-device-target';
 const MISSING_DEVICE_PREFIX = '__missing__:';
 
@@ -27,6 +30,7 @@ const workspaceDevices = new WeakMap<
   BlocklyWorkspaceSvg,
   readonly SceneDevice[]
 >();
+const workspaceBoardProfiles = new WeakMap<BlocklyWorkspaceSvg, BoardProfileId>();
 const serializedDeviceIds = new WeakMap<
   BlocklyWorkspaceSvg,
   Map<string, string>
@@ -512,6 +516,22 @@ function registerBlocks(Blockly: BlocklyApi) {
       showCount(String(mode?.getValue() ?? 'ONCE'));
     });
   }
+  if (!Blockly.Extensions.isRegistered(BOARD_PIN_EXTENSION)) {
+    Blockly.Extensions.register(BOARD_PIN_EXTENSION, function (this: BlocklyBlock) {
+      const field = this.getField('PIN') as BlocklyFieldDropdown | null;
+      field?.setOptions(function (this: BlocklyFieldDropdown) {
+        const block = this.getSourceBlock();
+        const workspace = block ? targetWorkspaceForBlock(block) : null;
+        const profile = boardProfile(workspace ? workspaceBoardProfiles.get(workspace) ?? 'wemos-d1-r32' : 'wemos-d1-r32');
+        const options: BlocklyMenuOption[] = profile.pins
+          .filter(pin => pin.capabilities.includes('pwmOutput'))
+          .map(pin => [`${pin.label} / GPIO ${pin.gpio}`, String(pin.gpio)] as BlocklyMenuOption);
+        const current = this.getValue();
+        if (current && !options.some(option => option[1] === current)) options.unshift([`GPIO ${current} · no compatible`, current]);
+        return options;
+      });
+    });
+  }
   if (registeredBlocklies.has(Blockly)) return;
 
   const deviceField = (label: string) => ({
@@ -754,6 +774,7 @@ function registerBlocks(Blockly: BlocklyApi) {
       nextStatement: null,
       colour: '#0D8A75',
       tooltip: 'Control avanzado de una salida digital.',
+      extensions: [BOARD_PIN_EXTENSION],
     },
     {
       type: 'capi_robot',
@@ -1449,4 +1470,4 @@ function compileWorkspace(workspace: BlocklyWorkspaceSvg): CompiledProgram {
   };
 }
 
-export { DEVICE_FIELD, AREA_FIELD, EMPTY_FAVORITES, serializedAreaIds, workspaceDevices, serializedDeviceIds, toolbox, collectSerializedDeviceIds, registerBlocks, refreshAreaField, refreshMessageField, refreshPatternField, refreshDeviceFields, updateDeviceWarning, ensureSingleStart, compileWorkspace };
+export { DEVICE_FIELD, AREA_FIELD, EMPTY_FAVORITES, serializedAreaIds, workspaceDevices, workspaceBoardProfiles, serializedDeviceIds, toolbox, collectSerializedDeviceIds, registerBlocks, refreshAreaField, refreshMessageField, refreshPatternField, refreshDeviceFields, updateDeviceWarning, ensureSingleStart, compileWorkspace };

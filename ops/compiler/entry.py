@@ -37,6 +37,10 @@ def main():
     Path("/work/home").mkdir()
     Path("/work/project").mkdir()
     generated = json.loads(run(["node", "--experimental-strip-types", "/opt/capi/scripts/compiler-generate.mjs"], input=payload, structured=True))
+    target = generated["target"]
+    board = target["boardProfile"]
+    if board not in ("wemos-d1-r32", "diymall-esp32-s3-devkitc-v1-n16r8"):
+        raise ValueError
     for name, text in generated["files"].items():
         path = (Path("/work/project") / name).resolve()
         if not path.is_relative_to(Path("/work/project")):
@@ -47,11 +51,13 @@ def main():
     # include source lines/passwords. Only a fixed stage/error reaches the host.
     stage = "toolchain"
     if framework == "esp-idf":
-        run(["bash", "-c", '. /opt/esp/idf/export.sh >/dev/null && idf.py -C /work/project -B /work/build -DIDF_TARGET=esp32 build'], maximum=4_000_000)
+        idf_target = "esp32" if board == "wemos-d1-r32" else "esp32s3"
+        run(["bash", "-c", f'. /opt/esp/idf/export.sh >/dev/null && idf.py -C /work/project -B /work/build -DIDF_TARGET={idf_target} build'], maximum=4_000_000)
     else:
-        run(["arduino-cli", "--config-file", "/opt/arduino/arduino-cli.yaml", "compile", "--fqbn", "esp32:esp32:d1_uno32:FlashFreq=40", "--jobs", "1", "--build-path", "/work/build", "/work/project/capibloques"], maximum=4_000_000)
+        fqbn = "esp32:esp32:d1_uno32:FlashFreq=40" if board == "wemos-d1-r32" else "esp32:esp32:esp32s3:FlashMode=qio,FlashSize=16M,PartitionScheme=app3M_fat9M_16MB,PSRAM=opi,FlashFreq=80,USBMode=hwcdc"
+        run(["arduino-cli", "--config-file", "/opt/arduino/arduino-cli.yaml", "compile", "--fqbn", fqbn, "--jobs", "1", "--build-path", "/work/build", "/work/project/capibloques"], maximum=4_000_000)
     stage = "artifact"
-    archive = bundle("/work/build", framework, generated["usesWifi"])
+    archive = bundle("/work/build", framework, generated["usesWifi"], board)
     print(json.dumps({"success": True, "artifact": base64.b64encode(archive).decode()}))
 
 

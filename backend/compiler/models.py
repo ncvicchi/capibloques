@@ -22,6 +22,7 @@ class Build(models.Model):
     project_revision = models.PositiveIntegerField()
     title = models.CharField(max_length=80)
     framework = models.CharField(max_length=10)
+    board_profile = models.CharField(max_length=64, default="wemos-d1-r32")
     recipe = models.CharField(max_length=64)
     request_digest = models.CharField(max_length=64)
     cache_key = models.CharField(max_length=64)

@@ -1,10 +1,12 @@
 // @ts-expect-error Node strip-types runner.
 import { sha256 } from './firmware-archive.ts';
+// @ts-expect-error Node strip-types runner.
+import { boardProfile, isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 
-export type FirmwareJob = { id: string; projectId: string; revision: number; title: string; framework: 'arduino' | 'esp-idf'; state: string; containsWifi: boolean; createdAt: string; expiresAt: string; message: string; sha256: string | null; bytes: number; metrics: { seconds?: number } };
-export type UsbFirmware = { parts: { data: Uint8Array; address: number }[]; framework: 'arduino' | 'esp-idf'; containsWifi: boolean };
+export type FirmwareJob = { id: string; projectId: string; revision: number; title: string; framework: 'arduino' | 'esp-idf'; boardProfile: BoardProfileId; state: string; containsWifi: boolean; createdAt: string; expiresAt: string; message: string; sha256: string | null; bytes: number; metrics: { seconds?: number } };
+export type UsbFirmware = { parts: { data: Uint8Array; address: number }[]; framework: 'arduino' | 'esp-idf'; containsWifi: boolean; boardProfile: BoardProfileId; chip: 'ESP32' | 'ESP32-S3'; flashBytes: number };
 const limit = 5_000_000;
-const invalid = () => new Error('El firmware está incompleto, dañado o no corresponde a Wemos D1 R32. No se grabó.');
+const invalid = () => new Error('El firmware está incompleto, dañado o no corresponde a la placa elegida. No se grabó.');
 
 function crc32(bytes: Uint8Array) {
   let value = 0xffffffff;
@@ -49,22 +51,28 @@ export async function parseUsbFirmware(bytes: Uint8Array, job: FirmwareJob): Pro
     const files = unpack(bytes), manifestBytes = files.get('manifest.json');
     if (!manifestBytes || manifestBytes.length > 16_384 || !files.has('LEEME.txt')) throw invalid();
     const manifest = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(manifestBytes));
-    if (manifest.format !== 'CapiBloquesFirmware' || manifest.version !== 1 || manifest.board !== 'wemos-d1-r32' || manifest.chip !== 'esp32' || manifest.framework !== job.framework || manifest.containsWifiCredentials !== job.containsWifi || manifest.flashMode !== 'dio' || manifest.flashFrequency !== '40m' || manifest.flashSize !== '4MB' || !/^[a-f0-9]{64}$/.test(manifest.recipe)) throw invalid();
+    if (!isBoardProfileId(job.boardProfile)) throw invalid();
+    const profile = boardProfile(job.boardProfile);
+    const settings = profile.family === 'esp32'
+      ? { chip: 'esp32', flashMode: 'dio', flashFrequency: '40m', flashSize: '4MB' }
+      : { chip: 'esp32s3', flashMode: 'qio', flashFrequency: '80m', flashSize: '16MB' };
+    if (manifest.format !== 'CapiBloquesFirmware' || manifest.version !== 1 || manifest.board !== job.boardProfile || manifest.chip !== settings.chip || manifest.framework !== job.framework || manifest.containsWifiCredentials !== job.containsWifi || manifest.flashMode !== settings.flashMode || manifest.flashFrequency !== settings.flashFrequency || manifest.flashSize !== settings.flashSize || !/^[a-f0-9]{64}$/.test(manifest.recipe)) throw invalid();
     // Cache aliases may refer to the original buildId: the fresh owner-scoped
     // job SHA-256 authenticates this exact bundle, not its original UUID.
-    const addresses = job.framework === 'arduino' ? [0x1000, 0x8000, 0xe000, 0x10000] : [0x1000, 0x8000, 0x10000];
+    const boot = profile.family === 'esp32' ? 0x1000 : 0;
+    const addresses = job.framework === 'arduino' ? [boot, 0x8000, 0xe000, 0x10000] : [boot, 0x8000, 0x10000];
     if (!Array.isArray(manifest.parts) || manifest.parts.length !== addresses.length) throw invalid();
     const parts: UsbFirmware['parts'] = [];
     let end = 0;
     for (const [index, part] of manifest.parts.entries()) {
       const data = files.get(part.path);
-      if (part.path !== `firmware/part-${index}.bin` || !data?.length || !Number.isSafeInteger(part.size) || part.size !== data.length || part.offset !== addresses[index] || part.offset < end || part.offset + data.length > 4 * 1024 * 1024 || await sha256(data) !== part.sha256) throw invalid();
+      if (part.path !== `firmware/part-${index}.bin` || !data?.length || !Number.isSafeInteger(part.size) || part.size !== data.length || part.offset !== addresses[index] || part.offset < end || part.offset + data.length > profile.flashBytes || await sha256(data) !== part.sha256) throw invalid();
       // Flash erases complete sectors. A padded/erased tail must not damage the next segment.
       end = part.offset + Math.ceil(data.length / 4096) * 4096;
       parts.push({ address: part.offset, data: new Uint8Array(data) });
     }
     if ([...files.keys()].filter(name => name.startsWith('firmware/')).length !== parts.length) throw invalid();
-    return { parts, framework: job.framework, containsWifi: job.containsWifi };
+    return { parts, framework: job.framework, containsWifi: job.containsWifi, boardProfile: profile.id, chip: profile.chip, flashBytes: profile.flashBytes };
   } catch { throw invalid(); }
 }
 
@@ -95,5 +103,5 @@ export async function authorizeUsbFirmware(job: FirmwareJob, accountId: string, 
   const response = await fetch(`/api/builds/${job.id}/`, { headers: { 'X-Capi-Account': accountId }, cache: 'no-store', signal });
   if (!response.ok) throw new Error('El acceso o el firmware cambió. No iniciamos la grabación.');
   const latest = (await response.json() as { job: FirmwareJob }).job;
-  if (!usable() || latest.state !== 'ready' || latest.sha256 !== job.sha256 || latest.projectId !== job.projectId || latest.revision !== job.revision || latest.framework !== job.framework || latest.containsWifi !== job.containsWifi) throw new Error('El firmware venció, fue retirado o cambió tu sesión. No iniciamos la grabación.');
+  if (!usable() || latest.state !== 'ready' || latest.sha256 !== job.sha256 || latest.projectId !== job.projectId || latest.revision !== job.revision || latest.framework !== job.framework || latest.boardProfile !== job.boardProfile || latest.containsWifi !== job.containsWifi) throw new Error('El firmware venció, fue retirado o cambió tu sesión. No iniciamos la grabación.');
 }

@@ -45,6 +45,10 @@ jobs:
             idf.py -C .idf-ci/build-project -DIDF_TARGET=esp32 build
             sha256sum .idf-ci/build-project/main/main.cpp .idf-ci/build-project/build/capibloques.bin
           done
+          rm -rf .idf-ci/build-s3
+          cp -R .idf-ci/from-zip/s3/capibloques .idf-ci/build-s3
+          idf.py -C .idf-ci/build-s3 -DIDF_TARGET=esp32s3 build
+          sha256sum .idf-ci/build-s3/main/main.cpp .idf-ci/build-s3/build/capibloques.bin
   backend:
     runs-on: ubuntu-latest
     env:
@@ -160,6 +164,11 @@ jobs:
           arduino-cli compile --fqbn esp32:esp32:d1_uno32 .arduino-ci/auxiliary
           node --experimental-strip-types scripts/generate-arduino-fixture.mjs .arduino-ci/matrix/matrix.ino matrix
           arduino-cli compile --fqbn esp32:esp32:d1_uno32 .arduino-ci/matrix
+
+      - name: Compilar el código generado para DIYmall ESP32-S3 N16R8
+        run: |
+          node --experimental-strip-types scripts/generate-arduino-fixture.mjs .arduino-ci/s3/s3.ino s3
+          arduino-cli compile --fqbn 'esp32:esp32:esp32s3:FlashMode=qio,FlashSize=16M,PartitionScheme=app3M_fat9M_16MB,PSRAM=opi,FlashFreq=80,USBMode=hwcdc' .arduino-ci/s3
 
       - name: Compilar los cinco perfiles de pantalla
         run: |

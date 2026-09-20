@@ -9,14 +9,15 @@ import { sessionChangePending, watchSessionChange, type Account, type AccountDra
 import { type FirmwareFramework, type ProjectFile } from '@/lib/capiblocks';
 import { downloadFirmwareArchive, sha256 } from '@/lib/firmware-archive';
 import type { FirmwareJob as Job } from '@/lib/usb-firmware';
+import { boardProfile, type BoardProfileId } from '@/lib/board-profiles';
 
 type Listing = { jobs: Job[]; settings: { paused: boolean; available: boolean; concurrency: number }; csrfToken: string };
 type Request = { id: string; projectId: string; revision: number; framework: FirmwareFramework; wiringReviewed: true; wifi: { ssid: string; password: string; consent: true } | null };
 const labels: Record<string, string> = { queued: '⏳ En cola', building: '⚙️ Compilando', ready: '✅ Listo', failed: 'No se pudo compilar', cancelled: 'Cancelado / retirado', expired: 'Vencido' };
 
-export default function FirmwareBuilds({ account, store, csrfToken, capture, fingerprint, validate, onClose, onProgram }: {
+export default function FirmwareBuilds({ account, store, csrfToken, capture, fingerprint, targetBoardProfile, validate, onClose, onProgram }: {
   account: Account; store: AccountDraftStore; csrfToken: string; capture: () => ProjectFile; fingerprint: string;
-  validate: (framework: FirmwareFramework) => { wifi: boolean } | null; onClose: () => void; onProgram: (job: Job) => void;
+  targetBoardProfile: BoardProfileId; validate: (framework: FirmwareFramework) => { wifi: boolean } | null; onClose: () => void; onProgram: (job: Job) => void;
 }) {
   const [listing, setListing] = useState<Listing | null>(null);
   const [framework, setFramework] = useState<FirmwareFramework>('arduino');
@@ -134,7 +135,7 @@ export default function FirmwareBuilds({ account, store, csrfToken, capture, fin
 
   const saved = remote && !store.pending && remote.savedFingerprint === fingerprint;
   return <Dialog open onOpenChange={open => { if (!open) onClose(); }}><DialogContent className="firmware-dialog">
-    <DialogHeader><DialogTitle>⚙️ Compilar y descargar firmware</DialogTitle><DialogDescription>Wemos D1 R32 · El servidor compila una versión guardada. Podés cerrar esta ventana y seguir usando el editor.</DialogDescription></DialogHeader>
+    <DialogHeader><DialogTitle>⚙️ Compilar y descargar firmware</DialogTitle><DialogDescription>{boardProfile(targetBoardProfile).name} · El servidor compila una versión guardada. Podés cerrar esta ventana y seguir usando el editor.</DialogDescription></DialogHeader>
     {error && <p role="alert" className="account-error">{error}</p>}
     {notice && <output className="account-notice">{notice}</output>}
     <p>{saved ? `Proyecto guardado · versión ${remote.revision}` : 'Hay cambios sin guardar o el proyecto todavía es local. Cerrá esta ventana y usá Guardar antes de compilar.'}</p>
@@ -152,14 +153,14 @@ export default function FirmwareBuilds({ account, store, csrfToken, capture, fin
     </form>
     {listing && (!listing.settings.available || listing.settings.paused) && <p className="account-notice">El compilador no está disponible o está en pausa. Tus proyectos y pedidos se conservan.</p>}
     <div className="firmware-heading"><h3>Mis pedidos recientes</h3><Button variant="outline" disabled={busy} onClick={() => void refresh()}>Actualizar</Button></div>
-    <p className="account-help">Hasta 3 pedidos pendientes por persona. Archivos privados durante 24 horas; registros durante 7 días. Descargar conserva el ZIP; Programar mi Wemos permite grabar por USB desde Chrome o Edge de escritorio.</p>
+    <p className="account-help">Hasta 3 pedidos pendientes por persona. Archivos privados durante 24 horas; registros durante 7 días. Descargar conserva el ZIP; programar por USB requiere Chrome o Edge de escritorio.</p>
     {!listing ? <p>Consultando la cola…</p> : !listing.jobs.length ? <p>Todavía no pediste ninguna compilación.</p> : <ul className="firmware-jobs">{listing.jobs.map(job => <li key={job.id}>
-      <strong>{job.title} · v{job.revision} · {job.framework === 'arduino' ? 'Arduino' : 'ESP-IDF'}</strong>
+      <strong>{job.title} · v{job.revision} · {boardProfile(job.boardProfile).shortName} · {job.framework === 'arduino' ? 'Arduino' : 'ESP-IDF'}</strong>
       <span>{labels[job.state] ?? job.state}{job.metrics.seconds != null ? ` · ${Math.round(job.metrics.seconds)} s` : ''}</span>
       {remote?.id === job.projectId && (remote.revision !== job.revision || !saved) && <p className="account-notice">Esta compilación no incluye los cambios actuales del editor.</p>}
       {job.message && <p>{job.message}</p>}
       {job.containsWifi && <p>🔒 Contiene configuración Wi-Fi. No compartir el firmware.</p>}
-      {job.state === 'ready' && <><small>Vence: {new Date(job.expiresAt).toLocaleString()}</small><Button disabled={busy || locked} onClick={() => { if (usable()) onProgram(job); }}>Programar mi Wemos</Button><Button variant="outline" disabled={busy || locked} onClick={() => void action(job, true)}>Descargar firmware completo</Button></>}
+      {job.state === 'ready' && <><small>Vence: {new Date(job.expiresAt).toLocaleString()}</small><Button disabled={busy || locked} onClick={() => { if (usable()) onProgram(job); }}>Programar {boardProfile(job.boardProfile).shortName}</Button><Button variant="outline" disabled={busy || locked} onClick={() => void action(job, true)}>Descargar firmware completo</Button></>}
       {['queued', 'ready'].includes(job.state) && <Button variant="outline" disabled={busy || locked} onClick={() => { if (job.state === 'queued' || window.confirm('¿Retirar este firmware y sus resultados reutilizados de este proyecto? No se borra el proyecto ni las copias descargadas.')) void action(job, false); }}>{job.state === 'queued' ? 'Cancelar pedido' : 'Retirar firmware'}</Button>}
     </li>)}</ul>}
     <Button variant="outline" onClick={onClose}>Cerrar y seguir programando</Button>

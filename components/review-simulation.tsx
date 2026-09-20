@@ -58,6 +58,8 @@ export default function ReviewSimulation({
             program,
             project.metadata.title,
             project.scene,
+            'arduino',
+            project.target.boardProfile,
           )
         : null,
     [program, project],
@@ -186,6 +188,7 @@ export default function ReviewSimulation({
           initialWorkspace={project.workspace}
           revision={1}
           devices={project.scene.devices}
+          boardProfile={project.target.boardProfile}
           onChange={compile}
           onError={(message) => {
             setError(message);
@@ -407,6 +410,7 @@ export default function ReviewSimulation({
             open={wiringOpen}
             onOpenChange={setWiringOpen}
             scene={project.scene}
+            boardProfile={project.target.boardProfile}
             rawPins={rawPins}
             diagnostics={generated.diagnostics}
             acknowledged={wiringChecked}

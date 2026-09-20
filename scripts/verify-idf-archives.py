@@ -5,7 +5,7 @@ import pathlib
 import zipfile
 
 root = pathlib.Path('.idf-ci').resolve()
-for profile in ('main', 'auxiliary', 'matrix', 'lcd1602', 'lcd2004', 'ssd1306', 'ili9341', 'ili9488'):
+for profile in ('main', 'auxiliary', 'matrix', 'lcd1602', 'lcd2004', 'ssd1306', 'ili9341', 'ili9488', 's3'):
     with zipfile.ZipFile(root / f'{profile}.zip') as archive:
         assert archive.testzip() is None, profile
         names = archive.namelist()
@@ -16,7 +16,7 @@ for profile in ('main', 'auxiliary', 'matrix', 'lcd1602', 'lcd2004', 'ssd1306', 
             assert entry.date_time == (1980, 1, 1, 0, 0, 0)
         manifest = json.loads(archive.read('capibloques/manifest.json'))
         assert manifest['framework'] == 'esp-idf' and manifest['frameworkVersion'] == '5.5.5'
-        assert manifest['chip'] == 'esp32'
+        assert manifest['chip'] == ('esp32s3' if profile == 's3' else 'esp32')
         expected = {f'capibloques/{path}' for path in manifest['sources']} | {'capibloques/manifest.json'}
         assert set(names) == expected
         for name, digest in manifest['sources'].items():

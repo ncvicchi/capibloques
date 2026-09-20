@@ -72,7 +72,7 @@ export class UsbSession {
     // oxlint-disable-next-line typescript/no-this-alias -- Identity lease, not a scope alias.
     owner = this;
     const aborter = new AbortController(); this.aborter = aborter;
-    this.update({ stage: 'selecting', message: 'Elegí la Wemos conectada a esta PC en la ventana del navegador.', progress: 0, chip: '', writingStarted: false, verified: false, text: '' });
+    this.update({ stage: 'selecting', message: 'Elegí la placa conectada a esta PC en la ventana del navegador.', progress: 0, chip: '', writingStarted: false, verified: false, text: '' });
     // Must run synchronously in the click gesture, before imports/network/locks.
     let selection: Promise<SerialPort>;
     try { selection = requestPort(); } catch (error) { selection = Promise.reject(error); }
@@ -129,15 +129,15 @@ export class UsbSession {
         this.update({ stage: 'connecting', message: 'Detectando ESP32 y memoria. Esto puede reiniciar la placa; todavía no escribimos flash.' });
         this.driver = await this.factory(port, signal); this.check(signal);
         const detected = await this.driver.detect(); this.check(signal);
-        if (detected.chip !== 'ESP32') throw new UsbError('La placa no es un ESP32 clásico. Este firmware es sólo para Wemos D1 R32, no ESP32-S3 ni otras familias.');
-        if (!Number.isSafeInteger(detected.flashBytes) || detected.flashBytes < 4 * 1024 * 1024) throw new UsbError('No se pudo verificar una memoria flash de al menos 4 MB. No grabamos por suposición.');
-        this.update({ chip: `ESP32 · ${detected.flashBytes / 1024 / 1024} MB`, message: 'Placa compatible detectada. Comprobando nuevamente acceso y vigencia…' });
+        if (detected.chip !== firmware.chip) throw new UsbError(`La placa detectada es ${detected.chip || 'desconocida'}, pero este firmware requiere ${firmware.chip}. No grabamos en otra familia.`);
+        if (!Number.isSafeInteger(detected.flashBytes) || detected.flashBytes !== firmware.flashBytes) throw new UsbError(`Este firmware requiere ${firmware.flashBytes / 1024 / 1024} MB de flash y detectamos ${detected.flashBytes ? detected.flashBytes / 1024 / 1024 : 'un tamaño desconocido'} MB. No grabamos por suposición.`);
+        this.update({ chip: `${detected.chip} · ${detected.flashBytes / 1024 / 1024} MB`, message: 'Placa compatible detectada. Comprobando nuevamente acceso y vigencia…' });
         try { await authorize(signal); } catch (error) { throw new UsbError(error instanceof Error ? error.message : 'El acceso cambió. No grabamos.'); }
         this.check(signal);
         this.update({ stage: 'writing', message: 'Grabando y verificando cada segmento. No desconectes el cable.', writingStarted: true });
         await this.driver.write(firmware, progress => { this.check(signal); this.update({ progress: Math.max(0, Math.min(99, Math.round(progress))) }); });
         this.check(signal);
-        this.update({ stage: 'resetting', verified: true, message: 'Todos los segmentos verificados. Reiniciando la Wemos…' });
+        this.update({ stage: 'resetting', verified: true, message: 'Todos los segmentos verificados. Reiniciando la placa…' });
         await this.driver.reset();
       } finally { clearTimeout(timer); for (const part of firmware.parts) part.data.fill(0); }
     });

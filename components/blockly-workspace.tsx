@@ -10,6 +10,7 @@ import {
 } from 'react';
 import type { CompiledProgram, ExecutionTaskState } from '@/lib/capiblocks';
 import type { SceneDevice } from '@/lib/scene-model';
+import type { BoardProfileId } from '@/lib/board-profiles';
 import { validFavorite } from '@/lib/user-preferences';
 
 type BlocklyApi = typeof import('blockly');
@@ -41,13 +42,14 @@ interface BlocklyWorkspaceProps {
   initialWorkspace: Record<string, unknown>;
   revision: number;
   devices: readonly SceneDevice[];
+  boardProfile: BoardProfileId;
   onChange: (workspace: Record<string, unknown>) => void;
   onBlockSnap?: () => void;
   onError?: (message: string) => void;
   onHistoryChange?: (state: BlocklyHistoryState) => void;
 }
 
-import { DEVICE_FIELD, AREA_FIELD, EMPTY_FAVORITES, serializedAreaIds, workspaceDevices, serializedDeviceIds, toolbox, collectSerializedDeviceIds, registerBlocks, refreshAreaField, refreshMessageField, refreshDeviceFields, updateDeviceWarning, ensureSingleStart, compileWorkspace } from '@/lib/blockly-engine';
+import { DEVICE_FIELD, AREA_FIELD, EMPTY_FAVORITES, serializedAreaIds, workspaceDevices, workspaceBoardProfiles, serializedDeviceIds, toolbox, collectSerializedDeviceIds, registerBlocks, refreshAreaField, refreshMessageField, refreshDeviceFields, updateDeviceWarning, ensureSingleStart, compileWorkspace } from '@/lib/blockly-engine';
 
 function saveWorkspace(Blockly: BlocklyApi, workspace: BlocklyWorkspaceSvg) {
   const snapshot = Blockly.serialization.workspaces.save(workspace);
@@ -343,6 +345,7 @@ const BlocklyWorkspace = forwardRef<
     initialWorkspace,
     revision,
     devices,
+    boardProfile,
     onChange,
     onBlockSnap,
     onError,
@@ -365,6 +368,7 @@ const BlocklyWorkspace = forwardRef<
   const revisionRef = useRef(revision);
   const appliedRevisionRef = useRef<number | null>(null);
   const devicesRef = useRef(devices);
+  const boardProfileRef = useRef(boardProfile);
   const onChangeRef = useRef(onChange);
   const onBlockSnapRef = useRef(onBlockSnap);
   const onErrorRef = useRef(onError);
@@ -492,6 +496,7 @@ const BlocklyWorkspace = forwardRef<
           ...favoritesRef.current.filter(type=>validFavorite(type) && Boolean(Blockly.Blocks[type])).map(type=>({kind:'block',type})),
         ]);
         workspaceDevices.set(workspace, devicesRef.current);
+        workspaceBoardProfiles.set(workspace, boardProfileRef.current);
         try {
           loadWorkspaceData(Blockly, workspace, initialWorkspaceRef.current);
         } catch (error) {
@@ -661,6 +666,7 @@ const BlocklyWorkspace = forwardRef<
     )
       return;
     workspaceDevices.set(workspaceRef.current, devicesRef.current);
+    workspaceBoardProfiles.set(workspaceRef.current, boardProfileRef.current);
     try {
       loadWorkspaceData(
         blocklyRef.current,
@@ -680,11 +686,13 @@ const BlocklyWorkspace = forwardRef<
   useEffect(() => {
     if (!ready || !workspaceRef.current || !blocklyRef.current) return;
     workspaceDevices.set(workspaceRef.current, devicesRef.current);
+    workspaceBoardProfiles.set(workspaceRef.current, boardProfile);
+    boardProfileRef.current = boardProfile;
     if (refreshDeviceFields(blocklyRef.current, workspaceRef.current)) {
       refreshBlockAccessibility(workspaceRef.current);
       onChangeRef.current(captureStableWorkspace());
     }
-  }, [deviceSignature, ready]);
+  }, [boardProfile, deviceSignature, ready]);
 
   useImperativeHandle(
     ref,

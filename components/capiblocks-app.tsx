@@ -86,10 +86,13 @@ import {
   type SceneId,
   type SimulatorState,
   type FirmwareFramework,
+  type ProjectTarget,
 } from '@/lib/capiblocks';
+import { boardProfile, projectTargetForBoard, type BoardProfileId } from '@/lib/board-profiles';
 import { createEspIdfArchive, downloadFirmwareArchive } from '@/lib/firmware-archive';
 import {
   addDeviceToScene,
+  assignSafePins,
   cloneScene,
   sceneDeviceKinds,
   type SceneDefinition,
@@ -116,8 +119,10 @@ const emptyProgram = (): CompiledProgram => ({ version: 2, threads: [] });
 function wiringReviewSignature(
   scene: SceneDefinition,
   program: CompiledProgram,
+  profileId: BoardProfileId = 'wemos-d1-r32',
 ) {
   return JSON.stringify([
+    profileId,
     scene.devices.map((device) => [device.id, device.kind, device.pins, device.kind === 'display' || device.kind === 'ledMatrix' ? device.config : null]),
     collectRawOutputPins(program, scene),
   ]);
@@ -437,6 +442,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const [hydrated, setHydrated] = useState(false);
   const [projectName, setProjectName] = useState(currentExample.title);
   const [scene, setScene] = useState<SceneDefinition>(initialScene);
+  const [projectTarget, setProjectTarget] = useState<ProjectTarget>(() => projectTargetForBoard('wemos-d1-r32'));
   const [workspace, setWorkspace] = useState<Record<string, unknown>>(
     currentExample.workspace,
   );
@@ -449,6 +455,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const [examplesOpen, setExamplesOpen] = useState(false);
   const [sceneBuilderOpen, setSceneBuilderOpen] = useState(false);
   const sceneCommitRef = useRef<SceneDefinition | null>(null);
+  const targetCommitRef = useRef<ProjectTarget | null>(null);
   const localSaveTimerRef = useRef<number | undefined>(undefined);
   const [sceneStorage, setSceneStorage] = useState({ error: draftStore.recoveryError, busy: draftStore.recovering });
   useEffect(() => draftStore.subscribe(() => setSceneStorage({ error: draftStore.recoveryError, busy: draftStore.recovering })), [draftStore]);
@@ -586,6 +593,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         if (recovered?.project) {
           setProjectName(recovered.project.metadata.title);
           setScene(cloneScene(recovered.project.scene));
+          setProjectTarget(recovered.project.target);
           setSim(makeInitialState(recovered.project.scene));
           setSpeed(recovered.project.simulation.speed);
           speedRef.current = recovered.project.simulation.speed;
@@ -628,6 +636,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           scene,
           editorRef.current?.save() ?? workspace,
           speed,
+          projectTarget,
         );
         draftStore.write(JSON.stringify(project));
       } catch (error) {
@@ -641,7 +650,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     }, 350);
     localSaveTimerRef.current = timer;
     return () => window.clearTimeout(timer);
-  }, [draftStore, hydrated, projectName, scene, speed, workspace]);
+  }, [draftStore, hydrated, projectName, projectTarget, scene, speed, workspace]);
 
   useEffect(() => {
     mutedRef.current = muted;
@@ -692,7 +701,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       sound(210, 180, muted);
       return;
     }
-    const programDiagnostics = validateProgramForScene(program, scene);
+    const programDiagnostics = validateProgramForScene(program, scene, projectTarget.boardProfile);
     const blockingDiagnostics = programDiagnostics.filter(
       (item) =>
         item.severity === 'error' &&
@@ -721,7 +730,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     );
     setNoticeTone('ok');
     sound(620, 90, muted);
-  }, [compile, muted, postToWorker, scene, speed]);
+  }, [compile, muted, postToWorker, projectTarget.boardProfile, scene, speed]);
 
   const step = useCallback(() => {
     if (
@@ -783,7 +792,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       const applyExample = () => {
       libraryRef.current?.detach();
       const example = examples.find((item) => item.id === id) ?? examples[0];
-      const nextScene = cloneScene(example.scene);
+      const nextScene = assignSafePins(cloneScene(example.scene), { boardProfile: projectTarget.boardProfile, reassignAll: true }).scene;
       postToWorker({ type: 'STOP' });
       stopSound();
       setProjectName(example.title);
@@ -800,7 +809,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       };
       if (libraryRef.current) libraryRef.current.replace(applyExample); else applyExample();
     },
-    [postToWorker],
+    [postToWorker, projectTarget.boardProfile],
   );
 
   const addSceneComponent = useCallback(
@@ -811,7 +820,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           setNotice('Cada proyecto admite una sola pantalla o matriz. Configurá la existente desde Armar escena.');
           return current;
         }
-        const result = addDeviceToScene(current, kind);
+        const result = addDeviceToScene(current, kind, { boardProfile: projectTarget.boardProfile });
         delete result.scene.sourceTemplate;
         setSim(makeInitialState(result.scene));
         setWiringAcknowledgedSignature(null);
@@ -820,13 +829,13 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         return result.scene;
       });
     },
-    [postToWorker],
+    [postToWorker, projectTarget.boardProfile],
   );
 
   const currentProject = useCallback((): ProjectFile => {
     const savedWorkspace = editorRef.current?.save() ?? workspace;
-    return makeProject(projectName, sceneCommitRef.current ?? scene, savedWorkspace, speed);
-  }, [projectName, scene, speed, workspace]);
+    return makeProject(projectName, sceneCommitRef.current ?? scene, savedWorkspace, speed, targetCommitRef.current ?? projectTarget);
+  }, [projectName, projectTarget, scene, speed, workspace]);
 
   const persistSceneDraft = useCallback((draft: SceneDraft | null) => {
     if (!draftStore.active || sceneCommitRef.current) return;
@@ -834,27 +843,30 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     draftStore.write(JSON.stringify(currentProject()));
   }, [currentProject, draftStore]);
 
-  const finishScene = useCallback(async (nextScene?: SceneDefinition) => {
+  const finishScene = useCallback(async (nextScene?: SceneDefinition, nextBoardProfile?: BoardProfileId) => {
     if (!draftStore.active) throw new Error('Verificá tu sesión antes de confirmar la escena.');
     window.clearTimeout(localSaveTimerRef.current);
     const previousDraft = draftStore.sceneDraft;
     if (nextScene) { sceneCommitRef.current = cloneScene(nextScene); delete sceneCommitRef.current.sourceTemplate; }
+    if (nextBoardProfile) targetCommitRef.current = projectTargetForBoard(nextBoardProfile);
     draftStore.setSceneDraft(null);
     try {
       draftStore.write(JSON.stringify(currentProject()));
       await draftStore.flush();
       if (sceneCommitRef.current) changeScene(sceneCommitRef.current);
+      if (targetCommitRef.current) setProjectTarget(targetCommitRef.current);
     } catch (failure) {
       draftStore.setSceneDraft(previousDraft);
       throw failure;
-    } finally { sceneCommitRef.current = null; }
+    } finally { sceneCommitRef.current = null; targetCommitRef.current = null; }
   }, [changeScene, currentProject, draftStore]);
 
-  const fingerprint = useMemo(() => projectFingerprint(makeProject(projectName, scene, workspace, speed)), [projectName, scene, workspace, speed]);
+  const fingerprint = useMemo(() => projectFingerprint(makeProject(projectName, scene, workspace, speed, projectTarget)), [projectName, projectTarget, scene, workspace, speed]);
   const applyLibraryProject = useCallback((file: ProjectFile) => {
     postToWorker({ type: 'STOP' }); stopSound();
     const nextScene = cloneScene(file.scene);
     setProjectName(file.metadata.title); setScene(nextScene); setSim(makeInitialState(nextScene));
+    setProjectTarget(file.target);
     setSpeed(file.simulation.speed); speedRef.current = file.simulation.speed;
     setWorkspace(normalizeWorkspace(file.workspace)); setWorkspaceRevision(value => value + 1);
     setWiringAcknowledgedSignature(null); setDiagnostics([]); setActiveTab('scene');
@@ -929,7 +941,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
 
   const buildCode = useCallback((framework: FirmwareFramework = codeFramework) => {
     const program = compile();
-    const result = generateEsp32CodeResult(program, projectName, scene, framework);
+    const result = generateEsp32CodeResult(program, projectName, scene, framework, projectTarget.boardProfile);
     setCodeFramework(framework);
     setCopied(false);
     setCode(result.code);
@@ -949,7 +961,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       setNoticeTone('ok');
     }
     return result;
-  }, [compile, projectName, scene, codeFramework]);
+  }, [compile, projectName, projectTarget.boardProfile, scene, codeFramework]);
 
   const openCode = useCallback(() => {
     buildCode();
@@ -976,7 +988,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       sound(190, 160, muted, 0.035);
       return;
     }
-    const reviewSignature = wiringReviewSignature(scene, generated.program);
+    const reviewSignature = wiringReviewSignature(scene, generated.program, projectTarget.boardProfile);
     if (
       hasPhysicalConnections(scene, generated.program) &&
       wiringAcknowledgedSignature !== reviewSignature
@@ -1005,7 +1017,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     } catch (error) {
       if (epoch === exportEpoch.current) { setNotice(error instanceof Error ? error.message : 'No pudimos preparar la descarga.'); setNoticeTone('error'); }
     } finally { exportInFlight.current = false; if (epoch === exportEpoch.current) setExportBusy(false); }
-  }, [buildCode, codeFramework, muted, projectName, scene, wiringAcknowledgedSignature]);
+  }, [buildCode, codeFramework, muted, projectName, projectTarget.boardProfile, scene, wiringAcknowledgedSignature]);
 
   const importProject = useCallback(
     async (file: File) => {
@@ -1164,7 +1176,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     0,
   );
   const rawOutputPins = collectRawOutputPins(lastProgram, scene);
-  const currentWiringSignature = wiringReviewSignature(scene, lastProgram);
+  const currentWiringSignature = wiringReviewSignature(scene, lastProgram, projectTarget.boardProfile);
   const wiringAcknowledged =
     wiringAcknowledgedSignature === currentWiringSignature;
 
@@ -1179,7 +1191,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           <button className="avatar-button" title="Elegir mi avatar" aria-label="Elegir mi avatar" disabled={!preferences.verified} onClick={()=>setPreferencesOpen('avatar')}><UserAvatar id={preferences.preferences?.avatarId ?? account.avatarId} decorative /></button>
           <div>
             <strong>CapiBloques</strong>
-            <span title={`@${account.alias} · Borrador local de esta cuenta`}>{account.displayName} · Wemos D1 R32</span>
+            <span title={`@${account.alias} · Borrador local de esta cuenta`}>{account.displayName} · {boardProfile(projectTarget.boardProfile).shortName}</span>
           </div>
         </div>
         <label className="project-name">
@@ -1368,6 +1380,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
               initialWorkspace={workspace}
               revision={workspaceRevision}
               devices={scene.devices}
+              boardProfile={projectTarget.boardProfile}
               onChange={onWorkspaceChange}
               onBlockSnap={onBlockSnap}
               onHistoryChange={setBlockHistory}
@@ -1607,6 +1620,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             open={sceneBuilderOpen}
             onOpenChange={toggleSceneBuilder}
             scene={scene}
+            boardProfile={projectTarget.boardProfile}
             recoveryDraft={draftStore.sceneDraft}
             onDraft={persistSceneDraft}
             onFinish={finishScene}
@@ -1623,6 +1637,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             open={wiringOpen}
             onOpenChange={setWiringOpen}
             scene={scene}
+            boardProfile={projectTarget.boardProfile}
             rawPins={rawOutputPins}
             diagnostics={diagnostics}
             acknowledged={wiringAcknowledged}
@@ -1689,11 +1704,11 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         </DialogContent>
       </Dialog>
 
-      {usbOpen && !offline && <UsbBoard account={account} store={draftStore} job={usbJob} currentFingerprint={fingerprint} onClose={() => { setUsbOpen(false); setUsbJob(null); }} onBuilds={() => { setUsbOpen(false); setUsbJob(null); setBuildsOpen(true); }} />}
-      {buildsOpen && !offline && <FirmwareBuilds account={account} store={draftStore} csrfToken={csrfToken} capture={currentProject} fingerprint={fingerprint} onClose={() => setBuildsOpen(false)} onProgram={job => { setBuildsOpen(false); setUsbJob(job); setUsbOpen(true); }} validate={framework => {
+      {usbOpen && !offline && <UsbBoard account={account} store={draftStore} job={usbJob} currentBoardProfile={projectTarget.boardProfile} currentFingerprint={fingerprint} onClose={() => { setUsbOpen(false); setUsbJob(null); }} onBuilds={() => { setUsbOpen(false); setUsbJob(null); setBuildsOpen(true); }} />}
+      {buildsOpen && !offline && <FirmwareBuilds account={account} store={draftStore} csrfToken={csrfToken} capture={currentProject} fingerprint={fingerprint} targetBoardProfile={projectTarget.boardProfile} onClose={() => setBuildsOpen(false)} onProgram={job => { setBuildsOpen(false); setUsbJob(job); setUsbOpen(true); }} validate={framework => {
         const generated = buildCode(framework);
         if (generated.diagnostics.some(item => item.severity === 'error')) { setProblemsOpen(true); return null; }
-        if (hasPhysicalConnections(scene, generated.program) && wiringAcknowledgedSignature !== wiringReviewSignature(scene, generated.program)) {
+        if (hasPhysicalConnections(scene, generated.program) && wiringAcknowledgedSignature !== wiringReviewSignature(scene, generated.program, projectTarget.boardProfile)) {
           setNotice('Antes de compilar, revisá y confirmá la guía de cableado.'); setNoticeTone('warning'); setWiringOpen(true); return null;
         }
         return { wifi: programUsesWifi(generated.program) };
@@ -1701,7 +1716,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       <Dialog open={codeOpen} onOpenChange={setCodeOpen}>
         <DialogContent className="code-dialog">
           <DialogHeader>
-            <DialogTitle>Código para WEMOS D1 R32</DialogTitle>
+            <DialogTitle>Código para {boardProfile(projectTarget.boardProfile).name}</DialogTitle>
             <DialogDescription>
               Usa cada componente y pin de tu escena. Los caminos avanzan juntos
               con esperas cooperativas, tanto en Arduino como en ESP-IDF.

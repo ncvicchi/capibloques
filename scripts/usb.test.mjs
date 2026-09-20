@@ -7,13 +7,20 @@ import { usbFixture, digest } from '../tests/fixtures/usb-firmware.mjs';
 let checks = 0;
 const check = async (name, body) => { await body(); checks++; console.log(`USB OK: ${name}`); };
 const waitFor = async predicate => { for (let i = 0; i < 100 && !predicate(); i++) await delay(5); assert.ok(predicate()); };
-const firmware = () => ({ framework: 'arduino', containsWifi: false, parts: [{ address: 0x1000, data: new Uint8Array([1, 2, 3, 4]) }] });
+const firmware = () => ({ framework: 'arduino', containsWifi: false, boardProfile: 'wemos-d1-r32', chip: 'ESP32', flashBytes: 4194304, parts: [{ address: 0x1000, data: new Uint8Array([1, 2, 3, 4]) }] });
 
 await check('bundles Arduino/IDF and cached aliases with a different original buildId', async () => {
   for (const framework of ['arduino', 'esp-idf']) {
     const { bytes, job } = usbFixture(framework), parsed = await parseUsbFirmware(bytes, job);
     assert.equal(parsed.parts.length, framework === 'arduino' ? 4 : 3);
     assert.equal(parsed.parts[0].address, 4096);
+  }
+});
+await check('ESP32-S3 N16R8 accepts only its own 16 MB bundle and zero bootloader offset', async () => {
+  for (const framework of ['arduino', 'esp-idf']) {
+    const { bytes, job } = usbFixture(framework, () => {}, () => {}, 'diymall-esp32-s3-devkitc-v1-n16r8');
+    const parsed = await parseUsbFirmware(bytes, job);
+    assert.equal(parsed.chip, 'ESP32-S3'); assert.equal(parsed.flashBytes, 16 * 1024 * 1024); assert.equal(parsed.parts[0].address, 0);
   }
 });
 await check('wrong board, chip, framework, Wi-Fi, offsets, overlap, parts, size, hash and recipe are rejected', async () => {

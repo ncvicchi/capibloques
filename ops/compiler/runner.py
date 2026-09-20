@@ -119,8 +119,15 @@ def validate_archive(raw, job):
             raise ValueError
         if any(e.compress_type != zipfile.ZIP_STORED or e.file_size > 4_194_304 for e in entries):
             raise ValueError
+        target = job["document"]["target"]
+        target_spec = {
+            "wemos-d1-r32": ("esp32", 4_194_304),
+            "diymall-esp32-s3-devkitc-v1-n16r8": ("esp32s3", 16_777_216),
+        }.get(target.get("boardProfile"))
+        if not target_spec:
+            raise ValueError
         metadata = json.loads(archive.read("manifest.json"))
-        if metadata.get("format") != "CapiBloquesFirmware" or metadata.get("version") != 1 or metadata.get("chip") != "esp32" or metadata.get("board") != "wemos-d1-r32" or metadata.get("framework") != job["framework"]:
+        if metadata.get("format") != "CapiBloquesFirmware" or metadata.get("version") != 1 or metadata.get("chip") != target_spec[0] or metadata.get("board") != target["boardProfile"] or metadata.get("framework") != job["framework"]:
             raise ValueError
         if metadata.get("containsWifiCredentials") != bool(job["wifi"]):
             raise ValueError
@@ -130,14 +137,14 @@ def validate_archive(raw, job):
         allowed = {"manifest.json", "LEEME.txt", "licenses/Adafruit-GFX.txt", "licenses/Arduino-GFX.txt"}
         last = 0
         for index, part in enumerate(parts):
-            expected = f"firmware/part-{index}.bin"
-            if part.get("path") != expected or type(part.get("offset")) is not int or part["offset"] < last:
+            expected_path = f"firmware/part-{index}.bin"
+            if part.get("path") != expected_path or type(part.get("offset")) is not int or part["offset"] < last:
                 raise ValueError
-            value = archive.read(expected)
+            value = archive.read(expected_path)
             last = part["offset"] + len(value)
-            if not value or last > 4_194_304 or len(value) != part.get("size") or hashlib.sha256(value).hexdigest() != part.get("sha256"):
+            if not value or last > target_spec[1] or len(value) != part.get("size") or hashlib.sha256(value).hexdigest() != part.get("sha256"):
                 raise ValueError
-            allowed.add(expected)
+            allowed.add(expected_path)
         if any(e.filename not in allowed for e in entries):
             raise ValueError
         # Bind downloadable metadata to this exact immutable attempt/recipe.

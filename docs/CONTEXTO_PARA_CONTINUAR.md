@@ -5,8 +5,8 @@ Documento vivo de **fase 11**. Actualización: **19 de septiembre de 2026**. Lee
 ## 1. Punto de entrada y autorización actual
 
 - Repositorio: [ncvicchi/capibloques](https://github.com/ncvicchi/capibloques). Rama de trabajo actual: `main`. Nuevas ramas, si hacen falta: prefijo `codex/`. Respetar el árbol existente, sin reset/force ni descartar cambios ajenos.
-- El propietario autoriza una entrega a la vez y pidió diseñar primero los componentes. Fases 11–15 fueron autorizadas y ejecutadas; después autorizó específicamente implementar el componente Matriz LED de fase 23. Esa autorización no abre el resto de la fase 23 ni las demás fases.
-- **Fases 11–14 entregadas; fase 15 terminada en software y fase 23 en curso.** Mensajes conserva aceptación física Wemos pendiente. La Matriz LED 32 × 8 tiene editor, bloques, simulación y Arduino/ESP-IDF desplegados; faltan su ensayo eléctrico y la aceptación física de los displays existentes. Las correcciones de catálogo (`d096fd9`), arrastre (`0fc9ff2`) y guardado durante arrastre (`2b97af9`) siguen desplegadas.
+- El propietario autoriza una entrega a la vez y pidió diseñar primero los componentes. Fases 11–16 fueron autorizadas y ejecutadas; además autorizó específicamente implementar el componente Matriz LED de fase 23. Esa autorización no abre el resto de la fase 23 ni las demás fases.
+- **Fases 11–14 entregadas; fases 15 y 16 terminadas en software; fase 23 en curso.** Mensajes y DIYmall S3 conservan aceptación física pendiente. La Matriz LED 32 × 8 tiene editor, bloques, simulación y Arduino/ESP-IDF desplegados; faltan su ensayo eléctrico y la aceptación física de los displays existentes.
 - Fase 10: software entregado, **aceptación física pendiente**. El propietario no tiene Wemos disponible; no dar por probada la placa ni conectar/programar otro puerto como sustituto.
 - Producción es **Fase final, postergada**, no «fase 11». Los documentos históricos con letras son evidencias antiguas, no fases nuevas ni puntos para pedir OK.
 - Este contexto no transfiere automáticamente credenciales, chats, sesiones ni permisos. Otra cuenta debe tener su propio acceso verificado y la solicitud del propietario antes de operar.
@@ -26,7 +26,7 @@ CapiBloques enseña programación visual a chicos de **8–12 años**. Se arma u
 - El compilador del servidor sólo acepta proyectos de bloques validados, no C/C++/CMake arbitrario. Recursos limitados; concurrencia administrativa con techo operativo DEV **1**, sin aumentarlo por suposición.
 - Wi-Fi: el propietario autorizó enviar SSID/clave para compilación privada temporal. Nunca entran en JSON/historial/Git/logs; el binario sí contiene la clave y debe seguir siendo privado. No prometer borrado forense de backups/RAM/flash.
 - USB está conectado a la **PC del navegador**, no al servidor. Chrome/Edge, localhost/HTTPS, elección y confirmación explícitas. Monitor real sólo lectura; distinto de consola simulada. No control remoto de actuadores, OTA ni seguimiento físico de bloques.
-- Placa implementada: Wemos D1 R32. S3 DevKit y Waveshare 5 pulgadas están pendientes; modelos/revisiones exactos deben identificarse. No copiar pines/offsets de Wemos a S3.
+- Placas implementadas en software: Wemos D1 R32 y la unidad exacta DIYmall ESP32-S3-DevKitC V1.0 N16R8. Waveshare 5 pulgadas sigue pendiente de modelo/revisión exactos. No extrapolar pines, memoria ni offsets entre perfiles.
 
 ## 3. Evidencia y versiones
 
@@ -159,6 +159,12 @@ Para evitar operación manual repetitiva se agregaron `scripts/update-dev.sh`, `
 
 El propietario ejecutó la primera actualización mediante `deploy-dev.ps1 -DirectLan` y no informó errores; según el acuerdo operativo vigente, se registra DEV actualizado a `f772026f711782d0c3cd04401d3974ddcba0ea64`. Su [CI completa 35477573114](https://github.com/ncvicchi/capibloques/actions/runs/35477573114) terminó correcta. Esta confirmación procede del operador, no de una nueva inspección remota del asistente. Desde ahora el asistente implementa, prueba, commitea y pushea, pero entrega la orden de despliegue para que la ejecute el propietario; si éste no informa un problema, se considera exitosa. La orden normal dentro de DEV es `cd /home/capi/capibloques && ./scripts/update-dev.sh`.
 
+### Fase 16 — DIYmall ESP32-S3 N16R8 — 19 de septiembre de 2026
+
+La placa conectada se inspeccionó sin escribir: ESP32-S3 revisión 0.2, flash Quad 16 MiB, PSRAM Octal 8 MiB, cristal 40 MHz y puente USB-UART CP210x. El recorrido de software se documenta en [FASE_16_ESP32_S3_DEVKIT.md](FASE_16_ESP32_S3_DEVKIT.md): target JSON cerrado, selector transaccional de placa, pines/capacidades, ilustración propia, Arduino/ESP-IDF, cola/caché/manifiesto y USB ligados al perfil exacto. GPIO35–37 quedan fuera por la PSRAM Octal. Wemos mantiene su JSON y comportamiento histórico.
+
+Las pruebas locales de tipos, lint, smoke/modelo S3, ZIP IDF, USB e aislamiento de compilador pasan; CI compila además un semáforo S3 real con ambas toolchains. Registrar aquí hash y ejecución CI después del push. No se grabó la placa: faltan autorización y ensayo físico de arranque, consola, PWM y TX/RX; no declarar certificación de hardware.
+
 ## 4. Arquitectura y mapa de archivos
 
 | Área | Punto de entrada y responsabilidad |
@@ -170,6 +176,7 @@ El propietario ejecutó la primera actualización mediante `deploy-dev.ps1 -Dire
 | Simulación | [simulator.worker](../lib/simulator.worker.ts), [execution-panel](../components/execution-panel.tsx). Worker cooperativo, tiempos lógicos/trazas separados de presentación. |
 | Pantallas, matriz y cableado | [display-model](../lib/display-model.ts), [led-matrix](../lib/led-matrix.ts), [firmware matriz](../lib/led-matrix-firmware.ts), [wiring-guide](../components/wiring-guide.tsx). Validación compartida, simulación y revisión eléctrica explícita. |
 | Imagen Wemos | [wemos-board UI](../components/wemos-board.tsx), [mapa físico](../lib/wemos-board.ts), [referencias contrastadas](REFERENCIA_WEMOS.md). Listado/dibujo comparten conexiones; ilustración propia, no certificación eléctrica. |
+| Perfiles de placa y S3 | [board-profiles](../lib/board-profiles.ts), [s3-board UI](../components/s3-board.tsx), [mapa físico S3](../lib/s3-board.ts), [guía de fase 16](FASE_16_ESP32_S3_DEVKIT.md). Identidad, memoria, pines, target y manifiestos comparten perfil; no generalizar N16R8. |
 | Recuperación | [project-recovery](../lib/project-recovery.ts), [scene-recovery](../lib/scene-recovery.ts), [local-exit](../lib/local-exit.ts), [use-project-autosave](../components/use-project-autosave.ts). IndexedDB/CAS, envíos pendientes y ACK. |
 | Backend | [config/urls](../backend/config/urls.py); módulos [projects](../backend/projects), [courses](../backend/courses), [school](../backend/school), [compiler](../backend/compiler). Django/PostgreSQL. |
 | Compilación | [ops/compiler](../ops/compiler), [compiler-generate](../scripts/compiler-generate.mjs), [firmware-builds](../components/firmware-builds.tsx). Cola durable, planificador confiable y ejecutor efímero aislado. |
@@ -286,7 +293,7 @@ El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BAC
 - 13: **entregada y verificada externamente**; [acceso persistente a DEV](FASE_13_ACCESO_EXTERNO_DEV.md), HTTPS mediante VM Nginx, runtime como servicio y origen restringido. DNS, certificado, reinicio y acceso Chrome/Edge están comprobados.
 - 14: **entregada y verificada en DEV/CI**; [paralelo vertical, lienzo estático e indicadores locales](FASE_14_EJECUCION_VISUAL.md).
 - 15: **software entregado y verificado en DEV/CI**, componente Mensajes con modos Enviar/Recibir/Ambos, trama protegida, simulación por botones y ambos generadores; falta aceptación física Wemos.
-- 16: DevKit S3 exacta, perfiles, imagen de conexiones, fuentes/compilación/USB.
+- 16: **entregada en software** para DIYmall ESP32-S3-DevKitC V1.0 N16R8; [perfil, evidencia e integración](FASE_16_ESP32_S3_DEVKIT.md). Chip/flash/PSRAM se identificaron físicamente sin escribir. Falta grabación y ejecución física de consola/PWM/TX-RX, más comparación física Wemos.
 - 17: Waveshare S3 5 pulgadas exacta, pantalla/entrada y guía visual de conectores.
 - 18: escena y controles locales en display, prioridad manual/programa explícita.
 - 19: desafíos progresivos, con primeros retos utilizables sin hardware obligatorio.
@@ -300,11 +307,11 @@ El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BAC
 - El [informe externo del 14 de septiembre](BACKLOG.md#pedidos-externos-a-analizar) queda distribuido entre 20–22 y 25–26. El selector angular con reloj está expresamente descartado y no es trabajo pendiente. La barra residual, el arrastre individual/grupal y el guardado estable ya están corregidos en `d096fd9`, `0fc9ff2` y `2b97af9`.
 - Final: producción/HTTPS, restauración/backups externos, carga, monitoreo, rollback y piloto; postergada.
 
-La próxima fase numerada es **16**, aún no autorizada para ejecución y dependiente del modelo exacto de DevKit S3. Las aceptaciones físicas de fases 10, 15 y 23 siguen separadas. Exigir modelo/documentación y ensayo físico antes de anunciar soporte de una placa nueva. El diagrama Wemos fue contrastado con las fuentes enlazadas; conservar esa verificación al ampliarlo, porque existen pinouts públicos contradictorios. No convertir una ilustración en fuente única de verdad.
+La próxima fase numerada pendiente es **17**, aún no autorizada y dependiente del modelo/revisión exactos de la Waveshare. Las aceptaciones físicas de fases 10, 15, 16 y 23 siguen separadas. La fase 16 sólo corresponde a la DIYmall N16R8 inspeccionada: no extrapolar a otra DevKit S3. Exigir modelo/documentación y ensayo físico antes de anunciar soporte de una placa nueva. Los diagramas fueron contrastados con las fuentes enlazadas; una ilustración nunca es fuente única de verdad.
 
 ## 9. Mensaje listo para otra conversación
 
-> Continuá CapiBloques desde este repositorio. Primero leé AGENTS.md y docs/CONTEXTO_PARA_CONTINUAR.md, luego el plan y la guía de la entrega vigente. Confirmá rama, cambios locales y versión desplegada antes de operar. Las fases 11–14 están entregadas, la 15 está terminada en software y la 23 está en curso con la Matriz LED implementada; DEV funciona públicamente en https://capibloques.dev.nvicchi.com/. No infieras autorización por estar en el backlog. Trabajá una entrega completa por vez, informá avances, probá, hacé commit/push y actualizá este contexto al terminar. Producción es la Fase final y está postergada. El gateway es exclusivamente un salto SSH y está prohibido modificarlo; tampoco modifiques Proxmox, router, PRD u otros sitios. No copies secretos, no documentes contraseñas ni borres datos para recuperar acceso. Las aceptaciones físicas siguen pendientes salvo evidencia posterior explícita. Decime qué contexto o acceso privado falta sin pedir credenciales en Git o documentación.
+> Continuá CapiBloques desde este repositorio. Primero leé AGENTS.md y docs/CONTEXTO_PARA_CONTINUAR.md, luego el plan y la guía de la entrega vigente. Confirmá rama, cambios locales y versión desplegada antes de operar. Las fases 11–14 están entregadas, 15 y 16 están terminadas en software y la 23 está en curso con la Matriz LED implementada; DEV funciona públicamente en https://capibloques.dev.nvicchi.com/. No infieras autorización por estar en el backlog. Trabajá una entrega completa por vez, informá avances, probá, hacé commit/push y actualizá este contexto al terminar. Producción es la Fase final y está postergada. El gateway es exclusivamente un salto SSH y está prohibido modificarlo; tampoco modifiques Proxmox, router, PRD u otros sitios. No copies secretos, no documentes contraseñas ni borres datos para recuperar acceso. Las aceptaciones físicas siguen pendientes salvo evidencia posterior explícita. Decime qué contexto o acceso privado falta sin pedir credenciales en Git o documentación.
 
 ## 10. Lista de cierre y mantenimiento obligatorio
 

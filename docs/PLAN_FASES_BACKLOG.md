@@ -153,6 +153,8 @@ Aceptación:
 
 ## Fase 16 — ESP32-S3 DevKit y perfiles de placa
 
+**Estado:** entregada en software el 19 de septiembre de 2026 para la unidad DIYmall ESP32-S3-DevKitC V1.0 N16R8 identificada físicamente. Falta grabación/ejecución física autorizada; ver [cierre y evidencia](FASE_16_ESP32_S3_DEVKIT.md). No extender esta identificación a otra DevKit S3.
+
 **Objetivo:** elegir explícitamente el destino y completar para DevKit el recorrido proyecto → simulación → fuentes → compilación → USB.
 
 Requisito antes de fijar el perfil: modelo y revisión exactos, módulo/memoria, conexiones USB y documentación del fabricante. No asumir que el nombre «ESP32-S3 DevKit» define una placa única ni elegir una compra por el usuario.
@@ -370,7 +372,7 @@ El gateway sigue siendo sólo un salto SSH, con prohibición de cambios. Tampoco
 ## Cómo se trabaja y qué falta decidir
 
 - Una fase completa autorizada por vez, con implementación, pruebas proporcionales, entrega en DEV y commit/push. Informar avances con evidencia y pendientes; no inventar porcentajes ni tiempos exactos.
-- **Fases 11–14 entregadas, fase 15 terminada en software y fase 23 en curso.** Actualizar la documentación viva al cerrar cada entrega solicitada. No ejecutar las fases restantes, completar la aceptación física ni avanzar a producción sin autorización y hardware correspondientes.
-- Para fases 16 y 17 hacen falta modelos exactos antes de fijar drivers/pines; para cerrar las entregas físicas hace falta hardware identificado y autorización para reemplazar firmware.
+- **Fases 11–14 entregadas; fases 15 y 16 terminadas en software; fase 23 en curso.** Actualizar la documentación viva al cerrar cada entrega solicitada. No ejecutar las fases restantes, completar la aceptación física ni avanzar a producción sin autorización y hardware correspondientes.
+- Para fase 17 hace falta el modelo Waveshare exacto antes de fijar drivers/pines; para cerrar las aceptaciones físicas de 15, 16 y 23 hace falta autorización para reemplazar firmware y los montajes correspondientes.
 - La fase 14 fija el paralelo como un contenedor con caminos apilados de arriba hacia abajo y mantiene fork/join. Formato de mensajes/timeout se fija en fase 15; prioridad manual/programa y límites gráficos en fase 18; catálogo inicial y visibilidad docente en fase 19; métricas/asistente en 20; UX en 21; avatar en 22; displays/matriz en 23; panel móvil en 24; compartir en 25; acceso de aula en 26. Son decisiones dentro de esas fases, no nuevas fases con letras.
 - No hay estimaciones horarias comprometidas: hardware, alcance de la adaptación gráfica y mediciones en la VM condicionan el esfuerzo. No retrasar ahora la planificación esperando esos datos, ni prometer implementaciones específicas de un modelo no identificado.

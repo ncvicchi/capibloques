@@ -27,7 +27,7 @@ function fakePort({ failWrite = false, heldOpen = null } = {}) {
 try {
   const aborter = new AbortController(), { port, events } = fakePort(), driver = await createEspDriver(port, aborter.signal);
   assert.deepEqual(await driver.detect(), { chip: 'ESP32', flashBytes: 4194304 });
-  const firmware = { parts: [{ data: new Uint8Array([1, 2, 3, 4]), address: 4096 }], framework: 'arduino', containsWifi: false };
+  const firmware = { parts: [{ data: new Uint8Array([1, 2, 3, 4]), address: 4096 }], framework: 'arduino', containsWifi: false, boardProfile: 'wemos-d1-r32', chip: 'ESP32', flashBytes: 4194304 };
   let percent = 0; await driver.write(firmware, value => percent = value);
   assert.equal(options.fileArray, firmware.parts); assert.equal(options.eraseAll, false); assert.equal(options.compress, true); assert.equal(options.flashSize, 'keep'); assert.equal(options.flashFreq, 'keep'); assert.equal(options.flashMode, 'keep');
   assert.equal(options.calculateMD5Hash(new TextEncoder().encode('abc')), '900150983cd24fb0d6963f7d28e17f72'); assert.equal(percent, 100);

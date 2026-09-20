@@ -1,11 +1,12 @@
 import type { SceneDefinition } from './scene-model.ts';
+import type { BoardProfileId } from './board-profiles.ts';
 
 export const IDF_VERSION = '5.5.5';
 export const IDF_IMAGE = 'espressif/idf:v5.5.5@sha256:a9231d0697ab8f7517cc072e93b7c83e04907bfbfba80b6440d7dbbf90665cf2';
 export type PwmAssignment = { pin: number; bank: number; channel: number; timer: number; frequency: number; resolution: number; tone: boolean };
 
 /** ESP32 has two banks of eight channels / four timers. Never share a tone timer. */
-export function allocateIdfPwm(scene: SceneDefinition): PwmAssignment[] | null {
+export function allocateIdfPwm(scene: SceneDefinition, profileId: BoardProfileId = 'wemos-d1-r32'): PwmAssignment[] | null {
   const groups = new Map<string, { pins: number[]; frequency: number; resolution: number; tone: boolean }>();
   for (const device of scene.devices) {
     let pins: (number | null)[] = [], frequency = 0, resolution = 8;
@@ -25,15 +26,20 @@ export function allocateIdfPwm(scene: SceneDefinition): PwmAssignment[] | null {
     groups.set(key, group);
   }
   const values = [...groups.values()].filter(group => group.pins.length).sort((a, b) => b.pins.length - a.pins.length);
-  if (values.reduce((count, group) => count + group.pins.length, 0) > 16) return null;
+  const bankCount = profileId === 'wemos-d1-r32' ? 2 : 1;
+  const capacity = bankCount * 8;
+  if (values.reduce((count, group) => count + group.pins.length, 0) > capacity) return null;
   const search = (index: number, channels: number[], timers: number[], output: PwmAssignment[]): PwmAssignment[] | null => {
     if (index === values.length) return output;
     const group = values[index];
-    for (let high = Math.min(group.pins.length, 8 - channels[0]); high >= 0; high--) {
-      const counts = [high, group.pins.length - high];
+    const splits = bankCount === 1
+      ? [group.pins.length]
+      : Array.from({ length: Math.min(group.pins.length, 8 - channels[0]) + 1 }, (_, index) => Math.min(group.pins.length, 8 - channels[0]) - index);
+    for (const high of splits) {
+      const counts = bankCount === 1 ? [group.pins.length] : [high, group.pins.length - high];
       if (counts.some((count, bank) => count + channels[bank] > 8 || (count > 0 && timers[bank] >= 4))) continue;
       const assigned = group.pins.map((pin, offset) => {
-        const bank = offset < high ? 0 : 1;
+        const bank = bankCount === 1 || offset < high ? 0 : 1;
         return { pin, bank, channel: channels[bank] + offset - (bank ? high : 0), timer: timers[bank], frequency: group.frequency, resolution: group.resolution, tone: group.tone };
       });
       const found = search(index + 1, channels.map((count, bank) => count + counts[bank]), timers.map((count, bank) => count + Number(counts[bank] > 0)), [...output, ...assigned]);
@@ -41,11 +47,12 @@ export function allocateIdfPwm(scene: SceneDefinition): PwmAssignment[] | null {
     }
     return null;
   };
-  return search(0, [0, 0], [0, 0], []);
+  return search(0, Array(bankCount).fill(0), Array(bankCount).fill(0), []);
 }
 
-export function idfRuntimeSupport(scene: SceneDefinition, usesWifi: boolean) {
-  const assignments = allocateIdfPwm(scene) ?? [];
+export function idfRuntimeSupport(scene: SceneDefinition, usesWifi: boolean, profileId: BoardProfileId = 'wemos-d1-r32') {
+  const s3 = profileId !== 'wemos-d1-r32';
+  const assignments = allocateIdfPwm(scene, profileId) ?? [];
   const hasAdc = scene.devices.some(device => device.kind === 'lightSensor' || device.kind === 'potentiometer');
   const hasMessages = scene.devices.some(device => device.kind === 'messages');
   const setup: string[] = [];
@@ -69,8 +76,9 @@ export function idfRuntimeSupport(scene: SceneDefinition, usesWifi: boolean) {
 ${hasMessages ? '#include "driver/uart.h"' : ''}
 #include "esp_timer.h"
 #include "esp_idf_version.h"
-#if ESP_IDF_VERSION != ESP_IDF_VERSION_VAL(5, 5, 5) || !CONFIG_IDF_TARGET_ESP32
-#error "This project requires ESP-IDF 5.5.5 and target esp32 (Wemos D1 R32)."
+${s3 ? '#include "esp_psram.h"' : ''}
+#if ESP_IDF_VERSION != ESP_IDF_VERSION_VAL(5, 5, 5) || !${s3 ? 'CONFIG_IDF_TARGET_ESP32S3' : 'CONFIG_IDF_TARGET_ESP32'}
+#error "This project requires ESP-IDF 5.5.5 and target ${s3 ? 'esp32s3 (DIYmall N16R8)' : 'esp32 (Wemos D1 R32)'} ."
 #endif
 ${hasAdc ? '#include "esp_adc/adc_oneshot.h"' : ''}
 ${usesWifi ? '#include "esp_wifi.h"\n#include "esp_event.h"\n#include "esp_netif.h"\n#include "nvs_flash.h"\n#if __has_include("wifi_config.h")\n#include "wifi_config.h"\n#else\n#include "wifi_config.example.h"\n#endif' : ''}
@@ -84,8 +92,8 @@ void capiConsoleTask(void*) {
   for (;;) if (xQueueReceive(capiConsoleQueue, &message, portMAX_DELAY) == pdTRUE) { fputs(message, stdout); fputc('\\n', stdout); fflush(stdout); }
 }
 void capiOutput(uint8_t pin) {
-  static bool configured[40] = {};
-  if (pin >= 40) abort();
+  static bool configured[49] = {};
+  if (pin >= 49) abort();
   if (configured[pin]) return;
   gpio_config_t config = {};
   config.pin_bit_mask = 1ULL << pin; config.mode = GPIO_MODE_OUTPUT;
@@ -104,7 +112,7 @@ int capiDigitalRead(uint8_t pin) { return gpio_get_level((gpio_num_t)pin); }
 
 struct CapiPwm { uint8_t pin; ledc_mode_t bank; ledc_channel_t channel; ledc_timer_t timer; ledc_timer_bit_t resolution; uint32_t frequency; bool tone; };
 constexpr CapiPwm capiPwm[] = {
-${assignments.length ? assignments.map(item => `  { ${item.pin}, ${item.bank ? 'LEDC_LOW_SPEED_MODE' : 'LEDC_HIGH_SPEED_MODE'}, (ledc_channel_t)${item.channel}, (ledc_timer_t)${item.timer}, (ledc_timer_bit_t)${item.resolution}, ${item.frequency}, ${item.tone} },`).join('\n') : '  { 255, LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, LEDC_TIMER_0, LEDC_TIMER_8_BIT, 5000, false }, // unused sentinel'}
+${assignments.length ? assignments.map(item => `  { ${item.pin}, ${s3 || item.bank ? 'LEDC_LOW_SPEED_MODE' : 'LEDC_HIGH_SPEED_MODE'}, (ledc_channel_t)${item.channel}, (ledc_timer_t)${item.timer}, (ledc_timer_bit_t)${item.resolution}, ${item.frequency}, ${item.tone} },`).join('\n') : `  { 255, ${s3 ? 'LEDC_LOW_SPEED_MODE' : 'LEDC_HIGH_SPEED_MODE'}, LEDC_CHANNEL_0, LEDC_TIMER_0, LEDC_TIMER_8_BIT, 5000, false }, // unused sentinel`}
 };
 void capiPwmWrite(uint8_t pin, uint32_t duty) {
   for (const auto& pwm : capiPwm) if (pwm.pin == pin && pin != 255) {
@@ -178,9 +186,10 @@ void capiWifiBegin() {
 }
 ` : ''}
 void capiHardwareBegin() {
+${s3 ? '  if (esp_psram_get_size() < 8U * 1024U * 1024U) abort(); // This exact N16R8 profile requires 8 MiB Octal PSRAM.' : ''}
   capiConsoleQueue = xQueueCreate(32, sizeof(const char*));
   if (!capiConsoleQueue || xTaskCreate(capiConsoleTask, "capi-console", 4096, nullptr, 1, nullptr) != pdPASS) abort();
-  bool timers[2][4] = {};
+  bool timers[${s3 ? 1 : 2}][4] = {};
   for (const auto& pwm : capiPwm) if (pwm.pin != 255) {
     if (!timers[pwm.bank][pwm.timer]) {
       ledc_timer_config_t timer = {}; timer.speed_mode = pwm.bank; timer.timer_num = pwm.timer;

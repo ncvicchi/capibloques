@@ -11,7 +11,15 @@ import unicodedata
 from django.core.exceptions import ValidationError
 
 MAX_FILE_BYTES = 2_000_000
-TARGET = {"family": "esp32", "framework": "arduino", "coreMajor": 3, "coreVersion": "3.3.11", "boardProfile": "wemos-d1-r32", "fqbn": "esp32:esp32:d1_uno32"}
+TARGETS = {
+    "wemos-d1-r32": {"family": "esp32", "framework": "arduino", "coreMajor": 3, "coreVersion": "3.3.11", "boardProfile": "wemos-d1-r32", "fqbn": "esp32:esp32:d1_uno32"},
+    "diymall-esp32-s3-devkitc-v1-n16r8": {"family": "esp32-s3", "framework": "arduino", "coreMajor": 3, "coreVersion": "3.3.11", "boardProfile": "diymall-esp32-s3-devkitc-v1-n16r8", "fqbn": "esp32:esp32:esp32s3"},
+}
+BOARD_PINS = {
+    "wemos-d1-r32": {4, 13, 14, 16, 17, 18, 19, 23, 25, 26, 27, 34, 35, 36, 39},
+    # N16R8: GPIO35-37 belong to the Octal PSRAM and are intentionally unavailable.
+    "diymall-esp32-s3-devkitc-v1-n16r8": {0, 1, 2, 3, *range(4, 22), *range(38, 49)},
+}
 BLOCKS = {"capi_" + name for name in ("start", "forever", "repeat", "wait", "if", "compare", "counter_compare", "counter_set", "counter_change", "traffic", "led", "pin_write", "robot", "motor", "servo", "buzzer", "tone", "button_pressed", "sensor_compare", "wifi_connect", "wifi_connected", "serial")}
 BLOCKS.add("capi_parallel")
 BLOCKS.update(("capi_display_write", "capi_display_clear", "capi_display_animate_text", "capi_display_artwork", "capi_visual_wait"))
@@ -193,7 +201,7 @@ def workspace(value):
             stack.append(block["next"]["block"])
 
 
-def scene(value):
+def scene(value, board_profile="wemos-d1-r32"):
     exact(value, ("schemaVersion", "id", "name", "description", "canvas", "devices", "widgets"), ("retiredDeviceIds", "sourceTemplate"))
     require(type(value["schemaVersion"]) is int and value["schemaVersion"] == 1 and identifier(value["id"]))
     require(text(value["name"], 60, 1) and value["name"].strip() and isinstance(value["description"], str))
@@ -248,6 +256,7 @@ def scene(value):
                 require(number(item["rotation"], 0, 360) and item["rotation"] < 360)
                 exact(item["pins"], PINS[kind])
                 require(all(pin is None or (type(pin) is int and -2147483648 <= pin <= 2147483647) for pin in item["pins"].values()))
+                require(all(pin is None or pin in BOARD_PINS[board_profile] for pin in item["pins"].values()), "La escena usa un GPIO que no pertenece a la placa elegida.")
     retired = value.get("retiredDeviceIds", [])
     require(isinstance(retired, list) and len(retired) <= 4096)
     retired_ids = set()
@@ -260,14 +269,15 @@ def document(value):
     bounded_json(value)
     exact(value, ("application", "schemaVersion", "metadata", "target", "scene", "simulation", "workspace"))
     require(value["application"] == "CapiBloques" and type(value["schemaVersion"]) is int and value["schemaVersion"] == 2, "Importá el JSON v1/v2 desde el editor para convertirlo al formato actual.")
-    require(value["target"] == TARGET, "El perfil de placa no es compatible.")
+    target = value["target"]
+    require(isinstance(target, dict) and target.get("boardProfile") in TARGETS and target == TARGETS[target["boardProfile"]], "El perfil de placa no es compatible.")
     exact(value["metadata"], ("title", "locale", "updatedAt"), ("migratedFrom",))
     title(value["metadata"]["title"])
     require(value["metadata"]["locale"] == "es-AR" and text(value["metadata"]["updatedAt"], 64, 1))
     require("migratedFrom" not in value["metadata"] or (type(value["metadata"]["migratedFrom"]) is int and value["metadata"]["migratedFrom"] == 1))
     exact(value["simulation"], ("scene", "speed"))
     require(value["simulation"]["scene"] in ("traffic", "robot", "wifi", "counter") and number(value["simulation"]["speed"], 0.25, 4))
-    scene(value["scene"])
+    scene(value["scene"], target["boardProfile"])
     workspace(value["workspace"])
     size = len(encoded(value))
     require(size <= MAX_FILE_BYTES, "El proyecto supera 2 MB.")

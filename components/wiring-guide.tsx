@@ -3,7 +3,10 @@
 import { useMemo, useState } from 'react';
 import { Check, ShieldAlert, ShieldCheck } from 'lucide-react';
 import WemosBoard from '@/components/wemos-board';
+import S3Board from '@/components/s3-board';
 import { physicalWemosLabel } from '@/lib/wemos-board';
+import { physicalS3Label } from '@/lib/s3-board';
+import { boardProfile, type BoardProfileId } from '@/lib/board-profiles';
 import {
   Dialog,
   DialogContent,
@@ -14,7 +17,6 @@ import {
 import {
   getPinRequirements,
   validateScene,
-  wemosD1R32Pins,
   type SceneDefinition,
   type SceneDevice,
 } from '@/lib/scene-model';
@@ -25,6 +27,7 @@ interface WiringGuideProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   scene: SceneDefinition;
+  boardProfile: BoardProfileId;
   rawPins: number[];
   diagnostics: CapiDiagnostic[];
   acknowledged: boolean;
@@ -50,8 +53,9 @@ const deviceAdvice: Record<SceneDevice['kind'], string> = {
   messages: 'Cruza las señales: Enviar va a Recibir del otro equipo y Recibir va a Enviar. Uní también las masas (GND). Solo 3,3 V.',
 };
 
-function sceneSignature(scene: SceneDefinition, rawPins: number[]) {
+function sceneSignature(scene: SceneDefinition, rawPins: number[], profileId: BoardProfileId) {
   return JSON.stringify([
+    profileId,
     scene.devices.map((device) => [device.id, device.kind, device.pins, device.kind === 'display' || device.kind === 'ledMatrix' ? device.config : null]),
     rawPins,
   ]);
@@ -61,12 +65,13 @@ export default function WiringGuide({
   open,
   onOpenChange,
   scene,
+  boardProfile: profileId,
   rawPins,
   diagnostics,
   acknowledged,
   onAcknowledgedChange,
 }: WiringGuideProps) {
-  const signature = sceneSignature(scene, rawPins);
+  const signature = sceneSignature(scene, rawPins, profileId);
   const [selection, setSelection] = useState<{ signature: string; pin: number } | null>(null);
   const [deviceSelection, setDeviceSelection] = useState<{ signature: string; id: string } | null>(null);
   const selectedPin = selection?.signature === signature ? selection.pin : undefined;
@@ -126,7 +131,8 @@ export default function WiringGuide({
   }>({ signature, checks: {} });
   const checks = review.signature === signature ? review.checks : {};
 
-  const validation = validateScene(scene);
+  const profile = boardProfile(profileId);
+  const validation = validateScene(scene, profileId);
   const rawDiagnostics = diagnostics.filter((item) =>
     item.code.startsWith('raw-pin-'),
   );
@@ -138,7 +144,7 @@ export default function WiringGuide({
       const pin = (device.pins as Record<string, number | null>)[
         requirement.key
       ];
-      const boardPin = wemosD1R32Pins.find((item) => item.gpio === pin);
+      const boardPin = profile.pins.find((item) => item.gpio === pin);
       return {
         id: `${device.id}-${requirement.key}`,
         deviceId: device.id,
@@ -156,7 +162,7 @@ export default function WiringGuide({
       deviceName: 'Salida avanzada (bloque)',
       signal: 'Salida digital',
       pin,
-      boardLabel: wemosD1R32Pins.find((item) => item.gpio === pin)?.label,
+      boardLabel: profile.pins.find((item) => item.gpio === pin)?.label,
     })),
   );
   const allChecked = checklist.every((item) => checks[item.id]);
@@ -165,7 +171,7 @@ export default function WiringGuide({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="wiring-dialog">
         <DialogHeader>
-          <DialogTitle>Conectar la Wemos sin adivinar</DialogTitle>
+          <DialogTitle>Conectar {profile.shortName} sin adivinar</DialogTitle>
           <DialogDescription>
             Esta hoja reúne los GPIO de la escena y de los bloques avanzados. La
             simulación no puede comprobar cables, tensión ni corriente reales.
@@ -180,7 +186,9 @@ export default function WiringGuide({
               {rawPins.length > 0 && <option value="raw-outputs">Salidas avanzadas</option>}
             </select>
           </label>
-          <WemosBoard connections={connectionRows} selectedPin={selectedPin} selectedDevice={selectedDevice} onSelect={pin => setSelection({ signature, pin })} />
+          {profileId === 'wemos-d1-r32'
+            ? <WemosBoard connections={connectionRows} selectedPin={selectedPin} selectedDevice={selectedDevice} onSelect={pin => setSelection({ signature, pin })} />
+            : <S3Board connections={connectionRows} selectedPin={selectedPin} selectedDevice={selectedDevice} onSelect={pin => setSelection({ signature, pin })} />}
 
           <section className="wiring-status">
             {hardwareReady ? (
@@ -221,7 +229,7 @@ export default function WiringGuide({
                         <td>{index + 1}</td>
                         <td>{row.deviceName}</td>
                         <td>{row.signal}</td>
-                        <td>{physicalWemosLabel(row.pin) ?? (row.pin == null ? 'Sin asignar' : 'No localizado')}{row.boardLabel ? ` / ${row.boardLabel}` : ''}</td>
+                        <td>{(profileId === 'wemos-d1-r32' ? physicalWemosLabel(row.pin) : physicalS3Label(row.pin)) ?? (row.pin == null ? 'Sin asignar' : 'No localizado')}{row.boardLabel ? ` / ${row.boardLabel}` : ''}</td>
                         <td>{row.pin == null ? '—' : <button type="button" className="wiring-pin-button" aria-label={`Localizar conexión ${index + 1}: ${row.deviceName}, ${row.signal}, GPIO ${row.pin}`} aria-pressed={row.pin === selectedPin} onClick={() => setSelection({ signature, pin: row.pin! })}>GPIO {row.pin}</button>}</td>
                       </tr>
                     ))}

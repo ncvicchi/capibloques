@@ -5,6 +5,8 @@ import { IDF_VERSION, IDF_IMAGE } from './idf-runtime.ts';
 import { IDF_FONT_LICENSE, IDF_FONT_SOURCE } from './idf-font.ts';
 // @ts-expect-error Node strip-types runner.
 import { IDF_TFT_SOURCES } from './idf-tft-init.ts';
+// @ts-expect-error Node strip-types runner.
+import { boardProfile } from './board-profiles.ts';
 
 export type FirmwareFiles = Record<string, string>;
 const MAX_ARCHIVE_BYTES = 16 * 1024 * 1024;
@@ -13,9 +15,11 @@ const encoder = new TextEncoder();
 export function espIdfProjectFiles(generated: CodeGenerationResult): FirmwareFiles {
   if (generated.framework !== 'esp-idf' || generated.diagnostics.some(issue => issue.severity === 'error'))
     throw new Error('Corregí el programa y las conexiones antes de exportar ESP-IDF.');
+  const profile = boardProfile(generated.boardProfile);
+  const s3 = profile.family === 'esp32-s3';
   return {
     'CMakeLists.txt': `cmake_minimum_required(VERSION 3.16)
-set(SUPPORTED_TARGETS esp32)
+set(SUPPORTED_TARGETS ${profile.idfTarget})
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(capibloques)
 `,
@@ -30,9 +34,10 @@ target_compile_features(\${COMPONENT_LIB} PRIVATE cxx_std_17)
 #define CAPI_WIFI_SSID "TU_RED"
 #define CAPI_WIFI_PASSWORD "TU_CLAVE"
 `,
-    'sdkconfig.defaults': `CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
-CONFIG_ESPTOOLPY_FLASHMODE_DIO=y
-CONFIG_ESPTOOLPY_FLASHFREQ_40M=y
+    'sdkconfig.defaults': `CONFIG_ESPTOOLPY_FLASHSIZE_${s3 ? '16MB' : '4MB'}=y
+CONFIG_ESPTOOLPY_FLASHMODE_${s3 ? 'QIO' : 'DIO'}=y
+CONFIG_ESPTOOLPY_FLASHFREQ_${s3 ? '80M' : '40M'}=y
+${s3 ? 'CONFIG_SPIRAM=y\nCONFIG_SPIRAM_MODE_OCT=y\nCONFIG_SPIRAM_SPEED_80M=y\n' : ''}
 CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y
 CONFIG_FREERTOS_HZ=1000
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
@@ -46,14 +51,14 @@ CONFIG_APP_REPRODUCIBLE_BUILD=y
     'licenses/Arduino-GFX.txt': `${IDF_FONT_LICENSE}\nController initialization settings adapted from Arduino_GFX v1.6.7:\n${IDF_TFT_SOURCES.join('\n')}\nNo Arduino runtime/library is included.\n`,
     'README.md': `# CapiBloques — proyecto ESP-IDF
 
-Wemos D1 R32, chip ESP32, flash 4 MiB. Requiere **ESP-IDF ${IDF_VERSION}**.
+${profile.name}, chip ${profile.chip}, flash ${profile.flashSize}${profile.psramBytes ? ` y ${profile.psramBytes / 1024 / 1024} MB PSRAM` : ''}. Requiere **ESP-IDF ${IDF_VERSION}**.
 Este ZIP contiene fuentes, no un binario. No depende de Arduino ni de bibliotecas externas.
 
 ## Compilar localmente
 
 Instalar la versión indicada desde las herramientas oficiales de Espressif y abrir su terminal.
-En esta carpeta: \`idf.py set-target esp32\`, luego \`idf.py build\`.
-El programa rechaza otro chip o versión de ESP-IDF. No usar el perfil ESP32-S3.
+En esta carpeta: \`idf.py set-target ${profile.idfTarget}\`, luego \`idf.py build\`.
+El programa rechaza otro chip o versión de ESP-IDF.
 Alternativa para compilación reproducible con Docker: imagen \`${IDF_IMAGE}\`.
 El volumen del proyecto debe contener estas fuentes; configurar la variable de entorno \`IDF_PY_BUILD_JOBS=2\` y ejecutar \`idf.py build\` dentro del contenedor.
 
@@ -147,7 +152,8 @@ export async function createEspIdfArchive(generated: CodeGenerationResult) {
   const files = espIdfProjectFiles(generated);
   const hashes: Record<string, string> = {};
   for (const path of Object.keys(files).sort()) hashes[path] = await sha256(encoder.encode(files[path]));
-  files['manifest.json'] = JSON.stringify({ format: 'CapiBloquesSources', version: 1, generator: '8.1', framework: 'esp-idf', frameworkVersion: IDF_VERSION, buildImage: IDF_IMAGE, chip: 'esp32', board: 'wemos-d1-r32', sources: hashes }, null, 2) + '\n';
+  const profile = boardProfile(generated.boardProfile);
+  files['manifest.json'] = JSON.stringify({ format: 'CapiBloquesSources', version: 1, generator: '8.1', framework: 'esp-idf', frameworkVersion: IDF_VERSION, buildImage: IDF_IMAGE, chip: profile.idfTarget, board: profile.id, flashSize: profile.flashSize, psramBytes: profile.psramBytes, sources: hashes }, null, 2) + '\n';
   return zipFirmwareFiles(files);
 }
 

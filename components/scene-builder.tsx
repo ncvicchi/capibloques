@@ -40,7 +40,6 @@ import {
   removeDeviceFromScene,
   sceneComponentCatalog,
   validateScene,
-  wemosD1R32Pins,
   type LegacySceneId,
   type PinNumber,
   type SceneBackground,
@@ -48,7 +47,9 @@ import {
   type SceneDevice,
   type ScenePosition,
   type SceneWidget,
+  type BoardProfileId,
 } from '@/lib/scene-model';
+import { boardProfile, boardProfiles } from '@/lib/board-profiles';
 import {
   commitSnapshot,
   createSnapshotHistory,
@@ -63,9 +64,10 @@ interface SceneBuilderProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   scene: SceneDefinition;
+  boardProfile: BoardProfileId;
   recoveryDraft: SceneDraft | null;
   onDraft: (draft: SceneDraft | null) => void;
-  onFinish: (scene?: SceneDefinition) => Promise<void>;
+  onFinish: (scene?: SceneDefinition, boardProfile?: BoardProfileId) => Promise<void>;
   onExportDraft: () => void;
   storageError: string;
   storageBusy: boolean;
@@ -76,7 +78,7 @@ type DeleteTarget =
   | { kind: 'all' }
   | { kind: 'device'; id: string }
   | { kind: 'widget'; id: string };
-type EditorSnapshot = { scene: SceneDefinition; selectedId?: string };
+type EditorSnapshot = { scene: SceneDefinition; boardProfile: BoardProfileId; selectedId?: string };
 
 const backgrounds: { value: SceneBackground; label: string; icon: string }[] = [
   { value: 'park', label: 'Parque', icon: '🌳' },
@@ -190,7 +192,7 @@ function SceneRecoveryChoice(props: SceneBuilderProps) {
   const [error, setError] = useState('');
   const [discard, setDiscard] = useState(false);
   if (accepted) return <SceneBuilderSession {...props} recoveryDraft={recovery} />;
-  const compatible = snapshotsEqual(recovery?.base, props.scene);
+  const compatible = snapshotsEqual(recovery?.base, props.scene) && (recovery?.baseBoardProfile ?? props.boardProfile) === props.boardProfile;
   return <Dialog open onOpenChange={value => { if (!value && !busy) props.onOpenChange(false); }}><DialogContent className="management-dialog" showCloseButton={!busy}>
     <DialogHeader><DialogTitle>Hay una escena sin terminar</DialogTitle><DialogDescription>El proyecto conserva su escena confirmada. Este borrador está sólo en esta computadora e incluye cambios del inspector. Recuperarlo no lo publica; después elegís Guardar escena o Cancelar.</DialogDescription></DialogHeader>
     {!compatible && <p role="alert">La escena confirmada cambió desde ese borrador. No lo mezclamos con otro estado: exportalo para conservarlo o descartalo explícitamente.</p>}
@@ -210,6 +212,7 @@ function SceneBuilderSession({
   open,
   onOpenChange,
   scene: savedScene,
+  boardProfile: savedBoardProfile,
   recoveryDraft,
   onDraft,
   onFinish,
@@ -218,10 +221,12 @@ function SceneBuilderSession({
   storageBusy,
 }: SceneBuilderProps) {
   const initialScene = recoveryDraft?.scene ?? savedScene;
+  const initialBoardProfile = recoveryDraft?.boardProfile ?? savedBoardProfile;
   const initialSelectedId = selectedIdForScene(initialScene, recoveryDraft?.selectedId);
   const [history, setHistory] = useState(() =>
     createSnapshotHistory<EditorSnapshot>({
       scene: cloneScene(initialScene),
+      boardProfile: initialBoardProfile,
       selectedId: initialSelectedId,
     }),
   );
@@ -233,12 +238,14 @@ function SceneBuilderSession({
     null,
   );
   const [discardSceneOpen, setDiscardSceneOpen] = useState(false);
+  const [pendingBoardProfile, setPendingBoardProfile] = useState<BoardProfileId | null>(null);
   const [message, setMessage] = useState('');
   const [baselineScene] = useState(() => cloneScene(savedScene));
   const [finishing, setFinishing] = useState(false);
   const finishingRef = useRef(false);
 
   const draftScene = history.present.scene;
+  const draftBoardProfile = history.present.boardProfile;
   const selectedId = history.present.selectedId;
   const storedSelectedItem = findSceneItem(draftScene, selectedId);
   const inspectorDirty = Boolean(
@@ -256,21 +263,21 @@ function SceneBuilderSession({
     selectedItem && 'pins' in selectedItem ? selectedItem : undefined;
   const selectedWidget =
     selectedItem && !('pins' in selectedItem) ? selectedItem : undefined;
-  const validation = useMemo(() => validateScene(previewScene), [previewScene]);
+  const validation = useMemo(() => validateScene(previewScene, draftBoardProfile), [previewScene, draftBoardProfile]);
   const sceneNameIssue = validation.issues.find(
     (issue) => issue.code === 'invalid-scene-name',
   );
-  const sceneDirty = !snapshotsEqual(baselineScene, previewScene);
+  const sceneDirty = !snapshotsEqual(baselineScene, previewScene) || savedBoardProfile !== draftBoardProfile;
   const objectCount = previewScene.devices.length + previewScene.widgets.length;
   useLayoutEffect(() => {
     if (finishingRef.current) return;
-    onDraft(sceneDirty ? { version: 1, base: baselineScene, scene: draftScene, selectedId, inspector: inspectorDraft } : null);
-  }, [onDraft, sceneDirty, baselineScene, draftScene, selectedId, inspectorDraft]);
+    onDraft(sceneDirty ? { version: 1, base: baselineScene, scene: draftScene, selectedId, inspector: inspectorDraft, baseBoardProfile: savedBoardProfile, boardProfile: draftBoardProfile } : null);
+  }, [onDraft, sceneDirty, baselineScene, draftScene, selectedId, inspectorDraft, savedBoardProfile, draftBoardProfile]);
 
-  const finish = async (scene?: SceneDefinition) => {
+  const finish = async (scene?: SceneDefinition, profileId?: BoardProfileId) => {
     if (finishingRef.current) return;
     finishingRef.current = true; setFinishing(true);
-    try { await onFinish(scene); onOpenChange(false); }
+    try { await onFinish(scene, profileId); onOpenChange(false); }
     catch (failure) { setDiscardSceneOpen(false); setMessage(failure instanceof Error ? failure.message : 'No se pudo guardar la copia local. La escena sigue abierta.'); }
     finally { finishingRef.current = false; setFinishing(false); }
   };
@@ -286,7 +293,7 @@ function SceneBuilderSession({
     setHistory((current) =>
       commitSnapshot(
         current,
-        { scene: cloneScene(nextScene), selectedId: nextSelection },
+        { scene: cloneScene(nextScene), boardProfile: current.present.boardProfile, selectedId: nextSelection },
         { group: options.group },
       ),
     );
@@ -379,7 +386,7 @@ function SceneBuilderSession({
       return;
     }
     const finalScene = cloneScene(previewScene);
-    void finish(finalScene);
+    void finish(finalScene, draftBoardProfile);
   };
 
   const requestClose = () => {
@@ -397,7 +404,7 @@ function SceneBuilderSession({
       if (finishingRef.current) { event.preventDefault(); return; }
       if (event.defaultPrevented) return;
       const key = event.key.toLowerCase();
-      if (deleteTarget || pendingSelectionId || discardSceneOpen) {
+      if (deleteTarget || pendingSelectionId || pendingBoardProfile || discardSceneOpen) {
         // Browsers can undo the last edited input even when a button has focus.
         // A confirmation must not mutate the scene hidden underneath it.
         if (['s', 'z', 'y'].includes(key)) event.preventDefault();
@@ -460,7 +467,7 @@ function SceneBuilderSession({
 
   const addComponent = (kind: SceneDevice['kind']) => {
     if (!requireSettledInspector('agregar otro componente')) return;
-    const result = addDeviceToScene(previewScene, kind);
+    const result = addDeviceToScene(previewScene, kind, { boardProfile: draftBoardProfile });
     commitScene(result.scene, `${result.device.name} ya está en la escena.`, {
       select: result.device.id,
     });
@@ -472,6 +479,7 @@ function SceneBuilderSession({
     const lane = previewScene.devices.length % 5;
     const result = appendTemplateToScene(previewScene, template, {
       offset: { x: 20 + lane * 24, y: 15 + lane * 18 },
+      boardProfile: draftBoardProfile,
     });
     if (template === 'counter' && !result.addedDeviceIds.length) {
       const existingCounter = result.scene.widgets.find(
@@ -634,13 +642,24 @@ function SceneBuilderSession({
 
   const autoConnect = () => {
     if (!requireSettledInspector('asignar los pines')) return;
-    const result = assignSafePins(previewScene);
+    const result = assignSafePins(previewScene, { boardProfile: draftBoardProfile });
     commitScene(
       result.scene,
       result.warnings.length
         ? 'Conecté todo lo posible. Aún faltan pines para algunos componentes.'
-        : 'Pines compatibles asignados para la Wemos D1 R32.',
+        : `Pines compatibles asignados para ${boardProfile(draftBoardProfile).name}.`,
     );
+  };
+
+  const changeBoardProfile = (nextProfile: BoardProfileId) => {
+    setHistory(current => commitSnapshot(current, {
+      ...current.present,
+      scene: cloneScene(previewScene),
+      boardProfile: nextProfile,
+    }));
+    setInspectorDraft(createInspectorDraft(previewScene, selectedId));
+    setPendingBoardProfile(null);
+    setMessage(`Placa cambiada a ${boardProfile(nextProfile).name}. Las conexiones no se cambiaron: revisalas o usá Auto conectar.`);
   };
 
   const discardInspectorAndSelect = () => {
@@ -716,6 +735,23 @@ function SceneBuilderSession({
           </DialogHeader>
 
           <div className="scene-builder-toolbar">
+            <label htmlFor="scene-board-profile">
+              <span>Placa del proyecto</span>
+              <NativeSelect
+                id="scene-board-profile"
+                value={draftBoardProfile}
+                onChange={event => {
+                  if (!requireSettledInspector('cambiar la placa')) return;
+                  const next = event.target.value as BoardProfileId;
+                  if (next !== draftBoardProfile) setPendingBoardProfile(next);
+                }}
+              >
+                {Object.values(boardProfiles).map(profile => (
+                  <NativeSelectOption key={profile.id} value={profile.id}>{profile.shortName}</NativeSelectOption>
+                ))}
+              </NativeSelect>
+              <small>{boardProfile(draftBoardProfile).flashSize} flash{boardProfile(draftBoardProfile).psramBytes ? ` · ${boardProfile(draftBoardProfile).psramBytes / 1024 / 1024} MB PSRAM` : ''}</small>
+            </label>
             <label htmlFor="scene-name">
               <span>Nombre de la escena</span>
               <Input
@@ -1079,7 +1115,7 @@ function SceneBuilderSession({
                           (selected.pins as Record<string, PinNumber>)[
                             requirement.key
                           ] ?? null;
-                        const compatiblePins = wemosD1R32Pins.filter((pin) =>
+                        const compatiblePins = boardProfile(draftBoardProfile).pins.filter((pin) =>
                           pin.capabilities.includes(requirement.capability),
                         );
                         const currentPinIsCompatible =
@@ -1112,7 +1148,7 @@ function SceneBuilderSession({
                               </NativeSelectOption>
                               {!currentPinIsCompatible && value !== null && (
                                 <NativeSelectOption value={value}>
-                                  {pinLabel(value)} · no compatible
+                                  {pinLabel(value, draftBoardProfile)} · no compatible
                                 </NativeSelectOption>
                               )}
                               {compatiblePins.map((pin) => (
@@ -1120,7 +1156,7 @@ function SceneBuilderSession({
                                   key={pin.gpio}
                                   value={pin.gpio}
                                 >
-                                  {pinLabel(pin.gpio)}
+                                  {pinLabel(pin.gpio, draftBoardProfile)}
                                 </NativeSelectOption>
                               ))}
                             </NativeSelect>
@@ -1423,6 +1459,22 @@ function SceneBuilderSession({
                 }}
               >
                 Salir sin guardar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        <AlertDialog open={pendingBoardProfile !== null} onOpenChange={open => !open && setPendingBoardProfile(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Cambiar la placa del proyecto?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Los GPIO actuales se conservan para no cambiar tu circuito a escondidas. Los que no existan en la nueva placa quedarán marcados hasta que los corrijas o uses Auto conectar. Podés deshacer este cambio.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Conservar {boardProfile(draftBoardProfile).shortName}</AlertDialogCancel>
+              <AlertDialogAction onClick={() => pendingBoardProfile && changeBoardProfile(pendingBoardProfile)}>
+                Cambiar a {pendingBoardProfile ? boardProfile(pendingBoardProfile).shortName : ''}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

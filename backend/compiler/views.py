@@ -20,6 +20,7 @@ from .services import ACTIVE, artifact_path, cipher, config, forget, live_projec
 def metadata(job):
     return {"id": str(job.pk), "projectId": str(job.project_id_snapshot), "revision": job.project_revision, "title": job.title,
             "framework": job.framework, "state": job.state, "containsWifi": job.contains_wifi,
+            "boardProfile": job.board_profile,
             "createdAt": job.created_at.isoformat(), "startedAt": job.started_at.isoformat() if job.started_at else None,
             "expiresAt": job.expires_at.isoformat(), "message": job.message,
             "sha256": job.artifact_sha256 if job.state == "ready" else None, "bytes": job.artifact_bytes,
@@ -72,7 +73,7 @@ def collection(request, actor):
     payload = json.dumps(project.document, sort_keys=True, separators=(",", ":")).encode()
     cache_key = hashlib.sha256(payload + cfg.recipe.encode() + data["framework"].encode()).hexdigest()
     job = Build(id=operation, owner_id_snapshot=actor.pk, project_id_snapshot=project.pk, project_revision=project.revision,
-                title=project.title, framework=data["framework"], recipe=cfg.recipe, request_digest=digest, cache_key=cache_key,
+                title=project.title, framework=data["framework"], board_profile=project.document["target"]["boardProfile"], recipe=cfg.recipe, request_digest=digest, cache_key=cache_key,
                 document=project.document, contains_wifi=wifi is not None, expires_at=timezone.now() + timedelta(hours=1),
                 wifi_encrypted=cipher().encrypt(json.dumps(wifi).encode()).decode() if wifi else "")
     # Cache is private to owner + project + source/config/toolchain identity.

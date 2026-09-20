@@ -1,4 +1,6 @@
 import { isSceneDefinition, type SceneDefinition, type SceneDevice, type SceneWidget } from './scene-model';
+// @ts-expect-error Node strip-types runner.
+import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 
 export type InspectorDraft = { kind: 'device'; value: SceneDevice } | { kind: 'widget'; value: SceneWidget };
 export type SceneDraft = {
@@ -7,6 +9,8 @@ export type SceneDraft = {
   scene: SceneDefinition;
   selectedId?: string;
   inspector: InspectorDraft | null;
+  baseBoardProfile?: BoardProfileId;
+  boardProfile?: BoardProfileId;
 };
 // Portable: deliberadamente sin cuenta, UUID servidor ni envío pendiente.
 export function exportLocalSceneCopy(document: string, sceneDraft: SceneDraft) {
@@ -20,11 +24,13 @@ export function sceneDraftPreview(draft: SceneDraft): SceneDefinition {
 }
 export function isSceneDraft(value: unknown): value is SceneDraft {
   if (!value || typeof value !== 'object' || new TextEncoder().encode(JSON.stringify(value)).byteLength > 2_000_000) return false;
-  if (Object.keys(value).some(key => !['version', 'base', 'scene', 'selectedId', 'inspector'].includes(key))) return false;
+  if (Object.keys(value).some(key => !['version', 'base', 'scene', 'selectedId', 'inspector', 'baseBoardProfile', 'boardProfile'].includes(key))) return false;
   const draft = value as SceneDraft;
   // Local drafts may contain unfinished layout fields. The confirmed base and
   // server project still require strict schema and semantic validation.
   if (draft.version !== 1 || !isSceneDefinition(draft.base) || !isSceneDefinition(draft.scene, true) || draft.base.id !== draft.scene.id || (draft.selectedId !== undefined && (typeof draft.selectedId !== 'string' || draft.selectedId.length > 128))) return false;
+  if (draft.baseBoardProfile !== undefined && !isBoardProfileId(draft.baseBoardProfile)) return false;
+  if (draft.boardProfile !== undefined && !isBoardProfileId(draft.boardProfile)) return false;
   if (draft.inspector !== null) {
     const item = draft.inspector;
     if (!item?.value || !['device', 'widget'].includes(item.kind) || item.value.id !== draft.selectedId) return false;

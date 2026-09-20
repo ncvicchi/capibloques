@@ -2,11 +2,14 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { firmwareFixture, matrixFirmwareFixture } from './firmware-fixtures.mjs';
 import { generateEspIdfCodeResult } from '../lib/capiblocks.ts';
-import { addDeviceToScene, createEmptyScene } from '../lib/scene-model.ts';
+import { addDeviceToScene, assignSafePins, createEmptyScene, createSceneFromTemplate } from '../lib/scene-model.ts';
 import { displayConfig, displayProfiles, displayTargets } from '../lib/display-model.ts';
 import { espIdfProjectFiles, createEspIdfArchive } from '../lib/firmware-archive.ts';
 
 const fixtures = [['main', firmwareFixture()], ['auxiliary', firmwareFixture(true)], ['matrix', matrixFirmwareFixture()]];
+const s3Scene = assignSafePins(createSceneFromTemplate('traffic'), { boardProfile: 'diymall-esp32-s3-devkitc-v1-n16r8', reassignAll: true }).scene;
+const s3Traffic = s3Scene.devices.find(device => device.kind === 'trafficLight');
+fixtures.push(['s3', { boardProfile: 'diymall-esp32-s3-devkitc-v1-n16r8', scene: s3Scene, program: { version: 2, threads: [{ id: 's3', startBlockId: 's3-start', nodes: [{ op: 'traffic', deviceId: s3Traffic.id, color: 'GREEN', blockId: 'green' }, { op: 'wait', ms: 500, blockId: 'wait' }, { op: 'traffic', deviceId: s3Traffic.id, color: 'RED', blockId: 'red' }] }] } }]);
 for (const profile of Object.keys(displayProfiles)) {
   const { scene, device } = addDeviceToScene(createEmptyScene('Pantalla'), 'display', { config: displayConfig(profile) });
   const led = addDeviceToScene(scene, 'led');
@@ -18,8 +21,8 @@ for (const profile of Object.keys(displayProfiles)) {
     ] },
   ] }] } }]);
 }
-for (const [name, { scene, program }] of fixtures) {
-  const generated = generateEspIdfCodeResult(program, 'Fixture ESP-IDF CI', scene);
+for (const [name, { scene, program, boardProfile = 'wemos-d1-r32' }] of fixtures) {
+  const generated = generateEspIdfCodeResult(program, 'Fixture ESP-IDF CI', scene, boardProfile);
   const errors = generated.diagnostics.filter(item => item.severity === 'error');
   if (errors.length) throw new Error(`${name}: ${JSON.stringify(errors)}`);
   const files = espIdfProjectFiles(generated);

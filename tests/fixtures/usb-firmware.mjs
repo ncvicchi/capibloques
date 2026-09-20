@@ -17,13 +17,14 @@ export function storedZip(entries) {
   const table = Buffer.concat(directory), end = Buffer.alloc(22); end.writeUInt32LE(0x06054b50); end.writeUInt16LE(entries.length, 8); end.writeUInt16LE(entries.length, 10); end.writeUInt32LE(table.length, 12); end.writeUInt32LE(offset, 16);
   return Buffer.concat([...locals, table, end]);
 }
-export function usbFixture(framework = 'arduino', change = () => {}, changeEntries = () => {}) {
-  const addresses = framework === 'arduino' ? [0x1000, 0x8000, 0xe000, 0x10000] : [0x1000, 0x8000, 0x10000];
+export function usbFixture(framework = 'arduino', change = () => {}, changeEntries = () => {}, boardProfile = 'wemos-d1-r32') {
+  const s3 = boardProfile !== 'wemos-d1-r32';
+  const addresses = framework === 'arduino' ? [s3 ? 0 : 0x1000, 0x8000, 0xe000, 0x10000] : [s3 ? 0 : 0x1000, 0x8000, 0x10000];
   const binaries = addresses.map((_, index) => Buffer.alloc(64 + index * 4, index + 1));
-  const manifest = { format: 'CapiBloquesFirmware', version: 1, board: 'wemos-d1-r32', chip: 'esp32', framework, frameworkVersion: framework === 'arduino' ? '3.3.11' : '5.5.5', containsWifiCredentials: false, flashMode: 'dio', flashFrequency: '40m', flashSize: '4MB', recipe: 'a'.repeat(64), buildId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', parts: addresses.map((address, index) => ({ path: `firmware/part-${index}.bin`, offset: address, size: binaries[index].length, sha256: digest(binaries[index]) })) };
+  const manifest = { format: 'CapiBloquesFirmware', version: 1, board: boardProfile, chip: s3 ? 'esp32s3' : 'esp32', framework, frameworkVersion: framework === 'arduino' ? '3.3.11' : '5.5.5', containsWifiCredentials: false, flashMode: s3 ? 'qio' : 'dio', flashFrequency: s3 ? '80m' : '40m', flashSize: s3 ? '16MB' : '4MB', recipe: 'a'.repeat(64), buildId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', parts: addresses.map((address, index) => ({ path: `firmware/part-${index}.bin`, offset: address, size: binaries[index].length, sha256: digest(binaries[index]) })) };
   change(manifest);
   const entries = [...binaries.map((data, index) => [`firmware/part-${index}.bin`, data]), ['manifest.json', JSON.stringify(manifest)], ['LEEME.txt', 'Fixture sintético: no grabar en hardware.']];
   changeEntries(entries);
   const bytes = storedZip(entries);
-  return { bytes, manifest, entries, job: { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', projectId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', revision: 1, title: 'Prueba USB sintética', framework, state: 'ready', containsWifi: false, createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 86400000).toISOString(), message: '', sha256: digest(bytes), bytes: bytes.length, metrics: {} } };
+  return { bytes, manifest, entries, job: { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', projectId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', revision: 1, title: 'Prueba USB sintética', framework, boardProfile, state: 'ready', containsWifi: false, createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 86400000).toISOString(), message: '', sha256: digest(bytes), bytes: bytes.length, metrics: {} } };
 }

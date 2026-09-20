@@ -10,6 +10,8 @@
 import { displayConfig, displayPins, displayPinKeys, requiredDisplayPins, validDisplayConfig, type DisplayConfig, type DisplayPinKey } from './display-model.ts';
 // @ts-expect-error Node strip-types tests import the source extension.
 import { ledMatrixConfig, validMatrixConfig, type LedMatrixConfig } from './led-matrix.ts';
+// @ts-expect-error Node strip-types tests import the source extension.
+import { boardProfile, type BoardPinDefinition, type BoardProfileId, type PinCapability } from './board-profiles.ts';
 
 export const SCENE_SCHEMA_VERSION = 1 as const;
 
@@ -37,7 +39,8 @@ export const sceneDeviceKinds = [
 export type SceneDeviceKind = (typeof sceneDeviceKinds)[number];
 export type SceneBackground = 'park' | 'workshop' | 'home' | 'pond' | 'blank';
 export type PinNumber = number | null;
-export type PinCapability = 'pwmOutput' | 'digitalInput' | 'analogInput';
+
+export type { BoardProfileId, PinCapability };
 
 export interface ScenePosition {
   x: number;
@@ -228,124 +231,15 @@ export interface SceneComponentCatalogEntry {
   pinRequirements: readonly PinRequirement[];
 }
 
-export interface WemosPinDefinition {
-  gpio: number;
-  label: string;
-  capabilities: readonly PinCapability[];
-  recommended: boolean;
-  note?: string;
-}
+export type WemosPinDefinition = BoardPinDefinition;
 
-/**
- * Conservative pin set for the Wemos D1 R32. Boot-strapping pins are excluded
- * from automatic output allocation. GPIO 34–39 are input-only and are used for
- * ADC sensors. Explicit advanced-mode assignments can still be validated.
- */
-export const wemosD1R32Pins: readonly WemosPinDefinition[] = [
-  {
-    gpio: 26,
-    label: 'D2',
-    capabilities: ['pwmOutput', 'digitalInput'],
-    recommended: true,
-  },
-  {
-    gpio: 25,
-    label: 'D3',
-    capabilities: ['pwmOutput', 'digitalInput'],
-    recommended: true,
-  },
-  {
-    gpio: 17,
-    label: 'D4',
-    capabilities: ['pwmOutput', 'digitalInput'],
-    recommended: true,
-  },
-  {
-    gpio: 16,
-    label: 'D5',
-    capabilities: ['pwmOutput', 'digitalInput'],
-    recommended: true,
-  },
-  {
-    gpio: 27,
-    label: 'D6',
-    capabilities: ['pwmOutput', 'digitalInput'],
-    recommended: true,
-  },
-  {
-    gpio: 14,
-    label: 'D7',
-    capabilities: ['pwmOutput', 'digitalInput'],
-    recommended: true,
-  },
-  {
-    gpio: 13,
-    label: 'D9',
-    capabilities: ['pwmOutput', 'digitalInput'],
-    recommended: true,
-  },
-  {
-    gpio: 23,
-    label: 'D11',
-    capabilities: ['pwmOutput', 'digitalInput'],
-    recommended: true,
-  },
-  {
-    gpio: 19,
-    label: 'D12',
-    capabilities: ['pwmOutput', 'digitalInput'],
-    recommended: true,
-  },
-  {
-    gpio: 18,
-    label: 'D13',
-    capabilities: ['pwmOutput', 'digitalInput'],
-    recommended: true,
-  },
-  {
-    gpio: 4,
-    label: 'A1',
-    capabilities: ['pwmOutput', 'digitalInput'],
-    recommended: true,
-    note: 'Preferido para botón; su ADC pertenece a ADC2.',
-  },
-  {
-    gpio: 35,
-    label: 'A2',
-    capabilities: ['digitalInput', 'analogInput'],
-    recommended: true,
-    note: 'ADC1, solo entrada y sin resistencia pull-up interna.',
-  },
-  {
-    gpio: 34,
-    label: 'A3',
-    capabilities: ['digitalInput', 'analogInput'],
-    recommended: true,
-    note: 'ADC1, solo entrada y sin resistencia pull-up interna.',
-  },
-  {
-    gpio: 36,
-    label: 'A4',
-    capabilities: ['digitalInput', 'analogInput'],
-    recommended: true,
-    note: 'ADC1, solo entrada y sin resistencia pull-up interna.',
-  },
-  {
-    gpio: 39,
-    label: 'A5',
-    capabilities: ['digitalInput', 'analogInput'],
-    recommended: true,
-    note: 'ADC1, solo entrada y sin resistencia pull-up interna.',
-  },
-] as const;
+/* Kept as a public alias for existing imports and saved Wemos tests. */
+// @ts-expect-error Node strip-types tests import the source extension.
+export { wemosD1R32Pins } from './board-profiles.ts';
 
-export const safeWemosOutputPins = [
-  26, 25, 27, 17, 16, 23, 19, 18, 14, 13,
-] as const;
-export const safeWemosDigitalInputPins = [
-  4, 26, 25, 27, 17, 16, 23, 19, 18, 14, 13,
-] as const;
-export const safeWemosAnalogInputPins = [35, 34, 36, 39] as const;
+export const safeWemosOutputPins = boardProfile('wemos-d1-r32').safeOutputPins;
+export const safeWemosDigitalInputPins = boardProfile('wemos-d1-r32').safeDigitalInputPins;
+export const safeWemosAnalogInputPins = boardProfile('wemos-d1-r32').safeAnalogInputPins;
 
 const requirementsByKind: Record<SceneDeviceKind, readonly PinRequirement[]> = {
   trafficLight: [
@@ -668,6 +562,7 @@ export interface DeviceCreationOptions<K extends SceneDeviceKind> {
   pins?: Partial<SceneDeviceByKind[K]['pins']>;
   config?: Partial<SceneDeviceByKind[K]['config']>;
   autoAssignPins?: boolean;
+  boardProfile?: BoardProfileId;
 }
 
 function unassignedDevice<K extends SceneDeviceKind>(
@@ -832,27 +727,28 @@ function pinRecord(device: SceneDevice) {
   return device.pins as Record<string, PinNumber>;
 }
 
-function candidatePins(capability: PinCapability): readonly number[] {
+function candidatePins(capability: PinCapability, profileId: BoardProfileId): readonly number[] {
+  const profile = boardProfile(profileId);
   switch (capability) {
     case 'pwmOutput':
-      return safeWemosOutputPins;
+      return profile.safeOutputPins;
     case 'digitalInput':
-      return safeWemosDigitalInputPins;
+      return profile.safeDigitalInputPins;
     case 'analogInput':
-      return safeWemosAnalogInputPins;
+      return profile.safeAnalogInputPins;
   }
 }
 
-function pinSupports(pin: number, capability: PinCapability) {
-  return wemosD1R32Pins.some(
+function pinSupports(pin: number, capability: PinCapability, profileId: BoardProfileId) {
+  return boardProfile(profileId).pins.some(
     (definition) =>
       definition.gpio === pin && definition.capabilities.includes(capability),
   );
 }
 
-export function pinLabel(pin: PinNumber) {
+export function pinLabel(pin: PinNumber, profileId: BoardProfileId = 'wemos-d1-r32') {
   if (pin === null) return 'Sin asignar';
-  const definition = wemosD1R32Pins.find((item) => item.gpio === pin);
+  const definition = boardProfile(profileId).pins.find((item) => item.gpio === pin);
   return definition ? `${definition.label} (GPIO ${pin})` : `GPIO ${pin}`;
 }
 
@@ -882,6 +778,7 @@ function collectPinSlots(devices: readonly SceneDevice[]): PinSlot[] {
 
 export interface PinAssignmentOptions {
   reassignAll?: boolean;
+  boardProfile?: BoardProfileId;
 }
 
 export interface PinAssignmentResult {
@@ -899,13 +796,14 @@ export function assignSafePins(
   options: PinAssignmentOptions = {},
 ): PinAssignmentResult {
   const scene = cloneScene(source);
+  const profileId = options.boardProfile ?? 'wemos-d1-r32';
   const warnings: string[] = [];
   const used = new Map<number, PinSlot>();
   const slots = collectPinSlots(scene.devices);
 
   for (const slot of slots) {
     if (options.reassignAll || slot.pin === null) continue;
-    if (!pinSupports(slot.pin, slot.capability)) continue;
+    if (!pinSupports(slot.pin, slot.capability, profileId)) continue;
     if (!used.has(slot.pin)) used.set(slot.pin, slot);
   }
 
@@ -914,22 +812,22 @@ export function assignSafePins(
     const owner = current === null ? undefined : used.get(current);
     const currentIsUsable =
       current !== null &&
-      pinSupports(current, slot.capability) &&
+      pinSupports(current, slot.capability, profileId) &&
       owner?.deviceId === slot.deviceId && owner.key === slot.key;
 
     if (currentIsUsable) continue;
 
-    if (current !== null && !pinSupports(current, slot.capability)) {
+    if (current !== null && !pinSupports(current, slot.capability, profileId)) {
       warnings.push(
-        `${slot.deviceName}: ${pinLabel(current)} no sirve para ${slot.label}; se intentará reasignar.`,
+        `${slot.deviceName}: ${pinLabel(current, profileId)} no sirve para ${slot.label}; se intentará reasignar.`,
       );
     } else if (current !== null && owner) {
       warnings.push(
-        `${slot.deviceName}: ${pinLabel(current)} ya está usado por ${owner.deviceName}; se intentará reasignar.`,
+        `${slot.deviceName}: ${pinLabel(current, profileId)} ya está usado por ${owner.deviceName}; se intentará reasignar.`,
       );
     }
 
-    const selected = candidatePins(slot.capability).find(
+    const selected = candidatePins(slot.capability, profileId).find(
       (candidate) => !used.has(candidate),
     );
     const device = scene.devices[slot.deviceIndex];
@@ -940,7 +838,7 @@ export function assignSafePins(
 
     if (selected === undefined) {
       warnings.push(
-        `${slot.deviceName}: no quedan pines seguros para ${slot.label}. Puede seguir simulándose, pero necesita resolver el cableado antes de cargarlo en la Wemos.`,
+        `${slot.deviceName}: no quedan pines seguros para ${slot.label}. Puede seguir simulándose, pero necesita resolver el cableado antes de cargarlo en ${boardProfile(profileId).shortName}.`,
       );
     } else {
       used.set(selected, { ...slot, pin: selected });
@@ -967,7 +865,9 @@ export function createSceneDevice<K extends SceneDeviceKind>(
     devices: [...existingDevices.map(cloneDevice), device],
     widgets: [],
   };
-  const assigned = assignSafePins(temporaryScene).scene.devices.at(-1);
+  const assigned = assignSafePins(temporaryScene, {
+    boardProfile: options.boardProfile,
+  }).scene.devices.at(-1);
   return (assigned ?? device) as SceneDeviceByKind[K];
 }
 
@@ -1026,7 +926,7 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
     kindLabels[kind],
   );
   scene.devices.push(device);
-  const assigned = assignSafePins(scene);
+  const assigned = assignSafePins(scene, { boardProfile: options.boardProfile });
   return {
     ...assigned,
     device:
@@ -1229,6 +1129,7 @@ export function migrateLegacyScene(sceneId: LegacySceneId) {
 
 export interface AppendTemplateOptions {
   offset?: ScenePosition;
+  boardProfile?: BoardProfileId;
 }
 
 export interface SceneCompositionResult extends PinAssignmentResult {
@@ -1250,7 +1151,7 @@ export function appendTemplateToScene(
     template.widgets.some((widget) => widget.kind === 'counter') &&
     scene.widgets.some((widget) => widget.kind === 'counter')
   ) {
-    const assigned = assignSafePins(scene);
+    const assigned = assignSafePins(scene, { boardProfile: options.boardProfile });
     return {
       ...assigned,
       warnings: [
@@ -1291,6 +1192,7 @@ export function appendTemplateToScene(
       pins,
       config: templateItem.config,
       autoAssignPins: false,
+      boardProfile: options.boardProfile,
     });
     scene.devices.push(device);
     addedDeviceIds.push(device.id);
@@ -1331,7 +1233,7 @@ export function appendTemplateToScene(
     });
   }
 
-  const assigned = assignSafePins(scene);
+  const assigned = assignSafePins(scene, { boardProfile: options.boardProfile });
   return {
     ...assigned,
     warnings: [...new Set([...warnings, ...assigned.warnings])],
@@ -1458,7 +1360,11 @@ function pwmChannelCount(devices: readonly SceneDevice[]) {
  * Validates both editor identity and physical wiring. Missing/conflicting pins
  * are warnings: they disable hardware readiness, never browser simulation.
  */
-export function validateScene(scene: SceneDefinition): SceneValidationResult {
+export function validateScene(
+  scene: SceneDefinition,
+  profileId: BoardProfileId = 'wemos-d1-r32',
+): SceneValidationResult {
+  const profile = boardProfile(profileId);
   const issues: SceneValidationIssue[] = [];
   if (!itemIdIsValid(scene.id)) {
     issues.push({
@@ -1570,7 +1476,7 @@ export function validateScene(scene: SceneDefinition): SceneValidationResult {
       issues.push({
         code: 'external-motor-power',
         severity: 'warning',
-        message: `${device.name} necesita un DRV8833, alimentación externa y masa común con la Wemos.`,
+        message: `${device.name} necesita un DRV8833, alimentación externa y masa común con ${profile.shortName}.`,
         deviceId: device.id,
       });
     }
@@ -1702,11 +1608,11 @@ export function validateScene(scene: SceneDefinition): SceneValidationResult {
   }
 
   const requiredPwmChannels = pwmChannelCount(scene.devices);
-  if (requiredPwmChannels > 16) {
+  if (requiredPwmChannels > profile.pwmChannels) {
     issues.push({
       code: 'pwm-channel-limit',
       severity: 'warning',
-      message: `La escena necesita ${requiredPwmChannels} canales PWM; la Wemos D1 R32 dispone de 16.`,
+      message: `La escena necesita ${requiredPwmChannels} canales PWM; ${profile.name} dispone de ${profile.pwmChannels}.`,
     });
   }
 
@@ -1732,11 +1638,11 @@ export function validateScene(scene: SceneDefinition): SceneValidationResult {
       });
       continue;
     }
-    if (!pinSupports(slot.pin, slot.capability)) {
+    if (!pinSupports(slot.pin, slot.capability, profileId)) {
       issues.push({
         code: 'unsupported-pin',
         severity: 'warning',
-        message: `${slot.deviceName}: ${pinLabel(slot.pin)} no es compatible con ${slot.label}.`,
+        message: `${slot.deviceName}: ${pinLabel(slot.pin, profileId)} no es compatible con ${slot.label} en ${profile.shortName}.`,
         deviceId: slot.deviceId,
         pin: slot.pin,
       });
@@ -1747,7 +1653,7 @@ export function validateScene(scene: SceneDefinition): SceneValidationResult {
       issues.push({
         code: 'pin-conflict',
         severity: 'warning',
-        message: `${slot.deviceName} y ${previous.deviceName} usan ${pinLabel(slot.pin)}. La simulación funciona, pero el cableado debe corregirse.`,
+        message: `${slot.deviceName} y ${previous.deviceName} usan ${pinLabel(slot.pin, profileId)}. La simulación funciona, pero el cableado debe corregirse.`,
         deviceId: slot.deviceId,
         pin: slot.pin,
       });

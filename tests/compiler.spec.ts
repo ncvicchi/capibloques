@@ -16,7 +16,7 @@ async function builds(page: Page) {
       const data = request.postDataJSON(); control.requests.push(data);
       let job = control.jobs.find(job => job.id === data.id);
       if (!job) {
-        job = { id: data.id, projectId: data.projectId, revision: data.revision, title: 'Proyecto de prueba', framework: data.framework, state: 'queued', containsWifi: Boolean(data.wifi), createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 86400000).toISOString(), message: '', sha256: hash, bytes: bytes.length, metrics: {} };
+        job = { id: data.id, projectId: data.projectId, revision: data.revision, title: 'Proyecto de prueba', framework: data.framework, boardProfile: 'wemos-d1-r32', state: 'queued', containsWifi: Boolean(data.wifi), createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 86400000).toISOString(), message: '', sha256: hash, bytes: bytes.length, metrics: {} };
         control.jobs.push(job);
       }
       if (control.loseNext) { control.loseNext = false; control.hide = true; return route.abort('connectionfailed'); }

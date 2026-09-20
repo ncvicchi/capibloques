@@ -9,7 +9,6 @@ import {
   pinLabel,
   sceneComponentCatalog,
   validateScene,
-  wemosD1R32Pins,
   type LegacySceneId,
   type SceneDefinition,
   type SceneDevice,
@@ -34,6 +33,8 @@ import { MAX_MESSAGE_BYTES } from './messages-protocol.ts';
 import { MAX_MATRIX_TEXT, normalizeMatrixText, validMatrixConfig } from './led-matrix.ts';
 // @ts-expect-error Node strip-types runner.
 import { matrixFirmwareSupport, normalizedMatrixTextLiteral } from './led-matrix-firmware.ts';
+// @ts-expect-error Node strip-types runner.
+import { boardProfile, isProjectTarget, projectTargetForBoard, type BoardProfileId, type ProjectTarget } from './board-profiles.ts';
 
 export type FirmwareFramework = 'arduino' | 'esp-idf';
 
@@ -147,14 +148,7 @@ export interface CompiledProgram {
   threads: ProgramThread[];
 }
 
-export interface ProjectTarget {
-  family: 'esp32';
-  framework: 'arduino';
-  coreMajor: 3;
-  coreVersion: '3.3.11';
-  boardProfile: 'wemos-d1-r32';
-  fqbn: 'esp32:esp32:d1_uno32';
-}
+export type { ProjectTarget };
 
 export interface ProjectFile {
   application: 'CapiBloques';
@@ -329,14 +323,7 @@ export interface SimulatorState {
   activeBlockId?: string;
 }
 
-const projectTarget: ProjectTarget = {
-  family: 'esp32',
-  framework: 'arduino',
-  coreMajor: 3,
-  coreVersion: '3.3.11',
-  boardProfile: 'wemos-d1-r32',
-  fqbn: 'esp32:esp32:d1_uno32',
-};
+const projectTarget: ProjectTarget = projectTargetForBoard('wemos-d1-r32');
 
 const next = (
   block: Record<string, unknown>,
@@ -1149,11 +1136,12 @@ export function makeProject(
   scene: SceneId | SceneDefinition,
   workspace: Record<string, unknown>,
   speed = 1,
+  target: ProjectTarget = projectTarget,
 ): ProjectFile {
   const sceneDefinition = isLegacySceneId(scene)
     ? createSceneFromTemplate(scene)
     : cloneScene(scene);
-  const sceneErrors = validateScene(sceneDefinition).issues.filter(
+  const sceneErrors = validateScene(sceneDefinition, target.boardProfile).issues.filter(
     (issue) => issue.severity === 'error',
   );
   if (sceneErrors.length) {
@@ -1169,7 +1157,7 @@ export function makeProject(
       locale: 'es-AR',
       updatedAt: new Date().toISOString(),
     },
-    target: { ...projectTarget },
+    target: { ...target },
     scene: sceneDefinition,
     simulation: {
       scene: templateHint(sceneDefinition),
@@ -1188,12 +1176,7 @@ function isProjectV2(value: unknown): value is ProjectFile {
     typeof candidate.metadata?.title === 'string' &&
     candidate.metadata.locale === 'es-AR' &&
     typeof candidate.metadata.updatedAt === 'string' &&
-    candidate.target?.family === 'esp32' &&
-    candidate.target.framework === 'arduino' &&
-    candidate.target.coreMajor === 3 &&
-    candidate.target.coreVersion === '3.3.11' &&
-    candidate.target?.boardProfile === 'wemos-d1-r32' &&
-    candidate.target.fqbn === 'esp32:esp32:d1_uno32' &&
+    isProjectTarget(candidate.target) &&
     isSceneDefinition(candidate.scene) &&
     isObjectRecord(candidate.workspace) &&
     !!candidate.simulation &&
@@ -1369,7 +1352,7 @@ function decodeProjectUnsafe(value: unknown): ProjectDecodeResult {
       };
     }
     const scene = cloneScene(value.scene);
-    const validation = validateScene(scene);
+    const validation = validateScene(scene, value.target.boardProfile);
     const sceneDiagnostics: CapiDiagnostic[] = validation.issues.map(
       (issue) => ({
         severity: issue.severity,
@@ -1399,7 +1382,7 @@ function decodeProjectUnsafe(value: unknown): ProjectDecodeResult {
           updatedAt: projectTimestamp(value.metadata.updatedAt),
           ...(value.metadata.migratedFrom === 1 ? { migratedFrom: 1 } : {}),
         },
-        target: { ...projectTarget },
+        target: { ...value.target },
         scene,
         simulation: {
           scene: isLegacySceneId(value.simulation.scene)
@@ -2072,11 +2055,13 @@ function validateConditionTarget(
 export function validateProgramForScene(
   input: CompiledProgram | ProgramNode[],
   scene: SceneDefinition,
+  profileId: BoardProfileId = 'wemos-d1-r32',
 ): CapiDiagnostic[] {
   const program = normalizeCompiledProgram(input, scene);
   const diagnostics: CapiDiagnostic[] = [];
   const deviceMap = new Map(scene.devices.map((device) => [device.id, device]));
-  const sceneValidation = validateScene(scene);
+  const profile = boardProfile(profileId);
+  const sceneValidation = validateScene(scene, profileId);
   const hardwareBlockingSceneCodes = new Set([
     'missing-pin',
     'unsupported-pin',
@@ -2190,12 +2175,12 @@ export function validateProgramForScene(
       }
     }
     if (node.op === 'pin') {
-      const definition = wemosD1R32Pins.find((pin) => pin.gpio === node.pin);
+      const definition = profile.pins.find((pin) => pin.gpio === node.pin);
       if (!definition?.capabilities.includes('pwmOutput')) {
         diagnostics.push({
           severity: 'error',
           code: 'raw-pin-not-output',
-          message: `GPIO ${node.pin} no es una salida segura del perfil Wemos.`,
+          message: `GPIO ${node.pin} no es una salida segura del perfil ${profile.shortName}.`,
           blockId: node.blockId,
           pin: node.pin,
         });
@@ -2873,6 +2858,7 @@ function serviceBuzzerLines(
 
 export interface CodeGenerationResult {
   framework: FirmwareFramework;
+  boardProfile: BoardProfileId;
   code: string;
   diagnostics: CapiDiagnostic[];
   program: CompiledProgram;
@@ -2884,14 +2870,16 @@ export function generateEsp32CodeResult(
   title: string,
   sourceScene?: SceneDefinition,
   framework: FirmwareFramework = 'arduino',
+  profileId: BoardProfileId = 'wemos-d1-r32',
 ): CodeGenerationResult {
   const native = framework === 'esp-idf';
   const scene = sourceScene
     ? cloneScene(sourceScene)
     : inferSceneForProgram(input);
   const program = normalizeCompiledProgram(input, scene);
-  const diagnostics = validateProgramForScene(program, scene);
-  if (native && !allocateIdfPwm(scene)) diagnostics.push({ severity: 'error', code: 'idf-pwm-timer-limit', message: 'No hay una combinación de canales y temporizadores PWM disponible para esta escena. Reducí componentes PWM antes de exportar ESP-IDF.' });
+  const profile = boardProfile(profileId);
+  const diagnostics = validateProgramForScene(program, scene, profileId);
+  if (native && !allocateIdfPwm(scene, profileId)) diagnostics.push({ severity: 'error', code: 'idf-pwm-timer-limit', message: 'No hay una combinación de canales y temporizadores PWM disponible para esta escena. Reducí componentes PWM antes de exportar ESP-IDF.' });
   const { symbols, collisions } = createCppSymbols(scene);
   diagnostics.push(
     ...collisions.map(({ deviceId, ownerId }) => ({
@@ -2973,11 +2961,11 @@ ${cases}
     : '  // No hay programas “al comenzar”.';
 
   const code = `// ${cppLineComment(projectTitle(title))}
-// Generado por CapiBloques para WEMOS D1 R32
-// ${native ? `ESP-IDF ${IDF_VERSION} | Target: esp32 | CapiBloques generator 8.1` : 'Arduino-ESP32 3.3.11 | FQBN: esp32:esp32:d1_uno32'}
+// Generado por CapiBloques para ${profile.name}
+// ${native ? `ESP-IDF ${IDF_VERSION} | Target: ${profile.idfTarget} | CapiBloques generator 8.1` : `Arduino-ESP32 3.3.11 | FQBN: ${profile.fqbn}`}
 // Scheduler cooperativo con ${program.threads.length} programa(s) y esperas no bloqueantes.
 
-${native ? idfRuntimeSupport(scene, usesWifi) : '#include <Arduino.h>'}
+${native ? idfRuntimeSupport(scene, usesWifi, profileId) : '#include <Arduino.h>'}
 ${wifiHeader}${diagnosticHeader}
 struct TrafficDevice { uint8_t red; uint8_t yellow; uint8_t green; };
 struct RobotDevice { uint8_t leftIn1; uint8_t leftIn2; uint8_t rightIn1; uint8_t rightIn2; };
@@ -3061,6 +3049,7 @@ ${runThreads}
   }
 }` : `void setup() {
   Serial.begin(115200);
+${profile.family === 'esp32-s3' ? '  if (!psramFound() || ESP.getPsramSize() < 8U * 1024U * 1024U) { Serial.println("CapiBloques: este perfil requiere 8 MB de PSRAM."); while (true) delay(1000); }' : ''}
 ${setupLines(scene, symbols)}
 ${messageSetupLines(scene, symbols, false)}
 ${displaySupport ? '  capiDisplayBegin();' : ''}
@@ -3081,19 +3070,20 @@ ${runThreads}
   yield();
 }`}
 `;
-  return { framework, code, diagnostics, program, scene };
+  return { framework, boardProfile: profileId, code, diagnostics, program, scene };
 }
 
-export function generateEspIdfCodeResult(input: CompiledProgram | ProgramNode[], title: string, scene?: SceneDefinition) {
-  return generateEsp32CodeResult(input, title, scene, 'esp-idf');
+export function generateEspIdfCodeResult(input: CompiledProgram | ProgramNode[], title: string, scene?: SceneDefinition, profileId: BoardProfileId = 'wemos-d1-r32') {
+  return generateEsp32CodeResult(input, title, scene, 'esp-idf', profileId);
 }
 
 export function generateEsp32Code(
   input: CompiledProgram | ProgramNode[],
   title: string,
   scene?: SceneDefinition,
+  profileId: BoardProfileId = 'wemos-d1-r32',
 ) {
-  return generateEsp32CodeResult(input, title, scene).code;
+  return generateEsp32CodeResult(input, title, scene, 'arduino', profileId).code;
 }
 
 export function downloadText(filename: string, contents: string, type: string) {

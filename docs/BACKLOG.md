@@ -87,7 +87,7 @@ Pedido del 8 de septiembre de 2026: donde se indica cómo conectar los component
 - Conservar advertencias y requisitos eléctricos del montaje, incluidas alimentación, masa común, resistencias o drivers cuando correspondan. La imagen no debe sugerir conectar directamente un actuador que necesita una etapa intermedia ni presentar un conflicto como cableado válido.
 - Usar imágenes propias o con permiso/licencia documentados y contrastar etiquetas/coordenadas con la documentación de la placa exacta; no generar ni adivinar pinouts. Para Waveshare, representar los conectores realmente accesibles y los recursos reservados por pantalla/táctil según el modelo confirmado.
 
-Asignación: **fase 12 implementó la guía visual Wemos**, con dibujo propio, mapa contrastado y selección por componente/GPIO sincronizada con listado; fase 15 ya incorporó TX/RX. **Fase 16** la adaptará a DevKit y **fase 17** a Waveshare. Esas dos ampliaciones siguen pendientes. La ilustración no sustituye una prueba eléctrica.
+Asignación: **fase 12 implementó la guía visual Wemos**, con dibujo propio, mapa contrastado y selección por componente/GPIO sincronizada con listado; fase 15 ya incorporó TX/RX. **Fase 16 entregó en software la guía de la DIYmall ESP32-S3-DevKitC V1.0 N16R8**; su aceptación con conexiones físicas sigue pendiente. **Fase 17** hará lo propio para la Waveshare exacta. La ilustración no sustituye una prueba eléctrica.
 
 ## 10. Desplazamiento y zoom de la escena
 

@@ -1,8 +1,8 @@
-# CapiBloques para WEMOS D1 R32
+# CapiBloques para Wemos D1 R32 y DIYmall ESP32-S3 N16R8
 
-CapiBloques es un entorno visual educativo para que chicos de 8 a 12 años armen una escena, programen sus componentes con bloques, prueben el comportamiento en el navegador y descarguen fuentes Arduino/ESP-IDF o firmware compilado para una WEMOS D1 R32.
+CapiBloques es un entorno visual educativo para que chicos de 8 a 12 años armen una escena, programen sus componentes con bloques, prueben el comportamiento en el navegador y descarguen fuentes Arduino/ESP-IDF o firmware compilado para una Wemos D1 R32 o la DIYmall ESP32-S3-DevKitC V1.0 N16R8 identificada.
 
-El editor exige ingreso con alias y contraseña. En la VM de desarrollo corren Django + PostgreSQL, cuentas, cursos y proyectos personales. GitHub Pages ya no se utiliza. Las fases 0–9 y 11–14 están entregadas; las fases 10 y 15 conservan aceptación física pendiente, y la fase 23 está en curso con el software de Matriz LED desplegado. La [fase 12](docs/FASE_12_MESA_DE_TRABAJO.md) reorganiza la mesa de trabajo, la [fase 13](docs/FASE_13_ACCESO_EXTERNO_DEV.md) publica DEV y la [fase 14](docs/FASE_14_EJECUCION_VISUAL.md) incorpora ejecución visual. El [plan 15–26](docs/PLAN_FASES_BACKLOG.md) distingue lo terminado de lo pendiente. Producción es la **Fase final, postergada**.
+El editor exige ingreso con alias y contraseña. En la VM de desarrollo corren Django + PostgreSQL, cuentas, cursos y proyectos personales. GitHub Pages ya no se utiliza. Las fases 0–9 y 11–14 están entregadas; 10, 15 y la [fase 16 S3](docs/FASE_16_ESP32_S3_DEVKIT.md) conservan aceptación física pendiente, y la fase 23 está en curso con el software de Matriz LED desplegado. La [fase 12](docs/FASE_12_MESA_DE_TRABAJO.md) reorganiza la mesa de trabajo, la [fase 13](docs/FASE_13_ACCESO_EXTERNO_DEV.md) publica DEV y la [fase 14](docs/FASE_14_EJECUCION_VISUAL.md) incorpora ejecución visual. El [plan 15–26](docs/PLAN_FASES_BACKLOG.md) distingue lo terminado de lo pendiente. Producción es la **Fase final, postergada**.
 
 El alcance está en [el plan de implementación](docs/PLAN_MULTIUSUARIO_PROXMOX.md) y el estado de preparación en [fase 0: servidores](docs/FASE_0_SERVIDORES.md). Trabajamos una fase por vez, con pruebas, commit/push y aprobación del propietario antes de avanzar.
 
@@ -114,17 +114,18 @@ Para probar exactamente los archivos estáticos de producción:
 npx serve dist/client
 ```
 
-## Generación para WEMOS D1 R32
+## Generación para Wemos D1 R32 y DIYmall ESP32-S3
 
-El destino soportado es WEMOS D1 R32/chip ESP32 (no ESP32-S3). En **Exportar** se puede elegir Arduino `.ino` o **Proyecto ESP-IDF .zip**. **Ver código ESP32** incluye un selector de formato. La revisión docente permite descargar ambos formatos de la versión autorizada. [Uso y límites de fase 8](docs/FASE_8_ARDUINO_Y_ESP_IDF.md).
+La placa se elige dentro de **Armar escena**. Los proyectos históricos conservan Wemos; cambiar a S3 exige confirmación, se puede deshacer y no modifica GPIO a escondidas. En **Exportar** se puede elegir Arduino `.ino` o **Proyecto ESP-IDF .zip**. **Ver código ESP32** incluye un selector de formato. La revisión docente permite descargar ambos formatos de la versión autorizada. Ver [fase 8](docs/FASE_8_ARDUINO_Y_ESP_IDF.md) y [perfil S3](docs/FASE_16_ESP32_S3_DEVKIT.md).
 
 Arduino conserva el core Arduino-ESP32 3.3.11:
 
 ```text
 FQBN: esp32:esp32:d1_uno32
+S3: esp32:esp32:esp32s3 · QIO 80 MHz · 16 MB flash · 8 MB OPI PSRAM
 ```
 
-ESP-IDF requiere **5.5.5**, sin Arduino como componente. Extraer el ZIP y ejecutar `idf.py set-target esp32` y `idf.py build` en su terminal oficial. Incluye `main/main.cpp`, CMake, configuración, plantilla Wi-Fi local, instrucciones, licencias y manifiesto SHA-256. La vista previa muestra sólo `main.cpp`: para compilar se necesita el ZIP completo. Ese ZIP contiene fuentes; para obtener binarios usar la opción separada de compilación en servidor.
+ESP-IDF requiere **5.5.5**, sin Arduino como componente. Extraer el ZIP y ejecutar `idf.py set-target esp32` para Wemos o `idf.py set-target esp32s3` para DIYmall, seguido de `idf.py build`. Incluye `main/main.cpp`, CMake, configuración, plantilla Wi-Fi local, instrucciones, licencias y manifiesto SHA-256. La vista previa muestra sólo `main.cpp`: para compilar se necesita el ZIP completo. Ese ZIP contiene fuentes; para obtener binarios usar la opción separada de compilación en servidor.
 
 ## Compilar y descargar firmware
 
@@ -132,7 +133,7 @@ Guardar el proyecto y abrir **Exportar → Compilar y descargar firmware**. Eleg
 
 La cola no bloquea el editor; cerrar el diálogo no cancela. Se puede cancelar un pedido que sigue en cola. El resultado corresponde a la versión guardada solicitada, aunque después se siga editando. El ZIP privado incluye todos los segmentos necesarios, offsets del build real, hashes e instrucciones; vence a las 24 horas y puede retirarse antes. Retirarlo no elimina copias descargadas o grabadas en placas.
 
-El administrador configura pausa y simultaneidad en **Mi cuenta → Compilaciones**. DEV queda limitado a una ejecución por sus recursos; no se comparten resultados entre cuentas ni se reutilizan binarios con Wi-Fi. Detalles de privacidad, límites, mediciones y recuperación en la [fase 9](docs/FASE_9_COMPILACION_Y_DESCARGA.md). En un pedido listo, **Programar mi Wemos** abre la grabación USB. **Exportar → USB y monitor Serial** permite leer mensajes reales a 115200. Usar Chrome/Edge de escritorio en HTTPS o localhost, identificar la Wemos y desconectar actuadores. La aceptación física de fase 10 sigue pendiente; ver [uso, pruebas y límites](docs/FASE_10_USB_Y_SERIAL.md).
+El administrador configura pausa y simultaneidad en **Mi cuenta → Compilaciones**. DEV queda limitado a una ejecución por sus recursos; no se comparten resultados entre cuentas ni se reutilizan binarios con Wi-Fi. Detalles de privacidad, límites, mediciones y recuperación en la [fase 9](docs/FASE_9_COMPILACION_Y_DESCARGA.md). En un pedido listo, **Programar** abre la grabación USB para la placa exacta del pedido. **Exportar → USB y monitor Serial** permite leer mensajes reales a 115200. Usar Chrome/Edge de escritorio en HTTPS o localhost, identificar la placa y desconectar actuadores. Las aceptaciones físicas de Wemos y S3 siguen pendientes; ver [fase 10](docs/FASE_10_USB_Y_SERIAL.md) y [fase 16](docs/FASE_16_ESP32_S3_DEVKIT.md).
 
 El generador toma los GPIO de cada instancia de la escena, emite diagnósticos de cableado y comparte el mismo grafo cooperativo entre `.ino` y C++ nativo de ESP-IDF. No usa `delay()` para las esperas de los bloques, por lo que un semáforo puede esperar mientras el robot u otro camino continúa avanzando.
 
@@ -175,7 +176,7 @@ La WEMOS D1 R32 usa lógica de **3,3 V**. No conectes una señal de 5 V directam
 
 El workflow `.github/workflows/ci.yml`, **Verificar CapiBloques**, se ejecuta en pushes y pull requests a `main`, y permite ejecución manual.
 
-Verifica tipos, lint, pruebas de núcleo e interfaz en Chromium, auditoría de dependencias y construcción del frontend. Compila ocho circuitos con Arduino-ESP32 3.3.11 y los ocho equivalentes nativos con ESP-IDF 5.5.5: principal, auxiliar, matriz LED y cinco pantallas. En IDF valida CRC/SHA-256, extrae los ZIP exportados y compila esas fuentes; reutiliza los objetos del framework sin omitir la recompilación de cada programa. La imagen oficial está fijada por digest. También ejecuta C++ con dobles deterministas de HAL para los contratos de funcionamiento y errores; no reemplazan una prueba eléctrica.
+Verifica tipos, lint, pruebas de núcleo e interfaz en Chromium, auditoría de dependencias y construcción del frontend. Compila ocho circuitos Wemos con Arduino-ESP32 3.3.11 y los ocho equivalentes nativos con ESP-IDF 5.5.5; además compila un semáforo representativo para DIYmall S3 con ambas herramientas. En IDF valida CRC/SHA-256, extrae los ZIP exportados y compila esas fuentes; reutiliza los objetos del framework sin omitir la recompilación de cada programa. La imagen oficial está fijada por digest. También ejecuta C++ con dobles deterministas de HAL para los contratos de funcionamiento y errores; no reemplazan una prueba eléctrica.
 
 Este workflow **no despliega** ni publica GitHub Pages. Valida Compose, contratos del runtime y construye la imagen estática; el despliegue DEV se hace de forma controlada en la VM autorizada. Producción permanece pendiente de su Fase final.
 

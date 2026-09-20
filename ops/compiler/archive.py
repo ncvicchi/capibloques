@@ -1,4 +1,4 @@
-"""Fixed ESP32 4 MiB bundle. Addresses come from toolchain build metadata."""
+"""Fixed, allowlisted ESP32 bundle. Addresses come from toolchain metadata."""
 import hashlib
 import io
 import json
@@ -6,10 +6,14 @@ from pathlib import Path
 import shlex
 import zipfile
 
-FLASH_SIZE = 4 * 1024 * 1024
+TARGETS = {
+    "wemos-d1-r32": {"chip": "esp32", "flash": 4 * 1024 * 1024, "settings": {"flashMode": "dio", "flashFrequency": "40m", "flashSize": "4MB"}, "boot": 0x1000, "name": "Wemos D1 R32"},
+    "diymall-esp32-s3-devkitc-v1-n16r8": {"chip": "esp32s3", "flash": 16 * 1024 * 1024, "settings": {"flashMode": "qio", "flashFrequency": "80m", "flashSize": "16MB"}, "boot": 0x0, "name": "DIYmall ESP32-S3-DevKitC V1.0 N16R8"},
+}
 
 
-def bundle(build, framework, uses_wifi):
+def bundle(build, framework, uses_wifi, board):
+    target = TARGETS[board]
     build = Path(build).resolve(strict=True)
     if framework == "esp-idf":
         metadata = json.loads((build / "flasher_args.json").read_text())
@@ -30,7 +34,7 @@ def bundle(build, framework, uses_wifi):
                 pairs.append((token, args[index + 1])); index += 2
             else:
                 raise ValueError("Unexpected flash arguments")
-    if options != {"flashMode": "dio", "flashFrequency": "40m", "flashSize": "4MB"}:
+    if options != target["settings"]:
         raise ValueError("Unsupported flash settings")
     if not 3 <= len(pairs) <= 5:
         raise ValueError("Incomplete firmware")
@@ -41,25 +45,25 @@ def bundle(build, framework, uses_wifi):
         if not path.is_relative_to(build) or path.suffix != ".bin":
             raise ValueError("Unexpected binary path")
         data = path.read_bytes()
-        if not data or address < last or address + len(data) > FLASH_SIZE:
+        if not data or address < last or address + len(data) > target["flash"]:
             raise ValueError("Invalid or overlapping flash range")
         last = address + len(data)
         name = f"firmware/part-{index}.bin"
         contents[name] = data
         parts.append({"path": name, "offset": address, "size": len(data), "sha256": hashlib.sha256(data).hexdigest()})
-    if parts[0]["offset"] != 0x1000 or not any(p["offset"] == 0x8000 for p in parts) or not any(p["offset"] == 0x10000 for p in parts):
+    if parts[0]["offset"] != target["boot"] or not any(p["offset"] == 0x8000 for p in parts) or not any(p["offset"] == 0x10000 for p in parts):
         raise ValueError("Missing ESP32 bootloader, partitions or application")
-    manifest = {"format": "CapiBloquesFirmware", "version": 1, "board": "wemos-d1-r32", "chip": "esp32", "framework": framework,
+    manifest = {"format": "CapiBloquesFirmware", "version": 1, "board": board, "chip": target["chip"], "framework": framework,
                 "frameworkVersion": "5.5.5" if framework == "esp-idf" else "3.3.11", "containsWifiCredentials": uses_wifi, **options, "parts": parts}
     contents["manifest.json"] = json.dumps(manifest, indent=2).encode()
     if framework == "esp-idf":
         for name in ("Adafruit-GFX.txt", "Arduino-GFX.txt"):
             contents["licenses/" + name] = (build.parent / "project" / "licenses" / name).read_bytes()
     arguments = " ".join(f"0x{part['offset']:x} {part['path']}" for part in parts)
-    contents["LEEME.txt"] = ("CapiBloques · Firmware completo para Wemos D1 R32 (ESP32, no ESP32-S3).\n"
+    contents["LEEME.txt"] = (f"CapiBloques · Firmware completo para {target['name']}.\n"
         "Revisá cableado, alimentación y parada física con una persona adulta. Desconectá motores antes de grabar.\n"
         "Extraer TODO el ZIP. Con esptool instalado en tu PC:\n"
-        f"python -m esptool --chip esp32 --port PUERTO write-flash --flash-mode dio --flash-freq 40m --flash-size 4MB {arguments}\n"
+        f"python -m esptool --chip {target['chip']} --port PUERTO write-flash --flash-mode {options['flashMode']} --flash-freq {options['flashFrequency']} --flash-size {options['flashSize']} {arguments}\n"
         "Reemplazar PUERTO (por ejemplo COM4 o /dev/ttyUSB0). El programa reemplaza el anterior. No borrar toda la flash/NVS automáticamente.\n"
         "USB desde la web se agrega en la siguiente fase. Compilar no demuestra seguridad eléctrica ni funcionamiento físico.\n"
         + ("PRIVADO: este firmware contiene la contraseña Wi-Fi. No compartirlo. Retirarlo del servidor no borra copias descargadas ni la placa. Cambiar el firmware no garantiza borrar residuos de flash o configuraciones NVS anteriores. Un borrado total debe ser explícito, con una persona adulta y respaldo de otros datos; nunca se hace automáticamente.\n" if uses_wifi else "")).encode()
