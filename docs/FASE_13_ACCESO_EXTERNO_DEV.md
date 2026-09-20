@@ -51,6 +51,8 @@ El orquestador comprueba identidad, árbol limpio, avance rápido, runtime, salu
 
 La automatización reduce la intervención, no elimina las pruebas del recorrido funcional afectado ni convierte un fallo en éxito. Ante error deja admisión pausada y el marcador para diagnóstico; ejecutar primero `./scripts/update-dev.sh --check-only`, revisar el resultado y reanudar la misma versión.
 
+Desde el 19 de septiembre de 2026 el despliegue es operado por el propietario: la implementación entrega commit, CI y comando, pero no ejecuta la actualización remota salvo pedido expreso. La primera ejecución de `deploy-dev.ps1 -DirectLan` fue informada sin errores para `f772026`; se toma como confirmación operativa del propietario, no como inspección independiente. En actualizaciones siguientes se usa `./scripts/update-dev.sh` dentro de DEV y la ausencia de un problema informado se registra como resultado correcto.
+
 1. Confirmar identidad, árbol limpio, commit objetivo y alcance del diff. Si sólo cambian documentos, publicar en Git sin desplegar. Si cambia backend, dependencias, migraciones, Compose o compilador, preparar además el mantenimiento específico descrito debajo.
 2. Desde Administración → Compilaciones, pausar admisión/arranques; dejar terminar los trabajos y comprobar que no queden intentos activos. Detener entonces `capibloques-compiler.service`. No liberar cupos ni matar trabajos para forzar la actualización.
 3. Con el checkout limpio y el planificador detenido, actualizar mediante `git pull --ff-only origin main` al commit verificado. Para código backend montado desde el checkout, preparar previamente su ventana de mantenimiento; no tratar ese pull como una actualización exclusivamente visual.
