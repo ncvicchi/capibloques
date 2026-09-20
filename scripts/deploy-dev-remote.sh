@@ -139,18 +139,46 @@ if [[ -f $STATE_FILE ]]; then
   saved_verify_backend=$(sed -n 's/^verify_backend=//p' "$STATE_FILE")
   saved_run_migrations=$(sed -n 's/^run_migrations=//p' "$STATE_FILE")
   saved_rebuild_compiler=$(sed -n 's/^rebuild_compiler=//p' "$STATE_FILE")
-  [[ $saved_target == "$TARGET_COMMIT" && $original_paused =~ ^[01]$ && $saved_with_api =~ ^[01]$ && $saved_verify_backend =~ ^[01]$ && $saved_run_migrations =~ ^[01]$ && $saved_rebuild_compiler =~ ^[01]$ ]] || \
-    fail "existe un mantenimiento anterior distinto; revisar $STATE_FILE"
-  WITH_API=$saved_with_api
-  VERIFY_BACKEND=$saved_verify_backend
-  RUN_MIGRATIONS=$saved_run_migrations
-  REBUILD_COMPILER=$saved_rebuild_compiler
-  echo "Reanudando mantenimiento interrumpido para $saved_target"
+  [[ $original_paused =~ ^[01]$ && $saved_with_api =~ ^[01]$ && $saved_verify_backend =~ ^[01]$ && $saved_run_migrations =~ ^[01]$ && $saved_rebuild_compiler =~ ^[01]$ ]] || \
+    fail "el estado del mantenimiento anterior está incompleto; revisar $STATE_FILE"
+  [[ $saved_target =~ ^[0-9a-f]{40}$ ]] && repo_git cat-file -e "$saved_target^{commit}" 2>/dev/null || \
+    fail "el estado del mantenimiento anterior contiene un commit inválido; revisar $STATE_FILE"
+  if [[ $saved_target != "$TARGET_COMMIT" ]]; then
+    repo_git merge-base --is-ancestor "$saved_target" "$TARGET_COMMIT" || \
+      fail "el mantenimiento pendiente pertenece a otra línea de Git; revisar $STATE_FILE"
+    repo_git merge-base --is-ancestor "$CURRENT_COMMIT" "$saved_target" || \
+      fail "el checkout ya no corresponde al inicio del mantenimiento pendiente; revisar $STATE_FILE"
+    # El objetivo nuevo es descendiente del anterior y el preflight acaba de
+    # auditar todos sus cambios. Conservamos cualquier paso de mantenimiento
+    # que el intento anterior todavía podía deber y sumamos los del objetivo.
+    if ((saved_with_api)); then WITH_API=1; fi
+    if ((saved_verify_backend)); then VERIFY_BACKEND=1; fi
+    if ((saved_run_migrations)); then RUN_MIGRATIONS=1; fi
+    if ((saved_rebuild_compiler)); then REBUILD_COMPILER=1; fi
+    umask 077
+    printf 'target=%s\noriginal_paused=%s\nwith_api=%s\nverify_backend=%s\nrun_migrations=%s\nrebuild_compiler=%s\n' \
+      "$TARGET_COMMIT" "$original_paused" "$WITH_API" "$VERIFY_BACKEND" "$RUN_MIGRATIONS" "$REBUILD_COMPILER" >"$STATE_FILE"
+    echo "Reanudando el mantenimiento $saved_target y avanzando al descendiente auditado $TARGET_COMMIT"
+  else
+    WITH_API=$saved_with_api
+    VERIFY_BACKEND=$saved_verify_backend
+    RUN_MIGRATIONS=$saved_run_migrations
+    REBUILD_COMPILER=$saved_rebuild_compiler
+    echo "Reanudando mantenimiento interrumpido para $saved_target"
+  fi
 else
   original_paused=$paused
   umask 077
   printf 'target=%s\noriginal_paused=%s\nwith_api=%s\nverify_backend=%s\nrun_migrations=%s\nrebuild_compiler=%s\n' \
     "$TARGET_COMMIT" "$original_paused" "$WITH_API" "$VERIFY_BACKEND" "$RUN_MIGRATIONS" "$REBUILD_COMPILER" >"$STATE_FILE"
+fi
+
+# Un estado reanudado puede exigir una migración que ya no aparece en el diff
+# porque el checkout alcanzó el objetivo anterior antes del corte.
+if ((RUN_MIGRATIONS)); then
+  migration_object=$(repo_git rev-parse "$TARGET_COMMIT:backend/compiler/migrations/0002_build_board_profile.py" 2>/dev/null || true)
+  [[ $migration_object == 8920d046b1a13bea5b7a989daf5899f2860a609a ]] || \
+    fail "la migración compiler.0002 pendiente no coincide con la versión auditada"
 fi
 
 set_paused 1 >/dev/null
