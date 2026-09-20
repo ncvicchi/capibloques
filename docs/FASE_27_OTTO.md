@@ -1,21 +1,47 @@
 # Fase 27 — Familia Otto
 
-Estado: **primer perfil entregado en software; aceptación física pendiente**.
+Estado: **familia genérica entregada en software; aceptación física pendiente**.
 
-## Perfil disponible
+## Configuraciones disponibles
 
-`Otto básico` es un bípedo genérico compatible con la arquitectura de cuatro servos: pierna izquierda, pierna derecha, pie izquierdo y pie derecho. No se anuncia como certificación de HP Robots ni como compatibilidad con una controladora Otto oficial; el firmware generado apunta a las placas ESP32 admitidas por CapiBloques.
+Un único componente `Robot Otto` cambia de capacidad desde su inspector, sin llenar el catálogo con robots casi iguales:
 
-El editor permite asignar los cuatro GPIO, ajustar el centro de cada servo entre 45° y 135° e invertir su sentido. Los servos requieren alimentación externa adecuada de 5 V y masa común con el ESP32.
+| Configuración | Capacidades |
+| --- | --- |
+| Bípedo | Cuatro servos: piernas y pies |
+| Bípedo + sonido | Cuatro servos y buzzer pasivo |
+| Explorador | Lo anterior más distancia ultrasónica |
+| Expresivo | Lo anterior más una boca/cara MAX7219 de 8×8 |
+| Humanoide expresivo | Seis servos, incluidos ambos brazos, sonido, distancia y expresión |
 
-## Programación y simulación
+Al cambiar a una configuración menor se desconectan automáticamente los pines que ya no usa. Cada servo permite ajustar su centro entre 45° y 135° e invertir su sentido. La matriz tiene brillo configurable. Un Otto expresivo cuenta como la única salida visual admitida por el proyecto.
 
-El bloque `Otto básico` ofrece volver al centro, caminar adelante o atrás, girar a ambos lados y bailar, con velocidad y cantidad de repeticiones. Cada movimiento espera sólo en su propio camino del scheduler: los caminos creados con `Al mismo tiempo` continúan. La escena muestra el movimiento y su progreso.
+Estos perfiles son arquitecturas genéricas para ESP32 y no certifican todavía un kit HP Robots/Otto concreto ni una controladora oficial. La referencia conceptual fue la biblioteca [OttoDIYLib](https://github.com/OttoDIY/OttoDIYLib); el runtime generado por CapiBloques es propio y cooperativo.
 
-El JSON, deshacer/rehacer, favoritos, validación del servidor y los generadores Arduino y ESP-IDF conservan la misma semántica. Un segundo camino puede reemplazar el movimiento del mismo Otto; volver al centro lo cancela.
+## Bloques infantiles
 
-## Verificación y límites
+- `Mover Otto`: centro, caminar, girar, bailar, saltar, balancearse, puntas de pie, temblar, moonwalk, inclinarse, sacudirse y aletear. Tiene potencia/velocidad y repeticiones.
+- `Sonido de Otto`: ocho gestos sonoros prearmados y no bloqueantes.
+- `Cara de Otto`: siete expresiones, incluido apagar la matriz.
+- `Brazos de Otto`: abajo, arriba, uno arriba o abiertos.
+- `Distancia de Otto`: valor numérico en centímetros, combinable con variables, comparadores y textos.
 
-La prueba automática `scripts/otto.test.mjs` cubre escena, calibración, JSON, validación y ambos generadores. Falta conectar un Otto real para ajustar amplitudes, centros, sentido de servos y tiempos sin forzar la mecánica.
+El editor sólo ofrece cada bloque a configuraciones que realmente poseen esa pieza. Los movimientos esperan únicamente dentro de su camino; `Al mismo tiempo` continúa ejecutando los demás. Un segundo camino puede reemplazar el movimiento del mismo robot y `volver al centro` lo cancela.
 
-Quedan pendientes los perfiles posteriores: buzzer, ultrasónico, matriz/expresiones, brazos/Ninja y Wheels. Se implementarán de menor a mayor complejidad y sólo se declararán físicamente compatibles después de identificar y ensayar el hardware.
+## Simulación y firmware
+
+La escena muestra movimiento, fase, expresión, brazos, distancia y sonido. La distancia se modifica con un control de simulación y los sonidos usan el audio del navegador. JSON, deshacer/rehacer, favoritos, validación del servidor y revisión docente conservan la misma semántica.
+
+Arduino y ESP-IDF generan el mismo comportamiento sin `delay`: secuencias de sonido y medición ultrasónica avanzan desde un servicio cooperativo. La CI genera y compila una configuración humanoide completa en ambos frameworks, además de probar las reglas de los cinco perfiles.
+
+## Cableado y aceptación pendiente
+
+Los servos necesitan una fuente externa de 5 V adecuada y masa común con el ESP32. Si se usa un HC-SR04 de 5 V, su señal ECHO debe reducirse a 3,3 V antes del GPIO del ESP32.
+
+Falta la prueba física para ajustar centros, inversiones, amplitudes y tiempos sin forzar la mecánica. También quedan fuera de esta entrega:
+
+- Wheels, porque su cinemática de ruedas no es un perfil bípedo.
+- configuraciones oficiales Ninja u otras cuya placa, cantidad exacta de servos y periféricos todavía no se hayan inventariado;
+- comunicación Bluetooth u otro firmware/controlador propio del fabricante.
+
+Sólo después de identificar y ensayar una unidad se declarará compatible con ese modelo comercial concreto.

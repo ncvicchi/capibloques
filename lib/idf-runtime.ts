@@ -10,12 +10,17 @@ export function allocateIdfPwm(scene: SceneDefinition, profileId: BoardProfileId
   const groups = new Map<string, { pins: number[]; frequency: number; resolution: number; tone: boolean }>();
   for (const device of scene.devices) {
     let pins: (number | null)[] = [], frequency = 0, resolution = 8;
+    if (device.kind === 'otto') {
+      const servoPins = [device.pins.leftLeg, device.pins.rightLeg, device.pins.leftFoot, device.pins.rightFoot, ...(device.config.profile === 'humanoid6-expressive' ? [device.pins.leftArm, device.pins.rightArm] : [])].filter((pin): pin is number => pin !== null);
+      if (servoPins.length) groups.set(`50:${profileId === 'wemos-d1-r32' ? 16 : 14}`, { pins: [...(groups.get(`50:${profileId === 'wemos-d1-r32' ? 16 : 14}`)?.pins ?? []), ...servoPins], frequency: 50, resolution: profileId === 'wemos-d1-r32' ? 16 : 14, tone: false });
+      if (device.config.profile !== 'biped4' && device.pins.buzzer !== null) groups.set(`tone:${device.id}`, { pins: [device.pins.buzzer], frequency: 1100, resolution: 8, tone: true });
+      continue;
+    }
     switch (device.kind) {
       case 'robot': pins = Object.values(device.pins); frequency = 20000; break;
       case 'motor': pins = Object.values(device.pins); frequency = 20000; break;
       case 'led': pins = [device.pins.signal]; frequency = 5000; break;
       case 'servo': pins = [device.pins.signal]; frequency = 50; resolution = profileId === 'wemos-d1-r32' ? 16 : 14; break;
-      case 'otto': pins = Object.values(device.pins); frequency = 50; resolution = profileId === 'wemos-d1-r32' ? 16 : 14; break;
       case 'activeBuzzer': pins = [device.pins.signal]; frequency = 1000; break;
       case 'passiveBuzzer': pins = [device.pins.signal]; frequency = 1100; break;
     }

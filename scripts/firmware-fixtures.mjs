@@ -261,3 +261,43 @@ export function matrixFirmwareFixture() {
     ] }] },
   };
 }
+
+export function ottoFirmwareFixture() {
+  const added = addDeviceToScene(createEmptyScene('Otto completo CI'), 'otto');
+  const otto = added.device;
+  otto.config.profile = 'humanoid6-expressive';
+  Object.assign(otto.pins, {
+    leftLeg: 4,
+    rightLeg: 13,
+    leftFoot: 14,
+    rightFoot: 16,
+    leftArm: 17,
+    rightArm: 18,
+    buzzer: 19,
+    trigger: 23,
+    echo: 34,
+    matrixDin: 25,
+    matrixClk: 26,
+    matrixCs: 27,
+  });
+  return {
+    scene: added.scene,
+    program: {
+      version: 2,
+      variables: [{ id: 'distance', name: 'distancia', type: 'number' }],
+      threads: [{
+        id: 'otto-thread',
+        startBlockId: 'otto-start',
+        nodes: [
+          { op: 'otto', deviceId: otto.id, action: 'MOONWALK_LEFT', speed: 80, repetitions: 2, blockId: 'otto-move' },
+          { op: 'ottoSound', deviceId: otto.id, sound: 'HAPPY', blockId: 'otto-sound' },
+          { op: 'ottoExpression', deviceId: otto.id, expression: 'LOVE', blockId: 'otto-face' },
+          { op: 'ottoArms', deviceId: otto.id, pose: 'UP', blockId: 'otto-arms' },
+          { op: 'variableSet', variableId: 'distance', value: { kind: 'ottoDistance', deviceId: otto.id }, blockId: 'otto-distance' },
+          { op: 'wait', ms: 750, blockId: 'otto-wait' },
+          { op: 'otto', deviceId: otto.id, action: 'HOME', speed: 50, repetitions: 1, blockId: 'otto-home' },
+        ],
+      }],
+    },
+  };
+}

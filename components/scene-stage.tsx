@@ -35,6 +35,10 @@ export type RuntimeVisualDevice = {
   motion?: string;
   phase?: number;
   speed?: number;
+  distance?: number;
+  expression?: string;
+  sound?: string | null;
+  arms?: string;
   pressed?: boolean;
   interrupted?: boolean;
   value?: number;
@@ -140,7 +144,8 @@ function DeviceVisual({
   }
   if (device.kind === 'otto') {
     const moving = runtime?.motion && runtime.motion !== 'HOME';
-    return <span className="stage-robot" aria-hidden="true" style={{ transform: moving ? `rotate(${(runtime?.phase ?? 0) % 2 ? 6 : -6}deg)` : undefined }}>🕺<small>{moving ? runtime?.motion?.replaceAll('_', ' ').toLowerCase() : 'listo'}</small></span>;
+    const faces: Record<string, string> = { SMILE: '😄', SAD: '😢', ANGRY: '😠', SURPRISED: '😮', SLEEPY: '😴', LOVE: '😍', CLEAR: '🤖' };
+    return <span className="stage-robot" aria-hidden="true" style={{ transform: moving ? `rotate(${(runtime?.phase ?? 0) % 2 ? 6 : -6}deg)` : undefined }}>{faces[runtime?.expression ?? 'SMILE'] ?? '🕺'}<small>{moving ? runtime?.motion?.replaceAll('_', ' ').toLowerCase() : `${Math.round(runtime?.distance ?? 30)} cm`}{runtime?.arms && runtime.arms !== 'DOWN' ? ' · 🙌' : ''}{runtime?.sound ? ' ♪' : ''}</small></span>;
   }
   if (device.kind === 'motor') {
     return (

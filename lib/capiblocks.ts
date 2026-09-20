@@ -54,6 +54,7 @@ export type ValueExpression =
   | { kind: 'variable'; variableId: string; valueType: VariableType }
   | { kind: 'counterValue' }
   | { kind: 'sensorValue'; deviceId: string }
+  | { kind: 'ottoDistance'; deviceId: string }
   | { kind: 'buttonValue'; deviceId: string }
   | { kind: 'barrierValue'; deviceId: string; expected: 'INTERRUPTED' | 'CLEAR' }
   | { kind: 'displayButtonValue'; deviceId: string; button: 'RIGHT' | 'UP' | 'DOWN' | 'LEFT' | 'SELECT' }
@@ -108,11 +109,14 @@ export type ProgramNode =
   | {
       op: 'otto';
       deviceId: string;
-      action: 'HOME' | 'WALK_FORWARD' | 'WALK_BACKWARD' | 'TURN_LEFT' | 'TURN_RIGHT' | 'DANCE';
+      action: 'HOME' | 'WALK_FORWARD' | 'WALK_BACKWARD' | 'TURN_LEFT' | 'TURN_RIGHT' | 'DANCE' | 'JUMP' | 'SWING' | 'TIPTOE' | 'JITTER' | 'MOONWALK_LEFT' | 'MOONWALK_RIGHT' | 'BEND_LEFT' | 'BEND_RIGHT' | 'SHAKE_LEFT' | 'SHAKE_RIGHT' | 'FLAP_FORWARD' | 'FLAP_BACKWARD';
       speed: number;
       repetitions: number;
       blockId: string;
     }
+  | { op: 'ottoSound'; deviceId: string; sound: 'HAPPY' | 'SAD' | 'SURPRISE' | 'CONFUSED' | 'SLEEPING' | 'BUTTON' | 'MODE' | 'FART'; blockId: string }
+  | { op: 'ottoExpression'; deviceId: string; expression: 'SMILE' | 'SAD' | 'ANGRY' | 'SURPRISED' | 'SLEEPY' | 'LOVE' | 'CLEAR'; blockId: string }
+  | { op: 'ottoArms'; deviceId: string; pose: 'DOWN' | 'UP' | 'LEFT_UP' | 'RIGHT_UP' | 'OPEN'; blockId: string }
   | {
       op: 'motor';
       deviceId: string;
@@ -279,7 +283,7 @@ export type RuntimeDeviceState =
       left: number;
       right: number;
     }
-  | { kind: 'otto'; motion: string; phase: number; speed: number }
+  | { kind: 'otto'; motion: string; phase: number; speed: number; distance: number; expression: string; sound: string | null; soundUntil: number; arms: string }
   | { kind: 'motor'; power: number }
   | { kind: 'servo'; angle: number }
   | {
@@ -808,6 +812,10 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_pin_write',
   'capi_robot',
   'capi_otto',
+  'capi_otto_sound',
+  'capi_otto_expression',
+  'capi_otto_arms',
+  'capi_otto_distance',
   'capi_motor',
   'capi_servo',
   'capi_buzzer',
@@ -1285,6 +1293,10 @@ const blockKind = (block: Record<string, unknown>): SceneDeviceKind | null => {
     case 'capi_robot':
       return 'robot';
     case 'capi_otto':
+    case 'capi_otto_sound':
+    case 'capi_otto_expression':
+    case 'capi_otto_arms':
+    case 'capi_otto_distance':
       return 'otto';
     case 'capi_motor':
       return 'motor';
@@ -1487,6 +1499,27 @@ function decodeProjectUnsafe(value: unknown): ProjectDecodeResult {
         ],
       };
     }
+    const migratedScene = migrateSceneDefinition(value.scene);
+    const originalDevices = isObjectRecord(value.scene) && Array.isArray(value.scene.devices)
+      ? value.scene.devices
+      : [];
+    const preservedDevices = originalDevices.length === migratedScene.scene.devices.length &&
+      originalDevices.every((device, index) =>
+        isObjectRecord(device) &&
+        device.id === migratedScene.scene.devices[index]?.id &&
+        device.kind === migratedScene.scene.devices[index]?.kind,
+      );
+    if (migratedScene.migrated && preservedDevices) {
+      const decoded = decodeProjectUnsafe({ ...value, scene: migratedScene.scene });
+      if (decoded.project) {
+        return {
+          ...decoded,
+          migrated: true,
+          warnings: [...new Set([...migratedScene.warnings, ...decoded.warnings])],
+        };
+      }
+      return decoded;
+    }
     if (!isSceneDefinition(value.scene)) {
       return {
         project: null,
@@ -1634,6 +1667,9 @@ const compatibleKindsForNode = (
     case 'robot':
       return ['robot'];
     case 'otto':
+    case 'ottoSound':
+    case 'ottoExpression':
+    case 'ottoArms':
       return ['otto'];
     case 'motor':
       return ['motor'];
@@ -1683,6 +1719,7 @@ function normalizeValueExpression(raw: unknown): ValueExpression {
     };
     case 'counterValue': return { kind: 'counterValue' };
     case 'sensorValue': return { kind: 'sensorValue', deviceId: typeof value.deviceId === 'string' ? value.deviceId : '' };
+    case 'ottoDistance': return { kind: 'ottoDistance', deviceId: typeof value.deviceId === 'string' ? value.deviceId : '' };
     case 'buttonValue': return { kind: 'buttonValue', deviceId: typeof value.deviceId === 'string' ? value.deviceId : '' };
     case 'barrierValue': return {
       kind: 'barrierValue',
@@ -1862,7 +1899,7 @@ function normalizeNodes(
         });
         break;
       case 'otto': {
-        const actions = ['HOME', 'WALK_FORWARD', 'WALK_BACKWARD', 'TURN_LEFT', 'TURN_RIGHT', 'DANCE'] as const;
+        const actions = ['HOME', 'WALK_FORWARD', 'WALK_BACKWARD', 'TURN_LEFT', 'TURN_RIGHT', 'DANCE', 'JUMP', 'SWING', 'TIPTOE', 'JITTER', 'MOONWALK_LEFT', 'MOONWALK_RIGHT', 'BEND_LEFT', 'BEND_RIGHT', 'SHAKE_LEFT', 'SHAKE_RIGHT', 'FLAP_FORWARD', 'FLAP_BACKWARD'] as const;
         result.push({
           op: 'otto',
           deviceId,
@@ -1871,6 +1908,21 @@ function normalizeNodes(
           repetitions: Math.max(1, Math.min(20, Math.floor(finiteNumber(node.repetitions, 1)))),
           blockId,
         });
+        break;
+      }
+      case 'ottoSound': {
+        const sounds = ['HAPPY', 'SAD', 'SURPRISE', 'CONFUSED', 'SLEEPING', 'BUTTON', 'MODE', 'FART'] as const;
+        result.push({ op: 'ottoSound', deviceId, sound: sounds.includes(node.sound as typeof sounds[number]) ? node.sound as typeof sounds[number] : 'HAPPY', blockId });
+        break;
+      }
+      case 'ottoExpression': {
+        const expressions = ['SMILE', 'SAD', 'ANGRY', 'SURPRISED', 'SLEEPY', 'LOVE', 'CLEAR'] as const;
+        result.push({ op: 'ottoExpression', deviceId, expression: expressions.includes(node.expression as typeof expressions[number]) ? node.expression as typeof expressions[number] : 'SMILE', blockId });
+        break;
+      }
+      case 'ottoArms': {
+        const poses = ['DOWN', 'UP', 'LEFT_UP', 'RIGHT_UP', 'OPEN'] as const;
+        result.push({ op: 'ottoArms', deviceId, pose: poses.includes(node.pose as typeof poses[number]) ? node.pose as typeof poses[number] : 'DOWN', blockId });
         break;
       }
       case 'motor':
@@ -2315,6 +2367,10 @@ export function validateProgramForScene(
         const device = deviceMap.get(value.deviceId);
         if (!device || (device.kind !== 'lightSensor' && device.kind !== 'potentiometer')) diagnostics.push({ severity: 'error', code: 'value-sensor-missing', message: 'Elegí un sensor numérico colocado en la escena.', blockId: node.blockId, deviceId: value.deviceId });
       }
+      if (value.kind === 'ottoDistance') {
+        const device = deviceMap.get(value.deviceId);
+        if (device?.kind !== 'otto' || !['biped4-explorer', 'biped4-expressive', 'humanoid6-expressive'].includes(device.config.profile)) diagnostics.push({ severity: 'error', code: 'otto-distance-missing', message: 'Elegí un Otto que tenga sensor de distancia.', blockId: node.blockId, deviceId: value.deviceId });
+      }
       if (value.kind === 'buttonValue') {
         const device = deviceMap.get(value.deviceId);
         if (device?.kind !== 'button') diagnostics.push({ severity: 'error', code: 'value-button-missing', message: 'Elegí un botón colocado en la escena.', blockId: node.blockId, deviceId: value.deviceId });
@@ -2337,6 +2393,18 @@ export function validateProgramForScene(
       const variable = variables.get(node.variableId);
       if (!variable) diagnostics.push({ severity: 'error', code: 'variable-missing', message: 'Elegí una variable que todavía exista.', blockId: node.blockId });
       else if (variable.type !== valueExpressionType(node.value)) diagnostics.push({ severity: 'error', code: 'variable-type', message: `${variable.name} necesita un valor de tipo ${variable.type === 'number' ? 'número' : variable.type === 'text' ? 'texto' : 'sí/no'}.`, blockId: node.blockId });
+    }
+    if (node.op === 'ottoSound') {
+      const device = deviceMap.get(node.deviceId);
+      if (device?.kind === 'otto' && device.config.profile === 'biped4') diagnostics.push({ severity: 'error', code: 'otto-capability-missing', message: `${device.name} no tiene buzzer en esta configuración.`, blockId: node.blockId, deviceId: node.deviceId });
+    }
+    if (node.op === 'ottoExpression') {
+      const device = deviceMap.get(node.deviceId);
+      if (device?.kind === 'otto' && !['biped4-expressive', 'humanoid6-expressive'].includes(device.config.profile)) diagnostics.push({ severity: 'error', code: 'otto-capability-missing', message: `${device.name} no tiene boca LED en esta configuración.`, blockId: node.blockId, deviceId: node.deviceId });
+    }
+    if (node.op === 'ottoArms') {
+      const device = deviceMap.get(node.deviceId);
+      if (device?.kind === 'otto' && device.config.profile !== 'humanoid6-expressive') diagnostics.push({ severity: 'error', code: 'otto-capability-missing', message: `${device.name} no tiene brazos en esta configuración.`, blockId: node.blockId, deviceId: node.deviceId });
     }
     if (node.op === 'variableChange') {
       const variable = variables.get(node.variableId);
@@ -2727,6 +2795,7 @@ function valueToCpp(expression: ValueExpression, context: GeneratorContext): str
     case 'boolean': return expression.value ? 'true' : 'false';
     case 'counterValue': return 'counterValue';
     case 'sensorValue': return `${context.framework === 'esp-idf' ? 'capiAnalogRead' : 'analogRead'}(${pinConstant(context, expression.deviceId)})`;
+    case 'ottoDistance': return `DEV_${deviceSymbol(context, expression.deviceId)}.distanceCm`;
     case 'buttonValue': return `${context.framework === 'esp-idf' ? 'capiDigitalRead' : 'digitalRead'}(${pinConstant(context, expression.deviceId)}) == ${context.framework === 'esp-idf' ? '0' : 'LOW'}`;
     case 'barrierValue': {
       const device = context.scene.devices.find(item => item.id === expression.deviceId && item.kind === 'infraredBarrier');
@@ -2846,10 +2915,22 @@ function instructionToCpp(
       const device = `DEV_${deviceSymbol(context, instruction.deviceId)}`;
       if (instruction.action === 'HOME')
         return `${comment}\n        ${device}.owner = -1; ottoHome(${device});\n        ${waiting} = false; ${pc} = ${nextPc};\n        break;`;
-      const action = { WALK_FORWARD: 0, WALK_BACKWARD: 1, TURN_LEFT: 2, TURN_RIGHT: 3, DANCE: 4 }[instruction.action];
+      const action = { WALK_FORWARD: 0, WALK_BACKWARD: 1, TURN_LEFT: 2, TURN_RIGHT: 3, DANCE: 4, JUMP: 5, SWING: 6, TIPTOE: 7, JITTER: 8, MOONWALK_LEFT: 9, MOONWALK_RIGHT: 10, BEND_LEFT: 11, BEND_RIGHT: 12, SHAKE_LEFT: 13, SHAKE_RIGHT: 14, FLAP_FORWARD: 15, FLAP_BACKWARD: 16 }[instruction.action];
       const stepMs = 480 - Math.round(Math.max(0, Math.min(100, instruction.speed)) * 3);
       const duration = stepMs * 4 * Math.max(1, Math.min(20, Math.round(instruction.repetitions)));
       return `${comment}\n        if (!${waiting}) { ${device}.owner = ${context.threadIndex}; ${waitStarted} = now; ${waiting} = true; }\n        if (${device}.owner != ${context.threadIndex}) { ${waiting} = false; ${pc} = ${nextPc}; break; }\n        ottoMove(${device}, ${action}, (uint8_t)(((uint32_t)(now - ${waitStarted}) / ${stepMs}U) % 4U));\n        if ((uint32_t)(now - ${waitStarted}) < ${duration}U) return;\n        ${device}.owner = -1; ottoHome(${device}); ${waiting} = false; ${pc} = ${nextPc};\n        break;`;
+    }
+    case 'ottoSound': {
+      const sound = { HAPPY: 0, SAD: 1, SURPRISE: 2, CONFUSED: 3, SLEEPING: 4, BUTTON: 5, MODE: 6, FART: 7 }[instruction.sound];
+      return `${comment}\n        ottoStartSound(DEV_${deviceSymbol(context, instruction.deviceId)}, ${sound}, now);\n        ${pc} = ${nextPc};\n        break;`;
+    }
+    case 'ottoExpression': {
+      const expression = { SMILE: 0, SAD: 1, ANGRY: 2, SURPRISED: 3, SLEEPY: 4, LOVE: 5, CLEAR: 6 }[instruction.expression];
+      return `${comment}\n        ottoExpression(DEV_${deviceSymbol(context, instruction.deviceId)}, ${expression});\n        ${pc} = ${nextPc};\n        break;`;
+    }
+    case 'ottoArms': {
+      const pose = { DOWN: 0, UP: 1, LEFT_UP: 2, RIGHT_UP: 3, OPEN: 4 }[instruction.pose];
+      return `${comment}\n        ottoArms(DEV_${deviceSymbol(context, instruction.deviceId)}, ${pose});\n        ${pc} = ${nextPc};\n        break;`;
     }
     case 'motor': {
       const power = Math.max(0, Math.min(100, Math.round(instruction.power)));
@@ -3002,7 +3083,7 @@ function deviceDeclarations(
         case 'robot':
           return `constexpr RobotDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.leftIn1)}, ${gpioOrPlaceholder(device.pins.leftIn2)}, ${gpioOrPlaceholder(device.pins.rightIn1)}, ${gpioOrPlaceholder(device.pins.rightIn2)}}; // ${cppLineComment(device.name)}`;
         case 'otto':
-          return `OttoDevice DEV_${symbol}{{${gpioOrPlaceholder(device.pins.leftLeg)}, ${gpioOrPlaceholder(device.pins.rightLeg)}, ${gpioOrPlaceholder(device.pins.leftFoot)}, ${gpioOrPlaceholder(device.pins.rightFoot)}}, {${device.config.centers.join(', ')}}, {${device.config.reversed.map(Boolean).join(', ')}}, -1}; // ${cppLineComment(device.name)}`;
+          return `OttoDevice DEV_${symbol}{{${gpioOrPlaceholder(device.pins.leftLeg)}, ${gpioOrPlaceholder(device.pins.rightLeg)}, ${gpioOrPlaceholder(device.pins.leftFoot)}, ${gpioOrPlaceholder(device.pins.rightFoot)}, ${gpioOrPlaceholder(device.pins.leftArm)}, ${gpioOrPlaceholder(device.pins.rightArm)}}, {${device.config.centers.join(', ')}}, {${device.config.reversed.map(Boolean).join(', ')}}, ${gpioOrPlaceholder(device.pins.buzzer)}, ${gpioOrPlaceholder(device.pins.trigger)}, ${gpioOrPlaceholder(device.pins.echo)}, ${gpioOrPlaceholder(device.pins.matrixDin)}, ${gpioOrPlaceholder(device.pins.matrixClk)}, ${gpioOrPlaceholder(device.pins.matrixCs)}, ${device.config.matrixBrightness}, -1, 0, 5, 0, 0, 0, 0, 0}; // ${cppLineComment(device.name)}`;
         case 'motor':
           return `constexpr MotorDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.in1)}, ${gpioOrPlaceholder(device.pins.in2)}}; // ${cppLineComment(device.name)}`;
         case 'wifiNode':
@@ -3149,8 +3230,11 @@ function setupLines(scene: SceneDefinition, symbols: Map<string, string>, servoR
         );
         break;
       case 'otto':
-        for (const pin of Object.values(device.pins)) lines.push(`  ledcAttach(${gpioOrPlaceholder(pin)}, 50, ${servoResolutionBits});`);
-        lines.push(`  ottoHome(DEV_${symbol});`);
+        for (const pin of [device.pins.leftLeg, device.pins.rightLeg, device.pins.leftFoot, device.pins.rightFoot, ...(device.config.profile === 'humanoid6-expressive' ? [device.pins.leftArm, device.pins.rightArm] : [])]) lines.push(`  ledcAttach(${gpioOrPlaceholder(pin)}, 50, ${servoResolutionBits});`);
+        if (device.config.profile !== 'biped4') lines.push(`  ledcAttach(DEV_${symbol}.buzzer, 1100, 8);`, `  ledcWrite(DEV_${symbol}.buzzer, 0);`);
+        if (['biped4-explorer', 'biped4-expressive', 'humanoid6-expressive'].includes(device.config.profile)) lines.push(`  pinMode(DEV_${symbol}.trigger, OUTPUT);`, `  pinMode(DEV_${symbol}.echo, INPUT);`);
+        if (['biped4-expressive', 'humanoid6-expressive'].includes(device.config.profile)) lines.push(`  pinMode(DEV_${symbol}.matrixDin, OUTPUT);`, `  pinMode(DEV_${symbol}.matrixClk, OUTPUT);`, `  pinMode(DEV_${symbol}.matrixCs, OUTPUT);`);
+        lines.push(`  ottoBegin(DEV_${symbol});`);
         break;
       case 'activeBuzzer':
         lines.push(
@@ -3372,7 +3456,7 @@ ${native ? idfRuntimeSupport(scene, usesWifi, profileId) : '#include <Arduino.h>
 ${wifiHeader}${diagnosticHeader}
 struct TrafficDevice { uint8_t red; uint8_t yellow; uint8_t green; };
 struct RobotDevice { uint8_t leftIn1; uint8_t leftIn2; uint8_t rightIn1; uint8_t rightIn2; };
-struct OttoDevice { uint8_t pins[4]; uint8_t centers[4]; bool reversed[4]; int8_t owner; };
+struct OttoDevice { uint8_t pins[6]; uint8_t centers[6]; bool reversed[6]; uint8_t buzzer; uint8_t trigger; uint8_t echo; uint8_t matrixDin; uint8_t matrixClk; uint8_t matrixCs; uint8_t matrixBrightness; int8_t owner; uint8_t soundPreset; uint8_t soundStep; uint32_t soundAt; uint8_t sonarState; uint64_t sonarAt; uint64_t echoStarted; uint16_t distanceCm; };
 struct MotorDevice { uint8_t in1; uint8_t in2; };
 struct MessageDevice { uint8_t port; uint8_t tx; uint8_t rx; uint32_t baud; };
 enum class TrafficColor { RED, YELLOW, GREEN, OFF };
@@ -3441,15 +3525,75 @@ void setOttoPose(OttoDevice& device, int a, int b, int c, int d) {
 }
 void ottoHome(OttoDevice& device) { setOttoPose(device, 0, 0, 0, 0); }
 void ottoMove(OttoDevice& device, uint8_t action, uint8_t phase) {
-  static const int8_t poses[5][4][4] = {
+  static const int8_t poses[17][4][4] = {
     {{-18,18,12,12},{18,-18,12,12},{18,-18,-12,-12},{-18,18,-12,-12}},
     {{18,-18,12,12},{-18,18,12,12},{-18,18,-12,-12},{18,-18,-12,-12}},
     {{-22,-8,14,-14},{8,22,14,-14},{8,22,-14,14},{-22,-8,-14,14}},
     {{8,22,14,-14},{-22,-8,14,-14},{-22,-8,-14,14},{8,22,-14,14}},
-    {{-25,25,-18,18},{25,-25,18,-18},{-25,25,18,-18},{25,-25,-18,18}}
+    {{-25,25,-18,18},{25,-25,18,-18},{-25,25,18,-18},{25,-25,-18,18}},
+    {{0,0,28,-28},{0,0,-28,28},{0,0,28,-28},{0,0,0,0}},
+    {{-20,-20,0,0},{20,20,0,0},{-20,-20,0,0},{20,20,0,0}},
+    {{0,0,18,18},{0,0,-18,-18},{0,0,18,18},{0,0,-18,-18}},
+    {{-8,8,-8,8},{8,-8,8,-8},{-8,8,-8,8},{8,-8,8,-8}},
+    {{-18,-6,22,-8},{8,18,-8,22},{18,6,-22,8},{-8,-18,8,-22}},
+    {{6,18,-8,22},{-18,-6,22,-8},{-6,-18,8,-22},{18,6,-22,8}},
+    {{-28,0,18,0},{-28,0,-18,0},{0,0,0,0},{0,0,0,0}},
+    {{0,28,0,-18},{0,28,0,18},{0,0,0,0},{0,0,0,0}},
+    {{-25,0,25,0},{8,0,-8,0},{-25,0,25,0},{0,0,0,0}},
+    {{0,25,0,-25},{0,-8,0,8},{0,25,0,-25},{0,0,0,0}},
+    {{-18,18,25,25},{18,-18,-25,-25},{-18,18,25,25},{18,-18,-25,-25}},
+    {{18,-18,25,25},{-18,18,-25,-25},{18,-18,25,25},{-18,18,-25,-25}}
   };
-  const int8_t* pose = poses[action < 5 ? action : 0][phase % 4];
+  const int8_t* pose = poses[action < 17 ? action : 0][phase % 4];
   setOttoPose(device, pose[0], pose[1], pose[2], pose[3]);
+}
+
+void ottoArms(OttoDevice& device, uint8_t pose) {
+  if (device.pins[4] == 255 || device.pins[5] == 255) return;
+  static const int8_t arms[5][2] = {{0,0},{-65,65},{-65,0},{0,65},{-45,45}};
+  pose = pose < 5 ? pose : 0;
+  for (uint8_t i = 0; i < 2; ++i) setServoAngle(device.pins[i + 4], device.centers[i + 4] + (device.reversed[i + 4] ? -arms[pose][i] : arms[pose][i]));
+}
+
+void ottoMatrixSend(OttoDevice& device, uint8_t address, uint8_t value) {
+  if (device.matrixDin == 255 || device.matrixClk == 255 || device.matrixCs == 255) return;
+  ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.matrixCs, 0);
+  uint16_t packet = ((uint16_t)address << 8) | value;
+  for (int bit = 15; bit >= 0; --bit) { ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.matrixClk, 0); ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.matrixDin, (packet >> bit) & 1); ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.matrixClk, 1); }
+  ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.matrixCs, 1);
+}
+void ottoExpression(OttoDevice& device, uint8_t expression) {
+  static const uint8_t faces[7][8] = {
+    {0x00,0x42,0x00,0x00,0x42,0x24,0x18,0x00}, {0x00,0x42,0x00,0x00,0x18,0x24,0x42,0x00},
+    {0x00,0x66,0x00,0x00,0x3C,0x42,0x00,0x00}, {0x00,0x42,0x00,0x18,0x24,0x24,0x18,0x00},
+    {0x00,0x00,0x66,0x00,0x00,0x3C,0x00,0x00}, {0x00,0x66,0xFF,0xFF,0x7E,0x3C,0x18,0x00},
+    {0,0,0,0,0,0,0,0}
+  };
+  expression = expression < 7 ? expression : 6;
+  for (uint8_t row = 0; row < 8; ++row) ottoMatrixSend(device, row + 1, faces[expression][row]);
+}
+void ottoStartSound(OttoDevice& device, uint8_t preset, uint32_t now) { if (device.buzzer != 255) { device.soundPreset = preset % 8; device.soundStep = 0; device.soundAt = now; } }
+void ottoService(OttoDevice& device, uint32_t now) {
+  if (device.buzzer != 255 && device.soundStep < 5 && (int32_t)(now - device.soundAt) >= 0) {
+    static const uint16_t notes[8][4] = {{523,659,784,1047},{392,330,262,196},{784,1047,1319,0},{659,523,659,392},{262,220,196,0},{880,0,0,0},{523,659,784,0},{110,98,82,0}};
+    const uint16_t frequency = device.soundStep < 4 ? notes[device.soundPreset][device.soundStep] : 0;
+    ${native ? 'capiTone' : 'ledcWriteTone'}(device.buzzer, frequency);
+    device.soundStep++; device.soundAt = now + 140U;
+  }
+  if (device.trigger == 255 || device.echo == 255) return;
+  const uint64_t us = ${native ? '(uint64_t)esp_timer_get_time()' : '(uint64_t)micros()'};
+  const int echo = ${native ? 'capiDigitalRead' : 'digitalRead'}(device.echo);
+  switch (device.sonarState) {
+    case 0: if (us - device.sonarAt >= 60000U) { ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.trigger, 0); device.sonarAt = us; device.sonarState = 1; } break;
+    case 1: if (us - device.sonarAt >= 2U) { ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.trigger, 1); device.sonarAt = us; device.sonarState = 2; } break;
+    case 2: if (us - device.sonarAt >= 10U) { ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.trigger, 0); device.sonarAt = us; device.sonarState = 3; } break;
+    case 3: if (echo) { device.echoStarted = us; device.sonarState = 4; } else if (us - device.sonarAt > 30000U) { device.distanceCm = 0; device.sonarAt = us; device.sonarState = 0; } break;
+    case 4: if (!echo) { const uint64_t measured = (us - device.echoStarted) / 58U; device.distanceCm = (uint16_t)(measured > 500U ? 500U : measured); device.sonarAt = us; device.sonarState = 0; } else if (us - device.echoStarted > 30000U) { device.distanceCm = 0; device.sonarAt = us; device.sonarState = 0; } break;
+  }
+}
+void ottoBegin(OttoDevice& device) {
+  ottoHome(device); ottoArms(device, 0);
+  if (device.matrixCs != 255) { ottoMatrixSend(device, 0x0F, 0); ottoMatrixSend(device, 0x0C, 1); ottoMatrixSend(device, 0x0B, 7); ottoMatrixSend(device, 0x0A, device.matrixBrightness); ottoExpression(device, 0); }
 }
 
 ${threadFunctions}
@@ -3458,7 +3602,13 @@ ${native ? `extern "C" void app_main() {
   capiHardwareBegin();
 ${messageSetupLines(scene, symbols, true)}
 ${scene.devices.filter(device => device.kind === 'servo').map(device => `  setServoAngle(PIN_${symbols.get(device.id)}, ${Math.max(0, Math.min(180, Math.round(device.config.angle)))});`).join('\n')}
-${scene.devices.filter(device => device.kind === 'otto').map(device => `  ottoHome(DEV_${symbols.get(device.id)});`).join('\n')}
+${scene.devices.filter(device => device.kind === 'otto').map(device => {
+  const symbol = symbols.get(device.id);
+  const lines = [`  ottoBegin(DEV_${symbol});`];
+  if (['biped4-explorer', 'biped4-expressive', 'humanoid6-expressive'].includes(device.config.profile)) lines.unshift(`  capiOutput(DEV_${symbol}.trigger); capiInput(DEV_${symbol}.echo, false);`);
+  if (['biped4-expressive', 'humanoid6-expressive'].includes(device.config.profile)) lines.unshift(`  capiOutput(DEV_${symbol}.matrixDin); capiOutput(DEV_${symbol}.matrixClk); capiOutput(DEV_${symbol}.matrixCs);`);
+  return lines.join('\n');
+}).join('\n')}
 ${displaySupport ? '  capiDisplayBegin();' : ''}
 ${matrixSupport ? '  capiMatrixBegin();' : ''}
   for (;;) {
@@ -3466,6 +3616,7 @@ ${matrixSupport ? '  capiMatrixBegin();' : ''}
 ${serviceBuzzerLines(scene, symbols, framework)}
 ${displaySupport ? '    capiDisplayService(now);' : ''}
 ${matrixSupport ? '    capiMatrixService(now);' : ''}
+${scene.devices.filter(device => device.kind === 'otto').map(device => `    ottoService(DEV_${symbols.get(device.id)}, now);`).join('\n')}
     if ((uint32_t)(now - lastSchedulerTick) >= SCHEDULER_QUANTUM_MS) {
       lastSchedulerTick = now;
 ${runThreads}
@@ -3486,6 +3637,7 @@ void loop() {
 ${serviceBuzzerLines(scene, symbols)}
 ${displaySupport ? '  capiDisplayService(now);' : ''}
 ${matrixSupport ? '  capiMatrixService(now);' : ''}
+${scene.devices.filter(device => device.kind === 'otto').map(device => `  ottoService(DEV_${symbols.get(device.id)}, now);`).join('\n')}
   if ((uint32_t)(now - lastSchedulerTick) < SCHEDULER_QUANTUM_MS) {
     yield();
     return;

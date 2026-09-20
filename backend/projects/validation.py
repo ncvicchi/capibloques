@@ -28,11 +28,12 @@ BLOCKS.update(("capi_matrix_clear", "capi_matrix_pixel", "capi_matrix_pattern", 
 BLOCKS.update(("capi_variable_set_number", "capi_variable_change", "capi_variable_set_text", "capi_variable_set_boolean", "capi_variable_get_number", "capi_variable_get_text", "capi_variable_get_boolean", "capi_value_number", "capi_value_text", "capi_value_boolean", "capi_counter_value", "capi_sensor_value", "capi_message_value", "capi_number_math", "capi_text_join"))
 BLOCKS.add("capi_value_compare")
 BLOCKS.add("capi_barrier_state")
-PINS = {"trafficLight": ["red", "yellow", "green"], "robot": ["leftIn1", "leftIn2", "rightIn1", "rightIn2"], "otto": ["leftLeg", "rightLeg", "leftFoot", "rightFoot"], "motor": ["in1", "in2"], **{kind: ["signal"] for kind in ("led", "servo", "activeBuzzer", "passiveBuzzer", "button", "infraredBarrier", "lightSensor", "potentiometer")}, "wifiNode": []}
+BLOCKS.update(("capi_otto", "capi_otto_sound", "capi_otto_expression", "capi_otto_arms", "capi_otto_distance"))
+PINS = {"trafficLight": ["red", "yellow", "green"], "robot": ["leftIn1", "leftIn2", "rightIn1", "rightIn2"], "otto": ["leftLeg", "rightLeg", "leftFoot", "rightFoot", "leftArm", "rightArm", "buzzer", "trigger", "echo", "matrixDin", "matrixClk", "matrixCs"], "motor": ["in1", "in2"], **{kind: ["signal"] for kind in ("led", "servo", "activeBuzzer", "passiveBuzzer", "button", "infraredBarrier", "lightSensor", "potentiometer")}, "wifiNode": []}
 CONFIGS = {
     "trafficLight": {"redBrightness": (0, 100), "yellowBrightness": (0, 100), "greenBrightness": (0, 100)},
     "robot": {"speed": (0, 100), "heading": (-360000, 360000), "color": 64},
-    "otto": {"profile": ["biped4"]},
+    "otto": {"profile": ["biped4", "biped4-sound", "biped4-explorer", "biped4-expressive", "humanoid6-expressive"], "matrixBrightness": (0, 15)},
     "motor": {"power": (0, 100), "driver": ["DRV8833"]}, "led": {"brightness": (0, 100), "color": 64},
     "servo": {"angle": (0, 180)}, "activeBuzzer": {"enabled": bool},
     "passiveBuzzer": {"frequency": (20, 20000), "durationMs": (10, 60000)},
@@ -260,9 +261,23 @@ def scene(value, board_profile="wemos-d1-r32"):
                     messages_count += 1
                     require(messages_count <= 2, "La placa admite hasta dos componentes Mensajes.")
                 if kind == "otto":
-                    exact(config, ("profile", "centers", "reversed"))
-                    require(isinstance(config["centers"], list) and len(config["centers"]) == 4 and all(type(value) is int and 45 <= value <= 135 for value in config["centers"]))
-                    require(isinstance(config["reversed"], list) and len(config["reversed"]) == 4 and all(type(value) is bool for value in config["reversed"]))
+                    exact(config, ("profile", "centers", "reversed", "matrixBrightness"))
+                    require(isinstance(config["centers"], list) and len(config["centers"]) == 6 and all(type(value) is int and 45 <= value <= 135 for value in config["centers"]))
+                    require(isinstance(config["reversed"], list) and len(config["reversed"]) == 6 and all(type(value) is bool for value in config["reversed"]))
+                    active_pins_by_profile = {
+                        "biped4": {"leftLeg", "rightLeg", "leftFoot", "rightFoot"},
+                        "biped4-sound": {"leftLeg", "rightLeg", "leftFoot", "rightFoot", "buzzer"},
+                        "biped4-explorer": {"leftLeg", "rightLeg", "leftFoot", "rightFoot", "buzzer", "trigger", "echo"},
+                        "biped4-expressive": {"leftLeg", "rightLeg", "leftFoot", "rightFoot", "buzzer", "trigger", "echo", "matrixDin", "matrixClk", "matrixCs"},
+                        "humanoid6-expressive": set(PINS["otto"]),
+                    }
+                    require(config["profile"] in active_pins_by_profile)
+                    require(isinstance(item["pins"], dict))
+                    active_pins = active_pins_by_profile[config["profile"]]
+                    require(all(item["pins"].get(pin) is None for pin in PINS["otto"] if pin not in active_pins), "El perfil Otto conserva conexiones que no utiliza.")
+                    if config["profile"] in ("biped4-expressive", "humanoid6-expressive"):
+                        display_count += 1
+                        require(display_count <= 1, "Cada proyecto admite una sola pantalla o matriz.")
                 else:
                     exact(config, (*CONFIGS[kind], "messages") if kind == "messages" else CONFIGS[kind])
             for key, rule in CONFIGS.get(kind, {}).items():

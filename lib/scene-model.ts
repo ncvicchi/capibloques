@@ -95,11 +95,16 @@ export type RobotDevice = SceneDeviceBase<
 
 export type OttoDevice = SceneDeviceBase<
   'otto',
-  { leftLeg: PinNumber; rightLeg: PinNumber; leftFoot: PinNumber; rightFoot: PinNumber },
   {
-    profile: 'biped4';
-    centers: [number, number, number, number];
-    reversed: [boolean, boolean, boolean, boolean];
+    leftLeg: PinNumber; rightLeg: PinNumber; leftFoot: PinNumber; rightFoot: PinNumber;
+    leftArm: PinNumber; rightArm: PinNumber; buzzer: PinNumber; trigger: PinNumber;
+    echo: PinNumber; matrixDin: PinNumber; matrixClk: PinNumber; matrixCs: PinNumber;
+  },
+  {
+    profile: 'biped4' | 'biped4-sound' | 'biped4-explorer' | 'biped4-expressive' | 'humanoid6-expressive';
+    centers: [number, number, number, number, number, number];
+    reversed: [boolean, boolean, boolean, boolean, boolean, boolean];
+    matrixBrightness: number;
   }
 >;
 
@@ -278,6 +283,14 @@ const requirementsByKind: Record<SceneDeviceKind, readonly PinRequirement[]> = {
     { key: 'rightLeg', label: 'Pierna derecha', capability: 'pwmOutput' },
     { key: 'leftFoot', label: 'Pie izquierdo', capability: 'pwmOutput' },
     { key: 'rightFoot', label: 'Pie derecho', capability: 'pwmOutput' },
+    { key: 'leftArm', label: 'Brazo izquierdo', capability: 'pwmOutput' },
+    { key: 'rightArm', label: 'Brazo derecho', capability: 'pwmOutput' },
+    { key: 'buzzer', label: 'Buzzer', capability: 'pwmOutput' },
+    { key: 'trigger', label: 'Ultrasonido TRIG', capability: 'pwmOutput' },
+    { key: 'echo', label: 'Ultrasonido ECHO', capability: 'digitalInput' },
+    { key: 'matrixDin', label: 'Matriz DIN', capability: 'pwmOutput' },
+    { key: 'matrixClk', label: 'Matriz CLK', capability: 'pwmOutput' },
+    { key: 'matrixCs', label: 'Matriz CS', capability: 'pwmOutput' },
   ],
   motor: [
     { key: 'in1', label: 'DRV8833 IN1', capability: 'pwmOutput' },
@@ -342,9 +355,9 @@ export const sceneComponentCatalog: readonly SceneComponentCatalogEntry[] = [
   {
     kind: 'otto',
     icon: '🕺',
-    name: 'Otto básico',
-    description: 'Robot bípedo compatible con la arquitectura Otto y cuatro servos.',
-    childFriendlyControl: 'Caminar, girar, bailar y volver al centro',
+    name: 'Robot Otto',
+    description: 'Familia de robots bípedos de cuatro o seis servos, ampliable con sonido, distancia y expresiones.',
+    childFriendlyControl: 'Caminar, bailar, expresarse, escuchar distancia y mover brazos',
     pinRequirements: requirementsByKind.otto,
   },
   {
@@ -680,8 +693,8 @@ function unassignedDevice<K extends SceneDeviceKind>(
       device = {
         ...base,
         kind,
-        pins: { leftLeg: null, rightLeg: null, leftFoot: null, rightFoot: null },
-        config: { profile: 'biped4', centers: [90, 90, 90, 90], reversed: [false, true, false, true] },
+        pins: { leftLeg: null, rightLeg: null, leftFoot: null, rightFoot: null, leftArm: null, rightArm: null, buzzer: null, trigger: null, echo: null, matrixDin: null, matrixClk: null, matrixCs: null },
+        config: { profile: 'biped4', centers: [90, 90, 90, 90, 90, 90], reversed: [false, true, false, true, false, true], matrixBrightness: 4 },
       };
       break;
     case 'motor':
@@ -1357,6 +1370,7 @@ export type SceneValidationIssueCode =
   | 'invalid-display'
   | 'display-limit'
   | 'invalid-led-matrix'
+  | 'invalid-otto-pin'
   | 'messages-limit'
   | 'invalid-messages-pin';
 
@@ -1409,8 +1423,9 @@ function pwmChannelCount(devices: readonly SceneDevice[]) {
   return devices.reduce((total, device) => {
     switch (device.kind) {
       case 'robot':
-      case 'otto':
         return total + 4;
+      case 'otto':
+        return total + 4 + (device.config.profile === 'humanoid6-expressive' ? 2 : 0) + (device.config.profile === 'biped4' ? 0 : 1);
       case 'motor':
         return total + 2;
       case 'led':
@@ -1462,7 +1477,7 @@ export function validateScene(
   const visibleNames = new Map<string, string>();
   const occupied = new Map<number, PinSlot>();
   const displays = scene.devices.filter((device): device is DisplayDevice => device.kind === 'display');
-  const visualOutputs = scene.devices.filter(device => device.kind === 'display' || device.kind === 'ledMatrix');
+  const visualOutputs = scene.devices.filter(device => device.kind === 'display' || device.kind === 'ledMatrix' || (device.kind === 'otto' && ['biped4-expressive', 'humanoid6-expressive'].includes(device.config.profile)));
   if (visualOutputs.length > 1) issues.push({ code: 'display-limit', severity: 'error', message: 'Cada proyecto admite una sola pantalla o matriz LED.' });
   for (const device of displays) {
     if (!validDisplayConfig(device.config)) {
@@ -1480,6 +1495,10 @@ export function validateScene(
   }
   for (const device of scene.devices.filter(device => device.kind === 'ledMatrix')) {
     if (!validMatrixConfig(device.config)) issues.push({ code: 'invalid-led-matrix', severity: 'error', deviceId: device.id, message: `${device.name}: revisá brillo, orientación y dibujos guardados.` });
+  }
+  for (const device of scene.devices.filter((device): device is OttoDevice => device.kind === 'otto')) {
+    const active = new Set(getPinRequirements(device).map(requirement => requirement.key));
+    if (Object.entries(device.pins).some(([key, pin]) => !active.has(key) && pin !== null)) issues.push({ code: 'invalid-otto-pin', severity: 'error', deviceId: device.id, message: `${device.name}: hay conexiones guardadas que no pertenecen a la configuración elegida.` });
   }
   for (const device of scene.devices) {
     if (!itemIdIsValid(device.id)) {
@@ -1815,12 +1834,13 @@ function validDeviceConfig(
       );
     case 'otto':
       return (
-        hasOnlyKeys(config, ['profile', 'centers', 'reversed']) &&
-        config.profile === 'biped4' &&
-        Array.isArray(config.centers) && config.centers.length === 4 &&
+        hasOnlyKeys(config, ['profile', 'centers', 'reversed', 'matrixBrightness']) &&
+        ['biped4', 'biped4-sound', 'biped4-explorer', 'biped4-expressive', 'humanoid6-expressive'].includes(String(config.profile)) &&
+        Array.isArray(config.centers) && config.centers.length === 6 &&
         config.centers.every(value => typeof value === 'number' && Number.isInteger(value) && value >= 45 && value <= 135) &&
-        Array.isArray(config.reversed) && config.reversed.length === 4 &&
-        config.reversed.every(value => typeof value === 'boolean')
+        Array.isArray(config.reversed) && config.reversed.length === 6 &&
+        config.reversed.every(value => typeof value === 'boolean') &&
+        typeof config.matrixBrightness === 'number' && Number.isInteger(config.matrixBrightness) && config.matrixBrightness >= 0 && config.matrixBrightness <= 15
       );
     case 'motor':
       return (
@@ -2063,16 +2083,21 @@ export function migrateSceneDefinition(
     if (Array.isArray(expanded.devices)) {
       let changed = false;
       for (const item of expanded.devices) {
-        if (!isRecord(item) || item.kind !== 'display' || !isRecord(item.pins)) continue;
-        for (const key of displayPinKeys) if (!Object.hasOwn(item.pins, key)) {
-          item.pins[key] = null;
-          changed = true;
+        if (!isRecord(item) || !isRecord(item.pins)) continue;
+        if (item.kind === 'display') for (const key of displayPinKeys) if (!Object.hasOwn(item.pins, key)) {
+          item.pins[key] = null; changed = true;
+        }
+        if (item.kind === 'otto' && isRecord(item.config)) {
+          for (const key of ['leftArm', 'rightArm', 'buzzer', 'trigger', 'echo', 'matrixDin', 'matrixClk', 'matrixCs']) if (!Object.hasOwn(item.pins, key)) { item.pins[key] = null; changed = true; }
+          if (Array.isArray(item.config.centers) && item.config.centers.length === 4) { item.config.centers.push(90, 90); changed = true; }
+          if (Array.isArray(item.config.reversed) && item.config.reversed.length === 4) { item.config.reversed.push(false, true); changed = true; }
+          if (!Object.hasOwn(item.config, 'matrixBrightness')) { item.config.matrixBrightness = 4; changed = true; }
         }
       }
       if (changed && isSceneDefinition(expanded)) return {
         scene: cloneScene(expanded),
         migrated: true,
-        warnings: ['Se ampliaron las conexiones internas de la pantalla sin cambiar el cableado existente.'],
+        warnings: ['Se actualizó la estructura interna de componentes antiguos sin cambiar el cableado existente.'],
       };
     }
   }
@@ -2118,6 +2143,17 @@ export function getPinRequirements(device: SceneDeviceKind | SceneDevice) {
       (device.config.mode === 'send' && requirement.key === 'tx') ||
       (device.config.mode === 'receive' && requirement.key === 'rx')
     );
+  }
+  if (device.kind === 'otto') {
+    const profiles = {
+      biped4: ['leftLeg', 'rightLeg', 'leftFoot', 'rightFoot'],
+      'biped4-sound': ['leftLeg', 'rightLeg', 'leftFoot', 'rightFoot', 'buzzer'],
+      'biped4-explorer': ['leftLeg', 'rightLeg', 'leftFoot', 'rightFoot', 'buzzer', 'trigger', 'echo'],
+      'biped4-expressive': ['leftLeg', 'rightLeg', 'leftFoot', 'rightFoot', 'buzzer', 'trigger', 'echo', 'matrixDin', 'matrixClk', 'matrixCs'],
+      'humanoid6-expressive': ['leftLeg', 'rightLeg', 'leftFoot', 'rightFoot', 'leftArm', 'rightArm', 'buzzer', 'trigger', 'echo', 'matrixDin', 'matrixClk', 'matrixCs'],
+    } as const;
+    const keys: readonly string[] = profiles[device.config.profile];
+    return requirementsByKind.otto.filter(requirement => keys.includes(requirement.key));
   }
   if (device.kind !== 'display') return requirementsByKind[device.kind];
   if (!validDisplayConfig(device.config, true)) return [];

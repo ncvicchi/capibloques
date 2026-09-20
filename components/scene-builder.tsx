@@ -1129,9 +1129,25 @@ function SceneBuilderSession({
                   )}
                   {selected.kind === 'otto' && (
                     <div className="messages-properties">
-                      <strong>Calibración de los cuatro servos</strong>
+                      <label htmlFor="otto-profile">
+                        <span>Configuración del robot</span>
+                        <NativeSelect id="otto-profile" value={selected.config.profile} onChange={(event) => updateSelectedDraft(device => {
+                          if (device.kind !== 'otto') return device;
+                          const profile = event.target.value as typeof device.config.profile;
+                          const active = new Set(profile === 'biped4' ? ['leftLeg', 'rightLeg', 'leftFoot', 'rightFoot'] : profile === 'biped4-sound' ? ['leftLeg', 'rightLeg', 'leftFoot', 'rightFoot', 'buzzer'] : profile === 'biped4-explorer' ? ['leftLeg', 'rightLeg', 'leftFoot', 'rightFoot', 'buzzer', 'trigger', 'echo'] : profile === 'biped4-expressive' ? ['leftLeg', 'rightLeg', 'leftFoot', 'rightFoot', 'buzzer', 'trigger', 'echo', 'matrixDin', 'matrixClk', 'matrixCs'] : Object.keys(device.pins));
+                          const pins = Object.fromEntries(Object.entries(device.pins).map(([key, value]) => [key, active.has(key) ? value : null])) as typeof device.pins;
+                          return { ...device, pins, config: { ...device.config, profile } };
+                        })}>
+                          <NativeSelectOption value="biped4">Bípedo · 4 servos</NativeSelectOption>
+                          <NativeSelectOption value="biped4-sound">Bípedo + sonido</NativeSelectOption>
+                          <NativeSelectOption value="biped4-explorer">Explorador · sonido + distancia</NativeSelectOption>
+                          <NativeSelectOption value="biped4-expressive">Expresivo · distancia + boca LED</NativeSelectOption>
+                          <NativeSelectOption value="humanoid6-expressive">Humanoide · 6 servos + expresión</NativeSelectOption>
+                        </NativeSelect>
+                      </label>
+                      <strong>Calibración de {selected.config.profile === 'humanoid6-expressive' ? 'los seis servos' : 'los cuatro servos'}</strong>
                       <small>Ajustá el centro sólo si el robot no queda derecho. Invertir corrige un servo montado al revés.</small>
-                      {(['Pierna izquierda', 'Pierna derecha', 'Pie izquierdo', 'Pie derecho'] as const).map((label, index) => (
+                      {(['Pierna izquierda', 'Pierna derecha', 'Pie izquierdo', 'Pie derecho', 'Brazo izquierdo', 'Brazo derecho'] as const).slice(0, selected.config.profile === 'humanoid6-expressive' ? 6 : 4).map((label, index) => (
                         <div key={label} className="otto-calibration-row">
                           <label>
                             <span>{label}: {selected.config.centers[index]}°</span>
@@ -1152,6 +1168,10 @@ function SceneBuilderSession({
                           </label>
                         </div>
                       ))}
+                      {(selected.config.profile === 'biped4-expressive' || selected.config.profile === 'humanoid6-expressive') && <label>
+                        <span>Brillo de la boca LED: {selected.config.matrixBrightness}</span>
+                        <input type="range" min="0" max="15" value={selected.config.matrixBrightness} onChange={(event) => updateSelectedDraft(device => device.kind === 'otto' ? { ...device, config: { ...device.config, matrixBrightness: Number(event.target.value) } } : device)} />
+                      </label>}
                     </div>
                   )}
                   <div className="pin-editor">

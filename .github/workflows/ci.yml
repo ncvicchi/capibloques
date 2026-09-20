@@ -164,6 +164,8 @@ jobs:
           arduino-cli compile --fqbn esp32:esp32:d1_uno32 .arduino-ci/auxiliary
           node --experimental-strip-types scripts/generate-arduino-fixture.mjs .arduino-ci/matrix/matrix.ino matrix
           arduino-cli compile --fqbn esp32:esp32:d1_uno32 .arduino-ci/matrix
+          node --experimental-strip-types scripts/generate-arduino-fixture.mjs .arduino-ci/otto/otto.ino otto
+          arduino-cli compile --fqbn esp32:esp32:d1_uno32 .arduino-ci/otto
 
       - name: Compilar el código generado para DIYmall ESP32-S3 N16R8
         run: |

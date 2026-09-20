@@ -367,7 +367,7 @@ Aceptación:
 
 ## Fase 27 — Familia de robots HP Robots | Otto
 
-**Estado: en curso.** El primer perfil genérico `Otto básico` de cuatro servos está entregado en software; contrato, límites y pendientes en [FASE_27_OTTO.md](FASE_27_OTTO.md). Buzzer, ultrasonido, matriz/expresiones, Ninja y Wheels continúan pendientes, al igual que toda aceptación física.
+**Estado: software genérico entregado; aceptación física pendiente.** Hay cinco configuraciones progresivas: bípedo, sonido, explorador, expresivo y humanoide expresivo. Incluyen seis servos como máximo, buzzer, ultrasonido, MAX7219, 17 movimientos, brazos, sonidos, expresiones y distancia como dato. Ninja y Wheels siguen pendientes como variantes específicas. Contrato y límites en [FASE_27_OTTO.md](FASE_27_OTTO.md).
 
 **Objetivo:** programar configuraciones Otto desde el mismo editor de CapiBloques, con acciones infantiles de alto nivel y acceso didáctico opcional a sus piezas.
 

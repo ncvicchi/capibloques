@@ -39,7 +39,7 @@ const deviceAdvice: Record<SceneDevice['kind'], string> = {
   ledMatrix: 'MAX7219 suele alimentarse a 5 V y puede consumir bastante corriente: fuente externa adecuada, masa común y desacoplo. Nunca alimentes la matriz desde un GPIO; si 3,3 V no se reconoce de forma confiable, usá adaptación de nivel en DIN, CLK y CS.',
   trafficLight: 'Una resistencia de 220–330 Ω en serie con cada LED.',
   robot: 'DRV8833, fuente para motores y GND compartido con la Wemos.',
-  otto: 'Cuatro señales PWM para piernas y pies. Alimentá los servos con una fuente externa de 5 V adecuada y uní su GND al de la placa; nunca alimentes cuatro servos desde la placa.',
+  otto: 'Usa cuatro señales PWM para piernas/pies y, según el perfil, dos más para brazos. Alimentá los servos con una fuente externa de 5 V y GND común. En sensores ultrasónicos HC-SR04 de 5 V, reducí ECHO a 3,3 V antes del ESP32.',
   motor: 'DRV8833 y fuente para el motor; nunca lo conectes directo al GPIO.',
   led: 'Una resistencia de 220–330 Ω en serie con el LED.',
   servo: 'Fuente de 5 V adecuada y GND compartido; el GPIO sólo lleva señal.',
@@ -58,7 +58,7 @@ const deviceAdvice: Record<SceneDevice['kind'], string> = {
 function sceneSignature(scene: SceneDefinition, rawPins: number[], profileId: BoardProfileId) {
   return JSON.stringify([
     profileId,
-    scene.devices.map((device) => [device.id, device.kind, device.pins, ['display', 'ledMatrix', 'infraredBarrier'].includes(device.kind) ? device.config : null]),
+    scene.devices.map((device) => [device.id, device.kind, device.pins, ['display', 'ledMatrix', 'infraredBarrier', 'otto'].includes(device.kind) ? device.config : null]),
     rawPins,
   ]);
 }

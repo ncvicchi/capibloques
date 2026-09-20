@@ -123,7 +123,7 @@ function wiringReviewSignature(
 ) {
   return JSON.stringify([
     profileId,
-    scene.devices.map((device) => [device.id, device.kind, device.pins, ['display', 'ledMatrix', 'infraredBarrier'].includes(device.kind) ? device.config : null]),
+    scene.devices.map((device) => [device.id, device.kind, device.pins, ['display', 'ledMatrix', 'infraredBarrier', 'otto'].includes(device.kind) ? device.config : null]),
     collectRawOutputPins(program, scene),
   ]);
 }
@@ -228,7 +228,7 @@ function runtimeFromDevice(
         right: 0,
       };
     case 'otto':
-      return { kind: 'otto', motion: 'HOME', phase: 0, speed: 0 };
+      return { kind: 'otto', motion: 'HOME', phase: 0, speed: 0, distance: 30, expression: 'SMILE', sound: null, soundUntil: 0, arms: 'DOWN' };
     case 'motor':
       return { kind: device.kind, power: 0 };
     case 'servo':
@@ -353,7 +353,7 @@ function deviceReading(device: RuntimeDeviceState | undefined) {
     case 'robot':
       return `L ${Math.round(device.left)}% · R ${Math.round(device.right)}%`;
     case 'otto':
-      return device.motion === 'HOME' ? 'En el centro' : `${device.motion.replaceAll('_', ' ').toLowerCase()} · ${Math.round(device.speed)}%`;
+      return device.motion === 'HOME' ? `Centro · ${Math.round(device.distance)} cm` : `${device.motion.replaceAll('_', ' ').toLowerCase()} · ${Math.round(device.speed)}%`;
     case 'motor':
       return `${Math.round(device.power)}%`;
     case 'servo':
@@ -1181,6 +1181,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
 
   const inputDevices = scene.devices.filter((device) =>
     ['button', 'infraredBarrier', 'lightSensor', 'potentiometer'].includes(device.kind) ||
+    (device.kind === 'otto' && ['biped4-explorer', 'biped4-expressive', 'humanoid6-expressive'].includes(device.config.profile)) ||
     (device.kind === 'display' && device.config.profile === 'lcd1602keypad') ||
     (device.kind === 'messages' && device.config.mode !== 'send'),
   );
@@ -1551,6 +1552,10 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                           <small>Elegí qué está pasando con el haz.</small>
                         </div>
                       );
+                    }
+                    if (device.kind === 'otto') {
+                      const distance = runtime?.kind === 'otto' ? runtime.distance : 30;
+                      return <div className="range-row" key={device.id}><span>📏 {device.name} <b>{Math.round(distance)} cm</b></span><Slider aria-label={`Distancia simulada de ${device.name}`} min={0} max={500} step={1} value={[distance]} onValueChange={(values) => setDeviceInput(device.id, Array.isArray(values) ? values[0] : values)} /></div>;
                     }
                     const value =
                       runtime?.kind === 'lightSensor' ||

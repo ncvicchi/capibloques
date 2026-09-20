@@ -378,6 +378,10 @@ export default function ReviewSimulation({
                   />
                 </label>
               );
+            if (device.kind === 'otto' && ['biped4-explorer', 'biped4-expressive', 'humanoid6-expressive'].includes(device.config.profile)) {
+              const distance = runtime?.kind === 'otto' ? runtime.distance : 30;
+              return <label key={device.id}>{device.name} · {Math.round(distance)} cm<input type="range" min={0} max={500} value={distance} onChange={(event) => worker.current?.postMessage({ type: 'SET_INPUT', deviceId: device.id, value: Number(event.target.value) })} /></label>;
+            }
             return null;
           })}
           <label>

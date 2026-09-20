@@ -44,7 +44,7 @@ const registeredBlocklies = new WeakSet<object>();
 const deviceLabels: Record<SceneDeviceKind, string> = {
   trafficLight: 'un semáforo',
   robot: 'un robot',
-  otto: 'un Otto básico',
+  otto: 'un robot Otto',
   motor: 'un motor',
   led: 'un LED',
   servo: 'un servo',
@@ -86,6 +86,10 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
     case 'capi_robot':
       return ['robot'];
     case 'capi_otto':
+    case 'capi_otto_sound':
+    case 'capi_otto_expression':
+    case 'capi_otto_arms':
+    case 'capi_otto_distance':
       return ['otto'];
     case 'capi_motor':
       return ['motor'];
@@ -129,6 +133,13 @@ function devicesForBlock(block: BlocklyBlock) {
     if (!kinds.includes(device.kind)) return false;
     if (block.type === 'capi_display_button_pressed')
       return device.kind === 'display' && device.config.profile === 'lcd1602keypad';
+    if (device.kind === 'otto') {
+      if (block.type === 'capi_otto_sound') return device.config.profile !== 'biped4';
+      if (block.type === 'capi_otto_expression') return ['biped4-expressive', 'humanoid6-expressive'].includes(device.config.profile);
+      if (block.type === 'capi_otto_arms') return device.config.profile === 'humanoid6-expressive';
+      if (block.type === 'capi_otto_distance') return ['biped4-explorer', 'biped4-expressive', 'humanoid6-expressive'].includes(device.config.profile);
+      return true;
+    }
     if (device.kind !== 'messages') return true;
     if (block.type === 'capi_message_send') return device.config.mode !== 'receive';
     if (block.type === 'capi_message_receive') return device.config.mode !== 'send';
@@ -467,6 +478,7 @@ const toolbox = {
         { kind: 'block', type: 'capi_value_boolean' },
         { kind: 'block', type: 'capi_counter_value' },
         { kind: 'block', type: 'capi_sensor_value' },
+        { kind: 'block', type: 'capi_otto_distance' },
         { kind: 'block', type: 'capi_barrier_state' },
         { kind: 'block', type: 'capi_message_value' },
         { kind: 'block', type: 'capi_number_math' },
@@ -499,6 +511,9 @@ const toolbox = {
       contents: [
         { kind: 'block', type: 'capi_robot' },
         { kind: 'block', type: 'capi_otto' },
+        { kind: 'block', type: 'capi_otto_arms' },
+        { kind: 'block', type: 'capi_otto_sound' },
+        { kind: 'block', type: 'capi_otto_expression' },
         { kind: 'block', type: 'capi_motor' },
         { kind: 'block', type: 'capi_servo' },
       ],
@@ -997,7 +1012,7 @@ function registerBlocks(Blockly: BlocklyApi) {
       type: 'capi_otto',
       message0: '🕺 %1: %2 a %3 %% · %4 vez/veces',
       args0: [
-        deviceField('⚠️ agrega un Otto básico'),
+        deviceField('⚠️ agrega un robot Otto'),
         {
           type: 'field_dropdown', name: 'ACTION', options: [
             ['volver al centro', 'HOME'],
@@ -1006,6 +1021,18 @@ function registerBlocks(Blockly: BlocklyApi) {
             ['girar izquierda', 'TURN_LEFT'],
             ['girar derecha', 'TURN_RIGHT'],
             ['bailar', 'DANCE'],
+            ['saltar', 'JUMP'],
+            ['balancearse', 'SWING'],
+            ['bailar en puntas', 'TIPTOE'],
+            ['tiritar', 'JITTER'],
+            ['moonwalk izquierda', 'MOONWALK_LEFT'],
+            ['moonwalk derecha', 'MOONWALK_RIGHT'],
+            ['inclinarse izquierda', 'BEND_LEFT'],
+            ['inclinarse derecha', 'BEND_RIGHT'],
+            ['sacudir pierna izquierda', 'SHAKE_LEFT'],
+            ['sacudir pierna derecha', 'SHAKE_RIGHT'],
+            ['aleteo adelante', 'FLAP_FORWARD'],
+            ['aleteo atrás', 'FLAP_BACKWARD'],
           ],
         },
         { type: 'field_number', name: 'SPEED', value: 60, min: 0, max: 100, precision: 1 },
@@ -1014,8 +1041,23 @@ function registerBlocks(Blockly: BlocklyApi) {
       previousStatement: null,
       nextStatement: null,
       colour: '#7C5CE7',
-      tooltip: 'Mueve un Otto básico de cuatro servos. Espera sólo este camino; los caminos paralelos siguen.',
+      tooltip: 'Mueve un robot Otto. Espera sólo este camino; los caminos paralelos siguen.',
       extensions: [DEVICE_EXTENSION],
+    },
+    {
+      type: 'capi_otto_sound', message0: '🎵 %1 hacer sonido %2', args0: [deviceField('⚠️ agrega un Otto con sonido'), { type: 'field_dropdown', name: 'SOUND', options: [['feliz', 'HAPPY'], ['triste', 'SAD'], ['sorpresa', 'SURPRISE'], ['confundido', 'CONFUSED'], ['durmiendo', 'SLEEPING'], ['botón', 'BUTTON'], ['cambio de modo', 'MODE'], ['gracioso', 'FART']] }],
+      previousStatement: null, nextStatement: null, colour: '#7C5CE7', tooltip: 'Inicia un sonido sin detener los otros caminos.', extensions: [DEVICE_EXTENSION],
+    },
+    {
+      type: 'capi_otto_expression', message0: '😄 %1 mostrar cara %2', args0: [deviceField('⚠️ agrega un Otto expresivo'), { type: 'field_dropdown', name: 'EXPRESSION', options: [['sonrisa', 'SMILE'], ['triste', 'SAD'], ['enojado', 'ANGRY'], ['sorprendido', 'SURPRISED'], ['dormido', 'SLEEPY'], ['amor', 'LOVE'], ['apagar', 'CLEAR']] }],
+      previousStatement: null, nextStatement: null, colour: '#7C5CE7', extensions: [DEVICE_EXTENSION],
+    },
+    {
+      type: 'capi_otto_arms', message0: '🙌 %1 poner brazos %2', args0: [deviceField('⚠️ agrega un Otto humanoide'), { type: 'field_dropdown', name: 'POSE', options: [['abajo', 'DOWN'], ['arriba', 'UP'], ['izquierdo arriba', 'LEFT_UP'], ['derecho arriba', 'RIGHT_UP'], ['abiertos', 'OPEN']] }],
+      previousStatement: null, nextStatement: null, colour: '#7C5CE7', extensions: [DEVICE_EXTENSION],
+    },
+    {
+      type: 'capi_otto_distance', message0: '📏 distancia de %1 en cm', args0: [deviceField('⚠️ agrega un Otto explorador')], output: 'Number', colour: '#7A58C1', tooltip: 'Última distancia medida sin bloquear el programa.', extensions: [DEVICE_EXTENSION],
     },
     {
       type: 'capi_motor',
@@ -1479,6 +1521,7 @@ function compileValue(block: BlocklyBlock | null, fallback: VariableType = 'numb
     case 'capi_variable_get_boolean': return { kind: 'variable', variableId: String(block.getFieldValue('VAR') ?? ''), valueType: 'boolean' };
     case 'capi_counter_value': return { kind: 'counterValue' };
     case 'capi_sensor_value': return { kind: 'sensorValue', deviceId: selectedDeviceId(block) };
+    case 'capi_otto_distance': return { kind: 'ottoDistance', deviceId: selectedDeviceId(block) };
     case 'capi_message_value': return { kind: 'messageValue', deviceId: selectedDeviceId(block) };
     case 'capi_button_pressed': return { kind: 'buttonValue', deviceId: selectedDeviceId(block) };
     case 'capi_barrier_state': return {
@@ -1672,6 +1715,15 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           repetitions: numberField(block, 'REPETITIONS', 1),
           blockId,
         });
+        break;
+      case 'capi_otto_sound':
+        result.push({ op: 'ottoSound', deviceId: selectedDeviceId(block), sound: block.getFieldValue('SOUND'), blockId });
+        break;
+      case 'capi_otto_expression':
+        result.push({ op: 'ottoExpression', deviceId: selectedDeviceId(block), expression: block.getFieldValue('EXPRESSION'), blockId });
+        break;
+      case 'capi_otto_arms':
+        result.push({ op: 'ottoArms', deviceId: selectedDeviceId(block), pose: block.getFieldValue('POSE'), blockId });
         break;
       case 'capi_motor':
         result.push({

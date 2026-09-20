@@ -1,13 +1,17 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { generateEsp32CodeResult } from '../lib/capiblocks.ts';
-import { firmwareFixture, matrixFirmwareFixture } from './firmware-fixtures.mjs';
+import { firmwareFixture, matrixFirmwareFixture, ottoFirmwareFixture } from './firmware-fixtures.mjs';
 import { createSceneFromTemplate, addDeviceToScene, assignSafePins } from '../lib/scene-model.ts';
 
 const outputArgument = process.argv[2];
 if (!outputArgument) throw new Error('Indicar ruta/sketch.ino');
 const s3 = process.argv[3] === 's3';
-let fixture = process.argv[3] === 'matrix' ? matrixFirmwareFixture() : firmwareFixture(process.argv[3] === 'auxiliary');
+let fixture = process.argv[3] === 'matrix'
+  ? matrixFirmwareFixture()
+  : process.argv[3] === 'otto'
+    ? ottoFirmwareFixture()
+    : firmwareFixture(process.argv[3] === 'auxiliary');
 if (s3) {
   let scene = createSceneFromTemplate('traffic');
   scene = addDeviceToScene(scene, 'servo', { boardProfile: 'diymall-esp32-s3-devkitc-v1-n16r8' }).scene;

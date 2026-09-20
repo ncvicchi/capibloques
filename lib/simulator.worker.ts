@@ -200,7 +200,7 @@ function runtimeForDevice(device: SceneDevice): RuntimeDeviceState {
         right: 0,
       };
     case 'otto':
-      return { kind: 'otto', motion: 'HOME', phase: 0, speed: 0 };
+      return { kind: 'otto', motion: 'HOME', phase: 0, speed: 0, distance: 30, expression: 'SMILE', sound: null, soundUntil: 0, arms: 'DOWN' };
     case 'motor':
       return { kind: 'motor', power: 0 };
     case 'servo':
@@ -454,6 +454,10 @@ function applyInputValue(deviceId: string, value: unknown) {
       ? Math.max(0, Math.min(4095, numeric))
       : 0;
   }
+  if (device?.kind === 'otto') {
+    const numeric = Number(value);
+    device.distance = Number.isFinite(numeric) ? Math.max(0, Math.min(500, numeric)) : 0;
+  }
 }
 
 function applyInputOverrides() {
@@ -566,6 +570,10 @@ function evaluateValue(expression: ValueExpression): number | string | boolean {
       const device = state.devices[expression.deviceId];
       return device?.kind === 'lightSensor' || device?.kind === 'potentiometer' ? device.value : 0;
     }
+    case 'ottoDistance': {
+      const device = state.devices[expression.deviceId];
+      return device?.kind === 'otto' ? device.distance : 0;
+    }
     case 'buttonValue': {
       const device = state.devices[expression.deviceId];
       return device?.kind === 'button' && device.pressed;
@@ -644,6 +652,9 @@ function queueActiveSounds() {
     ) {
       pendingSounds.set(deviceId, { frequency: device.frequency });
     }
+    if (device.kind === 'otto' && device.sound && device.soundUntil > virtualNow) {
+      pendingSounds.set(deviceId, { frequency: ottoSoundFrequency(device.sound) });
+    }
   }
 }
 
@@ -655,6 +666,12 @@ function flushSounds(force = false) {
   if (!force && now - lastSoundRealTime < SOUND_INTERVAL_MS) return;
   for (const [deviceId, sound] of pendingSounds) {
     const device = state.devices[deviceId];
+    if (device?.kind === 'otto') {
+      const remainingVirtualMs = Math.max(0, device.soundUntil - virtualNow);
+      if (!device.sound || remainingVirtualMs <= 0) continue;
+      scope.postMessage({ type: 'SOUND', deviceId, frequency: sound.frequency, durationMs: remainingVirtualMs });
+      continue;
+    }
     if (device?.kind !== 'activeBuzzer' && device?.kind !== 'passiveBuzzer') {
       continue;
     }
@@ -833,6 +850,10 @@ function setBuzzer(deviceId: string, frequency: number, durationMs: number) {
   device.frequency = Math.max(20, frequency);
   device.stopAt = virtualNow + Math.max(0, durationMs);
   pendingSounds.set(deviceId, { frequency: device.frequency });
+}
+
+function ottoSoundFrequency(sound: string) {
+  return ({ HAPPY: 880, SAD: 220, SURPRISE: 1175, CONFUSED: 330, SLEEPING: 165, BUTTON: 660, MODE: 990, FART: 110 } as Record<string, number>)[sound] ?? 440;
 }
 
 function executeInstruction(
@@ -1117,6 +1138,26 @@ function executeInstruction(
       }
       break;
     }
+    case 'ottoSound': {
+      const device = state.devices[node.deviceId];
+      if (device?.kind === 'otto') {
+        device.sound = node.sound;
+        device.soundUntil = virtualNow + 700;
+        pendingSounds.set(node.deviceId, { frequency: ottoSoundFrequency(node.sound) });
+        appendConsole(`${deviceName(node.deviceId)}: sonido ${node.sound.toLowerCase()}`);
+      }
+      break;
+    }
+    case 'ottoExpression': {
+      const device = state.devices[node.deviceId];
+      if (device?.kind === 'otto') { device.expression = node.expression; appendConsole(`${deviceName(node.deviceId)}: cara ${node.expression.toLowerCase()}`); }
+      break;
+    }
+    case 'ottoArms': {
+      const device = state.devices[node.deviceId];
+      if (device?.kind === 'otto') { device.arms = node.pose; appendConsole(`${deviceName(node.deviceId)}: brazos ${node.pose.toLowerCase()}`); }
+      break;
+    }
     case 'buzzer':
       setBuzzer(
         node.deviceId,
@@ -1280,6 +1321,11 @@ function updatePhysics(deltaMs: number) {
         device.angle = -device.angle;
       }
     }
+    if (device.kind === 'otto' && device.sound && virtualNow >= device.soundUntil) {
+      device.sound = null;
+      device.soundUntil = 0;
+      stopSounds(deviceId);
+    }
     if (
       (device.kind === 'activeBuzzer' || device.kind === 'passiveBuzzer') &&
       device.playing &&
@@ -1311,6 +1357,7 @@ function hasDynamicOutput() {
   if (visualAnimations.size) return true;
   return Object.values(state.devices).some((device) => {
     if (device.kind === 'robot') return device.left !== 0 || device.right !== 0;
+    if (device.kind === 'otto') return Boolean(device.sound && device.soundUntil > virtualNow);
     return (
       (device.kind === 'activeBuzzer' || device.kind === 'passiveBuzzer') &&
       device.playing
@@ -1429,6 +1476,13 @@ function stopOutputs() {
       device.right = 0;
     }
     if (device.kind === 'motor') device.power = 0;
+    if (device.kind === 'otto') {
+      device.motion = 'HOME';
+      device.phase = 0;
+      device.speed = 0;
+      device.sound = null;
+      device.soundUntil = 0;
+    }
     if (device.kind === 'activeBuzzer' || device.kind === 'passiveBuzzer') {
       device.playing = false;
       device.stopAt = 0;
