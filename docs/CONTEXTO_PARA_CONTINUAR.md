@@ -165,6 +165,12 @@ La placa conectada se inspeccionó sin escribir: ESP32-S3 revisión 0.2, flash Q
 
 Las pruebas locales de tipos, lint, smoke/modelo S3, ZIP IDF, USB e aislamiento de compilador pasan; CI compila además un semáforo S3 real con ambas toolchains. Registrar aquí hash y ejecución CI después del push. No se grabó la placa: faltan autorización y ensayo físico de arranque, consola, PWM y TX/RX; no declarar certificación de hardware.
 
+### Inventario para fase 17 — Waveshare de 5 pulgadas — 19 de septiembre de 2026
+
+El propietario identificó la segunda unidad con la [página oficial](https://docs.waveshare.com/ESP32-S3-Touch-LCD-5): **Waveshare ESP32-S3-Touch-LCD-5, SKU 28117**. Es un ESP32-S3-WROOM-1-N16R8 con panel RGB de 5 pulgadas, táctil capacitivo GT911 por I2C y expansor CH422G. La consulta física de `COM12` mediante USB nativo, sin escritura, confirmó ESP32-S3 rev. 0.2, flash Quad 16 MiB, PSRAM 8 MiB, 3,3 V y cristal de 40 MHz. No registrar identificadores únicos del chip.
+
+La fase 17 no está implementada. Antes de fijar su perfil hay que confirmar en la unidad resolución 800 × 480 o 1024 × 600 y revisión de PCB, y contrastar esquema/serigrafía. La pantalla ocupa la mayoría de GPIO; USB usa 19/20, I2C/GT911/RTC/CH422G usa 8/9, TF usa 11–13 más EXIO4, RS485 43/44 y CAN 15/16. No reutilizar el mapa de la DevKit ni tratar el panel RGB como ILI/SPI.
+
 ## 4. Arquitectura y mapa de archivos
 
 | Área | Punto de entrada y responsabilidad |

@@ -20,7 +20,9 @@ El ajuste menor de espacios de fase 6 no resolvía este pedido. La reorganizaci�
 - Incorporar capacidades, pines reservados, conexiones, validación, generación, compilación y posterior grabación para cada perfil, tanto en Arduino como en ESP-IDF según las fases acordadas.
 - No tratar las dos placas nuevas como intercambiables ni trasladarles automáticamente el mapa de pines de Wemos.
 
-Antes de implementar: identificar modelo/revisión exactos de DevKit y Waveshare, memoria y pantalla/táctil presentes; verificar documentación del fabricante. Definir cómo se elige o cambia la placa sin perder dispositivos ni ocultar conexiones incompatibles. No hay controladores ni asignaciones de pines elegidos todavía.
+La DevKit quedó identificada e implementada en fase 16. La segunda unidad fue identificada el 19 de septiembre de 2026 como **Waveshare ESP32-S3-Touch-LCD-5, SKU 28117**: módulo ESP32-S3-WROOM-1-N16R8, LCD RGB táctil capacitivo de 5 pulgadas, GT911 por I2C, 16 MiB de flash y 8 MiB de PSRAM. La lectura física sin escritura confirmó ESP32-S3 rev. 0.2, flash Quad 16 MiB y PSRAM 8 MiB. Fuente primaria: [documentación oficial de Waveshare](https://docs.waveshare.com/ESP32-S3-Touch-LCD-5). Fase 17 sigue pendiente de autorización e implementación: falta fijar la resolución de la unidad y contrastar revisión, serigrafía y esquema antes de generar firmware o diagrama.
+
+Al implementar, definir cómo se elige o cambia la placa sin perder dispositivos ni ocultar conexiones incompatibles. No trasladar el mapa de DevKit: la pantalla ocupa la mayoría de GPIO y la placa usa CH422G para backlight, resets, tarjeta e I/O aisladas.
 
 ## 3. Nuevos componentes
 
@@ -302,6 +304,31 @@ Error informado el 15 de septiembre de 2026: durante ciertos arrastres aparecía
 
 La regresión mantiene un bloque sobre un punto de inserción durante más tiempo que los temporizadores de cambio y guardado, comprueba que el editor siga montado, que no aparezca el error y que el proyecto final sea exportable. Pasó localmente en Chromium, Chrome y Edge; también pasaron typecheck, lint, smoke, el archivo completo de experiencia de programación y build. El CI completo [34974885825](https://github.com/ncvicchi/capibloques/actions/runs/34974885825) fue correcto. Contra DEV público pasó 2/2 en Chrome/Edge. DEV quedó saludable en `2b97af9`, con admisión abierta, cero trabajos activos y planificador activo; API/base no se recrearon.
 
+## 22. Vista educativa del estado lógico de los pines
+
+Posibilidad propuesta el 19 de septiembre de 2026: junto al diagrama de la placa elegida, mostrar cómo cambia cada pin durante la simulación según el componente y su estado. Una salida digital puede indicar 0/1 y apagado/encendido; un semáforo o LED puede reflejar su color; PWM puede usar intensidad o gradiente; una entrada analógica puede mostrar valor y nivel. El objetivo es unir bloques, componente y cable físico de una forma comprensible para chicos.
+
+Debe ser una **visualización lógica simulada**, no una medición eléctrica ni evidencia de que la placa real tenga ese voltaje. No depender sólo del color: incluir número, texto o patrón accesible; distinguir entradas, salidas, PWM, pines reservados y estados indeterminados. Usar el mismo perfil de placa, asignación y estado cooperativo que la escena, sin duplicar reglas ni inventar lecturas. Evaluar una vista compacta y otra detallada para no sobrecargar la interfaz.
+
+Asignación: **fase 21**, dentro de la revisión de UX educativa y claridad del circuito. Antes de implementarla hay que probar proyectos grandes, ejecución en pausa/paso/paralelo y ambos perfiles de placa; la futura Waveshare se incorpora sólo después de definir su perfil exacto.
+
+## 23. Reducir al mínimo la latencia de compilación
+
+Objetivo propuesto el 19 de septiembre de 2026: medir el recorrido completo y reducir el tiempo entre pedir un firmware y poder descargarlo, aprovechando precompilación, cachés y reutilización segura.
+
+Precompilar funciones o componentes **puede ayudar**, pero no debe asumirse como la optimización principal: Arduino y ESP-IDF ya compilan bibliotecas y componentes separadamente, y el código generado del proyecto igualmente debe compilarse y enlazarse. Primero instrumentar tiempos de cola, arranque de contenedor, preparación de toolchain, generación, compilación, enlace, empaquetado y descarga. Luego comparar con mediciones reproducibles:
+
+- workers calientes o pools acotados por toolchain/perfil, sin mezclar trabajos ni credenciales;
+- caché persistente de toolchains, dependencias y objetos por versión, flags, placa y receta;
+- compilación incremental o componentes C/C++ precompilados con ABI y flags exactos;
+- deduplicación privada de artefactos sin Wi-Fi y fuentes idénticas; nunca reutilizar binarios con credenciales;
+- imágenes precalentadas, menos I/O/copias y paralelismo limitado según RAM/CPU real;
+- caída segura a compilación limpia cuando una clave de caché no coincide.
+
+Toda caché debe incluir toolchain, framework, placa, memoria, particiones, bibliotecas, receta y fuentes relevantes; una coincidencia parcial no es válida. Conservar aislamiento entre cuentas, limpieza de secretos y builds reproducibles. Medir latencia p50/p95, tasa de aciertos, consumo y equidad bajo concurrencia; no optimizar sólo una compilación de laboratorio.
+
+Asignación: **fase 20**, ampliando el pedido 17 de medición y mejora del compilador antes de diseñar el asistente. La implementación se decide a partir del perfil medido en DEV; no se promete que una biblioteca monolítica precompilada sea la mejor opción.
+
 ## Pedidos externos a analizar
 
 Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus observaciones para reproducirlas y contrastarlas con el comportamiento vigente. **No confirma que cada problema exista y la asignación no autoriza implementarlos.** Progreso/guardado/reinicio corresponden a fase 20; superposición y los ajustes de claridad/escena corresponden a fase 21; avatar a fase 22; compartir a fase 25; acceso de aula a fase 26. Las prioridades «vital» y «sutil» pertenecen al informe de origen y cada observación debe reproducirse antes de cambiar código.
@@ -383,5 +410,7 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 19. Matriz de LED 32 × 8 con cuatro MAX7219 | 23. Nuevo componente, simulación, ambos generadores y ensayo físico |
 | 20. Panel web local para celular | 24. Panel local seguro y programable en la misma LAN |
 | 21. Guardado estable durante el arrastre | Implementado y desplegado el 15 de septiembre de 2026, revisión `2b97af9` |
+| 22. Vista educativa del estado lógico de pines | 21. Claridad del circuito y UX educativa |
+| 23. Reducir al mínimo la latencia de compilación | 20. Medición, caché, precompilación y arquitectura del compilador |
 
 Las observaciones externas quedan asignadas así: fase 20 (progreso/guardado/reinicio de compilación), fase 21 (superposición y claridad/escena), fase 22 (avatar), fase 25 (enlaces/QR) y fase 26 (acceso de aula/asistencia). Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 15 está implementada en software y la fase 23 está en curso con la matriz implementada; el resto requiere autorización propia. Los números de pedido no son fases nuevas.

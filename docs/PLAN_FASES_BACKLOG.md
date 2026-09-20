@@ -179,7 +179,7 @@ Aceptación:
 
 **Objetivo:** incorporar el perfil real de la Waveshare, su pantalla y las entradas disponibles antes de construir una aplicación gráfica interactiva.
 
-Requisito: modelo/revisión exactos y documentación del display, controlador, interfaz, resolución, memoria, alimentación y táctil si existe. No asignar de antemano un controlador ILI a esta pantalla ni dar por disponible el táctil.
+Unidad identificada: **Waveshare ESP32-S3-Touch-LCD-5, SKU 28117**, ESP32-S3-WROOM-1-N16R8, display RGB de 5 pulgadas y táctil capacitivo GT911 por I2C. La inspección física sin escritura confirmó ESP32-S3 rev. 0.2, flash Quad 16 MiB y PSRAM 8 MiB; coincide con la [documentación oficial](https://docs.waveshare.com/ESP32-S3-Touch-LCD-5). Antes de implementar todavía hay que fijar la resolución de la unidad —el producto admite 800 × 480 o 1024 × 600— y contrastar revisión, serigrafía y esquema. No asignar un controlador ILI: es un panel RGB paralelo.
 
 Alcance:
 
@@ -242,6 +242,8 @@ No incluye una competencia pública, chat o tutor de IA, creación libre de desa
 
 **Objetivo:** convertir el recorrido ya seguro de guardar, compilar y grabar en un asistente secuencial para chicos, alimentado por estados reales y mediciones del compilador.
 
+La fase también debe reducir al mínimo razonable la latencia: comparar workers calientes, cachés por receta/placa/toolchain, compilación incremental y componentes precompilados. Toda reutilización conserva aislamiento, reproducibilidad y exclusión de credenciales Wi-Fi; se elige por p50/p95 y consumo bajo concurrencia, no por intuición.
+
 Alcance:
 
 - Documentar y medir con fixtures sintéticos validación, cola, reserva, preparación, generación, compilación, enlace, empaquetado y publicación; registrar espera, duración, CPU, RAM y disco en frío/caliente.
@@ -260,6 +262,8 @@ Aceptación:
 ## Fase 21 — Claridad y ergonomía educativa del editor
 
 **Objetivo:** resolver en una entrega comprobable las observaciones de comprensión y manipulación del editor que quedaron fuera del alcance original de fases 12 y 14.
+
+Incluye evaluar una vista accesible del estado lógico simulado de los pines sobre el diagrama de la placa: 0/1, color del componente, intensidad PWM y nivel analógico, siempre rotulado como simulación y nunca como medición eléctrica.
 
 Alcance:
 

@@ -25,7 +25,7 @@ project(capibloques)
 `,
     'main/CMakeLists.txt': `idf_component_register(SRCS "main.cpp" INCLUDE_DIRS "."
   PRIV_REQUIRES esp_driver_gpio esp_driver_ledc esp_driver_i2c esp_driver_spi esp_driver_uart
-  esp_adc esp_timer esp_wifi esp_event esp_netif nvs_flash freertos)
+  esp_adc esp_timer esp_wifi esp_event esp_netif nvs_flash freertos${s3 ? ' esp_psram' : ''})
 target_compile_features(\${COMPONENT_LIB} PRIVATE cxx_std_17)
 `,
     'main/main.cpp': generated.code,

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { boardProfile, projectTargetForBoard } from '../lib/board-profiles.ts';
 import { addDeviceToScene, assignSafePins, createEmptyScene, validateScene } from '../lib/scene-model.ts';
 import { decodeProject, generateEsp32CodeResult, makeProject } from '../lib/capiblocks.ts';
+import { espIdfProjectFiles } from '../lib/firmware-archive.ts';
 
 const s3Id = 'diymall-esp32-s3-devkitc-v1-n16r8';
 const s3 = boardProfile(s3Id);
@@ -35,6 +36,7 @@ const wrongGenerated = generateEsp32CodeResult(program, 'S3 cruzada', wrong.scen
 assert.match(arduino.code, /esp32:esp32:esp32s3/);
 assert.match(idf.code, /CONFIG_IDF_TARGET_ESP32S3/);
 assert.doesNotMatch(idf.code, /LEDC_HIGH_SPEED_MODE/);
+assert.match(espIdfProjectFiles(idf)['main/CMakeLists.txt'], /freertos esp_psram\)/);
 assert.equal(arduino.diagnostics.some(issue => issue.severity === 'error'), false);
 assert.ok(wrongGenerated.diagnostics.some(issue => issue.severity === 'error' && issue.code === 'scene-unsupported-pin'));
 
