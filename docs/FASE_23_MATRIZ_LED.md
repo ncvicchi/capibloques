@@ -32,6 +32,8 @@ La categoría **Matriz LED** incorpora cuatro acciones:
 
 El texto se normaliza a una fuente 5 × 7 portable de mayúsculas, números y signos básicos. Los caracteres no representables se convierten en `?`; el comportamiento es igual en navegador y firmware.
 
+El campo de texto no admite más de 32 caracteres: el propio bloque muestra el contador `N/32`, marca `32/32 · límite` al completarse y recorta una escritura o pegado que exceda ese máximo. El compilador aplica el mismo límite como defensa para proyectos anteriores o datos manipulados, de modo que una entrada inválida no puede dejar la simulación aparentemente detenida.
+
 La escena muestra los 256 puntos y el editor permite cambiarlos con botones accesibles. El texto desplazable corre en segundo plano y el mismo camino sigue inmediatamente. Puede ejecutarse una vez, entre 2 y 100 veces o sin parar. El bloque `esperar a que termine [matriz]` permite sincronizar sólo cuando hace falta; limpiar, cambiar un píxel, mostrar un dibujo o iniciar otro desplazamiento cancela el anterior. Detener o reiniciar también lo cancela. Se agregó el ejemplo **Cartel luminoso**.
 
 ## Firmware y cableado
@@ -47,6 +49,7 @@ La guía muestra `VCC`, `GND`, `DIN`, `CLK` y `CS/LOAD`, y aclara que `DIN` entr
 - `npm run test:idf`, `npm run test:idf-driver`, drivers de pantallas y Mensajes;
 - `npm run build` y verificación de rutas estáticas;
 - Playwright específico local y público en Chrome y Edge para configuración/editor, simulación, explicación de exclusividad y eliminación mediante tachito/Supr;
+- regresión específica para importar texto excedido, limitarlo visiblemente a 32 caracteres y ejecutar sin bloqueo;
 - validación Django de tipo, configuración, pines, bloques y exclusividad de salida visual;
 - CI nativa con compilación Arduino-ESP32 3.3.11 y ESP-IDF 5.5.5 de la matriz generada.
 

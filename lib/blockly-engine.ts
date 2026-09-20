@@ -3,6 +3,8 @@
 import { displayArtworks, displayProfiles, displayTargets } from './display-model.ts';
 // @ts-expect-error Node strip-types runners need the explicit extension.
 import { BUILTIN_DISPLAY_ARTWORKS } from './display-graphics.ts';
+// @ts-expect-error Node strip-types runner.
+import { MAX_MATRIX_TEXT } from './led-matrix.ts';
 import type { CompiledProgram, Condition, ProgramNode, ValueExpression, VariableType } from './capiblocks.ts';
 import type { SceneDevice, SceneDeviceKind } from './scene-model.ts';
 // @ts-expect-error Node strip-types runner.
@@ -11,6 +13,7 @@ type BlocklyApi = typeof import('blockly');
 type BlocklyWorkspaceSvg = import('blockly').WorkspaceSvg;
 type BlocklyBlock = import('blockly').Block;
 type BlocklyFieldDropdown = import('blockly').FieldDropdown;
+type BlocklyFieldTextInput = import('blockly').FieldTextInput;
 type BlocklyMenuOption = import('blockly').MenuOption;
 
 const DEVICE_FIELD = 'DEVICE_ID';
@@ -22,6 +25,7 @@ const serializedAreaIds = new WeakMap<BlocklyWorkspaceSvg, Map<string, string>>(
 const EMPTY_FAVORITES: readonly string[] = [];
 const DEVICE_EXTENSION = 'capi_device_target_v2';
 const ANIMATION_REPEAT_EXTENSION = 'capi_animation_repeat_v1';
+const MATRIX_TEXT_EXTENSION = 'capi_matrix_text_limit_v1';
 const BOARD_PIN_EXTENSION = 'capi_board_pin_v1';
 const DEVICE_WARNING = 'capi-device-target';
 const MISSING_DEVICE_PREFIX = '__missing__:';
@@ -548,6 +552,26 @@ function registerBlocks(Blockly: BlocklyApi) {
         return value;
       });
       showCount(String(mode?.getValue() ?? 'ONCE'));
+    });
+  }
+  if (!Blockly.Extensions.isRegistered(MATRIX_TEXT_EXTENSION)) {
+    Blockly.Extensions.register(MATRIX_TEXT_EXTENSION, function (this: BlocklyBlock) {
+      const text = this.getField('TEXT') as BlocklyFieldTextInput | null;
+      const count = this.getField('TEXT_COUNT');
+      const updateCount = (value: string) => {
+        const length = value.length;
+        count?.setValue(
+          length === MAX_MATRIX_TEXT
+            ? `${length}/${MAX_MATRIX_TEXT} · límite`
+            : `${length}/${MAX_MATRIX_TEXT}`,
+        );
+      };
+      text?.setValidator((value) => {
+        const limited = String(value ?? '').slice(0, MAX_MATRIX_TEXT);
+        updateCount(limited);
+        return limited;
+      });
+      updateCount(String(text?.getValue() ?? '').slice(0, MAX_MATRIX_TEXT));
     });
   }
   if (!Blockly.Extensions.isRegistered(BOARD_PIN_EXTENSION)) {
@@ -1301,11 +1325,12 @@ function registerBlocks(Blockly: BlocklyApi) {
         deviceField('Elegí una matriz'),
         { type: 'field_input', name: 'TEXT', text: 'HOLA' },
         { type: 'field_number', name: 'SPEED', value: 120, min: 40, max: 1000, precision: 10 },
-      ], message1: 'repetir %1 %2', args1: [
+      ], message1: 'caracteres %1 · repetir %2 %3', args1: [
+        { type: 'field_label', name: 'TEXT_COUNT', text: `4/${MAX_MATRIX_TEXT}` },
         { type: 'field_dropdown', name: 'REPEAT_MODE', options: [['una vez', 'ONCE'], ['varias veces', 'COUNT'], ['sin parar', 'FOREVER']] },
         { type: 'field_number', name: 'REPEAT_COUNT', value: 2, min: 2, max: 100, precision: 1 },
-      ], previousStatement: null, nextStatement: null, colour: '#B47B00', extensions: [DEVICE_EXTENSION, ANIMATION_REPEAT_EXTENSION],
-      tooltip: 'Inicia el desplazamiento y continúa inmediatamente. Puede repetirse o quedar ciclando.',
+      ], previousStatement: null, nextStatement: null, colour: '#B47B00', extensions: [DEVICE_EXTENSION, ANIMATION_REPEAT_EXTENSION, MATRIX_TEXT_EXTENSION],
+      tooltip: `Inicia el desplazamiento y continúa inmediatamente. Admite hasta ${MAX_MATRIX_TEXT} caracteres y puede repetirse o quedar ciclando.`,
     },
   ]);
   Blockly.Blocks['capi_parallel'] = {
@@ -1709,7 +1734,7 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
         result.push({ op: 'matrixPattern', deviceId: selectedDeviceId(block), patternId: String(block.getFieldValue(PATTERN_FIELD) ?? ''), blockId });
         break;
       case 'capi_matrix_scroll':
-        result.push({ op: 'matrixScroll', deviceId: selectedDeviceId(block), text: String(block.getFieldValue('TEXT') ?? ''), speedMs: numberField(block, 'SPEED', 120), repeatCount: animationRepeatCount(block), blockId });
+        result.push({ op: 'matrixScroll', deviceId: selectedDeviceId(block), text: String(block.getFieldValue('TEXT') ?? '').slice(0, MAX_MATRIX_TEXT), speedMs: numberField(block, 'SPEED', 120), repeatCount: animationRepeatCount(block), blockId });
         break;
     }
     block = block.getNextBlock();

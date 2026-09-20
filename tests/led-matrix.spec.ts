@@ -9,12 +9,12 @@ async function open(page: Page) {
   await expect(page.locator('.blocklySvg')).toBeVisible({ timeout: process.env.PLAYWRIGHT_BASE_URL ? 120000 : 10000 });
 }
 
-function sample() {
+function sample(text = 'HOLA', repeatMode = 'FOREVER') {
   const { scene, device } = addDeviceToScene(createEmptyScene('Matriz'), 'ledMatrix');
   return makeProject('Cartel luminoso', scene, { blocks: { languageVersion: 0, blocks: [{
     type: 'capi_start', id: 'start', x: 40, y: 40, inputs: { DO: { block: {
       type: 'capi_matrix_pattern', id: 'pattern', fields: { DEVICE_ID: device.id, PATTERN_ID: 'heart' }, next: { block: {
-        type: 'capi_matrix_scroll', id: 'scroll', fields: { DEVICE_ID: device.id, TEXT: 'HOLA', SPEED: 80, REPEAT_MODE: 'FOREVER', REPEAT_COUNT: 2 },
+        type: 'capi_matrix_scroll', id: 'scroll', fields: { DEVICE_ID: device.id, TEXT: text, SPEED: 80, REPEAT_MODE: repeatMode, REPEAT_COUNT: 2 },
       } },
     } } },
   }] } });
@@ -76,4 +76,23 @@ test('Matriz LED: muestra patrón y deja visible el progreso del texto', async (
   await step.click();
   await page.getByRole('tab', { name: 'Estado', exact: true }).click();
   await expect(page.getByRole('tabpanel', { name: 'Estado', exact: true })).toContainText('Texto en movimiento');
+});
+
+test('Matriz LED: limita el texto a 32 caracteres sin trabar la simulación', async ({ page }) => {
+  await open(page);
+  const project = sample('12345678901234567890123456789012NO-DEBE-ENTRAR', 'ONCE');
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'matriz-limite.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(project)),
+  });
+
+  const block = page.locator('[data-id="scroll"]');
+  await expect(block).toContainText('12345678901234567890123456789012');
+  await expect(block).not.toContainText('NO-DEBE-ENTRAR');
+  await expect(block).toContainText('32/32 · límite');
+
+  await page.getByRole('button', { name: 'Ejecutar', exact: true }).click();
+  await expect(page.locator('.notice')).not.toContainText('necesitan una corrección');
+  await expect(page.locator('.led-matrix-preview')).toBeVisible();
 });

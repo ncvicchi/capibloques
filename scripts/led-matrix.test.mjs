@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { addDeviceToScene, createEmptyScene, getPinRequirements, validateScene } from '../lib/scene-model.ts';
-import { matrixPixel, matrixScrollRows, matrixScrollSteps, normalizeMatrixText, validMatrixConfig } from '../lib/led-matrix.ts';
+import { MAX_MATRIX_TEXT, matrixPixel, matrixScrollRows, matrixScrollSteps, normalizeMatrixText, validMatrixConfig } from '../lib/led-matrix.ts';
 import { generateEsp32CodeResult, generateEspIdfCodeResult, validateProgramForScene } from '../lib/capiblocks.ts';
 
 const added = addDeviceToScene(createEmptyScene('Matriz'), 'ledMatrix');
@@ -15,6 +15,7 @@ const pixel = matrixPixel(Array(8).fill(0), 31, 7, true);
 assert.equal(pixel[7], 1);
 assert.equal(matrixPixel(pixel, 31, 7, false)[7], 0);
 assert.equal(normalizeMatrixText('¡Hola, capi!'), '?HOLA, CAPI!');
+assert.equal(normalizeMatrixText('A'.repeat(MAX_MATRIX_TEXT + 20)).length, MAX_MATRIX_TEXT);
 assert.equal(matrixScrollRows('A', 0).every(row => row === 0), true);
 assert.ok(matrixScrollSteps('A') > 32);
 
