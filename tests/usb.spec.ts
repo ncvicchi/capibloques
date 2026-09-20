@@ -49,7 +49,7 @@ async function setup(page: Page, options: { unsupported?: boolean; denied?: bool
 async function openUsb(page: Page, compiled = false) {
   await page.getByRole('button', { name: 'Exportar', exact: true }).click();
   await page.getByRole('menuitem', { name: compiled ? 'Compilar y descargar firmware' : 'USB y monitor Serial', exact: true }).click();
-  if (compiled) await page.getByRole('button', { name: 'Programar mi Wemos', exact: true }).click();
+  if (compiled) await page.getByRole('button', { name: /^Programar Wemos$/ }).click();
   return page.getByRole('dialog', { name: 'USB y monitor Serial' });
 }
 async function acknowledge(page: Page) {
