@@ -139,10 +139,20 @@ if [[ -f $STATE_FILE ]]; then
   saved_verify_backend=$(sed -n 's/^verify_backend=//p' "$STATE_FILE")
   saved_run_migrations=$(sed -n 's/^run_migrations=//p' "$STATE_FILE")
   saved_rebuild_compiler=$(sed -n 's/^rebuild_compiler=//p' "$STATE_FILE")
-  [[ $original_paused =~ ^[01]$ && $saved_with_api =~ ^[01]$ && $saved_verify_backend =~ ^[01]$ && $saved_run_migrations =~ ^[01]$ && $saved_rebuild_compiler =~ ^[01]$ ]] || \
+  [[ $original_paused =~ ^[01]$ && $saved_with_api =~ ^[01]$ && $saved_verify_backend =~ ^[01]$ ]] || \
     fail "el estado del mantenimiento anterior está incompleto; revisar $STATE_FILE"
   [[ $saved_target =~ ^[0-9a-f]{40}$ ]] && repo_git cat-file -e "$saved_target^{commit}" 2>/dev/null || \
     fail "el estado del mantenimiento anterior contiene un commit inválido; revisar $STATE_FILE"
+  if [[ -z $saved_run_migrations && -z $saved_rebuild_compiler && $saved_target == "$CURRENT_COMMIT" ]]; then
+    # Marcador de la versión anterior del orquestador. Sólo es migrable cuando
+    # su objetivo ya es exactamente el checkout saludable verificado arriba:
+    # no queda un diff viejo del que inferir pasos de mantenimiento pendientes.
+    saved_run_migrations=0
+    saved_rebuild_compiler=0
+    echo "Migrando marcador anterior ya aplicado en $saved_target"
+  fi
+  [[ $saved_run_migrations =~ ^[01]$ && $saved_rebuild_compiler =~ ^[01]$ ]] || \
+    fail "el marcador anterior no permite deducir mantenimiento pendiente; revisar $STATE_FILE"
   if [[ $saved_target != "$TARGET_COMMIT" ]]; then
     repo_git merge-base --is-ancestor "$saved_target" "$TARGET_COMMIT" || \
       fail "el mantenimiento pendiente pertenece a otra línea de Git; revisar $STATE_FILE"

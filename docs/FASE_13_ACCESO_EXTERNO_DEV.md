@@ -51,6 +51,8 @@ El orquestador comprueba identidad, árbol limpio, avance rápido, runtime, salu
 
 Si mientras el servidor estaba detenido `main` avanzó, el mismo comando puede trasladar el marcador a un commit descendiente: primero verifica que ambos commits pertenezcan a la misma línea, que el checkout continúe antes del objetivo anterior y que todo el diff nuevo pase la allowlist. Conserva los pasos pendientes del intento previo; una divergencia continúa bloqueada para revisión manual.
 
+Los marcadores creados antes de que existieran los campos de migración/imagen sólo se actualizan automáticamente cuando su objetivo coincide exactamente con el checkout que acaba de superar validación y salud. En cualquier otra posición se consideran ambiguos y permanecen bloqueados.
+
 La automatización reduce la intervención, no elimina las pruebas del recorrido funcional afectado ni convierte un fallo en éxito. Ante error deja admisión pausada y el marcador para diagnóstico; ejecutar primero `./scripts/update-dev.sh --check-only`, revisar el resultado y reanudar la misma versión.
 
 Desde el 19 de septiembre de 2026 el despliegue es operado por el propietario: la implementación entrega commit, CI y comando, pero no ejecuta la actualización remota salvo pedido expreso. La primera ejecución de `deploy-dev.ps1 -DirectLan` fue informada sin errores para `f772026`; se toma como confirmación operativa del propietario, no como inspección independiente. En actualizaciones siguientes se usa `./scripts/update-dev.sh` dentro de DEV y la ausencia de un problema informado se registra como resultado correcto.
