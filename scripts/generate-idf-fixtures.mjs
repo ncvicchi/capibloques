@@ -7,9 +7,14 @@ import { displayConfig, displayProfiles, displayTargets } from '../lib/display-m
 import { espIdfProjectFiles, createEspIdfArchive } from '../lib/firmware-archive.ts';
 
 const fixtures = [['main', firmwareFixture()], ['auxiliary', firmwareFixture(true)], ['matrix', matrixFirmwareFixture()]];
-const s3Scene = assignSafePins(createSceneFromTemplate('traffic'), { boardProfile: 'diymall-esp32-s3-devkitc-v1-n16r8', reassignAll: true }).scene;
+let s3Scene = createSceneFromTemplate('traffic');
+s3Scene = addDeviceToScene(s3Scene, 'servo', { boardProfile: 'diymall-esp32-s3-devkitc-v1-n16r8' }).scene;
+s3Scene = addDeviceToScene(s3Scene, 'passiveBuzzer', { boardProfile: 'diymall-esp32-s3-devkitc-v1-n16r8' }).scene;
+s3Scene = assignSafePins(s3Scene, { boardProfile: 'diymall-esp32-s3-devkitc-v1-n16r8', reassignAll: true }).scene;
 const s3Traffic = s3Scene.devices.find(device => device.kind === 'trafficLight');
-fixtures.push(['s3', { boardProfile: 'diymall-esp32-s3-devkitc-v1-n16r8', scene: s3Scene, program: { version: 2, threads: [{ id: 's3', startBlockId: 's3-start', nodes: [{ op: 'traffic', deviceId: s3Traffic.id, color: 'GREEN', blockId: 'green' }, { op: 'wait', ms: 500, blockId: 'wait' }, { op: 'traffic', deviceId: s3Traffic.id, color: 'RED', blockId: 'red' }] }] } }]);
+const s3Servo = s3Scene.devices.find(device => device.kind === 'servo');
+const s3Buzzer = s3Scene.devices.find(device => device.kind === 'passiveBuzzer');
+fixtures.push(['s3', { boardProfile: 'diymall-esp32-s3-devkitc-v1-n16r8', scene: s3Scene, program: { version: 2, threads: [{ id: 's3', startBlockId: 's3-start', nodes: [{ op: 'traffic', deviceId: s3Traffic.id, color: 'GREEN', blockId: 'green' }, { op: 'servo', deviceId: s3Servo.id, angle: 90, blockId: 'servo' }, { op: 'tone', deviceId: s3Buzzer.id, frequency: 440, durationMs: 100, blockId: 'tone' }, { op: 'wait', ms: 500, blockId: 'wait' }, { op: 'traffic', deviceId: s3Traffic.id, color: 'RED', blockId: 'red' }] }] } }]);
 for (const profile of Object.keys(displayProfiles)) {
   const { scene, device } = addDeviceToScene(createEmptyScene('Pantalla'), 'display', { config: displayConfig(profile) });
   const led = addDeviceToScene(scene, 'led');

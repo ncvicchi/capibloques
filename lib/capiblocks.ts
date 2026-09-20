@@ -2755,7 +2755,7 @@ function buzzerDeclarations(
     .join('\n');
 }
 
-function setupLines(scene: SceneDefinition, symbols: Map<string, string>) {
+function setupLines(scene: SceneDefinition, symbols: Map<string, string>, servoResolutionBits = 16) {
   const lines: string[] = [];
   for (const device of scene.devices) {
     const symbol = symbols.get(device.id) ?? cppIdentifier(device.id);
@@ -2792,7 +2792,7 @@ function setupLines(scene: SceneDefinition, symbols: Map<string, string>) {
         break;
       case 'servo':
         lines.push(
-          `  ledcAttach(PIN_${symbol}, 50, 16);`,
+          `  ledcAttach(PIN_${symbol}, 50, ${servoResolutionBits});`,
           `  setServoAngle(PIN_${symbol}, ${Math.max(0, Math.min(180, Math.round(device.config.angle)))});`,
         );
         break;
@@ -2960,6 +2960,8 @@ ${cases}
         .join('\n')
     : '  // No hay programas “al comenzar”.';
 
+  const servoResolutionBits = profile.family === 'esp32-s3' ? 14 : 16;
+  const servoMaxDuty = (1 << servoResolutionBits) - 1;
   const code = `// ${cppLineComment(projectTitle(title))}
 // Generado por CapiBloques para ${profile.name}
 // ${native ? `ESP-IDF ${IDF_VERSION} | Target: ${profile.idfTarget} | CapiBloques generator 8.1` : `Arduino-ESP32 3.3.11 | FQBN: ${profile.fqbn}`}
@@ -3024,7 +3026,7 @@ void driveMotor(const MotorDevice& device, int power) {
 void setServoAngle(uint8_t pin, int angle) {
   angle = ${native ? 'std::clamp' : 'constrain'}(angle, 0, 180);
   const uint32_t pulseMicros = 500U + ((uint32_t)angle * 2000U) / 180U;
-  const uint32_t duty = (pulseMicros * 65535U) / 20000U;
+  const uint32_t duty = (pulseMicros * ${servoMaxDuty}U) / 20000U;
   ${native ? 'capiPwmWrite' : 'ledcWrite'}(pin, duty);
 }
 
@@ -3050,7 +3052,7 @@ ${runThreads}
 }` : `void setup() {
   Serial.begin(115200);
 ${profile.family === 'esp32-s3' ? '  if (!psramFound() || ESP.getPsramSize() < 8U * 1024U * 1024U) { Serial.println("CapiBloques: este perfil requiere 8 MB de PSRAM."); while (true) delay(1000); }' : ''}
-${setupLines(scene, symbols)}
+${setupLines(scene, symbols, servoResolutionBits)}
 ${messageSetupLines(scene, symbols, false)}
 ${displaySupport ? '  capiDisplayBegin();' : ''}
 ${matrixSupport ? '  capiMatrixBegin();' : ''}

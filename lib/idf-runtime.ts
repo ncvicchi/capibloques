@@ -14,7 +14,7 @@ export function allocateIdfPwm(scene: SceneDefinition, profileId: BoardProfileId
       case 'robot': pins = Object.values(device.pins); frequency = 20000; break;
       case 'motor': pins = Object.values(device.pins); frequency = 20000; break;
       case 'led': pins = [device.pins.signal]; frequency = 5000; break;
-      case 'servo': pins = [device.pins.signal]; frequency = 50; resolution = 16; break;
+      case 'servo': pins = [device.pins.signal]; frequency = 50; resolution = profileId === 'wemos-d1-r32' ? 16 : 14; break;
       case 'activeBuzzer': pins = [device.pins.signal]; frequency = 1000; break;
       case 'passiveBuzzer': pins = [device.pins.signal]; frequency = 1100; break;
     }
@@ -126,7 +126,7 @@ void capiTone(uint8_t pin, uint32_t frequency) {
     if (!frequency) { capiPwmWrite(pin, 0); return; }
     // A fixed 8-bit/APB timer cannot reach the entire 20..20000 Hz repertoire.
     // This timer belongs only to this buzzer, so changing resolution is isolated.
-    const ledc_timer_bit_t resolution = frequency < 1000 ? LEDC_TIMER_16_BIT : LEDC_TIMER_10_BIT;
+    const ledc_timer_bit_t resolution = frequency < 1000 ? ${s3 ? 'LEDC_TIMER_14_BIT' : 'LEDC_TIMER_16_BIT'} : LEDC_TIMER_10_BIT;
     ledc_timer_config_t timer = {}; timer.speed_mode = pwm.bank; timer.timer_num = pwm.timer;
     timer.duty_resolution = resolution; timer.freq_hz = frequency; timer.clk_cfg = LEDC_USE_APB_CLK;
     ESP_ERROR_CHECK(ledc_timer_config(&timer));
