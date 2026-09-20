@@ -349,6 +349,8 @@ La familia exacta se fijará contra el hardware disponible. Como referencia prim
 
 Asignación: **fase 27 — Familia de robots HP Robots | Otto**. Primero se diseña la matriz de configuraciones y el contrato de movimientos; luego se implementan sólo las variantes físicamente identificadas. Arduino y ESP-IDF deben compartir semántica, pero la compatibilidad con una placa/controlador oficial distinto del ESP32 no se infiere y requiere decisión expresa.
 
+Avance del 20 de septiembre de 2026: se implementó en software el perfil genérico **Otto básico ESP32 de cuatro servos**, con pines/calibración, movimientos cooperativos, simulación, JSON y generación Arduino/ESP-IDF. No equivale a certificación HP ni a aceptación física. Buzzer, ultrasonido, matriz/expresiones, Ninja y Wheels siguen pendientes. Ver [FASE_27_OTTO.md](FASE_27_OTTO.md).
+
 ## 26. Barrera infrarroja digital
 
 Pedido del 20 de septiembre de 2026: incorporar una barrera infrarroja formada por emisor y detector cuya salida útil sea digital. Para los chicos se presenta como un solo sensor con los estados **libre** e **interrumpida**, sin exponer una lectura analógica ni obligarlos a razonar en 0 y 1.

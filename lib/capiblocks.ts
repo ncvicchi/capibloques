@@ -106,6 +106,14 @@ export type ProgramNode =
       blockId: string;
     }
   | {
+      op: 'otto';
+      deviceId: string;
+      action: 'HOME' | 'WALK_FORWARD' | 'WALK_BACKWARD' | 'TURN_LEFT' | 'TURN_RIGHT' | 'DANCE';
+      speed: number;
+      repetitions: number;
+      blockId: string;
+    }
+  | {
       op: 'motor';
       deviceId: string;
       direction: 'FORWARD' | 'BACKWARD' | 'STOP';
@@ -271,6 +279,7 @@ export type RuntimeDeviceState =
       left: number;
       right: number;
     }
+  | { kind: 'otto'; motion: string; phase: number; speed: number }
   | { kind: 'motor'; power: number }
   | { kind: 'servo'; angle: number }
   | {
@@ -798,6 +807,7 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_led',
   'capi_pin_write',
   'capi_robot',
+  'capi_otto',
   'capi_motor',
   'capi_servo',
   'capi_buzzer',
@@ -1274,6 +1284,8 @@ const blockKind = (block: Record<string, unknown>): SceneDeviceKind | null => {
       return 'led';
     case 'capi_robot':
       return 'robot';
+    case 'capi_otto':
+      return 'otto';
     case 'capi_motor':
       return 'motor';
     case 'capi_servo':
@@ -1621,6 +1633,8 @@ const compatibleKindsForNode = (
       return ['led'];
     case 'robot':
       return ['robot'];
+    case 'otto':
+      return ['otto'];
     case 'motor':
       return ['motor'];
     case 'servo':
@@ -1847,6 +1861,18 @@ function normalizeNodes(
           blockId,
         });
         break;
+      case 'otto': {
+        const actions = ['HOME', 'WALK_FORWARD', 'WALK_BACKWARD', 'TURN_LEFT', 'TURN_RIGHT', 'DANCE'] as const;
+        result.push({
+          op: 'otto',
+          deviceId,
+          action: actions.includes(node.action as typeof actions[number]) ? node.action as typeof actions[number] : 'HOME',
+          speed: Math.max(0, Math.min(100, finiteNumber(node.speed, 60))),
+          repetitions: Math.max(1, Math.min(20, Math.floor(finiteNumber(node.repetitions, 1)))),
+          blockId,
+        });
+        break;
+      }
       case 'motor':
         result.push({
           op: 'motor',
@@ -2816,6 +2842,15 @@ function instructionToCpp(
       };
       return `${comment}\n        driveRobot(DEV_${deviceSymbol(context, instruction.deviceId)}, ${motorPairs[instruction.action]});\n        ${pc} = ${nextPc};\n        break;`;
     }
+    case 'otto': {
+      const device = `DEV_${deviceSymbol(context, instruction.deviceId)}`;
+      if (instruction.action === 'HOME')
+        return `${comment}\n        ${device}.owner = -1; ottoHome(${device});\n        ${waiting} = false; ${pc} = ${nextPc};\n        break;`;
+      const action = { WALK_FORWARD: 0, WALK_BACKWARD: 1, TURN_LEFT: 2, TURN_RIGHT: 3, DANCE: 4 }[instruction.action];
+      const stepMs = 480 - Math.round(Math.max(0, Math.min(100, instruction.speed)) * 3);
+      const duration = stepMs * 4 * Math.max(1, Math.min(20, Math.round(instruction.repetitions)));
+      return `${comment}\n        if (!${waiting}) { ${device}.owner = ${context.threadIndex}; ${waitStarted} = now; ${waiting} = true; }\n        if (${device}.owner != ${context.threadIndex}) { ${waiting} = false; ${pc} = ${nextPc}; break; }\n        ottoMove(${device}, ${action}, (uint8_t)(((uint32_t)(now - ${waitStarted}) / ${stepMs}U) % 4U));\n        if ((uint32_t)(now - ${waitStarted}) < ${duration}U) return;\n        ${device}.owner = -1; ottoHome(${device}); ${waiting} = false; ${pc} = ${nextPc};\n        break;`;
+    }
     case 'motor': {
       const power = Math.max(0, Math.min(100, Math.round(instruction.power)));
       const signedPower =
@@ -2966,6 +3001,8 @@ function deviceDeclarations(
           return `constexpr TrafficDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.red)}, ${gpioOrPlaceholder(device.pins.yellow)}, ${gpioOrPlaceholder(device.pins.green)}}; // ${cppLineComment(device.name)}`;
         case 'robot':
           return `constexpr RobotDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.leftIn1)}, ${gpioOrPlaceholder(device.pins.leftIn2)}, ${gpioOrPlaceholder(device.pins.rightIn1)}, ${gpioOrPlaceholder(device.pins.rightIn2)}}; // ${cppLineComment(device.name)}`;
+        case 'otto':
+          return `OttoDevice DEV_${symbol}{{${gpioOrPlaceholder(device.pins.leftLeg)}, ${gpioOrPlaceholder(device.pins.rightLeg)}, ${gpioOrPlaceholder(device.pins.leftFoot)}, ${gpioOrPlaceholder(device.pins.rightFoot)}}, {${device.config.centers.join(', ')}}, {${device.config.reversed.map(Boolean).join(', ')}}, -1}; // ${cppLineComment(device.name)}`;
         case 'motor':
           return `constexpr MotorDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.in1)}, ${gpioOrPlaceholder(device.pins.in2)}}; // ${cppLineComment(device.name)}`;
         case 'wifiNode':
@@ -3110,6 +3147,10 @@ function setupLines(scene: SceneDefinition, symbols: Map<string, string>, servoR
           `  ledcAttach(PIN_${symbol}, 50, ${servoResolutionBits});`,
           `  setServoAngle(PIN_${symbol}, ${Math.max(0, Math.min(180, Math.round(device.config.angle)))});`,
         );
+        break;
+      case 'otto':
+        for (const pin of Object.values(device.pins)) lines.push(`  ledcAttach(${gpioOrPlaceholder(pin)}, 50, ${servoResolutionBits});`);
+        lines.push(`  ottoHome(DEV_${symbol});`);
         break;
       case 'activeBuzzer':
         lines.push(
@@ -3331,6 +3372,7 @@ ${native ? idfRuntimeSupport(scene, usesWifi, profileId) : '#include <Arduino.h>
 ${wifiHeader}${diagnosticHeader}
 struct TrafficDevice { uint8_t red; uint8_t yellow; uint8_t green; };
 struct RobotDevice { uint8_t leftIn1; uint8_t leftIn2; uint8_t rightIn1; uint8_t rightIn2; };
+struct OttoDevice { uint8_t pins[4]; uint8_t centers[4]; bool reversed[4]; int8_t owner; };
 struct MotorDevice { uint8_t in1; uint8_t in2; };
 struct MessageDevice { uint8_t port; uint8_t tx; uint8_t rx; uint32_t baud; };
 enum class TrafficColor { RED, YELLOW, GREEN, OFF };
@@ -3393,12 +3435,30 @@ void setServoAngle(uint8_t pin, int angle) {
   ${native ? 'capiPwmWrite' : 'ledcWrite'}(pin, duty);
 }
 
+void setOttoPose(OttoDevice& device, int a, int b, int c, int d) {
+  const int offsets[4] = {a, b, c, d};
+  for (uint8_t i = 0; i < 4; ++i) setServoAngle(device.pins[i], device.centers[i] + (device.reversed[i] ? -offsets[i] : offsets[i]));
+}
+void ottoHome(OttoDevice& device) { setOttoPose(device, 0, 0, 0, 0); }
+void ottoMove(OttoDevice& device, uint8_t action, uint8_t phase) {
+  static const int8_t poses[5][4][4] = {
+    {{-18,18,12,12},{18,-18,12,12},{18,-18,-12,-12},{-18,18,-12,-12}},
+    {{18,-18,12,12},{-18,18,12,12},{-18,18,-12,-12},{18,-18,-12,-12}},
+    {{-22,-8,14,-14},{8,22,14,-14},{8,22,-14,14},{-22,-8,-14,14}},
+    {{8,22,14,-14},{-22,-8,14,-14},{-22,-8,-14,14},{8,22,-14,14}},
+    {{-25,25,-18,18},{25,-25,18,-18},{-25,25,18,-18},{25,-25,-18,18}}
+  };
+  const int8_t* pose = poses[action < 5 ? action : 0][phase % 4];
+  setOttoPose(device, pose[0], pose[1], pose[2], pose[3]);
+}
+
 ${threadFunctions}
 
 ${native ? `extern "C" void app_main() {
   capiHardwareBegin();
 ${messageSetupLines(scene, symbols, true)}
 ${scene.devices.filter(device => device.kind === 'servo').map(device => `  setServoAngle(PIN_${symbols.get(device.id)}, ${Math.max(0, Math.min(180, Math.round(device.config.angle)))});`).join('\n')}
+${scene.devices.filter(device => device.kind === 'otto').map(device => `  ottoHome(DEV_${symbols.get(device.id)});`).join('\n')}
 ${displaySupport ? '  capiDisplayBegin();' : ''}
 ${matrixSupport ? '  capiMatrixBegin();' : ''}
   for (;;) {

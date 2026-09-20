@@ -32,6 +32,9 @@ export type RuntimeVisualDevice = {
   power?: number;
   playing?: boolean;
   frequency?: number;
+  motion?: string;
+  phase?: number;
+  speed?: number;
   pressed?: boolean;
   interrupted?: boolean;
   value?: number;
@@ -58,6 +61,7 @@ interface SceneStageProps {
 const icons: Record<SceneDevice['kind'], string> = {
   trafficLight: '🚦',
   robot: '🤖',
+  otto: '🕺',
   motor: '⚙️',
   led: '💡',
   servo: '🦾',
@@ -133,6 +137,10 @@ function DeviceVisual({
         </small>
       </span>
     );
+  }
+  if (device.kind === 'otto') {
+    const moving = runtime?.motion && runtime.motion !== 'HOME';
+    return <span className="stage-robot" aria-hidden="true" style={{ transform: moving ? `rotate(${(runtime?.phase ?? 0) % 2 ? 6 : -6}deg)` : undefined }}>🕺<small>{moving ? runtime?.motion?.replaceAll('_', ' ').toLowerCase() : 'listo'}</small></span>;
   }
   if (device.kind === 'motor') {
     return (

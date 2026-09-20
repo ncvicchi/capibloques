@@ -44,6 +44,7 @@ const registeredBlocklies = new WeakSet<object>();
 const deviceLabels: Record<SceneDeviceKind, string> = {
   trafficLight: 'un semáforo',
   robot: 'un robot',
+  otto: 'un Otto básico',
   motor: 'un motor',
   led: 'un LED',
   servo: 'un servo',
@@ -84,6 +85,8 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
       return ['led'];
     case 'capi_robot':
       return ['robot'];
+    case 'capi_otto':
+      return ['otto'];
     case 'capi_motor':
       return ['motor'];
     case 'capi_servo':
@@ -495,6 +498,7 @@ const toolbox = {
       colour: '#328BDD',
       contents: [
         { kind: 'block', type: 'capi_robot' },
+        { kind: 'block', type: 'capi_otto' },
         { kind: 'block', type: 'capi_motor' },
         { kind: 'block', type: 'capi_servo' },
       ],
@@ -987,6 +991,30 @@ function registerBlocks(Blockly: BlocklyApi) {
       nextStatement: null,
       colour: '#328BDD',
       tooltip: 'Controla dos motores mediante un puente H.',
+      extensions: [DEVICE_EXTENSION],
+    },
+    {
+      type: 'capi_otto',
+      message0: '🕺 %1: %2 a %3 %% · %4 vez/veces',
+      args0: [
+        deviceField('⚠️ agrega un Otto básico'),
+        {
+          type: 'field_dropdown', name: 'ACTION', options: [
+            ['volver al centro', 'HOME'],
+            ['caminar adelante', 'WALK_FORWARD'],
+            ['caminar atrás', 'WALK_BACKWARD'],
+            ['girar izquierda', 'TURN_LEFT'],
+            ['girar derecha', 'TURN_RIGHT'],
+            ['bailar', 'DANCE'],
+          ],
+        },
+        { type: 'field_number', name: 'SPEED', value: 60, min: 0, max: 100, precision: 1 },
+        { type: 'field_number', name: 'REPETITIONS', value: 1, min: 1, max: 20, precision: 1 },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#7C5CE7',
+      tooltip: 'Mueve un Otto básico de cuatro servos. Espera sólo este camino; los caminos paralelos siguen.',
       extensions: [DEVICE_EXTENSION],
     },
     {
@@ -1632,6 +1660,16 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           deviceId: selectedDeviceId(block),
           action: block.getFieldValue('ACTION'),
           speed: numberField(block, 'SPEED', 70),
+          blockId,
+        });
+        break;
+      case 'capi_otto':
+        result.push({
+          op: 'otto',
+          deviceId: selectedDeviceId(block),
+          action: block.getFieldValue('ACTION'),
+          speed: numberField(block, 'SPEED', 60),
+          repetitions: numberField(block, 'REPETITIONS', 1),
           blockId,
         });
         break;

@@ -1127,6 +1127,33 @@ function SceneBuilderSession({
                       </label>
                     </div>
                   )}
+                  {selected.kind === 'otto' && (
+                    <div className="messages-properties">
+                      <strong>Calibración de los cuatro servos</strong>
+                      <small>Ajustá el centro sólo si el robot no queda derecho. Invertir corrige un servo montado al revés.</small>
+                      {(['Pierna izquierda', 'Pierna derecha', 'Pie izquierdo', 'Pie derecho'] as const).map((label, index) => (
+                        <div key={label} className="otto-calibration-row">
+                          <label>
+                            <span>{label}: {selected.config.centers[index]}°</span>
+                            <input type="range" min="45" max="135" value={selected.config.centers[index]} aria-label={`Centro de ${label}`} onChange={(event) => updateSelectedDraft(device => {
+                              if (device.kind !== 'otto') return device;
+                              const centers = [...device.config.centers] as typeof device.config.centers;
+                              centers[index] = Number(event.target.value);
+                              return { ...device, config: { ...device.config, centers } };
+                            })} />
+                          </label>
+                          <label>
+                            <input type="checkbox" checked={selected.config.reversed[index]} onChange={(event) => updateSelectedDraft(device => {
+                              if (device.kind !== 'otto') return device;
+                              const reversed = [...device.config.reversed] as typeof device.config.reversed;
+                              reversed[index] = event.target.checked;
+                              return { ...device, config: { ...device.config, reversed } };
+                            })} /> Invertir
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="pin-editor">
                     <h4>Conexiones</h4>
                     {getPinRequirements(selected).length ? (

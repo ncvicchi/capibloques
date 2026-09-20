@@ -22,6 +22,7 @@ export type LegacySceneId = (typeof legacySceneIds)[number];
 export const sceneDeviceKinds = [
   'trafficLight',
   'robot',
+  'otto',
   'motor',
   'led',
   'servo',
@@ -90,6 +91,16 @@ export type RobotDevice = SceneDeviceBase<
     rightIn2: PinNumber;
   },
   { speed: number; heading: number; color: string }
+>;
+
+export type OttoDevice = SceneDeviceBase<
+  'otto',
+  { leftLeg: PinNumber; rightLeg: PinNumber; leftFoot: PinNumber; rightFoot: PinNumber },
+  {
+    profile: 'biped4';
+    centers: [number, number, number, number];
+    reversed: [boolean, boolean, boolean, boolean];
+  }
 >;
 
 export type MotorDevice = SceneDeviceBase<
@@ -177,6 +188,7 @@ export interface SceneDeviceByKind {
   ledMatrix: LedMatrixDevice;
   trafficLight: TrafficLightDevice;
   robot: RobotDevice;
+  otto: OttoDevice;
   motor: MotorDevice;
   led: LedDevice;
   servo: ServoDevice;
@@ -261,6 +273,12 @@ const requirementsByKind: Record<SceneDeviceKind, readonly PinRequirement[]> = {
     { key: 'rightIn1', label: 'Motor derecho IN1', capability: 'pwmOutput' },
     { key: 'rightIn2', label: 'Motor derecho IN2', capability: 'pwmOutput' },
   ],
+  otto: [
+    { key: 'leftLeg', label: 'Pierna izquierda', capability: 'pwmOutput' },
+    { key: 'rightLeg', label: 'Pierna derecha', capability: 'pwmOutput' },
+    { key: 'leftFoot', label: 'Pie izquierdo', capability: 'pwmOutput' },
+    { key: 'rightFoot', label: 'Pie derecho', capability: 'pwmOutput' },
+  ],
   motor: [
     { key: 'in1', label: 'DRV8833 IN1', capability: 'pwmOutput' },
     { key: 'in2', label: 'DRV8833 IN2', capability: 'pwmOutput' },
@@ -320,6 +338,14 @@ export const sceneComponentCatalog: readonly SceneComponentCatalogEntry[] = [
     description: 'Robot móvil conectado a un controlador DRV8833.',
     childFriendlyControl: 'Dirección y velocidad',
     pinRequirements: requirementsByKind.robot,
+  },
+  {
+    kind: 'otto',
+    icon: '🕺',
+    name: 'Otto básico',
+    description: 'Robot bípedo compatible con la arquitectura Otto y cuatro servos.',
+    childFriendlyControl: 'Caminar, girar, bailar y volver al centro',
+    pinRequirements: requirementsByKind.otto,
   },
   {
     kind: 'motor',
@@ -410,6 +436,7 @@ const kindLabels: Record<SceneDeviceKind, string> = Object.fromEntries(
 const kindIdBases: Record<SceneDeviceKind, string> = {
   trafficLight: 'traffic-light',
   robot: 'robot',
+  otto: 'otto',
   motor: 'motor',
   led: 'led',
   servo: 'servo',
@@ -647,6 +674,14 @@ function unassignedDevice<K extends SceneDeviceKind>(
           rightIn2: null,
         },
         config: { speed: 0, heading: 0, color: '#38bdf8' },
+      };
+      break;
+    case 'otto':
+      device = {
+        ...base,
+        kind,
+        pins: { leftLeg: null, rightLeg: null, leftFoot: null, rightFoot: null },
+        config: { profile: 'biped4', centers: [90, 90, 90, 90], reversed: [false, true, false, true] },
       };
       break;
     case 'motor':
@@ -1374,6 +1409,7 @@ function pwmChannelCount(devices: readonly SceneDevice[]) {
   return devices.reduce((total, device) => {
     switch (device.kind) {
       case 'robot':
+      case 'otto':
         return total + 4;
       case 'motor':
         return total + 2;
@@ -1512,7 +1548,7 @@ export function validateScene(
         deviceId: device.id,
       });
     }
-    if (device.kind === 'servo') {
+    if (device.kind === 'servo' || device.kind === 'otto') {
       issues.push({
         code: 'external-servo-power',
         severity: 'warning',
@@ -1776,6 +1812,15 @@ function validDeviceConfig(
         Math.abs(Number(config.heading)) <= 360_000 &&
         typeof config.color === 'string' &&
         config.color.length <= 64
+      );
+    case 'otto':
+      return (
+        hasOnlyKeys(config, ['profile', 'centers', 'reversed']) &&
+        config.profile === 'biped4' &&
+        Array.isArray(config.centers) && config.centers.length === 4 &&
+        config.centers.every(value => typeof value === 'number' && Number.isInteger(value) && value >= 45 && value <= 135) &&
+        Array.isArray(config.reversed) && config.reversed.length === 4 &&
+        config.reversed.every(value => typeof value === 'boolean')
       );
     case 'motor':
       return (

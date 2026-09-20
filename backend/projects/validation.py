@@ -20,7 +20,7 @@ BOARD_PINS = {
     # N16R8: GPIO35-37 belong to the Octal PSRAM and are intentionally unavailable.
     "diymall-esp32-s3-devkitc-v1-n16r8": {0, 1, 2, 3, *range(4, 22), *range(38, 49)},
 }
-BLOCKS = {"capi_" + name for name in ("start", "forever", "repeat", "wait", "if", "compare", "counter_compare", "counter_set", "counter_change", "traffic", "led", "pin_write", "robot", "motor", "servo", "buzzer", "tone", "button_pressed", "sensor_compare", "wifi_connect", "wifi_connected", "serial")}
+BLOCKS = {"capi_" + name for name in ("start", "forever", "repeat", "wait", "if", "compare", "counter_compare", "counter_set", "counter_change", "traffic", "led", "pin_write", "robot", "otto", "motor", "servo", "buzzer", "tone", "button_pressed", "sensor_compare", "wifi_connect", "wifi_connected", "serial")}
 BLOCKS.add("capi_parallel")
 BLOCKS.update(("capi_display_write", "capi_display_clear", "capi_display_animate_text", "capi_display_artwork", "capi_display_button_pressed", "capi_visual_wait"))
 BLOCKS.update(("capi_message_send", "capi_message_receive"))
@@ -28,10 +28,11 @@ BLOCKS.update(("capi_matrix_clear", "capi_matrix_pixel", "capi_matrix_pattern", 
 BLOCKS.update(("capi_variable_set_number", "capi_variable_change", "capi_variable_set_text", "capi_variable_set_boolean", "capi_variable_get_number", "capi_variable_get_text", "capi_variable_get_boolean", "capi_value_number", "capi_value_text", "capi_value_boolean", "capi_counter_value", "capi_sensor_value", "capi_message_value", "capi_number_math", "capi_text_join"))
 BLOCKS.add("capi_value_compare")
 BLOCKS.add("capi_barrier_state")
-PINS = {"trafficLight": ["red", "yellow", "green"], "robot": ["leftIn1", "leftIn2", "rightIn1", "rightIn2"], "motor": ["in1", "in2"], **{kind: ["signal"] for kind in ("led", "servo", "activeBuzzer", "passiveBuzzer", "button", "infraredBarrier", "lightSensor", "potentiometer")}, "wifiNode": []}
+PINS = {"trafficLight": ["red", "yellow", "green"], "robot": ["leftIn1", "leftIn2", "rightIn1", "rightIn2"], "otto": ["leftLeg", "rightLeg", "leftFoot", "rightFoot"], "motor": ["in1", "in2"], **{kind: ["signal"] for kind in ("led", "servo", "activeBuzzer", "passiveBuzzer", "button", "infraredBarrier", "lightSensor", "potentiometer")}, "wifiNode": []}
 CONFIGS = {
     "trafficLight": {"redBrightness": (0, 100), "yellowBrightness": (0, 100), "greenBrightness": (0, 100)},
     "robot": {"speed": (0, 100), "heading": (-360000, 360000), "color": 64},
+    "otto": {"profile": ["biped4"]},
     "motor": {"power": (0, 100), "driver": ["DRV8833"]}, "led": {"brightness": (0, 100), "color": 64},
     "servo": {"angle": (0, 180)}, "activeBuzzer": {"enabled": bool},
     "passiveBuzzer": {"frequency": (20, 20000), "durationMs": (10, 60000)},
@@ -258,7 +259,12 @@ def scene(value, board_profile="wemos-d1-r32"):
                 if kind == "messages":
                     messages_count += 1
                     require(messages_count <= 2, "La placa admite hasta dos componentes Mensajes.")
-                exact(config, (*CONFIGS[kind], "messages") if kind == "messages" else CONFIGS[kind])
+                if kind == "otto":
+                    exact(config, ("profile", "centers", "reversed"))
+                    require(isinstance(config["centers"], list) and len(config["centers"]) == 4 and all(type(value) is int and 45 <= value <= 135 for value in config["centers"]))
+                    require(isinstance(config["reversed"], list) and len(config["reversed"]) == 4 and all(type(value) is bool for value in config["reversed"]))
+                else:
+                    exact(config, (*CONFIGS[kind], "messages") if kind == "messages" else CONFIGS[kind])
             for key, rule in CONFIGS.get(kind, {}).items():
                 setting = config[key]
                 require(type(setting) is bool if rule is bool else number(setting, *rule) if isinstance(rule, tuple) else text(setting, rule) if type(rule) is int else setting in rule)

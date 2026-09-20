@@ -227,6 +227,8 @@ function runtimeFromDevice(
         left: 0,
         right: 0,
       };
+    case 'otto':
+      return { kind: 'otto', motion: 'HOME', phase: 0, speed: 0 };
     case 'motor':
       return { kind: device.kind, power: 0 };
     case 'servo':
@@ -350,6 +352,8 @@ function deviceReading(device: RuntimeDeviceState | undefined) {
       return `${Math.round(device.brightness)}%`;
     case 'robot':
       return `L ${Math.round(device.left)}% · R ${Math.round(device.right)}%`;
+    case 'otto':
+      return device.motion === 'HOME' ? 'En el centro' : `${device.motion.replaceAll('_', ' ').toLowerCase()} · ${Math.round(device.speed)}%`;
     case 'motor':
       return `${Math.round(device.power)}%`;
     case 'servo':
@@ -387,6 +391,7 @@ function DeviceStateCard({
   const icons: Record<SceneDeviceKind, string> = {
     trafficLight: '🚦',
     robot: '🤖',
+    otto: '🕺',
     motor: '⚙️',
     led: '💡',
     servo: '🦾',

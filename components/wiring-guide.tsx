@@ -39,6 +39,7 @@ const deviceAdvice: Record<SceneDevice['kind'], string> = {
   ledMatrix: 'MAX7219 suele alimentarse a 5 V y puede consumir bastante corriente: fuente externa adecuada, masa común y desacoplo. Nunca alimentes la matriz desde un GPIO; si 3,3 V no se reconoce de forma confiable, usá adaptación de nivel en DIN, CLK y CS.',
   trafficLight: 'Una resistencia de 220–330 Ω en serie con cada LED.',
   robot: 'DRV8833, fuente para motores y GND compartido con la Wemos.',
+  otto: 'Cuatro señales PWM para piernas y pies. Alimentá los servos con una fuente externa de 5 V adecuada y uní su GND al de la placa; nunca alimentes cuatro servos desde la placa.',
   motor: 'DRV8833 y fuente para el motor; nunca lo conectes directo al GPIO.',
   led: 'Una resistencia de 220–330 Ω en serie con el LED.',
   servo: 'Fuente de 5 V adecuada y GND compartido; el GPIO sólo lleva señal.',
@@ -81,7 +82,7 @@ export default function WiringGuide({
     ['led', 'trafficLight'].includes(device.kind),
   );
   const needsExternalPower = scene.devices.some((device) =>
-    ['motor', 'robot', 'servo'].includes(device.kind),
+    ['motor', 'robot', 'otto', 'servo'].includes(device.kind),
   );
   const checklist = useMemo(
     () => [

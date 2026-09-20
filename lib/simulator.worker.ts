@@ -29,6 +29,7 @@ import { matrixPixel, matrixScrollRows, matrixScrollSteps } from './led-matrix.t
 
 type Pending =
   | { kind: 'wait'; startedAt: number; until: number; blockId: string }
+  | { kind: 'otto'; startedAt: number; until: number; stepMs: number; deviceId: string; action: string; speed: number; blockId: string }
   | { kind: 'wifi'; startedAt: number; readyAt: number; timeoutAt: number; blockId: string }
   | { kind: 'message'; startedAt: number; timeoutAt: number; deviceId: string; expected: string; equalTarget: number; differentTarget: number; timeoutTarget: number; blockId: string }
   | { kind: 'visual'; startedAt: number; deviceId: string; blockId: string }
@@ -103,6 +104,7 @@ const legacyInputOverrides = new Map<string, unknown>();
 const messageQueues = new Map<string, string[]>();
 const lastReceivedMessages = new Map<string, string>();
 const visualAnimations = new Map<string, VisualAnimation>();
+const ottoOwners = new Map<string, string>();
 let wifiAvailableOverride: boolean | undefined;
 let diagnostics: CapiDiagnostic[] = [];
 let simulationBlocked = false;
@@ -197,6 +199,8 @@ function runtimeForDevice(device: SceneDevice): RuntimeDeviceState {
         left: 0,
         right: 0,
       };
+    case 'otto':
+      return { kind: 'otto', motion: 'HOME', phase: 0, speed: 0 };
     case 'motor':
       return { kind: 'motor', power: 0 };
     case 'servo':
@@ -374,6 +378,8 @@ function executionTaskState(execution: ThreadExecution): ExecutionTaskState {
     } else {
       const target = pending.kind === 'wait'
         ? pending.until
+        : pending.kind === 'otto'
+          ? pending.until
         : pending.kind === 'message'
           ? pending.timeoutAt
           : state.wifiAvailable
@@ -383,6 +389,8 @@ function executionTaskState(execution: ThreadExecution): ExecutionTaskState {
       task.durationMs = Math.max(0, Math.round(target - pending.startedAt));
       task.detail = pending.kind === 'wait'
         ? `${(task.remainingMs / 1000).toFixed(2)} s restantes`
+        : pending.kind === 'otto'
+          ? `Movimiento Otto · ${(task.remainingMs / 1000).toFixed(1)} s`
         : pending.kind === 'message'
           ? `Esperando “${pending.expected}” · ${(task.remainingMs / 1000).toFixed(1)} s`
           : state.wifiAvailable
@@ -496,6 +504,7 @@ function resetExecution(status: SimulatorState['status'] = 'idle') {
   messageQueues.clear();
   lastReceivedMessages.clear();
   visualAnimations.clear();
+  ottoOwners.clear();
   clearBlockActivity();
   emit();
 }
@@ -754,6 +763,25 @@ function resolvePending(
     execution.pc += 1;
     return 'advanced';
   }
+  if (pending.kind === 'otto') {
+    const device = state.devices[pending.deviceId];
+    if (ottoOwners.get(pending.deviceId) !== execution.thread.id) {
+      execution.pending = null;
+      execution.pc += 1;
+      return 'advanced';
+    }
+    if (device?.kind === 'otto') {
+      device.motion = pending.action;
+      device.phase = Math.floor((virtualNow - pending.startedAt) / pending.stepMs) % 4;
+      device.speed = pending.speed;
+    }
+    if (virtualNow < pending.until) return 'waiting';
+    if (device?.kind === 'otto') { device.motion = 'HOME'; device.phase = 0; device.speed = 0; }
+    ottoOwners.delete(pending.deviceId);
+    execution.pending = null;
+    execution.pc += 1;
+    return 'advanced';
+  }
   if (pending.kind === 'message') {
     const queue = messageQueues.get(pending.deviceId) ?? [];
     const received = queue.shift();
@@ -887,6 +915,21 @@ function executeInstruction(
       until: virtualNow + Math.max(0, node.ms),
       blockId: node.blockId,
     };
+    return 'wait';
+  }
+  if (node.op === 'otto') {
+    const device = state.devices[node.deviceId];
+    if (node.action === 'HOME') {
+      ottoOwners.delete(node.deviceId);
+      if (device?.kind === 'otto') { device.motion = 'HOME'; device.phase = 0; device.speed = 0; }
+      execution.pc += 1;
+      return 'action';
+    }
+    const stepMs = 480 - Math.round(Math.max(0, Math.min(100, node.speed)) * 3);
+    ottoOwners.set(node.deviceId, execution.thread.id);
+    if (device?.kind === 'otto') { device.motion = node.action; device.phase = 0; device.speed = node.speed; }
+    execution.pending = { kind: 'otto', startedAt: virtualNow, until: virtualNow + stepMs * 4 * Math.max(1, node.repetitions), stepMs, deviceId: node.deviceId, action: node.action, speed: node.speed, blockId: node.blockId };
+    appendConsole(`${deviceName(node.deviceId)}: ${node.action.toLowerCase()} (${node.repetitions} vez/veces)`);
     return 'wait';
   }
   if (node.op === 'wifi') {
@@ -1179,6 +1222,8 @@ function executeOne(execution: ThreadExecution) {
   if (pending) {
     if (!execution.pending) message = pending.kind === 'wait'
       ? 'Terminó la espera; seguimos.'
+      : pending.kind === 'otto'
+        ? 'Terminó el movimiento de Otto; volvemos al centro.'
       : pending.kind === 'message'
         ? (state.console.at(-1)?.replace(/^[^·]*· /, '') ?? 'Terminó la espera de mensaje.')
         : pending.kind === 'visual'
@@ -1196,6 +1241,7 @@ function executeOne(execution: ThreadExecution) {
       case 'join': if (result !== 'wait') message = 'Todos los caminos terminaron; seguimos debajo.'; break;
       case 'halt': message = 'Este camino terminó.'; break;
       case 'wait': message = `Esperamos ${Math.max(0, node.ms) / 1000} segundos sin bloquear los otros caminos.`; break;
+      case 'otto': message = node.action === 'HOME' ? `${deviceName(node.deviceId)} vuelve al centro.` : `${deviceName(node.deviceId)} se mueve sin bloquear los otros caminos.`; break;
       case 'wifi': message = 'Buscamos una red Wi-Fi.'; break;
       case 'messageReceiveWait': message = `Esperamos “${node.expected}” sin detener los otros caminos.`; break;
       case 'matrixScroll': message = `Desplazamos “${node.text.slice(0, 32)}” sin detener los otros caminos.`; break;

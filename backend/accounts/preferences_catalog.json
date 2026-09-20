@@ -35,6 +35,7 @@
     { "type": "capi_buzzer", "name": "Buzzer", "category": "Sonido" },
     { "type": "capi_tone", "name": "Nota musical", "category": "Sonido" },
     { "type": "capi_robot", "name": "Mover robot", "category": "Movimiento" },
+    { "type": "capi_otto", "name": "Mover Otto", "category": "Movimiento" },
     { "type": "capi_motor", "name": "Potencia del motor", "category": "Movimiento" },
     { "type": "capi_servo", "name": "Ángulo del servo", "category": "Movimiento" },
     { "type": "capi_wifi_connect", "name": "Conectar Wi-Fi", "category": "Wi-Fi" },
