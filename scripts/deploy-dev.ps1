@@ -1,10 +1,13 @@
 param(
     [switch]$CheckOnly,
+    [switch]$Fast,
+    [switch]$Full,
     [switch]$DirectLan,
     [string]$SshConfig = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.ssh/capibloques-dev.conf')
 )
 
 $ErrorActionPreference = 'Stop'
+if ($Fast -and $Full) { throw 'Elegí -Fast o -Full, no ambos.' }
 $capiRepo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $capiRemoteScript = Join-Path $PSScriptRoot 'deploy-dev-remote.sh'
 if (-not (Test-Path -LiteralPath $SshConfig -PathType Leaf)) {
@@ -36,7 +39,8 @@ try {
         throw 'HEAD no coincide con origin/main; falta push o actualización local.'
     }
 
-    $capiMode = if ($CheckOnly) { ' --check-only' } else { '' }
+    $capiMode = if ($Full) { ' --full' } else { ' --fast' }
+    if ($CheckOnly) { $capiMode += ' --check-only' }
     # Carga siempre el actualizador desde origin/main. Así también funciona si
     # el checkout remoto todavía conserva una versión vieja del propio script.
     $capiCommand = "cd /home/capi/capibloques && git fetch --quiet origin main && git show origin/main:scripts/update-dev.sh | bash -s --$capiMode"

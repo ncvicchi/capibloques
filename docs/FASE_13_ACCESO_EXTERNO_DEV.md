@@ -55,6 +55,20 @@ cd /home/capi/capibloques && git fetch --quiet origin main && git show origin/ma
 
 Después de ese despliegue vuelve a bastar `./scripts/update-dev.sh`.
 
+El operador elige el alcance:
+
+```bash
+# Normal: ejecuta sólo los controles correspondientes a los archivos cambiados.
+./scripts/update-dev.sh --fast
+
+# Entrega importante: dispara en GitHub y espera backend, web/E2E, Arduino y ESP-IDF completos.
+./scripts/update-dev.sh --full
+```
+
+Sin parámetro se usa `--fast`. El modo completo crea una etiqueta Git temporal para disparar la ejecución contra el mismo commit y la elimina al terminar o interrumpirse; no deja versiones ni ramas adicionales. Ninguno de los dos modos omite el preflight, el mantenimiento necesario ni la validación final de salud de DEV. `--check-only` puede combinarse con ambos.
+
+Desde la PC, `powershell -File .\scripts\deploy-dev.ps1 -Fast` y `-Full` ofrecen la misma elección; no se admiten ambos juntos.
+
 Toda ejecución termina con un banner independiente de los mensajes técnicos: `RESULTADO: DESPLIEGUE DEV COMPLETADO` y `Estado: listo para usar`, o `RESULTADO: DESPLIEGUE DEV FALLÓ` con el código de salida. El modo `--check-only` indica expresamente que sólo auditó y no hizo cambios. La validación normal oculta el listado interno de reglas de firewall y la reconstrucción del compilador usa salida resumida.
 
 El orquestador comprueba identidad, árbol limpio, avance rápido, runtime, salud y cola. Rechaza automáticamente migraciones, dependencias o infraestructura desconocidas y enumera los archivos que requieren un procedimiento nuevo. La migración aditiva `compiler.0002` y la ampliación auditada del compilador Wemos/S3 son una excepción explícita: pausa y drena la cola, guarda un `pg_dump` validado y root-only en `/var/lib/capibloques/backups`, reconstruye la imagen reutilizando capas, migra, recrea API, ejecuta las pruebas y registra la nueva receta inmutable. El contenido exacto de la migración se fija por objeto Git; una modificación futura vuelve a bloquearse. Si cambió otro archivo de `backend/`, selecciona `deploy --with-api` y ejecuta las pruebas Django de DEV. Un marcador root-only en `/var/lib/capibloques/dev-deploy.state` conserva commit, modo, pausa y mantenimiento reconocido: después de un corte se repite la misma orden para reanudar, no se borra el marcador ni se abre la admisión manualmente a ciegas.

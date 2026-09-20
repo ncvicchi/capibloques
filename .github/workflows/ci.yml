@@ -3,6 +3,7 @@ name: Verificar CapiBloques
 on:
   push:
     branches: [main]
+    tags: ["ci-full-*"]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -15,7 +16,75 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  scope:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.paths.outputs.backend }}
+      verify: ${{ steps.paths.outputs.verify }}
+      firmware: ${{ steps.paths.outputs.firmware }}
+      esp_idf: ${{ steps.paths.outputs.esp_idf }}
+      ops: ${{ steps.paths.outputs.ops }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Clasificar archivos modificados
+        id: paths
+        shell: bash
+        run: |
+          if [[ '${{ github.ref }}' == refs/tags/ci-full-* ]]; then
+            printf 'backend=true\nverify=true\nfirmware=true\nesp_idf=true\nops=true\n' | tee -a "$GITHUB_OUTPUT"
+            echo 'Validación completa solicitada expresamente.'
+            exit 0
+          fi
+          if [[ '${{ github.event_name }}' == pull_request ]]; then
+            git diff --name-only 'origin/${{ github.base_ref }}...HEAD' > /tmp/changed-files
+          elif [[ '${{ github.event_name }}' == workflow_dispatch ]]; then
+            git diff-tree --no-commit-id --name-only -r HEAD > /tmp/changed-files
+          elif [[ '${{ github.event.before }}' =~ ^0+$ ]]; then
+            git diff-tree --root --no-commit-id --name-only -r HEAD > /tmp/changed-files
+          else
+            git diff --name-only '${{ github.event.before }}' '${{ github.sha }}' > /tmp/changed-files
+          fi
+          backend=false; verify=false; firmware=false; esp_idf=false; ops=false
+          while IFS= read -r file; do
+            known=false
+            case "$file" in
+              docs/*|README.md|AGENTS.md) known=true ;;
+              .github/workflows/*|scripts/update-dev.sh|scripts/deploy-dev.ps1|scripts/deploy-dev-remote.sh)
+                ops=true; known=true ;;
+              backend/*|compose.backend.dev.yaml|backend-requirements.txt|scripts/verify-backend-dev.sh|scripts/init_dev_secrets.py|scripts/test_init_dev_secrets.py)
+                backend=true; known=true ;;
+              app/*|components/*|lib/*|tests/*|public/*|styles/*|package.json|package-lock.json|tsconfig.json|vite.config.ts|next.config.ts|playwright.config.ts|compose.dev.yaml|ops/public-dev/*)
+                verify=true; known=true ;;
+              scripts/*.mjs|scripts/*.py)
+                verify=true; known=true ;;
+              compose.compiler.dev.yaml|ops/compiler/*)
+                backend=true; verify=true; known=true ;;
+            esac
+            case "$file" in
+              lib/capiblocks.ts|lib/scene-model.ts|lib/board-profiles.ts|lib/display-model.ts|lib/led-matrix.ts|scripts/firmware-fixtures.mjs|scripts/generate-arduino-fixture.mjs|scripts/generate-display-fixtures.mjs)
+                firmware=true; known=true ;;
+            esac
+            case "$file" in
+              lib/capiblocks.ts|lib/scene-model.ts|lib/board-profiles.ts|lib/display-model.ts|lib/led-matrix.ts|lib/idf-runtime.ts|lib/firmware-archive.ts|scripts/firmware-fixtures.mjs|scripts/generate-idf-fixtures.mjs|scripts/verify-idf-archives.py)
+                esp_idf=true; known=true ;;
+            esac
+            case "$file" in
+              lib/capiblocks.ts|lib/scene-model.ts)
+                backend=true; known=true ;;
+            esac
+            if [[ $known == false ]]; then
+              backend=true; verify=true; firmware=true; esp_idf=true
+            fi
+          done < /tmp/changed-files
+          printf 'backend=%s\nverify=%s\nfirmware=%s\nesp_idf=%s\nops=%s\n' "$backend" "$verify" "$firmware" "$esp_idf" "$ops" | tee -a "$GITHUB_OUTPUT"
+          echo 'Archivos:'; sed 's/^/  - /' /tmp/changed-files
+
   esp-idf:
+    name: ${{ startsWith(github.ref, 'refs/tags/ci-full-') && 'esp-idf-full' || 'esp-idf' }}
+    needs: scope
+    if: needs.scope.outputs.esp_idf == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     container: espressif/idf:v5.5.5@sha256:a9231d0697ab8f7517cc072e93b7c83e04907bfbfba80b6440d7dbbf90665cf2
@@ -23,8 +92,8 @@ jobs:
       run:
         shell: bash
     env:
-      IDF_CCACHE_ENABLE: '1'
-      IDF_PY_BUILD_JOBS: '2'
+      IDF_CCACHE_ENABLE: "1"
+      IDF_PY_BUILD_JOBS: "2"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -50,6 +119,9 @@ jobs:
           idf.py -C .idf-ci/build-s3 -DIDF_TARGET=esp32s3 build
           sha256sum .idf-ci/build-s3/main/main.cpp .idf-ci/build-s3/build/capibloques.bin
   backend:
+    name: ${{ startsWith(github.ref, 'refs/tags/ci-full-') && 'backend-full' || 'backend' }}
+    needs: scope
+    if: needs.scope.outputs.backend == 'true'
     runs-on: ubuntu-latest
     env:
       CAPIBLOQUES_SECRETS_DIR: ${{ github.workspace }}/../capibloques-ci-secrets
@@ -75,30 +147,41 @@ jobs:
         if: always()
         run: docker compose -f compose.dev.yaml -f compose.backend.dev.yaml down
   verify:
+    name: ${{ startsWith(github.ref, 'refs/tags/ci-full-') && 'verify-full' || 'verify' }}
+    needs: scope
+    if: needs.scope.outputs.verify == 'true' || needs.scope.outputs.ops == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Descargar el proyecto
         uses: actions/checkout@v4
 
       - name: Preparar Node.js
+        if: needs.scope.outputs.verify == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
 
       - name: Instalar dependencias
+        if: needs.scope.outputs.verify == 'true'
         run: npm ci
 
-      - name: Validar configuración del entorno de desarrollo
+      - name: Validar scripts operativos
         run: |
-          docker compose -f compose.dev.yaml config --quiet
           bash -n scripts/deploy-dev-remote.sh
           bash -n scripts/update-dev.sh
+          pwsh -NoProfile -Command '[scriptblock]::Create((Get-Content scripts/deploy-dev.ps1 -Raw)) | Out-Null'
+
+      - name: Validar configuración del entorno de desarrollo
+        if: needs.scope.outputs.verify == 'true'
+        run: docker compose -f compose.dev.yaml config --quiet
 
       - name: Instalar Chromium para pruebas reales
+        if: needs.scope.outputs.verify == 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Verificar tipos, estilo y comportamiento
+        if: needs.scope.outputs.verify == 'true'
         run: |
           npm run typecheck
           npm run lint
@@ -114,15 +197,19 @@ jobs:
           npm audit --audit-level=high
 
       - name: Verificar primero las regresiones de texto ampliado
+        if: needs.scope.outputs.verify == 'true'
         run: npx playwright test tests/programming-experience.spec.ts tests/session-exit.spec.ts --grep 'vacío y móvil|confirmación y cancelar alcanzables' --retries=0
 
       - name: Probar la interfaz en Chromium
+        if: needs.scope.outputs.verify == 'true'
         run: npm run test:e2e
 
       - name: Construir sitio estático
+        if: needs.scope.outputs.verify == 'true'
         run: npm run build
 
       - name: Validar y construir el runtime público de desarrollo
+        if: needs.scope.outputs.verify == 'true'
         run: |
           python ops/public-dev/test_contracts.py
           docker compose -f compose.dev.yaml build editor
@@ -136,6 +223,9 @@ jobs:
           retention-days: 3
 
   firmware:
+    name: ${{ startsWith(github.ref, 'refs/tags/ci-full-') && 'firmware-full' || 'firmware' }}
+    needs: scope
+    if: needs.scope.outputs.firmware == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Descargar el proyecto

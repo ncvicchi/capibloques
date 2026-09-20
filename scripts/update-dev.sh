@@ -3,9 +3,14 @@ set -Eeuo pipefail
 
 REPOSITORY=/home/capi/capibloques
 CHECK_ONLY=0
+CI_MODE=fast
+FULL_TAG=
 TARGET_LABEL=desconocido
 final_report() {
   local status=$?
+  if [[ -n $FULL_TAG ]]; then
+    git -C "$REPOSITORY" push --quiet origin ":refs/tags/$FULL_TAG" >/dev/null 2>&1 || true
+  fi
   if ((status == 0)); then
     printf '\n============================================================\n'
     if ((CHECK_ONLY)); then
@@ -13,7 +18,7 @@ final_report() {
       printf 'Commit: %s\nEstado: auditoría correcta; no se hicieron cambios\n' "$TARGET_LABEL"
     else
       printf 'RESULTADO: DESPLIEGUE DEV COMPLETADO\n'
-      printf 'Commit: %s\nEstado: listo para usar\n' "$TARGET_LABEL"
+      printf 'Commit: %s\nModo: %s\nEstado: listo para usar\n' "$TARGET_LABEL" "$CI_MODE"
     fi
     printf '============================================================\n'
   else
@@ -23,17 +28,21 @@ final_report() {
     else
       printf 'RESULTADO: DESPLIEGUE DEV FALLÓ\n' >&2
     fi
-    printf 'Commit objetivo: %s\nCódigo de salida: %s\nRevisá el último mensaje ERROR mostrado arriba.\n' "$TARGET_LABEL" "$status" >&2
+    printf 'Commit objetivo: %s\nModo: %s\nCódigo de salida: %s\nRevisá el último mensaje ERROR mostrado arriba.\n' "$TARGET_LABEL" "$CI_MODE" "$status" >&2
     printf '============================================================\n' >&2
   fi
 }
 trap final_report EXIT
 
-if [[ ${1:-} == --check-only ]]; then
-  CHECK_ONLY=1
+while (($#)); do
+  case "$1" in
+    --check-only) CHECK_ONLY=1 ;;
+    --fast) CI_MODE=fast ;;
+    --full) CI_MODE=full ;;
+    *) echo "Uso: $0 [--fast|--full] [--check-only]" >&2; exit 2 ;;
+  esac
   shift
-fi
-[[ $# -eq 0 ]] || { echo "Uso: $0 [--check-only]" >&2; exit 2; }
+done
 [[ $(id -un) == capi ]] || { echo "Ejecutá esta orden como el usuario capi, sin sudo." >&2; exit 1; }
 [[ $(hostname) == capi-dev ]] || { echo "Esta orden sólo funciona en capi-dev." >&2; exit 1; }
 
@@ -44,7 +53,13 @@ target=$(git rev-parse origin/main)
 TARGET_LABEL=${target:0:12}
 git cat-file -e "$target:scripts/deploy-dev-remote.sh"
 
-python3 - "$target" <<'PY'
+if [[ $CI_MODE == full ]]; then
+  FULL_TAG="ci-full-${target:0:12}-$(date +%s)"
+  echo "Solicitando CI completa para $TARGET_LABEL…"
+  git push --quiet origin "$target:refs/tags/$FULL_TAG"
+fi
+
+python3 - "$target" "$CI_MODE" <<'PY'
 import json
 import os
 import sys
@@ -53,7 +68,9 @@ import urllib.error
 import urllib.request
 
 commit = sys.argv[1]
-required = ("backend", "verify", "esp-idf", "firmware")
+mode = sys.argv[2]
+suffix = "-full" if mode == "full" else ""
+required = tuple(name + suffix for name in ("backend", "verify", "esp-idf", "firmware"))
 # La API pública admite 60 consultas por hora sin token. Una por minuto deja
 # que el monitor permanezca activo sin consumir credenciales ni agotar el cupo.
 poll_seconds = 60
@@ -100,7 +117,11 @@ def label(check):
     status = check.get("status")
     if status == "completed":
         conclusion = check.get("conclusion") or "sin resultado"
-        return "aprobado" if conclusion == "success" else f"falló ({conclusion})"
+        if conclusion == "success":
+            return "aprobado"
+        if mode == "fast" and conclusion in ("skipped", "neutral"):
+            return "omitido (no corresponde a este cambio)"
+        return f"falló ({conclusion})"
     if status == "in_progress":
         return "en proceso"
     return f"pendiente ({status or 'sin estado'})"
@@ -110,7 +131,8 @@ def clock(seconds):
     return f"{seconds // 60:02d}:{seconds % 60:02d}"
 
 def progress(checks):
-    approved = sum(checks.get(name, {}).get("status") == "completed" and checks[name].get("conclusion") == "success" for name in required)
+    accepted = ("success", "skipped", "neutral") if mode == "fast" else ("success",)
+    approved = sum(checks.get(name, {}).get("status") == "completed" and checks[name].get("conclusion") in accepted for name in required)
     active = sum(checks.get(name, {}).get("status") == "in_progress" for name in required)
     queued = sum(checks.get(name, {}).get("status") == "queued" for name in required)
     # Es avance de controles, no una predicción de tiempo: un trabajo en curso
@@ -118,7 +140,7 @@ def progress(checks):
     percent = round(100 * (approved + 0.5 * active + 0.1 * queued) / len(required))
     return approved, active, queued, len(required) - approved, percent
 
-print(f"Esperando la CI del commit {commit[:12]}…", flush=True)
+print(f"Esperando CI {mode} del commit {commit[:12]}…", flush=True)
 try:
     while True:
         try:
@@ -135,7 +157,7 @@ try:
         if snapshot != last_snapshot or now - last_report >= 60:
             elapsed = now - started
             approved, active, queued, remaining, percent = progress(checks)
-            print(f"CI {percent}% aprox. · {approved}/4 aprobados · faltan {remaining} · transcurrido {clock(elapsed)}:", flush=True)
+            print(f"CI {percent}% aprox. · {approved}/4 resueltos · faltan {remaining} · transcurrido {clock(elapsed)}:", flush=True)
             for name, state in snapshot:
                 print(f"  - {name}: {state}", flush=True)
             if remaining:
@@ -143,7 +165,8 @@ try:
             last_snapshot = snapshot
             last_report = now
 
-        failed = [name for name in required if checks.get(name, {}).get("status") == "completed" and checks[name].get("conclusion") != "success"]
+        accepted = ("success", "skipped", "neutral") if mode == "fast" else ("success",)
+        failed = [name for name in required if checks.get(name, {}).get("status") == "completed" and checks[name].get("conclusion") not in accepted]
         if failed:
             for name in failed:
                 url = checks[name].get("html_url")
@@ -151,8 +174,8 @@ try:
                     print(f"    Detalle de {name}: {url}", file=sys.stderr, flush=True)
             raise SystemExit("La CI falló; DEV no fue modificado: " + ", ".join(failed))
 
-        if all(checks.get(name, {}).get("status") == "completed" and checks[name].get("conclusion") == "success" for name in required):
-            print("CI completa y aprobada. Continúa el despliegue seguro.", flush=True)
+        if all(checks.get(name, {}).get("status") == "completed" and checks[name].get("conclusion") in accepted for name in required):
+            print("CI requerida resuelta correctamente. Continúa el despliegue seguro.", flush=True)
             break
 
         if timeout_seconds > 0 and now - started >= timeout_seconds:
