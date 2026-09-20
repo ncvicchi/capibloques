@@ -3,6 +3,32 @@ set -Eeuo pipefail
 
 REPOSITORY=/home/capi/capibloques
 CHECK_ONLY=0
+TARGET_LABEL=desconocido
+final_report() {
+  local status=$?
+  if ((status == 0)); then
+    printf '\n============================================================\n'
+    if ((CHECK_ONLY)); then
+      printf 'RESULTADO: VERIFICACIÓN DEV COMPLETADA\n'
+      printf 'Commit: %s\nEstado: auditoría correcta; no se hicieron cambios\n' "$TARGET_LABEL"
+    else
+      printf 'RESULTADO: DESPLIEGUE DEV COMPLETADO\n'
+      printf 'Commit: %s\nEstado: listo para usar\n' "$TARGET_LABEL"
+    fi
+    printf '============================================================\n'
+  else
+    printf '\n============================================================\n' >&2
+    if ((CHECK_ONLY)); then
+      printf 'RESULTADO: VERIFICACIÓN DEV FALLÓ\n' >&2
+    else
+      printf 'RESULTADO: DESPLIEGUE DEV FALLÓ\n' >&2
+    fi
+    printf 'Commit objetivo: %s\nCódigo de salida: %s\nRevisá el último mensaje ERROR mostrado arriba.\n' "$TARGET_LABEL" "$status" >&2
+    printf '============================================================\n' >&2
+  fi
+}
+trap final_report EXIT
+
 if [[ ${1:-} == --check-only ]]; then
   CHECK_ONLY=1
   shift
@@ -15,6 +41,7 @@ cd "$REPOSITORY"
 [[ -z $(git status --porcelain) ]] || { echo "El checkout tiene cambios locales; no se actualizó." >&2; exit 1; }
 git fetch --quiet origin main
 target=$(git rev-parse origin/main)
+TARGET_LABEL=${target:0:12}
 git cat-file -e "$target:scripts/deploy-dev-remote.sh"
 
 python3 - "$target" <<'PY'

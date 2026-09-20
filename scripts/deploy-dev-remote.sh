@@ -116,7 +116,7 @@ with access_lock():
  print(f'{int(c.paused)} {c.revision}')" | tail -n 1
 }
 
-runtime validate
+runtime validate >/dev/null
 curl --fail --silent --show-error --max-time 12 http://127.0.0.1:3000/api/health/ready/ >/dev/null
 read -r paused revision queued building concurrency ceiling <<<"$(compiler_state)"
 printf 'Preflight: checkout=%s objetivo=%s pausa=%s revision=%s cola=%s activos=%s concurrencia=%s/%s api=%s\n' \
@@ -235,7 +235,7 @@ repo_git pull --ff-only origin main
 
 if ((REBUILD_COMPILER)); then
   echo "Reconstruyendo la imagen aislada del compilador (se reutilizan las capas locales)."
-  docker build --memory=1024m --memory-swap=1600m --cpu-period=100000 --cpu-quota=80000 \
+  docker build --quiet --memory=1024m --memory-swap=1600m --cpu-period=100000 --cpu-quota=80000 \
     -f ops/compiler/Dockerfile -t capibloques-compiler-dev:phase9 .
   python3 ops/compiler/install.py
   compiler_image=$(docker image inspect capibloques-compiler-dev:phase9 --format '{{.Id}}')
@@ -267,7 +267,7 @@ if ((REBUILD_COMPILER)); then
   echo "Receta del compilador registrada: $compiler_recipe"
 fi
 
-runtime validate
+runtime validate >/dev/null
 curl --fail --silent --show-error --max-time 12 http://127.0.0.1:3000/api/health/ready/ >/dev/null
 curl --fail --silent --show-error --max-time 20 https://capibloques.dev.nvicchi.com/api/health/ready/ >/dev/null
 
@@ -277,5 +277,5 @@ set_paused "$original_paused" >/dev/null
 rm -f "$STATE_FILE"
 
 read -r paused revision queued building concurrency ceiling <<<"$(compiler_state)"
-printf 'OK: commit=%s pausa=%s revision=%s cola=%s activos=%s concurrencia=%s/%s\n' \
-  "$TARGET_COMMIT" "$paused" "$revision" "$queued" "$building" "$concurrency" "$ceiling"
+printf 'Validación final correcta: commit=%s pausa=%s cola=%s activos=%s concurrencia=%s/%s\n' \
+  "$TARGET_COMMIT" "$paused" "$queued" "$building" "$concurrency" "$ceiling"
