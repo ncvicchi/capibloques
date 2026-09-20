@@ -43,7 +43,7 @@ async function save(page: Page) {
 }
 async function acknowledge(page: Page) {
   await page.getByRole('button', { name: 'Conectar', exact: true }).click();
-  const guide = page.getByRole('dialog', { name: 'Conectar la Wemos sin adivinar', exact: true });
+  const guide = page.getByRole('dialog', { name: /Conectar .+ sin adivinar/ });
   await expect(guide.getByRole('checkbox').first()).toBeVisible();
   for (const checkbox of await guide.getByRole('checkbox').all()) await checkbox.check();
   await guide.getByRole('button', { name: 'Conexiones revisadas', exact: true }).click();
@@ -61,7 +61,7 @@ test('firmware: exige guardado y cableado; cancelar cola conserva el proyecto y 
   await dialog.getByRole('button', { name: 'Cerrar y seguir programando' }).click();
   await save(page);
   await open(page); await dialog.getByRole('button', { name: 'Compilar versión guardada' }).click();
-  const guide = page.getByRole('dialog', { name: 'Conectar la Wemos sin adivinar' });
+  const guide = page.getByRole('dialog', { name: /Conectar .+ sin adivinar/ });
   await expect(guide).toBeVisible(); expect(queue.requests).toHaveLength(0);
   for (const checkbox of await guide.getByRole('checkbox').all()) await checkbox.check();
   await guide.getByRole('button', { name: 'Conexiones revisadas', exact: true }).click();

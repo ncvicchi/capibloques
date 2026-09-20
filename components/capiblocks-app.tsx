@@ -210,6 +210,7 @@ function runtimeFromDevice(
         texts: {},
         artworkRows: Array.from({ length: 8 }, () => 0),
         animation: null,
+        pressedButton: null,
       };
     case 'ledMatrix': return { kind: 'ledMatrix', rows: Array.from({ length: 8 }, () => 0), scrolling: false };
     case 'messages': return { kind: 'messages', received: [], transmitted: [], damaged: 0 };
@@ -1169,6 +1170,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
 
   const inputDevices = scene.devices.filter((device) =>
     ['button', 'lightSensor', 'potentiometer'].includes(device.kind) ||
+    (device.kind === 'display' && device.config.profile === 'lcd1602keypad') ||
     (device.kind === 'messages' && device.config.mode !== 'send'),
   );
   const programNodeCount = lastProgram.threads.reduce(
@@ -1459,6 +1461,32 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                   <h3>Entradas para probar</h3>
                   {inputDevices.map((device) => {
                     const runtime = sim.devices[device.id];
+                    if (device.kind === 'display') {
+                      const pressed = runtime?.kind === 'display' ? runtime.pressedButton : null;
+                      const buttons = [['LEFT', 'Izquierda'], ['UP', 'Arriba'], ['DOWN', 'Abajo'], ['RIGHT', 'Derecha'], ['SELECT', 'Elegir']] as const;
+                      return (
+                        <div className="message-test-panel" key={device.id}>
+                          <span>🕹️ {device.name}</span>
+                          <div className="message-test-buttons">
+                            {buttons.map(([value, label]) => (
+                              <button
+                                type="button"
+                                key={value}
+                                aria-pressed={pressed === value}
+                                onPointerDown={() => setDeviceInput(device.id, value)}
+                                onPointerUp={() => setDeviceInput(device.id, '')}
+                                onPointerCancel={() => setDeviceInput(device.id, '')}
+                                onPointerLeave={() => setDeviceInput(device.id, '')}
+                                onKeyDown={event => { if (event.key === ' ' || event.key === 'Enter') setDeviceInput(device.id, value); }}
+                                onKeyUp={() => setDeviceInput(device.id, '')}
+                                onBlur={() => setDeviceInput(device.id, '')}
+                              >{label}</button>
+                            ))}
+                          </div>
+                          <small>Mantené presionado un botón para probar la condición.</small>
+                        </div>
+                      );
+                    }
                     if (device.kind === 'messages') {
                       return (
                         <div className="message-test-panel" key={device.id}>

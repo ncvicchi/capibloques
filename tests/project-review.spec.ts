@@ -196,7 +196,7 @@ test('revisión: bloques inmutables, simulación, pausa y exportación exacta si
     })
     .click();
   const guide = page.getByRole('dialog', {
-    name: 'Conectar la Wemos sin adivinar',
+    name: /Conectar .+ sin adivinar/,
     exact: true,
   });
   // El diálogo se carga bajo demanda: all() no espera su montaje.

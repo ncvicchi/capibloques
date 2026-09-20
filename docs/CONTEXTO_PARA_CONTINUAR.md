@@ -149,6 +149,8 @@ La escena también expone un tachito en la cabecera para el objeto seleccionado.
 
 Esta mejora quedó en `7afdf2a` y su ajuste E2E en `94f2112`. La CI completa 35473606856 pasó los cuatro trabajos. DEV fue desplegado en `94f21129f577ddc64fd55f0ff1fac3920a895f7d`, con salud interna/pública correcta y E2E específico **8/8** en Chrome/Edge públicos. El compilador quedó activo, admisión abierta en revisión 24 y cola vacía.
 
+El 20 de septiembre de 2026 se confirmó el hardware disponible para continuar la aceptación: LCD Keypad Shield 16 × 2 paralelo con cinco botones por ADC, LCD 20 × 4 con mochila I2C, TFT ILI9341 SPI y matriz 32 × 8 con cuatro MAX7219. El Keypad Shield necesita un perfil combinado nuevo —pantalla más cinco botones lógicos— y no corresponde al `lcd1602` I2C vigente. El propietario confirmó que la pantalla 16 × 2 y sus botones funcionan correctamente; queda integrarlos y probar el firmware de CapiBloques. El orden acordado está en [FASE_23_MATRIZ_LED.md](FASE_23_MATRIZ_LED.md).
+
 ### Animaciones no bloqueantes y despliegue reanudable — 19 de septiembre de 2026
 
 La implementación funcional de animaciones cooperativas quedó en `6999242` y el ajuste de prueba en `08b67e3`. Texto, dibujos y desplazamiento de Matriz LED continúan en segundo plano; cada bloque permite una vez, N veces o sin parar, y el bloque `esperar a que termine` es la sincronización explícita. La CI completa [35476496407](https://github.com/ncvicchi/capibloques/actions/runs/35476496407) pasó backend, interfaz/runtime, ocho Arduino y ocho ESP-IDF. La aceptación física continúa pendiente.
@@ -306,10 +308,13 @@ El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BAC
 - 20: compilación/grabación guiadas, estados reales, medición, Guardar integrado y reinicio posgrabación validado.
 - 21: claridad y ergonomía educativa: superposición de bloques, borrador de escena, operadores/menús/emojis, textos, advertencias y nueva auditoría de interfaz.
 - 22: avatar acompañante con reacciones accesibles ante desafíos, compilación y grabación.
-- 23: **en curso**; matriz 32 × 8 con cuatro MAX7219 implementada en software. El componente existente de LCD/OLED/TFT se presenta como **Pantalla de texto**; sus perfiles LCD PCF8574 16 × 2 y 20 × 4 fueron revalidados localmente en Chrome y Edge sin cambiar el JSON `display`. Falta la aceptación eléctrica de matriz, LCD, OLED y TFT.
+- 23: **en curso**; matriz 32 × 8 con cuatro MAX7219 implementada en software. El componente existente de LCD/OLED/TFT se presenta como **Pantalla de texto**; se está incorporando el hardware confirmado LCD Keypad Shield 16 × 2 como perfil combinado de pantalla paralela y cinco botones lógicos. El propietario confirmó que esa pantalla y sus botones funcionan; falta validar el firmware generado por CapiBloques y los otros módulos físicos.
 - 24: panel web local para un celular emparejado, misma LAN, vistas Escena/Controles e inputs relacionados mediante bloques.
 - 25: compartir proyectos por enlace/QR con copia/vista, caducidad y revocación.
-- 26: acceso de aula sin contraseña y asistencia con identidad, sesión y revocación explícitas.
+- 26: acceso de aula sin contraseña y asistencia con identidad, sesión y revocación explícitas; el logo y nombre del colegio deben ser el centro visual del ingreso normal y supervisado.
+- 27: familia HP Robots | Otto dentro del mismo editor, con perfiles compuestos por variante, bloques de movimiento cooperativos y validación física antes de anunciar compatibilidad.
+- 28: barrera infrarroja digital como sensor «libre / interrumpida», con polaridad configurable, condición genérica, simulación y generación Arduino/ESP-IDF.
+- 29: datos y variables tipados —número, texto y sí/no—, valores producidos por componentes y composición de texto reutilizable en consola, pantallas y Mensajes.
 - El [informe externo del 14 de septiembre](BACKLOG.md#pedidos-externos-a-analizar) queda distribuido entre 20–22 y 25–26. El selector angular con reloj está expresamente descartado y no es trabajo pendiente. La barra residual, el arrastre individual/grupal y el guardado estable ya están corregidos en `d096fd9`, `0fc9ff2` y `2b97af9`.
 - Final: producción/HTTPS, restauración/backups externos, carga, monitoreo, rollback y piloto; postergada.
 

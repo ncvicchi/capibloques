@@ -32,12 +32,12 @@ jobs:
           node-version: 22
       - name: Generar proyectos nativos y ZIP
         run: node --experimental-strip-types scripts/generate-idf-fixtures.mjs
-      - name: Compilar ocho proyectos ESP-IDF nativos para ESP32
+      - name: Compilar diez proyectos ESP-IDF nativos
         run: |
           . "$IDF_PATH/export.sh" >/dev/null
           python scripts/verify-idf-archives.py
           mkdir -p .idf-ci/build-project
-          for profile in main auxiliary matrix lcd1602 lcd2004 ssd1306 ili9341 ili9488; do
+          for profile in main auxiliary matrix lcd1602keypad lcd1602 lcd2004 ssd1306 ili9341 ili9488; do
             # Same IDF/configuration: reuse framework objects, not the generated app.
             # Do NOT preserve timestamps: each extracted main.cpp must rebuild.
             cp -R ".idf-ci/from-zip/$profile/capibloques/." .idf-ci/build-project/
@@ -170,10 +170,10 @@ jobs:
           node --experimental-strip-types scripts/generate-arduino-fixture.mjs .arduino-ci/s3/s3.ino s3
           arduino-cli compile --fqbn 'esp32:esp32:esp32s3:FlashMode=qio,FlashSize=16M,PartitionScheme=app3M_fat9M_16MB,PSRAM=opi,USBMode=hwcdc' .arduino-ci/s3
 
-      - name: Compilar los cinco perfiles de pantalla
+      - name: Compilar los seis perfiles de pantalla
         run: |
-          arduino-cli lib install "LiquidCrystal_PCF8574@2.3.0" "U8g2@2.36.19" "GFX Library for Arduino@1.6.7"
+          arduino-cli lib install "LiquidCrystal@1.0.7" "LiquidCrystal_PCF8574@2.3.0" "U8g2@2.36.19" "GFX Library for Arduino@1.6.7"
           node --experimental-strip-types scripts/generate-display-fixtures.mjs
-          for profile in lcd1602 lcd2004 ssd1306 ili9341 ili9488; do
+          for profile in lcd1602keypad lcd1602 lcd2004 ssd1306 ili9341 ili9488; do
             arduino-cli compile --fqbn esp32:esp32:d1_uno32 ".arduino-ci/$profile"
           done

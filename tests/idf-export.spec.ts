@@ -39,7 +39,7 @@ async function menu(page: Page, framework = 'ESP-IDF') {
   await page.getByRole('menuitem', { name: framework === 'ESP-IDF' ? 'Proyecto ESP-IDF .zip' : 'Código Arduino .ino', exact: true }).click();
 }
 async function acknowledge(page: Page) {
-  const guide = page.getByRole('dialog', { name: 'Conectar la Wemos sin adivinar', exact: true });
+  const guide = page.getByRole('dialog', { name: /Conectar .+ sin adivinar/ });
   await expect(guide).toBeVisible();
   await expect(guide.getByRole('checkbox').first()).toBeVisible();
   const confirm = guide.getByRole('button', { name: 'Conexiones revisadas', exact: true });
@@ -58,7 +58,7 @@ test('ESP-IDF: descarga ZIP completo con cableado confirmado, conserva Arduino y
   const arduino = page.waitForEvent('download'); await menu(page, 'Arduino');
   expect(readFileSync((await (await arduino).path())!, 'utf8')).toContain('#include <Arduino.h>');
   await page.getByRole('button', { name: 'Ver código ESP32', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Código para WEMOS D1 R32', exact: true });
+  const dialog = page.getByRole('dialog', { name: /Código para .+/ });
   await dialog.getByRole('combobox', { name: 'Formato de código' }).selectOption('esp-idf');
   await expect(dialog.locator('pre')).toContainText('extern "C" void app_main');
   await expect(dialog).toContainText('necesitás el ZIP completo');
@@ -83,7 +83,7 @@ async function importScreen(page: Page, profile: DisplayProfile, replace: boolea
   if (replace) await page.getByRole('button', { name: 'Conservar copia local y abrir', exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'Nombre del proyecto' })).toHaveValue(`IDF ${profile}`);
 }
-test('ESP-IDF: los cinco perfiles generan ZIP nativo; cambiar perfil exige revisar conexiones otra vez', async ({ page }) => {
+test('ESP-IDF: los seis perfiles generan ZIP nativo; cambiar perfil exige revisar conexiones otra vez', async ({ page }) => {
   await open(page); let replace = false;
   for (const profile of Object.keys(displayProfiles) as DisplayProfile[]) {
     await importScreen(page, profile, replace); replace = true;
@@ -91,7 +91,7 @@ test('ESP-IDF: los cinco perfiles generan ZIP nativo; cambiar perfil exige revis
     const pending = page.waitForEvent('download'); await menu(page);
     const files = await zip(await pending), code = files['capibloques/main/main.cpp'];
     expect(code).toContain('capiDisplayWrite(0, 0');
-    expect(code).toContain(profile.startsWith('ili') ? 'driver/spi_master.h' : 'driver/i2c_master.h');
+    expect(code).toContain(profile.startsWith('ili') ? 'driver/spi_master.h' : profile === 'lcd1602keypad' ? 'esp_rom_sys.h' : 'driver/i2c_master.h');
   }
 });
 test('ESP-IDF: no descarga código con pines pendientes', async ({ page }) => {
@@ -99,7 +99,7 @@ test('ESP-IDF: no descarga código con pines pendientes', async ({ page }) => {
   const downloads: Download[] = []; page.on('download', download => downloads.push(download));
   await menu(page);
   await expect(page.locator('output.notice')).toContainText('antes de descargar');
-  await expect(page.getByRole('dialog', { name: 'Conectar la Wemos sin adivinar' })).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: /Conectar .+ sin adivinar/ })).toHaveCount(0);
   expect(downloads).toHaveLength(0);
 });
 test('ESP-IDF docente: exporta la revisión autorizada con la misma guarda de cableado', async ({ page }) => {

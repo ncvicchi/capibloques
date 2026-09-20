@@ -6,10 +6,12 @@ export function DisplayPreview({
   device,
   texts = {},
   artworkRows = [],
+  pressedButton = null,
 }: {
   device: DisplayDevice;
   texts?: Record<string, string[]>;
   artworkRows?: readonly number[];
+  pressedButton?: 'RIGHT' | 'UP' | 'DOWN' | 'LEFT' | 'SELECT' | null;
 }) {
   const profile = displayProfiles[device.config.profile];
   const linesFor = (id: string) =>
@@ -17,7 +19,8 @@ export function DisplayPreview({
   const cellWidth = profile.bus === 'spi' ? 12 : 8;
   const cellHeight = profile.bus === 'spi' ? 16 : profile.graphic ? 8 : 12;
   const width = profile.graphic ? profile.width : profile.columns * cellWidth;
-  const height = profile.graphic ? profile.height : profile.rows * cellHeight;
+  const screenHeight = profile.graphic ? profile.height : profile.rows * cellHeight;
+  const height = screenHeight + (profile.keypad ? 18 : 0);
   return (
     <svg
       className={`display-preview ${profile.graphic ? 'graphic' : 'character'}`}
@@ -97,6 +100,16 @@ export function DisplayPreview({
             ))}
         </g>
       ))}
+      {profile.keypad && (
+        <g aria-label={`Teclado: ${pressedButton ?? 'ningún botón'}`}>
+          {([['LEFT', '←'], ['UP', '↑'], ['DOWN', '↓'], ['RIGHT', '→'], ['SELECT', 'OK']] as const).map(([value, label], index) => (
+            <g key={value} transform={`translate(${index * 27 + 4} ${screenHeight + 4})`}>
+              <rect width="23" height="11" rx="3" fill={pressedButton === value ? '#ffcf5a' : '#d9e4dc'} stroke="#2b4237" />
+              <text x="11.5" y="8" textAnchor="middle" fontSize="7" fill="#18251f">{label}</text>
+            </g>
+          ))}
+        </g>
+      )}
     </svg>
   );
 }

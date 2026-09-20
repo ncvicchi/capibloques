@@ -13,9 +13,10 @@ from projects.validation import document, display_config
 class DisplayValidationTests(SimpleTestCase):
     def sample(self, profile="ssd1306"):
         data = json.loads((Path(__file__).parent / "fixtures/projects-v2.json").read_text(encoding="utf-8"))[0]
-        config = {"profile": profile, "address": 0 if profile.startswith("ili") else 0x3c if profile == "ssd1306" else 0x27, "areas": [] if profile.startswith("lcd") else [{"id": "text-1", "name": "Mensaje", "column": 0, "row": 0, "columns": 16, "rows": 4}], "retiredAreaIds": []}
-        pins = dict.fromkeys(("sda", "scl", "sck", "mosi", "cs", "dc", "rst"))
-        for key, gpio in zip(["sck", "mosi", "cs", "dc", "rst"] if profile.startswith("ili") else ["sda", "scl"], [26, 25, 27, 17, 16]):
+        config = {"profile": profile, "address": 0 if profile.startswith("ili") or profile == "lcd1602keypad" else 0x3c if profile == "ssd1306" else 0x27, "areas": [] if profile.startswith("lcd") else [{"id": "text-1", "name": "Mensaje", "column": 0, "row": 0, "columns": 16, "rows": 4}], "retiredAreaIds": []}
+        pins = dict.fromkeys(("sda", "scl", "sck", "mosi", "cs", "dc", "rst", "rs", "en", "d4", "d5", "d6", "d7", "backlight", "keys"))
+        used = ["rs", "en", "d4", "d5", "d6", "d7", "backlight", "keys"] if profile == "lcd1602keypad" else ["sck", "mosi", "cs", "dc", "rst"] if profile.startswith("ili") else ["sda", "scl"]
+        for key, gpio in zip(used, [4, 13, 14, 16, 17, 18, 19, 34]):
             pins[key] = gpio
         data["scene"]["devices"] = [{"schemaVersion": 1, "id": "screen-1", "name": "Pantalla", "kind": "display", "position": {"x": 100, "y": 100}, "rotation": 0, "pins": pins, "config": config}]
         data["scene"]["widgets"] = []
@@ -23,8 +24,8 @@ class DisplayValidationTests(SimpleTestCase):
         data["workspace"] = {"blocks": {"languageVersion": 0, "blocks": [{"type": "capi_start", "id": "start", "inputs": {"DO": {"block": {"type": "capi_display_write", "id": "message", "fields": {"DEVICE_ID": "screen-1", "AREA_ID": "screen" if profile.startswith("lcd") else "text-1", "TEXT": "Hola\nESP32"}, "next": {"block": {"type": "capi_display_clear", "id": "clear", "fields": {"DEVICE_ID": "screen-1", "AREA_ID": "screen"}}}}}}}]}}
         return data
 
-    def test_all_five_profiles_and_message_blocks_are_portable(self):
-        for profile in ("lcd1602", "lcd2004", "ssd1306", "ili9341", "ili9488"):
+    def test_all_six_profiles_and_message_blocks_are_portable(self):
+        for profile in ("lcd1602keypad", "lcd1602", "lcd2004", "ssd1306", "ili9341", "ili9488"):
             with self.subTest(profile=profile):
                 data = self.sample(profile)
                 self.assertGreater(document(data), 0)
@@ -100,11 +101,11 @@ class DisplayValidationTests(SimpleTestCase):
 
 @override_settings(PASSWORD_HASHERS=FAST_HASHERS)
 class DisplayPersistenceTests(TestCase):
-    def test_five_profiles_roundtrip_through_owned_project_api(self):
+    def test_six_profiles_roundtrip_through_owned_project_api(self):
         user = User.objects.create_user("display-test", display_name="Prueba", password=PASSWORD, must_change_password=False)
         self.client.force_login(user)
         self.client.defaults["HTTP_X_CAPI_ACCOUNT"] = str(user.pk)
-        for profile in ("lcd1602", "lcd2004", "ssd1306", "ili9341", "ili9488"):
+        for profile in ("lcd1602keypad", "lcd1602", "lcd2004", "ssd1306", "ili9341", "ili9488"):
             with self.subTest(profile=profile):
                 sample = DisplayValidationTests().sample(profile)
                 response = self.client.post("/api/projects/", {"id": str(uuid.uuid4()), "operationId": str(uuid.uuid4()), "document": sample}, content_type="application/json")

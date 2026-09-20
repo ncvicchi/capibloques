@@ -71,7 +71,7 @@ test('sesión: foco no consulta ni bloquea, reloj sí revalida y revocación sí
 test('Wemos: pines y listado sincronizados, sin dar por aprobado el circuito', async ({ page }, info) => {
   await open(page);
   await page.getByRole('button', { name: 'Conectar', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Conectar la Wemos sin adivinar' });
+  const dialog = page.getByRole('dialog', { name: /Conectar .+ sin adivinar/ });
   await expect(dialog.locator('.wemos-image')).toBeVisible();
   const rows = dialog.locator('.wiring-table tbody tr');
   expect(await rows.count()).toBeGreaterThan(0);

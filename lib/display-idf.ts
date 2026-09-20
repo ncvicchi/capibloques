@@ -16,6 +16,7 @@ export function displayIdfSupport(scene: SceneDefinition) {
   const pin = (name: keyof typeof device.pins) => device.pins[name] ?? -1;
   const lcd = !profile.graphic;
   const i2c = profile.bus === 'i2c';
+  const parallel = profile.bus === 'parallel';
   const init = device.config.profile === 'ili9341' || device.config.profile === 'ili9488'
     ? IDF_TFT_INIT[device.config.profile].map(([command, ...data], index) =>
       `  const uint8_t init${index}[] = { ${data.join(', ')} };\n  if (!capiDisplayCommand(${command}, init${index}, sizeof(init${index}))) return false;`).join('\n')
@@ -27,7 +28,7 @@ uint8_t capiGlyphColumn(uint8_t character, uint8_t column) {
   return column < 5 ? capiFont[(character - 32) * 5 + column] : 0;
 }
 ` : '';
-  const bus = i2c ? `#include "driver/i2c_master.h"
+  const bus = parallel ? '' : i2c ? `#include "driver/i2c_master.h"
 i2c_master_bus_handle_t capiDisplayBus = nullptr;
 i2c_master_dev_handle_t capiDisplayDevice = nullptr;
 bool capiDisplayTransfer(const uint8_t* data, size_t count) {
@@ -82,7 +83,43 @@ bool capiDisplayBusBegin() {
   return true; // SPI cannot detect whether a physical display is present.
 }
 `;
-  const driver = lcd ? `
+  const driver = parallel ? `
+#include "esp_rom_sys.h"
+void capiLcdPulse() {
+  capiDigitalWrite(${pin('en')}, 1); esp_rom_delay_us(1);
+  capiDigitalWrite(${pin('en')}, 0); esp_rom_delay_us(50);
+}
+void capiLcdNibble(uint8_t value) {
+  capiDigitalWrite(${pin('d4')}, (value >> 0) & 1); capiDigitalWrite(${pin('d5')}, (value >> 1) & 1);
+  capiDigitalWrite(${pin('d6')}, (value >> 2) & 1); capiDigitalWrite(${pin('d7')}, (value >> 3) & 1); capiLcdPulse();
+}
+bool capiLcdByte(uint8_t value, bool character = false) {
+  capiDigitalWrite(${pin('rs')}, character); capiLcdNibble(value >> 4); capiLcdNibble(value & 15); return true;
+}
+bool capiDisplayDeviceBegin() {
+  capiOutput(${pin('rs')}); capiOutput(${pin('en')}); capiOutput(${pin('d4')}); capiOutput(${pin('d5')});
+  capiOutput(${pin('d6')}); capiOutput(${pin('d7')}); capiOutput(${pin('backlight')});
+  capiDigitalWrite(${pin('backlight')}, 1); capiDigitalWrite(${pin('rs')}, 0); capiDigitalWrite(${pin('en')}, 0);
+  vTaskDelay(pdMS_TO_TICKS(50)); capiLcdNibble(3); vTaskDelay(pdMS_TO_TICKS(5));
+  capiLcdNibble(3); esp_rom_delay_us(150); capiLcdNibble(3); capiLcdNibble(2);
+  capiLcdByte(0x28); capiLcdByte(0x08); capiLcdByte(0x01); vTaskDelay(pdMS_TO_TICKS(3));
+  return capiLcdByte(0x06) && capiLcdByte(0x0c);
+}
+bool capiDisplayGlyph(uint16_t x, uint16_t y, uint8_t character) {
+  constexpr uint8_t rowOffsets[] = {0, 0x40};
+  return capiLcdByte(0x80 | (rowOffsets[y] + x)) && capiLcdByte(character, true);
+}
+uint8_t capiDisplayButton() {
+  const int value = capiAnalogRead(${pin('keys')});
+  if (value < 200) return 0;
+  if (value < 1000) return 1;
+  if (value < 1800) return 2;
+  if (value < 2600) return 3;
+  if (value < 3400) return 4;
+  return 255;
+}
+bool capiDisplayButtonPressed(uint8_t button) { return capiDisplayButton() == button; }
+` : lcd ? `
 bool capiLcdNibble(uint8_t value) {
   const uint8_t data[] = {(uint8_t)(value | 8), (uint8_t)(value | 12), (uint8_t)(value | 8)};
   return capiDisplayTransfer(data, sizeof(data));

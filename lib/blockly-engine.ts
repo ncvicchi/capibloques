@@ -90,6 +90,8 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
       return ['passiveBuzzer'];
     case 'capi_button_pressed':
       return ['button'];
+    case 'capi_display_button_pressed':
+      return ['display'];
     case 'capi_sensor_compare':
       return block.getFieldValue('SENSOR') === 'POTENTIOMETER'
         ? ['potentiometer']
@@ -112,6 +114,8 @@ function devicesForBlock(block: BlocklyBlock) {
   const kinds = acceptedDeviceKinds(block);
   return (workspaceDevices.get(workspace) ?? []).filter((device) => {
     if (!kinds.includes(device.kind)) return false;
+    if (block.type === 'capi_display_button_pressed')
+      return device.kind === 'display' && device.config.profile === 'lcd1602keypad';
     if (device.kind !== 'messages') return true;
     if (block.type === 'capi_message_send') return device.config.mode !== 'receive';
     if (block.type === 'capi_message_receive') return device.config.mode !== 'send';
@@ -414,6 +418,7 @@ const toolbox = {
         { kind: 'block', type: 'capi_compare' },
         { kind: 'block', type: 'capi_counter_compare' },
         { kind: 'block', type: 'capi_button_pressed' },
+        { kind: 'block', type: 'capi_display_button_pressed' },
         { kind: 'block', type: 'capi_sensor_compare' },
       ],
     },
@@ -933,6 +938,28 @@ function registerBlocks(Blockly: BlocklyApi) {
       extensions: [DEVICE_EXTENSION],
     },
     {
+      type: 'capi_display_button_pressed',
+      message0: '🕹️ en %1 botón %2 presionado',
+      args0: [
+        deviceField('⚠️ agrega una pantalla con botones'),
+        {
+          type: 'field_dropdown',
+          name: 'BUTTON',
+          options: [
+            ['Derecha', 'RIGHT'],
+            ['Arriba', 'UP'],
+            ['Abajo', 'DOWN'],
+            ['Izquierda', 'LEFT'],
+            ['Elegir', 'SELECT'],
+          ],
+        },
+      ],
+      output: 'Boolean',
+      colour: '#CF4EB9',
+      tooltip: 'Responde sí cuando ese botón de la pantalla 16 × 2 está presionado.',
+      extensions: [DEVICE_EXTENSION],
+    },
+    {
       type: 'capi_sensor_compare',
       message0: '%1 %2 %3 %4',
       args0: [
@@ -1234,6 +1261,12 @@ function compileCondition(block: BlocklyBlock | null): Condition {
       return { kind: 'wifiConnected' };
     case 'capi_button_pressed':
       return { kind: 'buttonPressed', deviceId: selectedDeviceId(block) };
+    case 'capi_display_button_pressed':
+      return {
+        kind: 'displayButtonPressed',
+        deviceId: selectedDeviceId(block),
+        button: String(block.getFieldValue('BUTTON') ?? 'SELECT') as Extract<Condition, { kind: 'displayButtonPressed' }>['button'],
+      };
     case 'capi_sensor_compare':
       return {
         kind: 'sensor',

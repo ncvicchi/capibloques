@@ -273,7 +273,11 @@ const requirementsByKind: Record<SceneDeviceKind, readonly PinRequirement[]> = {
     { key: 'signal', label: 'Lectura de posición', capability: 'analogInput' },
   ],
   wifiNode: [],
-  display: displayPinKeys.map(key => ({ key, label: key.toUpperCase(), capability: 'pwmOutput' })),
+  display: displayPinKeys.map(key => ({
+    key,
+    label: key === 'keys' ? 'Botones (ADC)' : key === 'backlight' ? 'Luz de fondo' : key.toUpperCase(),
+    capability: key === 'keys' ? 'analogInput' : 'pwmOutput',
+  })),
   ledMatrix: [
     { key: 'din', label: 'Datos (DIN)', capability: 'pwmOutput' },
     { key: 'clk', label: 'Reloj (CLK)', capability: 'pwmOutput' },
@@ -1974,6 +1978,24 @@ export function migrateSceneDefinition(
 ): SceneMigrationResult {
   if (isSceneDefinition(value)) {
     return { scene: cloneScene(value), migrated: false, warnings: [] };
+  }
+  if (value && typeof value === 'object') {
+    const expanded = structuredClone(value) as { devices?: unknown[] };
+    if (Array.isArray(expanded.devices)) {
+      let changed = false;
+      for (const item of expanded.devices) {
+        if (!isRecord(item) || item.kind !== 'display' || !isRecord(item.pins)) continue;
+        for (const key of displayPinKeys) if (!Object.hasOwn(item.pins, key)) {
+          item.pins[key] = null;
+          changed = true;
+        }
+      }
+      if (changed && isSceneDefinition(expanded)) return {
+        scene: cloneScene(expanded),
+        migrated: true,
+        warnings: ['Se ampliaron las conexiones internas de la pantalla sin cambiar el cableado existente.'],
+      };
+    }
   }
   if (isLegacySceneId(value)) {
     return {

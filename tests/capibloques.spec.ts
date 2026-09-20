@@ -343,7 +343,7 @@ test.describe('CapiBloques', () => {
     await page.getByRole('button', { name: 'Ver código ESP32' }).click();
     await page.getByRole('button', { name: 'Descargar .ino' }).click();
     const wiring = page.getByRole('dialog', {
-      name: 'Conectar la Wemos sin adivinar',
+      name: /Conectar .+ sin adivinar/,
     });
     await expect(wiring).toBeVisible();
     await expect(page.getByRole('dialog')).toHaveCount(1);

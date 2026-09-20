@@ -18,6 +18,7 @@ import {
   createEmptyScene,
   duplicateSceneDevice,
   isSceneDefinition,
+  migrateSceneDefinition,
   removeDeviceFromScene,
   validateScene,
 } from '../lib/scene-model.ts';
@@ -71,6 +72,13 @@ for (const profile of Object.keys(displayProfiles)) {
       blockId: 'clear',
     },
   ];
+  if (profile === 'lcd1602keypad') nodes.push({
+    op: 'if',
+    condition: { kind: 'displayButtonPressed', deviceId: device.id, button: 'SELECT' },
+    consequent: [{ op: 'serial', text: 'Elegir', blockId: 'selected' }],
+    otherwise: [],
+    blockId: 'keypad-condition',
+  });
   if (displayProfiles[profile].graphic) {
     nodes.push(
       {
@@ -103,6 +111,10 @@ for (const profile of Object.keys(displayProfiles)) {
     assert.match(generated.code, /capiDisplayStartText\(/);
     assert.match(generated.code, /capiDisplayStartArtwork\(/);
     assert.match(generated.code, /DISPLAY_ART_/);
+  }
+  if (profile === 'lcd1602keypad') {
+    assert.match(generated.code, /capiDisplayButtonPressed\(4\)/);
+    assert.match(generated.code, /LiquidCrystal capiScreen/);
   }
   assert.ok(generated.code.indexOf('struct TrafficDevice') < generated.code.indexOf('void capiDisplayWrite'), 'Arduino inserts prototypes before the first sketch function: declare helper types first');
   assert.doesNotMatch(generated.code, /Serial.println\("!Hola/);
@@ -181,6 +193,18 @@ delete legacyConfig.animationSpeed;
 delete legacyConfig.artworks;
 delete legacyConfig.retiredArtworkIds;
 assert.equal(validDisplayConfig(legacyConfig), true, 'legacy displays remain importable');
+const legacyPinScene = addDeviceToScene(createEmptyScene('Pantalla anterior'), 'display', { config: displayConfig('lcd1602') }).scene;
+for (const key of ['rs', 'en', 'd4', 'd5', 'd6', 'd7', 'backlight', 'keys']) delete legacyPinScene.devices[0].pins[key];
+const migratedPins = migrateSceneDefinition(legacyPinScene);
+assert.equal(migratedPins.migrated, true, 'legacy display pin maps are expanded');
+assert.equal(migratedPins.scene.devices[0].pins.sda, legacyPinScene.devices[0].pins.sda);
+assert.equal(migratedPins.scene.devices[0].pins.keys, null);
+const plainLcd = migratedPins.scene.devices[0];
+assert.ok(validateProgramForScene(wrap([{
+  op: 'if',
+  condition: { kind: 'displayButtonPressed', deviceId: plainLcd.id, button: 'SELECT' },
+  consequent: [], otherwise: [], blockId: 'wrong-keypad',
+}]), migratedPins.scene).some(issue => issue.code === 'target-kind-mismatch'));
 assert.equal(
   layoutDisplayText(String.fromCharCode(92, 126), { columns: 2, rows: 1 })
     .cells,
@@ -367,5 +391,5 @@ assert.deepEqual(
 );
 assert.equal(state().devices[animated.device.id].animation, null);
 console.log(
-  'Displays: five profiles, drawings, animations, JSON, isolated areas, worker modes and generated adapters passed.',
+  'Displays: six profiles, keypad, drawings, animations, JSON, isolated areas, worker modes and generated adapters passed.',
 );

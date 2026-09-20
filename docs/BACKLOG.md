@@ -214,6 +214,8 @@ Los dos tipos ya están considerados por software. Queda pendiente la aceptació
 
 ## 19. Matriz de LED 32 × 8 con cuatro MAX7219 encadenados
 
+Inventario físico confirmado el 20 de septiembre de 2026 para cerrar la fase 23: LCD Keypad Shield 16 × 2 paralelo con cinco botones por ADC, LCD 20 × 4 con mochila I2C, TFT ILI9341 SPI y matriz 32 × 8 de cuatro MAX7219. El Keypad Shield requiere un perfil combinado nuevo; no es el `lcd1602` PCF8574 ya implementado. El propietario confirmó que la pantalla 16 × 2 y sus botones funcionan correctamente. El contrato y orden de integración están en [FASE_23_MATRIZ_LED.md](FASE_23_MATRIZ_LED.md).
+
 **Software implementado; aceptación física pendiente.** La [guía del componente](FASE_23_MATRIZ_LED.md) registra el contrato acordado: una unidad 32 × 8 por proyecto, editor de hasta 12 dibujos, brillo/orden/giro de 180°, cuatro bloques, simulación cooperativa y generación Arduino/ESP-IDF. La fase 23 completa sigue abierta por las pruebas eléctricas de esta matriz y de los displays existentes.
 
 Pedido aclarado el 14 de septiembre de 2026: incorporar el módulo de la fotografía, formado por **cuatro matrices monocromáticas de 8 × 8**, cada una controlada por MAX7219 y conectadas en cadena sobre una misma placa. La superficie lógica inicial es de 32 × 8 LED.
@@ -329,6 +331,42 @@ Toda caché debe incluir toolchain, framework, placa, memoria, particiones, bibl
 
 Asignación: **fase 20**, ampliando el pedido 17 de medición y mejora del compilador antes de diseñar el asistente. La implementación se decide a partir del perfil medido en DEV; no se promete que una biblioteca monolítica precompilada sea la mejor opción.
 
+## 24. Identidad del colegio como centro del ingreso
+
+Pedido del 20 de septiembre de 2026: antes de iniciar sesión, el **logo y el nombre del colegio deben ser los protagonistas visuales**. No alcanza con que estén presentes como una marca secundaria: la pantalla debe comunicar primero a qué institución pertenece el espacio y después pedir alias y contraseña.
+
+La composición debe funcionar con o sin logo configurado, nombres largos, pantallas pequeñas, texto ampliado, teclado y lector de pantalla. Debe conservar el nombre CapiBloques como producto sin competir con la identidad institucional, evitar saltos de diseño mientras carga la marca pública y no exponer información de alumnos. La gestión del nombre/logo y sus límites de archivo continúan usando el contrato seguro ya implementado para una institución por instalación.
+
+Asignación: **fase 26 — Acceso de aula**, junto con la revisión completa del ingreso normal y supervisado. La aceptación incluirá jerarquía visual comprobable, foco inicial y errores de autenticación claros sin desplazar u ocultar la marca del colegio.
+
+## 25. Familia de robots HP Robots | Otto
+
+Pedido del 20 de septiembre de 2026: soportar robots **HP Robots | Otto** en sus distintas configuraciones. No se creará otra aplicación ni otro lenguaje visual: Otto será una familia de componentes/escenas prearmadas dentro del editor vigente. El alumno podrá usar bloques de alto nivel —caminar, girar, bailar, detenerse, emitir sonidos, expresar emociones y reaccionar a sensores— y, cuando corresponda al nivel didáctico, abrir el robot para ver o programar sus servos, buzzer, sensor, botones y matriz.
+
+El perfil del robot debe declarar qué piezas tiene y reservar todos sus recursos como un conjunto, evitando que un mismo servo o pin aparezca libre. Movimientos y coreografías serán cooperativos y cancelables, no `delay()` encadenados que congelen sensores, mensajes u otros caminos. La escena mostrará postura/movimiento; la configuración avanzada incluirá centros, sentido y límites de servos, sin poner calibración mecánica dentro de los bloques infantiles.
+
+La familia exacta se fijará contra el hardware disponible. Como referencia primaria, el fabricante distingue kits HP/Otto y documenta configuraciones como Otto básico, Wheels y Ninja; Ninja publica variantes de cuatro y siete servos con buzzer, sensor ultrasónico, matriz LED intercambiable, botón y comunicación inalámbrica. Eso no autoriza a tratarlas como eléctricamente equivalentes ni a reemplazar su controlador: se deben inventariar modelo, placa, actuadores, sensores, firmware y licencia de cada unidad antes de ofrecer el perfil. Fuentes: [tienda oficial Otto/HP Robots](https://www.ottodiy.com/store), [Otto Ninja oficial](https://www.ottodiy.com/ninja) y [FAQ oficial](https://www.ottodiy.com/blog/faq).
+
+Asignación: **fase 27 — Familia de robots HP Robots | Otto**. Primero se diseña la matriz de configuraciones y el contrato de movimientos; luego se implementan sólo las variantes físicamente identificadas. Arduino y ESP-IDF deben compartir semántica, pero la compatibilidad con una placa/controlador oficial distinto del ESP32 no se infiere y requiere decisión expresa.
+
+## 26. Barrera infrarroja digital
+
+Pedido del 20 de septiembre de 2026: incorporar una barrera infrarroja formada por emisor y detector cuya salida útil sea digital. Para los chicos se presenta como un solo sensor con los estados **libre** e **interrumpida**, sin exponer una lectura analógica ni obligarlos a razonar en 0 y 1.
+
+La escena debe permitir elegir el GPIO de entrada y configurar si el módulo físico informa la interrupción en nivel alto o bajo. Los bloques deben ofrecer una condición utilizable dentro de cualquier bifurcación —por ejemplo, «si la barrera está interrumpida»— y la simulación debe permitir alternar claramente entre ambos estados. Arduino y ESP-IDF deben leer la entrada sin bloquear; importación/exportación, validación de pines, diagrama de conexiones y estado simulado deben conservar la misma semántica.
+
+Asignación: **fase 28 — Barrera infrarroja digital**. Antes del ensayo físico se identificará la tensión y el tipo de salida del modelo disponible; esa comprobación no cambia su contrato infantil de dos estados.
+
+## 27. Datos, variables y textos dinámicos
+
+Pedido del 20 de septiembre de 2026: permitir conservar y reutilizar datos de forma general. El caso inicial es mostrar «El contador está en …», pero el diseño no debe crear una acción especial por cada combinación de componente y destino.
+
+Se propone un modelo infantil y tipado con variables de **número**, **texto** y **sí/no**; bloques para asignar, cambiar y leer; valores producidos por componentes —contador, sensor, botón, estado de conexión, mensaje recibido o posición—; y un bloque **armar texto** que combine fragmentos fijos con valores. El resultado se podrá enviar a consola, pantalla, Mensajes u otros destinos que acepten texto. Comparadores, cálculos y acciones consumirán los mismos bloques de valor, evitando familias duplicadas como «mostrar contador», «enviar contador» o «guardar contador».
+
+La fase debe definir alcance por proyecto e hilo, valor inicial, conversiones explícitas, nombres únicos y límites adecuados para ESP32. Variables y expresiones formarán parte del JSON, historial, deshacer/rehacer, simulación y ambos generadores. La interfaz mostrará el valor durante la ejecución sin convertir datos internos en una cabecera global invasiva.
+
+Asignación: **fase 29 — Datos, variables y textos dinámicos**. Primero se fija el modelo de tipos y expresiones; después se conecta gradualmente a componentes existentes sin romper el contador ni proyectos anteriores.
+
 ## Pedidos externos a analizar
 
 Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus observaciones para reproducirlas y contrastarlas con el comportamiento vigente. **No confirma que cada problema exista y la asignación no autoriza implementarlos.** Progreso/guardado/reinicio corresponden a fase 20; superposición y los ajustes de claridad/escena corresponden a fase 21; avatar a fase 22; compartir a fase 25; acceso de aula a fase 26. Las prioridades «vital» y «sutil» pertenecen al informe de origen y cada observación debe reproducirse antes de cambiar código.
@@ -411,6 +449,11 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 20. Panel web local para celular | 24. Panel local seguro y programable en la misma LAN |
 | 21. Guardado estable durante el arrastre | Implementado y desplegado el 15 de septiembre de 2026, revisión `2b97af9` |
 | 22. Vista educativa del estado lógico de pines | 21. Claridad del circuito y UX educativa |
+| 23. Reducir al mínimo la latencia de compilación | 20. Caché, reutilización segura y medición reproducible |
+| 24. Logo y nombre del colegio centrales en el ingreso | 26. Identidad institucional y acceso de aula |
+| 25. Familia de robots HP Robots / Otto | 27. Perfiles compuestos, movimientos y validación por variante |
+| 26. Barrera infrarroja digital | 28. Sensor libre/interrumpido, simulación y ambos generadores |
+| 27. Datos, variables y textos dinámicos | 29. Tipos, expresiones, valores de componentes y composición de texto |
 | 23. Reducir al mínimo la latencia de compilación | 20. Medición, caché, precompilación y arquitectura del compilador |
 
 Las observaciones externas quedan asignadas así: fase 20 (progreso/guardado/reinicio de compilación), fase 21 (superposición y claridad/escena), fase 22 (avatar), fase 25 (enlaces/QR) y fase 26 (acceso de aula/asistencia). Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 15 está implementada en software y la fase 23 está en curso con la matriz implementada; el resto requiere autorización propia. Los números de pedido no son fases nuevas.

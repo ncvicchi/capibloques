@@ -22,7 +22,7 @@ BOARD_PINS = {
 }
 BLOCKS = {"capi_" + name for name in ("start", "forever", "repeat", "wait", "if", "compare", "counter_compare", "counter_set", "counter_change", "traffic", "led", "pin_write", "robot", "motor", "servo", "buzzer", "tone", "button_pressed", "sensor_compare", "wifi_connect", "wifi_connected", "serial")}
 BLOCKS.add("capi_parallel")
-BLOCKS.update(("capi_display_write", "capi_display_clear", "capi_display_animate_text", "capi_display_artwork", "capi_visual_wait"))
+BLOCKS.update(("capi_display_write", "capi_display_clear", "capi_display_animate_text", "capi_display_artwork", "capi_display_button_pressed", "capi_visual_wait"))
 BLOCKS.update(("capi_message_send", "capi_message_receive"))
 BLOCKS.update(("capi_matrix_clear", "capi_matrix_pixel", "capi_matrix_pattern", "capi_matrix_scroll"))
 PINS = {"trafficLight": ["red", "yellow", "green"], "robot": ["leftIn1", "leftIn2", "rightIn1", "rightIn2"], "motor": ["in1", "in2"], **{kind: ["signal"] for kind in ("led", "servo", "activeBuzzer", "passiveBuzzer", "button", "lightSensor", "potentiometer")}, "wifiNode": []}
@@ -36,11 +36,12 @@ CONFIGS = {
     "wifiNode": {"status": ["idle", "connecting", "connected", "error"], "ssid": 64},
     "counter": {"value": (-1e308, 1e308), "mascot": 32},
 }
-PINS["display"] = ["sda", "scl", "sck", "mosi", "cs", "dc", "rst"]
+PINS["display"] = ["sda", "scl", "sck", "mosi", "cs", "dc", "rst", "rs", "en", "d4", "d5", "d6", "d7", "backlight", "keys"]
+LEGACY_DISPLAY_PINS = {"sda", "scl", "sck", "mosi", "cs", "dc", "rst"}
 PINS["messages"] = ["tx", "rx"]
 PINS["ledMatrix"] = ["din", "clk", "cs"]
 CONFIGS["messages"] = {"mode": ["send", "receive", "both"], "baudRate": [9600, 19200, 38400, 57600, 115200]}
-DISPLAY_PROFILES = {"lcd1602": (16, 2, False, "i2c"), "lcd2004": (20, 4, False, "i2c"), "ssd1306": (16, 8, True, "i2c"), "ili9341": (26, 15, True, "spi"), "ili9488": (40, 20, True, "spi")}
+DISPLAY_PROFILES = {"lcd1602keypad": (16, 2, False, "parallel"), "lcd1602": (16, 2, False, "i2c"), "lcd2004": (20, 4, False, "i2c"), "ssd1306": (16, 8, True, "i2c"), "ili9341": (26, 15, True, "spi"), "ili9488": (40, 20, True, "spi")}
 
 
 def display_config(config):
@@ -49,7 +50,7 @@ def display_config(config):
     require(legacy or set(config) == {"profile", "address", "areas", "retiredAreaIds", "animationSpeed", "artworks", "retiredArtworkIds"})
     require(isinstance(config["profile"], str) and config["profile"] in DISPLAY_PROFILES)
     columns, rows, graphic, bus = DISPLAY_PROFILES[config["profile"]]
-    require(type(config["address"]) is int and (config["address"] == 0 if bus == "spi" else config["address"] in ([0x3c, 0x3d] if config["profile"] == "ssd1306" else [*range(0x20, 0x28), *range(0x38, 0x40)])))
+    require(type(config["address"]) is int and (config["address"] == 0 if bus in ("spi", "parallel") else config["address"] in ([0x3c, 0x3d] if config["profile"] == "ssd1306" else [*range(0x20, 0x28), *range(0x38, 0x40)])))
     areas, retired = config["areas"], config["retiredAreaIds"]
     require(isinstance(areas, list) and len(areas) <= 8 and (graphic or not areas))
     require(isinstance(retired, list) and len(retired) <= 4096)
@@ -84,7 +85,7 @@ def display_config(config):
         for artwork_id in retired_artworks:
             require(isinstance(artwork_id, str) and re.fullmatch(r"[a-z0-9][a-z0-9-]{0,31}", artwork_id) and artwork_id not in artwork_ids)
             artwork_ids.add(artwork_id)
-    return ["sda", "scl"] if bus == "i2c" else ["sck", "mosi", "cs", "dc", "rst"]
+    return ["sda", "scl"] if bus == "i2c" else ["rs", "en", "d4", "d5", "d6", "d7", "backlight", "keys"] if bus == "parallel" else ["sck", "mosi", "cs", "dc", "rst"]
 
 
 def matrix_config(config):
@@ -234,6 +235,7 @@ def scene(value, board_profile="wemos-d1-r32"):
                 require(display_count <= 1, "Cada proyecto admite una sola pantalla o matriz.")
                 used_pins = display_config(config)
                 require(isinstance(item["pins"], dict) and all(item["pins"].get(key) is None for key in PINS[kind] if key not in used_pins))
+                require(set(item["pins"]) == set(PINS[kind]) or (config["profile"] != "lcd1602keypad" and set(item["pins"]) == LEGACY_DISPLAY_PINS))
             elif kind == "ledMatrix":
                 display_count += 1
                 require(display_count <= 1, "Cada proyecto admite una sola pantalla o matriz.")
@@ -254,7 +256,8 @@ def scene(value, board_profile="wemos-d1-r32"):
                 require(config["mode"] != "receive" or item["pins"]["tx"] is None)
             if not is_widget:
                 require(number(item["rotation"], 0, 360) and item["rotation"] < 360)
-                exact(item["pins"], PINS[kind])
+                if kind != "display":
+                    exact(item["pins"], PINS[kind])
                 require(all(pin is None or (type(pin) is int and -2147483648 <= pin <= 2147483647) for pin in item["pins"].values()))
                 require(all(pin is None or pin in BOARD_PINS[board_profile] for pin in item["pins"].values()), "La escena usa un GPIO que no pertenece a la placa elegida.")
     retired = value.get("retiredDeviceIds", [])

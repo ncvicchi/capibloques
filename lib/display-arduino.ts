@@ -17,7 +17,12 @@ export function displayArduinoSupport(scene: SceneDefinition) {
   const pin = (key: keyof typeof device.pins) => device.pins[key] ?? -1;
   const lcd = !profile.graphic;
   const i2c = profile.bus === 'i2c';
-  const driver = lcd
+  const parallel = profile.bus === 'parallel';
+  const driver = parallel
+    ? `// Pantalla HD44780 16x2 y teclado resistivo de cinco botones.
+#include <LiquidCrystal.h>
+LiquidCrystal capiScreen(${pin('rs')}, ${pin('en')}, ${pin('d4')}, ${pin('d5')}, ${pin('d6')}, ${pin('d7')});`
+    : lcd
     ? `// Instalar LiquidCrystal_PCF8574@2.3.0 (BSD). Backpack PCF8574 estándar.
 #include <Wire.h>
 #include <LiquidCrystal_PCF8574.h>
@@ -37,7 +42,15 @@ ${device.config.profile === 'ili9488' ? 'Arduino_ILI9488_18bit' : 'Arduino_ILI93
   return Wire.endTransmission() == 0;
 }`
     : '';
-  const init = i2c
+  const init = parallel
+    ? `  pinMode(${pin('backlight')}, OUTPUT);
+  digitalWrite(${pin('backlight')}, HIGH);
+  pinMode(${pin('keys')}, INPUT);
+  analogSetPinAttenuation(${pin('keys')}, ADC_11db);
+  capiScreen.begin(${profile.columns}, ${profile.rows});
+  capiScreen.clear();
+  capiDisplayReady = true;`
+    : i2c
     ? `  if (!Wire.begin(${pin('sda')}, ${pin('scl')}, 100000)) return;
   Wire.setTimeOut(2);
   if (!capiDisplayResponds()) { Serial.println("[Pantalla] Sin respuesta I2C. El programa continua; revisar cables y reiniciar."); return; }
@@ -66,6 +79,17 @@ char capiDisplayWanted[CAPI_DISPLAY_CELLS];
 char capiDisplaySent[CAPI_DISPLAY_CELLS];
 bool capiDisplayReady = false;
 ${probe}
+${parallel ? `uint8_t capiDisplayButton() {
+  const int value = analogRead(${pin('keys')});
+  if (value < 200) return 0;   // Derecha
+  if (value < 1000) return 1;  // Arriba
+  if (value < 1800) return 2;  // Abajo
+  if (value < 2600) return 3;  // Izquierda
+  if (value < 3400) return 4;  // Elegir
+  return 255;
+}
+bool capiDisplayButtonPressed(uint8_t button) { return capiDisplayButton() == button; }
+` : ''}
 ${displayAnimationFirmwareSupport()}
 void capiDisplayBegin() {
   memset(capiDisplayWanted, ' ', CAPI_DISPLAY_CELLS);

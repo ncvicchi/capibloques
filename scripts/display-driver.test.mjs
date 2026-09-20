@@ -36,16 +36,21 @@ struct TestScreen {
   void fillRect(int, int, int, int, int) { ++draws; }
 };
 using LiquidCrystal_PCF8574 = TestScreen;
+using LiquidCrystal = TestScreen;
 using U8X8_SSD1306_128X64_NONAME_HW_I2C = TestScreen;
 using Arduino_ILI9341 = TestScreen;
 using Arduino_ILI9488_18bit = TestScreen;
 using Arduino_ESP32SPI = TestScreen;
 constexpr int U8X8_PIN_NONE = 255, GFX_NOT_DEFINED = -1, VSPI = 0;
+constexpr int OUTPUT = 1, INPUT = 0, HIGH = 1, ADC_11db = 3;
+void pinMode(int, int) {} void digitalWrite(int, int) {} void analogSetPinAttenuation(int, int) {}
+int analogRead(int) { return 4095; }
 const uint8_t u8x8_font_chroma48medium8_r[] = {0};
 `;
 await writeFile(resolve(directory, 'driver-stub.h'), stub);
 for (const header of [
   'Wire.h',
+  'LiquidCrystal.h',
   'LiquidCrystal_PCF8574.h',
   'U8x8lib.h',
   'Arduino_GFX_Library.h',
@@ -59,6 +64,7 @@ for (const profile of Object.keys(displayProfiles)) {
     config: displayConfig(profile),
   });
   const i2c = displayProfiles[profile].bus === 'i2c';
+  const parallel = displayProfiles[profile].bus === 'parallel';
   const source = `#include "driver-stub.h"
 ${displayArduinoSupport(scene)}
 uint32_t testClock = 2;
@@ -72,13 +78,13 @@ void flush() {
   assert(memcmp(capiDisplayWanted, capiDisplaySent, CAPI_DISPLAY_CELLS) == 0);
 }
 int main() {
-  ${i2c ? 'Wire.present = false;' : 'capiScreen.available = false;'}
+  ${i2c ? 'Wire.present = false;' : parallel ? '' : 'capiScreen.available = false;'}
   capiDisplayBegin();
-  assert(!capiDisplayReady);
+  assert(capiDisplayReady == ${parallel ? 'true' : 'false'});
   capiDisplayWrite(0, 0, 1, 1, "A");
   for (int i = 0; i < 100; ++i) service();
-  assert(capiScreen.draws == 0);
-  ${i2c ? 'assert(Wire.probes == 1); assert(Serial.messages == 1); Wire.present = true;' : 'capiScreen.available = true;'}
+  assert(capiScreen.draws == ${parallel ? '1' : '0'});
+  ${parallel ? '' : i2c ? 'assert(Wire.probes == 1); assert(Serial.messages == 1); Wire.present = true;' : 'capiScreen.available = true;'}
   capiDisplayBegin(); assert(capiDisplayReady);
   ${i2c ? 'assert(Wire.timeout == 2);' : ''}
   capiDisplayWrite(0, 0, 3, 1, "OLD");

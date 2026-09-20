@@ -168,6 +168,13 @@ export function DisplayProperties({
           ? 'Cada zona tiene su propio mensaje; las zonas no pueden superponerse.'
           : 'Los mensajes van directamente a toda la pantalla.'}
       </p>
+      {profile.keypad && (
+        <p>
+          Incluye los botones Izquierda, Arriba, Abajo, Derecha y Elegir. En
+          los bloques aparecen como condiciones; la escena configura una sola
+          entrada para todos ellos.
+        </p>
+      )}
       {profile.bus === 'i2c' && (
         <label>
           Dirección I2C

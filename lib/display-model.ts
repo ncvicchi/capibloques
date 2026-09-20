@@ -3,10 +3,22 @@ import { defaultDisplayArtworks, DISPLAY_ART_HEIGHT, MAX_DISPLAY_ARTWORKS, type 
 
 /** Portable text destinations. Coordinates are character cells, not GPIOs. */
 export const displayProfiles = {
+  lcd1602keypad: {
+    name: 'Pantalla con botones 16 × 2 · paralelo',
+    bus: 'parallel',
+    graphic: false,
+    keypad: true,
+    columns: 16,
+    rows: 2,
+    width: 16,
+    height: 2,
+    address: 0,
+  },
   lcd1602: {
     name: 'LCD 16 × 2 · PCF8574 I2C',
     bus: 'i2c',
     graphic: false,
+    keypad: false,
     columns: 16,
     rows: 2,
     width: 16,
@@ -17,6 +29,7 @@ export const displayProfiles = {
     name: 'LCD 20 × 4 · PCF8574 I2C',
     bus: 'i2c',
     graphic: false,
+    keypad: false,
     columns: 20,
     rows: 4,
     width: 20,
@@ -27,6 +40,7 @@ export const displayProfiles = {
     name: 'OLED SSD1306 128 × 64 · I2C',
     bus: 'i2c',
     graphic: true,
+    keypad: false,
     columns: 16,
     rows: 8,
     width: 128,
@@ -37,6 +51,7 @@ export const displayProfiles = {
     name: 'TFT ILI9341 320 × 240 · SPI',
     bus: 'spi',
     graphic: true,
+    keypad: false,
     columns: 26,
     rows: 15,
     width: 320,
@@ -47,6 +62,7 @@ export const displayProfiles = {
     name: 'TFT ILI9488 480 × 320 · SPI',
     bus: 'spi',
     graphic: true,
+    keypad: false,
     columns: 40,
     rows: 20,
     width: 480,
@@ -84,6 +100,14 @@ export const displayPinKeys = [
   'cs',
   'dc',
   'rst',
+  'rs',
+  'en',
+  'd4',
+  'd5',
+  'd6',
+  'd7',
+  'backlight',
+  'keys',
 ] as const;
 export type DisplayPinKey = (typeof displayPinKeys)[number];
 export const displayPins = () =>
@@ -156,9 +180,11 @@ export function displayTargets(config: DisplayConfig): TextArea[] {
 export function requiredDisplayPins(
   config: DisplayConfig,
 ): readonly DisplayPinKey[] {
-  return displayProfiles[config.profile].bus === 'i2c'
-    ? ['sda', 'scl']
-    : ['sck', 'mosi', 'cs', 'dc', 'rst'];
+  const bus = displayProfiles[config.profile].bus;
+  if (bus === 'i2c') return ['sda', 'scl'];
+  if (bus === 'parallel')
+    return ['rs', 'en', 'd4', 'd5', 'd6', 'd7', 'backlight', 'keys'];
+  return ['sck', 'mosi', 'cs', 'dc', 'rst'];
 }
 
 export function nextTextAreaId(config: DisplayConfig) {
@@ -229,7 +255,7 @@ export function validDisplayConfig(
         );
   if (
     !integer(value.address, 0, 127) ||
-    (profile.bus === 'spi'
+    (profile.bus === 'spi' || profile.bus === 'parallel'
       ? value.address !== 0
       : !addresses.includes(value.address))
   )

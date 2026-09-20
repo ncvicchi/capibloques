@@ -62,8 +62,11 @@ for (const profile of Object.keys(displayProfiles)) {
     assert.match(native.code, /spi_device_queue_trans.*pdMS_TO_TICKS\(20\)/);
     assert.match(native.code, /spi_device_get_trans_result.*pdMS_TO_TICKS\(20\)/);
     assert.doesNotMatch(native.code, /spi_device_polling_transmit|spi_device_transmit\(/);
+  } else if (profile === 'lcd1602keypad') {
+    assert.match(native.code, /capiDisplayButtonPressed/);
+    assert.match(native.code, /esp_rom_delay_us/);
   } else assert.match(native.code, /i2c_master_transmit\(capiDisplayDevice, data, count, 5\)/);
-  device.pins[profile.startsWith('ili') ? 'sck' : 'sda'] = null;
+  device.pins[profile.startsWith('ili') ? 'sck' : profile === 'lcd1602keypad' ? 'rs' : 'sda'] = null;
   const invalid = generateEspIdfCodeResult(program, 'Invalid', scene);
   assert.throws(() => espIdfProjectFiles(invalid));
 }
@@ -71,4 +74,4 @@ assert.equal(IDF_FONT.length, 475);
 assert.match(IDF_FONT_LICENSE, /Copyright \(c\) 2012 Adafruit/);
 for (const path of ['../oops', '/root', 'x/../oops', 'x//y', 'x\\y']) assert.throws(() => zipFirmwareFiles({ [path]: 'x' }));
 assert.throws(() => zipFirmwareFiles({ 'main.cpp': 'x'.repeat(17 * 1024 * 1024) }));
-console.log('ESP-IDF: shared graph, native APIs, PWM timer isolation, five displays, deterministic ZIP and invalid-input guards passed.');
+console.log('ESP-IDF: shared graph, native APIs, PWM timer isolation, six displays, deterministic ZIP and invalid-input guards passed.');

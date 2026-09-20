@@ -48,6 +48,14 @@ function sample(profile: DisplayProfile = 'ssd1306') {
     ...(config.areas.length
       ? [write('write-two', 'second', 'Sigue aqui')]
       : []),
+    ...(profile === 'lcd1602keypad' ? [{
+      type: 'capi_if',
+      id: 'keypad-if',
+      inputs: {
+        CONDITION: { block: { type: 'capi_display_button_pressed', id: 'keypad-select', fields: { DEVICE_ID: device.id, BUTTON: 'SELECT' } } },
+        DO: { block: { type: 'capi_serial', id: 'keypad-message', fields: { TEXT: 'Elegir presionado' } } },
+      },
+    }] : []),
     {
       type: 'capi_display_clear',
       id: 'clear-one',
@@ -368,14 +376,15 @@ test('pantalla: retirar zona no retargetea bloques; layout inválido no se guard
   expect(JSON.stringify(exported.workspace)).toContain('text-1');
 });
 
-test('pantalla: los cinco modelos se importan, simulan y exportan sin cambiar el destino', async ({
+test('pantalla: los seis modelos se importan, simulan y exportan sin cambiar el destino', async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await open(page);
-  for (const profile of Object.keys(displayProfiles) as DisplayProfile[]) {
-    await importProject(page, profile, profile !== 'lcd1602');
+  for (const [index, profile] of (Object.keys(displayProfiles) as DisplayProfile[]).entries()) {
+    await importProject(page, profile, index > 0);
     await page
       .getByRole('combobox', { name: 'Modo de ejecución' })
       .selectOption('guided');
@@ -385,6 +394,16 @@ test('pantalla: los cinco modelos se importan, simulan y exportan sin cambiar el
     ).toContainText('Hola mundo');
     const saved = await exportProject(page);
     expect(saved.scene.devices[0].config.profile).toBe(profile);
+    if (profile === 'lcd1602keypad') {
+      await expect(page.locator('[data-id="keypad-select"]')).toContainText('Elegir');
+      await page.getByRole('tab', { name: 'Estado', exact: true }).click();
+      const key = page.locator('.input-lab').getByRole('button', { name: 'Elegir', exact: true });
+      await key.dispatchEvent('pointerdown');
+      await expect(key).toHaveAttribute('aria-pressed', 'true');
+      await key.dispatchEvent('pointerup');
+      await expect(key).toHaveAttribute('aria-pressed', 'false');
+      await page.getByRole('tab', { name: 'Escena', exact: true }).click();
+    }
   }
   expect(errors).toEqual([]);
 });

@@ -5,7 +5,7 @@ import pathlib
 import zipfile
 
 root = pathlib.Path('.idf-ci').resolve()
-for profile in ('main', 'auxiliary', 'matrix', 'lcd1602', 'lcd2004', 'ssd1306', 'ili9341', 'ili9488', 's3'):
+for profile in ('main', 'auxiliary', 'matrix', 'lcd1602keypad', 'lcd1602', 'lcd2004', 'ssd1306', 'ili9341', 'ili9488', 's3'):
     with zipfile.ZipFile(root / f'{profile}.zip') as archive:
         assert archive.testzip() is None, profile
         names = archive.namelist()

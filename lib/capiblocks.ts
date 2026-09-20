@@ -53,6 +53,7 @@ export type Condition =
       right: number;
     }
   | { kind: 'buttonPressed'; deviceId: string }
+  | { kind: 'displayButtonPressed'; deviceId: string; button: 'RIGHT' | 'UP' | 'DOWN' | 'LEFT' | 'SELECT' }
   | {
       kind: 'sensor';
       deviceId: string;
@@ -227,6 +228,7 @@ export type RuntimeDeviceState =
       texts: Record<string, string[]>;
       artworkRows: number[];
       animation: string | null;
+      pressedButton: 'RIGHT' | 'UP' | 'DOWN' | 'LEFT' | 'SELECT' | null;
     }
   | { kind: 'ledMatrix'; rows: number[]; scrolling: boolean }
   | {
@@ -755,6 +757,7 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_buzzer',
   'capi_tone',
   'capi_button_pressed',
+  'capi_display_button_pressed',
   'capi_sensor_compare',
   'capi_wifi_connect',
   'capi_wifi_connected',
@@ -1211,6 +1214,7 @@ const blockKind = (block: Record<string, unknown>): SceneDeviceKind | null => {
     case 'capi_display_clear':
     case 'capi_display_animate_text':
     case 'capi_display_artwork': return 'display';
+    case 'capi_display_button_pressed': return 'display';
     case 'capi_matrix_clear':
     case 'capi_matrix_pixel':
     case 'capi_matrix_pattern':
@@ -1583,6 +1587,7 @@ const compatibleKindsForCondition = (
   condition: Record<string, unknown>,
 ): SceneDeviceKind[] => {
   if (condition.kind === 'buttonPressed') return ['button'];
+  if (condition.kind === 'displayButtonPressed') return ['display'];
   if (condition.kind === 'sensor') {
     return condition.sensor === 'POTENTIOMETER'
       ? ['potentiometer']
@@ -1634,6 +1639,17 @@ function normalizeCondition(raw: unknown, scene: SceneDefinition): Condition {
           typeof condition.deviceId === 'string'
             ? condition.deviceId
             : (target?.id ?? 'missing-button'),
+      };
+    }
+    case 'displayButtonPressed': {
+      const target = firstCompatibleDevice(scene, ['display']);
+      const button = ['RIGHT', 'UP', 'DOWN', 'LEFT', 'SELECT'].includes(String(condition.button))
+        ? condition.button as 'RIGHT' | 'UP' | 'DOWN' | 'LEFT' | 'SELECT'
+        : 'SELECT';
+      return {
+        kind: 'displayButtonPressed',
+        deviceId: typeof condition.deviceId === 'string' ? condition.deviceId : (target?.id ?? 'missing-display'),
+        button,
       };
     }
     case 'sensor': {
@@ -2028,7 +2044,7 @@ function validateConditionTarget(
   deviceMap: Map<string, SceneDevice>,
   diagnostics: CapiDiagnostic[],
 ) {
-  if (condition.kind !== 'buttonPressed' && condition.kind !== 'sensor') return;
+  if (condition.kind !== 'buttonPressed' && condition.kind !== 'displayButtonPressed' && condition.kind !== 'sensor') return;
   const device = deviceMap.get(condition.deviceId);
   const expected = compatibleKindsForCondition(
     condition as unknown as Record<string, unknown>,
@@ -2046,6 +2062,14 @@ function validateConditionTarget(
       severity: 'error',
       code: 'target-kind-mismatch',
       message: `${device.name} no es compatible con esta condición.`,
+      deviceId: device.id,
+      blockId,
+    });
+  } else if (condition.kind === 'displayButtonPressed' && (device.kind !== 'display' || device.config.profile !== 'lcd1602keypad')) {
+    diagnostics.push({
+      severity: 'error',
+      code: 'target-kind-mismatch',
+      message: `${device.name} no tiene el teclado de cinco botones.`,
       deviceId: device.id,
       blockId,
     });
@@ -2475,6 +2499,10 @@ function conditionToCpp(condition: Condition, context: GeneratorContext) {
     return context.framework === 'esp-idf' ? 'capiWifiConnected()' : 'WiFi.status() == WL_CONNECTED';
   if (condition.kind === 'buttonPressed')
     return `${context.framework === 'esp-idf' ? 'capiDigitalRead' : 'digitalRead'}(${pinConstant(context, condition.deviceId)}) == ${context.framework === 'esp-idf' ? '0' : 'LOW'}`;
+  if (condition.kind === 'displayButtonPressed') {
+    const buttons = { RIGHT: 0, UP: 1, DOWN: 2, LEFT: 3, SELECT: 4 } as const;
+    return `capiDisplayButtonPressed(${buttons[condition.button]})`;
+  }
   if (condition.kind === 'sensor') {
     return `${context.framework === 'esp-idf' ? 'capiAnalogRead' : 'analogRead'}(${pinConstant(context, condition.deviceId)}) ${operators[condition.operator]} ${Math.max(0, Math.min(4095, Math.round(condition.value)))}`;
   }

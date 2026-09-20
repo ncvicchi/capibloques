@@ -51,6 +51,7 @@ La simulación conserva el texto al detenerse para poder leerlo; reiniciar o car
 
 | Perfil | Destino/celdas | Conexión | Biblioteca fijada |
 | --- | --- | --- | --- |
+| LCD Keypad 16×2 | Pantalla completa, 16×2 y cinco botones | Paralelo RS/EN/D4–D7, luz y ADC | LiquidCrystal 1.0.7 |
 | LCD 16×2 | Pantalla completa, 16×2 | PCF8574 I2C, SDA/SCL | LiquidCrystal_PCF8574 2.3.0 |
 | LCD 20×4 | Pantalla completa, 20×4 | PCF8574 I2C, SDA/SCL | LiquidCrystal_PCF8574 2.3.0 |
 | OLED SSD1306 128×64 | Zonas, rejilla 16×8, fuente 8×8 | I2C, SDA/SCL | U8g2 2.36.19, interfaz U8x8 |

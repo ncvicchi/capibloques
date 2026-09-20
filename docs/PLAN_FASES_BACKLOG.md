@@ -353,6 +353,7 @@ Aceptación:
 
 Alcance:
 
+- Rediseñar el ingreso para que el logo y el nombre de la institución sean el centro visual antes del formulario; CapiBloques queda como identidad de producto secundaria y el estado sin logo conserva una composición deliberada.
 - Diseñar una sesión de aula creada por docente autorizado, acotada a curso, duración y dispositivo, con revocación inmediata y alternativa de alias/contraseña.
 - Definir selección/confirmación de identidad en equipos compartidos, prevención de reutilización y límites de intentos. Un código común no debe permitir elegir cualquier alumno sin control adicional.
 - Registrar asistencia como evento explícito y revisable, diferenciando ingreso técnico de presencia confirmada; definir visibilidad, correcciones y retención.
@@ -360,8 +361,62 @@ Alcance:
 
 Aceptación:
 
+- Logo ausente/presente, nombre corto/largo, móvil, texto ampliado, teclado, lector de pantalla, carga y error de autenticación conservan la identidad institucional claramente visible y el formulario utilizable.
 - Curso incorrecto, sesión vencida/revocada, segundo dispositivo, cambio de alumno y equipo compartido no exponen proyectos ni atribuyen trabajo a otra persona.
 - Docente sólo opera sus cursos; administrador conserva gestión global sin convertirse en docente implícito. Se prueban revocación, auditoría, privacidad y recuperación.
+
+## Fase 27 — Familia de robots HP Robots | Otto
+
+**Objetivo:** programar configuraciones Otto desde el mismo editor de CapiBloques, con acciones infantiles de alto nivel y acceso didáctico opcional a sus piezas.
+
+Alcance:
+
+- Inventariar los modelos físicos disponibles y construir una matriz verificable de controlador, servos, buzzer, ultrasonido, matriz/ojos, botones, comunicación y alimentación.
+- Modelar cada Otto como un componente compuesto con perfil explícito; no duplicar pines ni permitir una combinación que no existe físicamente.
+- Incorporar movimientos, giros, bailes, sonidos, expresiones, lectura de distancia y detención mediante un planificador cooperativo, cancelable y compatible con `Al mismo tiempo`.
+- Separar calibración mecánica —centro, inversión y límites por servo— de los bloques infantiles. Ofrecer una vista educativa para revelar los componentes sin exigir que el alumno coordine cada articulación desde el comienzo.
+- Mantener simulación, JSON, deshacer/rehacer, Arduino y ESP-IDF con la misma semántica. Un controlador Otto que no sea ESP32 queda fuera hasta decidir y validar expresamente ese target.
+
+Aceptación:
+
+- Cada variante identificada sólo ofrece capacidades presentes y rechaza perfiles/pines incompatibles de manera comprensible.
+- Caminar, girar, detener, bailar y reaccionar a distancia no bloquean otros caminos; detener/reiniciar deja los servos en el estado seguro acordado.
+- La postura simulada, el código generado y el robot físico coinciden en dirección, velocidad relativa, calibración y duración dentro de tolerancias documentadas.
+- Proyectos sin Otto y componentes individuales conservan JSON, simulación y código previos.
+
+## Fase 28 — Barrera infrarroja digital
+
+**Objetivo:** incorporar una barrera infrarroja como sensor binario comprensible, simulable y portable a Arduino y ESP-IDF.
+
+Alcance:
+
+- Un componente de escena con nombre editable, GPIO de entrada y polaridad configurable, presentado como «libre / interrumpida» y no como valor analógico.
+- Una condición encastrable en cualquier bloque condicional para consultar ambos estados, sin esperas bloqueantes ni un flujo propio obligatorio.
+- Control explícito en la simulación, representación visual del haz y estado accesible sin depender sólo del color.
+- Validación de pines, cableado, JSON compatible y generación equivalente para Arduino y ESP-IDF.
+
+Aceptación:
+
+- Un proyecto puede simular una pieza que cruza y libera la barrera, exportarse/importarse y producir el mismo resultado lógico con ambas polaridades.
+- Las dos salidas compilan para los perfiles de placa autorizados. El modelo físico disponible se identifica y ensaya antes de afirmar compatibilidad eléctrica.
+
+## Fase 29 — Datos, variables y textos dinámicos
+
+**Objetivo:** ofrecer un modelo único y comprensible para guardar, transformar, comparar y comunicar datos del programa y sus componentes.
+
+Alcance:
+
+- Variables de proyecto tipadas como número, texto o sí/no, con nombre, valor inicial, asignación, lectura y cambio numérico.
+- Bloques de valor para datos de componentes autorizados —por ejemplo contador, sensores, botones, conexión, mensajes y posición— sin duplicar una acción por cada destino.
+- Un bloque «armar texto» con fragmentos fijos y valores dinámicos, reutilizable por consola, Pantalla de texto, Mensajes y futuros destinos textuales.
+- Reglas claras para nombres, alcance entre caminos de `Al mismo tiempo`, conversiones explícitas, límites de texto/memoria y comportamiento al reiniciar.
+- JSON compatible, inspector de valores en simulación, progreso local, deshacer/rehacer y generación equivalente para Arduino y ESP-IDF.
+
+Aceptación:
+
+- Se puede construir «El contador está en [contador]», mostrarlo y enviarlo sin bloques especiales para el contador; el mismo mecanismo acepta al menos un sensor y un mensaje recibido.
+- Tipos incompatibles, nombres repetidos y valores fuera de límites producen una explicación infantil antes de simular o generar código.
+- Caminos paralelos y reinicios tienen semántica determinista documentada; proyectos anteriores mantienen su contador y comportamiento.
 
 ## Fase final — Producción y piloto, postergada
 
@@ -378,5 +433,5 @@ El gateway sigue siendo sólo un salto SSH, con prohibición de cambios. Tampoco
 - Una fase completa autorizada por vez, con implementación, pruebas proporcionales, entrega en DEV y commit/push. Informar avances con evidencia y pendientes; no inventar porcentajes ni tiempos exactos.
 - **Fases 11–14 entregadas; fases 15 y 16 terminadas en software; fase 23 en curso.** Actualizar la documentación viva al cerrar cada entrega solicitada. No ejecutar las fases restantes, completar la aceptación física ni avanzar a producción sin autorización y hardware correspondientes.
 - Para fase 17 hace falta el modelo Waveshare exacto antes de fijar drivers/pines; para cerrar las aceptaciones físicas de 15, 16 y 23 hace falta autorización para reemplazar firmware y los montajes correspondientes.
-- La fase 14 fija el paralelo como un contenedor con caminos apilados de arriba hacia abajo y mantiene fork/join. Formato de mensajes/timeout se fija en fase 15; prioridad manual/programa y límites gráficos en fase 18; catálogo inicial y visibilidad docente en fase 19; métricas/asistente en 20; UX en 21; avatar en 22; displays/matriz en 23; panel móvil en 24; compartir en 25; acceso de aula en 26. Son decisiones dentro de esas fases, no nuevas fases con letras.
+- La fase 14 fija el paralelo como un contenedor con caminos apilados de arriba hacia abajo y mantiene fork/join. Formato de mensajes/timeout se fija en fase 15; prioridad manual/programa y límites gráficos en fase 18; catálogo inicial y visibilidad docente en fase 19; métricas/asistente en 20; UX en 21; avatar en 22; displays/matriz en 23; panel móvil en 24; compartir en 25; acceso de aula en 26; Otto en 27; barrera infrarroja en 28; datos y variables en 29. Son decisiones dentro de esas fases, no nuevas fases con letras.
 - No hay estimaciones horarias comprometidas: hardware, alcance de la adaptación gráfica y mediciones en la VM condicionan el esfuerzo. No retrasar ahora la planificación esperando esos datos, ni prometer implementaciones específicas de un modelo no identificado.

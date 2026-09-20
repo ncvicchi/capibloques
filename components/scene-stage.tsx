@@ -34,6 +34,7 @@ export type RuntimeVisualDevice = {
   frequency?: number;
   pressed?: boolean;
   value?: number;
+  pressedButton?: 'RIGHT' | 'UP' | 'DOWN' | 'LEFT' | 'SELECT' | null;
   status?: 'idle' | 'disconnected' | 'connecting' | 'connected' | 'error';
 };
 
@@ -88,6 +89,7 @@ function DeviceVisual({
         device={device}
         texts={runtime?.texts}
         artworkRows={runtime?.artworkRows}
+        pressedButton={runtime?.pressedButton}
       />
     );
   if (device.kind === 'ledMatrix') return <LedMatrixPreview device={device} rows={runtime?.rows} />;

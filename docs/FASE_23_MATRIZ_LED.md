@@ -56,6 +56,21 @@ La mejora de claridad y borrado quedó en `7afdf2a`, con el ajuste de regresión
 
 ## Aceptación física pendiente
 
+### Inventario disponible para la aceptación
+
+El 20 de septiembre de 2026 el propietario confirmó que dispone de estas unidades físicas:
+
+- un **LCD Keypad Shield 16 × 2** compatible con el diseño DFRobot clásico: HD44780 en bus paralelo, cinco botones por una escalera resistiva conectada a una única entrada analógica y alimentación nominal de 5 V;
+- un **LCD 20 × 4 con mochila I2C** tipo PCF8574, cuya dirección y alimentación reales todavía deben medirse;
+- un **TFT ILI9341** SPI, pendiente de identificar por la serigrafía y las conexiones de la unidad real;
+- una **matriz 32 × 8** formada por cuatro MAX7219 encadenados.
+
+Las imágenes aportadas sirven para clasificar el tipo de módulo, pero no sustituyen la inspección de la unidad real: los clones pueden cambiar dirección, asignación del PCF8574, regulador, resistencias de pull-up y orden de los paneles.
+
+El LCD Keypad 16 × 2 no debe confundirse con el perfil `lcd1602` I2C vigente. El propietario confirmó que su pantalla y sus botones ya funcionan correctamente. Se incorporará como un único componente amigable, **Pantalla con botones 16 × 2**, con salida de texto y cinco entradas lógicas (Arriba, Abajo, Izquierda, Derecha y Elegir). Los valores ADC y sus umbrales serán calibración del componente, no bloques expuestos al alumno.
+
+Orden de integración acordado: LCD 20 × 4 I2C, ILI9341, MAX7219 y LCD Keypad 16 × 2. El último ya tiene aceptación funcional básica aportada por el propietario; falta integrarlo y verificar el firmware generado por CapiBloques.
+
 Con el módulo exacto disponible hay que comprobar tensión/corriente declaradas, color, orden real de los cuatro paneles, orientación, brillo mínimo/máximo, dibujos, texto desplazable, desconexión y convivencia con delays, Mensajes, sensores y PWM. Esa medición decidirá si conviene autorizar más de una unidad 32 × 8 o rotación de 90°; hasta entonces el límite de una unidad es deliberado.
 
 También siguen pendientes las pruebas físicas de LCD PCF8574 16 × 2/20 × 4, OLED SSD1306 e ILI9341/ILI9488 previstas en fase 23. Por eso esta entrega no declara cerrada toda la fase.

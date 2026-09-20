@@ -168,6 +168,7 @@ function runtimeForDevice(device: SceneDevice): RuntimeDeviceState {
       texts: Object.fromEntries(displayTargets(device.config).map(area => [area.id, layoutDisplayText('', area).lines])),
       artworkRows: Array.from({ length: 8 }, () => 0),
       animation: null,
+      pressedButton: null,
     };
     case 'ledMatrix': return { kind: 'ledMatrix', rows: Array.from({ length: 8 }, () => 0), scrolling: false };
     case 'messages': return { kind: 'messages', received: [], transmitted: [], damaged: 0 };
@@ -420,6 +421,12 @@ function createExecutions(): ThreadExecution[] {
 
 function applyInputValue(deviceId: string, value: unknown) {
   const device = state.devices[deviceId];
+  if (device?.kind === 'display') {
+    device.pressedButton = ['RIGHT', 'UP', 'DOWN', 'LEFT', 'SELECT'].includes(String(value))
+      ? value as typeof device.pressedButton
+      : null;
+    return;
+  }
   if (device?.kind === 'button') {
     device.pressed = Boolean(value);
     return;
@@ -498,6 +505,10 @@ function evaluate(condition: Condition) {
   if (condition.kind === 'buttonPressed') {
     const device = state.devices[condition.deviceId];
     return device?.kind === 'button' && device.pressed;
+  }
+  if (condition.kind === 'displayButtonPressed') {
+    const device = state.devices[condition.deviceId];
+    return device?.kind === 'display' && device.pressedButton === condition.button;
   }
   if (condition.kind === 'counter') {
     return numberOperators[condition.operator](state.counter, condition.value);

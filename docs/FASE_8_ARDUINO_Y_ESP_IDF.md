@@ -8,7 +8,7 @@ Autorizada por el propietario: «Vamos con 8». **Implementada y verificada en D
 
 - Mantener Arduino `.ino` y JSON; sumar ZIP de proyecto ESP-IDF nativo para Wemos D1 R32/chip ESP32.
 - Usar el mismo programa intermedio y grafo cooperativo: condiciones, contadores saturados, bucles, esperas y fork/join. No convertir las ramas en tareas FreeRTOS independientes.
-- Cubrir GPIO, ADC, LED/PWM, motores, servos, buzzers, Wi-Fi, consola y los cinco perfiles de pantalla actuales; conservar sus límites y diagnósticos de cableado.
+- Cubrir GPIO, ADC, LED/PWM, motores, servos, buzzers, Wi-Fi, consola y los perfiles de pantalla vigentes; conservar sus límites y diagnósticos de cableado. La fase 23 amplió posteriormente el conjunto a seis con LCD Keypad 16 × 2.
 - ESP-IDF 5.5.5 fijado, sin Arduino como componente ni instalación de bibliotecas externas durante la exportación. ZIP determinista con C/C++, CMake, configuración, instrucciones, licencias y manifiesto de fuentes.
 - Descarga en editor y revisión docente, con las mismas protecciones de cableado, permisos y versión. No incorporar credenciales Wi-Fi a JSON ni al servidor; conservar marcadores para configuración local.
 - Probar paridad lógica, exportación/JSON anterior, errores de configuración, compilación real con versiones fijadas y Chrome/Edge sobre DEV.
@@ -50,7 +50,7 @@ La revisión docente ofrece la descarga ESP-IDF de la versión seleccionada desp
 
 Las pruebas usan cuentas/documentos sintéticos y dispositivos de prueba. El compilador real corre en GitHub CI, no en las VMs limitadas. Se compilan **los archivos extraídos del ZIP exportado**, no una fuente alternativa preparada sólo para CI.
 
-Comandos: `npm run typecheck`, `npm run lint`, `npm run test:smoke`, `npm run test:idf`, `npm run test:idf-driver`, `npm run test:display-driver`. `node --experimental-strip-types scripts/generate-idf-fixtures.mjs` y `python scripts/verify-idf-archives.py` producen/verifican siete ZIP sintéticos: circuito principal, auxiliar y cinco perfiles de pantalla.
+Comandos: `npm run typecheck`, `npm run lint`, `npm run test:smoke`, `npm run test:idf`, `npm run test:idf-driver`, `npm run test:display-driver`. Tras las ampliaciones de fases 16 y 23, `node --experimental-strip-types scripts/generate-idf-fixtures.mjs` y `python scripts/verify-idf-archives.py` producen/verifican diez ZIP sintéticos: circuito principal, auxiliar, matriz, perfil ESP32-S3 y seis perfiles de pantalla.
 
 `test:idf-driver` compila y ejecuta el C++ generado con dobles de HAL: PWM y frecuencias extremas, GPIO sin pulsos bajos repetidos, errores ADC, Wi-Fi por eventos, saturación de consola, rollover de reloj, contadores saturados, ejecución real del bucle y fork/join, refresco y borrado por zona, ausencia/corte de bus y persistencia de memoria SPI ante timeout. No reemplaza compilar con la API real ni probar una placa.
 

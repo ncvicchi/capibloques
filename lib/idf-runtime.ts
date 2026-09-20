@@ -53,13 +53,18 @@ export function allocateIdfPwm(scene: SceneDefinition, profileId: BoardProfileId
 export function idfRuntimeSupport(scene: SceneDefinition, usesWifi: boolean, profileId: BoardProfileId = 'wemos-d1-r32') {
   const s3 = profileId !== 'wemos-d1-r32';
   const assignments = allocateIdfPwm(scene, profileId) ?? [];
-  const hasAdc = scene.devices.some(device => device.kind === 'lightSensor' || device.kind === 'potentiometer');
+  const hasAdc = scene.devices.some(device =>
+    device.kind === 'lightSensor' ||
+    device.kind === 'potentiometer' ||
+    (device.kind === 'display' && device.config.profile === 'lcd1602keypad')
+  );
   const hasMessages = scene.devices.some(device => device.kind === 'messages');
   const setup: string[] = [];
   for (const device of scene.devices) {
     if (device.kind === 'trafficLight') for (const pin of Object.values(device.pins)) setup.push(`  capiOutput(${pin ?? 255});`);
     if (device.kind === 'button') setup.push(`  capiInput(${device.pins.signal ?? 255}, ${device.config.pullup});`);
     if (device.kind === 'lightSensor' || device.kind === 'potentiometer') setup.push(`  capiAdcConfigure(${device.pins.signal ?? 255});`);
+    if (device.kind === 'display' && device.config.profile === 'lcd1602keypad') setup.push(`  capiAdcConfigure(${device.pins.keys ?? 255});`);
   }
   return `// ESP-IDF ${IDF_VERSION}, native APIs only. No Arduino runtime.
 #include <algorithm>

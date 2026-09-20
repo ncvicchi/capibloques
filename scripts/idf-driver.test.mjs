@@ -28,6 +28,7 @@ int64_t stopAtMicros = INT64_MAX;
 struct TestStop {};
 int64_t esp_timer_get_time() { return testMicros; }
 void vTaskDelay(int ticks) { assert(ticks >= 0); testMicros += ticks * 1000; if(testMicros>=stopAtMicros) throw TestStop{}; }
+void esp_rom_delay_us(uint32_t micros) { testMicros += micros; }
 using QueueHandle_t = std::deque<const char*>*;
 std::deque<const char*> messages;
 std::vector<int64_t> messageTimes;
@@ -136,7 +137,7 @@ int uart_write_bytes(uart_port_t, const char*, size_t length) { return (int)leng
 `;
 await mkdir(directory, { recursive: true });
 await writeFile(resolve(directory, 'hal.h'), stub);
-for (const header of ['freertos/FreeRTOS.h','freertos/task.h','freertos/queue.h','driver/gpio.h','driver/ledc.h','driver/uart.h','esp_timer.h','esp_idf_version.h','esp_adc/adc_oneshot.h','esp_wifi.h','esp_event.h','esp_netif.h','nvs_flash.h','wifi_config.example.h','driver/i2c_master.h','driver/spi_master.h']) {
+for (const header of ['freertos/FreeRTOS.h','freertos/task.h','freertos/queue.h','driver/gpio.h','driver/ledc.h','driver/uart.h','esp_timer.h','esp_idf_version.h','esp_rom_sys.h','esp_adc/adc_oneshot.h','esp_wifi.h','esp_event.h','esp_netif.h','nvs_flash.h','wifi_config.example.h','driver/i2c_master.h','driver/spi_master.h']) {
   const path = resolve(directory, header); await mkdir(dirname(path), { recursive: true });
   await writeFile(path, '#pragma once\n#include "hal.h"\n');
 }
@@ -209,9 +210,11 @@ int main() {
 `);
 
 for (const profile of Object.keys(displayProfiles)) {
-  const {scene} = addDeviceToScene(createEmptyScene('HAL display'), 'display', {config:displayConfig(profile)});
+  const {scene, device} = addDeviceToScene(createEmptyScene('HAL display'), 'display', {config:displayConfig(profile)});
+  if (profile === 'lcd1602keypad') Object.assign(device.pins, {rs:4,en:13,d4:14,d5:16,d6:17,d7:18,backlight:19,keys:34});
   const code = generateEspIdfCodeResult({version:2,threads:[{id:'start',startBlockId:'start',nodes:[]}]}, 'Display', scene).code;
   const i2c = displayProfiles[profile].bus === 'i2c';
+  const parallel = displayProfiles[profile].bus === 'parallel';
   await run(profile, code, `
 uint32_t clockMs=2;
 void service() { capiDisplayService(clockMs); clockMs+=2; }
@@ -222,14 +225,14 @@ void flush() {
 int main(int argc, char**) {
   capiHardwareBegin();
   if(argc>1) {
-    ${i2c ? 'probeFails=true;' : 'busFails=true;'}
+    ${parallel ? '' : i2c ? 'probeFails=true;' : 'busFails=true;'}
     capiDisplayBegin(); assert(!capiDisplayReady);
     int attempts=transfers+probes; capiDisplayWrite(0,0,1,1,"A");
     for(int i=0;i<100;++i) service();
     assert(transfers+probes==attempts); return 0;
   }
   capiDisplayBegin(); assert(capiDisplayReady);
-  ${i2c ? '' : `
+  ${i2c || parallel ? '' : `
   auto sentRegister=[](uint8_t command, std::vector<uint8_t> values) {
     for(size_t i=0;i+1<busBytes.size();++i) if(busBytes[i]==std::vector<uint8_t>{command} && busBytes[i+1]==values) return true;
     return false;
@@ -250,10 +253,10 @@ int main(int argc, char**) {
   capiDisplayWrite(CAPI_DISPLAY_COLUMNS-1,CAPI_DISPLAY_ROWS-1,1,1,"Z"); flush();
   assert(capiDisplaySent[CAPI_DISPLAY_CELLS-1]=='Z');
   before=transfers; capiDisplayWrite(CAPI_DISPLAY_COLUMNS,0,1,1,"X"); flush(); assert(transfers==before);
-  busFails=true; capiDisplayWrite(0,0,1,1,"X"); service(); assert(!capiDisplayReady);
+  ${parallel ? '' : `busFails=true; capiDisplayWrite(0,0,1,1,"X"); service(); assert(!capiDisplayReady);
   ${i2c ? '' : 'assert(pendingTransfer==&capiDisplayTransaction); const auto pending=capiDisplayTransaction; uint8_t saved[1536]; memcpy(saved,capiDisplayTransferBytes,1536);'}
   before=transfers; for(int i=0;i<100;++i) service(); assert(transfers==before);
-  ${i2c ? '' : 'assert(capiDisplayTransaction.tx_buffer==pending.tx_buffer && capiDisplayTransaction.length==pending.length); assert(memcmp(saved,capiDisplayTransferBytes,1536)==0);'}
+  ${i2c ? '' : 'assert(capiDisplayTransaction.tx_buffer==pending.tx_buffer && capiDisplayTransaction.length==pending.length); assert(memcmp(saved,capiDisplayTransferBytes,1536)==0);'}`}
 }
-`, [[], ['missing']]);
+`, parallel ? [[]] : [[], ['missing']]);
 }
