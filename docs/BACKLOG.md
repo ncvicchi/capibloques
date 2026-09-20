@@ -355,7 +355,7 @@ Pedido del 20 de septiembre de 2026: incorporar una barrera infrarroja formada p
 
 La escena debe permitir elegir el GPIO de entrada y configurar si el módulo físico informa la interrupción en nivel alto o bajo. Los bloques deben ofrecer una condición utilizable dentro de cualquier bifurcación —por ejemplo, «si la barrera está interrumpida»— y la simulación debe permitir alternar claramente entre ambos estados. Arduino y ESP-IDF deben leer la entrada sin bloquear; importación/exportación, validación de pines, diagrama de conexiones y estado simulado deben conservar la misma semántica.
 
-Asignación: **fase 28 — Barrera infrarroja digital**. Antes del ensayo físico se identificará la tensión y el tipo de salida del modelo disponible; esa comprobación no cambia su contrato infantil de dos estados.
+Asignación: **fase 28 — Barrera infrarroja digital**. **Implementada en software el 20 de septiembre de 2026** con componente libre/interrumpida, polaridad en escena, dato sí/no, simulación, JSON y ambos generadores; contrato y pendiente físico en [FASE_28_BARRERA_INFRARROJA.md](FASE_28_BARRERA_INFRARROJA.md). Antes del ensayo físico se identificará la tensión y el tipo de salida del modelo disponible; esa comprobación no cambia su contrato infantil de dos estados.
 
 ## 27. Datos, variables y textos dinámicos
 
@@ -454,7 +454,7 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 23. Reducir al mínimo la latencia de compilación | 20. Caché, reutilización segura y medición reproducible |
 | 24. Logo y nombre del colegio centrales en el ingreso | 26. Identidad institucional y acceso de aula |
 | 25. Familia de robots HP Robots / Otto | 27. Perfiles compuestos, movimientos y validación por variante |
-| 26. Barrera infrarroja digital | 28. Sensor libre/interrumpido, simulación y ambos generadores |
+| 26. Barrera infrarroja digital | 28. Implementada en software; aceptación física pendiente |
 | 27. Datos, variables y textos dinámicos | 29. Tipos, expresiones, valores de componentes y composición de texto |
 | 23. Reducir al mínimo la latencia de compilación | 20. Medición, caché, precompilación y arquitectura del compilador |
 

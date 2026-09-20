@@ -79,7 +79,7 @@ export function firmwareFixture(auxiliary = false) {
   // Together they compile every operation and condition emitted by the editor.
   if (auxiliary) {
     scene = createEmptyScene('Motor y buzzer activo');
-    for (const kind of ['motor', 'activeBuzzer', 'messages']) {
+    for (const kind of ['motor', 'activeBuzzer', 'messages', 'infraredBarrier']) {
       scene = addDeviceToScene(scene, kind).scene;
     }
     const motor = scene.devices.find((device) => device.kind === 'motor');
@@ -87,6 +87,7 @@ export function firmwareFixture(auxiliary = false) {
       (device) => device.kind === 'activeBuzzer',
     );
     const messages = scene.devices.find((device) => device.kind === 'messages');
+    const infraredBarrier = scene.devices.find((device) => device.kind === 'infraredBarrier');
     program.threads = [
       {
         id: 'auxiliary',
@@ -108,6 +109,13 @@ export function firmwareFixture(auxiliary = false) {
             blockId: 'active-tone',
           },
           { op: 'messageSend', deviceId: messages.id, text: 'AVANZAR', blockId: 'message-send' },
+          {
+            op: 'if',
+            condition: { kind: 'value', expression: { kind: 'barrierValue', deviceId: infraredBarrier.id, expected: 'INTERRUPTED' } },
+            then: [{ op: 'serial', text: 'barrera interrumpida', blockId: 'barrier-interrupted' }],
+            otherwise: [{ op: 'serial', text: 'barrera libre', blockId: 'barrier-clear' }],
+            blockId: 'barrier-condition',
+          },
           {
             op: 'messageReceive', deviceId: messages.id, expected: 'DETENER', timeoutMs: 100,
             equal: [{ op: 'serial', text: '', expression: { kind: 'join', parts: [{ kind: 'text', value: 'igual: ' }, { kind: 'messageValue', deviceId: messages.id }] }, blockId: 'message-equal' }],

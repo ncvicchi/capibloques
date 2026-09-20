@@ -2,7 +2,7 @@
 
 CapiBloques es un entorno visual educativo para que chicos de 8 a 12 años armen una escena, programen sus componentes con bloques, prueben el comportamiento en el navegador y descarguen fuentes Arduino/ESP-IDF o firmware compilado para una Wemos D1 R32 o la DIYmall ESP32-S3-DevKitC V1.0 N16R8 identificada.
 
-El editor exige ingreso con alias y contraseña. En la VM de desarrollo corren Django + PostgreSQL, cuentas, cursos y proyectos personales. GitHub Pages ya no se utiliza. Las fases 0–9, 11–14 y la [fase 29 de variables](docs/FASE_29_VARIABLES.md) están entregadas en software; 10, 15 y la [fase 16 S3](docs/FASE_16_ESP32_S3_DEVKIT.md) conservan aceptación física pendiente, y la fase 23 está en curso con el software de Matriz LED desplegado. La [fase 12](docs/FASE_12_MESA_DE_TRABAJO.md) reorganiza la mesa de trabajo, la [fase 13](docs/FASE_13_ACCESO_EXTERNO_DEV.md) publica DEV y la [fase 14](docs/FASE_14_EJECUCION_VISUAL.md) incorpora ejecución visual. El [plan completo](docs/PLAN_FASES_BACKLOG.md) distingue lo terminado de lo pendiente. Producción es la **Fase final, postergada**.
+El editor exige ingreso con alias y contraseña. En la VM de desarrollo corren Django + PostgreSQL, cuentas, cursos y proyectos personales. GitHub Pages ya no se utiliza. Las fases 0–9, 11–14, la [fase 28 de barrera infrarroja](docs/FASE_28_BARRERA_INFRARROJA.md) y la [fase 29 de variables](docs/FASE_29_VARIABLES.md) están entregadas en software; 10, 15, la [fase 16 S3](docs/FASE_16_ESP32_S3_DEVKIT.md) y 28 conservan aceptación física pendiente, y la fase 23 está en curso con el software de Matriz LED desplegado. La [fase 12](docs/FASE_12_MESA_DE_TRABAJO.md) reorganiza la mesa de trabajo, la [fase 13](docs/FASE_13_ACCESO_EXTERNO_DEV.md) publica DEV y la [fase 14](docs/FASE_14_EJECUCION_VISUAL.md) incorpora ejecución visual. El [plan completo](docs/PLAN_FASES_BACKLOG.md) distingue lo terminado de lo pendiente. Producción es la **Fase final, postergada**.
 
 El alcance está en [el plan de implementación](docs/PLAN_MULTIUSUARIO_PROXMOX.md) y el estado de preparación en [fase 0: servidores](docs/FASE_0_SERVIDORES.md). Trabajamos una fase por vez, con pruebas, commit/push y aprobación del propietario antes de avanzar.
 
@@ -53,6 +53,8 @@ Hay un único **Al comenzar**, obligatorio y fuera de las categorías; no se bor
 **★ Favoritos**, la primera categoría, permite elegir los tipos de bloque usados con frecuencia y conservarlos en la cuenta. Guardar/Cancelar no modifica la escena. Desde **Mi cuenta → Elegir avatar** se puede elegir entre 15 animales, robots, personajes y plantas originales, sin subir fotos.
 
 **Datos** permite crear variables compartidas por todo el proyecto. Sus valores aparecen en la pestaña Estado y se reinician a `0`, texto vacío o `no`. **Armar texto** permite construir, por ejemplo, «El contador está en [contador]» y reutilizarlo en consola, Pantalla de texto o Mensajes. Los detalles de tipos, límites y concurrencia están en la [guía de fase 29](docs/FASE_29_VARIABLES.md).
+
+**Barrera infrarroja** es una entrada digital presentada como **libre/interrumpida**. La polaridad física se configura una vez en la escena; el bloque produce un dato sí/no reutilizable y la simulación ofrece ambos estados con botones. Arduino y ESP-IDF comparten la lógica; falta ensayar el módulo físico exacto. Ver [fase 28](docs/FASE_28_BARRERA_INFRARROJA.md).
 
 ## Simulación en el navegador
 

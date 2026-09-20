@@ -2118,6 +2118,7 @@ select:focus-visible {
 .stage-servo,
 .stage-buzzer,
 .stage-button,
+.stage-barrier,
 .stage-sensor,
 .stage-wifi {
   display: flex;
@@ -2138,6 +2139,9 @@ select:focus-visible {
 .stage-button.pressed {
   transform: scale(0.88);
 }
+.stage-barrier.interrupted {
+  filter: drop-shadow(0 0 8px #ef4444);
+}
 .stage-wifi.connecting {
   animation: wifi-breathe 0.8s ease-in-out infinite alternate;
 }
@@ -2149,6 +2153,7 @@ select:focus-visible {
 .stage-servo small,
 .stage-buzzer small,
 .stage-button small,
+.stage-barrier small,
 .stage-sensor small,
 .stage-wifi small {
   margin-top: 2px;

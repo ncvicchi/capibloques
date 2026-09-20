@@ -63,6 +63,7 @@ export function idfRuntimeSupport(scene: SceneDefinition, usesWifi: boolean, pro
   for (const device of scene.devices) {
     if (device.kind === 'trafficLight') for (const pin of Object.values(device.pins)) setup.push(`  capiOutput(${pin ?? 255});`);
     if (device.kind === 'button') setup.push(`  capiInput(${device.pins.signal ?? 255}, ${device.config.pullup});`);
+    if (device.kind === 'infraredBarrier') setup.push(`  capiInput(${device.pins.signal ?? 255}, false);`);
     if (device.kind === 'lightSensor' || device.kind === 'potentiometer') setup.push(`  capiAdcConfigure(${device.pins.signal ?? 255});`);
     if (device.kind === 'display' && device.config.profile === 'lcd1602keypad') setup.push(`  capiAdcConfigure(${device.pins.keys ?? 255});`);
   }

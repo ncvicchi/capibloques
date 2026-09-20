@@ -64,6 +64,16 @@ const button = {
   pins: { signal: 35 },
   config: { pressed: false, pullup: false },
 };
+const barrier = {
+  schemaVersion: 1,
+  id: 'barrier-test',
+  kind: 'infraredBarrier',
+  name: 'Barrera de prueba',
+  position: { x: 70, y: 40 },
+  rotation: 0,
+  pins: { signal: 4 },
+  config: { interrupted: false, interruptedLevel: 'LOW' },
+};
 const led = {
   schemaVersion: 1,
   id: 'led-test',
@@ -94,11 +104,12 @@ const buzzer = {
   pins: { signal: 25 },
   config: { frequency: 440, durationMs: 250 },
 };
-const scene = baseScene([button, led, robot, buzzer]);
+const scene = baseScene([button, barrier, led, robot, buzzer]);
 
 // Las entradas explícitas deben sobrevivir aunque lleguen antes de LOAD y
 // también entre RUN y RESET.
 send({ type: 'SET_INPUT', deviceId: button.id, value: true });
+send({ type: 'SET_INPUT', deviceId: barrier.id, value: true });
 send({ type: 'SET_INPUT', name: 'wifiAvailable', value: false });
 send({
   type: 'LOAD',
@@ -106,13 +117,16 @@ send({
   program: { version: 2, threads: [] },
 });
 assert.equal(latestState().devices[button.id].pressed, true);
+assert.equal(latestState().devices[barrier.id].interrupted, true);
 assert.equal(latestState().wifiAvailable, false);
 assert.equal(latestState().devices[robot.id].angle, 90);
 send({ type: 'RUN' });
 assert.equal(latestState().devices[button.id].pressed, true);
+assert.equal(latestState().devices[barrier.id].interrupted, true);
 assert.equal(latestState().wifiAvailable, false);
 send({ type: 'RESET' });
 assert.equal(latestState().devices[button.id].pressed, true);
+assert.equal(latestState().devices[barrier.id].interrupted, true);
 assert.equal(latestState().wifiAvailable, false);
 
 // La rotación elegida en la escena también es el rumbo físico: a 90° avanzar
@@ -434,5 +448,22 @@ assert.equal(latestState().variables.ready, true);
 assert.ok(latestState().console.some(line => line.includes('El contador está en 7')));
 assert.ok(latestState().console.some(line => line.endsWith('listo')));
 assert.ok(latestState().console.some(line => line.endsWith('doce puntos')));
+
+// La barrera es una entrada digital infantil (libre/interrumpida), utilizable
+// como cualquier dato sí/no dentro de una bifurcación.
+send({
+  type: 'LOAD',
+  scene,
+  program: { version: 2, threads: [{ id: 'barrier-thread', startBlockId: 'barrier-start', nodes: [{
+    op: 'if',
+    condition: { kind: 'value', expression: { kind: 'barrierValue', deviceId: barrier.id, expected: 'INTERRUPTED' } },
+    consequent: [{ op: 'led', deviceId: led.id, brightness: 100, blockId: 'barrier-blocked' }],
+    otherwise: [{ op: 'led', deviceId: led.id, brightness: 0, blockId: 'barrier-clear' }],
+    blockId: 'barrier-if',
+  }] }] },
+});
+send({ type: 'RUN' });
+for (let turn = 0; turn < 4 && latestState().status !== 'done'; turn++) advance(16);
+assert.equal(latestState().devices[led.id].brightness, 100);
 
 console.log('Simulator worker smoke checks passed.');

@@ -1107,6 +1107,26 @@ function SceneBuilderSession({
                       </label>
                     </div>
                   )}
+                  {selected.kind === 'infraredBarrier' && (
+                    <div className="messages-properties">
+                      <label htmlFor="barrier-interrupted-level">
+                        <span>Señal cuando el haz se interrumpe</span>
+                        <NativeSelect
+                          id="barrier-interrupted-level"
+                          value={selected.config.interruptedLevel}
+                          aria-label={`Nivel de interrupción de ${selected.name}`}
+                          onChange={(event) => updateSelectedDraft(device => device.kind === 'infraredBarrier' ? {
+                            ...device,
+                            config: { ...device.config, interruptedLevel: event.target.value === 'HIGH' ? 'HIGH' : 'LOW' },
+                          } : device)}
+                        >
+                          <NativeSelectOption value="LOW">Nivel bajo (0)</NativeSelectOption>
+                          <NativeSelectOption value="HIGH">Nivel alto (1)</NativeSelectOption>
+                        </NativeSelect>
+                        <small>Se configura una vez según el detector. En los bloques sólo verás libre o interrumpida.</small>
+                      </label>
+                    </div>
+                  )}
                   <div className="pin-editor">
                     <h4>Conexiones</h4>
                     {getPinRequirements(selected).length ? (

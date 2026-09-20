@@ -33,6 +33,7 @@ export type RuntimeVisualDevice = {
   playing?: boolean;
   frequency?: number;
   pressed?: boolean;
+  interrupted?: boolean;
   value?: number;
   pressedButton?: 'RIGHT' | 'UP' | 'DOWN' | 'LEFT' | 'SELECT' | null;
   status?: 'idle' | 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -63,6 +64,7 @@ const icons: Record<SceneDevice['kind'], string> = {
   activeBuzzer: '📣',
   passiveBuzzer: '🎵',
   button: '🔘',
+  infraredBarrier: '🚧',
   lightSensor: '☀️',
   potentiometer: '🎚️',
   wifiNode: '📶',
@@ -168,6 +170,14 @@ function DeviceVisual({
         aria-hidden="true"
       >
         🔘<small>{runtime?.pressed ? 'pulsado' : 'libre'}</small>
+      </span>
+    );
+  }
+  if (device.kind === 'infraredBarrier') {
+    const interrupted = runtime?.interrupted ?? device.config.interrupted;
+    return (
+      <span className={interrupted ? 'stage-barrier interrupted' : 'stage-barrier'} aria-hidden="true">
+        🚧<small>{interrupted ? 'interrumpida' : 'libre'}</small>
       </span>
     );
   }

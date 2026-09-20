@@ -28,6 +28,7 @@ export const sceneDeviceKinds = [
   'activeBuzzer',
   'passiveBuzzer',
   'button',
+  'infraredBarrier',
   'lightSensor',
   'potentiometer',
   'wifiNode',
@@ -127,6 +128,12 @@ export type ButtonDevice = SceneDeviceBase<
   { pressed: boolean; pullup: boolean }
 >;
 
+export type InfraredBarrierDevice = SceneDeviceBase<
+  'infraredBarrier',
+  { signal: PinNumber },
+  { interrupted: boolean; interruptedLevel: 'HIGH' | 'LOW' }
+>;
+
 export type LightSensorDevice = SceneDeviceBase<
   'lightSensor',
   { signal: PinNumber },
@@ -176,6 +183,7 @@ export interface SceneDeviceByKind {
   activeBuzzer: ActiveBuzzerDevice;
   passiveBuzzer: PassiveBuzzerDevice;
   button: ButtonDevice;
+  infraredBarrier: InfraredBarrierDevice;
   lightSensor: LightSensorDevice;
   potentiometer: PotentiometerDevice;
   wifiNode: WifiNodeDevice;
@@ -265,6 +273,9 @@ const requirementsByKind: Record<SceneDeviceKind, readonly PinRequirement[]> = {
   ],
   button: [
     { key: 'signal', label: 'Entrada del botón', capability: 'digitalInput' },
+  ],
+  infraredBarrier: [
+    { key: 'signal', label: 'Salida digital del detector', capability: 'digitalInput' },
   ],
   lightSensor: [
     { key: 'signal', label: 'Lectura de luz', capability: 'analogInput' },
@@ -359,6 +370,14 @@ export const sceneComponentCatalog: readonly SceneComponentCatalogEntry[] = [
     pinRequirements: requirementsByKind.button,
   },
   {
+    kind: 'infraredBarrier',
+    icon: '🚧',
+    name: 'Barrera infrarroja',
+    description: 'Detecta si un objeto interrumpe el haz infrarrojo.',
+    childFriendlyControl: 'Libre o interrumpida',
+    pinRequirements: requirementsByKind.infraredBarrier,
+  },
+  {
     kind: 'lightSensor',
     icon: '☀️',
     name: 'Sensor de luz',
@@ -397,6 +416,7 @@ const kindIdBases: Record<SceneDeviceKind, string> = {
   activeBuzzer: 'active-buzzer',
   passiveBuzzer: 'passive-buzzer',
   button: 'button',
+  infraredBarrier: 'infrared-barrier',
   lightSensor: 'light-sensor',
   potentiometer: 'potentiometer',
   wifiNode: 'wifi-node',
@@ -675,6 +695,14 @@ function unassignedDevice<K extends SceneDeviceKind>(
         kind,
         pins: { signal: null },
         config: { pressed: false, pullup: true },
+      };
+      break;
+    case 'infraredBarrier':
+      device = {
+        ...base,
+        kind,
+        pins: { signal: null },
+        config: { interrupted: false, interruptedLevel: 'LOW' },
       };
       break;
     case 'lightSensor':
@@ -1792,6 +1820,12 @@ function validDeviceConfig(
         hasOnlyKeys(config, ['pressed', 'pullup']) &&
         typeof config.pressed === 'boolean' &&
         typeof config.pullup === 'boolean'
+      );
+    case 'infraredBarrier':
+      return (
+        hasOnlyKeys(config, ['interrupted', 'interruptedLevel']) &&
+        typeof config.interrupted === 'boolean' &&
+        ['HIGH', 'LOW'].includes(String(config.interruptedLevel))
       );
     case 'lightSensor':
     case 'potentiometer':

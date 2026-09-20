@@ -123,7 +123,7 @@ function wiringReviewSignature(
 ) {
   return JSON.stringify([
     profileId,
-    scene.devices.map((device) => [device.id, device.kind, device.pins, device.kind === 'display' || device.kind === 'ledMatrix' ? device.config : null]),
+    scene.devices.map((device) => [device.id, device.kind, device.pins, ['display', 'ledMatrix', 'infraredBarrier'].includes(device.kind) ? device.config : null]),
     collectRawOutputPins(program, scene),
   ]);
 }
@@ -242,6 +242,8 @@ function runtimeFromDevice(
       };
     case 'button':
       return { kind: device.kind, pressed: device.config.pressed };
+    case 'infraredBarrier':
+      return { kind: device.kind, interrupted: device.config.interrupted };
     case 'lightSensor':
     case 'potentiometer':
       return { kind: device.kind, value: device.config.value };
@@ -357,6 +359,8 @@ function deviceReading(device: RuntimeDeviceState | undefined) {
       return device.playing ? `${Math.round(device.frequency)} Hz` : 'Apagado';
     case 'button':
       return device.pressed ? 'Presionado' : 'Libre';
+    case 'infraredBarrier':
+      return device.interrupted ? 'Interrumpida' : 'Libre';
     case 'lightSensor':
     case 'potentiometer':
       return String(Math.round(device.value));
@@ -389,6 +393,7 @@ function DeviceStateCard({
     activeBuzzer: '📣',
     passiveBuzzer: '🎵',
     button: '🔘',
+    infraredBarrier: '🚧',
     lightSensor: '☀️',
     potentiometer: '🎚️',
     wifiNode: '📶',
@@ -1170,7 +1175,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   }, [addSceneComponent, loadExample, draftStore]);
 
   const inputDevices = scene.devices.filter((device) =>
-    ['button', 'lightSensor', 'potentiometer'].includes(device.kind) ||
+    ['button', 'infraredBarrier', 'lightSensor', 'potentiometer'].includes(device.kind) ||
     (device.kind === 'display' && device.config.profile === 'lcd1602keypad') ||
     (device.kind === 'messages' && device.config.mode !== 'send'),
   );
@@ -1524,6 +1529,21 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                               setDeviceInput(device.id, value)
                             }
                           />
+                        </div>
+                      );
+                    }
+                    if (device.kind === 'infraredBarrier') {
+                      const interrupted = runtime?.kind === 'infraredBarrier'
+                        ? runtime.interrupted
+                        : device.config.interrupted;
+                      return (
+                        <div className="message-test-panel" key={device.id}>
+                          <span>🚧 {device.name}</span>
+                          <div className="message-test-buttons">
+                            <button type="button" aria-pressed={!interrupted} onClick={() => setDeviceInput(device.id, false)}>Libre</button>
+                            <button type="button" aria-pressed={interrupted} onClick={() => setDeviceInput(device.id, true)}>Interrumpida</button>
+                          </div>
+                          <small>Elegí qué está pasando con el haz.</small>
                         </div>
                       );
                     }

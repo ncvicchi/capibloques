@@ -25,6 +25,7 @@
     { "type": "capi_compare", "name": "Comparar números", "category": "Condiciones" },
     { "type": "capi_counter_compare", "name": "Comparar contador", "category": "Condiciones" },
     { "type": "capi_button_pressed", "name": "Botón presionado", "category": "Condiciones" },
+    { "type": "capi_barrier_state", "name": "Estado de barrera", "category": "Condiciones" },
     { "type": "capi_sensor_compare", "name": "Comparar sensor", "category": "Condiciones" },
     { "type": "capi_counter_set", "name": "Poner contador", "category": "Contador" },
     { "type": "capi_counter_change", "name": "Cambiar contador", "category": "Contador" },

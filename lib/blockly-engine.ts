@@ -50,6 +50,7 @@ const deviceLabels: Record<SceneDeviceKind, string> = {
   activeBuzzer: 'un buzzer activo',
   passiveBuzzer: 'un buzzer pasivo',
   button: 'un botón',
+  infraredBarrier: 'una barrera infrarroja',
   lightSensor: 'un sensor de luz',
   potentiometer: 'un potenciómetro',
   wifiNode: 'una conexión Wi-Fi',
@@ -95,6 +96,8 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
       return ['passiveBuzzer'];
     case 'capi_button_pressed':
       return ['button'];
+    case 'capi_barrier_state':
+      return ['infraredBarrier'];
     case 'capi_display_button_pressed':
       return ['display'];
     case 'capi_sensor_compare':
@@ -426,6 +429,7 @@ const toolbox = {
         { kind: 'block', type: 'capi_value_compare' },
         { kind: 'block', type: 'capi_counter_compare' },
         { kind: 'block', type: 'capi_button_pressed' },
+        { kind: 'block', type: 'capi_barrier_state' },
         { kind: 'block', type: 'capi_display_button_pressed' },
         { kind: 'block', type: 'capi_sensor_compare' },
       ],
@@ -460,6 +464,7 @@ const toolbox = {
         { kind: 'block', type: 'capi_value_boolean' },
         { kind: 'block', type: 'capi_counter_value' },
         { kind: 'block', type: 'capi_sensor_value' },
+        { kind: 'block', type: 'capi_barrier_state' },
         { kind: 'block', type: 'capi_message_value' },
         { kind: 'block', type: 'capi_number_math' },
         { kind: 'block', type: 'capi_text_join' },
@@ -1110,6 +1115,18 @@ function registerBlocks(Blockly: BlocklyApi) {
       extensions: [DEVICE_EXTENSION],
     },
     {
+      type: 'capi_barrier_state',
+      message0: '🚧 %1 está %2',
+      args0: [
+        deviceField('⚠️ agrega una barrera'),
+        { type: 'field_dropdown', name: 'STATE', options: [['interrumpida', 'INTERRUPTED'], ['libre', 'CLEAR']] },
+      ],
+      output: 'Boolean',
+      colour: '#CF4EB9',
+      tooltip: 'Responde sí cuando la barrera está en el estado elegido.',
+      extensions: [DEVICE_EXTENSION],
+    },
+    {
       type: 'capi_display_button_pressed',
       message0: '🕹️ en %1 botón %2 presionado',
       args0: [
@@ -1436,6 +1453,11 @@ function compileValue(block: BlocklyBlock | null, fallback: VariableType = 'numb
     case 'capi_sensor_value': return { kind: 'sensorValue', deviceId: selectedDeviceId(block) };
     case 'capi_message_value': return { kind: 'messageValue', deviceId: selectedDeviceId(block) };
     case 'capi_button_pressed': return { kind: 'buttonValue', deviceId: selectedDeviceId(block) };
+    case 'capi_barrier_state': return {
+      kind: 'barrierValue',
+      deviceId: selectedDeviceId(block),
+      expected: block.getFieldValue('STATE') === 'CLEAR' ? 'CLEAR' : 'INTERRUPTED',
+    };
     case 'capi_display_button_pressed': return {
       kind: 'displayButtonValue', deviceId: selectedDeviceId(block),
       button: String(block.getFieldValue('BUTTON') ?? 'SELECT') as Extract<ValueExpression, { kind: 'displayButtonValue' }>['button'],

@@ -47,6 +47,7 @@ const deviceAdvice: Record<SceneDevice['kind'], string> = {
   passiveBuzzer:
     'Revisá la corriente del módulo; usa transistor si supera lo admitido por el GPIO.',
   button: 'Conectalo a GND cuando uses la resistencia pull-up interna.',
+  infraredBarrier: 'Conectá la salida digital del detector al GPIO elegido y compartí GND. Configurá en la escena si interrumpida corresponde a nivel alto o bajo.',
   lightSensor: 'La señal analógica debe permanecer entre 0 y 3,3 V.',
   potentiometer: 'Extremos a 3,3 V y GND; cursor central al GPIO analógico.',
   wifiNode: 'No necesita cables: Wi-Fi está integrado en el ESP32.',
@@ -56,7 +57,7 @@ const deviceAdvice: Record<SceneDevice['kind'], string> = {
 function sceneSignature(scene: SceneDefinition, rawPins: number[], profileId: BoardProfileId) {
   return JSON.stringify([
     profileId,
-    scene.devices.map((device) => [device.id, device.kind, device.pins, device.kind === 'display' || device.kind === 'ledMatrix' ? device.config : null]),
+    scene.devices.map((device) => [device.id, device.kind, device.pins, ['display', 'ledMatrix', 'infraredBarrier'].includes(device.kind) ? device.config : null]),
     rawPins,
   ]);
 }

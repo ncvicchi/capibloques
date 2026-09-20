@@ -55,6 +55,7 @@ export type ValueExpression =
   | { kind: 'counterValue' }
   | { kind: 'sensorValue'; deviceId: string }
   | { kind: 'buttonValue'; deviceId: string }
+  | { kind: 'barrierValue'; deviceId: string; expected: 'INTERRUPTED' | 'CLEAR' }
   | { kind: 'displayButtonValue'; deviceId: string; button: 'RIGHT' | 'UP' | 'DOWN' | 'LEFT' | 'SELECT' }
   | { kind: 'messageValue'; deviceId: string }
   | { kind: 'wifiValue' }
@@ -285,6 +286,7 @@ export type RuntimeDeviceState =
       stopAt: number;
     }
   | { kind: 'button'; pressed: boolean }
+  | { kind: 'infraredBarrier'; interrupted: boolean }
   | { kind: 'lightSensor'; value: number }
   | { kind: 'potentiometer'; value: number }
   | { kind: 'wifiNode'; status: WifiRuntimeState }
@@ -683,6 +685,7 @@ export const defaultPinAssignments = {
   passiveBuzzer: 13,
   servo: 14,
   button: 4,
+  infraredBarrier: 4,
   lightSensor: 35,
   potentiometer: 34,
 } as const;
@@ -800,6 +803,7 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_buzzer',
   'capi_tone',
   'capi_button_pressed',
+  'capi_barrier_state',
   'capi_display_button_pressed',
   'capi_sensor_compare',
   'capi_wifi_connect',
@@ -1280,6 +1284,8 @@ const blockKind = (block: Record<string, unknown>): SceneDeviceKind | null => {
       return 'passiveBuzzer';
     case 'capi_button_pressed':
       return 'button';
+    case 'capi_barrier_state':
+      return 'infraredBarrier';
     case 'capi_sensor_compare':
       return fields.SENSOR === 'POTENTIOMETER'
         ? 'potentiometer'
@@ -1335,6 +1341,8 @@ function legacyPins(
       return { signal: pin('passiveBuzzer', 13) };
     case 'button':
       return { signal: pin('button', 4) };
+    case 'infraredBarrier':
+      return { signal: pin('infraredBarrier', 4) };
     case 'lightSensor':
       return { signal: pin('lightSensor', 35) };
     case 'potentiometer':
@@ -1662,6 +1670,11 @@ function normalizeValueExpression(raw: unknown): ValueExpression {
     case 'counterValue': return { kind: 'counterValue' };
     case 'sensorValue': return { kind: 'sensorValue', deviceId: typeof value.deviceId === 'string' ? value.deviceId : '' };
     case 'buttonValue': return { kind: 'buttonValue', deviceId: typeof value.deviceId === 'string' ? value.deviceId : '' };
+    case 'barrierValue': return {
+      kind: 'barrierValue',
+      deviceId: typeof value.deviceId === 'string' ? value.deviceId : '',
+      expected: value.expected === 'CLEAR' ? 'CLEAR' : 'INTERRUPTED',
+    };
     case 'displayButtonValue': return {
       kind: 'displayButtonValue',
       deviceId: typeof value.deviceId === 'string' ? value.deviceId : '',
@@ -2195,7 +2208,7 @@ function validateConditionTarget(
 
 export function valueExpressionType(expression: ValueExpression): VariableType {
   if (expression.kind === 'text' || expression.kind === 'join' || expression.kind === 'messageValue') return 'text';
-  if (expression.kind === 'boolean' || expression.kind === 'buttonValue' || expression.kind === 'displayButtonValue' || expression.kind === 'wifiValue') return 'boolean';
+  if (expression.kind === 'boolean' || expression.kind === 'buttonValue' || expression.kind === 'barrierValue' || expression.kind === 'displayButtonValue' || expression.kind === 'wifiValue') return 'boolean';
   if (expression.kind === 'variable') return expression.valueType;
   return 'number';
 }
@@ -2279,6 +2292,10 @@ export function validateProgramForScene(
       if (value.kind === 'buttonValue') {
         const device = deviceMap.get(value.deviceId);
         if (device?.kind !== 'button') diagnostics.push({ severity: 'error', code: 'value-button-missing', message: 'Elegí un botón colocado en la escena.', blockId: node.blockId, deviceId: value.deviceId });
+      }
+      if (value.kind === 'barrierValue') {
+        const device = deviceMap.get(value.deviceId);
+        if (device?.kind !== 'infraredBarrier') diagnostics.push({ severity: 'error', code: 'value-barrier-missing', message: 'Elegí una barrera infrarroja colocada en la escena.', blockId: node.blockId, deviceId: value.deviceId });
       }
       if (value.kind === 'displayButtonValue') {
         const device = deviceMap.get(value.deviceId);
@@ -2685,6 +2702,13 @@ function valueToCpp(expression: ValueExpression, context: GeneratorContext): str
     case 'counterValue': return 'counterValue';
     case 'sensorValue': return `${context.framework === 'esp-idf' ? 'capiAnalogRead' : 'analogRead'}(${pinConstant(context, expression.deviceId)})`;
     case 'buttonValue': return `${context.framework === 'esp-idf' ? 'capiDigitalRead' : 'digitalRead'}(${pinConstant(context, expression.deviceId)}) == ${context.framework === 'esp-idf' ? '0' : 'LOW'}`;
+    case 'barrierValue': {
+      const device = context.scene.devices.find(item => item.id === expression.deviceId && item.kind === 'infraredBarrier');
+      const interruptedLevel = device?.kind === 'infraredBarrier' ? device.config.interruptedLevel : 'LOW';
+      const level = context.framework === 'esp-idf' ? (interruptedLevel === 'HIGH' ? '1' : '0') : interruptedLevel;
+      const interrupted = `${context.framework === 'esp-idf' ? 'capiDigitalRead' : 'digitalRead'}(${pinConstant(context, expression.deviceId)}) == ${level}`;
+      return expression.expected === 'CLEAR' ? `!(${interrupted})` : interrupted;
+    }
     case 'displayButtonValue': {
       const buttons = { RIGHT: 0, UP: 1, DOWN: 2, LEFT: 3, SELECT: 4 } as const;
       return `capiDisplayButtonPressed(${buttons[expression.button]})`;
@@ -3105,6 +3129,9 @@ function setupLines(scene: SceneDefinition, symbols: Map<string, string>, servoR
         lines.push(
           `  pinMode(PIN_${symbol}, ${device.config.pullup ? 'INPUT_PULLUP' : 'INPUT'});`,
         );
+        break;
+      case 'infraredBarrier':
+        lines.push(`  pinMode(PIN_${symbol}, INPUT);`);
         break;
       case 'lightSensor':
       case 'potentiometer':

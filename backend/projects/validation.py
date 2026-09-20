@@ -27,7 +27,8 @@ BLOCKS.update(("capi_message_send", "capi_message_receive"))
 BLOCKS.update(("capi_matrix_clear", "capi_matrix_pixel", "capi_matrix_pattern", "capi_matrix_scroll"))
 BLOCKS.update(("capi_variable_set_number", "capi_variable_change", "capi_variable_set_text", "capi_variable_set_boolean", "capi_variable_get_number", "capi_variable_get_text", "capi_variable_get_boolean", "capi_value_number", "capi_value_text", "capi_value_boolean", "capi_counter_value", "capi_sensor_value", "capi_message_value", "capi_number_math", "capi_text_join"))
 BLOCKS.add("capi_value_compare")
-PINS = {"trafficLight": ["red", "yellow", "green"], "robot": ["leftIn1", "leftIn2", "rightIn1", "rightIn2"], "motor": ["in1", "in2"], **{kind: ["signal"] for kind in ("led", "servo", "activeBuzzer", "passiveBuzzer", "button", "lightSensor", "potentiometer")}, "wifiNode": []}
+BLOCKS.add("capi_barrier_state")
+PINS = {"trafficLight": ["red", "yellow", "green"], "robot": ["leftIn1", "leftIn2", "rightIn1", "rightIn2"], "motor": ["in1", "in2"], **{kind: ["signal"] for kind in ("led", "servo", "activeBuzzer", "passiveBuzzer", "button", "infraredBarrier", "lightSensor", "potentiometer")}, "wifiNode": []}
 CONFIGS = {
     "trafficLight": {"redBrightness": (0, 100), "yellowBrightness": (0, 100), "greenBrightness": (0, 100)},
     "robot": {"speed": (0, 100), "heading": (-360000, 360000), "color": 64},
@@ -35,6 +36,7 @@ CONFIGS = {
     "servo": {"angle": (0, 180)}, "activeBuzzer": {"enabled": bool},
     "passiveBuzzer": {"frequency": (20, 20000), "durationMs": (10, 60000)},
     "button": {"pressed": bool, "pullup": bool}, "lightSensor": {"value": (0, 4095)}, "potentiometer": {"value": (0, 4095)},
+    "infraredBarrier": {"interrupted": bool, "interruptedLevel": ["HIGH", "LOW"]},
     "wifiNode": {"status": ["idle", "connecting", "connected", "error"], "ssid": 64},
     "counter": {"value": (-1e308, 1e308), "mascot": 32},
 }

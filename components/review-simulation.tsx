@@ -329,6 +329,26 @@ export default function ReviewSimulation({
                   {device.name} · presionado
                 </label>
               );
+            if (device.kind === 'infraredBarrier') {
+              const interrupted = runtime?.kind === 'infraredBarrier'
+                ? runtime.interrupted
+                : device.config.interrupted;
+              return (
+                <label key={device.id}>
+                  {device.name} ·
+                  <select
+                    aria-label={`Estado simulado de ${device.name}`}
+                    value={interrupted ? 'interrupted' : 'clear'}
+                    onChange={(event) => worker.current?.postMessage({
+                      type: 'SET_INPUT', deviceId: device.id, value: event.target.value === 'interrupted',
+                    })}
+                  >
+                    <option value="clear">Libre</option>
+                    <option value="interrupted">Interrumpida</option>
+                  </select>
+                </label>
+              );
+            }
             if (
               device.kind === 'lightSensor' ||
               device.kind === 'potentiometer'

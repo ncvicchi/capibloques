@@ -220,6 +220,8 @@ function runtimeForDevice(device: SceneDevice): RuntimeDeviceState {
       };
     case 'button':
       return { kind: 'button', pressed: device.config.pressed };
+    case 'infraredBarrier':
+      return { kind: 'infraredBarrier', interrupted: device.config.interrupted };
     case 'lightSensor':
       return {
         kind: 'lightSensor',
@@ -434,6 +436,10 @@ function applyInputValue(deviceId: string, value: unknown) {
     device.pressed = Boolean(value);
     return;
   }
+  if (device?.kind === 'infraredBarrier') {
+    device.interrupted = Boolean(value);
+    return;
+  }
   if (device?.kind === 'lightSensor' || device?.kind === 'potentiometer') {
     const numeric = Number(value);
     device.value = Number.isFinite(numeric)
@@ -554,6 +560,11 @@ function evaluateValue(expression: ValueExpression): number | string | boolean {
     case 'buttonValue': {
       const device = state.devices[expression.deviceId];
       return device?.kind === 'button' && device.pressed;
+    }
+    case 'barrierValue': {
+      const device = state.devices[expression.deviceId];
+      const interrupted = device?.kind === 'infraredBarrier' && device.interrupted;
+      return expression.expected === 'CLEAR' ? !interrupted : interrupted;
     }
     case 'displayButtonValue': {
       const device = state.devices[expression.deviceId];

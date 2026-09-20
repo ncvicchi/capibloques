@@ -273,7 +273,7 @@ El backup lógico de PostgreSQL está documentado como copia consistente mientra
 
 ## 10. Etapas y criterios de aceptación
 
-Numeración vigente: fases consecutivas 0–26, sin letras, más **Fase final** de producción, sin número y postergada. Las fases 0–9 y 11–14 están entregadas; fase 10 conserva aceptación física pendiente. Las fases 15–26 necesitan autorización de ejecución.
+Numeración vigente: fases consecutivas 0–29, sin letras, más **Fase final** de producción, sin número y postergada. Las fases 0–9, 11–14, 28 y 29 están entregadas en software; 10, 15, 16, 23 y 28 conservan aceptación física pendiente. Las demás fases planificadas requieren autorización de ejecución.
 
 | Etapa | Entrega | Se considera terminada cuando… |
 | --- | --- | --- |
@@ -304,11 +304,14 @@ Numeración vigente: fases consecutivas 0–26, sin letras, más **Fase final** 
 | 24. Panel web local · planificada | Un celular emparejado, vistas Escena/Controles e inputs programables | Misma LAN, contrato seguro y acotado, simulación/Arduino/IDF equivalentes y desconexión con estados seguros. |
 | 25. Compartir por enlace/QR · planificada | Vista o copia con caducidad y revocación | Un enlace nunca sustituye permisos ni publica por defecto; copiar no edita el original y los casos vencidos/revocados se prueban. |
 | 26. Acceso de aula y asistencia · planificada | Sesión docente acotada sin contraseña y registro explícito | No hay suplantación silenciosa ni filtración entre alumnos/cursos; expiración, revocación y equipos compartidos quedan probados. |
+| 27. Familia HP Robots / Otto · planificada | Perfiles compuestos por variante y movimientos cooperativos | Sólo hardware identificado; recursos reservados, simulación y firmware coherentes, calibración segura y ensayo físico. |
+| 28. Barrera infrarroja · software implementado | Sensor digital libre/interrumpida, polaridad en escena y dato sí/no; [contrato](FASE_28_BARRERA_INFRARROJA.md) | Simulación, JSON, validación, Arduino e IDF coinciden; falta identificar niveles y aceptar físicamente el detector exacto. |
+| 29. Datos y variables · software implementado | Variables tipadas, expresiones y textos dinámicos; [contrato](FASE_29_VARIABLES.md) | Tipos y límites compartidos por simulador, JSON y ambos generadores. |
 | Final. Producción y piloto · postergada | Configuración de producción, HTTPS, backups, carga y reversión | Con autorización nueva y aceptación física de los destinos del piloto: restauración en entorno aislado, carga acordada, servicios internos protegidos y flujo con administrador, docentes y alumnos de prueba. |
 
 Alcance, dependencias y aceptación completos en el [plan de fases pendientes](PLAN_FASES_BACKLOG.md).
 
-La unidad de entrega y validación es la **fase completa**. Las fases 0–9 y 11–14 están entregadas; fase 10 conserva aceptación física pendiente; 15–26 requieren autorización propia y la Fase final está postergada.
+La unidad de entrega y validación es la **fase completa**. Las fases 0–9, 11–14, 28 y 29 están entregadas en software; 10, 15, 16, 23 y 28 conservan aceptación física pendiente; las demás fases planificadas requieren autorización propia y la Fase final está postergada.
 
 Pruebas obligatorias adicionales:
 
