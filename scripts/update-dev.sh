@@ -5,6 +5,7 @@ REPOSITORY=/home/capi/capibloques
 CHECK_ONLY=0
 CI_MODE=fast
 FULL_TAG=
+BASELINE_CHECK_ID=0
 TARGET_LABEL=desconocido
 final_report() {
   local status=$?
@@ -55,11 +56,21 @@ git cat-file -e "$target:scripts/deploy-dev-remote.sh"
 
 if [[ $CI_MODE == full ]]; then
   FULL_TAG="ci-full-${target:0:12}-$(date +%s)"
+  BASELINE_CHECK_ID=$(python3 - "$target" <<'PY'
+import json, sys, urllib.request
+request = urllib.request.Request(
+    f"https://api.github.com/repos/ncvicchi/capibloques/commits/{sys.argv[1]}/check-runs?per_page=100",
+    headers={"Accept": "application/vnd.github+json", "User-Agent": "capibloques-dev-update", "X-GitHub-Api-Version": "2022-11-28"},
+)
+with urllib.request.urlopen(request, timeout=20) as response:
+    print(max((item.get("id", 0) for item in json.load(response)["check_runs"]), default=0))
+PY
+  )
   echo "Solicitando CI completa para $TARGET_LABEL…"
   git push --quiet origin "$target:refs/tags/$FULL_TAG"
 fi
 
-python3 - "$target" "$CI_MODE" <<'PY'
+python3 - "$target" "$CI_MODE" "$BASELINE_CHECK_ID" <<'PY'
 import json
 import os
 import sys
@@ -69,8 +80,8 @@ import urllib.request
 
 commit = sys.argv[1]
 mode = sys.argv[2]
-suffix = "-full" if mode == "full" else ""
-required = tuple(name + suffix for name in ("backend", "verify", "esp-idf", "firmware"))
+baseline_check_id = int(sys.argv[3])
+required = ("backend", "verify", "esp-idf", "firmware")
 # La API pública admite 60 consultas por hora sin token. Una por minuto deja
 # que el monitor permanezca activo sin consumir credenciales ni agotar el cupo.
 poll_seconds = 60
@@ -106,6 +117,8 @@ def current_required(checks):
     # representa la ejecución más reciente y evita que un éxito viejo oculte el actual.
     latest = {}
     for check in checks:
+        if mode == "full" and check.get("id", 0) <= baseline_check_id:
+            continue
         name = check.get("name")
         if name in required and check.get("id", 0) >= latest.get(name, {}).get("id", -1):
             latest[name] = check

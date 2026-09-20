@@ -82,7 +82,6 @@ jobs:
           echo 'Archivos:'; sed 's/^/  - /' /tmp/changed-files
 
   esp-idf:
-    name: ${{ startsWith(github.ref, 'refs/tags/ci-full-') && 'esp-idf-full' || 'esp-idf' }}
     needs: scope
     if: needs.scope.outputs.esp_idf == 'true'
     runs-on: ubuntu-latest
@@ -119,7 +118,6 @@ jobs:
           idf.py -C .idf-ci/build-s3 -DIDF_TARGET=esp32s3 build
           sha256sum .idf-ci/build-s3/main/main.cpp .idf-ci/build-s3/build/capibloques.bin
   backend:
-    name: ${{ startsWith(github.ref, 'refs/tags/ci-full-') && 'backend-full' || 'backend' }}
     needs: scope
     if: needs.scope.outputs.backend == 'true'
     runs-on: ubuntu-latest
@@ -147,7 +145,6 @@ jobs:
         if: always()
         run: docker compose -f compose.dev.yaml -f compose.backend.dev.yaml down
   verify:
-    name: ${{ startsWith(github.ref, 'refs/tags/ci-full-') && 'verify-full' || 'verify' }}
     needs: scope
     if: needs.scope.outputs.verify == 'true' || needs.scope.outputs.ops == 'true'
     runs-on: ubuntu-latest
@@ -223,7 +220,6 @@ jobs:
           retention-days: 3
 
   firmware:
-    name: ${{ startsWith(github.ref, 'refs/tags/ci-full-') && 'firmware-full' || 'firmware' }}
     needs: scope
     if: needs.scope.outputs.firmware == 'true'
     runs-on: ubuntu-latest
