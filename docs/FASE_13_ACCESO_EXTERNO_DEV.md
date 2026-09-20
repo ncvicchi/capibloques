@@ -45,7 +45,15 @@ cd /home/capi/capibloques
 ./scripts/update-dev.sh
 ```
 
-También puede iniciarse desde la PC de trabajo con `powershell -File .\scripts\deploy-dev.ps1`; `-DirectLan` evita el salto cuando la PC está en la LAN y `-CheckOnly` sólo audita. Ninguna variante guarda la contraseña: SSH y sudo la solicitan en la terminal. El comando del servidor hace `fetch`, verifica mediante la API pública de GitHub que `backend`, `verify`, `firmware` y `esp-idf` estén verdes para el commit exacto, y entrega ese Git object al mismo orquestador remoto. Si la CI aún corre, distingue controles pendientes, en proceso, aprobados o fallidos y la monitorea cada 45 segundos durante un máximo de 30 minutos. Continúa automáticamente al quedar verde; ante fallo, timeout, interrupción o imposibilidad de consultar GitHub no modifica DEV y muestra el motivo.
+También puede iniciarse desde la PC de trabajo con `powershell -File .\scripts\deploy-dev.ps1`; `-DirectLan` evita el salto cuando la PC está en la LAN y `-CheckOnly` sólo audita. Ninguna variante guarda la contraseña: SSH y sudo la solicitan en la terminal. El comando del servidor hace `fetch`, verifica mediante la API pública de GitHub que `backend`, `verify`, `firmware` y `esp-idf` estén verdes para el commit exacto, y entrega ese Git object al mismo orquestador remoto. Si la CI aún corre, distingue controles pendientes, en proceso, aprobados o fallidos, muestra avance aproximado, cantidad restante y tiempo transcurrido, y consulta cada minuto hasta que finalice. GitHub no publica una ETA fiable, por lo que el porcentaje representa trabajos y no tiempo. Continúa automáticamente al quedar verde; ante fallo o interrupción no modifica DEV. Los errores transitorios de red se reintentan. Opcionalmente `CAPIBLOQUES_CI_TIMEOUT_SECONDS` fija un límite; por defecto no vence.
+
+Cuando el checkout de DEV todavía contiene un actualizador antiguo, la primera ejecución debe cargar el actualizador nuevo directamente desde `origin/main`:
+
+```bash
+cd /home/capi/capibloques && git fetch --quiet origin main && git show origin/main:scripts/update-dev.sh | bash
+```
+
+Después de ese despliegue vuelve a bastar `./scripts/update-dev.sh`.
 
 El orquestador comprueba identidad, árbol limpio, avance rápido, runtime, salud y cola. Rechaza automáticamente migraciones, dependencias o infraestructura desconocidas y enumera los archivos que requieren un procedimiento nuevo. La migración aditiva `compiler.0002` y la ampliación auditada del compilador Wemos/S3 son una excepción explícita: pausa y drena la cola, guarda un `pg_dump` validado y root-only en `/var/lib/capibloques/backups`, reconstruye la imagen reutilizando capas, migra, recrea API, ejecuta las pruebas y registra la nueva receta inmutable. El contenido exacto de la migración se fija por objeto Git; una modificación futura vuelve a bloquearse. Si cambió otro archivo de `backend/`, selecciona `deploy --with-api` y ejecuta las pruebas Django de DEV. Un marcador root-only en `/var/lib/capibloques/dev-deploy.state` conserva commit, modo, pausa y mantenimiento reconocido: después de un corte se repite la misma orden para reanudar, no se borra el marcador ni se abre la admisión manualmente a ciegas.
 

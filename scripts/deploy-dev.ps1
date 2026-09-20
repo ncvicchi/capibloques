@@ -16,8 +16,6 @@ if (-not (Test-Path -LiteralPath $capiRemoteScript -PathType Leaf)) {
 
 $capiGit = Get-Command git -CommandType Application -ErrorAction Stop |
     Select-Object -First 1 -ExpandProperty Source
-$capiGh = Get-Command gh -CommandType Application -ErrorAction Stop |
-    Select-Object -First 1 -ExpandProperty Source
 $capiSsh = Get-Command ssh -CommandType Application -ErrorAction Stop |
     Select-Object -First 1 -ExpandProperty Source
 
@@ -38,18 +36,10 @@ try {
         throw 'HEAD no coincide con origin/main; falta push o actualización local.'
     }
 
-    $capiRuns = & $capiGh run list --commit $capiCommit --workflow 'Verificar CapiBloques' --limit 10 --json status,conclusion,headSha
-    if ($LASTEXITCODE -ne 0) { throw 'No se pudo consultar la CI de GitHub.' }
-    $capiVerified = @($capiRuns | ConvertFrom-Json | Where-Object {
-        $_.headSha -eq $capiCommit -and $_.status -eq 'completed' -and $_.conclusion -eq 'success'
-    })
-    if ($capiVerified.Count -eq 0) {
-        throw "El commit $capiCommit no tiene una CI completa exitosa."
-    }
-
-    $capiRemotePath = "${capiCommit}:scripts/deploy-dev-remote.sh"
     $capiMode = if ($CheckOnly) { ' --check-only' } else { '' }
-    $capiCommand = "cd /home/capi/capibloques && git fetch --quiet origin main && git cat-file -e '$capiRemotePath' && git show '$capiRemotePath' | sudo bash -s -- --expected-commit '$capiCommit'$capiMode"
+    # Carga siempre el actualizador desde origin/main. Así también funciona si
+    # el checkout remoto todavía conserva una versión vieja del propio script.
+    $capiCommand = "cd /home/capi/capibloques && git fetch --quiet origin main && git show origin/main:scripts/update-dev.sh | bash -s --$capiMode"
     $capiArgs = @(
         '-F', (Resolve-Path -LiteralPath $SshConfig).Path,
         '-tt', '-a', '-x',
@@ -62,7 +52,7 @@ try {
     }
     $capiArgs += @('capibloques-dev', $capiCommand)
 
-    Write-Host "DEV objetivo: $capiCommit"
+    Write-Host "DEV objetivo: $capiCommit. El comando esperará y mostrará el avance de CI."
     Write-Host 'SSH y sudo pueden solicitar la contraseña de la VM. No se guarda ni se pasa como argumento.'
     & $capiSsh @capiArgs
     if ($LASTEXITCODE -ne 0) {

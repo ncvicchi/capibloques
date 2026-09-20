@@ -19,6 +19,7 @@ git cat-file -e "$target:scripts/deploy-dev-remote.sh"
 
 python3 - "$target" <<'PY'
 import json
+import os
 import sys
 import time
 import urllib.error
@@ -26,11 +27,16 @@ import urllib.request
 
 commit = sys.argv[1]
 required = ("backend", "verify", "esp-idf", "firmware")
-poll_seconds = 45
-timeout_seconds = 30 * 60
+# La API pública admite 60 consultas por hora sin token. Una por minuto deja
+# que el monitor permanezca activo sin consumir credenciales ni agotar el cupo.
+poll_seconds = 60
+# Cero significa esperar hasta que la CI termine. El operador siempre puede
+# interrumpir con Ctrl+C sin modificar DEV.
+timeout_seconds = int(os.environ.get("CAPIBLOQUES_CI_TIMEOUT_SECONDS", "0"))
 started = time.monotonic()
 last_snapshot = None
 last_report = 0.0
+api_errors = 0
 
 def fetch_checks():
     request = urllib.request.Request(
@@ -47,9 +53,9 @@ def fetch_checks():
     except urllib.error.HTTPError as error:
         remaining = error.headers.get("X-RateLimit-Remaining")
         detail = "; límite público restante: " + remaining if remaining is not None else ""
-        raise SystemExit(f"No se pudo consultar la CI de GitHub: HTTP {error.code}{detail}")
+        raise RuntimeError(f"HTTP {error.code}{detail}")
     except Exception as error:
-        raise SystemExit(f"No se pudo consultar la CI de GitHub: {error}")
+        raise RuntimeError(str(error))
 
 def current_required(checks):
     # Un reintento puede dejar más de un check con el mismo nombre. El id mayor
@@ -72,17 +78,41 @@ def label(check):
         return "en proceso"
     return f"pendiente ({status or 'sin estado'})"
 
+def clock(seconds):
+    seconds = max(0, int(seconds))
+    return f"{seconds // 60:02d}:{seconds % 60:02d}"
+
+def progress(checks):
+    approved = sum(checks.get(name, {}).get("status") == "completed" and checks[name].get("conclusion") == "success" for name in required)
+    active = sum(checks.get(name, {}).get("status") == "in_progress" for name in required)
+    queued = sum(checks.get(name, {}).get("status") == "queued" for name in required)
+    # Es avance de controles, no una predicción de tiempo: un trabajo en curso
+    # cuenta como medio y uno en cola como apenas iniciado.
+    percent = round(100 * (approved + 0.5 * active + 0.1 * queued) / len(required))
+    return approved, active, queued, len(required) - approved, percent
+
 print(f"Esperando la CI del commit {commit[:12]}…", flush=True)
 try:
     while True:
-        checks = current_required(fetch_checks())
+        try:
+            checks = current_required(fetch_checks())
+            api_errors = 0
+        except RuntimeError as error:
+            api_errors += 1
+            elapsed = time.monotonic() - started
+            print(f"GitHub no respondió ({error}). Reintento {api_errors} en {poll_seconds}s; esperando desde hace {clock(elapsed)}.", flush=True)
+            time.sleep(poll_seconds)
+            continue
         snapshot = tuple((name, label(checks.get(name))) for name in required)
         now = time.monotonic()
-        if snapshot != last_snapshot or now - last_report >= 180:
-            elapsed = int(now - started)
-            print(f"CI después de {elapsed // 60:02d}:{elapsed % 60:02d}:", flush=True)
+        if snapshot != last_snapshot or now - last_report >= 60:
+            elapsed = now - started
+            approved, active, queued, remaining, percent = progress(checks)
+            print(f"CI {percent}% aprox. · {approved}/4 aprobados · faltan {remaining} · transcurrido {clock(elapsed)}:", flush=True)
             for name, state in snapshot:
                 print(f"  - {name}: {state}", flush=True)
+            if remaining:
+                print(f"  GitHub no informa una ETA fiable. Hay {active} en proceso y {queued} en cola; próxima consulta en {poll_seconds}s.", flush=True)
             last_snapshot = snapshot
             last_report = now
 
@@ -98,10 +128,10 @@ try:
             print("CI completa y aprobada. Continúa el despliegue seguro.", flush=True)
             break
 
-        if now - started >= timeout_seconds:
+        if timeout_seconds > 0 and now - started >= timeout_seconds:
             waiting = [name for name in required if label(checks.get(name)) != "aprobado"]
             raise SystemExit(
-                "La CI sigue pendiente después de 30 minutos; DEV no fue modificado: "
+                f"La CI sigue pendiente después de {clock(timeout_seconds)}; DEV no fue modificado: "
                 + ", ".join(waiting)
                 + ". Podés repetir el mismo comando más tarde."
             )
