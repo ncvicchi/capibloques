@@ -3256,6 +3256,13 @@ ${cases}
 #include <string.h>
 constexpr size_t CAPI_VALUE_TEXT_MAX = 120;
 struct CapiTextValue { char data[CAPI_VALUE_TEXT_MAX + 1] = {}; };
+CapiTextValue capiText(const char* value);
+CapiTextValue capiText(int32_t value);
+CapiTextValue capiText(bool value);
+CapiTextValue capiJoin(CapiTextValue left, CapiTextValue right);
+void capiAssignText(char* target, const char* value);
+int32_t capiSafeDivide(int32_t left, int32_t right);
+CapiTextValue capiLayoutText(CapiTextValue input, uint16_t columns, uint16_t rows);
 CapiTextValue capiText(const char* value) { CapiTextValue out; snprintf(out.data, sizeof(out.data), "%s", value ? value : ""); return out; }
 CapiTextValue capiText(int32_t value) { CapiTextValue out; snprintf(out.data, sizeof(out.data), "%ld", (long)value); return out; }
 CapiTextValue capiText(bool value) { return capiText(value ? "sí" : "no"); }
