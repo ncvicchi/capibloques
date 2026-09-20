@@ -298,6 +298,7 @@ function makeInitialState(scene: SceneDefinition): SimulatorState {
     wifi: 'disconnected',
     wifiAvailable: true,
     counter: 0,
+    variables: {},
     pins: {},
     console: [],
     activeBlockIds: {},
@@ -1432,7 +1433,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
               </div>
             </TabsContent>
             <TabsContent value="state" className="sim-content state-content">
-              {scene.devices.length ? (
+              {scene.devices.length || (lastProgram.variables?.length ?? 0) > 0 ? (
                 <div className="state-grid device-state-grid">
                   {scene.devices.map((device) => (
                     <DeviceStateCard
@@ -1445,6 +1446,12 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                     <span>🔢 Contador global</span>
                     <strong>{sim.counter}</strong>
                   </article>
+                  {(lastProgram.variables ?? []).map(variable => (
+                    <article key={variable.id}>
+                      <span>{variable.type === 'number' ? '🔢' : variable.type === 'text' ? '🔤' : '✅'} {variable.name}</span>
+                      <strong>{typeof sim.variables[variable.id] === 'boolean' ? sim.variables[variable.id] ? 'sí' : 'no' : String(sim.variables[variable.id] ?? (variable.type === 'text' ? '' : variable.type === 'boolean' ? 'no' : 0))}</strong>
+                    </article>
+                  ))}
                 </div>
               ) : (
                 <div className="state-empty">

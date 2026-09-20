@@ -40,6 +40,27 @@ export type FirmwareFramework = 'arduino' | 'esp-idf';
 
 export type CompareOperator = 'EQ' | 'NEQ' | 'LT' | 'LTE' | 'GT' | 'GTE';
 
+export type VariableType = 'number' | 'text' | 'boolean';
+export interface ProgramVariable {
+  id: string;
+  name: string;
+  type: VariableType;
+}
+
+export type ValueExpression =
+  | { kind: 'number'; value: number }
+  | { kind: 'text'; value: string }
+  | { kind: 'boolean'; value: boolean }
+  | { kind: 'variable'; variableId: string; valueType: VariableType }
+  | { kind: 'counterValue' }
+  | { kind: 'sensorValue'; deviceId: string }
+  | { kind: 'buttonValue'; deviceId: string }
+  | { kind: 'displayButtonValue'; deviceId: string; button: 'RIGHT' | 'UP' | 'DOWN' | 'LEFT' | 'SELECT' }
+  | { kind: 'messageValue'; deviceId: string }
+  | { kind: 'wifiValue' }
+  | { kind: 'join'; parts: ValueExpression[] }
+  | { kind: 'math'; operator: 'ADD' | 'SUBTRACT' | 'MULTIPLY' | 'DIVIDE'; left: ValueExpression; right: ValueExpression };
+
 export type Condition =
   | {
       kind: 'counter';
@@ -62,6 +83,8 @@ export type Condition =
       value: number;
     }
   | { kind: 'wifiConnected' }
+  | { kind: 'valueCompare'; operator: CompareOperator; left: ValueExpression; right: ValueExpression }
+  | { kind: 'value'; expression: ValueExpression }
   | { kind: 'boolean'; value: boolean };
 
 export type ProgramNode =
@@ -100,8 +123,10 @@ export type ProgramNode =
   | { op: 'wifi'; timeoutMs: number; blockId: string }
   | { op: 'counterSet'; value: number; blockId: string }
   | { op: 'counterChange'; delta: number; blockId: string }
-  | { op: 'serial'; text: string; blockId: string }
-  | { op: 'messageSend'; deviceId: string; text: string; blockId: string }
+  | { op: 'variableSet'; variableId: string; value: ValueExpression; blockId: string }
+  | { op: 'variableChange'; variableId: string; delta: ValueExpression; blockId: string }
+  | { op: 'serial'; text: string; expression?: ValueExpression; blockId: string }
+  | { op: 'messageSend'; deviceId: string; text: string; expression?: ValueExpression; blockId: string }
   | {
       op: 'messageReceive';
       deviceId: string;
@@ -112,7 +137,7 @@ export type ProgramNode =
       timeout: ProgramNode[];
       blockId: string;
     }
-  | { op: 'displayWrite'; deviceId: string; areaId: string; text: string; blockId: string }
+  | { op: 'displayWrite'; deviceId: string; areaId: string; text: string; expression?: ValueExpression; blockId: string }
   | { op: 'displayClear'; deviceId: string; areaId: string; blockId: string }
   | { op: 'displayAnimateText'; deviceId: string; areaId: string; text: string; effect: DisplayTextEffect; repeatCount: number; blockId: string }
   | { op: 'displayArtwork'; deviceId: string; artworkId: string; effect: DisplayArtworkEffect; repeatCount: number; blockId: string }
@@ -146,6 +171,7 @@ export interface ProgramThread {
 
 export interface CompiledProgram {
   version: 2;
+  variables?: ProgramVariable[];
   threads: ProgramThread[];
 }
 
@@ -307,6 +333,7 @@ export interface SimulatorState {
   wifi: WifiRuntimeState;
   wifiAvailable: boolean;
   counter: number;
+  variables: Record<string, number | string | boolean>;
   pins: Record<number, boolean>;
   console: string[];
   activeBlockIds: Record<string, string | undefined>;
@@ -745,9 +772,25 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_wait',
   'capi_if',
   'capi_compare',
+  'capi_value_compare',
   'capi_counter_compare',
   'capi_counter_set',
   'capi_counter_change',
+  'capi_variable_set_number',
+  'capi_variable_change',
+  'capi_variable_set_text',
+  'capi_variable_set_boolean',
+  'capi_variable_get_number',
+  'capi_variable_get_text',
+  'capi_variable_get_boolean',
+  'capi_value_number',
+  'capi_value_text',
+  'capi_value_boolean',
+  'capi_counter_value',
+  'capi_sensor_value',
+  'capi_message_value',
+  'capi_number_math',
+  'capi_text_join',
   'capi_traffic',
   'capi_led',
   'capi_pin_write',
@@ -1603,6 +1646,40 @@ function firstCompatibleDevice(
   return scene.devices.find((device) => kinds.includes(device.kind));
 }
 
+const variableTypes: readonly VariableType[] = ['number', 'text', 'boolean'];
+
+function normalizeValueExpression(raw: unknown): ValueExpression {
+  const value = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
+  switch (value.kind) {
+    case 'number': return { kind: 'number', value: finiteNumber(value.value, 0) };
+    case 'text': return { kind: 'text', value: typeof value.value === 'string' ? value.value.slice(0, 256) : '' };
+    case 'boolean': return { kind: 'boolean', value: Boolean(value.value) };
+    case 'variable': return {
+      kind: 'variable',
+      variableId: typeof value.variableId === 'string' ? value.variableId : '',
+      valueType: variableTypes.includes(value.valueType as VariableType) ? value.valueType as VariableType : 'number',
+    };
+    case 'counterValue': return { kind: 'counterValue' };
+    case 'sensorValue': return { kind: 'sensorValue', deviceId: typeof value.deviceId === 'string' ? value.deviceId : '' };
+    case 'buttonValue': return { kind: 'buttonValue', deviceId: typeof value.deviceId === 'string' ? value.deviceId : '' };
+    case 'displayButtonValue': return {
+      kind: 'displayButtonValue',
+      deviceId: typeof value.deviceId === 'string' ? value.deviceId : '',
+      button: ['RIGHT', 'UP', 'DOWN', 'LEFT', 'SELECT'].includes(String(value.button)) ? value.button as 'RIGHT' | 'UP' | 'DOWN' | 'LEFT' | 'SELECT' : 'SELECT',
+    };
+    case 'messageValue': return { kind: 'messageValue', deviceId: typeof value.deviceId === 'string' ? value.deviceId : '' };
+    case 'wifiValue': return { kind: 'wifiValue' };
+    case 'join': return { kind: 'join', parts: Array.isArray(value.parts) ? value.parts.slice(0, 8).map(normalizeValueExpression) : [] };
+    case 'math': return {
+      kind: 'math',
+      operator: ['ADD', 'SUBTRACT', 'MULTIPLY', 'DIVIDE'].includes(String(value.operator)) ? value.operator as 'ADD' | 'SUBTRACT' | 'MULTIPLY' | 'DIVIDE' : 'ADD',
+      left: normalizeValueExpression(value.left),
+      right: normalizeValueExpression(value.right),
+    };
+    default: return { kind: 'text', value: '' };
+  }
+}
+
 function normalizeCondition(raw: unknown, scene: SceneDefinition): Condition {
   const condition =
     raw && typeof raw === 'object'
@@ -1627,6 +1704,13 @@ function normalizeCondition(raw: unknown, scene: SceneDefinition): Condition {
         operator,
         left: finiteNumber(condition.left, 0),
         right: finiteNumber(condition.right, 0),
+      };
+    case 'valueCompare':
+      return {
+        kind: 'valueCompare',
+        operator,
+        left: normalizeValueExpression(condition.left),
+        right: normalizeValueExpression(condition.right),
       };
     case 'buttonPressed': {
       const target = firstCompatibleDevice(
@@ -1675,6 +1759,8 @@ function normalizeCondition(raw: unknown, scene: SceneDefinition): Condition {
     }
     case 'wifiConnected':
       return { kind: 'wifiConnected' };
+    case 'value':
+      return { kind: 'value', expression: normalizeValueExpression(condition.expression) };
     case 'boolean':
       return { kind: 'boolean', value: Boolean(condition.value) };
     default:
@@ -1809,15 +1895,32 @@ function normalizeNodes(
           blockId,
         });
         break;
+      case 'variableSet':
+        result.push({
+          op: 'variableSet',
+          variableId: typeof node.variableId === 'string' ? node.variableId : '',
+          value: normalizeValueExpression(node.value),
+          blockId,
+        });
+        break;
+      case 'variableChange':
+        result.push({
+          op: 'variableChange',
+          variableId: typeof node.variableId === 'string' ? node.variableId : '',
+          delta: normalizeValueExpression(node.delta),
+          blockId,
+        });
+        break;
       case 'serial':
         result.push({
           op: 'serial',
           text: typeof node.text === 'string' ? node.text : '',
+          ...(node.expression ? { expression: normalizeValueExpression(node.expression) } : {}),
           blockId,
         });
         break;
       case 'messageSend':
-        result.push({ op: 'messageSend', deviceId: typeof node.deviceId === 'string' ? node.deviceId : '', text: typeof node.text === 'string' ? node.text : '', blockId });
+        result.push({ op: 'messageSend', deviceId: typeof node.deviceId === 'string' ? node.deviceId : '', text: typeof node.text === 'string' ? node.text : '', ...(node.expression ? { expression: normalizeValueExpression(node.expression) } : {}), blockId });
         break;
       case 'messageReceive':
         result.push({
@@ -1832,7 +1935,7 @@ function normalizeNodes(
         });
         break;
       case 'displayWrite':
-        result.push({ op: 'displayWrite', deviceId: typeof node.deviceId === 'string' ? node.deviceId : '', areaId: typeof node.areaId === 'string' ? node.areaId : '', text: typeof node.text === 'string' ? node.text : '', blockId });
+        result.push({ op: 'displayWrite', deviceId: typeof node.deviceId === 'string' ? node.deviceId : '', areaId: typeof node.areaId === 'string' ? node.areaId : '', text: typeof node.text === 'string' ? node.text : '', ...(node.expression ? { expression: normalizeValueExpression(node.expression) } : {}), blockId });
         break;
       case 'displayClear':
         result.push({ op: 'displayClear', deviceId: typeof node.deviceId === 'string' ? node.deviceId : '', areaId: typeof node.areaId === 'string' ? node.areaId : '', blockId });
@@ -1960,6 +2063,7 @@ export function normalizeCompiledProgram(
   if (Array.isArray(input)) {
     return {
       version: 2,
+      variables: [],
       threads: [
         {
           id: 'main',
@@ -1969,12 +2073,25 @@ export function normalizeCompiledProgram(
       ],
     };
   }
-  if (!input || typeof input !== 'object') return { version: 2, threads: [] };
-  const candidate = input as { threads?: unknown };
-  if (!Array.isArray(candidate.threads)) return { version: 2, threads: [] };
+  if (!input || typeof input !== 'object') return { version: 2, variables: [], threads: [] };
+  const candidate = input as { threads?: unknown; variables?: unknown };
+  if (!Array.isArray(candidate.threads)) return { version: 2, variables: [], threads: [] };
   const usedIds = new Set<string>();
+  const usedVariableIds = new Set<string>();
+  const variables = Array.isArray(candidate.variables) ? candidate.variables.flatMap((raw, index) => {
+    const variable = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
+    const id = typeof variable.id === 'string' && variable.id.trim() ? variable.id : `variable-${index + 1}`;
+    if (usedVariableIds.has(id) || usedVariableIds.size >= 32) return [];
+    usedVariableIds.add(id);
+    return [{
+      id,
+      name: typeof variable.name === 'string' && variable.name.trim() ? variable.name.trim().slice(0, 32) : `dato ${index + 1}`,
+      type: variableTypes.includes(variable.type as VariableType) ? variable.type as VariableType : 'number',
+    }];
+  }) : [];
   return {
     version: 2,
+    variables,
     threads: candidate.threads.map((raw, index) => {
       const thread =
         raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
@@ -2076,6 +2193,22 @@ function validateConditionTarget(
   }
 }
 
+export function valueExpressionType(expression: ValueExpression): VariableType {
+  if (expression.kind === 'text' || expression.kind === 'join' || expression.kind === 'messageValue') return 'text';
+  if (expression.kind === 'boolean' || expression.kind === 'buttonValue' || expression.kind === 'displayButtonValue' || expression.kind === 'wifiValue') return 'boolean';
+  if (expression.kind === 'variable') return expression.valueType;
+  return 'number';
+}
+
+function visitValueExpression(expression: ValueExpression, visitor: (value: ValueExpression) => void) {
+  visitor(expression);
+  if (expression.kind === 'join') expression.parts.forEach(part => visitValueExpression(part, visitor));
+  if (expression.kind === 'math') {
+    visitValueExpression(expression.left, visitor);
+    visitValueExpression(expression.right, visitor);
+  }
+}
+
 export function validateProgramForScene(
   input: CompiledProgram | ProgramNode[],
   scene: SceneDefinition,
@@ -2084,6 +2217,13 @@ export function validateProgramForScene(
   const program = normalizeCompiledProgram(input, scene);
   const diagnostics: CapiDiagnostic[] = [];
   const deviceMap = new Map(scene.devices.map((device) => [device.id, device]));
+  const variables = new Map((program.variables ?? []).map(variable => [variable.id, variable]));
+  const variableNames = new Set<string>();
+  for (const variable of program.variables ?? []) {
+    const normalizedName = variable.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if (!variable.name.trim() || variable.name.length > 32 || variableNames.has(normalizedName)) diagnostics.push({ severity: 'error', code: 'variable-name', message: 'Cada variable necesita un nombre distinto de hasta 32 caracteres.' });
+    variableNames.add(normalizedName);
+  }
   const profile = boardProfile(profileId);
   const sceneValidation = validateScene(scene, profileId);
   const hardwareBlockingSceneCodes = new Set([
@@ -2120,6 +2260,50 @@ export function validateProgramForScene(
   const foreverVisualDevices = new Set<string>();
   const visualWaitBlocks = new Map<string, string>();
   visitProgram(program, (node) => {
+    const expressions: ValueExpression[] = [];
+    if (node.op === 'variableSet') expressions.push(node.value);
+    if (node.op === 'variableChange') expressions.push(node.delta);
+    if ((node.op === 'serial' || node.op === 'messageSend' || node.op === 'displayWrite') && node.expression) expressions.push(node.expression);
+    if (node.op === 'if' && node.condition.kind === 'value') expressions.push(node.condition.expression);
+    if (node.op === 'if' && node.condition.kind === 'valueCompare') expressions.push(node.condition.left, node.condition.right);
+    for (const expression of expressions) visitValueExpression(expression, value => {
+      if (value.kind === 'variable') {
+        const variable = variables.get(value.variableId);
+        if (!variable) diagnostics.push({ severity: 'error', code: 'variable-missing', message: 'Elegí una variable que todavía exista.', blockId: node.blockId });
+        else if (variable.type !== value.valueType) diagnostics.push({ severity: 'error', code: 'variable-type', message: `${variable.name} cambió de tipo; volvé a elegirla.`, blockId: node.blockId });
+      }
+      if (value.kind === 'sensorValue') {
+        const device = deviceMap.get(value.deviceId);
+        if (!device || (device.kind !== 'lightSensor' && device.kind !== 'potentiometer')) diagnostics.push({ severity: 'error', code: 'value-sensor-missing', message: 'Elegí un sensor numérico colocado en la escena.', blockId: node.blockId, deviceId: value.deviceId });
+      }
+      if (value.kind === 'buttonValue') {
+        const device = deviceMap.get(value.deviceId);
+        if (device?.kind !== 'button') diagnostics.push({ severity: 'error', code: 'value-button-missing', message: 'Elegí un botón colocado en la escena.', blockId: node.blockId, deviceId: value.deviceId });
+      }
+      if (value.kind === 'displayButtonValue') {
+        const device = deviceMap.get(value.deviceId);
+        if (device?.kind !== 'display' || device.config.profile !== 'lcd1602keypad') diagnostics.push({ severity: 'error', code: 'value-button-missing', message: 'Elegí una pantalla que tenga botones.', blockId: node.blockId, deviceId: value.deviceId });
+      }
+      if (value.kind === 'messageValue') {
+        const device = deviceMap.get(value.deviceId);
+        if (device?.kind !== 'messages') diagnostics.push({ severity: 'error', code: 'value-message-missing', message: 'Elegí un componente Mensajes colocado en la escena.', blockId: node.blockId, deviceId: value.deviceId });
+      }
+      if (value.kind === 'math' && (valueExpressionType(value.left) !== 'number' || valueExpressionType(value.right) !== 'number')) diagnostics.push({ severity: 'error', code: 'value-math-type', message: 'Las cuentas necesitan números en ambos lados.', blockId: node.blockId });
+    });
+    if (node.op === 'variableSet') {
+      const variable = variables.get(node.variableId);
+      if (!variable) diagnostics.push({ severity: 'error', code: 'variable-missing', message: 'Elegí una variable que todavía exista.', blockId: node.blockId });
+      else if (variable.type !== valueExpressionType(node.value)) diagnostics.push({ severity: 'error', code: 'variable-type', message: `${variable.name} necesita un valor de tipo ${variable.type === 'number' ? 'número' : variable.type === 'text' ? 'texto' : 'sí/no'}.`, blockId: node.blockId });
+    }
+    if (node.op === 'variableChange') {
+      const variable = variables.get(node.variableId);
+      if (!variable || variable.type !== 'number' || valueExpressionType(node.delta) !== 'number') diagnostics.push({ severity: 'error', code: 'variable-type', message: 'Cambiar una variable necesita una variable numérica y un número.', blockId: node.blockId });
+    }
+    if (node.op === 'if' && node.condition.kind === 'value' && valueExpressionType(node.condition.expression) !== 'boolean') diagnostics.push({ severity: 'error', code: 'condition-type', message: 'La condición necesita un valor de tipo sí/no.', blockId: node.blockId });
+    if (node.op === 'if' && node.condition.kind === 'valueCompare') {
+      const leftType = valueExpressionType(node.condition.left), rightType = valueExpressionType(node.condition.right);
+      if (leftType !== rightType || ((node.condition.operator !== 'EQ' && node.condition.operator !== 'NEQ') && leftType !== 'number')) diagnostics.push({ severity: 'error', code: 'condition-type', message: 'Compará datos del mismo tipo; menor y mayor se usan solamente con números.', blockId: node.blockId });
+    }
     if (node.op === 'displayAnimateText' || node.op === 'displayArtwork' || node.op === 'matrixScroll') {
       if (!Number.isInteger(node.repeatCount) || node.repeatCount < 0 || node.repeatCount > 100)
         diagnostics.push({ severity: 'error', code: 'animation-repeat-range', message: 'La animación debe repetirse entre 1 y 100 veces, o quedar sin parar.', blockId: node.blockId, deviceId: node.deviceId });
@@ -2128,13 +2312,14 @@ export function validateProgramForScene(
     if (node.op === 'visualWait') visualWaitBlocks.set(node.deviceId, node.blockId);
     if (node.op === 'messageSend' || node.op === 'messageReceive') {
       const text = node.op === 'messageSend' ? node.text : node.expected;
+      const dynamic = node.op === 'messageSend' && Boolean(node.expression);
       const bytes = new TextEncoder().encode(text).length;
-      if (!bytes || bytes > MAX_MESSAGE_BYTES) diagnostics.push({ severity: 'error', code: 'message-text-limit', message: `Un mensaje debe ocupar entre 1 y ${MAX_MESSAGE_BYTES} bytes.`, blockId: node.blockId, deviceId: node.deviceId });
+      if (!dynamic && (!bytes || bytes > MAX_MESSAGE_BYTES)) diagnostics.push({ severity: 'error', code: 'message-text-limit', message: `Un mensaje debe ocupar entre 1 y ${MAX_MESSAGE_BYTES} bytes.`, blockId: node.blockId, deviceId: node.deviceId });
       const device = deviceMap.get(node.deviceId);
       if (device?.kind === 'messages') {
         const incompatible = node.op === 'messageSend' ? device.config.mode === 'receive' : device.config.mode === 'send';
         if (incompatible) diagnostics.push({ severity: 'error', code: 'message-mode-mismatch', message: `${device.name} no está configurado para ${node.op === 'messageSend' ? 'enviar' : 'recibir'}.`, blockId: node.blockId, deviceId: node.deviceId });
-        if (!device.config.messages.includes(text)) diagnostics.push({ severity: 'error', code: 'message-not-configured', message: `“${text}” ya no está en la lista de ${device.name}.`, blockId: node.blockId, deviceId: node.deviceId });
+        if (!dynamic && !device.config.messages.includes(text)) diagnostics.push({ severity: 'error', code: 'message-not-configured', message: `“${text}” ya no está en la lista de ${device.name}.`, blockId: node.blockId, deviceId: node.deviceId });
       }
       if (node.op === 'messageReceive' && (!Number.isFinite(node.timeoutMs) || node.timeoutMs < 100 || node.timeoutMs > 300_000)) diagnostics.push({ severity: 'error', code: 'message-timeout', message: 'La espera debe durar entre 0,1 y 300 segundos.', blockId: node.blockId, deviceId: node.deviceId });
     }
@@ -2147,7 +2332,8 @@ export function validateProgramForScene(
       const area = device?.kind === 'display' && validDisplayConfig(device.config) ? displayTargets(device.config).find(area => area.id === node.areaId) : undefined;
       if (device?.kind === 'display' && !area) diagnostics.push({ severity: 'error', code: 'display-area-missing', message: `${device.name}: elegí una zona de texto existente. La anterior fue retirada o cambió el modelo.`, blockId: node.blockId, deviceId: node.deviceId });
       if (node.op === 'displayWrite' || node.op === 'displayAnimateText') {
-        if (node.text.length > MAX_DISPLAY_TEXT) diagnostics.push({ severity: 'error', code: 'display-text-limit', message: `Un mensaje admite hasta ${MAX_DISPLAY_TEXT} caracteres.`, blockId: node.blockId });
+        const dynamic = node.op === 'displayWrite' && Boolean(node.expression);
+        if (!dynamic && node.text.length > MAX_DISPLAY_TEXT) diagnostics.push({ severity: 'error', code: 'display-text-limit', message: `Un mensaje admite hasta ${MAX_DISPLAY_TEXT} caracteres.`, blockId: node.blockId });
         if (area) {
           const layout = layoutDisplayText(node.text, area);
           if (layout.converted) diagnostics.push({ severity: 'warning', code: 'display-text-converted', message: 'Pantalla: se quitan tildes y los símbolos no compatibles se muestran como ?. La vista previa usa el mismo texto que la placa.', blockId: node.blockId });
@@ -2476,6 +2662,7 @@ interface GeneratorContext {
   scene: SceneDefinition;
   symbols: Map<string, string>;
   threadIndex: number;
+  variables: Map<string, ProgramVariable>;
 }
 
 function deviceSymbol(context: GeneratorContext, deviceId: string) {
@@ -2484,6 +2671,46 @@ function deviceSymbol(context: GeneratorContext, deviceId: string) {
 
 function pinConstant(context: GeneratorContext, deviceId: string) {
   return `PIN_${deviceSymbol(context, deviceId)}`;
+}
+
+function variableSymbol(variableId: string) {
+  return `VAR_${cppIdentifier(variableId)}`;
+}
+
+function valueToCpp(expression: ValueExpression, context: GeneratorContext): string {
+  switch (expression.kind) {
+    case 'number': return String(normalizeCounterValue(expression.value));
+    case 'text': return `capiText(${cppString(expression.value)})`;
+    case 'boolean': return expression.value ? 'true' : 'false';
+    case 'counterValue': return 'counterValue';
+    case 'sensorValue': return `${context.framework === 'esp-idf' ? 'capiAnalogRead' : 'analogRead'}(${pinConstant(context, expression.deviceId)})`;
+    case 'buttonValue': return `${context.framework === 'esp-idf' ? 'capiDigitalRead' : 'digitalRead'}(${pinConstant(context, expression.deviceId)}) == ${context.framework === 'esp-idf' ? '0' : 'LOW'}`;
+    case 'displayButtonValue': {
+      const buttons = { RIGHT: 0, UP: 1, DOWN: 2, LEFT: 3, SELECT: 4 } as const;
+      return `capiDisplayButtonPressed(${buttons[expression.button]})`;
+    }
+    case 'messageValue': return `capiText(MESSAGE_LAST_${deviceSymbol(context, expression.deviceId)})`;
+    case 'wifiValue': return context.framework === 'esp-idf' ? 'capiWifiConnected()' : 'WiFi.status() == WL_CONNECTED';
+    case 'variable': {
+      const symbol = variableSymbol(expression.variableId);
+      return context.variables.get(expression.variableId)?.type === 'text' ? `capiText(${symbol})` : symbol;
+    }
+    case 'join': {
+      const parts = expression.parts.length ? expression.parts : [{ kind: 'text', value: '' } as ValueExpression];
+      return parts.map(part => valueAsTextToCpp(part, context)).reduce((left, right) => `capiJoin(${left}, ${right})`);
+    }
+    case 'math': {
+      const left = valueToCpp(expression.left, context), right = valueToCpp(expression.right, context);
+      if (expression.operator === 'DIVIDE') return `capiSafeDivide(${left}, ${right})`;
+      const operator = { ADD: '+', SUBTRACT: '-', MULTIPLY: '*' }[expression.operator];
+      return `(${left} ${operator} ${right})`;
+    }
+  }
+}
+
+function valueAsTextToCpp(expression: ValueExpression, context: GeneratorContext) {
+  const value = valueToCpp(expression, context);
+  return valueExpressionType(expression) === 'text' ? value : `capiText(${value})`;
 }
 
 function conditionToCpp(condition: Condition, context: GeneratorContext) {
@@ -2507,6 +2734,15 @@ function conditionToCpp(condition: Condition, context: GeneratorContext) {
     return `${context.framework === 'esp-idf' ? 'capiAnalogRead' : 'analogRead'}(${pinConstant(context, condition.deviceId)}) ${operators[condition.operator]} ${Math.max(0, Math.min(4095, Math.round(condition.value)))}`;
   }
   if (condition.kind === 'boolean') return condition.value ? 'true' : 'false';
+  if (condition.kind === 'value') return valueToCpp(condition.expression, context);
+  if (condition.kind === 'valueCompare') {
+    const type = valueExpressionType(condition.left);
+    if (type === 'text') {
+      const comparison = `strcmp(${valueAsTextToCpp(condition.left, context)}.data, ${valueAsTextToCpp(condition.right, context)}.data)`;
+      return condition.operator === 'NEQ' ? `${comparison} != 0` : `${comparison} == 0`;
+    }
+    return `${valueToCpp(condition.left, context)} ${operators[condition.operator]} ${valueToCpp(condition.right, context)}`;
+  }
   if (condition.kind === 'counter')
     return `counterValue ${operators[condition.operator]} ${normalizeCounterValue(condition.value)}`;
   return `${condition.left} ${operators[condition.operator]} ${condition.right}`;
@@ -2589,18 +2825,38 @@ function instructionToCpp(
       return `${comment}\n        counterValue = ${normalizeCounterValue(instruction.value)};\n        ${pc} = ${nextPc};\n        break;`;
     case 'counterChange':
       return `${comment}\n        counterValue = addCounter(counterValue, ${normalizeCounterValue(instruction.delta)});\n        ${pc} = ${nextPc};\n        break;`;
+    case 'variableSet': {
+      const variable = context.variables.get(instruction.variableId);
+      if (!variable) return `${comment}\n        ${pc} = ${nextPc};\n        break;`;
+      const symbol = variableSymbol(variable.id);
+      const assignment = variable.type === 'text'
+        ? `capiAssignText(${symbol}, ${valueAsTextToCpp(instruction.value, context)}.data);`
+        : `${symbol} = ${valueToCpp(instruction.value, context)};`;
+      return `${comment}\n        ${assignment}\n        ${pc} = ${nextPc};\n        break;`;
+    }
+    case 'variableChange': {
+      const variable = context.variables.get(instruction.variableId);
+      if (!variable) return `${comment}\n        ${pc} = ${nextPc};\n        break;`;
+      const symbol = variableSymbol(variable.id);
+      return `${comment}\n        ${symbol} = addCounter(${symbol}, ${valueToCpp(instruction.delta, context)});\n        ${pc} = ${nextPc};\n        break;`;
+    }
     case 'serial':
-      if (native) return `${comment}\n        if (!capiPrintln(${cppString(instruction.text)})) return; // bounded Serial backpressure, other paths continue\n        ${pc} = ${nextPc};\n        break;`;
-      return `${comment}\n        Serial.println(${cppString(instruction.text)});\n        ${pc} = ${nextPc};\n        break;`;
+      if (native) return `${comment}\n        if (!capiPrintln(${instruction.expression ? `${valueAsTextToCpp(instruction.expression, context)}.data` : cppString(instruction.text)})) return; // bounded Serial backpressure, other paths continue\n        ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        Serial.println(${instruction.expression ? `${valueAsTextToCpp(instruction.expression, context)}.data` : cppString(instruction.text)});\n        ${pc} = ${nextPc};\n        break;`;
     case 'messageSend':
-      return `${comment}\n        if (!capiMessageSend(DEV_${deviceSymbol(context, instruction.deviceId)}, ${cppString(instruction.text)})) return;\n        ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        if (!capiMessageSend(DEV_${deviceSymbol(context, instruction.deviceId)}, ${instruction.expression ? `${valueAsTextToCpp(instruction.expression, context)}.data` : cppString(instruction.text)})) return;\n        ${pc} = ${nextPc};\n        break;`;
     case 'messageReceiveWait':
-      return `${comment}\n        if (!${waiting}) { ${waitStarted} = now; ${waiting} = true; }\n        { char received[121] = {}; const int result = capiMessagePoll(DEV_${deviceSymbol(context, instruction.deviceId)}, received);\n          if (result == 1) { ${waiting} = false; ${pc} = strcmp(received, ${cppString(instruction.expected)}) == 0 ? ${instruction.equalTarget} : ${instruction.differentTarget}; break; }\n          if ((uint32_t)(now - ${waitStarted}) >= ${Math.max(100, Math.round(instruction.timeoutMs))}U) { ${waiting} = false; ${pc} = ${instruction.timeoutTarget}; break; }\n        }\n        return;`;
+      return `${comment}\n        if (!${waiting}) { ${waitStarted} = now; ${waiting} = true; }\n        { char received[121] = {}; const int result = capiMessagePoll(DEV_${deviceSymbol(context, instruction.deviceId)}, received);\n          if (result == 1) { capiAssignText(MESSAGE_LAST_${deviceSymbol(context, instruction.deviceId)}, received); ${waiting} = false; ${pc} = strcmp(received, ${cppString(instruction.expected)}) == 0 ? ${instruction.equalTarget} : ${instruction.differentTarget}; break; }\n          if ((uint32_t)(now - ${waitStarted}) >= ${Math.max(100, Math.round(instruction.timeoutMs))}U) { ${waiting} = false; ${pc} = ${instruction.timeoutTarget}; break; }\n        }\n        return;`;
     case 'displayWrite':
     case 'displayClear': {
       const device = context.scene.devices.find(device => device.id === instruction.deviceId);
       const area = device?.kind === 'display' && validDisplayConfig(device.config) ? displayTargets(device.config).find(area => area.id === instruction.areaId) : undefined;
-      const call = area ? `capiDisplayWrite(${area.column}, ${area.row}, ${area.columns}, ${area.rows}, ${instruction.op === 'displayWrite' ? cppString(layoutDisplayText(instruction.text, area).cells) : 'nullptr'});` : '// Destino inválido: revisar el diagnóstico #error.';
+      const content = instruction.op === 'displayWrite'
+        ? instruction.expression
+          ? `capiLayoutText(${valueAsTextToCpp(instruction.expression, context)}, ${area?.columns ?? 1}, ${area?.rows ?? 1}).data`
+          : cppString(area ? layoutDisplayText(instruction.text, area).cells : '')
+        : 'nullptr';
+      const call = area ? `capiDisplayWrite(${area.column}, ${area.row}, ${area.columns}, ${area.rows}, ${content});` : '// Destino inválido: revisar el diagnóstico #error.';
       return `${comment}\n        ${call}\n        ${pc} = ${nextPc};\n        break;`;
     }
     case 'displayAnimateText': {
@@ -2656,6 +2912,13 @@ export function programUsesWifi(program: CompiledProgram) {
     if (node.op === 'if' && node.condition.kind === 'wifiConnected') {
       usesWifi = true;
     }
+    const expressions: ValueExpression[] = [];
+    if (node.op === 'variableSet') expressions.push(node.value);
+    if (node.op === 'variableChange') expressions.push(node.delta);
+    if ((node.op === 'serial' || node.op === 'messageSend' || node.op === 'displayWrite') && node.expression) expressions.push(node.expression);
+    if (node.op === 'if' && node.condition.kind === 'value') expressions.push(node.condition.expression);
+    if (node.op === 'if' && node.condition.kind === 'valueCompare') expressions.push(node.condition.left, node.condition.right);
+    expressions.forEach(expression => visitValueExpression(expression, value => { if (value.kind === 'wifiValue') usesWifi = true; }));
   });
   return usesWifi;
 }
@@ -2905,6 +3168,7 @@ export function generateEsp32CodeResult(
     ? cloneScene(sourceScene)
     : inferSceneForProgram(input);
   const program = normalizeCompiledProgram(input, scene);
+  const programVariables = new Map((program.variables ?? []).map(variable => [variable.id, variable]));
   const profile = boardProfile(profileId);
   const diagnostics = validateProgramForScene(program, scene, profileId);
   if (native && !allocateIdfPwm(scene, profileId)) diagnostics.push({ severity: 'error', code: 'idf-pwm-timer-limit', message: 'No hay una combinación de canales y temporizadores PWM disponible para esta escena. Reducí componentes PWM antes de exportar ESP-IDF.' });
@@ -2958,7 +3222,7 @@ ${usesWifi ? `bool wifiAttemptActive_${suffix} = false;\nuint32_t wifiAttemptSta
     .join('\n\n');
   const threadFunctions = flattened
     .map(({ output }, threadIndex) => {
-      const context: GeneratorContext = { scene, symbols, threadIndex, usesWifi, framework };
+      const context: GeneratorContext = { scene, symbols, threadIndex, usesWifi, framework, variables: programVariables };
       const cases = output
         .map(
           (instruction, index) =>
@@ -2988,6 +3252,40 @@ ${cases}
         .join('\n')
     : '  // No hay programas “al comenzar”.';
 
+  const valueRuntime = `#include <stdio.h>
+#include <string.h>
+constexpr size_t CAPI_VALUE_TEXT_MAX = 120;
+struct CapiTextValue { char data[CAPI_VALUE_TEXT_MAX + 1] = {}; };
+CapiTextValue capiText(const char* value) { CapiTextValue out; snprintf(out.data, sizeof(out.data), "%s", value ? value : ""); return out; }
+CapiTextValue capiText(int32_t value) { CapiTextValue out; snprintf(out.data, sizeof(out.data), "%ld", (long)value); return out; }
+CapiTextValue capiText(bool value) { return capiText(value ? "sí" : "no"); }
+CapiTextValue capiJoin(CapiTextValue left, CapiTextValue right) { strncat(left.data, right.data, CAPI_VALUE_TEXT_MAX - strlen(left.data)); return left; }
+void capiAssignText(char* target, const char* value) { snprintf(target, CAPI_VALUE_TEXT_MAX + 1, "%s", value ? value : ""); }
+int32_t capiSafeDivide(int32_t left, int32_t right) { return right == 0 ? 0 : left / right; }
+CapiTextValue capiLayoutText(CapiTextValue input, uint16_t columns, uint16_t rows) {
+  CapiTextValue out; size_t source = 0, target = 0;
+  for (uint16_t row = 0; row < rows && target < CAPI_VALUE_TEXT_MAX; ++row) {
+    for (uint16_t column = 0; column < columns && target < CAPI_VALUE_TEXT_MAX; ++column) {
+      const char value = input.data[source];
+      if (!value || value == '\\n') out.data[target++] = ' ';
+      else { out.data[target++] = value; ++source; }
+    }
+    while (input.data[source] && input.data[source] != '\\n') ++source;
+    if (input.data[source] == '\\n') ++source;
+  }
+  return out;
+}`;
+  const variableDeclarations = (program.variables ?? []).map(variable => {
+    const symbol = variableSymbol(variable.id);
+    if (variable.type === 'text') return `char ${symbol}[CAPI_VALUE_TEXT_MAX + 1] = {}; // ${cppLineComment(variable.name)}`;
+    if (variable.type === 'boolean') return `bool ${symbol} = false; // ${cppLineComment(variable.name)}`;
+    return `int32_t ${symbol} = 0; // ${cppLineComment(variable.name)}`;
+  }).join('\n');
+  const messageValueDeclarations = scene.devices
+    .filter(device => device.kind === 'messages')
+    .map(device => `char MESSAGE_LAST_${symbols.get(device.id) ?? cppIdentifier(device.id)}[CAPI_VALUE_TEXT_MAX + 1] = {}; // último mensaje recibido`)
+    .join('\n');
+
   const servoResolutionBits = profile.family === 'esp32-s3' ? 14 : 16;
   const servoMaxDuty = (1 << servoResolutionBits) - 1;
   const code = `// ${cppLineComment(projectTitle(title))}
@@ -3011,6 +3309,9 @@ ${deviceDeclarations(scene, symbols)}
 
 ${messageRuntimeSupport(scene, native)}
 
+${valueRuntime}
+${variableDeclarations}
+${messageValueDeclarations}
 int32_t counterValue = 0;
 uint32_t lastSchedulerTick = 0;
 constexpr uint32_t SCHEDULER_QUANTUM_MS = 16;

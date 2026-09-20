@@ -14,6 +14,7 @@ import {
   type ProgramThread,
   type RuntimeDeviceState,
   type SimulatorState,
+  type ValueExpression,
   // @ts-expect-error Node's type-stripping smoke runner needs the explicit suffix.
 } from './capiblocks.ts';
 import {
@@ -100,6 +101,7 @@ const pendingSounds = new Map<string, { frequency: number }>();
 const inputOverrides = new Map<string, unknown>();
 const legacyInputOverrides = new Map<string, unknown>();
 const messageQueues = new Map<string, string[]>();
+const lastReceivedMessages = new Map<string, string>();
 const visualAnimations = new Map<string, VisualAnimation>();
 let wifiAvailableOverride: boolean | undefined;
 let diagnostics: CapiDiagnostic[] = [];
@@ -257,6 +259,7 @@ function freshState(): SimulatorState {
     wifi: 'disconnected',
     wifiAvailable: true,
     counter: 0,
+    variables: Object.fromEntries((program.variables ?? []).map(variable => [variable.id, variable.type === 'text' ? '' : variable.type === 'boolean' ? false : 0])),
     pins: {},
     console: [],
     activeBlockIds: {},
@@ -485,6 +488,7 @@ function resetExecution(status: SimulatorState['status'] = 'idle') {
   pendingBlockActivity = null;
   pendingSounds.clear();
   messageQueues.clear();
+  lastReceivedMessages.clear();
   visualAnimations.clear();
   clearBlockActivity();
   emit();
@@ -510,6 +514,14 @@ function evaluate(condition: Condition) {
     const device = state.devices[condition.deviceId];
     return device?.kind === 'display' && device.pressedButton === condition.button;
   }
+  if (condition.kind === 'value') return Boolean(evaluateValue(condition.expression));
+  if (condition.kind === 'valueCompare') {
+    const left = evaluateValue(condition.left);
+    const right = evaluateValue(condition.right);
+    if (condition.operator === 'EQ') return left === right;
+    if (condition.operator === 'NEQ') return left !== right;
+    return numberOperators[condition.operator](Number(left), Number(right));
+  }
   if (condition.kind === 'counter') {
     return numberOperators[condition.operator](state.counter, condition.value);
   }
@@ -522,6 +534,45 @@ function evaluate(condition: Condition) {
     return numberOperators[condition.operator](value, condition.value);
   }
   return numberOperators[condition.operator](condition.left, condition.right);
+}
+
+function valueText(value: number | string | boolean) {
+  return (typeof value === 'boolean' ? value ? 'sí' : 'no' : String(value)).slice(0, 120);
+}
+
+function evaluateValue(expression: ValueExpression): number | string | boolean {
+  switch (expression.kind) {
+    case 'number': return normalizeCounterValue(expression.value);
+    case 'text': return expression.value.slice(0, 120);
+    case 'boolean': return expression.value;
+    case 'counterValue': return state.counter;
+    case 'variable': return state.variables[expression.variableId] ?? (expression.valueType === 'text' ? '' : expression.valueType === 'boolean' ? false : 0);
+    case 'sensorValue': {
+      const device = state.devices[expression.deviceId];
+      return device?.kind === 'lightSensor' || device?.kind === 'potentiometer' ? device.value : 0;
+    }
+    case 'buttonValue': {
+      const device = state.devices[expression.deviceId];
+      return device?.kind === 'button' && device.pressed;
+    }
+    case 'displayButtonValue': {
+      const device = state.devices[expression.deviceId];
+      return device?.kind === 'display' && device.pressedButton === expression.button;
+    }
+    case 'messageValue': {
+      return lastReceivedMessages.get(expression.deviceId) ?? '';
+    }
+    case 'wifiValue': return state.wifi === 'connected';
+    case 'join': return expression.parts.map(part => valueText(evaluateValue(part))).join('').slice(0, 120);
+    case 'math': {
+      const left = Number(evaluateValue(expression.left)) || 0;
+      const right = Number(evaluateValue(expression.right)) || 0;
+      if (expression.operator === 'DIVIDE') return normalizeCounterValue(right === 0 ? 0 : Math.trunc(left / right));
+      if (expression.operator === 'SUBTRACT') return addCounterValues(left, -right);
+      if (expression.operator === 'MULTIPLY') return normalizeCounterValue(left * right);
+      return addCounterValues(left, right);
+    }
+  }
 }
 
 function appendConsole(text: string) {
@@ -697,6 +748,7 @@ function resolvePending(
     const received = queue.shift();
     if (received !== undefined) {
       execution.pending = null;
+      lastReceivedMessages.set(pending.deviceId, received);
       execution.pc = received === pending.expected ? pending.equalTarget : pending.differentTarget;
       appendConsole(`${deviceName(pending.deviceId)} recibió “${received}”: ${received === pending.expected ? 'igual' : 'distinto'}`);
       return 'advanced';
@@ -1032,7 +1084,8 @@ function executeInstruction(
       const definition = scene.devices.find(device => device.id === node.deviceId);
       const area = definition?.kind === 'display' ? displayTargets(definition.config).find(area => area.id === node.areaId) : undefined;
       if (device?.kind === 'display' && area) {
-        device.texts[node.areaId] = layoutDisplayText(node.op === 'displayWrite' ? node.text : '', area).lines;
+        const text = node.op === 'displayWrite' ? node.expression ? valueText(evaluateValue(node.expression)) : node.text : '';
+        device.texts[node.areaId] = layoutDisplayText(text, area).lines;
         device.animation = null;
       }
       break;
@@ -1061,14 +1114,32 @@ function executeInstruction(
       state.counter = addCounterValues(state.counter, node.delta);
       appendConsole(`Contador = ${state.counter}`);
       break;
+    case 'variableSet': {
+      const variable = program.variables?.find(variable => variable.id === node.variableId);
+      if (variable) {
+        const value = evaluateValue(node.value);
+        state.variables[node.variableId] = variable.type === 'text' ? valueText(value) : variable.type === 'boolean' ? Boolean(value) : normalizeCounterValue(Number(value) || 0);
+        appendConsole(`${variable.name} = ${valueText(state.variables[node.variableId])}`);
+      }
+      break;
+    }
+    case 'variableChange': {
+      const variable = program.variables?.find(variable => variable.id === node.variableId);
+      if (variable?.type === 'number') {
+        state.variables[node.variableId] = addCounterValues(Number(state.variables[node.variableId]) || 0, Number(evaluateValue(node.delta)) || 0);
+        appendConsole(`${variable.name} = ${state.variables[node.variableId]}`);
+      }
+      break;
+    }
     case 'serial':
-      appendConsole(node.text);
+      appendConsole(node.expression ? valueText(evaluateValue(node.expression)) : node.text);
       break;
     case 'messageSend': {
       const device = state.devices[node.deviceId];
       if (device?.kind === 'messages') {
-        device.transmitted = [...device.transmitted.slice(-15), node.text];
-        appendConsole(`${deviceName(node.deviceId)} envió “${node.text}”`);
+        const text = node.expression ? valueText(evaluateValue(node.expression)) : node.text;
+        device.transmitted = [...device.transmitted.slice(-15), text];
+        appendConsole(`${deviceName(node.deviceId)} envió “${text}”`);
       }
       break;
     }

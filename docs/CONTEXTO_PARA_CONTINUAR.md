@@ -5,8 +5,8 @@ Documento vivo de **fase 11**. Actualización: **19 de septiembre de 2026**. Lee
 ## 1. Punto de entrada y autorización actual
 
 - Repositorio: [ncvicchi/capibloques](https://github.com/ncvicchi/capibloques). Rama de trabajo actual: `main`. Nuevas ramas, si hacen falta: prefijo `codex/`. Respetar el árbol existente, sin reset/force ni descartar cambios ajenos.
-- El propietario autoriza una entrega a la vez y pidió diseñar primero los componentes. Fases 11–16 fueron autorizadas y ejecutadas; además autorizó específicamente implementar el componente Matriz LED de fase 23. Esa autorización no abre el resto de la fase 23 ni las demás fases.
-- **Fases 11–14 entregadas; fases 15 y 16 terminadas en software; fase 23 en curso.** Mensajes y DIYmall S3 conservan aceptación física pendiente. La Matriz LED 32 × 8 tiene editor, bloques, simulación y Arduino/ESP-IDF desplegados; faltan su ensayo eléctrico y la aceptación física de los displays existentes.
+- El propietario autoriza una entrega a la vez y pidió diseñar primero los componentes. Fases 11–16 fueron autorizadas y ejecutadas; además autorizó específicamente implementar el componente Matriz LED de fase 23 y la fase 29 de variables. Esa autorización no abre el resto de la fase 23 ni las demás fases.
+- **Fases 11–14 y 29 entregadas; fases 15 y 16 terminadas en software; fase 23 en curso.** Mensajes y DIYmall S3 conservan aceptación física pendiente. La Matriz LED 32 × 8 tiene editor, bloques, simulación y Arduino/ESP-IDF desplegados; faltan su ensayo eléctrico y la aceptación física de los displays existentes.
 - Fase 10: software entregado, **aceptación física pendiente**. El propietario no tiene Wemos disponible; no dar por probada la placa ni conectar/programar otro puerto como sustituto.
 - Producción es **Fase final, postergada**, no «fase 11». Los documentos históricos con letras son evidencias antiguas, no fases nuevas ni puntos para pedir OK.
 - Este contexto no transfiere automáticamente credenciales, chats, sesiones ni permisos. Otra cuenta debe tener su propio acceso verificado y la solicitud del propietario antes de operar.
@@ -314,7 +314,7 @@ El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BAC
 - 26: acceso de aula sin contraseña y asistencia con identidad, sesión y revocación explícitas; el logo y nombre del colegio deben ser el centro visual del ingreso normal y supervisado.
 - 27: familia HP Robots | Otto dentro del mismo editor, con perfiles compuestos por variante, bloques de movimiento cooperativos y validación física antes de anunciar compatibilidad.
 - 28: barrera infrarroja digital como sensor «libre / interrumpida», con polaridad configurable, condición genérica, simulación y generación Arduino/ESP-IDF.
-- 29: datos y variables tipados —número, texto y sí/no—, valores producidos por componentes y composición de texto reutilizable en consola, pantallas y Mensajes.
+- 29: **implementada en software**; datos y variables tipados —número, texto y sí/no—, cuentas/comparación, valores de contador, sensores, botones, Wi-Fi y último mensaje recibido, composición reutilizable en consola, pantallas y Mensajes. Contrato en [FASE_29_VARIABLES.md](FASE_29_VARIABLES.md).
 - El [informe externo del 14 de septiembre](BACKLOG.md#pedidos-externos-a-analizar) queda distribuido entre 20–22 y 25–26. El selector angular con reloj está expresamente descartado y no es trabajo pendiente. La barra residual, el arrastre individual/grupal y el guardado estable ya están corregidos en `d096fd9`, `0fc9ff2` y `2b97af9`.
 - Final: producción/HTTPS, restauración/backups externos, carga, monitoreo, rollback y piloto; postergada.
 

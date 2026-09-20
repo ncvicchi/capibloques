@@ -2,7 +2,7 @@
 
 CapiBloques es un entorno visual educativo para que chicos de 8 a 12 años armen una escena, programen sus componentes con bloques, prueben el comportamiento en el navegador y descarguen fuentes Arduino/ESP-IDF o firmware compilado para una Wemos D1 R32 o la DIYmall ESP32-S3-DevKitC V1.0 N16R8 identificada.
 
-El editor exige ingreso con alias y contraseña. En la VM de desarrollo corren Django + PostgreSQL, cuentas, cursos y proyectos personales. GitHub Pages ya no se utiliza. Las fases 0–9 y 11–14 están entregadas; 10, 15 y la [fase 16 S3](docs/FASE_16_ESP32_S3_DEVKIT.md) conservan aceptación física pendiente, y la fase 23 está en curso con el software de Matriz LED desplegado. La [fase 12](docs/FASE_12_MESA_DE_TRABAJO.md) reorganiza la mesa de trabajo, la [fase 13](docs/FASE_13_ACCESO_EXTERNO_DEV.md) publica DEV y la [fase 14](docs/FASE_14_EJECUCION_VISUAL.md) incorpora ejecución visual. El [plan 15–26](docs/PLAN_FASES_BACKLOG.md) distingue lo terminado de lo pendiente. Producción es la **Fase final, postergada**.
+El editor exige ingreso con alias y contraseña. En la VM de desarrollo corren Django + PostgreSQL, cuentas, cursos y proyectos personales. GitHub Pages ya no se utiliza. Las fases 0–9, 11–14 y la [fase 29 de variables](docs/FASE_29_VARIABLES.md) están entregadas en software; 10, 15 y la [fase 16 S3](docs/FASE_16_ESP32_S3_DEVKIT.md) conservan aceptación física pendiente, y la fase 23 está en curso con el software de Matriz LED desplegado. La [fase 12](docs/FASE_12_MESA_DE_TRABAJO.md) reorganiza la mesa de trabajo, la [fase 13](docs/FASE_13_ACCESO_EXTERNO_DEV.md) publica DEV y la [fase 14](docs/FASE_14_EJECUCION_VISUAL.md) incorpora ejecución visual. El [plan completo](docs/PLAN_FASES_BACKLOG.md) distingue lo terminado de lo pendiente. Producción es la **Fase final, postergada**.
 
 El alcance está en [el plan de implementación](docs/PLAN_MULTIUSUARIO_PROXMOX.md) y el estado de preparación en [fase 0: servidores](docs/FASE_0_SERVIDORES.md). Trabajamos una fase por vez, con pruebas, commit/push y aprobación del propietario antes de avanzar.
 
@@ -43,12 +43,16 @@ El editor Blockly incluye:
 - buzzer activo y notas con buzzer pasivo;
 - lectura de botón, sensor de luz y potenciómetro;
 - conexión Wi-Fi simulada.
+- variables de número, texto y sí/no, cuentas, comparación de datos y textos dinámicos;
+- valores reutilizables del contador, sensores, botones, Wi-Fi y último mensaje recibido.
 
 Cuando hay más de un componente del mismo tipo, el bloque muestra un selector con el nombre de la instancia. Así, “Semáforo norte” y “Semáforo sur” pueden ejecutar acciones distintas. Si se elimina un componente usado por un bloque, el editor conserva la referencia para poder corregirla y el generador informa el problema.
 
 Hay un único **Al comenzar**, obligatorio y fuera de las categorías; no se borra ni duplica, pero sus acciones siguen siendo editables. **En paralelo → Al mismo tiempo** abre de 2 a 16 caminos. Lo conectado debajo espera a que todos terminen; un camino infinito impide continuar debajo. Al abrir proyectos antiguos con varios inicios se reúnen sus acciones en caminos, conservando el original sin sobrescribirlo. El simulador y el sketch generado comparten el orden cooperativo y el presupuesto de instrucciones.
 
 **★ Favoritos**, la primera categoría, permite elegir los tipos de bloque usados con frecuencia y conservarlos en la cuenta. Guardar/Cancelar no modifica la escena. Desde **Mi cuenta → Elegir avatar** se puede elegir entre 15 animales, robots, personajes y plantas originales, sin subir fotos.
+
+**Datos** permite crear variables compartidas por todo el proyecto. Sus valores aparecen en la pestaña Estado y se reinician a `0`, texto vacío o `no`. **Armar texto** permite construir, por ejemplo, «El contador está en [contador]» y reutilizarlo en consola, Pantalla de texto o Mensajes. Los detalles de tipos, límites y concurrencia están en la [guía de fase 29](docs/FASE_29_VARIABLES.md).
 
 ## Simulación en el navegador
 

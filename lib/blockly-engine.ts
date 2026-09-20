@@ -3,7 +3,7 @@
 import { displayArtworks, displayProfiles, displayTargets } from './display-model.ts';
 // @ts-expect-error Node strip-types runners need the explicit extension.
 import { BUILTIN_DISPLAY_ARTWORKS } from './display-graphics.ts';
-import type { CompiledProgram, Condition, ProgramNode } from './capiblocks.ts';
+import type { CompiledProgram, Condition, ProgramNode, ValueExpression, VariableType } from './capiblocks.ts';
 import type { SceneDevice, SceneDeviceKind } from './scene-model.ts';
 // @ts-expect-error Node strip-types runner.
 import { boardProfile, type BoardProfileId } from './board-profiles.ts';
@@ -71,7 +71,8 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
     case 'capi_matrix_pattern':
     case 'capi_matrix_scroll': return ['ledMatrix'];
     case 'capi_message_send':
-    case 'capi_message_receive': return ['messages'];
+    case 'capi_message_receive':
+    case 'capi_message_value': return ['messages'];
     case 'capi_traffic':
       return ['trafficLight'];
     case 'capi_led':
@@ -96,6 +97,8 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
       return block.getFieldValue('SENSOR') === 'POTENTIOMETER'
         ? ['potentiometer']
         : ['lightSensor'];
+    case 'capi_sensor_value':
+      return ['lightSensor', 'potentiometer'];
     default:
       return [];
   }
@@ -416,6 +419,7 @@ const toolbox = {
       contents: [
         { kind: 'block', type: 'capi_if' },
         { kind: 'block', type: 'capi_compare' },
+        { kind: 'block', type: 'capi_value_compare' },
         { kind: 'block', type: 'capi_counter_compare' },
         { kind: 'block', type: 'capi_button_pressed' },
         { kind: 'block', type: 'capi_display_button_pressed' },
@@ -430,6 +434,31 @@ const toolbox = {
         { kind: 'block', type: 'capi_counter_set' },
         { kind: 'block', type: 'capi_counter_change' },
         { kind: 'block', type: 'capi_counter_compare' },
+      ],
+    },
+    {
+      kind: 'category',
+      name: 'Datos',
+      colour: '#7A58C1',
+      contents: [
+        { kind: 'button', text: 'Crear número', callbackKey: 'CAPI_CREATE_NUMBER' },
+        { kind: 'button', text: 'Crear texto', callbackKey: 'CAPI_CREATE_TEXT' },
+        { kind: 'button', text: 'Crear sí/no', callbackKey: 'CAPI_CREATE_BOOLEAN' },
+        { kind: 'block', type: 'capi_variable_set_number', inputs: { VALUE: { shadow: { type: 'capi_value_number', fields: { VALUE: 0 } } } } },
+        { kind: 'block', type: 'capi_variable_change', inputs: { DELTA: { shadow: { type: 'capi_value_number', fields: { VALUE: 1 } } } } },
+        { kind: 'block', type: 'capi_variable_set_text', inputs: { VALUE: { shadow: { type: 'capi_value_text', fields: { VALUE: 'hola' } } } } },
+        { kind: 'block', type: 'capi_variable_set_boolean', inputs: { VALUE: { shadow: { type: 'capi_value_boolean', fields: { VALUE: 'TRUE' } } } } },
+        { kind: 'block', type: 'capi_variable_get_number' },
+        { kind: 'block', type: 'capi_variable_get_text' },
+        { kind: 'block', type: 'capi_variable_get_boolean' },
+        { kind: 'block', type: 'capi_value_number' },
+        { kind: 'block', type: 'capi_value_text' },
+        { kind: 'block', type: 'capi_value_boolean' },
+        { kind: 'block', type: 'capi_counter_value' },
+        { kind: 'block', type: 'capi_sensor_value' },
+        { kind: 'block', type: 'capi_message_value' },
+        { kind: 'block', type: 'capi_number_math' },
+        { kind: 'block', type: 'capi_text_join' },
       ],
     },
     {
@@ -640,6 +669,30 @@ function registerBlocks(Blockly: BlocklyApi) {
       tooltip: 'Compara dos números y responde sí o no.',
     },
     {
+      type: 'capi_value_compare',
+      message0: 'comparar datos %1 %2 %3',
+      args0: [
+        { type: 'input_value', name: 'LEFT' },
+        {
+          type: 'field_dropdown',
+          name: 'OPERATOR',
+          options: [
+            ['=', 'EQ'],
+            ['≠', 'NEQ'],
+            ['<', 'LT'],
+            ['≤', 'LTE'],
+            ['>', 'GT'],
+            ['≥', 'GTE'],
+          ],
+        },
+        { type: 'input_value', name: 'RIGHT' },
+      ],
+      inputsInline: true,
+      output: 'Boolean',
+      colour: '#CF4EB9',
+      tooltip: 'Compara variables, sensores, contador, números, textos o respuestas sí/no.',
+    },
+    {
       type: 'capi_counter_compare',
       message0: 'contador %1 %2',
       args0: [
@@ -703,6 +756,101 @@ function registerBlocks(Blockly: BlocklyApi) {
       nextStatement: null,
       colour: '#6759DF',
       tooltip: 'Suma o resta al contador.',
+    },
+    {
+      type: 'capi_variable_set_number', message0: '📦 poner número %1 en %2',
+      args0: [
+        { type: 'field_variable', name: 'VAR', variable: 'mi número', variableTypes: ['Number'], defaultType: 'Number' },
+        { type: 'input_value', name: 'VALUE', check: 'Number' },
+      ],
+      previousStatement: null, nextStatement: null, colour: '#7A58C1',
+      tooltip: 'Guarda un número para volver a usarlo.',
+    },
+    {
+      type: 'capi_variable_change', message0: '➕ cambiar número %1 en %2',
+      args0: [
+        { type: 'field_variable', name: 'VAR', variable: 'mi número', variableTypes: ['Number'], defaultType: 'Number' },
+        { type: 'input_value', name: 'DELTA', check: 'Number' },
+      ],
+      previousStatement: null, nextStatement: null, colour: '#7A58C1',
+      tooltip: 'Suma o resta un valor a una variable numérica.',
+    },
+    {
+      type: 'capi_variable_set_text', message0: '📦 poner texto %1 en %2',
+      args0: [
+        { type: 'field_variable', name: 'VAR', variable: 'mi texto', variableTypes: ['String'], defaultType: 'String' },
+        { type: 'input_value', name: 'VALUE', check: 'String' },
+      ],
+      previousStatement: null, nextStatement: null, colour: '#7A58C1',
+      tooltip: 'Guarda un texto de hasta 120 caracteres.',
+    },
+    {
+      type: 'capi_variable_set_boolean', message0: '📦 poner sí/no %1 en %2',
+      args0: [
+        { type: 'field_variable', name: 'VAR', variable: 'mi decisión', variableTypes: ['Boolean'], defaultType: 'Boolean' },
+        { type: 'input_value', name: 'VALUE', check: 'Boolean' },
+      ],
+      previousStatement: null, nextStatement: null, colour: '#7A58C1',
+      tooltip: 'Guarda una respuesta sí o no.',
+    },
+    {
+      type: 'capi_variable_get_number', message0: 'número %1',
+      args0: [{ type: 'field_variable', name: 'VAR', variable: 'mi número', variableTypes: ['Number'], defaultType: 'Number' }],
+      output: 'Number', colour: '#7A58C1', tooltip: 'Lee un número guardado.',
+    },
+    {
+      type: 'capi_variable_get_text', message0: 'texto %1',
+      args0: [{ type: 'field_variable', name: 'VAR', variable: 'mi texto', variableTypes: ['String'], defaultType: 'String' }],
+      output: 'String', colour: '#7A58C1', tooltip: 'Lee un texto guardado.',
+    },
+    {
+      type: 'capi_variable_get_boolean', message0: 'sí/no %1',
+      args0: [{ type: 'field_variable', name: 'VAR', variable: 'mi decisión', variableTypes: ['Boolean'], defaultType: 'Boolean' }],
+      output: 'Boolean', colour: '#7A58C1', tooltip: 'Lee una respuesta guardada.',
+    },
+    {
+      type: 'capi_value_number', message0: 'número %1',
+      args0: [{ type: 'field_number', name: 'VALUE', value: 0, min: -2147483648, max: 2147483647, precision: 1 }],
+      output: 'Number', colour: '#7A58C1', tooltip: 'Un número.',
+    },
+    {
+      type: 'capi_value_text', message0: 'texto %1',
+      args0: [{ type: 'field_input', name: 'VALUE', text: 'hola' }],
+      output: 'String', colour: '#7A58C1', tooltip: 'Un texto de hasta 120 caracteres.',
+    },
+    {
+      type: 'capi_value_boolean', message0: '%1',
+      args0: [{ type: 'field_dropdown', name: 'VALUE', options: [['sí', 'TRUE'], ['no', 'FALSE']] }],
+      output: 'Boolean', colour: '#7A58C1', tooltip: 'Una respuesta sí o no.',
+    },
+    { type: 'capi_counter_value', message0: 'valor del contador', output: 'Number', colour: '#6759DF', tooltip: 'Lee el contador actual.' },
+    {
+      type: 'capi_sensor_value', message0: 'valor de %1',
+      args0: [deviceField('⚠️ agrega un sensor')], output: 'Number', colour: '#12AA8C',
+      extensions: [DEVICE_EXTENSION], tooltip: 'Lee el valor actual de un sensor, entre 0 y 4095.',
+    },
+    {
+      type: 'capi_message_value', message0: 'último mensaje recibido en %1',
+      args0: [deviceField('⚠️ agrega Mensajes')], output: 'String', colour: '#59627D',
+      extensions: [DEVICE_EXTENSION], tooltip: 'Lee el último texto recibido. Antes de recibir uno, está vacío.',
+    },
+    {
+      type: 'capi_number_math', message0: '%1 %2 %3',
+      args0: [
+        { type: 'input_value', name: 'LEFT', check: 'Number' },
+        { type: 'field_dropdown', name: 'OPERATOR', options: [['+', 'ADD'], ['−', 'SUBTRACT'], ['×', 'MULTIPLY'], ['÷', 'DIVIDE']] },
+        { type: 'input_value', name: 'RIGHT', check: 'Number' },
+      ],
+      inputsInline: true, output: 'Number', colour: '#7A58C1', tooltip: 'Hace una cuenta con dos números. Dividir por cero da 0.',
+    },
+    {
+      type: 'capi_text_join', message0: 'armar texto %1 %2 %3',
+      args0: [
+        { type: 'input_value', name: 'FIRST' },
+        { type: 'input_value', name: 'SECOND' },
+        { type: 'input_value', name: 'THIRD' },
+      ],
+      inputsInline: true, output: 'String', colour: '#7A58C1', tooltip: 'Une hasta tres textos o valores. Podés encastrar otro para agregar más.',
     },
     {
       type: 'capi_traffic',
@@ -1026,6 +1174,8 @@ function registerBlocks(Blockly: BlocklyApi) {
       type: 'capi_serial',
       message0: '💬 escribir en consola %1',
       args0: [{ type: 'field_input', name: 'TEXT', text: '¡Hola!' }],
+      message1: 'agregar dato %1',
+      args1: [{ type: 'input_value', name: 'DYNAMIC' }],
       previousStatement: null,
       nextStatement: null,
       colour: '#59627D',
@@ -1039,6 +1189,8 @@ function registerBlocks(Blockly: BlocklyApi) {
         { type: 'field_dropdown', name: MESSAGE_FIELD, options: [['AVANZAR', 'AVANZAR']] },
         deviceField('Elegí Mensajes'),
       ],
+      message1: 'o enviar dato %1',
+      args1: [{ type: 'input_value', name: 'DYNAMIC' }],
       previousStatement: null,
       nextStatement: null,
       colour: '#59627D',
@@ -1068,6 +1220,7 @@ function registerBlocks(Blockly: BlocklyApi) {
     {
       type: 'capi_display_write', message0: '📺 en %1 zona %2 escribir %3',
       args0: [deviceField('Elegí una pantalla'), { type: 'field_dropdown', name: AREA_FIELD, options: [['Elegí una zona', '__missing_area__']] }, { type: 'field_input', name: 'TEXT', text: 'Hola, mundo!' }],
+      message1: 'agregar dato %1', args1: [{ type: 'input_value', name: 'DYNAMIC' }],
       previousStatement: null, nextStatement: null, colour: '#59627D', extensions: [DEVICE_EXTENSION],
       tooltip: 'Reemplaza el texto de este destino, ajustándolo a sus filas y columnas. No lo envía a consola.',
     },
@@ -1241,6 +1394,51 @@ const animationRepeatCount = (block: BlocklyBlock) => {
   return 1;
 };
 
+function compileValue(block: BlocklyBlock | null, fallback: VariableType = 'number'): ValueExpression {
+  if (!block) {
+    if (fallback === 'text') return { kind: 'text', value: '' };
+    if (fallback === 'boolean') return { kind: 'boolean', value: false };
+    return { kind: 'number', value: 0 };
+  }
+  switch (block.type) {
+    case 'capi_value_number': return { kind: 'number', value: numberField(block, 'VALUE') };
+    case 'capi_value_text': return { kind: 'text', value: String(block.getFieldValue('VALUE') ?? '').slice(0, 120) };
+    case 'capi_value_boolean': return { kind: 'boolean', value: block.getFieldValue('VALUE') === 'TRUE' };
+    case 'capi_variable_get_number': return { kind: 'variable', variableId: String(block.getFieldValue('VAR') ?? ''), valueType: 'number' };
+    case 'capi_variable_get_text': return { kind: 'variable', variableId: String(block.getFieldValue('VAR') ?? ''), valueType: 'text' };
+    case 'capi_variable_get_boolean': return { kind: 'variable', variableId: String(block.getFieldValue('VAR') ?? ''), valueType: 'boolean' };
+    case 'capi_counter_value': return { kind: 'counterValue' };
+    case 'capi_sensor_value': return { kind: 'sensorValue', deviceId: selectedDeviceId(block) };
+    case 'capi_message_value': return { kind: 'messageValue', deviceId: selectedDeviceId(block) };
+    case 'capi_button_pressed': return { kind: 'buttonValue', deviceId: selectedDeviceId(block) };
+    case 'capi_display_button_pressed': return {
+      kind: 'displayButtonValue', deviceId: selectedDeviceId(block),
+      button: String(block.getFieldValue('BUTTON') ?? 'SELECT') as Extract<ValueExpression, { kind: 'displayButtonValue' }>['button'],
+    };
+    case 'capi_number_math': return {
+      kind: 'math',
+      operator: block.getFieldValue('OPERATOR'),
+      left: compileValue(block.getInputTargetBlock('LEFT'), 'number'),
+      right: compileValue(block.getInputTargetBlock('RIGHT'), 'number'),
+    };
+    case 'capi_text_join': return {
+      kind: 'join',
+      parts: ['FIRST', 'SECOND', 'THIRD'].map(name => compileValue(block.getInputTargetBlock(name), 'text')),
+    };
+    case 'capi_wifi_connected': return { kind: 'wifiValue' };
+    default: return fallback === 'text' ? { kind: 'text', value: '' } : fallback === 'boolean' ? { kind: 'boolean', value: false } : { kind: 'number', value: 0 };
+  }
+}
+
+function textExpression(block: BlocklyBlock, field: string, dynamicInput = 'DYNAMIC', dynamicOnly = false): ValueExpression | undefined {
+  const dynamic = block.getInputTargetBlock(dynamicInput);
+  if (!dynamic) return undefined;
+  const value = compileValue(dynamic, 'text');
+  if (dynamicOnly) return value;
+  const prefix = String(block.getFieldValue(field) ?? '');
+  return prefix ? { kind: 'join', parts: [{ kind: 'text', value: prefix }, value] } : value;
+}
+
 function compileCondition(block: BlocklyBlock | null): Condition {
   if (!block) return { kind: 'boolean', value: false };
   switch (block.type) {
@@ -1256,6 +1454,13 @@ function compileCondition(block: BlocklyBlock | null): Condition {
         operator: block.getFieldValue('OPERATOR'),
         left: numberField(block, 'LEFT'),
         right: numberField(block, 'RIGHT'),
+      };
+    case 'capi_value_compare':
+      return {
+        kind: 'valueCompare',
+        operator: block.getFieldValue('OPERATOR'),
+        left: compileValue(block.getInputTargetBlock('LEFT')),
+        right: compileValue(block.getInputTargetBlock('RIGHT')),
       };
     case 'capi_wifi_connected':
       return { kind: 'wifiConnected' };
@@ -1276,7 +1481,7 @@ function compileCondition(block: BlocklyBlock | null): Condition {
         value: numberField(block, 'VALUE', 2000),
       };
     default:
-      return { kind: 'boolean', value: false };
+      return { kind: 'value', expression: compileValue(block, 'boolean') };
   }
 }
 
@@ -1337,6 +1542,18 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           delta: numberField(block, 'DELTA', 1),
           blockId,
         });
+        break;
+      case 'capi_variable_set_number':
+        result.push({ op: 'variableSet', variableId: String(block.getFieldValue('VAR') ?? ''), value: compileValue(block.getInputTargetBlock('VALUE'), 'number'), blockId });
+        break;
+      case 'capi_variable_set_text':
+        result.push({ op: 'variableSet', variableId: String(block.getFieldValue('VAR') ?? ''), value: compileValue(block.getInputTargetBlock('VALUE'), 'text'), blockId });
+        break;
+      case 'capi_variable_set_boolean':
+        result.push({ op: 'variableSet', variableId: String(block.getFieldValue('VAR') ?? ''), value: compileValue(block.getInputTargetBlock('VALUE'), 'boolean'), blockId });
+        break;
+      case 'capi_variable_change':
+        result.push({ op: 'variableChange', variableId: String(block.getFieldValue('VAR') ?? ''), delta: compileValue(block.getInputTargetBlock('DELTA'), 'number'), blockId });
         break;
       case 'capi_traffic':
         result.push({
@@ -1415,19 +1632,27 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
         });
         break;
       case 'capi_serial':
+        {
+          const expression = textExpression(block, 'TEXT');
         result.push({
           op: 'serial',
           text: String(block.getFieldValue('TEXT') ?? ''),
+          ...(expression ? { expression } : {}),
           blockId,
         });
+        }
         break;
       case 'capi_message_send':
+        {
+          const expression = textExpression(block, MESSAGE_FIELD, 'DYNAMIC', true);
         result.push({
           op: 'messageSend',
           deviceId: selectedDeviceId(block),
           text: String(block.getFieldValue(MESSAGE_FIELD) ?? ''),
+          ...(expression ? { expression } : {}),
           blockId,
         });
+        }
         break;
       case 'capi_message_receive':
         result.push({
@@ -1442,7 +1667,10 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
         });
         break;
       case 'capi_display_write':
-        result.push({ op: 'displayWrite', deviceId: selectedDeviceId(block), areaId: String(block.getFieldValue(AREA_FIELD) ?? ''), text: String(block.getFieldValue('TEXT') ?? ''), blockId });
+        {
+          const expression = textExpression(block, 'TEXT');
+          result.push({ op: 'displayWrite', deviceId: selectedDeviceId(block), areaId: String(block.getFieldValue(AREA_FIELD) ?? ''), text: String(block.getFieldValue('TEXT') ?? ''), ...(expression ? { expression } : {}), blockId });
+        }
         break;
       case 'capi_display_clear':
         result.push({ op: 'displayClear', deviceId: selectedDeviceId(block), areaId: String(block.getFieldValue(AREA_FIELD) ?? ''), blockId });
@@ -1495,6 +1723,11 @@ function compileWorkspace(workspace: BlocklyWorkspaceSvg): CompiledProgram {
     .filter((block) => block.type === 'capi_start');
   return {
     version: 2,
+    variables: workspace.getVariableMap().getAllVariables().flatMap(variable => {
+      const blocklyType = variable.getType();
+      const type = blocklyType === 'String' ? 'text' : blocklyType === 'Boolean' ? 'boolean' : blocklyType === 'Number' ? 'number' : null;
+      return type ? [{ id: variable.getId(), name: variable.getName(), type } as const] : [];
+    }),
     threads: starts.map((start) => ({
       id: start.id,
       startBlockId: start.id,

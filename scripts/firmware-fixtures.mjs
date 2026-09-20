@@ -110,7 +110,7 @@ export function firmwareFixture(auxiliary = false) {
           { op: 'messageSend', deviceId: messages.id, text: 'AVANZAR', blockId: 'message-send' },
           {
             op: 'messageReceive', deviceId: messages.id, expected: 'DETENER', timeoutMs: 100,
-            equal: [{ op: 'serial', text: 'igual', blockId: 'message-equal' }],
+            equal: [{ op: 'serial', text: '', expression: { kind: 'join', parts: [{ kind: 'text', value: 'igual: ' }, { kind: 'messageValue', deviceId: messages.id }] }, blockId: 'message-equal' }],
             different: [{ op: 'serial', text: 'distinto', blockId: 'message-different' }],
             timeout: [{ op: 'serial', text: 'timeout', blockId: 'message-timeout' }],
             blockId: 'message-receive',
@@ -160,6 +160,14 @@ export function firmwareFixture(auxiliary = false) {
       },
       { kind: 'wifiConnected' },
       { kind: 'boolean', value: true },
+      { kind: 'value', expression: { kind: 'variable', variableId: 'ready', valueType: 'boolean' } },
+      { kind: 'valueCompare', operator: 'GTE', left: { kind: 'variable', variableId: 'score', valueType: 'number' }, right: { kind: 'number', value: 1 } },
+      { kind: 'valueCompare', operator: 'EQ', left: { kind: 'variable', variableId: 'label', valueType: 'text' }, right: { kind: 'text', value: 'El contador está en ' } },
+    ];
+    program.variables = [
+      { id: 'score', name: 'puntos', type: 'number' },
+      { id: 'label', name: 'mensaje', type: 'text' },
+      { id: 'ready', name: 'listo', type: 'boolean' },
     ];
     program.threads.push({
       id: 'controls',
@@ -169,6 +177,11 @@ export function firmwareFixture(auxiliary = false) {
         { op: 'counterChange', delta: 5, blockId: 'counter-saturate' },
         { op: 'counterSet', value: -2147483648, blockId: 'counter-min' },
         { op: 'counterChange', delta: -5, blockId: 'counter-negative' },
+        { op: 'variableSet', variableId: 'score', value: { kind: 'math', operator: 'ADD', left: { kind: 'counterValue' }, right: { kind: 'number', value: 5 } }, blockId: 'variable-score' },
+        { op: 'variableChange', variableId: 'score', delta: { kind: 'number', value: 1 }, blockId: 'variable-score-plus' },
+        { op: 'variableSet', variableId: 'label', value: { kind: 'text', value: 'El contador está en ' }, blockId: 'variable-label' },
+        { op: 'variableSet', variableId: 'ready', value: { kind: 'boolean', value: true }, blockId: 'variable-ready' },
+        { op: 'serial', text: '', expression: { kind: 'join', parts: [{ kind: 'variable', variableId: 'label', valueType: 'text' }, { kind: 'counterValue' }] }, blockId: 'variable-output' },
         {
           op: 'led',
           deviceId: device('led').id,

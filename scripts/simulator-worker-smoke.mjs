@@ -363,7 +363,7 @@ send({
   type: 'LOAD', scene: baseScene([link]), program: { version: 2, threads: [{
     id: 'messages-thread', startBlockId: 'messages-start', nodes: [{
       op: 'messageReceive', deviceId: link.id, expected: 'DETENER', timeoutMs: 5000, blockId: 'receive',
-      equal: [{ op: 'serial', text: 'rama igual', blockId: 'equal' }],
+      equal: [{ op: 'serial', text: '', expression: { kind: 'join', parts: [{ kind: 'text', value: 'rama igual: ' }, { kind: 'messageValue', deviceId: link.id }] }, blockId: 'equal' }],
       different: [{ op: 'serial', text: 'rama distinta', blockId: 'different' }],
       timeout: [{ op: 'serial', text: 'rama timeout', blockId: 'timeout' }],
     }],
@@ -375,7 +375,7 @@ assert.equal(latestState().execution.tasks[0].status, 'waiting');
 send({ type: 'SET_INPUT', deviceId: link.id, value: 'DETENER' });
 advance(16);
 advance(16);
-assert.ok(latestState().console.some(line => line.includes('rama igual')));
+assert.ok(latestState().console.some(line => line.includes('rama igual: DETENER')));
 assert.equal(latestState().devices[link.id].received.at(-1), 'DETENER');
 
 // El texto de la matriz arranca en segundo plano: el mismo camino continúa y
@@ -407,5 +407,32 @@ for (let turn = 0; turn < 8 && latestState().status !== 'done'; turn++) advance(
 assert.equal(latestState().status, 'done');
 assert.equal(latestState().devices[matrix.id].scrolling, false);
 assert.ok(latestState().console.some(line => line.includes('matriz lista')));
+
+// Variables tipadas y textos dinámicos comparten semántica con el firmware.
+send({ type: 'LOAD', scene: baseScene([]), program: {
+  version: 2,
+  variables: [
+    { id: 'score', name: 'puntos', type: 'number' },
+    { id: 'label', name: 'saludo', type: 'text' },
+    { id: 'ready', name: 'listo', type: 'boolean' },
+  ],
+  threads: [{ id: 'variables-thread', startBlockId: 'variables-start', nodes: [
+    { op: 'counterSet', value: 7, blockId: 'counter-seven' },
+    { op: 'variableSet', variableId: 'score', value: { kind: 'math', operator: 'ADD', left: { kind: 'counterValue' }, right: { kind: 'number', value: 5 } }, blockId: 'score-set' },
+    { op: 'variableSet', variableId: 'label', value: { kind: 'text', value: 'El contador está en ' }, blockId: 'label-set' },
+    { op: 'variableSet', variableId: 'ready', value: { kind: 'boolean', value: true }, blockId: 'ready-set' },
+    { op: 'serial', text: '', expression: { kind: 'join', parts: [{ kind: 'variable', variableId: 'label', valueType: 'text' }, { kind: 'counterValue' }] }, blockId: 'dynamic-text' },
+    { op: 'if', condition: { kind: 'value', expression: { kind: 'variable', variableId: 'ready', valueType: 'boolean' } }, consequent: [{ op: 'serial', text: 'listo', blockId: 'ready-message' }], otherwise: [], blockId: 'ready-if' },
+    { op: 'if', condition: { kind: 'valueCompare', operator: 'EQ', left: { kind: 'variable', variableId: 'score', valueType: 'number' }, right: { kind: 'number', value: 12 } }, consequent: [{ op: 'serial', text: 'doce puntos', blockId: 'score-message' }], otherwise: [], blockId: 'score-if' },
+  ] }],
+} });
+send({ type: 'RUN' });
+for (let turn = 0; turn < 8 && latestState().status !== 'done'; turn++) advance(16);
+assert.equal(latestState().variables.score, 12);
+assert.equal(latestState().variables.label, 'El contador está en ');
+assert.equal(latestState().variables.ready, true);
+assert.ok(latestState().console.some(line => line.includes('El contador está en 7')));
+assert.ok(latestState().console.some(line => line.endsWith('listo')));
+assert.ok(latestState().console.some(line => line.endsWith('doce puntos')));
 
 console.log('Simulator worker smoke checks passed.');

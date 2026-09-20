@@ -359,13 +359,15 @@ Asignación: **fase 28 — Barrera infrarroja digital**. Antes del ensayo físic
 
 ## 27. Datos, variables y textos dinámicos
 
+**Estado: implementado en software el 20 de septiembre de 2026.** Guía y contrato en [FASE_29_VARIABLES.md](FASE_29_VARIABLES.md).
+
 Pedido del 20 de septiembre de 2026: permitir conservar y reutilizar datos de forma general. El caso inicial es mostrar «El contador está en …», pero el diseño no debe crear una acción especial por cada combinación de componente y destino.
 
 Se propone un modelo infantil y tipado con variables de **número**, **texto** y **sí/no**; bloques para asignar, cambiar y leer; valores producidos por componentes —contador, sensor, botón, estado de conexión, mensaje recibido o posición—; y un bloque **armar texto** que combine fragmentos fijos con valores. El resultado se podrá enviar a consola, pantalla, Mensajes u otros destinos que acepten texto. Comparadores, cálculos y acciones consumirán los mismos bloques de valor, evitando familias duplicadas como «mostrar contador», «enviar contador» o «guardar contador».
 
 La fase debe definir alcance por proyecto e hilo, valor inicial, conversiones explícitas, nombres únicos y límites adecuados para ESP32. Variables y expresiones formarán parte del JSON, historial, deshacer/rehacer, simulación y ambos generadores. La interfaz mostrará el valor durante la ejecución sin convertir datos internos en una cabecera global invasiva.
 
-Asignación: **fase 29 — Datos, variables y textos dinámicos**. Primero se fija el modelo de tipos y expresiones; después se conecta gradualmente a componentes existentes sin romper el contador ni proyectos anteriores.
+Asignación: **fase 29 — Datos, variables y textos dinámicos**. Entregado con variables número/texto/sí-no, asignación y cambio, valores de contador/sensores/botones/Wi-Fi/Mensajes, cuentas, comparación genérica, composición textual, inspector, JSON, simulación y ambos generadores. Se excluye deliberadamente la posición física del robot hasta que exista una fuente real medible; la posición puramente simulada no sería portable.
 
 ## Pedidos externos a analizar
 
