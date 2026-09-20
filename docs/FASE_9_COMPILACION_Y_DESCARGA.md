@@ -61,6 +61,8 @@ Sólo operar en `capi-dev`, dentro de `/home/capi/capibloques`. No ejecutar esto
 
 Para mantenimiento: pausar admisión desde administración, dejar terminar los intentos y confirmar que no hay activos antes de cambiar receta. Preparar la parada de web/planificador, la actualización del checkout y la integración de API según la [operación vigente de fase 13](FASE_13_ACCESO_EXTERNO_DEV.md#operación-vigente). No iniciar ni detener `editor` manualmente con Compose: systemd coordina su listener con el firewall. Conservar el túnel dedicado. La compilación normal de proyectos **sí** funciona con editor/API activos; la ventana de mantenimiento no es una condición de uso.
 
+La actualización acumulada desde `f772026` automatiza exactamente la migración aditiva `compiler.0002` y la reconstrucción de la receta Wemos/S3 mediante `scripts/update-dev.sh`: valida el objeto Git de la migración, crea y comprueba un respaldo PostgreSQL root-only, drena y detiene el planificador, reconstruye/instala la imagen, migra, prueba y registra el nuevo ID inmutable antes de restaurar la pausa original. Este permiso no es genérico: cualquier otra migración, dependencia o archivo de infraestructura continúa bloqueado y requiere diseñar su mantenimiento.
+
 Con esa ventana preparada, checkout verificado y sin compiladores activos, estos son los pasos propios de la imagen y del instalador del compilador; no constituyen una receta completa de despliegue web/API:
 
 ```sh

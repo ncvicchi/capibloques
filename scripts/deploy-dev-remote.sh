@@ -49,8 +49,32 @@ CURRENT_COMMIT=$(repo_git rev-parse HEAD)
 repo_git merge-base --is-ancestor "$CURRENT_COMMIT" "$TARGET_COMMIT" || fail "la actualización no es fast-forward"
 
 changed_files=$(repo_git diff --name-only "$CURRENT_COMMIT..$TARGET_COMMIT")
-if grep -Eq '(^|/)(migrations)/|(^|/)(requirements[^/]*\.txt|pyproject\.toml|poetry\.lock)$|^compose\.|^ops/(compiler|postgres|public-dev)/' <<<"$changed_files"; then
-  fail "hay migraciones, dependencias o infraestructura; requieren mantenimiento manual específico"
+RUN_MIGRATIONS=0
+REBUILD_COMPILER=0
+unknown_maintenance=()
+while IFS= read -r file; do
+  [[ -n $file ]] || continue
+  case "$file" in
+    backend/compiler/migrations/0002_build_board_profile.py)
+      RUN_MIGRATIONS=1
+      ;;
+    ops/compiler/archive.py|ops/compiler/entry.py|ops/compiler/runner.py)
+      REBUILD_COMPILER=1
+      ;;
+    *)
+      unknown_maintenance+=("$file")
+      ;;
+  esac
+done < <(grep -E '(^|/)(migrations)/|(^|/)(requirements[^/]*\.txt|pyproject\.toml|poetry\.lock)$|^compose\.|^ops/(compiler|postgres|public-dev)/' <<<"$changed_files" || true)
+if ((${#unknown_maintenance[@]})); then
+  printf 'Cambios que requieren un mantenimiento todavía no automatizado:\n' >&2
+  printf '  - %s\n' "${unknown_maintenance[@]}" >&2
+  fail "hay migraciones, dependencias o infraestructura no reconocidas; DEV no fue modificado"
+fi
+if ((RUN_MIGRATIONS)); then
+  migration_object=$(repo_git rev-parse "$TARGET_COMMIT:backend/compiler/migrations/0002_build_board_profile.py" 2>/dev/null || true)
+  [[ $migration_object == 8920d046b1a13bea5b7a989daf5899f2860a609a ]] || \
+    fail "la migración compiler.0002 no coincide con la versión auditada; DEV no fue modificado"
 fi
 
 WITH_API=0
@@ -97,6 +121,8 @@ curl --fail --silent --show-error --max-time 12 http://127.0.0.1:3000/api/health
 read -r paused revision queued building concurrency ceiling <<<"$(compiler_state)"
 printf 'Preflight: checkout=%s objetivo=%s pausa=%s revision=%s cola=%s activos=%s concurrencia=%s/%s api=%s\n' \
   "$CURRENT_COMMIT" "$TARGET_COMMIT" "$paused" "$revision" "$queued" "$building" "$concurrency" "$ceiling" "$WITH_API"
+((RUN_MIGRATIONS)) && echo "Mantenimiento reconocido: respaldo PostgreSQL y migración compiler.0002."
+((REBUILD_COMPILER)) && echo "Mantenimiento reconocido: reconstrucción y registro de la imagen del compilador."
 
 if ((CHECK_ONLY)); then
   runtime status
@@ -111,16 +137,20 @@ if [[ -f $STATE_FILE ]]; then
   original_paused=$(sed -n 's/^original_paused=//p' "$STATE_FILE")
   saved_with_api=$(sed -n 's/^with_api=//p' "$STATE_FILE")
   saved_verify_backend=$(sed -n 's/^verify_backend=//p' "$STATE_FILE")
-  [[ $saved_target == "$TARGET_COMMIT" && $original_paused =~ ^[01]$ && $saved_with_api =~ ^[01]$ && $saved_verify_backend =~ ^[01]$ ]] || \
+  saved_run_migrations=$(sed -n 's/^run_migrations=//p' "$STATE_FILE")
+  saved_rebuild_compiler=$(sed -n 's/^rebuild_compiler=//p' "$STATE_FILE")
+  [[ $saved_target == "$TARGET_COMMIT" && $original_paused =~ ^[01]$ && $saved_with_api =~ ^[01]$ && $saved_verify_backend =~ ^[01]$ && $saved_run_migrations =~ ^[01]$ && $saved_rebuild_compiler =~ ^[01]$ ]] || \
     fail "existe un mantenimiento anterior distinto; revisar $STATE_FILE"
   WITH_API=$saved_with_api
   VERIFY_BACKEND=$saved_verify_backend
+  RUN_MIGRATIONS=$saved_run_migrations
+  REBUILD_COMPILER=$saved_rebuild_compiler
   echo "Reanudando mantenimiento interrumpido para $saved_target"
 else
   original_paused=$paused
   umask 077
-  printf 'target=%s\noriginal_paused=%s\nwith_api=%s\nverify_backend=%s\n' \
-    "$TARGET_COMMIT" "$original_paused" "$WITH_API" "$VERIFY_BACKEND" >"$STATE_FILE"
+  printf 'target=%s\noriginal_paused=%s\nwith_api=%s\nverify_backend=%s\nrun_migrations=%s\nrebuild_compiler=%s\n' \
+    "$TARGET_COMMIT" "$original_paused" "$WITH_API" "$VERIFY_BACKEND" "$RUN_MIGRATIONS" "$REBUILD_COMPILER" >"$STATE_FILE"
 fi
 
 set_paused 1 >/dev/null
@@ -137,9 +167,49 @@ done
 systemctl stop capibloques-compiler.service
 [[ $(systemctl is-active capibloques-compiler.service || true) == inactive ]] || fail "no se pudo detener el planificador"
 
+compose_dev() {
+  docker compose --ansi never \
+    -f compose.dev.yaml -f compose.backend.dev.yaml -f compose.compiler.dev.yaml "$@"
+}
+
+if ((RUN_MIGRATIONS)); then
+  backup_dir=/var/lib/capibloques/backups
+  backup_file="$backup_dir/pre-${TARGET_COMMIT}.dump"
+  install -d -m 0700 -o root -g root "$backup_dir"
+  if [[ ! -f $backup_file ]]; then
+    backup_temp="${backup_file}.tmp"
+    rm -f "$backup_temp"
+    umask 077
+    compose_dev exec -T db pg_dump -U postgres -d capibloques -Fc >"$backup_temp"
+    [[ -s $backup_temp ]] || fail "el respaldo PostgreSQL quedó vacío"
+    compose_dev exec -T db pg_restore -l <"$backup_temp" >/dev/null
+    mv "$backup_temp" "$backup_file"
+  else
+    [[ -s $backup_file ]] || fail "el respaldo PostgreSQL existente está vacío"
+    compose_dev exec -T db pg_restore -l <"$backup_file" >/dev/null
+  fi
+  echo "Respaldo PostgreSQL verificado: $backup_file"
+fi
+
 echo "Actualizando checkout por fast-forward."
 repo_git pull --ff-only origin main
 [[ $(repo_git rev-parse HEAD) == "$TARGET_COMMIT" ]] || fail "el checkout no quedó en el commit objetivo"
+
+if ((REBUILD_COMPILER)); then
+  echo "Reconstruyendo la imagen aislada del compilador (se reutilizan las capas locales)."
+  docker build --memory=1024m --memory-swap=1600m --cpu-period=100000 --cpu-quota=80000 \
+    -f ops/compiler/Dockerfile -t capibloques-compiler-dev:phase9 .
+  python3 ops/compiler/install.py
+  compiler_image=$(docker image inspect capibloques-compiler-dev:phase9 --format '{{.Id}}')
+  [[ $compiler_image =~ ^sha256:[0-9a-f]{64}$ ]] || fail "la imagen nueva del compilador no tiene un ID válido"
+  compiler_recipe=${compiler_image#sha256:}
+fi
+
+if ((RUN_MIGRATIONS)); then
+  echo "Aplicando la migración de placa de compilación."
+  compose_dev exec -T api python manage.py migrate --noinput
+  compose_dev exec -T api python manage.py migrate --check
+fi
 
 if ((WITH_API)); then
   runtime deploy --with-api
@@ -151,6 +221,12 @@ fi
 
 if ((VERIFY_BACKEND)); then
   sh scripts/verify-backend-dev.sh
+fi
+
+if ((REBUILD_COMPILER)); then
+  printf '{"recipe":"%s","ceiling":%s}' "$compiler_recipe" "$ceiling" | \
+    compose_dev exec -T api python manage.py compiler_dispatch register
+  echo "Receta del compilador registrada: $compiler_recipe"
 fi
 
 runtime validate
