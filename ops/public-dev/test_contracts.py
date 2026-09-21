@@ -121,6 +121,8 @@ class PublicRuntimeContracts(unittest.TestCase):
         self.assertIn("REMOTE_SCRIPT=$(mktemp", updater)
         self.assertIn('sudo bash "$REMOTE_SCRIPT"', updater)
         self.assertNotIn('git show "$target:scripts/deploy-dev-remote.sh" |', updater)
+        self.assertIn("Modo DEV directo: no se espera GitHub Actions", updater)
+        self.assertIn("if [[ $CI_MODE == fast ]]", updater)
         self.assertIn("pg_dump -U postgres -d capibloques -Fc </dev/null", deployer)
         self.assertIn("Editor activo verificado", deployer)
 

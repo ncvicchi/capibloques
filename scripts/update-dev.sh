@@ -27,7 +27,7 @@ final_report() {
       printf 'RESULTADO: VERIFICACIÓN DEV COMPLETADA\n'
       printf 'Commit: %s\nEstado: auditoría correcta; no se hicieron cambios\n' "$TARGET_LABEL"
     else
-      printf 'RESULTADO: DESPLIEGUE DEV COMPLETADO\n'
+      printf 'RESULTADO: ACTUALIZACIÓN DEV COMPLETADA\n'
       printf 'Commit: %s\nModo: %s\nEstado: listo para usar\n' "$TARGET_LABEL" "$CI_MODE"
     fi
     printf '============================================================\n'
@@ -36,7 +36,7 @@ final_report() {
     if ((CHECK_ONLY)); then
       printf 'RESULTADO: VERIFICACIÓN DEV FALLÓ\n' >&2
     else
-      printf 'RESULTADO: DESPLIEGUE DEV FALLÓ\n' >&2
+      printf 'RESULTADO: ACTUALIZACIÓN DEV FALLÓ\n' >&2
     fi
     printf 'Commit objetivo: %s\nModo: %s\nCódigo de salida: %s\nRevisá el último mensaje ERROR mostrado arriba.\n' "$TARGET_LABEL" "$CI_MODE" "$status" >&2
     printf '============================================================\n' >&2
@@ -65,7 +65,9 @@ target=$(git rev-parse origin/main)
 TARGET_LABEL=${target:0:12}
 git cat-file -e "$target:scripts/deploy-dev-remote.sh"
 
-if [[ $CI_MODE == full ]]; then
+if [[ $CI_MODE == fast ]]; then
+  echo "Modo DEV directo: no se espera GitHub Actions. Las pruebas se hacen en DEV."
+else
   FULL_TAG="ci-full-${target:0:12}-$(date +%s)"
   BASELINE_CHECK_ID=$(python3 - "$target" <<'PY'
 import json, sys, urllib.request
@@ -79,9 +81,8 @@ PY
   )
   echo "Solicitando CI completa para $TARGET_LABEL…"
   git push --quiet origin "$target:refs/tags/$FULL_TAG"
-fi
 
-python3 - "$target" "$CI_MODE" "$BASELINE_CHECK_ID" <<'PY'
+  python3 - "$target" "$CI_MODE" "$BASELINE_CHECK_ID" <<'PY'
 import json
 import os
 import sys
@@ -213,6 +214,7 @@ try:
 except KeyboardInterrupt:
     raise SystemExit("Espera cancelada por el operador; DEV no fue modificado. Podés repetir el mismo comando.")
 PY
+fi
 
 mode=()
 ((CHECK_ONLY)) && mode+=(--check-only)

@@ -45,7 +45,7 @@ cd /home/capi/capibloques
 ./scripts/update-dev.sh
 ```
 
-También puede iniciarse desde la PC de trabajo con `powershell -File .\scripts\deploy-dev.ps1`; `-DirectLan` evita el salto cuando la PC está en la LAN y `-CheckOnly` sólo audita. Ninguna variante guarda la contraseña: SSH y sudo la solicitan en la terminal. El comando del servidor hace `fetch`, verifica mediante la API pública de GitHub que `backend`, `verify`, `firmware` y `esp-idf` estén verdes para el commit exacto, y entrega ese Git object al mismo orquestador remoto. Si la CI aún corre, distingue controles pendientes, en proceso, aprobados o fallidos, muestra avance aproximado, cantidad restante y tiempo transcurrido, y consulta cada minuto hasta que finalice. GitHub no publica una ETA fiable, por lo que el porcentaje representa trabajos y no tiempo. Continúa automáticamente al quedar verde; ante fallo o interrupción no modifica DEV. Los errores transitorios de red se reintentan. Opcionalmente `CAPIBLOQUES_CI_TIMEOUT_SECONDS` fija un límite; por defecto no vence.
+También puede iniciarse desde la PC de trabajo con `powershell -File .\scripts\deploy-dev.ps1`; `-DirectLan` evita el salto cuando la PC está en la LAN y `-CheckOnly` sólo audita. Ninguna variante guarda la contraseña: SSH y sudo la solicitan en la terminal. El modo normal/`--fast` hace `fetch` y actualiza DEV inmediatamente para probar el cambio allí; GitHub Actions puede continuar en paralelo, pero no es una barrera de entrada a DEV. Sólo `--full` crea una ejecución completa y espera mediante la API pública que `backend`, `verify`, `firmware` y `esp-idf` estén verdes para el commit exacto. En ese modo distingue controles pendientes, en proceso, aprobados o fallidos y consulta cada minuto. Opcionalmente `CAPIBLOQUES_CI_TIMEOUT_SECONDS` fija un límite; por defecto no vence.
 
 Cuando el checkout de DEV todavía contiene un actualizador antiguo, la primera ejecución debe cargar el actualizador nuevo directamente desde `origin/main`:
 
@@ -65,7 +65,7 @@ El operador elige el alcance:
 ./scripts/update-dev.sh --full
 ```
 
-Sin parámetro se usa `--fast`. El modo completo crea una etiqueta Git temporal para disparar la ejecución contra el mismo commit y la elimina al terminar o interrumpirse; no deja versiones ni ramas adicionales. Ninguno de los dos modos omite el preflight, el mantenimiento necesario ni la validación final de salud de DEV. `--check-only` puede combinarse con ambos.
+Sin parámetro se usa `--fast`: es la actualización directa del ambiente de prueba y no consulta ni espera GitHub Actions. El modo `--full` crea una etiqueta Git temporal para disparar la ejecución contra el mismo commit, espera los cuatro controles y elimina la etiqueta al terminar o interrumpirse. Ninguno omite el preflight, el mantenimiento necesario ni la validación final de salud de DEV. `--check-only` puede combinarse con ambos.
 
 Desde la PC, `powershell -File .\scripts\deploy-dev.ps1 -Fast` y `-Full` ofrecen la misma elección; no se admiten ambos juntos.
 

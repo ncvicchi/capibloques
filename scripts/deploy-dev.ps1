@@ -56,7 +56,12 @@ try {
     }
     $capiArgs += @('capibloques-dev', $capiCommand)
 
-    Write-Host "DEV objetivo: $capiCommit. El comando esperará y mostrará el avance de CI."
+    if ($Full) {
+        Write-Host "DEV objetivo: $capiCommit. Modo completo: esperará la CI de GitHub."
+    }
+    else {
+        Write-Host "DEV objetivo: $capiCommit. Modo directo: actualizará DEV sin esperar GitHub Actions."
+    }
     Write-Host 'SSH y sudo pueden solicitar la contraseña de la VM. No se guarda ni se pasa como argumento.'
     & $capiSsh @capiArgs
     if ($LASTEXITCODE -ne 0) {
