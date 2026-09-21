@@ -7,8 +7,13 @@ CI_MODE=fast
 FULL_TAG=
 BASELINE_CHECK_ID=0
 TARGET_LABEL=desconocido
+DEPLOY_CONFIRMED=0
 final_report() {
   local status=$?
+  if ((status == 0 && !CHECK_ONLY && !DEPLOY_CONFIRMED)); then
+    status=70
+    echo "ERROR: el orquestador terminó sin confirmar la imagen activa; DEV no se considera desplegado." >&2
+  fi
   if [[ -n $FULL_TAG ]]; then
     git -C "$REPOSITORY" push --quiet origin ":refs/tags/$FULL_TAG" >/dev/null 2>&1 || true
   fi
@@ -32,6 +37,8 @@ final_report() {
     printf 'Commit objetivo: %s\nModo: %s\nCódigo de salida: %s\nRevisá el último mensaje ERROR mostrado arriba.\n' "$TARGET_LABEL" "$CI_MODE" "$status" >&2
     printf '============================================================\n' >&2
   fi
+  trap - EXIT
+  exit "$status"
 }
 trap final_report EXIT
 
@@ -207,3 +214,4 @@ mode=()
 ((CHECK_ONLY)) && mode+=(--check-only)
 git show "$target:scripts/deploy-dev-remote.sh" | \
   sudo bash -s -- --expected-commit "$target" "${mode[@]}"
+DEPLOY_CONFIRMED=1

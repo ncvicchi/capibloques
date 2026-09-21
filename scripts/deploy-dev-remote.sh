@@ -257,6 +257,24 @@ else
   runtime deploy
 fi
 
+# No alcanza con que el checkout haya avanzado: el editor activo debe usar la
+# imagen construida para ese mismo commit. Esta comprobación evita declarar un
+# despliegue correcto cuando quedó sirviéndose el contenedor anterior.
+EDITOR_CONTAINER=$(docker ps \
+  --filter label=com.docker.compose.project=capibloques-dev \
+  --filter label=com.docker.compose.service=editor \
+  --format '{{.ID}}')
+[[ -n $EDITOR_CONTAINER && $EDITOR_CONTAINER != *$'\n'* ]] || \
+  fail "no hay exactamente un editor DEV activo después del despliegue"
+EXPECTED_EDITOR_IMAGE="capibloques-editor-dev:${TARGET_COMMIT:0:12}"
+ACTIVE_EDITOR_IMAGE=$(docker inspect --format '{{.Config.Image}}' "$EDITOR_CONTAINER")
+ACTIVE_EDITOR_REVISION=$(docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$EDITOR_CONTAINER")
+[[ $ACTIVE_EDITOR_IMAGE == "$EXPECTED_EDITOR_IMAGE" ]] || \
+  fail "el editor activo sigue en $ACTIVE_EDITOR_IMAGE; se esperaba $EXPECTED_EDITOR_IMAGE"
+[[ $ACTIVE_EDITOR_REVISION == "$TARGET_COMMIT" ]] || \
+  fail "la imagen activa declara $ACTIVE_EDITOR_REVISION; se esperaba $TARGET_COMMIT"
+echo "Editor activo verificado: $EXPECTED_EDITOR_IMAGE"
+
 if ((VERIFY_BACKEND)); then
   sh scripts/verify-backend-dev.sh
 fi

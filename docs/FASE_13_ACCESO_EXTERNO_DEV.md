@@ -73,6 +73,10 @@ Toda ejecución termina con un banner independiente de los mensajes técnicos: `
 
 El orquestador comprueba identidad, árbol limpio, avance rápido, runtime, salud y cola. Rechaza automáticamente migraciones, dependencias o infraestructura desconocidas y enumera los archivos que requieren un procedimiento nuevo. La migración aditiva `compiler.0002` y la ampliación auditada del compilador Wemos/S3 son una excepción explícita: pausa y drena la cola, guarda un `pg_dump` validado y root-only en `/var/lib/capibloques/backups`, reconstruye la imagen reutilizando capas, migra, recrea API, ejecuta las pruebas y registra la nueva receta inmutable. El contenido exacto de la migración se fija por objeto Git; una modificación futura vuelve a bloquearse. Si cambió otro archivo de `backend/`, selecciona `deploy --with-api` y ejecuta las pruebas Django de DEV. Un marcador root-only en `/var/lib/capibloques/dev-deploy.state` conserva commit, modo, pausa y mantenimiento reconocido: después de un corte se repite la misma orden para reanudar, no se borra el marcador ni se abre la admisión manualmente a ciegas.
 
+El cierre exitoso también compara el nombre y la etiqueta OCI del contenedor
+`editor` activo con el commit objetivo. Una respuesta HTTP saludable servida por
+la imagen anterior ya no puede producir el cartel de despliegue completado.
+
 Si mientras el servidor estaba detenido `main` avanzó, el mismo comando puede trasladar el marcador a un commit descendiente: primero verifica que ambos commits pertenezcan a la misma línea, que el checkout continúe antes del objetivo anterior y que todo el diff nuevo pase la allowlist. Conserva los pasos pendientes del intento previo; una divergencia continúa bloqueada para revisión manual.
 
 Los marcadores creados antes de que existieran los campos de migración/imagen sólo se actualizan automáticamente cuando su objetivo coincide exactamente con el checkout que acaba de superar validación y salud. En cualquier otra posición se consideran ambiguos y permanecen bloqueados.
