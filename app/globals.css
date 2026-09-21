@@ -2149,6 +2149,7 @@ select:focus-visible {
   filter: drop-shadow(0 0 8px #2ad792);
 }
 .stage-robot small,
+.stage-otto small,
 .stage-motor small,
 .stage-servo small,
 .stage-buzzer small,
@@ -2161,6 +2162,79 @@ select:focus-visible {
   font-size: 10px;
   font-weight: 850;
   line-height: 1.2;
+}
+.stage-otto {
+  --otto-tilt: 0deg;
+  position: relative;
+  width: 68px;
+  height: 78px;
+  transform: rotate(var(--otto-tilt));
+  transform-origin: 50% 82%;
+  transition: transform 120ms ease;
+}
+.stage-otto .otto-head,
+.stage-otto .otto-body,
+.stage-otto .otto-arm,
+.stage-otto .otto-leg {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  border: 2px solid #35406a;
+  background: #f7f9ff;
+  box-shadow: 0 2px 0 rgb(44 55 91 / 18%);
+}
+.stage-otto .otto-head {
+  z-index: 3;
+  top: 0;
+  left: 14px;
+  width: 40px;
+  height: 32px;
+  border-radius: 12px 12px 9px 9px;
+}
+.stage-otto .otto-face { font: 700 16px/1 sans-serif; }
+.stage-otto .otto-body {
+  z-index: 2;
+  top: 29px;
+  left: 18px;
+  width: 32px;
+  height: 25px;
+  grid-auto-flow: column;
+  gap: 2px;
+  border-radius: 7px;
+  color: #7257c8;
+  font: 800 12px/1 sans-serif;
+}
+.stage-otto .otto-leg {
+  top: 51px;
+  width: 16px;
+  height: 20px;
+  border-radius: 5px 5px 8px 8px;
+}
+.stage-otto .otto-leg.left { left: 15px; transform: rotate(5deg); }
+.stage-otto .otto-leg.right { right: 15px; transform: rotate(-5deg); }
+.stage-otto .otto-arm {
+  z-index: 1;
+  top: 31px;
+  width: 10px;
+  height: 28px;
+  border-radius: 6px;
+  transform-origin: 50% 4px;
+}
+.stage-otto .otto-arm.left { left: 7px; transform: rotate(12deg); }
+.stage-otto .otto-arm.right { right: 7px; transform: rotate(-12deg); }
+.stage-otto .otto-arm.left.raised { transform: rotate(145deg); }
+.stage-otto .otto-arm.right.raised { transform: rotate(-145deg); }
+.stage-otto.moving .otto-leg.left { animation: otto-step-left 240ms ease-in-out infinite alternate; }
+.stage-otto.moving .otto-leg.right { animation: otto-step-right 240ms ease-in-out infinite alternate; }
+.stage-otto small {
+  position: absolute;
+  top: 72px;
+  left: 50%;
+  width: max-content;
+  max-width: 110px;
+  transform: translateX(-50%);
+  text-align: center;
 }
 .scene-widget {
   position: absolute;
@@ -2403,6 +2477,19 @@ select:focus-visible {
   font-size: 12px;
   font-weight: 750;
 }
+.scene-builder-footer .scene-save-error {
+  flex: 1 1 100%;
+  order: -1;
+  padding: 8px 10px;
+  border: 1px solid #d95b48;
+  border-radius: 9px;
+  background: #fff0ec;
+  color: #8d2525;
+  font-size: 12px;
+  line-height: 1.35;
+}
+@keyframes otto-step-left { to { transform: translateY(-3px) rotate(-7deg); } }
+@keyframes otto-step-right { to { transform: translateY(-3px) rotate(7deg); } }
 @keyframes motor-turn {
   to {
     filter: hue-rotate(360deg);

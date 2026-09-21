@@ -32,6 +32,12 @@ El editor sólo ofrece cada bloque a configuraciones que realmente poseen esa pi
 
 La escena muestra movimiento, fase, expresión, brazos, distancia y sonido. La distancia se modifica con un control de simulación y los sonidos usan el audio del navegador. JSON, deshacer/rehacer, favoritos, validación del servidor y revisión docente conservan la misma semántica.
 
+El dibujo de la escena distingue visualmente los cinco perfiles: cuerpo bípedo,
+sonido, sensor del explorador, boca expresiva y brazos del humanoide. En los
+perfiles expresivos, la cara cambia con el bloque que está ejecutándose. Si una
+validación impide Guardar escena, el motivo aparece junto al botón y se
+selecciona el objeto involucrado; la acción no queda sin respuesta visible.
+
 Arduino y ESP-IDF generan el mismo comportamiento sin `delay`: secuencias de sonido y medición ultrasónica avanzan desde un servicio cooperativo. La CI genera y compila una configuración humanoide completa en ambos frameworks, además de probar las reglas de los cinco perfiles.
 
 ## Cableado y aceptación pendiente

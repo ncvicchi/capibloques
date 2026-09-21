@@ -382,6 +382,8 @@ function SceneBuilderSession({
       );
       if (firstError?.code === 'invalid-scene-name') {
         document.getElementById('scene-name')?.focus();
+      } else if (firstError?.deviceId) {
+        selectNow(firstError.deviceId, previewScene);
       }
       return;
     }
@@ -1436,16 +1438,18 @@ function SceneBuilderSession({
               {sceneDirty ? 'cambios sin guardar' : 'sin cambios pendientes'}
               {sceneDirty && ` · ${storageError ? 'copia local sin confirmar' : storageBusy ? 'conservando copia local…' : 'borrador recuperable'}`}
             </span>
+            {message.startsWith('No se guardó') && <strong className="scene-save-error" role="alert">{message}</strong>}
             <Button type="button" variant="outline" onClick={requestClose}>
               Cancelar
             </Button>
             <Button
               type="button"
               onClick={saveAndClose}
+              disabled={finishing}
               aria-keyshortcuts="Control+S Meta+S"
               title="Guardar escena (Ctrl/Cmd + S)"
             >
-              Guardar escena
+              {finishing ? 'Guardando…' : 'Guardar escena'}
             </Button>
           </DialogFooter>
         </DialogContent>

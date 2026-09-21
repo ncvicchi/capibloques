@@ -144,8 +144,28 @@ function DeviceVisual({
   }
   if (device.kind === 'otto') {
     const moving = runtime?.motion && runtime.motion !== 'HOME';
-    const faces: Record<string, string> = { SMILE: '😄', SAD: '😢', ANGRY: '😠', SURPRISED: '😮', SLEEPY: '😴', LOVE: '😍', CLEAR: '🤖' };
-    return <span className="stage-robot" aria-hidden="true" style={{ transform: moving ? `rotate(${(runtime?.phase ?? 0) % 2 ? 6 : -6}deg)` : undefined }}>{faces[runtime?.expression ?? 'SMILE'] ?? '🕺'}<small>{moving ? runtime?.motion?.replaceAll('_', ' ').toLowerCase() : `${Math.round(runtime?.distance ?? 30)} cm`}{runtime?.arms && runtime.arms !== 'DOWN' ? ' · 🙌' : ''}{runtime?.sound ? ' ♪' : ''}</small></span>;
+    const expressive = device.config.profile === 'biped4-expressive' || device.config.profile === 'humanoid6-expressive';
+    const humanoid = device.config.profile === 'humanoid6-expressive';
+    const explorer = ['biped4-explorer', 'biped4-expressive', 'humanoid6-expressive'].includes(device.config.profile);
+    const hasSound = device.config.profile !== 'biped4';
+    const faces: Record<string, string> = { SMILE: '😄', SAD: '😢', ANGRY: '😠', SURPRISED: '😮', SLEEPY: '😴', LOVE: '😍', CLEAR: '▫️' };
+    const profileLabel = humanoid ? 'humanoide' : expressive ? 'expresivo' : explorer ? 'explorador' : hasSound ? 'con sonido' : 'bípedo';
+    return (
+      <span
+        className={`stage-otto${moving ? ' moving' : ''}${humanoid ? ' humanoid' : ''}`}
+        data-profile={device.config.profile}
+        aria-hidden="true"
+        style={{ '--otto-tilt': `${moving ? ((runtime?.phase ?? 0) % 2 ? 6 : -6) : 0}deg` } as CSSProperties}
+      >
+        <i className="otto-head">
+          <b className="otto-face">{expressive ? (faces[runtime?.expression ?? 'SMILE'] ?? '😄') : explorer ? '◉‿◉' : '•‿•'}</b>
+        </i>
+        <i className="otto-body">{hasSound && <b>♪</b>}{explorer && <b>⌁</b>}</i>
+        {humanoid && <><i className={`otto-arm left ${runtime?.arms && runtime.arms !== 'DOWN' ? 'raised' : ''}`} /><i className={`otto-arm right ${runtime?.arms && runtime.arms !== 'DOWN' ? 'raised' : ''}`} /></>}
+        <i className="otto-leg left" /><i className="otto-leg right" />
+        <small>{moving ? runtime?.motion?.replaceAll('_', ' ').toLowerCase() : profileLabel}{explorer ? ` · ${Math.round(runtime?.distance ?? 30)} cm` : ''}{runtime?.sound ? ' ♪' : ''}</small>
+      </span>
+    );
   }
   if (device.kind === 'motor') {
     return (
