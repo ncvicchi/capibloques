@@ -61,6 +61,10 @@ while IFS= read -r file; do
     ops/compiler/archive.py|ops/compiler/entry.py|ops/compiler/runner.py)
       REBUILD_COMPILER=1
       ;;
+    ops/public-dev/test_contracts.py)
+      # Es una prueba local/CI del contrato operativo; no se instala ni forma
+      # parte del runtime público de la VM.
+      ;;
     *)
       unknown_maintenance+=("$file")
       ;;

@@ -125,6 +125,7 @@ class PublicRuntimeContracts(unittest.TestCase):
         self.assertIn("if [[ $CI_MODE == fast ]]", updater)
         self.assertIn("pg_dump -U postgres -d capibloques -Fc </dev/null", deployer)
         self.assertIn("Editor activo verificado", deployer)
+        self.assertIn("ops/public-dev/test_contracts.py)", deployer)
 
     def test_reconfiguration_keeps_listener_closed_until_api_recreate(self):
         installer = (OPS / "install.py").read_text(encoding="utf-8")

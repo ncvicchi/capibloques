@@ -176,6 +176,12 @@ Git exacto en un archivo privado temporal, lo ejecuta por nombre y lo retira al
 salir; `pg_dump` recibe además `/dev/null`. Así, ninguna herramienta hija puede
 truncar el programa que la está coordinando.
 
+La allowlist de mantenimiento distingue además
+`ops/public-dev/test_contracts.py`: ese archivo sólo se ejecuta localmente o en
+CI y no se instala en la VM, por lo que no exige reinstalar el runtime público.
+Los demás cambios bajo `ops/public-dev/` continúan bloqueados hasta contar con
+un procedimiento de mantenimiento explícito.
+
 El propietario ejecutó la primera actualización mediante `deploy-dev.ps1 -DirectLan` y no informó errores; según el acuerdo operativo vigente, se registra DEV actualizado a `f772026f711782d0c3cd04401d3974ddcba0ea64`. Su [CI completa 35477573114](https://github.com/ncvicchi/capibloques/actions/runs/35477573114) terminó correcta. Esta confirmación procede del operador, no de una nueva inspección remota del asistente. Desde ahora el asistente implementa, prueba, commitea y pushea, pero entrega la orden de despliegue para que la ejecute el propietario; si éste no informa un problema, se considera exitosa. La orden normal dentro de DEV es `cd /home/capi/capibloques && ./scripts/update-dev.sh`.
 
 ### Fase 16 — DIYmall ESP32-S3 N16R8 — 19 de septiembre de 2026
