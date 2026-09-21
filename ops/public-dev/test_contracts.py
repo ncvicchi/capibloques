@@ -115,6 +115,15 @@ class PublicRuntimeContracts(unittest.TestCase):
         self.assertIn("CAPIBLOQUES_API_RECREATE_REQUIRED", runtime)
         self.assertIn("if not candidate_exists:", runtime)
 
+    def test_updater_cannot_lose_its_script_to_a_child_stdin_reader(self):
+        updater = (ROOT / "scripts/update-dev.sh").read_text(encoding="utf-8")
+        deployer = (ROOT / "scripts/deploy-dev-remote.sh").read_text(encoding="utf-8")
+        self.assertIn("REMOTE_SCRIPT=$(mktemp", updater)
+        self.assertIn('sudo bash "$REMOTE_SCRIPT"', updater)
+        self.assertNotIn('git show "$target:scripts/deploy-dev-remote.sh" |', updater)
+        self.assertIn("pg_dump -U postgres -d capibloques -Fc </dev/null", deployer)
+        self.assertIn("Editor activo verificado", deployer)
+
     def test_reconfiguration_keeps_listener_closed_until_api_recreate(self):
         installer = (OPS / "install.py").read_text(encoding="utf-8")
         self.assertIn("API_BOUNDARY_KEYS", installer)

@@ -218,7 +218,7 @@ if ((RUN_MIGRATIONS)); then
     backup_temp="${backup_file}.tmp"
     rm -f "$backup_temp"
     umask 077
-    compose_dev exec -T db pg_dump -U postgres -d capibloques -Fc >"$backup_temp"
+    compose_dev exec -T db pg_dump -U postgres -d capibloques -Fc </dev/null >"$backup_temp"
     [[ -s $backup_temp ]] || fail "el respaldo PostgreSQL quedó vacío"
     compose_dev exec -T db pg_restore -l <"$backup_temp" >/dev/null
     mv "$backup_temp" "$backup_file"

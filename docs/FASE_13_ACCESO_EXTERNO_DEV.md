@@ -76,6 +76,10 @@ El orquestador comprueba identidad, árbol limpio, avance rápido, runtime, salu
 El cierre exitoso también compara el nombre y la etiqueta OCI del contenedor
 `editor` activo con el commit objetivo. Una respuesta HTTP saludable servida por
 la imagen anterior ya no puede producir el cartel de despliegue completado.
+El actualizador materializa el orquestador obtenido del objeto Git en un archivo
+privado temporal antes de ejecutarlo: nunca lo alimenta por entrada estándar,
+porque una herramienta hija que leyera esa entrada podría consumir el resto del
+script. La entrada de `pg_dump` también se cierra explícitamente.
 
 Si mientras el servidor estaba detenido `main` avanzó, el mismo comando puede trasladar el marcador a un commit descendiente: primero verifica que ambos commits pertenezcan a la misma línea, que el checkout continúe antes del objetivo anterior y que todo el diff nuevo pase la allowlist. Conserva los pasos pendientes del intento previo; una divergencia continúa bloqueada para revisión manual.
 

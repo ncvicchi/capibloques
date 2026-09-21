@@ -8,6 +8,7 @@ FULL_TAG=
 BASELINE_CHECK_ID=0
 TARGET_LABEL=desconocido
 DEPLOY_CONFIRMED=0
+REMOTE_SCRIPT=
 final_report() {
   local status=$?
   if ((status == 0 && !CHECK_ONLY && !DEPLOY_CONFIRMED)); then
@@ -16,6 +17,9 @@ final_report() {
   fi
   if [[ -n $FULL_TAG ]]; then
     git -C "$REPOSITORY" push --quiet origin ":refs/tags/$FULL_TAG" >/dev/null 2>&1 || true
+  fi
+  if [[ -n $REMOTE_SCRIPT ]]; then
+    rm -f "$REMOTE_SCRIPT"
   fi
   if ((status == 0)); then
     printf '\n============================================================\n'
@@ -212,6 +216,11 @@ PY
 
 mode=()
 ((CHECK_ONLY)) && mode+=(--check-only)
-git show "$target:scripts/deploy-dev-remote.sh" | \
-  sudo bash -s -- --expected-commit "$target" "${mode[@]}"
+# El orquestador no se ejecuta desde stdin: varias herramientas de Docker
+# aceptan entrada aunque no la necesiten y podrían consumir silenciosamente el
+# resto del propio script, terminándolo con código cero antes del despliegue.
+umask 077
+REMOTE_SCRIPT=$(mktemp /tmp/capibloques-dev-deploy.XXXXXX)
+git show "$target:scripts/deploy-dev-remote.sh" >"$REMOTE_SCRIPT"
+sudo bash "$REMOTE_SCRIPT" --expected-commit "$target" "${mode[@]}"
 DEPLOY_CONFIRMED=1
