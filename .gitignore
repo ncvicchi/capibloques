@@ -25,7 +25,6 @@ __pycache__/
 
 # misc
 .DS_Store
-*.pem
 
 # debug
 npm-debug.log*
@@ -33,8 +32,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# local environment
-.env*
+# Los archivos de entorno y credenciales dentro del repositorio se versionan
+# por decisión explícita del propietario para compartir el entorno de desarrollo.
+# No copiar aquí claves de infraestructura ajena ni archivos externos al proyecto.
 
 # deployment and generated files
 .vercel
