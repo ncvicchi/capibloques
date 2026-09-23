@@ -371,6 +371,54 @@ La fase debe definir alcance por proyecto e hilo, valor inicial, conversiones ex
 
 Asignación: **fase 29 — Datos, variables y textos dinámicos**. Entregado con variables número/texto/sí-no, asignación y cambio, valores de contador/sensores/botones/Wi-Fi/Mensajes, cuentas, comparación genérica, composición textual, inspector, JSON, simulación y ambos generadores. Se excluye deliberadamente la posición física del robot hasta que exista una fuente real medible; la posición puramente simulada no sería portable.
 
+## 28. Temporizadores y eventos cooperativos
+
+Pedido del 23 de septiembre de 2026: incorporar temporizadores que puedan consultarse como un valor o generar una acción al cumplirse, sin detener el resto del programa.
+
+Se propone crear temporizadores con nombre y bloques infantiles para iniciar, reiniciar, pausar, continuar y detener. Cada temporizador expondrá su tiempo transcurrido o restante como un valor numérico reutilizable en comparadores. También podrá disparar un camino de eventos una vez o periódicamente. Estos eventos no serán interrupciones arbitrarias: entrarán en el mismo planificador cooperativo y determinista que `Al mismo tiempo`, animaciones y movimientos, de modo que un temporizador nunca congele sensores, mensajes ni otros caminos.
+
+La fase debe fijar unidad, alcance, reinicio, repetición, orden cuando vencen varios temporizadores en el mismo instante, comportamiento al pausar la simulación y equivalencia con relojes monotónicos de Arduino/ESP-IDF. No se implementará con cadenas de `delay()` ni dependerá de la hora civil.
+
+Asignación: **fase 30 — Temporizadores y eventos cooperativos**.
+
+## 29. Procedimientos y funciones
+
+Pedido del 23 de septiembre de 2026: permitir agrupar bloques reutilizables como procedimientos o funciones.
+
+La interfaz distinguirá **hacer una tarea** —procedimiento que ejecuta acciones— de **calcular un valor** —función que devuelve número, texto o sí/no—. Ambos podrán recibir parámetros tipados con nombres comprensibles. La primera entrega debe priorizar llamadas visibles, validación antes de ejecutar y límites aptos para chicos y ESP32: sin recursión, sin creación dinámica de funciones y sin llamadas ocultas que vuelvan incomprensible el recorrido visual.
+
+Definiciones, parámetros, llamadas y valores devueltos formarán parte de JSON, historial, copiar/pegar, deshacer/rehacer, simulación y generadores Arduino/ESP-IDF. Se deben detectar nombres repetidos, ciclos de llamadas, parámetros faltantes y tipos incompatibles con mensajes accionables.
+
+Asignación: **fase 31 — Procedimientos y funciones**.
+
+## 30. Estados y valores consultables de componentes
+
+Pedido del 23 de septiembre de 2026: cualquier componente debe poder ofrecer sus entradas, estados o valores relevantes para utilizarlos en condiciones, expresiones y textos. Ejemplos: barrera interrumpida, distancia medida, botón presionado, semáforo rojo/amarillo/verde/apagado, brillo de un LED, posición ordenada a un servo o potencia ordenada a un motor.
+
+La fase 29 ya introdujo valores de algunos sensores y servicios; esta fase crea un **contrato de capacidades tipadas por componente** para extenderlo de manera uniforme. Cada perfil publicará únicamente datos con sentido —número, texto, sí/no o estado enumerado— y los bloques de valor sólo mostrarán opciones válidas para esa instancia. No se crearán decenas de bloques especiales por destino.
+
+Debe distinguirse en la interfaz y documentación entre un valor **medido** por una entrada física y un estado **lógico/ordenado** por el programa. Por ejemplo, «semáforo en verde» describe la orden vigente, pero no demuestra eléctricamente que el LED encendió; un servo común informa el ángulo solicitado, no una posición real, salvo que exista un sensor de realimentación. Simulador, JSON y ambos generadores conservarán esa semántica, incluso con caminos paralelos.
+
+Asignación: **fase 32 — Estados y valores consultables de componentes**.
+
+## 31. Red entre placas por Wi-Fi
+
+Pedido del 23 de septiembre de 2026: completar y probar Wi-Fi con dos roles. Una placa podrá **crear la red** —punto de acceso, equivalente al rol maestro propuesto— y una o más placas podrán **conectarse a esa red** como clientes. La interfaz evitará depender de «maestro/esclavo» y explicará los roles por lo que hacen.
+
+La primera versión se limitará deliberadamente a mensajería de aplicación entre el punto de acceso y clientes identificados. Permitirá enviar textos predefinidos y reaccionar al mensaje recibido mediante los bloques y condiciones de Mensajes. Debe definir transporte, direccionamiento/nombre de cada placa, framing, tamaño, orden, duplicados, timeout, reconexión, cantidad máxima de clientes y qué sucede cuando el receptor no está disponible. La simulación incluirá una red virtual determinista para probar al menos un creador de red y varios clientes sin hardware.
+
+SSID y claves —tanto de una red externa como de la creada por la placa— siguen siendo secretos: no ingresan al JSON portable, historial, Git ni logs. La compilación privada conserva las reglas ya acordadas. Arduino y ESP-IDF deben implementar el mismo protocolo y se requiere prueba física antes de anunciar interoperabilidad.
+
+Asignación: **fase 33 — Wi-Fi AP/cliente y mensajes entre placas**.
+
+## 32. Servicios y control remoto entre placas
+
+Posibilidad posterior derivada del pedido anterior: una placa podría publicar capacidades autorizadas para que otra solicite cambios —por ejemplo, cambiar un semáforo remoto— o consulte estados. Se separa de la conectividad básica porque requiere identidad de placa, descubrimiento, permisos, confirmación, idempotencia, límites de frecuencia y una respuesta clara cuando el componente o la placa no están disponibles.
+
+No se expondrán escrituras arbitrarias de GPIO ni nombres internos del proyecto. El protocolo utilizará servicios explícitos y permitidos por el autor, con comandos tipados, confirmación y estado observable. Sólo se implementará después de validar la mensajería de fase 33; hasta entonces, el mismo comportamiento puede construirse de forma segura enviando mensajes predefinidos y haciendo que el programa receptor decida qué acción local ejecutar.
+
+Asignación: **fase 34 — Servicios y control remoto entre placas**, pendiente y opcional respecto de la mensajería base.
+
 ## Pedidos externos a analizar
 
 Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus observaciones para reproducirlas y contrastarlas con el comportamiento vigente. **No confirma que cada problema exista y la asignación no autoriza implementarlos.** Progreso/guardado/reinicio corresponden a fase 20; superposición y los ajustes de claridad/escena corresponden a fase 21; avatar a fase 22; compartir a fase 25; acceso de aula a fase 26. Las prioridades «vital» y «sutil» pertenecen al informe de origen y cada observación debe reproducirse antes de cambiar código.
@@ -458,6 +506,11 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 25. Familia de robots HP Robots / Otto | 27. Perfiles compuestos, movimientos y validación por variante |
 | 26. Barrera infrarroja digital | 28. Implementada en software; aceptación física pendiente |
 | 27. Datos, variables y textos dinámicos | 29. Tipos, expresiones, valores de componentes y composición de texto |
+| 28. Temporizadores y eventos cooperativos | 30. Relojes consultables y disparadores no bloqueantes |
+| 29. Procedimientos y funciones | 31. Tareas reutilizables, parámetros y valores devueltos |
+| 30. Estados y valores consultables de componentes | 32. Capacidades tipadas, medidas o lógicas, utilizables en condiciones |
+| 31. Red entre placas por Wi-Fi | 33. Punto de acceso, clientes y mensajes de aplicación |
+| 32. Servicios y control remoto entre placas | 34. Servicios autorizados sobre la mensajería validada |
 | 23. Reducir al mínimo la latencia de compilación | 20. Medición, caché, precompilación y arquitectura del compilador |
 
 Las observaciones externas quedan asignadas así: fase 20 (progreso/guardado/reinicio de compilación), fase 21 (superposición y claridad/escena), fase 22 (avatar), fase 25 (enlaces/QR) y fase 26 (acceso de aula/asistencia). Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 15 está implementada en software y la fase 23 está en curso con la matriz implementada; el resto requiere autorización propia. Los números de pedido no son fases nuevas.

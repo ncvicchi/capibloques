@@ -1,8 +1,8 @@
 # Nuevas fases de CapiBloques
 
-Plan elaborado el 8 de septiembre de 2026 y actualizado el 19 de septiembre de 2026. **Fases 11–14 entregadas; fase 15 terminada en software y fase 23 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/` y sirve Mensajes, la Matriz LED y las correcciones de catálogo/arrastre/guardado. Fase 15 conserva aceptación física Wemos; fase 23 conserva aceptación física de matriz y displays. Las fases 16–22 y 24–26 no están implementadas y la Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
+Plan elaborado el 8 de septiembre de 2026 y actualizado el 23 de septiembre de 2026. **Fases 11–14 y 29 entregadas; fases 15, 16, 27 y 28 terminadas en software; fase 23 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`. Las fases 30–34 incorporan temporizadores, procedimientos, estados de componentes y comunicación Wi-Fi entre placas; están planificadas pero no autorizadas ni implementadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
 
-La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros 11–26; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. El contexto portable se entregó primero y después la UX, bajo la autorización consecutiva de 11 y 12, sin dar por hecha la prueba física. Al insertar acceso externo como fase 13, las fases antes numeradas 13–17 pasan a ser 14–18; no son tareas nuevas ni duplicadas. Las fases 19–26 asignan todos los pedidos posteriores que seguían sin fase: desafíos, compilación/grabación guiada, UX educativa, avatar, displays y matriz, panel móvil, compartir y acceso de aula.
+La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros consecutivos; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. Las fases 30–34 asignan los pedidos del 23 de septiembre sin alterar ni reabrir fases anteriores.
 
 ## Orden y cobertura
 
@@ -24,6 +24,14 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 24 | Panel web local para celular | 20 | Contrato Wi-Fi vigente, seguridad/emparejamiento y límites medidos |
 | 25 | Compartir proyectos por enlace y QR | Informe futuro 4 | Biblioteca/permisos existentes; modelo explícito de copia, caducidad y revocación |
 | 26 | Acceso de aula sin contraseña y asistencia | Informe futuro 8 | Identidad/sesiones/cursos existentes; modelo contra suplantación y equipos compartidos |
+| 27 | Familia de robots HP Robots / Otto | 25 | Perfiles físicos identificados, planificador cooperativo y componentes existentes |
+| 28 | Barrera infrarroja digital | 26 | Módulo exacto y entrada digital disponible |
+| 29 | Datos, variables y textos dinámicos | 27 | Tipos y expresiones comunes para componentes y destinos |
+| 30 | Temporizadores y eventos cooperativos | 28 | Planificador no bloqueante y modelo de valores de fase 29 |
+| 31 | Procedimientos y funciones | 29 | Tipos de fase 29 y validación del grafo de llamadas |
+| 32 | Estados y valores consultables de componentes | 30 | Contrato de valores de fase 29 e inventario de capacidades por componente |
+| 33 | Wi-Fi AP/cliente y mensajes entre placas | 31 | Wi-Fi y Mensajes existentes; secretos privados; simulación multiplaca |
+| 34 | Servicios y control remoto entre placas | 32 | Mensajería de fase 33 validada física y funcionalmente |
 | Final | Producción, HTTPS, respaldos y piloto | Antigua fase 11 | Postergada hasta autorización explícita y validaciones de salida |
 
 Primero se asegura la continuidad desde otra cuenta sin depender de este chat; después se atienden los problemas cotidianos del editor y se vuelve DEV accesible desde fuera mediante un servicio controlado. TX/RX se incorpora antes de las placas nuevas para tener un contrato de comportamiento que luego se valide en cada destino. Separar DevKit, Waveshare y display interactivo permite comprobar por separado placa, pantalla y aplicación gráfica: no son el mismo soporte. Los desafíos aprovechan esas funciones como recorrido educativo propio. Las fases 20–26 separan flujos de compilación, pulido de edición, motivación, periféricos, control local, intercambio e identidad de aula para no mezclar permisos o hardware distintos en una entrega inmanejable.
@@ -424,6 +432,94 @@ Aceptación:
 - Tipos incompatibles, nombres repetidos y valores fuera de límites producen una explicación infantil antes de simular o generar código.
 - Caminos paralelos y reinicios tienen semántica determinista documentada; proyectos anteriores mantienen su contador y comportamiento.
 
+## Fase 30 — Temporizadores y eventos cooperativos
+
+**Objetivo:** medir tiempo y reaccionar a vencimientos sin bloquear el programa.
+
+Alcance:
+
+- Temporizadores con nombre y acciones iniciar, reiniciar, pausar, continuar y detener.
+- Valores transcurrido/restante utilizables en expresiones y comparadores, con unidades visibles y conversiones explícitas.
+- Eventos de una vez o repetitivos ejecutados por el planificador cooperativo; no son interrupciones libres ni cadenas de `delay()`.
+- Orden determinista de vencimientos simultáneos, reinicio y acceso desde `Al mismo tiempo`; reloj monotónico resistente al rollover.
+- Simulación, progreso local en el bloque/componente, JSON y semántica equivalente Arduino/ESP-IDF.
+
+Aceptación:
+
+- Un proyecto mantiene dos temporizadores mientras sensores, mensajes y animaciones continúan respondiendo.
+- Comparar un temporizador y reaccionar a su evento producen el mismo orden observable en simulación y hardware.
+- Pausa, reinicio, repetición y vencimientos simultáneos no duplican ni pierden eventos.
+
+## Fase 31 — Procedimientos y funciones
+
+**Objetivo:** reutilizar comportamiento visual sin copiar cadenas de bloques.
+
+Alcance:
+
+- Procedimientos para acciones y funciones para obtener valores número, texto o sí/no.
+- Parámetros tipados, nombres infantiles, variables locales y llamadas visualmente rastreables durante la ejecución.
+- Prohibir recursión y ciclos de llamadas en la primera versión; límites estáticos adecuados para ESP32.
+- Definiciones y llamadas en JSON, historial, copiar/pegar, deshacer/rehacer, simulación y ambos generadores.
+
+Aceptación:
+
+- Una tarea con parámetros puede llamarse desde dos caminos y una función puede alimentar un comparador o `armar texto`.
+- Tipos erróneos, parámetros faltantes, nombres repetidos y ciclos se explican antes de ejecutar o generar código.
+- El resaltado permite entrar y volver de una llamada sin perder la ubicación del programa principal.
+
+## Fase 32 — Estados y valores consultables de componentes
+
+**Objetivo:** usar en condiciones y expresiones los datos relevantes de sensores, actuadores y servicios mediante un contrato común.
+
+Alcance:
+
+- Registro tipado de capacidades por perfil e instancia; cada componente publica sólo estados/valores que realmente tienen sentido.
+- Valores medidos para entradas y estados lógicos ordenados para actuadores, diferenciados en texto, ayuda y código.
+- Estados enumerados como semáforo rojo/amarillo/verde/apagado, además de números, texto y sí/no.
+- Selectores que se actualizan al agregar, renombrar, cambiar perfil o borrar un componente, sin referencias huérfanas silenciosas.
+- Semántica determinista entre caminos paralelos, simulación, inspector, JSON y Arduino/ESP-IDF.
+
+Aceptación:
+
+- Una condición puede consultar el estado de un semáforo y un texto puede combinar una lectura de sensor con la potencia ordenada a un motor.
+- La interfaz nunca presenta una orden de software como medición física; perfiles sin realimentación lo explican claramente.
+- Importar, renombrar o eliminar componentes conserva o repara referencias de forma explícita y reversible.
+
+## Fase 33 — Wi-Fi AP/cliente y mensajes entre placas
+
+**Objetivo:** comunicar varias placas sin router mediante una placa que crea la red y clientes que se conectan, usando mensajes seguros y comprensibles.
+
+Alcance:
+
+- Roles infantiles «Crear una red» y «Conectarse a una red», con límites de clientes medidos y configuración fuera de los bloques.
+- Mensajes de texto predefinidos, identidad de placa y recepción reutilizable en condiciones/eventos; no control remoto implícito.
+- Protocolo versionado con longitud, integridad, identificador, orden/deduplicación, timeout, reconexión y backpressure acotada.
+- Credenciales excluidas de JSON, historial, Git y logs; compilación privada según el contrato vigente.
+- Red virtual en simulación y generación equivalente Arduino/ESP-IDF, seguida de ensayo físico con al menos un AP y dos clientes.
+
+Aceptación:
+
+- Un cliente se desconecta y reconecta sin congelar el programa ni repetir una acción confirmada.
+- El AP distingue clientes, rechaza tramas inválidas y ejecuta caminos distintos por mensaje y timeout.
+- Simulación y tres placas físicas conservan orden, límites y recuperación documentados antes de declarar soporte.
+
+## Fase 34 — Servicios y control remoto entre placas
+
+**Objetivo:** permitir que una placa solicite operaciones explícitamente publicadas por otra, apoyándose en la mensajería ya validada.
+
+Alcance:
+
+- Servicios con nombre y comandos tipados autorizados por el autor del proyecto; sin escritura GPIO arbitraria.
+- Descubrimiento, identidad, permiso, confirmación, idempotencia, límites de frecuencia y estados de error.
+- Consulta de capacidades/estados de fase 32 y solicitudes de cambio cuya decisión final pertenece al programa receptor.
+- Simulación multiplaca, auditoría comprensible y equivalencia Arduino/ESP-IDF.
+
+Aceptación:
+
+- Un proyecto receptor puede autorizar cambiar su semáforo y rechazar una operación no publicada o de una placa no admitida.
+- Pérdida de red, reintentos y comandos duplicados no dejan estados ambiguos ni ejecutan dos veces una acción confirmada.
+- La fase puede postergarse sin impedir la mensajería de fase 33: los mismos casos siguen resolviéndose con mensajes y lógica local.
+
 ## Fase final — Producción y piloto, postergada
 
 Es la antigua fase 11, renombrada por decisión del propietario. No se ejecuta como consecuencia de terminar una fase del backlog.
@@ -437,7 +533,7 @@ El gateway sigue siendo sólo un salto SSH, con prohibición de cambios. Tampoco
 ## Cómo se trabaja y qué falta decidir
 
 - Una fase completa autorizada por vez, con implementación, pruebas proporcionales, entrega en DEV y commit/push. Informar avances con evidencia y pendientes; no inventar porcentajes ni tiempos exactos.
-- **Fases 11–14 y 29 entregadas; fases 15, 16 y 28 terminadas en software; fase 23 en curso.** Actualizar la documentación viva al cerrar cada entrega solicitada. No ejecutar las fases restantes, completar la aceptación física ni avanzar a producción sin autorización y hardware correspondientes.
+- **Fases 11–14 y 29 entregadas; fases 15, 16, 27 y 28 terminadas en software; fase 23 en curso.** Actualizar la documentación viva al cerrar cada entrega solicitada. No ejecutar las fases restantes, completar la aceptación física ni avanzar a producción sin autorización y hardware correspondientes.
 - Para fase 17 hace falta el modelo Waveshare exacto antes de fijar drivers/pines; para cerrar las aceptaciones físicas de 15, 16 y 23 hace falta autorización para reemplazar firmware y los montajes correspondientes.
-- La fase 14 fija el paralelo como un contenedor con caminos apilados de arriba hacia abajo y mantiene fork/join. Formato de mensajes/timeout se fija en fase 15; prioridad manual/programa y límites gráficos en fase 18; catálogo inicial y visibilidad docente en fase 19; métricas/asistente en 20; UX en 21; avatar en 22; displays/matriz en 23; panel móvil en 24; compartir en 25; acceso de aula en 26; Otto en 27; barrera infrarroja en 28; datos y variables en 29. Son decisiones dentro de esas fases, no nuevas fases con letras.
+- La fase 14 fija el paralelo como un contenedor con caminos apilados de arriba hacia abajo y mantiene fork/join. Formato serial se fija en 15; display en 18; UX en 21; displays/matriz en 23; panel móvil en 24; Otto en 27; barrera infrarroja en 28; datos en 29; temporizadores en 30; procedimientos en 31; estados de componentes en 32; red entre placas en 33 y servicios remotos en 34. Son decisiones dentro de esas fases, no nuevas fases con letras.
 - No hay estimaciones horarias comprometidas: hardware, alcance de la adaptación gráfica y mediciones en la VM condicionan el esfuerzo. No retrasar ahora la planificación esperando esos datos, ni prometer implementaciones específicas de un modelo no identificado.

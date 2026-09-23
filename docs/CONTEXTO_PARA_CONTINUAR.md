@@ -344,6 +344,11 @@ El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BAC
 - 27: **software genérico entregado; aceptación física pendiente**. Cinco configuraciones cubren bípedo de cuatro servos, sonido, ultrasonido, matriz expresiva y humanoide de seis servos; incluyen 17 movimientos, brazos, expresiones y distancia como dato en simulación, JSON, Arduino y ESP-IDF. Ninja y Wheels siguen pendientes como variantes específicas. Ver [FASE_27_OTTO.md](FASE_27_OTTO.md).
 - 28: **implementada en software**; barrera infrarroja digital como sensor «libre / interrumpida», con polaridad configurable en escena, dato sí/no reutilizable, simulación, JSON, validación y generación Arduino/ESP-IDF. Contrato en [FASE_28_BARRERA_INFRARROJA.md](FASE_28_BARRERA_INFRARROJA.md); falta aceptación física del detector exacto.
 - 29: **implementada en software**; datos y variables tipados —número, texto y sí/no—, cuentas/comparación, valores de contador, sensores, botones, Wi-Fi y último mensaje recibido, composición reutilizable en consola, pantallas y Mensajes. Contrato en [FASE_29_VARIABLES.md](FASE_29_VARIABLES.md).
+- 30: pendiente; temporizadores consultables y eventos de una vez o repetitivos sobre el planificador cooperativo, sin `delay()` bloqueante.
+- 31: pendiente; procedimientos de acciones y funciones tipadas con parámetros, sin recursión en la primera versión.
+- 32: pendiente; contrato común de estados y valores por componente. Distinguir siempre entradas físicas medidas de estados lógicos ordenados a actuadores.
+- 33: pendiente; una placa crea una red Wi-Fi, clientes se conectan e intercambian mensajes de aplicación identificados. Las credenciales permanecen fuera de JSON/Git/logs.
+- 34: pendiente y separable; servicios autorizados y control remoto entre placas sobre la mensajería validada. No habilitar GPIO remoto arbitrario.
 - El [informe externo del 14 de septiembre](BACKLOG.md#pedidos-externos-a-analizar) queda distribuido entre 20–22 y 25–26. El selector angular con reloj está expresamente descartado y no es trabajo pendiente. La barra residual, el arrastre individual/grupal y el guardado estable ya están corregidos en `d096fd9`, `0fc9ff2` y `2b97af9`.
 - Final: producción/HTTPS, restauración/backups externos, carga, monitoreo, rollback y piloto; postergada.
 
