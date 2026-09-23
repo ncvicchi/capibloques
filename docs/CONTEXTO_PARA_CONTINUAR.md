@@ -335,7 +335,7 @@ El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BAC
 - 16: **entregada en software** para DIYmall ESP32-S3-DevKitC V1.0 N16R8; [perfil, evidencia e integración](FASE_16_ESP32_S3_DEVKIT.md). Chip/flash/PSRAM se identificaron físicamente sin escribir. Falta grabación y ejecución física de consola/PWM/TX-RX, más comparación física Wemos.
 - 17: Waveshare S3 5 pulgadas exacta, pantalla/entrada y guía visual de conectores.
 - 18: escena y controles locales en display, prioridad manual/programa explícita.
-- 19: desafíos progresivos, con primeros retos utilizables sin hardware obligatorio.
+- 19: pendiente; desafíos progresivos ampliados con inventario completo de herramientas pedagógicas, paletas por reto, escenarios variables, validación funcional/conceptual, depuración, pistas, accesibilidad y bloque infantil `según`. Plan en [FASE_19_HERRAMIENTAS_PEDAGOGICAS.md](FASE_19_HERRAMIENTAS_PEDAGOGICAS.md); no copiar contenidos de Pilas Bloques.
 - 20: compilación/grabación guiadas, estados reales, medición, Guardar integrado y reinicio posgrabación validado.
 - 21: claridad y ergonomía educativa: superposición de bloques, borrador de escena, operadores/menús/emojis, textos, advertencias y nueva auditoría de interfaz.
 - 22: avatar acompañante con reacciones accesibles ante desafíos, compilación y grabación.
@@ -353,6 +353,7 @@ El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BAC
 - 34: pendiente y separable; servicios autorizados y control remoto entre placas sobre la mensajería validada. No habilitar GPIO remoto arbitrario.
 - 35: pendiente; familia Luces RGB inteligentes para WS2812B/WS2812 y SK6812 RGB, con perfiles tira, aro/barra/figura y matriz. Matrices declaran esquina/eje/progresivo o zigzag; animaciones son cooperativas. WS2811/RGBW necesitan perfiles propios y los máximos se medirán por placa, energía y concurrencia.
 - 36: pendiente; firmware intérprete precompilado por placa, instalable desde la web, y reglas generadas localmente para ejecutar sin compilación/cola. Destinos Simulador o Placa conectada, almacenamiento atómico, telemetría real y modo Arduino/ESP-IDF nativo conservado. La carga exige versión/ABI/capacidades vigentes: firmware viejo sólo permite actualizar o cancelar. Plan completo en [FASE_36_FIRMWARE_INTERPRETE.md](FASE_36_FIRMWARE_INTERPRETE.md).
+- 37: pendiente; ayuda contextual para cada componente/perfil, apropiada para 8–12 años, con explicación, uso/simulación, piezas, alimentación, fotografía exacta o ilustrativa, conexión a la placa/pines actuales, primer programa, diagnóstico, límites y capa docente. Plan en [FASE_37_AYUDA_COMPONENTES.md](FASE_37_AYUDA_COMPONENTES.md).
 - El [informe externo del 14 de septiembre](BACKLOG.md#pedidos-externos-a-analizar) queda distribuido entre 20–22 y 25–26. El selector angular con reloj está expresamente descartado y no es trabajo pendiente. La barra residual, el arrastre individual/grupal y el guardado estable ya están corregidos en `d096fd9`, `0fc9ff2` y `2b97af9`.
 - Final: producción/HTTPS, restauración/backups externos, carga, monitoreo, rollback y piloto; postergada.
 

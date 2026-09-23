@@ -1,8 +1,8 @@
 # Nuevas fases de CapiBloques
 
-Plan elaborado el 8 de septiembre de 2026 y actualizado el 23 de septiembre de 2026. **Fases 11–14 y 29 entregadas; fases 15, 16, 27 y 28 terminadas en software; fase 23 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`. Las fases 30–36 incorporan temporizadores, procedimientos, estados de componentes, comunicación Wi-Fi entre placas, luces RGB inteligentes y ejecución mediante firmware intérprete; están planificadas pero no autorizadas ni implementadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
+Plan elaborado el 8 de septiembre de 2026 y actualizado el 23 de septiembre de 2026. **Fases 11–14 y 29 entregadas; fases 15, 16, 27 y 28 terminadas en software; fase 23 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`. La fase 19 queda ampliada por el inventario pedagógico y el bloque `según`; las fases 30–37 incorporan las demás capacidades planificadas hasta la ayuda infantil de componentes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
 
-La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros consecutivos; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. Las fases 30–36 asignan los pedidos del 23 de septiembre sin alterar ni reabrir fases anteriores.
+La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros consecutivos; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. Los pedidos del 23 de septiembre amplían la fase 19 y continúan hasta la fase 37 sin alterar entregas cerradas.
 
 ## Orden y cobertura
 
@@ -16,7 +16,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 16 | Soporte completo ESP32-S3 DevKit y selección de placa | 2: DevKit; 9: guía visual DevKit | Modelo exacto identificado; incorporar el contrato TX/RX de fase 15 |
 | 17 | Perfil Waveshare ESP32-S3 con pantalla de 5 pulgadas | 2: Waveshare; 9: guía visual Waveshare | Perfiles de fase 16 y modelo/revisión exactos identificados |
 | 18 | Escena gráfica y controles locales en el display | 3: display interactivo | Perfiles de pantalla de fase 17 y ejecución/componentes existentes |
-| 19 | Sección de desafíos progresivos | 12: desafíos | Funciones educativas ya entregadas; primeros retos utilizables sin hardware obligatorio |
+| 19 | Desafíos progresivos, herramientas pedagógicas y bloque `según` | 12 y 35 | Plan completo versionado; primeros retos sin hardware; valores tipados de fase 29 |
 | 20 | Compilación y grabación guiadas, medibles y comprensibles | 15 y 17; informe externo vital 1–3 | Fase 10 aceptada físicamente para cerrar el recorrido USB; métricas sintéticas previas a optimizar |
 | 21 | Claridad y ergonomía educativa del editor | Informe externo vital 4, sutiles 1–8 y futuras 1–2, 5–7 | Fases 12 y 14; reproducción previa de cada observación |
 | 22 | Avatar acompañante y reacciones accesibles | 14; informe futuro 3 | Fase 19 para reacciones de desafíos y fase 20 para resultados de compilar/grabar |
@@ -34,6 +34,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 34 | Servicios y control remoto entre placas | 32 | Mensajería de fase 33 validada física y funcionalmente |
 | 35 | Luces RGB inteligentes WS281x/SK6812 | 33 | Perfiles físicos identificados; planificador cooperativo; recursos RMT/SPI medidos por placa |
 | 36 | Firmware intérprete y ejecución directa en placa | 34 | ABI común, artefactos precompilados por placa, Web Serial y suite de conformidad |
+| 37 | Ayuda infantil de componentes | 36 | Perfiles, pinouts y evidencia física vigentes; activos visuales con licencia |
 | Final | Producción, HTTPS, respaldos y piloto | Antigua fase 11 | Postergada hasta autorización explícita y validaciones de salida |
 
 Primero se asegura la continuidad desde otra cuenta sin depender de este chat; después se atienden los problemas cotidianos del editor y se vuelve DEV accesible desde fuera mediante un servicio controlado. TX/RX se incorpora antes de las placas nuevas para tener un contrato de comportamiento que luego se valide en cada destino. Separar DevKit, Waveshare y display interactivo permite comprobar por separado placa, pantalla y aplicación gráfica: no son el mismo soporte. Los desafíos aprovechan esas funciones como recorrido educativo propio. Las fases 20–26 separan flujos de compilación, pulido de edición, motivación, periféricos, control local, intercambio e identidad de aula para no mezclar permisos o hardware distintos en una entrega inmanejable.
@@ -228,6 +229,8 @@ Aceptación:
 ## Fase 19 — Desafíos progresivos
 
 **Objetivo:** ofrecer un recorrido de retos atractivos y cada vez más complejos para aprender a usar CapiBloques y desarrollar conceptos de programación mediante la práctica.
+
+**Plan ampliado:** [FASE_19_HERRAMIENTAS_PEDAGOGICAS.md](FASE_19_HERRAMIENTAS_PEDAGOGICAS.md) es la fuente detallada e incorpora el inventario completo revisado en Pilas Bloques, el bloque `según`, paletas por desafío, variantes/semillas, expectativas funcionales y conceptuales, depuración, pistas, accesibilidad, modelo de datos, progreso y pruebas. No autoriza copiar contenidos ajenos.
 
 Alcance:
 
@@ -559,6 +562,21 @@ Alcance resumido:
 
 El diseño completo, orden interno, protocolo, seguridad, versionado, validación y criterios están en [FASE_36_FIRMWARE_INTERPRETE.md](FASE_36_FIRMWARE_INTERPRETE.md). Ese documento es la fuente de alcance; esta sección no lo reemplaza.
 
+## Fase 37 — Ayuda infantil de componentes
+
+**Objetivo:** que cada componente/perfil pueda comprenderse, simularse y conectarse mediante una ayuda contextual apropiada para chicos de 8 a 12 años.
+
+Alcance resumido:
+
+- Qué es, para qué sirve, cómo funciona, qué valores/estados ofrece y qué bloques habilita.
+- Piezas necesarias, alimentación/cuidados y guía de conexión sobre la placa/pines actuales.
+- Fotografía exacta con procedencia o imagen explícitamente ilustrativa; variantes claramente separadas.
+- Primer programa, prueba en simulador, problemas frecuentes, límites y compatibilidad verificada.
+- Acceso desde catálogo, escena, cableado, bloques y errores; contenido en capas infantil/docente.
+- Modelo versionado, activos locales/licenciados, accesibilidad y verificación automática de cobertura.
+
+El contrato completo está en [FASE_37_AYUDA_COMPONENTES.md](FASE_37_AYUDA_COMPONENTES.md).
+
 ## Fase final — Producción y piloto, postergada
 
 Es la antigua fase 11, renombrada por decisión del propietario. No se ejecuta como consecuencia de terminar una fase del backlog.
@@ -574,5 +592,5 @@ El gateway sigue siendo sólo un salto SSH, con prohibición de cambios. Tampoco
 - Una fase completa autorizada por vez, con implementación, pruebas proporcionales, entrega en DEV y commit/push. Informar avances con evidencia y pendientes; no inventar porcentajes ni tiempos exactos.
 - **Fases 11–14 y 29 entregadas; fases 15, 16, 27 y 28 terminadas en software; fase 23 en curso.** Actualizar la documentación viva al cerrar cada entrega solicitada. No ejecutar las fases restantes, completar la aceptación física ni avanzar a producción sin autorización y hardware correspondientes.
 - Para fase 17 hace falta el modelo Waveshare exacto antes de fijar drivers/pines; para cerrar las aceptaciones físicas de 15, 16 y 23 hace falta autorización para reemplazar firmware y los montajes correspondientes.
-- La fase 14 fija el paralelo como un contenedor con caminos apilados de arriba hacia abajo y mantiene fork/join. Formato serial se fija en 15; display en 18; UX en 21; displays/matriz en 23; panel móvil en 24; Otto en 27; barrera infrarroja en 28; datos en 29; temporizadores en 30; procedimientos en 31; estados de componentes en 32; red entre placas en 33; servicios remotos en 34; luces RGB inteligentes en 35 y firmware intérprete en 36. Son decisiones dentro de esas fases, no nuevas fases con letras.
+- La fase 14 fija el paralelo como un contenedor con caminos apilados de arriba hacia abajo y mantiene fork/join. Desafíos y `según` se especifican en 19; display en 18; UX en 21; displays/matriz en 23; datos en 29; temporizadores en 30; procedimientos en 31; estados en 32; red en 33; servicios remotos en 34; RGB en 35; intérprete en 36 y ayuda de componentes en 37. Son decisiones dentro de esas fases, no nuevas fases con letras.
 - No hay estimaciones horarias comprometidas: hardware, alcance de la adaptación gráfica y mediciones en la VM condicionan el esfuerzo. No retrasar ahora la planificación esperando esos datos, ni prometer implementaciones específicas de un modelo no identificado.

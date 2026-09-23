@@ -447,6 +447,18 @@ Arduino y ESP-IDF nativos se mantienen como alternativas. El servidor continúa 
 
 Asignación: **fase 36 — Firmware intérprete y ejecución directa en placa**. La arquitectura, formato, flujo web, runtime, seguridad, compatibilidad, pruebas, criterios y decisiones pendientes están centralizados en [FASE_36_FIRMWARE_INTERPRETE.md](FASE_36_FIRMWARE_INTERPRETE.md).
 
+## 35. Herramientas pedagógicas revisadas y bloque `según`
+
+Pedido del 23 de septiembre de 2026: incorporar al diseño de desafíos todas las herramientas identificadas al revisar Pilas Bloques —lenguaje, paleta acotada, escenarios variables, validación funcional/estructural, pistas, progresión, depuración, accesibilidad y ejecución— sin copiar sus desafíos. Agregar además una decisión múltiple infantil **`según [valor]`**, con casos tipados y «en cualquier otro caso», sin caída entre casos ni `break` visible.
+
+Asignación: ampliación de la **fase 19 — Desafíos progresivos**. El inventario completo, diferencias, contrato de `según`, modelo de datos, validador, interfaz, progreso, plan de construcción y aceptación están en [FASE_19_HERRAMIENTAS_PEDAGOGICAS.md](FASE_19_HERRAMIENTAS_PEDAGOGICAS.md).
+
+## 36. Ayuda infantil de componentes
+
+Pedido del 23 de septiembre de 2026: cada componente debe tener una ayuda asociada y contextual para chicos de 8 a 12 años. Debe explicar qué es, para qué sirve, cómo funciona, cómo se usa y simula, cómo se conecta a la placa elegida, qué piezas/alimentación necesita, sus variantes, límites y problemas frecuentes, con fotografía exacta o claramente marcada como ilustrativa.
+
+Asignación: **fase 37 — Ayuda infantil de componentes**. El contenido obligatorio, puntos de acceso, modelo versionado, lenguaje, mantenimiento y aceptación están en [FASE_37_AYUDA_COMPONENTES.md](FASE_37_AYUDA_COMPONENTES.md).
+
 ## Pedidos externos a analizar
 
 Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus observaciones para reproducirlas y contrastarlas con el comportamiento vigente. **No confirma que cada problema exista y la asignación no autoriza implementarlos.** Progreso/guardado/reinicio corresponden a fase 20; superposición y los ajustes de claridad/escena corresponden a fase 21; avatar a fase 22; compartir a fase 25; acceso de aula a fase 26. Las prioridades «vital» y «sutil» pertenecen al informe de origen y cada observación debe reproducirse antes de cambiar código.
@@ -541,6 +553,8 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 32. Servicios y control remoto entre placas | 34. Servicios autorizados sobre la mensajería validada |
 | 33. Luces RGB inteligentes WS281x/SK6812 | 35. Tiras, aros, barras y matrices direccionables |
 | 34. Firmware intérprete y ejecución directa en placa | 36. Runtime precompilado, reglas locales y destino Simulador/Placa |
+| 35. Herramientas pedagógicas revisadas y bloque `según` | 19. Amplía desafíos progresivos; plan externo completo |
+| 36. Ayuda infantil de componentes | 37. Fichas contextuales, fotos, conexión, uso y diagnóstico |
 | 23. Reducir al mínimo la latencia de compilación | 20. Medición, caché, precompilación y arquitectura del compilador |
 
 Las observaciones externas quedan asignadas así: fase 20 (progreso/guardado/reinicio de compilación), fase 21 (superposición y claridad/escena), fase 22 (avatar), fase 25 (enlaces/QR) y fase 26 (acceso de aula/asistencia). Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 15 está implementada en software y la fase 23 está en curso con la matriz implementada; el resto requiere autorización propia. Los números de pedido no son fases nuevas.
