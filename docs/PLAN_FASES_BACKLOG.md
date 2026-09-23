@@ -1,8 +1,8 @@
 # Nuevas fases de CapiBloques
 
-Plan elaborado el 8 de septiembre de 2026 y actualizado el 23 de septiembre de 2026. **Fases 11–14 y 29 entregadas; fases 15, 16, 27 y 28 terminadas en software; fase 23 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`. La fase 19 queda ampliada por el inventario pedagógico y el bloque `según`; las fases 30–37 incorporan las demás capacidades planificadas hasta la ayuda infantil de componentes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
+Plan elaborado el 8 de septiembre de 2026 y actualizado el 23 de septiembre de 2026. **Fases 11–14 y 29 entregadas; fases 15, 16, 27 y 28 terminadas en software; fase 23 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`. La fase 19 queda ampliada por el inventario pedagógico y el bloque `según`; las fases 30–41 incorporan las demás capacidades planificadas hasta el catálogo ampliado de componentes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
 
-La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros consecutivos; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. Los pedidos del 23 de septiembre amplían la fase 19 y continúan hasta la fase 37 sin alterar entregas cerradas.
+La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros consecutivos; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. Los pedidos del 23 de septiembre amplían la fase 19 y continúan hasta la fase 41 sin alterar entregas cerradas.
 
 ## Orden y cobertura
 
@@ -35,6 +35,10 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 35 | Luces RGB inteligentes WS281x/SK6812 | 33 | Perfiles físicos identificados; planificador cooperativo; recursos RMT/SPI medidos por placa |
 | 36 | Firmware intérprete y ejecución directa en placa | 34 | ABI común, artefactos precompilados por placa, Web Serial y suite de conformidad |
 | 37 | Ayuda infantil de componentes | 36 | Perfiles, pinouts y evidencia física vigentes; activos visuales con licencia |
+| 38 | Entradas y control cotidiano | 37 | Contratos de valores/eventos de fases 29–32; perfiles físicos identificados |
+| 39 | Ambiente y medición | 37 | Fase 38 y ADC/I²C compartidos validados por placa |
+| 40 | Movimiento e identificación | 37 | Eventos cooperativos, privacidad y buses validados |
+| 41 | Actuación y medición avanzada | 37 | Planificador cooperativo, privacidad GPS y hardware concreto |
 | Final | Producción, HTTPS, respaldos y piloto | Antigua fase 11 | Postergada hasta autorización explícita y validaciones de salida |
 
 Primero se asegura la continuidad desde otra cuenta sin depender de este chat; después se atienden los problemas cotidianos del editor y se vuelve DEV accesible desde fuera mediante un servicio controlado. TX/RX se incorpora antes de las placas nuevas para tener un contrato de comportamiento que luego se valide en cada destino. Separar DevKit, Waveshare y display interactivo permite comprobar por separado placa, pantalla y aplicación gráfica: no son el mismo soporte. Los desafíos aprovechan esas funciones como recorrido educativo propio. Las fases 20–26 separan flujos de compilación, pulido de edición, motivación, periféricos, control local, intercambio e identidad de aula para no mezclar permisos o hardware distintos en una entrega inmanejable.
@@ -577,6 +581,32 @@ Alcance resumido:
 
 El contrato completo está en [FASE_37_AYUDA_COMPONENTES.md](FASE_37_AYUDA_COMPONENTES.md).
 
+## Fase 38 — Entradas y control cotidiano
+
+**Objetivo:** incorporar los componentes de mayor retorno para interacción, eventos, distancia y control de cargas didácticas.
+
+Incluye Sensor de distancia —HC-SR04/VL53L0X—, Detector de movimiento PIR, Palanca de control, Encender aparato mediante MOSFET/relé de baja tensión y Perilla infinita. Debe completar escena, simulación, valores/eventos, ambos generadores, firmware intérprete, ayuda y aceptación física por perfil. Se prohíbe el uso guiado de relés con tensión de red.
+
+## Fase 39 — Ambiente y medición
+
+**Objetivo:** trabajar con magnitudes ambientales y analógicas calibrables mediante contratos y unidades comprensibles.
+
+Incluye Sensor ambiental BME280, Humedad de tierra capacitiva, Sensor de color, Nivel de sonido sin capturar audio y Detector de agua/lluvia. Debe distinguir medida, estimación, umbral y estado derivado, y no presentar estos módulos como dispositivos de seguridad.
+
+## Fase 40 — Movimiento e identificación
+
+**Objetivo:** incorporar orientación, identificación de objetos y entrada matricial mediante eventos tipados y privacidad explícita.
+
+Incluye Sensor de movimiento e inclinación MPU6050, Lector de tarjetas PN532 y Teclado de números y teclas 4 × 4/3 × 4. Debe simular gestos y tarjetas predefinidas, evitar registrar identificadores reales innecesarios y no equiparar el UID de una tarjeta con autenticación segura.
+
+## Fase 41 — Actuación y medición avanzada
+
+**Objetivo:** completar periféricos que requieren planificación cooperativa, calibración o privacidad adicional.
+
+Incluye Motor de pasos 28BYJ-48/ULN2003, Balanza HX711 y Ubicación GPS. El motor no bloquea otros caminos; la balanza separa calibración y lectura; GPS usa recorridos ficticios en simulación y nunca accede o publica ubicación real del alumno por defecto.
+
+El alcance transversal, orden, perfiles, componentes postergados y fuentes de las fases 35 y 38–41 están centralizados en [COMPONENTES_A_IMPLEMENTAR.md](COMPONENTES_A_IMPLEMENTAR.md). Esa lista evita duplicar componentes por fabricante y exige separar software terminado de aceptación física.
+
 ## Fase final — Producción y piloto, postergada
 
 Es la antigua fase 11, renombrada por decisión del propietario. No se ejecuta como consecuencia de terminar una fase del backlog.
@@ -592,5 +622,5 @@ El gateway sigue siendo sólo un salto SSH, con prohibición de cambios. Tampoco
 - Una fase completa autorizada por vez, con implementación, pruebas proporcionales, entrega en DEV y commit/push. Informar avances con evidencia y pendientes; no inventar porcentajes ni tiempos exactos.
 - **Fases 11–14 y 29 entregadas; fases 15, 16, 27 y 28 terminadas en software; fase 23 en curso.** Actualizar la documentación viva al cerrar cada entrega solicitada. No ejecutar las fases restantes, completar la aceptación física ni avanzar a producción sin autorización y hardware correspondientes.
 - Para fase 17 hace falta el modelo Waveshare exacto antes de fijar drivers/pines; para cerrar las aceptaciones físicas de 15, 16 y 23 hace falta autorización para reemplazar firmware y los montajes correspondientes.
-- La fase 14 fija el paralelo como un contenedor con caminos apilados de arriba hacia abajo y mantiene fork/join. Desafíos y `según` se especifican en 19; display en 18; UX en 21; displays/matriz en 23; datos en 29; temporizadores en 30; procedimientos en 31; estados en 32; red en 33; servicios remotos en 34; RGB en 35; intérprete en 36 y ayuda de componentes en 37. Son decisiones dentro de esas fases, no nuevas fases con letras.
+- La fase 14 fija el paralelo como un contenedor con caminos apilados de arriba hacia abajo y mantiene fork/join. Desafíos y `según` se especifican en 19; display en 18; UX en 21; displays/matriz en 23; datos en 29; temporizadores en 30; procedimientos en 31; estados en 32; red en 33; servicios remotos en 34; RGB en 35; intérprete en 36; ayuda de componentes en 37 y el catálogo ampliado en 38–41. Son decisiones dentro de esas fases, no nuevas fases con letras.
 - No hay estimaciones horarias comprometidas: hardware, alcance de la adaptación gráfica y mediciones en la VM condicionan el esfuerzo. No retrasar ahora la planificación esperando esos datos, ni prometer implementaciones específicas de un modelo no identificado.

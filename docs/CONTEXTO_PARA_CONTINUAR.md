@@ -339,6 +339,7 @@ El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BAC
 - 20: compilación/grabación guiadas, estados reales, medición, Guardar integrado y reinicio posgrabación validado.
 - 21: claridad y ergonomía educativa: superposición de bloques, borrador de escena, operadores/menús/emojis, textos, advertencias y nueva auditoría de interfaz.
 - 22: avatar acompañante con reacciones accesibles ante desafíos, compilación y grabación.
+- 35 y 38–41: componentes adicionales centralizados en [COMPONENTES_A_IMPLEMENTAR.md](COMPONENTES_A_IMPLEMENTAR.md): RGB direccionable; distancia; PIR; ambiente; joystick; potencia de baja tensión; encoder; IMU; NFC/RFID; humedad de tierra; stepper; color; nivel de sonido; teclado; agua; balanza y GPS. La lista también documenta perfiles postergados y exclusiones de seguridad; planificación no equivale a implementación ni aceptación física.
 - 23: **en curso**; matriz 32 × 8 con cuatro MAX7219 implementada en software. El componente existente de LCD/OLED/TFT se presenta como **Pantalla de texto**; se está incorporando el hardware confirmado LCD Keypad Shield 16 × 2 como perfil combinado de pantalla paralela y cinco botones lógicos. El propietario confirmó que esa pantalla y sus botones funcionan; falta validar el firmware generado por CapiBloques y los otros módulos físicos.
 - 24: panel web local para un celular emparejado, misma LAN, vistas Escena/Controles e inputs relacionados mediante bloques.
 - 25: compartir proyectos por enlace/QR con copia/vista, caducidad y revocación.

@@ -459,6 +459,12 @@ Pedido del 23 de septiembre de 2026: cada componente debe tener una ayuda asocia
 
 Asignación: **fase 37 — Ayuda infantil de componentes**. El contenido obligatorio, puntos de acceso, modelo versionado, lenguaje, mantenimiento y aceptación están en [FASE_37_AYUDA_COMPONENTES.md](FASE_37_AYUDA_COMPONENTES.md).
 
+## 37. Lista maestra de componentes a implementar
+
+Pedido del 23 de septiembre de 2026: centralizar todos los componentes adicionales recomendados, con prioridad, nombre infantil, perfiles físicos, capacidades, simulación, precauciones, componentes postergados y aceptación física. La lista incluye Luces RGB inteligentes, distancia, movimiento PIR, ambiente, joystick, potencia de baja tensión, inclinación/IMU, NFC/RFID, humedad de tierra, encoder, motor paso a paso, color, nivel de sonido, teclado matricial, agua/lluvia, balanza y GPS. No crear un componente infantil distinto por cada fabricante ni presentar sensores experimentales como dispositivos de seguridad.
+
+Asignación: Luces RGB conserva la **fase 35**; las demás familias quedan asignadas a las **fases 38–41**. La única fuente detallada es [COMPONENTES_A_IMPLEMENTAR.md](COMPONENTES_A_IMPLEMENTAR.md), que distingue implementar, postergar y excluir del alcance inicial. Esta entrada no declara comprado, implementado ni ensayado ningún módulo.
+
 ## Pedidos externos a analizar
 
 Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus observaciones para reproducirlas y contrastarlas con el comportamiento vigente. **No confirma que cada problema exista y la asignación no autoriza implementarlos.** Progreso/guardado/reinicio corresponden a fase 20; superposición y los ajustes de claridad/escena corresponden a fase 21; avatar a fase 22; compartir a fase 25; acceso de aula a fase 26. Las prioridades «vital» y «sutil» pertenecen al informe de origen y cada observación debe reproducirse antes de cambiar código.
@@ -555,6 +561,7 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 34. Firmware intérprete y ejecución directa en placa | 36. Runtime precompilado, reglas locales y destino Simulador/Placa |
 | 35. Herramientas pedagógicas revisadas y bloque `según` | 19. Amplía desafíos progresivos; plan externo completo |
 | 36. Ayuda infantil de componentes | 37. Fichas contextuales, fotos, conexión, uso y diagnóstico |
+| 37. Lista maestra de componentes a implementar | 35 y 38–41. Prioridades, perfiles y exclusiones centralizados |
 | 23. Reducir al mínimo la latencia de compilación | 20. Medición, caché, precompilación y arquitectura del compilador |
 
 Las observaciones externas quedan asignadas así: fase 20 (progreso/guardado/reinicio de compilación), fase 21 (superposición y claridad/escena), fase 22 (avatar), fase 25 (enlaces/QR) y fase 26 (acceso de aula/asistencia). Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 15 está implementada en software y la fase 23 está en curso con la matriz implementada; el resto requiere autorización propia. Los números de pedido no son fases nuevas.
