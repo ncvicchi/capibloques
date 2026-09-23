@@ -20,10 +20,11 @@ Arduino, ESP-IDF y la exportación de fuentes continúan disponibles como modo n
 1. El servidor **no compila por proyecto** en el recorrido normal del intérprete. Publica artefactos inmutables precompilados por placa y versión.
 2. El navegador transforma el mismo programa normalizado que usa el simulador en reglas/bytecode compacto; no envía C/C++ ni código nativo arbitrario.
 3. La instalación o actualización del intérprete usa Web Serial y el flujo de grabación existente. La actualización cotidiana de reglas usa un protocolo de aplicación, sin entrar al bootloader.
-4. La placa valida, almacena y activa las reglas de forma atómica. Una transferencia incompleta conserva el último programa válido.
-5. El programa queda almacenado y continúa autónomamente si se cierra la página o se desconecta USB.
-6. Las operaciones sensibles al tiempo —PWM, servos, audio, WS281x, displays y buses— permanecen en controladores nativos precompilados. El intérprete ordena acciones de alto nivel; no genera pulsos en bytecode.
-7. Simulador, intérprete y generadores nativos comparten tipos, validaciones y semántica observable. No se mantienen tres lenguajes diferentes por accidente.
+4. Antes de generar o transferir reglas, la web consulta placa, versión de firmware, ABI y capacidades. Un firmware obsoleto o incompatible **bloquea la carga de reglas**: se ofrece actualizarlo o cancelar, sin opción «continuar de todos modos».
+5. La placa valida, almacena y activa las reglas de forma atómica. Una transferencia incompleta conserva el último programa válido.
+6. El programa queda almacenado y continúa autónomamente si se cierra la página o se desconecta USB.
+7. Las operaciones sensibles al tiempo —PWM, servos, audio, WS281x, displays y buses— permanecen en controladores nativos precompilados. El intérprete ordena acciones de alto nivel; no genera pulsos en bytecode.
+8. Simulador, intérprete y generadores nativos comparten tipos, validaciones y semántica observable. No se mantienen tres lenguajes diferentes por accidente.
 
 ## 3. Alcance inicial
 
@@ -132,11 +133,12 @@ Flujo de placa:
 1. Elegir puerto mediante gesto del usuario.
 2. Identificar chip y consultar el firmware CapiBloques si responde.
 3. Comparar placa elegida, hardware detectado, firmware, ABI y capacidades.
-4. Si falta o está desactualizado, ofrecer **Instalar/actualizar firmware CapiBloques** con placa y efecto claramente indicados.
-5. Validar escena/programa en el navegador.
-6. Generar reglas localmente y comparar su hash con el programa activo.
-7. Si no cambió, ejecutar/reiniciar sin retransmitir; si cambió, transferir y confirmar.
-8. Mostrar bloques y estados reales enviados por la placa.
+4. Si falta, está desactualizado o no admite la ABI/capacidades requeridas, bloquear generación y transferencia y ofrecer **Instalar/actualizar firmware CapiBloques** con placa y efecto claramente indicados, o cancelar.
+5. Repetir el `HELLO` después de actualizar y comprobar la nueva versión/capacidades; no confiar en que la grabación exitosa implica compatibilidad.
+6. Validar escena/programa en el navegador.
+7. Generar reglas localmente y comparar su hash con el programa activo.
+8. Si no cambió, ejecutar/reiniciar sin retransmitir; si cambió, transferir y confirmar.
+9. Mostrar bloques y estados reales enviados por la placa.
 
 No se mezclan los conceptos **instalar firmware**, **enviar programa** y **ejecutar**. Los errores dicen en cuál falló y qué permanece grabado.
 
@@ -166,6 +168,7 @@ La negociación usa tres identidades distintas:
 Reglas:
 
 - La web puede generar únicamente una ABI declarada por la placa.
+- La política publicada por el manifiesto define la versión mínima vigente por perfil. Una versión inferior bloquea toda carga de reglas aunque entienda una ABI antigua; actualizar o cancelar son las únicas salidas.
 - Un firmware puede admitir un rango acotado de ABI, no conversiones ilimitadas.
 - Cambios incompatibles exigen actualización visible del firmware o uso del modo nativo.
 - Proyectos JSON siguen siendo la fuente portable; el bytecode es derivado y regenerable.
@@ -222,6 +225,7 @@ Pruebas obligatorias:
 - scheduler: bucle intensivo, paralelo, timers, mensajes, animaciones y watchdog sin inanición;
 - persistencia: reinicio, pérdida de energía durante carga/commit y selección inequívoca de versión;
 - capacidades: proyecto válido para una placa e inválido para otra con explicación;
+- actualización obligatoria: firmware vigente, antiguo, desconocido, grabación cancelada/fallida y nueva consulta posterior; ninguna variante obsoleta recibe reglas;
 - telemetría: backpressure, desconexión y reconexión sin detener el programa;
 - seguridad: fuzzing del parser, tamaños extremos, comandos fuera de estado y ausencia de secretos;
 - hardware: Wemos, S3 DevKit y Waveshare exactas antes de declarar sus artefactos soportados.
@@ -229,6 +233,7 @@ Pruebas obligatorias:
 ## 17. Criterios de aceptación
 
 - Tras instalar el firmware una vez, modificar bloques y ejecutar en placa no dispara compilación ni cola del servidor.
+- Antes de cargar reglas se comprueba la versión contra el manifiesto vigente; firmware viejo ofrece actualización o cancelación y no puede recibir el programa.
 - Un proyecto pequeño se valida, transfiere y comienza en segundos, con métricas reales publicadas y sin ETA ficticia.
 - Ejecutar sin cambios reutiliza el programa activo; enviar cambios es atómico y recuperable.
 - La placa continúa autónomamente al cerrar la web.

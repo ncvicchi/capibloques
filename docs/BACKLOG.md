@@ -441,7 +441,7 @@ Referencias técnicas primarias: [ESP-IDF `led_strip`](https://docs.espressif.co
 
 ## 34. Firmware intérprete y ejecución directa en placa
 
-Pedido del 23 de septiembre de 2026: evitar la compilación cotidiana mediante un firmware CapiBloques precompilado por placa. La web lo descargaría del servidor y lo instalaría mediante Web Serial la primera vez o al actualizarlo. Después, el navegador enviaría directamente reglas compactas con componentes, pines y programa, sin cola ni compilación. Al ejecutar se podrá elegir **Simulador** o **Placa conectada y seleccionada**; la placa conservará el programa y podrá devolver telemetría real de bloques y estados.
+Pedido del 23 de septiembre de 2026: evitar la compilación cotidiana mediante un firmware CapiBloques precompilado por placa. La web lo descargaría del servidor y lo instalaría mediante Web Serial la primera vez o al actualizarlo. Después, el navegador enviaría directamente reglas compactas con componentes, pines y programa, sin cola ni compilación. Al ejecutar se podrá elegir **Simulador** o **Placa conectada y seleccionada**; la placa conservará el programa y podrá devolver telemetría real de bloques y estados. Antes de cargar reglas se verifica obligatoriamente la versión: un firmware viejo o incompatible sólo permite actualizar o cancelar, nunca enviar de todos modos.
 
 Arduino y ESP-IDF nativos se mantienen como alternativas. El servidor continúa construyendo/publicando versiones del intérprete, pero no compila una aplicación nueva por cada cambio del alumno.
 

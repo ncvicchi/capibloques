@@ -550,6 +550,7 @@ Aceptación:
 Alcance resumido:
 
 - Artefactos precompilados/versionados para cada perfil físico, servidos como archivos estáticos sin ocupar la cola de compilación por proyecto.
+- Chequeo obligatorio de versión/ABI/capacidades antes de generar o cargar reglas; firmware viejo bloquea la operación y sólo ofrece actualizar o cancelar.
 - ABI de reglas con componentes, pines, programa, recursos y tabla de depuración; sin C/C++ nativo, identidad remota ni secretos portables.
 - Intérprete, planificador cooperativo, controladores nativos, reservas de recursos, almacenamiento atómico y recuperación en la placa.
 - Selector **Simulador / Placa conectada**, instalación/actualización visible del firmware, transferencia directa y reutilización por hash.
