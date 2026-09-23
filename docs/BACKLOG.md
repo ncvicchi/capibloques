@@ -439,6 +439,14 @@ Asignación: **fase 35 — Luces RGB inteligentes WS281x/SK6812**.
 
 Referencias técnicas primarias: [ESP-IDF `led_strip`](https://docs.espressif.com/projects/esp-board-manager/en/latest/references/devices/led-strip.html), [RMT de Arduino ESP32](https://docs.espressif.com/projects/arduino-esp32/en/latest/api/rmt.html), [formatos y protocolo NeoPixel](https://learn.adafruit.com/adafruit-neopixel-uberguide/form-factors), [mapeo de matrices](https://learn.adafruit.com/adafruit-neopixel-uberguide/neomatrix-library) y [alimentación/conexión](https://learn.adafruit.com/adafruit-neopixel-uberguide/basic-connections).
 
+## 34. Firmware intérprete y ejecución directa en placa
+
+Pedido del 23 de septiembre de 2026: evitar la compilación cotidiana mediante un firmware CapiBloques precompilado por placa. La web lo descargaría del servidor y lo instalaría mediante Web Serial la primera vez o al actualizarlo. Después, el navegador enviaría directamente reglas compactas con componentes, pines y programa, sin cola ni compilación. Al ejecutar se podrá elegir **Simulador** o **Placa conectada y seleccionada**; la placa conservará el programa y podrá devolver telemetría real de bloques y estados.
+
+Arduino y ESP-IDF nativos se mantienen como alternativas. El servidor continúa construyendo/publicando versiones del intérprete, pero no compila una aplicación nueva por cada cambio del alumno.
+
+Asignación: **fase 36 — Firmware intérprete y ejecución directa en placa**. La arquitectura, formato, flujo web, runtime, seguridad, compatibilidad, pruebas, criterios y decisiones pendientes están centralizados en [FASE_36_FIRMWARE_INTERPRETE.md](FASE_36_FIRMWARE_INTERPRETE.md).
+
 ## Pedidos externos a analizar
 
 Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus observaciones para reproducirlas y contrastarlas con el comportamiento vigente. **No confirma que cada problema exista y la asignación no autoriza implementarlos.** Progreso/guardado/reinicio corresponden a fase 20; superposición y los ajustes de claridad/escena corresponden a fase 21; avatar a fase 22; compartir a fase 25; acceso de aula a fase 26. Las prioridades «vital» y «sutil» pertenecen al informe de origen y cada observación debe reproducirse antes de cambiar código.
@@ -532,6 +540,7 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 31. Red entre placas por Wi-Fi | 33. Punto de acceso, clientes y mensajes de aplicación |
 | 32. Servicios y control remoto entre placas | 34. Servicios autorizados sobre la mensajería validada |
 | 33. Luces RGB inteligentes WS281x/SK6812 | 35. Tiras, aros, barras y matrices direccionables |
+| 34. Firmware intérprete y ejecución directa en placa | 36. Runtime precompilado, reglas locales y destino Simulador/Placa |
 | 23. Reducir al mínimo la latencia de compilación | 20. Medición, caché, precompilación y arquitectura del compilador |
 
 Las observaciones externas quedan asignadas así: fase 20 (progreso/guardado/reinicio de compilación), fase 21 (superposición y claridad/escena), fase 22 (avatar), fase 25 (enlaces/QR) y fase 26 (acceso de aula/asistencia). Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 15 está implementada en software y la fase 23 está en curso con la matriz implementada; el resto requiere autorización propia. Los números de pedido no son fases nuevas.
