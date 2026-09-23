@@ -151,6 +151,8 @@ Esta mejora quedó en `7afdf2a` y su ajuste E2E en `94f2112`. La CI completa 354
 
 El 20 de septiembre de 2026 se confirmó el hardware disponible para continuar la aceptación: LCD Keypad Shield 16 × 2 paralelo con cinco botones por ADC, LCD 20 × 4 con mochila I2C, TFT ILI9341 SPI y matriz 32 × 8 con cuatro MAX7219. El Keypad Shield necesita un perfil combinado nuevo —pantalla más cinco botones lógicos— y no corresponde al `lcd1602` I2C vigente. El propietario confirmó que la pantalla 16 × 2 y sus botones funcionan correctamente; queda integrarlos y probar el firmware de CapiBloques. El orden acordado está en [FASE_23_MATRIZ_LED.md](FASE_23_MATRIZ_LED.md).
 
+La prueba física de la matriz del 23 de septiembre mostró los cuatro módulos en orden inverso respecto de la simulación: 4‑3‑2‑1. El hardware disponible recibe DIN por el extremo derecho visto de frente. El perfil pasa a usar ese montaje como predeterminado y el selector nombra explícitamente el lado de DIN; proyectos de matriz ya guardados deben elegir una vez «DIN junto al módulo derecho». Falta recompilar/grabar y confirmar físicamente 1‑2‑3‑4 antes de cerrar la aceptación.
+
 ### Animaciones no bloqueantes y despliegue reanudable — 19 de septiembre de 2026
 
 La implementación funcional de animaciones cooperativas quedó en `6999242` y el ajuste de prueba en `08b67e3`. Texto, dibujos y desplazamiento de Matriz LED continúan en segundo plano; cada bloque permite una vez, N veces o sin parar, y el bloque `esperar a que termine` es la sincronización explícita. La CI completa [35476496407](https://github.com/ncvicchi/capibloques/actions/runs/35476496407) pasó backend, interfaz/runtime, ocho Arduino y ocho ESP-IDF. La aceptación física continúa pendiente.

@@ -40,6 +40,8 @@ La escena muestra los 256 puntos y el editor permite cambiarlos con botones acce
 
 Arduino y ESP-IDF generan el mismo framebuffer, fuente y protocolo bit a bit para cuatro MAX7219, sin biblioteca externa adicional. El servicio inicializa los registros, aplica brillo/orden/orientación y actualiza las ocho filas con trabajo acotado. Los patrones usan almacenamiento fijo y el desplazamiento no reserva memoria según texto recibido.
 
+La primera prueba física del 23 de septiembre de 2026 confirmó que el panel disponible encadena los módulos en el sentido opuesto al valor predeterminado original: el contenido lógico 1‑2‑3‑4 aparecía como 4‑3‑2‑1. El perfil nuevo usa por defecto **DIN junto al módulo derecho**, que conserva el orden lógico de la simulación. El inspector muestra ambos montajes con texto explícito y permite elegir el lado contrario para otra placa sin redibujar patrones. Los proyectos ya guardados conservan su elección: deben seleccionar una vez el lado derecho si fueron creados con el valor anterior.
+
 La guía muestra `VCC`, `GND`, `DIN`, `CLK` y `CS/LOAD`, y aclara que `DIN` entra al primer módulo. La matriz suele alimentarse a 5 V y puede consumir una corriente importante: requiere fuente apropiada, masa común y desacoplo; nunca se alimenta desde un GPIO. Si el módulo no reconoce de forma confiable la lógica de 3,3 V, se necesita adaptación de nivel para las tres señales.
 
 ## Validación de software

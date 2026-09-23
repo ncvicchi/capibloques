@@ -35,8 +35,8 @@ export function LedMatrixProperties({ device, onChange }: { device: LedMatrixDev
       </label>
       <label htmlFor={orderId}>Orden físico de los módulos</label>
         <NativeSelect id={orderId} value={device.config.order} onChange={event => onChange({ ...device, config: { ...device.config, order: event.target.value as LedMatrixDevice['config']['order'] } })}>
-          <NativeSelectOption value="left-to-right">Entrada a la izquierda</NativeSelectOption>
-          <NativeSelectOption value="right-to-left">Entrada a la derecha</NativeSelectOption>
+          <NativeSelectOption value="right-to-left">DIN junto al módulo derecho (predeterminado)</NativeSelectOption>
+          <NativeSelectOption value="left-to-right">DIN junto al módulo izquierdo</NativeSelectOption>
         </NativeSelect>
       <label htmlFor={orientationId}>Orientación</label>
         <NativeSelect id={orientationId} value={device.config.orientation} onChange={event => onChange({ ...device, config: { ...device.config, orientation: event.target.value as LedMatrixDevice['config']['orientation'] } })}>
@@ -68,7 +68,7 @@ export function LedMatrixProperties({ device, onChange }: { device: LedMatrixDev
           <Button type="button" variant="outline" onClick={() => updatePattern(pattern => ({ ...pattern, rows: Array.from({ length: MATRIX_HEIGHT }, () => 0) }))}>Borrar dibujo</Button>
         </>}
       </fieldset>
-      <p className="display-portable-note">DIN entra al primer MAX7219. Orden y giro corrigen cómo está armada la placa sin cambiar el dibujo lógico.</p>
+      <p className="display-portable-note">Mirá la matriz de frente y elegí de qué lado está DIN. Si los cuatro módulos aparecen 4‑3‑2‑1, elegí el otro lado. Esto no cambia el dibujo lógico.</p>
     </div>
   );
 }

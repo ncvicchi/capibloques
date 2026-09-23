@@ -26,7 +26,8 @@ test('Matriz LED: configura hardware y edita un dibujo de 32 × 8', async ({ pag
   const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
   await editor.getByRole('button', { name: /^Agregar Matriz LED/ }).click();
   await editor.getByRole('slider', { name: /^Brillo/ }).fill('9');
-  await editor.getByLabel('Orden físico de los módulos').selectOption('right-to-left');
+  await expect(editor.getByLabel('Orden físico de los módulos')).toHaveValue('right-to-left');
+  await editor.getByLabel('Orden físico de los módulos').selectOption('left-to-right');
   await editor.getByLabel('Orientación').selectOption('rotated');
   const cell = editor.getByRole('button', { name: 'Columna 32, fila 8' });
   await cell.click();

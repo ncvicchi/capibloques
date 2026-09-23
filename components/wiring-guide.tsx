@@ -251,7 +251,7 @@ export default function WiringGuide({
                 <article key={device.id}>
                   <strong>{device.name}</strong>
                   {device.kind === 'display' && <span>{displayProfiles[device.config.profile].name}{displayProfiles[device.config.profile].bus === 'i2c' ? ` · dirección 0x${device.config.address.toString(16).toUpperCase()}` : ' · orientación horizontal'}</span>}
-                  {device.kind === 'ledMatrix' && <span>4 × MAX7219 · DIN → primer módulo · {device.config.order === 'left-to-right' ? 'entrada a la izquierda' : 'entrada a la derecha'} · brillo {device.config.brightness}/15</span>}
+                  {device.kind === 'ledMatrix' && <span>4 × MAX7219 · {device.config.order === 'left-to-right' ? 'DIN junto al módulo izquierdo' : 'DIN junto al módulo derecho'} · brillo {device.config.brightness}/15</span>}
                   <span>{deviceAdvice[device.kind]}</span>
                 </article>
               ))}

@@ -6,6 +6,7 @@ import { generateEsp32CodeResult, generateEspIdfCodeResult, validateProgramForSc
 const added = addDeviceToScene(createEmptyScene('Matriz'), 'ledMatrix');
 const matrix = added.device;
 assert.equal(matrix.kind, 'ledMatrix');
+assert.equal(matrix.config.order, 'right-to-left');
 assert.equal(getPinRequirements(matrix).length, 3);
 assert.equal(validMatrixConfig(matrix.config), true);
 assert.equal(validateScene(added.scene).valid, true);
@@ -35,6 +36,7 @@ assert.ok(validateProgramForScene(foreverProgram, added.scene).some(item => item
 for (const generated of [generateEsp32CodeResult(program, 'Matriz', added.scene), generateEspIdfCodeResult(program, 'Matriz', added.scene)]) {
   assert.equal(generated.diagnostics.some(item => item.severity === 'error'), false);
   assert.match(generated.code, /capiMatrixBegin/);
+  assert.match(generated.code, /constexpr bool CAPI_MATRIX_REVERSE = true;/);
   assert.match(generated.code, /capiMatrixStartScroll\("HOLA", 80, 1U, now\)/);
   assert.match(generated.code, /PATTERN_LED_MATRIX_1_[A-F0-9]+_HEART_[A-F0-9]+/);
   assert.doesNotMatch(generated.code, /delay\s*\(/);

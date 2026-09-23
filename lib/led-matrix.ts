@@ -65,7 +65,10 @@ export const defaultMatrixPatterns = (): MatrixPattern[] => [
 export function ledMatrixConfig(changes: Partial<LedMatrixConfig> = {}): LedMatrixConfig {
   return {
     brightness: 5,
-    order: 'left-to-right',
+    // El panel físico 4 × MAX7219 verificado recibe DIN por el extremo
+    // derecho visto de frente. El orden lógico de CapiBloques sigue siendo
+    // izquierda → derecha; el firmware invierte la cadena al transmitir.
+    order: 'right-to-left',
     orientation: 'normal',
     patterns: defaultMatrixPatterns(),
     ...changes,
