@@ -1,5 +1,20 @@
 # Fase 36 — Firmware intérprete y ejecución directa en placa
 
+## Estado de implementación — 23 de septiembre de 2026
+
+La fase fue autorizada y tiene una primera entrega ejecutable en software. Ya están implementados:
+
+- `CapiRules` v1 / ABI 1: sobre binario acotado inicialmente a 32 KiB para no prometer RAM inexistente en Wemos, carga útil canónica, placa, recursos, grafo cooperativo compartido, tabla de depuración, conteos y CRC32;
+- `CapiLink`: `HELLO`, negociación placa/versión/ABI/capacidades, carga fragmentada `BEGIN/CHUNK/VERIFY/COMMIT`, ejecución, pausa, continuación, detención y telemetría acotada;
+- bloqueo en navegador de placa equivocada, firmware anterior a 1.0.0, ABI distinta, programa sobredimensionado o capacidad ausente;
+- selector visible **Simulador / Placa conectada**, sin enviar reglas o proyectos al servidor;
+- instalación/actualización Web Serial usando los mismos controles de detección, flash y verificación existentes;
+- proyecto ESP-IDF del intérprete para ESP32 y ESP32-S3, dos ranuras de reglas A/B y selector NVS con conmutación posterior a escritura/lectura/verificación, arranque autónomo, GPIO/LED/semaforización/motores/robot/contador/consola y entradas digitales básicas;
+- construcción reproducible de dos artefactos estáticos, manifiestos con hash y publicación automática la primera vez que DEV recibe esta versión; los binarios generados no se guardan en Git;
+- pruebas de formato determinista, corrupción, placa cruzada, framing, empaquetado, USB simulado, UI Chrome, tipos, estilo, smoke y build estático.
+
+La fase **no se considera cerrada físicamente**. La primera versión publica sólo las capacidades anteriores y rechaza de forma explícita proyectos con servo, buzzer, Otto, pantallas, matriz, Mensajes, Wi‑Fi, variables complejas o paralelo; nunca los ejecuta parcialmente. Faltan portar esos controladores, compilar el proyecto ESP-IDF en el entorno fijado, desplegar los artefactos y probar con Wemos/DIYmall reales. Waveshare permanece fuera hasta validar su perfil exacto. Arduino y ESP-IDF por proyecto siguen disponibles mientras tanto.
+
 **Estado:** planificada, no autorizada ni implementada.
 
 Este documento concentra la planificación completa. La entrada breve vive en [BACKLOG.md](BACKLOG.md) y la asignación de fase en [PLAN_FASES_BACKLOG.md](PLAN_FASES_BACKLOG.md).

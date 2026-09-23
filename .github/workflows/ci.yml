@@ -69,6 +69,8 @@ jobs:
             case "$file" in
               lib/capiblocks.ts|lib/scene-model.ts|lib/board-profiles.ts|lib/display-model.ts|lib/led-matrix.ts|lib/idf-runtime.ts|lib/firmware-archive.ts|scripts/firmware-fixtures.mjs|scripts/generate-idf-fixtures.mjs|scripts/verify-idf-archives.py)
                 esp_idf=true; known=true ;;
+              interpreter/*|scripts/build-interpreter-firmware.sh|scripts/package-interpreter-firmware.py)
+                esp_idf=true; verify=true; known=true ;;
             esac
             case "$file" in
               lib/capiblocks.ts|lib/scene-model.ts)
@@ -117,6 +119,20 @@ jobs:
           cp -R .idf-ci/from-zip/s3/capibloques .idf-ci/build-s3
           idf.py -C .idf-ci/build-s3 -DIDF_TARGET=esp32s3 build
           sha256sum .idf-ci/build-s3/main/main.cpp .idf-ci/build-s3/build/capibloques.bin
+      - name: Compilar y empaquetar el intérprete genérico
+        run: |
+          . "$IDF_PATH/export.sh" >/dev/null
+          rm -rf outputs/interpreter-wemos outputs/interpreter-s3 outputs/interpreter-release
+          idf.py -C interpreter -B outputs/interpreter-wemos -DIDF_TARGET=esp32 -DSDKCONFIG="$PWD/outputs/interpreter-wemos/sdkconfig" -DCAPI_BOARD_ID=wemos-d1-r32 build
+          python scripts/package-interpreter-firmware.py --profile wemos-d1-r32 --build outputs/interpreter-wemos --output outputs/interpreter-release --revision "$GITHUB_SHA"
+          idf.py -C interpreter -B outputs/interpreter-s3 -DIDF_TARGET=esp32s3 -DSDKCONFIG="$PWD/outputs/interpreter-s3/sdkconfig" -DCAPI_BOARD_ID=diymall-esp32-s3-devkitc-v1-n16r8 build
+          python scripts/package-interpreter-firmware.py --profile diymall-esp32-s3-devkitc-v1-n16r8 --build outputs/interpreter-s3 --output outputs/interpreter-release --revision "$GITHUB_SHA"
+      - name: Conservar firmware genérico verificable
+        uses: actions/upload-artifact@v4
+        with:
+          name: capibloques-interpreter-1.0.0
+          path: outputs/interpreter-release/
+          retention-days: 14
   backend:
     needs: scope
     if: needs.scope.outputs.backend == 'true'
@@ -190,6 +206,7 @@ jobs:
           npm run test:usb
           node --experimental-strip-types scripts/compiler-generator.test.mjs
           python scripts/compiler-isolation.test.py
+          python scripts/test_package_interpreter.py
           npx oxlint components/firmware-builds.tsx components/compiler-management.tsx components/usb-board.tsx
           npm audit --audit-level=high
 

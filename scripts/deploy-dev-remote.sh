@@ -51,6 +51,7 @@ repo_git merge-base --is-ancestor "$CURRENT_COMMIT" "$TARGET_COMMIT" || fail "la
 changed_files=$(repo_git diff --name-only "$CURRENT_COMMIT..$TARGET_COMMIT")
 RUN_MIGRATIONS=0
 REBUILD_COMPILER=0
+BUILD_INTERPRETER=0
 unknown_maintenance=()
 while IFS= read -r file; do
   [[ -n $file ]] || continue
@@ -74,6 +75,22 @@ if ((${#unknown_maintenance[@]})); then
   printf 'Cambios que requieren un mantenimiento todavía no automatizado:\n' >&2
   printf '  - %s\n' "${unknown_maintenance[@]}" >&2
   fail "hay migraciones, dependencias o infraestructura no reconocidas; DEV no fue modificado"
+fi
+INTERPRETER_SOURCE=$(repo_git rev-parse "$TARGET_COMMIT:interpreter")
+if ! python3 - "$REPOSITORY/public/interpreter" "$INTERPRETER_SOURCE" <<'PY'
+import json, pathlib, sys
+root, revision = pathlib.Path(sys.argv[1]), sys.argv[2]
+profiles = ("wemos-d1-r32", "diymall-esp32-s3-devkitc-v1-n16r8")
+for profile in profiles:
+    try:
+        info = json.loads((root / f"{profile}.json").read_text(encoding="utf-8"))
+        bundle = root / info["bundle"]
+        assert info["sourceRevision"] == revision and info["version"] == "1.0.0" and bundle.is_file()
+    except Exception:
+        raise SystemExit(1)
+PY
+then
+  BUILD_INTERPRETER=1
 fi
 if ((RUN_MIGRATIONS)); then
   migration_object=$(repo_git rev-parse "$TARGET_COMMIT:backend/compiler/migrations/0002_build_board_profile.py" 2>/dev/null || true)
@@ -127,6 +144,7 @@ printf 'Preflight: checkout=%s objetivo=%s pausa=%s revision=%s cola=%s activos=
   "$CURRENT_COMMIT" "$TARGET_COMMIT" "$paused" "$revision" "$queued" "$building" "$concurrency" "$ceiling" "$WITH_API"
 ((RUN_MIGRATIONS)) && echo "Mantenimiento reconocido: respaldo PostgreSQL y migración compiler.0002."
 ((REBUILD_COMPILER)) && echo "Mantenimiento reconocido: reconstrucción y registro de la imagen del compilador."
+((BUILD_INTERPRETER)) && echo "Firmware intérprete: se construirá una vez para Wemos y ESP32-S3; no se compila por proyecto."
 
 if ((CHECK_ONLY)); then
   runtime status
@@ -251,6 +269,26 @@ if ((RUN_MIGRATIONS)); then
   echo "Aplicando la migración de placa de compilación."
   compose_dev exec -T api python manage.py migrate --noinput
   compose_dev exec -T api python manage.py migrate --check
+fi
+
+if ((BUILD_INTERPRETER)); then
+  echo "Construyendo los dos firmwares intérprete reproducibles. La primera ejecución puede descargar la imagen ESP-IDF."
+  docker run --rm --cpus 1 --memory 1200m --memory-swap 1500m \
+    --user "$(id -u capi):$(id -g capi)" -e HOME=/tmp/capi-idf -e IDF_PY_BUILD_JOBS=2 \
+    -v "$REPOSITORY:/project" -w /project \
+    espressif/idf:v5.5.5@sha256:a9231d0697ab8f7517cc072e93b7c83e04907bfbfba80b6440d7dbbf90665cf2 \
+    bash -lc '. "$IDF_PATH/export.sh" >/dev/null && ./scripts/build-interpreter-firmware.sh 1.0.0 /project/public/interpreter '"$INTERPRETER_SOURCE"
+  python3 - "$REPOSITORY/public/interpreter" "$INTERPRETER_SOURCE" <<'PY'
+import hashlib, json, pathlib, sys
+root, revision = pathlib.Path(sys.argv[1]), sys.argv[2]
+for profile in ("wemos-d1-r32", "diymall-esp32-s3-devkitc-v1-n16r8"):
+    info = json.loads((root / f"{profile}.json").read_text(encoding="utf-8"))
+    bundle = root / info["bundle"]
+    assert info["sourceRevision"] == revision and info["version"] == "1.0.0"
+    assert bundle.stat().st_size == info["bytes"]
+    assert hashlib.sha256(bundle.read_bytes()).hexdigest() == info["sha256"]
+print("Firmware intérprete empaquetado y verificado para las dos placas.")
+PY
 fi
 
 if ((WITH_API)); then

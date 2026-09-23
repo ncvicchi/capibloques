@@ -552,6 +552,8 @@ Aceptación:
 
 ## Fase 36 — Firmware intérprete y ejecución directa en placa
 
+**Estado:** autorizada y en curso. Primera entrega software implementada: ABI/reglas, protocolo, selector de destino, actualización Web Serial, almacenamiento atómico, runtime base Wemos/S3, telemetría y artefactos reproducibles. Los controladores avanzados y la aceptación física siguen pendientes; el firmware declara capacidades y la web bloquea cualquier proyecto no cubierto.
+
 **Objetivo:** convertir la compilación nativa en una alternativa y no en el recorrido cotidiano: instalar desde la web un firmware CapiBloques precompilado por placa y enviar luego reglas locales compactas para ejecutar en segundos.
 
 Alcance resumido:

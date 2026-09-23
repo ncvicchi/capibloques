@@ -42,6 +42,8 @@ next-env.d.ts
 /dist/
 /.wrangler/
 /outputs/
+/public/interpreter/*.zip
+/public/interpreter/*.json
 /work/
 /.arduino-ci/
 /.idf-ci/

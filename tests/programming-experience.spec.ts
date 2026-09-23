@@ -121,6 +121,17 @@ test('arrastre normal mueve sólo el bloque y Control mueve los siguientes', asy
   expect(nextBlockId(savedBlock(saved, 'drag-middle'))).toBe('drag-last');
 });
 
+test('permite elegir simulador o placa sin confundir sus controles', async ({ page }) => {
+  await open(page);
+  await importBlocks(page, [start('board-start', block('wait', 'board-wait', { SECONDS: 1 }))]);
+  await page.getByLabel('Dónde ejecutar').selectOption('board');
+  await expect(page.getByRole('button', { name: 'Conectar y ejecutar' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Paso' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Conectar y ejecutar' }).click();
+  await expect(page.getByRole('heading', { name: '⚡ Ejecutar en la placa' })).toBeVisible();
+  await expect(page.getByText('No compila el proyecto y no manda el programa al servidor.')).toBeVisible();
+});
+
 test('el autoguardado conserva un proyecto válido durante un arrastre prolongado', async ({
   page,
 }) => {

@@ -447,6 +447,8 @@ Arduino y ESP-IDF nativos se mantienen como alternativas. El servidor continúa 
 
 Asignación: **fase 36 — Firmware intérprete y ejecución directa en placa**. La arquitectura, formato, flujo web, runtime, seguridad, compatibilidad, pruebas, criterios y decisiones pendientes están centralizados en [FASE_36_FIRMWARE_INTERPRETE.md](FASE_36_FIRMWARE_INTERPRETE.md).
 
+Estado del 23 de septiembre de 2026: **en curso**. Se implementó la columna vertebral ejecutable —reglas/ABI, `CapiLink`, selector Simulador/Placa, instalación Web Serial, persistencia posterior a verificación, telemetría y builds reproducibles Wemos/S3— con capacidades fail-closed. Restan controladores avanzados y pruebas físicas; ver el estado preciso al inicio del documento de fase.
+
 ## 35. Herramientas pedagógicas revisadas, autoría de desafíos y bloque `según`
 
 Pedido del 23 de septiembre de 2026: incorporar al diseño de desafíos todas las herramientas identificadas al revisar en profundidad Pilas Bloques —lenguaje, paleta acotada, escenarios variables, programas iniciales vacíos/incompletos/incorrectos, ejecución paso a paso, validación funcional y estructural separadas, pistas, progresión por contraste, actividades abiertas, accesibilidad, autoría visual, importación/descarga/compartición y recursos docentes— sin copiar sus desafíos. Agregar además una decisión múltiple infantil **`según [valor]`**, con casos tipados y «en cualquier otro caso», sin caída entre casos ni `break` visible.

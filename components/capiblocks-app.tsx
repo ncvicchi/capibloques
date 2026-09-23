@@ -108,6 +108,7 @@ import type { EditorCheckpoint } from '@/components/editor-access';
 import ProjectLibrary, { type ProjectLibraryHandle } from '@/components/project-library';
 import FirmwareBuilds from '@/components/firmware-builds';
 import UsbBoard from '@/components/usb-board';
+import InterpreterBoard from '@/components/interpreter-board';
 import type { FirmwareJob } from '@/lib/usb-firmware';
 import { projectFingerprint } from '@/lib/project-library';
 
@@ -481,6 +482,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const [exportBusy, setExportBusy] = useState(false);
   const [buildsOpen, setBuildsOpen] = useState(false);
   const [usbOpen, setUsbOpen] = useState(false);
+  const [interpreterOpen, setInterpreterOpen] = useState(false);
+  const [executionTarget, setExecutionTarget] = useState<'simulator' | 'board'>('simulator');
   const [usbJob, setUsbJob] = useState<FirmwareJob | null>(null);
   const exportInFlight = useRef(false);
   const exportEpoch = useRef(0);
@@ -743,6 +746,24 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     setNoticeTone('ok');
     sound(620, 90, muted);
   }, [compile, muted, postToWorker, projectTarget.boardProfile, scene, speed]);
+
+  const openInterpreter = useCallback(() => {
+    const program = compile();
+    if (!hasExecutableNodes(program)) {
+      setNotice('Conectá acciones dentro de «Al comenzar» para ejecutar en la placa.');
+      setNoticeTone('warning');
+      return;
+    }
+    const found = validateProgramForScene(program, scene, projectTarget.boardProfile);
+    setDiagnostics(found);
+    if (found.some(item => item.severity === 'error')) {
+      setNotice('Corregí los problemas del programa y la escena antes de enviarlos a la placa.');
+      setNoticeTone('error');
+      setProblemsOpen(true);
+      return;
+    }
+    setInterpreterOpen(true);
+  }, [compile, projectTarget.boardProfile, scene]);
 
   const step = useCallback(() => {
     if (
@@ -1290,7 +1311,18 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       {!sceneBuilderOpen && draftStore.sceneDraft && <aside className="scene-recovery-banner"><span>🧩 Hay una escena sin terminar en esta computadora. Tu escena confirmada no cambió.</span><button onClick={() => toggleSceneBuilder(true)}>Revisar escena pendiente</button></aside>}
 
       <section className="toolbar" aria-label="Controles del simulador">
-        {sim.status === 'running' ? (
+        <label className="speed-control">
+          Destino
+          <select aria-label="Dónde ejecutar" value={executionTarget} disabled={sim.status === 'running' || sim.status === 'paused'} title={sim.status === 'running' || sim.status === 'paused' ? 'Detené el simulador antes de cambiar el destino.' : 'Elegí dónde ejecutar el programa.'} onChange={event => setExecutionTarget(event.target.value as 'simulator' | 'board')}>
+            <option value="simulator">Simulador</option>
+            <option value="board" disabled={offline}>Placa conectada</option>
+          </select>
+        </label>
+        {executionTarget === 'board' ? (
+          <button className="run-button" onClick={openInterpreter}>
+            <Play size={18} fill="currentColor" /> Conectar y ejecutar
+          </button>
+        ) : sim.status === 'running' ? (
           <button
             className="pause-button"
             onClick={() => {
@@ -1312,10 +1344,11 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             <Play size={18} fill="currentColor" /> Ejecutar
           </button>
         )}
-        <button onClick={step}>
+        <button disabled={executionTarget === 'board'} onClick={step}>
           <StepForward size={18} /> Paso
         </button>
         <button
+          disabled={executionTarget === 'board'}
           onClick={() => {
             postToWorker({ type: 'STOP' });
             stopSound();
@@ -1325,7 +1358,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         >
           <CircleStop size={18} /> Detener
         </button>
-        <button onClick={reset}>
+        <button disabled={executionTarget === 'board'} onClick={reset}>
           <RotateCcw size={18} /> Reiniciar
         </button>
         <span className="toolbar-separator" />
@@ -1333,7 +1366,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           <Gauge size={18} /> Velocidad
           <select
             value={speed}
-            disabled={sim.execution?.mode === 'guided'}
+            disabled={executionTarget === 'board' || sim.execution?.mode === 'guided'}
             title={sim.execution?.mode === 'guided' ? 'En modo guiado miramos un paso por vez. Esta velocidad se aplica al modo normal.' : 'Velocidad del reloj en modo normal'}
             onChange={(event) => {
               const value = Number(event.target.value);
@@ -1770,6 +1803,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       </Dialog>
 
       {usbOpen && !offline && <UsbBoard account={account} store={draftStore} job={usbJob} currentBoardProfile={projectTarget.boardProfile} currentFingerprint={fingerprint} onClose={() => { setUsbOpen(false); setUsbJob(null); }} onBuilds={() => { setUsbOpen(false); setUsbJob(null); setBuildsOpen(true); }} />}
+      {interpreterOpen && <InterpreterBoard account={account} store={draftStore} program={lastProgram} scene={scene} board={projectTarget.boardProfile} onClose={() => setInterpreterOpen(false)} />}
       {buildsOpen && !offline && <FirmwareBuilds account={account} store={draftStore} csrfToken={csrfToken} capture={currentProject} fingerprint={fingerprint} targetBoardProfile={projectTarget.boardProfile} onClose={() => setBuildsOpen(false)} onProgram={job => { setBuildsOpen(false); setUsbJob(job); setUsbOpen(true); }} validate={framework => {
         const generated = buildCode(framework);
         if (generated.diagnostics.some(item => item.severity === 'error')) { setProblemsOpen(true); return null; }
