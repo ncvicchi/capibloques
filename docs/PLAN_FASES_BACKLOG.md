@@ -1,8 +1,8 @@
 # Nuevas fases de CapiBloques
 
-Plan elaborado el 8 de septiembre de 2026 y actualizado el 23 de septiembre de 2026. **Fases 11–14 y 29 entregadas; fases 15, 16, 27 y 28 terminadas en software; fase 23 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`. Las fases 30–34 incorporan temporizadores, procedimientos, estados de componentes y comunicación Wi-Fi entre placas; están planificadas pero no autorizadas ni implementadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
+Plan elaborado el 8 de septiembre de 2026 y actualizado el 23 de septiembre de 2026. **Fases 11–14 y 29 entregadas; fases 15, 16, 27 y 28 terminadas en software; fase 23 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`. Las fases 30–35 incorporan temporizadores, procedimientos, estados de componentes, comunicación Wi-Fi entre placas y luces RGB inteligentes; están planificadas pero no autorizadas ni implementadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
 
-La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros consecutivos; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. Las fases 30–34 asignan los pedidos del 23 de septiembre sin alterar ni reabrir fases anteriores.
+La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros consecutivos; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. Las fases 30–35 asignan los pedidos del 23 de septiembre sin alterar ni reabrir fases anteriores.
 
 ## Orden y cobertura
 
@@ -32,6 +32,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 32 | Estados y valores consultables de componentes | 30 | Contrato de valores de fase 29 e inventario de capacidades por componente |
 | 33 | Wi-Fi AP/cliente y mensajes entre placas | 31 | Wi-Fi y Mensajes existentes; secretos privados; simulación multiplaca |
 | 34 | Servicios y control remoto entre placas | 32 | Mensajería de fase 33 validada física y funcionalmente |
+| 35 | Luces RGB inteligentes WS281x/SK6812 | 33 | Perfiles físicos identificados; planificador cooperativo; recursos RMT/SPI medidos por placa |
 | Final | Producción, HTTPS, respaldos y piloto | Antigua fase 11 | Postergada hasta autorización explícita y validaciones de salida |
 
 Primero se asegura la continuidad desde otra cuenta sin depender de este chat; después se atienden los problemas cotidianos del editor y se vuelve DEV accesible desde fuera mediante un servicio controlado. TX/RX se incorpora antes de las placas nuevas para tener un contrato de comportamiento que luego se valide en cada destino. Separar DevKit, Waveshare y display interactivo permite comprobar por separado placa, pantalla y aplicación gráfica: no son el mismo soporte. Los desafíos aprovechan esas funciones como recorrido educativo propio. Las fases 20–26 separan flujos de compilación, pulido de edición, motivación, periféricos, control local, intercambio e identidad de aula para no mezclar permisos o hardware distintos en una entrega inmanejable.
@@ -520,6 +521,27 @@ Aceptación:
 - Pérdida de red, reintentos y comandos duplicados no dejan estados ambiguos ni ejecutan dos veces una acción confirmada.
 - La fase puede postergarse sin impedir la mensajería de fase 33: los mismos casos siguen resolviéndose con mensajes y lógica local.
 
+## Fase 35 — Luces RGB inteligentes WS281x/SK6812
+
+**Objetivo:** controlar tiras, aros, barras y matrices RGB direccionables desde un mismo componente, con simulación fiel y animaciones no bloqueantes.
+
+Alcance:
+
+- Un componente **Luces RGB inteligentes** con geometrías tira/cadena, aro/barra/figura y matriz; cantidad libre dentro de límites medidos.
+- Primera compatibilidad WS2812B/WS2812 y SK6812 RGB a 800 kHz. WS2811 y RGBW requieren perfiles declarados para no confundir tensión, agrupación ni canales.
+- Configuración de GPIO, cantidad, orden de color, brillo máximo y mapeo. Matrices: ancho/alto, esquina inicial, filas/columnas y progresivo/zigzag.
+- Acciones sobre conjunto, píxel, tramo y coordenada; colores, degradados, dibujos y animaciones predefinidas cooperativas/cancelables.
+- Simulación, JSON, deshacer/rehacer y generación equivalente Arduino/ESP-IDF mediante backend temporizado soportado.
+- Estimación visible de corriente y guía de DIN/DOUT, masa común y alimentación externa. No presentar una estimación como medición ni alimentar matrices grandes desde la placa.
+- Medir memoria, frecuencia de refresco, latencia y coexistencia con Wi‑Fi, audio, PWM y otros usuarios de RMT/SPI en Wemos D1 R32 y ESP32‑S3 antes de fijar máximos.
+
+Aceptación:
+
+- Una tira, un aro y matrices progresiva/zigzag conservan índice/coordenada, orientación y color entre simulación y hardware.
+- Arcoíris, persecución, pulso, degradado y texto/dibujo matricial continúan mientras sensores y otros caminos responden; iniciar otra salida o detener cancela limpiamente.
+- Arduino y ESP-IDF producen la misma imagen y orden RGB/GRB para cada perfil probado, sin conflictos silenciosos de periféricos.
+- Límites por placa y advertencias de alimentación se basan en mediciones y perfiles, no en una cifra universal inventada.
+
 ## Fase final — Producción y piloto, postergada
 
 Es la antigua fase 11, renombrada por decisión del propietario. No se ejecuta como consecuencia de terminar una fase del backlog.
@@ -535,5 +557,5 @@ El gateway sigue siendo sólo un salto SSH, con prohibición de cambios. Tampoco
 - Una fase completa autorizada por vez, con implementación, pruebas proporcionales, entrega en DEV y commit/push. Informar avances con evidencia y pendientes; no inventar porcentajes ni tiempos exactos.
 - **Fases 11–14 y 29 entregadas; fases 15, 16, 27 y 28 terminadas en software; fase 23 en curso.** Actualizar la documentación viva al cerrar cada entrega solicitada. No ejecutar las fases restantes, completar la aceptación física ni avanzar a producción sin autorización y hardware correspondientes.
 - Para fase 17 hace falta el modelo Waveshare exacto antes de fijar drivers/pines; para cerrar las aceptaciones físicas de 15, 16 y 23 hace falta autorización para reemplazar firmware y los montajes correspondientes.
-- La fase 14 fija el paralelo como un contenedor con caminos apilados de arriba hacia abajo y mantiene fork/join. Formato serial se fija en 15; display en 18; UX en 21; displays/matriz en 23; panel móvil en 24; Otto en 27; barrera infrarroja en 28; datos en 29; temporizadores en 30; procedimientos en 31; estados de componentes en 32; red entre placas en 33 y servicios remotos en 34. Son decisiones dentro de esas fases, no nuevas fases con letras.
+- La fase 14 fija el paralelo como un contenedor con caminos apilados de arriba hacia abajo y mantiene fork/join. Formato serial se fija en 15; display en 18; UX en 21; displays/matriz en 23; panel móvil en 24; Otto en 27; barrera infrarroja en 28; datos en 29; temporizadores en 30; procedimientos en 31; estados de componentes en 32; red entre placas en 33; servicios remotos en 34 y luces RGB inteligentes en 35. Son decisiones dentro de esas fases, no nuevas fases con letras.
 - No hay estimaciones horarias comprometidas: hardware, alcance de la adaptación gráfica y mediciones en la VM condicionan el esfuerzo. No retrasar ahora la planificación esperando esos datos, ni prometer implementaciones específicas de un modelo no identificado.

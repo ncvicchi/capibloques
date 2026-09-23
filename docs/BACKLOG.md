@@ -419,6 +419,26 @@ No se expondrán escrituras arbitrarias de GPIO ni nombres internos del proyecto
 
 Asignación: **fase 34 — Servicios y control remoto entre placas**, pendiente y opcional respecto de la mensajería base.
 
+## 33. Luces RGB inteligentes WS281x y SK6812
+
+Pedido del 23 de septiembre de 2026: agregar los LED RGB direccionables comúnmente llamados WS2812 o «NeoPixel», contemplando tiras, matrices y los formatos habituales.
+
+Se propone una sola familia infantil **Luces RGB inteligentes**, con perfiles de forma en lugar de componentes incompatibles duplicados:
+
+- **Tira o cadena:** cantidad de píxeles y sentido de DIN a DOUT.
+- **Aro, barra o figura:** cantidad de píxeles y posición del primero; incluye formatos comunes como barras de 8 y aros de 8/12/16/24, sin limitarse a esas cantidades.
+- **Matriz:** ancho, alto, esquina del primer píxel, recorrido por filas o columnas y orden continuo o zigzag. Las coordenadas lógicas siempre empiezan arriba a la izquierda aunque el cableado sea distinto.
+
+La primera compatibilidad cubrirá WS2812B/WS2812 y SK6812 RGB de 800 kHz. WS2811 y RGBW quedarán como perfiles explícitos, no como supuestos silenciosos: pueden cambiar tensión, agrupación de píxeles u orden/cantidad de canales. La escena configurará GPIO de datos, cantidad/geometría, orden de color —por ejemplo GRB/RGB—, brillo máximo y presupuesto estimado de corriente. La guía exigirá respetar DIN/DOUT, masa común y alimentación externa cuando corresponda; no sugerirá alimentar una matriz grande desde el pin de la placa.
+
+Los bloques infantiles incluirán apagar, color/brillo de todo el conjunto, píxel y tramo, degradado y animaciones predefinidas como arcoíris, persecución, pulso y barra de progreso. Las matrices agregarán punto, dibujo y texto cuando la geometría lo permita. Animaciones y refresco serán cooperativos y cancelables, con `esperar a que termine` sólo cuando el programa lo pida. La simulación mostrará el mismo mapeo, color, brillo y progreso sin convertir el consumo estimado en una medición real.
+
+Arduino y ESP-IDF compartirán el framebuffer y la semántica. ESP-IDF usará un backend temporizado soportado —preferentemente `led_strip`/RMT— y se medirán conflictos con otros consumidores de RMT, PWM, audio, Wi‑Fi y memoria antes de fijar límites por placa. En ESP32 clásico, combinaciones grandes con Wi‑Fi requieren límites y prueba específica; ESP32‑S3 puede aprovechar RMT con DMA. No se prometerá una cantidad universal de LED antes de medir actualización, RAM, fuente y concurrencia.
+
+Asignación: **fase 35 — Luces RGB inteligentes WS281x/SK6812**.
+
+Referencias técnicas primarias: [ESP-IDF `led_strip`](https://docs.espressif.com/projects/esp-board-manager/en/latest/references/devices/led-strip.html), [RMT de Arduino ESP32](https://docs.espressif.com/projects/arduino-esp32/en/latest/api/rmt.html), [formatos y protocolo NeoPixel](https://learn.adafruit.com/adafruit-neopixel-uberguide/form-factors), [mapeo de matrices](https://learn.adafruit.com/adafruit-neopixel-uberguide/neomatrix-library) y [alimentación/conexión](https://learn.adafruit.com/adafruit-neopixel-uberguide/basic-connections).
+
 ## Pedidos externos a analizar
 
 Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus observaciones para reproducirlas y contrastarlas con el comportamiento vigente. **No confirma que cada problema exista y la asignación no autoriza implementarlos.** Progreso/guardado/reinicio corresponden a fase 20; superposición y los ajustes de claridad/escena corresponden a fase 21; avatar a fase 22; compartir a fase 25; acceso de aula a fase 26. Las prioridades «vital» y «sutil» pertenecen al informe de origen y cada observación debe reproducirse antes de cambiar código.
@@ -511,6 +531,7 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 30. Estados y valores consultables de componentes | 32. Capacidades tipadas, medidas o lógicas, utilizables en condiciones |
 | 31. Red entre placas por Wi-Fi | 33. Punto de acceso, clientes y mensajes de aplicación |
 | 32. Servicios y control remoto entre placas | 34. Servicios autorizados sobre la mensajería validada |
+| 33. Luces RGB inteligentes WS281x/SK6812 | 35. Tiras, aros, barras y matrices direccionables |
 | 23. Reducir al mínimo la latencia de compilación | 20. Medición, caché, precompilación y arquitectura del compilador |
 
 Las observaciones externas quedan asignadas así: fase 20 (progreso/guardado/reinicio de compilación), fase 21 (superposición y claridad/escena), fase 22 (avatar), fase 25 (enlaces/QR) y fase 26 (acceso de aula/asistencia). Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 15 está implementada en software y la fase 23 está en curso con la matriz implementada; el resto requiere autorización propia. Los números de pedido no son fases nuevas.

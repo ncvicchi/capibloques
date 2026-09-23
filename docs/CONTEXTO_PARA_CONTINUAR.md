@@ -351,6 +351,7 @@ El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BAC
 - 32: pendiente; contrato común de estados y valores por componente. Distinguir siempre entradas físicas medidas de estados lógicos ordenados a actuadores.
 - 33: pendiente; una placa crea una red Wi-Fi, clientes se conectan e intercambian mensajes de aplicación identificados. Las credenciales permanecen fuera de JSON/Git/logs.
 - 34: pendiente y separable; servicios autorizados y control remoto entre placas sobre la mensajería validada. No habilitar GPIO remoto arbitrario.
+- 35: pendiente; familia Luces RGB inteligentes para WS2812B/WS2812 y SK6812 RGB, con perfiles tira, aro/barra/figura y matriz. Matrices declaran esquina/eje/progresivo o zigzag; animaciones son cooperativas. WS2811/RGBW necesitan perfiles propios y los máximos se medirán por placa, energía y concurrencia.
 - El [informe externo del 14 de septiembre](BACKLOG.md#pedidos-externos-a-analizar) queda distribuido entre 20–22 y 25–26. El selector angular con reloj está expresamente descartado y no es trabajo pendiente. La barra residual, el arrastre individual/grupal y el guardado estable ya están corregidos en `d096fd9`, `0fc9ff2` y `2b97af9`.
 - Final: producción/HTTPS, restauración/backups externos, carga, monitoreo, rollback y piloto; postergada.
 
