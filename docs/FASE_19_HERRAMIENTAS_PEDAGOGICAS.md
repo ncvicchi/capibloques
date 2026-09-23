@@ -2,18 +2,24 @@
 
 **Estado:** planificada, no autorizada ni implementada.
 
-Este documento amplía la fase 19 existente. Conserva el pedido original de desafíos progresivos e incorpora el inventario completo revisado en Pilas Bloques el 23 de septiembre de 2026. No se copian historias, personajes, escenas ni soluciones: se estudian herramientas de lenguaje, construcción de desafíos, ejecución y acompañamiento.
+Este documento amplía la fase 19 existente. Conserva el pedido original de desafíos progresivos e incorpora las dos revisiones de Pilas Bloques realizadas el 23 de septiembre de 2026: primero su catálogo y editor clásico y luego, en profundidad, la aplicación 3.0.2, su creador de desafíos, formato versionado, análisis estructural, recursos docentes y propuesta desenchufada. No se copian historias, personajes, escenas ni soluciones: se estudian herramientas de lenguaje, construcción de desafíos, ejecución y acompañamiento.
 
 ## 1. Fuente y alcance de la revisión
 
-Se pudo acceder a [Pilas Bloques](https://pilasbloques.program.ar/online/emberPB/index.html) sin iniciar sesión y recorrer sus niveles Principiante, Intermedio y Avanzado. Se inspeccionaron el catálogo y desafíos representativos de procedimientos, decisiones, repetición condicional, sensores numéricos y parametrización. No se encontró una plataforma oficial distinta llamada «Polibloques»; este plan asume que el nombre se refería a Pilas Bloques.
+Se pudo acceder sin iniciar sesión tanto a la [aplicación actual de Pilas Bloques](https://pilasbloques.program.ar/online/#/) —versión pública 3.0.2 al revisar— como al [editor Ember anterior](https://pilasbloques.program.ar/online/emberPB/index.html). Se recorrieron los niveles Principiante, Intermedio y Avanzado, desafíos representativos y el creador actual. Se inspeccionaron procedimientos, decisiones, repetición condicional, sensores numéricos, parametrización, depuración, ejecución paso a paso, escenas múltiples y autoría. «Polibloques» era una referencia imprecisa a Pilas Bloques.
 
 Fuentes primarias complementarias:
 
 - [Repositorio actual de Pilas Bloques](https://github.com/Program-AR/pilas-bloques-app).
+- [Creador visual público](https://pilasbloques.program.ar/online/#/creador/seleccionar).
+- [Modelo versionado de desafíos creados](https://github.com/Program-AR/pilas-bloques-app/blob/develop/src/components/serializedChallenge.ts).
+- [Expectativas estructurales](https://github.com/Program-AR/pilas-bloques-app/blob/develop/src/components/blockly/mulang/expectations.ts) y [feedback localizado sobre bloques](https://github.com/Program-AR/pilas-bloques-app/blob/develop/src/components/blockly/mulang/blockFeedback.ts).
 - [Notas de versión del editor Ember](https://github.com/Program-AR/pilas-bloques-ember/blob/develop/notasDeVersion.md), que documentan resaltado, procedimientos, parámetros, expectativas, sugerencias, importación y validaciones.
 - [Repositorio de ejercicios](https://github.com/Program-AR/pilas-bloques-exercises).
+- [Recursos oficiales para docentes](https://pilasbloques.program.ar/docentes/) y [Pilas Bloques Desenchufado](https://pilasbloques.program.ar/pilas-bloques-desenchufado/).
 - [Secuencia didáctica oficial sobre procedimientos](https://repositorio.curriculum.program.ar/wp-content/uploads/tainacan-items/55/5073/SDC-7-creamos-desafios-de-procedimientos.pdf).
+
+El hallazgo arquitectónico principal es que el desafío separa cinco dimensiones: escena inicial, bloques disponibles, programa inicial, resultado funcional y expectativas pedagógicas. CapiBloques debe conservar esa separación y aplicarla sobre sus proyectos portables, escenas componibles y componentes físicos.
 
 ## 2. Inventario completo de herramientas de lenguaje observadas
 
@@ -176,10 +182,58 @@ Variaciones cortas aumentan una sola dimensión de dificultad y permiten prácti
 
 Anterior/siguiente, tramo actual, requisitos, progreso y recomendación docente visibles. El orden recomendado no impide al docente asignar otro recorrido.
 
+### 4.13 Programa inicial con intención pedagógica
+
+El programa entregado por un desafío puede estar:
+
+- vacío, para construir una solución completa;
+- parcialmente armado, para ordenar o completar una idea;
+- completo pero incorrecto, para localizar y reparar errores;
+- funcional pero deliberadamente difícil de leer, para refactorizarlo con repeticiones, procedimientos o parámetros.
+
+La modalidad es parte versionada del desafío. Reiniciar restaura exactamente ese programa sin afectar otros proyectos del alumno.
+
+### 4.14 Depuración como actividad de primera clase
+
+La familia «Corregimos los programas» entrega una solución y propone probarla paso a paso. CapiBloques debe poder crear retos propios de diagnóstico: estados invertidos, orden incorrecto, condición equivocada, timer sin reinicio, módulo de matriz invertido, procedimiento sin llamada o comunicación sin tratamiento de timeout. La validación distingue localizar el problema, corregirlo y explicar la causa cuando el docente lo solicite.
+
+### 4.15 Progresión por contraste
+
+Las familias de actividades conservan personajes y contexto mientras modifican una sola herramienta. CapiBloques aplicará el mismo principio con contenido propio: secuencia → repetición; repetición fija → condicional; `si` → `si/no`; `si/no` repetidos → `según`; espera bloqueante → timer; secuencia larga → procedimiento; procedimiento duplicado → parámetro. Así se reduce la carga ajena al concepto nuevo.
+
+### 4.16 Creador visual de desafíos
+
+La aplicación actual permite seleccionar personaje, editar el tablero, cambiar filas/columnas, colocar objetos y obstáculos, duplicar/eliminar escenarios, escribir título/enunciado/pista, elegir bloques disponibles, previsualizar, descargar, importar y compartir. La adaptación no debe ser un editor paralelo: un docente convierte una escena/proyecto CapiBloques existente en desafío y agrega sobre ella restricciones, variantes, objetivos y ayudas.
+
+El creador de CapiBloques debe permitir como mínimo:
+
+- elegir o copiar un proyecto/escena base;
+- editar uno o más estados iniciales y asignarles una semilla reproducible;
+- escoger categorías, bloques, componentes, acciones, valores y eventos disponibles;
+- definir la modalidad y contenido del programa inicial;
+- declarar objetivo funcional, expectativas pedagógicas y pistas ordenadas;
+- configurar pruebas visibles y reservadas al docente;
+- previsualizar exactamente como alumno antes de publicar;
+- guardar borrador, cancelar, deshacer/rehacer, versionar, duplicar, exportar/importar y archivar;
+- asignar a cursos sólo después de publicar una versión inmutable.
+
+### 4.17 Autoría por alumnos, con mediación docente
+
+La creación de un reto para que otro alumno lo resuelva es una actividad valiosa, pero no entra como publicación libre inicial. En una evolución posterior, el docente puede habilitar autoría por curso; el alumno diseña escena, consigna, estados, herramientas y pistas, y el docente revisa/acepta antes de compartir. Nunca se publican proyectos infantiles globalmente por defecto.
+
+### 4.18 Actividades abiertas y transferencia
+
+Tras una secuencia guiada se ofrece un laboratorio sin solución única. El objetivo es comprobar si el alumno puede reutilizar espontáneamente lo aprendido. Puede conservar condiciones de seguridad y límites de recursos, pero no una estructura obligatoria ni una única salida visual.
+
+### 4.19 Recursos imprimibles y trabajo desenchufado
+
+La propuesta oficial incluye materiales para imprimir, recortar y jugar. CapiBloques podrá generar desde un desafío una ficha imprimible con consigna, tarjetas de bloques, componentes, diagrama/pinout de la placa, tabla para predecir estados, casos de prueba y un QR para abrir el proyecto. Es una extensión posterior y no condiciona el primer catálogo digital.
+
 ## 5. Inventario completo de ejecución y apoyo observado
 
 - Resaltado del bloque que se ejecuta.
 - Resaltado simultáneo de llamada y cuerpo del procedimiento.
+- Ejecución paso a paso disponible explícitamente en actividades de depuración.
 - Modo turbo para acelerar animaciones largas.
 - Guardar y cargar soluciones.
 - Borrar solución con confirmación apropiada.
@@ -192,7 +246,10 @@ Anterior/siguiente, tramo actual, requisitos, progreso y recomendación docente 
 - Feedback opcional/progresivo sobre expectativas conceptuales.
 - Inicio de sesión y recuperación del último trabajo cuando corresponde.
 - Escenarios renovados al volver a ejecutar cuando la actividad lo requiere.
+- Botón para recorrer escenarios iniciales distintos sin modificar el programa.
 - Navegación entre desafíos relacionados.
+- Enunciado y pista separados; algunos tutoriales incluyen material audiovisual.
+- Vista previa del desafío creado antes de descargarlo o compartirlo.
 
 CapiBloques reutilizará sus mecanismos vigentes de biblioteca, recuperación, historial y cuenta; no copiará formatos de solución ajenos.
 
@@ -219,9 +276,11 @@ Cada versión inmutable del desafío declara:
 - identificador, versión, título, edad orientativa, tramo y conceptos;
 - prerequisitos/recomendaciones y si necesita hardware;
 - escena confirmada y proyecto inicial copiable;
+- modalidad del programa inicial —vacío, parcial, incorrecto o para refactorizar— y su contenido restaurable;
 - paleta de categorías/bloques y límites justificados;
 - conjunto de semillas/variantes y datos de simulación;
 - objetivo funcional y expectativas conceptuales;
+- pruebas visibles, pruebas reservadas y política de repetición/reproducción de casos;
 - pistas ordenadas y explicación posterior;
 - política de intentos, reinicio y continuidad;
 - recursos visuales/sonoros con licencia y accesibilidad;
@@ -229,6 +288,8 @@ Cada versión inmutable del desafío declara:
 - migración o convivencia con versiones anteriores.
 
 El proyecto del alumno sigue siendo un proyecto portable normal vinculado a una asignación, no una edición del enunciado.
+
+El formato observado confirma la conveniencia de versionar por separado título, enunciado/pista, escena con varios mapas, toolbox, paso a paso, solución inicial, evaluaciones y referencia compartida. CapiBloques ampliará ese contrato con placa/perfil, componentes, conexiones, semillas, eventos, permisos, recursos y migraciones; no reutilizará el archivo ajeno.
 
 ## 8. Motor de validación
 
@@ -241,11 +302,21 @@ El validador se ejecuta con fixtures sintéticos y límites estrictos:
 5. devuelve hechos concretos, no una comparación contra una solución secreta;
 6. conserva evidencia mínima por intento sin guardar telemetría infantil innecesaria.
 
+El resultado se comunica en tres niveles independientes:
+
+- **Funciona:** el comportamiento requerido se cumplió en los casos ejecutados.
+- **Puede mejorar:** la solución funciona, pero existe una sugerencia pedagógica concreta y localizable.
+- **No puede ejecutarse:** hay bloques incompletos, referencias rotas, configuración inválida o un error del propio validador.
+
+Una expectativa pedagógica no convierte automáticamente una solución funcional alternativa en incorrecta. Las restricciones obligatorias deben estar justificadas en la consigna —por ejemplo «resolvelo usando un procedimiento»— y siguen distinguiéndose del resultado físico o simulado.
+
 Los validadores se versionan con el desafío. Un error del validador se distingue de una solución incorrecta y no consume ni altera un logro.
 
 ## 9. Progreso, docentes y privacidad
 
 Por cuenta se guarda desafío/versión, estado, intentos, pistas solicitadas, proyecto asociado y fecha. El docente ve el progreso permitido de sus cursos y los conceptos que presentan dificultad; no recibe una reproducción oculta de cada gesto ni acceso por ser administrador global.
+
+La autoría usa permisos explícitos: administrador configura políticas; docente crea/publica/versiona/asigna dentro de sus cursos; alumno resuelve y, sólo si el docente lo habilita, crea un borrador sujeto a aprobación. Compartir por enlace o exportar nunca vuelve público un trabajo infantil por omisión.
 
 No habrá ranking público, comparación entre alumnos ni premio que sustituya la explicación conceptual. Reintentos y logros son idempotentes; revocación de curso/cuenta se aplica con permisos frescos.
 
@@ -255,25 +326,29 @@ No habrá ranking público, comparación entre alumnos ni premio que sustituya l
 - Tarjeta con objetivo, herramientas que se practicarán y requisitos, sin revelar estrategia.
 - Área de pistas graduadas y explicación final.
 - Indicador de variante/semillas sin mostrar respuestas.
+- Modo paso a paso y reproducción de la semilla que falló.
 - Botones reiniciar desafío, abrir copia, guardar, simular, validar y retomar claramente distintos.
 - Paleta específica visible como decisión del desafío; los bloques globales no desaparecen fuera del reto.
 - Ejecución guiada entra en procedimientos y vuelve a la llamada; `según` destaca valor, caso elegido o rama por defecto.
 - Accesibilidad por teclado, texto ampliado, lector, movimiento reducido y alternativas a color/sonido.
+- Editor docente basado en la misma escena, con herramientas laterales separadas, borrador/publicado visibles y vista previa real como alumno.
 
 ## 11. Plan de construcción dentro de la fase
 
 Es una única fase; estos son hitos internos, no subfases independientes:
 
-1. Congelar esquema versionado de desafío, validador y progreso.
+1. Congelar esquema versionado de desafío, programa inicial, autoría, validador y progreso.
 2. Implementar `según` en JSON, Blockly, simulador, validación y generadores.
 3. Implementar paleta/escena/proyecto inicial por desafío sin afectar el editor normal.
 4. Crear ejecución multisemilla y validación funcional determinista.
 5. Incorporar expectativas conceptuales configurables y feedback verificable.
 6. Integrar pistas, explicación, guardado/reanudación y progreso por cuenta.
-7. Crear catálogo inicial propio, primero sin hardware, con pruebas de soluciones alternativas.
-8. Agregar depuración de programas iniciales, retos creativos y variantes complementarias.
-9. Incorporar retos de componentes/hardware sólo cuando su fase esté aceptada.
-10. Validar con docentes y chicos de 8–12 años, accesibilidad, Chrome/Edge y privacidad.
+7. Incorporar el creador docente sobre proyectos/escenas existentes, con borrador, vista previa, publicación inmutable y asignación.
+8. Crear catálogo inicial propio, primero sin hardware, con pruebas de soluciones alternativas y progresión por contraste.
+9. Agregar depuración de programas iniciales, retos de refactorización, actividades creativas y variantes complementarias.
+10. Incorporar retos de componentes/hardware sólo cuando su fase esté aceptada.
+11. Evaluar autoría mediada por alumnos y recursos imprimibles sin volverlos requisito del primer lanzamiento.
+12. Validar con docentes y chicos de 8–12 años, accesibilidad, Chrome/Edge y privacidad.
 
 ## 12. Pruebas y aceptación
 
@@ -282,6 +357,10 @@ Es una única fase; estos son hitos internos, no subfases independientes:
 - Paletas no contaminan proyectos normales ni invalidan proyectos portables.
 - `según` cubre casos numéricos/textuales/enumerados, caso por defecto, duplicados, tipos, importación y todos los runtimes disponibles.
 - Pistas no revelan la solución antes de tiempo y mantienen accesibilidad.
+- Los cuatro tipos de programa inicial se restauran sin afectar otros proyectos y permiten depurar paso a paso.
+- Un docente crea un borrador desde una escena, define variantes/paleta/objetivos, lo previsualiza, publica una versión inmutable y la asigna sin editar trabajo del alumno.
+- Una semilla fallida puede reproducirse; cambiar de escenario no altera el programa.
+- «Funciona», «puede mejorar» y «no puede ejecutarse» nunca se confunden entre sí.
 - Guardar/salir/retomar/reiniciar no sobrescribe enunciado ni trabajo ajeno.
 - Progreso aislado por cuenta/curso, versión y permisos; correcciones del catálogo no borran logros sin explicación.
 - Los primeros desafíos funcionan enteramente en simulación. Un reto físico distingue compilar, grabar, conectar y validar hardware.
@@ -293,6 +372,9 @@ Es una única fase; estos son hitos internos, no subfases independientes:
 - Exigir una solución única o premiar siempre el menor número de bloques.
 - Crear un ranking público.
 - Habilitar inicialmente un creador libre de desafíos para cualquier usuario.
+- Copiar el creador limitado a personajes/cuadrículas en vez de aprovechar escenas y componentes de CapiBloques.
+- Reprobar una solución funcional únicamente porque no coincide con la estructura modelo no declarada.
+- Guardar cada gesto o programa infantil como analítica indiscriminada.
+- Crear un segundo editor incompatible para los desafíos.
 - Incorporar tutor de IA o chat como requisito de la fase.
 - Declarar comprendido un concepto sólo porque la escena terminó una vez.
-

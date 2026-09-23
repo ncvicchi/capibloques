@@ -447,11 +447,11 @@ Arduino y ESP-IDF nativos se mantienen como alternativas. El servidor continúa 
 
 Asignación: **fase 36 — Firmware intérprete y ejecución directa en placa**. La arquitectura, formato, flujo web, runtime, seguridad, compatibilidad, pruebas, criterios y decisiones pendientes están centralizados en [FASE_36_FIRMWARE_INTERPRETE.md](FASE_36_FIRMWARE_INTERPRETE.md).
 
-## 35. Herramientas pedagógicas revisadas y bloque `según`
+## 35. Herramientas pedagógicas revisadas, autoría de desafíos y bloque `según`
 
-Pedido del 23 de septiembre de 2026: incorporar al diseño de desafíos todas las herramientas identificadas al revisar Pilas Bloques —lenguaje, paleta acotada, escenarios variables, validación funcional/estructural, pistas, progresión, depuración, accesibilidad y ejecución— sin copiar sus desafíos. Agregar además una decisión múltiple infantil **`según [valor]`**, con casos tipados y «en cualquier otro caso», sin caída entre casos ni `break` visible.
+Pedido del 23 de septiembre de 2026: incorporar al diseño de desafíos todas las herramientas identificadas al revisar en profundidad Pilas Bloques —lenguaje, paleta acotada, escenarios variables, programas iniciales vacíos/incompletos/incorrectos, ejecución paso a paso, validación funcional y estructural separadas, pistas, progresión por contraste, actividades abiertas, accesibilidad, autoría visual, importación/descarga/compartición y recursos docentes— sin copiar sus desafíos. Agregar además una decisión múltiple infantil **`según [valor]`**, con casos tipados y «en cualquier otro caso», sin caída entre casos ni `break` visible.
 
-Asignación: ampliación de la **fase 19 — Desafíos progresivos**. El inventario completo, diferencias, contrato de `según`, modelo de datos, validador, interfaz, progreso, plan de construcción y aceptación están en [FASE_19_HERRAMIENTAS_PEDAGOGICAS.md](FASE_19_HERRAMIENTAS_PEDAGOGICAS.md).
+Asignación: ampliación de la **fase 19 — Desafíos progresivos**. El inventario completo, segunda revisión de la versión 3.0.2 y su creador, diferencias, decisiones de adaptación, contrato de `según`, modelo de datos, autoría docente, validador, interfaz, progreso, plan de construcción y aceptación están en [FASE_19_HERRAMIENTAS_PEDAGOGICAS.md](FASE_19_HERRAMIENTAS_PEDAGOGICAS.md). Esta entrada única es la referencia; no crear otra fase por cada hallazgo.
 
 ## 36. Ayuda infantil de componentes
 

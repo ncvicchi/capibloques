@@ -230,7 +230,7 @@ Aceptación:
 
 **Objetivo:** ofrecer un recorrido de retos atractivos y cada vez más complejos para aprender a usar CapiBloques y desarrollar conceptos de programación mediante la práctica.
 
-**Plan ampliado:** [FASE_19_HERRAMIENTAS_PEDAGOGICAS.md](FASE_19_HERRAMIENTAS_PEDAGOGICAS.md) es la fuente detallada e incorpora el inventario completo revisado en Pilas Bloques, el bloque `según`, paletas por desafío, variantes/semillas, expectativas funcionales y conceptuales, depuración, pistas, accesibilidad, modelo de datos, progreso y pruebas. No autoriza copiar contenidos ajenos.
+**Plan ampliado:** [FASE_19_HERRAMIENTAS_PEDAGOGICAS.md](FASE_19_HERRAMIENTAS_PEDAGOGICAS.md) es la fuente detallada e incorpora las dos revisiones de Pilas Bloques —incluidos la versión 3.0.2, su creador y recursos docentes—, el bloque `según`, paletas por desafío, programas iniciales con intención pedagógica, variantes/semillas, expectativas funcionales y conceptuales, depuración, autoría docente, pistas, accesibilidad, modelo de datos, progreso y pruebas. No autoriza copiar contenidos ajenos.
 
 Alcance:
 
