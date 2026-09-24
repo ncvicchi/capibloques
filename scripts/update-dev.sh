@@ -224,5 +224,5 @@ mode=()
 umask 077
 REMOTE_SCRIPT=$(mktemp /tmp/capibloques-dev-deploy.XXXXXX)
 git show "$target:scripts/deploy-dev-remote.sh" >"$REMOTE_SCRIPT"
-sudo bash "$REMOTE_SCRIPT" --expected-commit "$target" "${mode[@]}"
+sudo bash "$REMOTE_SCRIPT" --expected-commit "$target" "${mode[@]}" </dev/null
 DEPLOY_CONFIRMED=1
