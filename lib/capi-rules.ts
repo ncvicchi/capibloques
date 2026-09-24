@@ -71,9 +71,20 @@ function instructionCapabilities(instruction: ExecutableTask['output'][number]) 
 }
 
 function resourceRequirements(document: CapiRulesDocument) {
-  const deviceIds = new Set(document.tasks.flatMap(task => task.output.flatMap(instruction => ['led', 'traffic', 'motor', 'robot', 'servo', 'buzzer', 'tone'].includes(instruction.op) && 'deviceId' in instruction ? [instruction.deviceId] : [])));
+  const deviceIds = new Set(document.tasks.flatMap(task => task.output.flatMap(instruction => ['led', 'traffic', 'motor', 'robot', 'otto', 'ottoSound', 'ottoExpression', 'ottoArms', 'servo', 'buzzer', 'tone'].includes(instruction.op) && 'deviceId' in instruction ? [instruction.deviceId] : [])));
   const pwmPins = new Set<number>();
-  for (const device of document.resources.devices) if (deviceIds.has(device.id)) for (const value of Object.values(device.pins)) if (typeof value === 'number') pwmPins.add(value);
+  for (const device of document.resources.devices) {
+    if (!deviceIds.has(device.id)) continue;
+    const keys = device.kind === 'trafficLight' ? ['red', 'yellow', 'green']
+      : device.kind === 'robot' ? ['leftIn1', 'leftIn2', 'rightIn1', 'rightIn2']
+        : device.kind === 'motor' ? ['in1', 'in2']
+          : device.kind === 'otto' ? ['leftLeg', 'rightLeg', 'leftFoot', 'rightFoot', 'leftArm', 'rightArm', 'buzzer']
+            : ['signal'];
+    for (const key of keys) {
+      const value = device.pins[key as keyof typeof device.pins];
+      if (typeof value === 'number') pwmPins.add(value);
+    }
+  }
   return { pwmChannels: pwmPins.size };
 }
 
@@ -101,6 +112,10 @@ export function createCapiRules(programInput: CompiledProgram, scene: SceneDefin
   const errors = validateProgramForScene(program, scene, board).filter(item => item.severity === 'error');
   if (errors.length) throw new CapiRulesError(errors[0].message);
   const tasks = compileTaskGraph(program);
+  if (scene.devices.filter(device => device.kind === 'messages').length > 1)
+    throw new CapiRulesError('El intérprete rápido admite un componente Mensajes por placa. El modo nativo conserva hasta dos.');
+  if (scene.devices.filter(device => device.kind === 'otto').length > 1)
+    throw new CapiRulesError('El intérprete rápido admite un robot Otto por placa. El modo nativo conserva proyectos avanzados con más de uno.');
   const instructionCount = tasks.reduce((total, task) => total + task.output.length, 0);
   if (instructionCount > CAPI_RULES_MAX_INSTRUCTIONS) throw new CapiRulesError(`El programa tiene ${instructionCount} instrucciones; el intérprete admite hasta ${CAPI_RULES_MAX_INSTRUCTIONS}.`);
   const blockIds = [...new Set(tasks.flatMap(task => task.output.map(item => item.blockId)))];
