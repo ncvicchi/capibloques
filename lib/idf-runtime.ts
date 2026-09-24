@@ -65,6 +65,7 @@ export function idfRuntimeSupport(scene: SceneDefinition, usesWifi: boolean, pro
     (device.kind === 'display' && device.config.profile === 'lcd1602keypad')
   );
   const hasMessages = scene.devices.some(device => device.kind === 'messages');
+  const wifiAp = scene.devices.some(device => device.kind === 'wifiNode' && device.config.role === 'create');
   const setup: string[] = [];
   for (const device of scene.devices) {
     if (device.kind === 'trafficLight') for (const pin of Object.values(device.pins)) setup.push(`  capiOutput(${pin ?? 255});`);
@@ -169,7 +170,7 @@ ${usesWifi ? `
 std::atomic<bool> capiWifiHasIp{false};
 std::atomic<bool> capiWifiConnecting{false};
 bool capiWifiReady = false;
-bool capiWifiConnected() { return capiWifiHasIp.load(); }
+bool capiWifiConnected() { return ${wifiAp ? 'capiWifiReady' : 'capiWifiHasIp.load()'}; }
 void capiWifiEvent(void*, esp_event_base_t base, int32_t id, void*) {
   if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) { capiWifiHasIp = true; capiWifiConnecting = false; }
   if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) { capiWifiHasIp = false; capiWifiConnecting = false; }
@@ -178,7 +179,7 @@ void capiWifiInit() {
   // Never erase NVS to recover a failed init. Wi-Fi credentials are stored in RAM.
   if (nvs_flash_init() != ESP_OK) { capiPrintln("[Wi-Fi] NVS no disponible; no se borro ninguna configuracion."); return; }
   ESP_ERROR_CHECK(esp_netif_init()); ESP_ERROR_CHECK(esp_event_loop_create_default());
-  if (!esp_netif_create_default_wifi_sta()) return;
+  if (!${wifiAp ? 'esp_netif_create_default_wifi_ap()' : 'esp_netif_create_default_wifi_sta()'}) return;
   wifi_init_config_t init = WIFI_INIT_CONFIG_DEFAULT(); ESP_ERROR_CHECK(esp_wifi_init(&init));
   ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
   ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, capiWifiEvent, nullptr));
@@ -186,15 +187,15 @@ void capiWifiInit() {
   wifi_config_t config = {};
   static_assert(sizeof(CAPI_WIFI_SSID) - 1 <= 32, "SSID: maximo 32 bytes");
   static_assert(sizeof(CAPI_WIFI_PASSWORD) - 1 <= 64, "Clave: maximo 64 bytes");
-  memcpy(config.sta.ssid, CAPI_WIFI_SSID, sizeof(CAPI_WIFI_SSID) - 1);
-  memcpy(config.sta.password, CAPI_WIFI_PASSWORD, sizeof(CAPI_WIFI_PASSWORD) - 1);
-  config.sta.threshold.authmode = sizeof(CAPI_WIFI_PASSWORD) > 1 ? WIFI_AUTH_WPA2_PSK : WIFI_AUTH_OPEN;
-  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA)); ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &config));
+  memcpy(config.${wifiAp ? 'ap' : 'sta'}.ssid, CAPI_WIFI_SSID, sizeof(CAPI_WIFI_SSID) - 1);
+  memcpy(config.${wifiAp ? 'ap' : 'sta'}.password, CAPI_WIFI_PASSWORD, sizeof(CAPI_WIFI_PASSWORD) - 1);
+  ${wifiAp ? 'config.ap.ssid_len = sizeof(CAPI_WIFI_SSID) - 1; config.ap.channel = 1; config.ap.max_connection = 4; config.ap.authmode = sizeof(CAPI_WIFI_PASSWORD) > 1 ? WIFI_AUTH_WPA2_PSK : WIFI_AUTH_OPEN;' : 'config.sta.threshold.authmode = sizeof(CAPI_WIFI_PASSWORD) > 1 ? WIFI_AUTH_WPA2_PSK : WIFI_AUTH_OPEN;'}
+  ESP_ERROR_CHECK(esp_wifi_set_mode(${wifiAp ? 'WIFI_MODE_AP' : 'WIFI_MODE_STA'})); ESP_ERROR_CHECK(esp_wifi_set_config(${wifiAp ? 'WIFI_IF_AP' : 'WIFI_IF_STA'}, &config));
   ESP_ERROR_CHECK(esp_wifi_start()); capiWifiReady = true;
 }
 void capiWifiBegin() {
   if (!capiWifiReady || capiWifiConnected() || capiWifiConnecting.exchange(true)) return;
-  if (esp_wifi_connect() != ESP_OK) capiWifiConnecting = false;
+  ${wifiAp ? 'capiWifiConnecting = false;' : 'if (esp_wifi_connect() != ESP_OK) capiWifiConnecting = false;'}
 }
 ` : ''}
 void capiHardwareBegin() {

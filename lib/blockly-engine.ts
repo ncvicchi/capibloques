@@ -24,6 +24,8 @@ const MESSAGE_FIELD = 'MESSAGE';
 const PATTERN_FIELD = 'PATTERN_ID';
 const DISPLAY_ARTWORK_FIELD = 'ARTWORK_ID';
 const COMPONENT_PROPERTY_FIELD = 'PROPERTY';
+const WIFI_MESSAGE_FIELD = 'WIFI_MESSAGE';
+const WIFI_PEER_FIELD = 'WIFI_PEER';
 const serializedAreaIds = new WeakMap<BlocklyWorkspaceSvg, Map<string, string>>();
 const EMPTY_FAVORITES: readonly string[] = [];
 const DEVICE_EXTENSION = 'capi_device_target_v2';
@@ -123,6 +125,9 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
       return ['trafficLight', 'robot', 'otto', 'wifiNode', 'messages'];
     case 'capi_component_boolean':
       return ['button', 'infraredBarrier', 'wifiNode'];
+    case 'capi_wifi_message_send':
+    case 'capi_wifi_message_receive':
+      return ['wifiNode'];
     default:
       return [];
   }
@@ -268,6 +273,23 @@ function messageMenuGenerator(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
   return options.length ? options : [['Configurá un mensaje', '__missing_message__']];
 }
 
+function wifiMessageMenuGenerator(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
+  const block = this.getSourceBlock();
+  if (!block) return [['Configurá un mensaje', '__missing_wifi_message__']];
+  const device = devicesForBlock(block).find(item => item.id === block.getFieldValue(DEVICE_FIELD));
+  const options: BlocklyMenuOption[] = device?.kind === 'wifiNode' ? device.config.messages.map(message => [message, message]) : [];
+  const current = this.getValue();
+  if (current && current !== '__missing_wifi_message__' && !options.some(option => option[1] === current)) options.push([`⚠️ ${current}`, current]);
+  return options.length ? options : [['Configurá un mensaje', '__missing_wifi_message__']];
+}
+
+function wifiPeerMenuGenerator(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
+  const block = this.getSourceBlock();
+  if (!block) return [['Todas / cualquiera', '*']];
+  const device = devicesForBlock(block).find(item => item.id === block.getFieldValue(DEVICE_FIELD));
+  return [['Todas / cualquiera', '*'], ...(device?.kind === 'wifiNode' ? device.config.peers.map(peer => [peer, peer] as BlocklyMenuOption) : [])];
+}
+
 function patternMenuGenerator(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
   const block = this.getSourceBlock();
   if (!block) return [['Configurá un dibujo', '__missing_pattern__']];
@@ -395,6 +417,10 @@ function refreshDeviceField(block: BlocklyBlock) {
   refreshPatternField(block);
   refreshDisplayArtworkField(block);
   refreshComponentPropertyField(block);
+  const wifiMessage = block.getField(WIFI_MESSAGE_FIELD) as BlocklyFieldDropdown | null;
+  if (wifiMessage) wifiMessage.setOptions(wifiMessageMenuGenerator);
+  const wifiPeer = block.getField(WIFI_PEER_FIELD) as BlocklyFieldDropdown | null;
+  if (wifiPeer) wifiPeer.setOptions(wifiPeerMenuGenerator);
   updateDeviceWarning(block);
   return previous !== nextValue;
 }
@@ -595,6 +621,8 @@ const toolbox = {
       contents: [
         { kind: 'block', type: 'capi_wifi_connect' },
         { kind: 'block', type: 'capi_wifi_connected' },
+        { kind: 'block', type: 'capi_wifi_message_send' },
+        { kind: 'block', type: 'capi_wifi_message_receive' },
       ],
     },
     {
@@ -629,6 +657,8 @@ function registerBlocks(Blockly: BlocklyApi) {
         (this.getField(MESSAGE_FIELD) as BlocklyFieldDropdown | null)?.setOptions(messageMenuGenerator);
         (this.getField(PATTERN_FIELD) as BlocklyFieldDropdown | null)?.setOptions(patternMenuGenerator);
         (this.getField(DISPLAY_ARTWORK_FIELD) as BlocklyFieldDropdown | null)?.setOptions(displayArtworkMenuGenerator);
+        (this.getField(WIFI_MESSAGE_FIELD) as BlocklyFieldDropdown | null)?.setOptions(wifiMessageMenuGenerator);
+        (this.getField(WIFI_PEER_FIELD) as BlocklyFieldDropdown | null)?.setOptions(wifiPeerMenuGenerator);
         updateDeviceWarning(this);
       },
     );
@@ -1446,6 +1476,33 @@ function registerBlocks(Blockly: BlocklyApi) {
       tooltip: 'Responde sí cuando la conexión está lista.',
     },
     {
+      type: 'capi_wifi_message_send',
+      message0: '📡 en %1 enviar %2 a %3',
+      args0: [
+        deviceField('Elegí Wi-Fi'),
+        { type: 'field_dropdown', name: WIFI_MESSAGE_FIELD, options: [['HOLA', 'HOLA']] },
+        { type: 'field_dropdown', name: WIFI_PEER_FIELD, options: [['Todas', '*']] },
+      ],
+      message1: 'o enviar dato %1', args1: [{ type: 'input_value', name: 'DYNAMIC' }],
+      previousStatement: null, nextStatement: null, colour: '#4472CC', extensions: [DEVICE_EXTENSION],
+      tooltip: 'Envía un mensaje identificado. Todas usa difusión; una placa concreta recibe sólo lo dirigido a ella.',
+    },
+    {
+      type: 'capi_wifi_message_receive',
+      message0: '📡 esperar en %1 de %2 el mensaje %3 durante %4 s',
+      args0: [
+        deviceField('Elegí Wi-Fi'),
+        { type: 'field_dropdown', name: WIFI_PEER_FIELD, options: [['Cualquier placa', '*']] },
+        { type: 'field_dropdown', name: WIFI_MESSAGE_FIELD, options: [['HOLA', 'HOLA']] },
+        { type: 'field_number', name: 'TIMEOUT', value: 5, min: 0.1, max: 300, precision: 0.1 },
+      ],
+      message1: 'si es igual %1', args1: [{ type: 'input_statement', name: 'EQUAL' }],
+      message2: 'si es distinto %1', args2: [{ type: 'input_statement', name: 'DIFFERENT' }],
+      message3: 'si no llegó %1', args3: [{ type: 'input_statement', name: 'TIMEOUT_DO' }],
+      previousStatement: null, nextStatement: null, colour: '#4472CC', extensions: [DEVICE_EXTENSION],
+      tooltip: 'Espera sin bloquear. Comprueba identidad, orden, integridad y elige una rama.',
+    },
+    {
       type: 'capi_serial',
       message0: '💬 escribir en consola %1',
       args0: [{ type: 'field_input', name: 'TEXT', text: '¡Hola!' }],
@@ -1971,6 +2028,17 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           op: 'wifi',
           timeoutMs: numberField(block, 'TIMEOUT', 10) * 1000,
           blockId,
+        });
+        break;
+      case 'capi_wifi_message_send': {
+        const expression = textExpression(block, WIFI_MESSAGE_FIELD, 'DYNAMIC', true);
+        result.push({ op: 'wifiMessageSend', deviceId: selectedDeviceId(block), target: String(block.getFieldValue(WIFI_PEER_FIELD) ?? '*'), text: String(block.getFieldValue(WIFI_MESSAGE_FIELD) ?? ''), ...(expression ? { expression } : {}), blockId });
+        break;
+      }
+      case 'capi_wifi_message_receive':
+        result.push({
+          op: 'wifiMessageReceive', deviceId: selectedDeviceId(block), sender: String(block.getFieldValue(WIFI_PEER_FIELD) ?? '*'), expected: String(block.getFieldValue(WIFI_MESSAGE_FIELD) ?? ''), timeoutMs: numberField(block, 'TIMEOUT', 5) * 1000,
+          equal: compileStack(block.getInputTargetBlock('EQUAL')), different: compileStack(block.getInputTargetBlock('DIFFERENT')), timeout: compileStack(block.getInputTargetBlock('TIMEOUT_DO')), blockId,
         });
         break;
       case 'capi_serial':

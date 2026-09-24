@@ -30,7 +30,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 30 | Software entregado: temporizadores y eventos cooperativos; DEV/físico pendientes | 28 | Planificador no bloqueante y modelo de valores de fase 29 |
 | 31 | Software entregado: procedimientos y funciones; DEV/uso pendientes | 29 | Tipos de fase 29 y validación del grafo de llamadas |
 | 32 | Estados y valores consultables de componentes | 30 | Contrato de valores de fase 29 e inventario de capacidades por componente |
-| 33 | Wi-Fi AP/cliente y mensajes entre placas | 31 | Wi-Fi y Mensajes existentes; secretos privados; simulación multiplaca |
+| 33 | Software entregado: Wi-Fi AP/cliente y mensajes entre placas; DEV/físico pendientes | 31 | Wi-Fi y Mensajes existentes; secretos privados; simulación multiplaca |
 | 34 | Servicios y control remoto entre placas | 32 | Mensajería de fase 33 validada física y funcionalmente |
 | 35 | Luces RGB inteligentes WS281x/SK6812 | 33 | Perfiles físicos identificados; planificador cooperativo; recursos RMT/SPI medidos por placa |
 | 36 | Software entregado: firmware intérprete y ejecución directa en placa; DEV/físico pendientes | 34 | ABI común, artefactos precompilados por placa, Web Serial y suite de conformidad |
@@ -503,6 +503,8 @@ Aceptación:
 - Importar, renombrar o eliminar componentes conserva o repara referencias de forma explícita y reversible.
 
 ## Fase 33 — Wi-Fi AP/cliente y mensajes entre placas
+
+**Estado:** implementada y verificada en software el 24 de septiembre de 2026; actualización de DEV y aceptación física con un AP y dos clientes pendientes. Contrato, límites y evidencia en [FASE_33_WIFI_ENTRE_PLACAS.md](FASE_33_WIFI_ENTRE_PLACAS.md).
 
 **Objetivo:** comunicar varias placas sin router mediante una placa que crea la red y clientes que se conectan, usando mensajes seguros y comprensibles.
 

@@ -417,6 +417,8 @@ SSID y claves —tanto de una red externa como de la creada por la placa— sigu
 
 Asignación: **fase 33 — Wi-Fi AP/cliente y mensajes entre placas**.
 
+Estado: **implementada en software el 24 de septiembre de 2026; actualización de DEV y aceptación física con tres placas pendientes**. Incluye roles crear/conectarse, identidades, listas de pares y mensajes, recepción con tres caminos, simulación, protocolo binario versionado con CRC y deduplicación, Arduino, ESP-IDF y firmware intérprete 1.3.0. Ver [FASE_33_WIFI_ENTRE_PLACAS.md](FASE_33_WIFI_ENTRE_PLACAS.md).
+
 ## 32. Servicios y control remoto entre placas
 
 Posibilidad posterior derivada del pedido anterior: una placa podría publicar capacidades autorizadas para que otra solicite cambios —por ejemplo, cambiar un semáforo remoto— o consulte estados. Se separa de la conectividad básica porque requiere identidad de placa, descubrimiento, permisos, confirmación, idempotencia, límites de frecuencia y una respuesta clara cuando el componente o la placa no están disponibles.

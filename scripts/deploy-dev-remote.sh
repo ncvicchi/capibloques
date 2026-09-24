@@ -85,7 +85,7 @@ for profile in profiles:
     try:
         info = json.loads((root / f"{profile}.json").read_text(encoding="utf-8"))
         bundle = root / info["bundle"]
-        assert info["sourceRevision"] == revision and info["version"] == "1.2.0" and bundle.is_file()
+        assert info["sourceRevision"] == revision and info["version"] == "1.3.0" and bundle.is_file()
     except Exception:
         raise SystemExit(1)
 PY
@@ -277,14 +277,14 @@ if ((BUILD_INTERPRETER)); then
     --user "$(id -u capi):$(id -g capi)" -e HOME=/tmp/capi-idf -e IDF_PY_BUILD_JOBS=2 \
     -v "$REPOSITORY:/project" -w /project \
     espressif/idf:v5.5.5@sha256:a9231d0697ab8f7517cc072e93b7c83e04907bfbfba80b6440d7dbbf90665cf2 \
-    bash -lc '. "$IDF_PATH/export.sh" >/dev/null && ./scripts/build-interpreter-firmware.sh 1.2.0 /project/public/interpreter '"$INTERPRETER_SOURCE"
+    bash -lc '. "$IDF_PATH/export.sh" >/dev/null && ./scripts/build-interpreter-firmware.sh 1.3.0 /project/public/interpreter '"$INTERPRETER_SOURCE"
   python3 - "$REPOSITORY/public/interpreter" "$INTERPRETER_SOURCE" <<'PY'
 import hashlib, json, pathlib, sys
 root, revision = pathlib.Path(sys.argv[1]), sys.argv[2]
 for profile in ("wemos-d1-r32", "diymall-esp32-s3-devkitc-v1-n16r8"):
     info = json.loads((root / f"{profile}.json").read_text(encoding="utf-8"))
     bundle = root / info["bundle"]
-    assert info["sourceRevision"] == revision and info["version"] == "1.2.0"
+    assert info["sourceRevision"] == revision and info["version"] == "1.3.0"
     assert bundle.stat().st_size == info["bytes"]
     assert hashlib.sha256(bundle.read_bytes()).hexdigest() == info["sha256"]
 print("Firmware intérprete empaquetado y verificado para las dos placas.")

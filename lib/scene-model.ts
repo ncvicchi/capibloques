@@ -168,6 +168,10 @@ export type WifiNodeDevice = SceneDeviceBase<
   {
     status: 'idle' | 'connecting' | 'connected' | 'error';
     ssid: string;
+    role: 'create' | 'join';
+    boardName: string;
+    peers: string[];
+    messages: string[];
   }
 >;
 
@@ -774,7 +778,7 @@ function unassignedDevice<K extends SceneDeviceKind>(
         ...base,
         kind,
         pins: {},
-        config: { status: 'idle', ssid: 'CapiRed' },
+        config: { status: 'idle', ssid: 'CapiRed', role: 'join', boardName: 'mi-placa', peers: ['central'], messages: ['HOLA', 'AVANZAR', 'DETENER'] },
       };
       break;
     case 'messages':
@@ -1902,12 +1906,16 @@ function validDeviceConfig(
       );
     case 'wifiNode':
       return (
-        hasOnlyKeys(config, ['status', 'ssid']) &&
+        hasOnlyKeys(config, ['status', 'ssid', 'role', 'boardName', 'peers', 'messages']) &&
         ['idle', 'connecting', 'connected', 'error'].includes(
           String(config.status),
         ) &&
         typeof config.ssid === 'string' &&
-        config.ssid.length <= 64
+        config.ssid.length >= 1 && config.ssid.length <= 32 &&
+        ['create', 'join'].includes(String(config.role)) &&
+        typeof config.boardName === 'string' && /^[a-zA-Z0-9_-]{1,24}$/.test(config.boardName) &&
+        Array.isArray(config.peers) && config.peers.length <= 8 && config.peers.every(peer => typeof peer === 'string' && /^[a-zA-Z0-9_-]{1,24}$/.test(peer)) && new Set(config.peers).size === config.peers.length &&
+        Array.isArray(config.messages) && config.messages.length >= 1 && config.messages.length <= 24 && config.messages.every(message => typeof message === 'string' && message.trim().length >= 1 && new TextEncoder().encode(message).length <= 120) && new Set(config.messages).size === config.messages.length
       );
     case 'messages':
       return (
@@ -2092,6 +2100,12 @@ export function migrateSceneDefinition(
           if (Array.isArray(item.config.centers) && item.config.centers.length === 4) { item.config.centers.push(90, 90); changed = true; }
           if (Array.isArray(item.config.reversed) && item.config.reversed.length === 4) { item.config.reversed.push(false, true); changed = true; }
           if (!Object.hasOwn(item.config, 'matrixBrightness')) { item.config.matrixBrightness = 4; changed = true; }
+        }
+        if (item.kind === 'wifiNode' && isRecord(item.config)) {
+          if (!Object.hasOwn(item.config, 'role')) { item.config.role = 'join'; changed = true; }
+          if (!Object.hasOwn(item.config, 'boardName')) { item.config.boardName = 'mi-placa'; changed = true; }
+          if (!Object.hasOwn(item.config, 'peers')) { item.config.peers = ['central']; changed = true; }
+          if (!Object.hasOwn(item.config, 'messages')) { item.config.messages = ['HOLA', 'AVANZAR', 'DETENER']; changed = true; }
         }
       }
       if (changed && isSceneDefinition(expanded)) return {

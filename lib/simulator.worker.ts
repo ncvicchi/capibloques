@@ -32,6 +32,7 @@ type Pending =
   | { kind: 'otto'; startedAt: number; until: number; stepMs: number; deviceId: string; action: string; speed: number; blockId: string }
   | { kind: 'wifi'; startedAt: number; readyAt: number; timeoutAt: number; blockId: string }
   | { kind: 'message'; startedAt: number; timeoutAt: number; deviceId: string; expected: string; equalTarget: number; differentTarget: number; timeoutTarget: number; blockId: string }
+  | { kind: 'wifiMessage'; startedAt: number; timeoutAt: number; deviceId: string; expected: string; sender: string; equalTarget: number; differentTarget: number; timeoutTarget: number; blockId: string }
   | { kind: 'visual'; startedAt: number; deviceId: string; blockId: string }
   | { kind: 'timer'; startedAt: number; timerId: string; blockId: string }
   | null;
@@ -103,6 +104,8 @@ const pendingSounds = new Map<string, { frequency: number }>();
 const inputOverrides = new Map<string, unknown>();
 const legacyInputOverrides = new Map<string, unknown>();
 const messageQueues = new Map<string, string[]>();
+const wifiMessageQueues = new Map<string, Array<{ sender: string; text: string; sequence: number }>>();
+let wifiMessageSequence = 0;
 const lastReceivedMessages = new Map<string, string>();
 const visualAnimations = new Map<string, VisualAnimation>();
 const ottoOwners = new Map<string, string>();
@@ -244,6 +247,7 @@ function runtimeForDevice(device: SceneDevice): RuntimeDeviceState {
           device.config.status === 'idle'
             ? 'disconnected'
             : device.config.status,
+        received: [], transmitted: [], rejected: 0,
       };
   }
 }
@@ -389,7 +393,7 @@ function executionTaskState(execution: ThreadExecution): ExecutionTaskState {
         ? pending.until
         : pending.kind === 'otto'
           ? pending.until
-        : pending.kind === 'message'
+        : pending.kind === 'message' || pending.kind === 'wifiMessage'
           ? pending.timeoutAt
           : state.wifiAvailable
             ? pending.readyAt
@@ -400,8 +404,8 @@ function executionTaskState(execution: ThreadExecution): ExecutionTaskState {
         ? `${(task.remainingMs / 1000).toFixed(2)} s restantes`
         : pending.kind === 'otto'
           ? `Movimiento Otto · ${(task.remainingMs / 1000).toFixed(1)} s`
-        : pending.kind === 'message'
-          ? `Esperando “${pending.expected}” · ${(task.remainingMs / 1000).toFixed(1)} s`
+        : pending.kind === 'message' || pending.kind === 'wifiMessage'
+          ? `Esperando “${pending.expected}”${pending.kind === 'wifiMessage' ? ` de ${pending.sender === '*' ? 'cualquier placa' : pending.sender}` : ''} · ${(task.remainingMs / 1000).toFixed(1)} s`
           : state.wifiAvailable
             ? 'Conectando a Wi-Fi'
             : 'Esperando la red Wi-Fi';
@@ -515,6 +519,7 @@ function resetExecution(status: SimulatorState['status'] = 'idle') {
   pendingBlockActivity = null;
   pendingSounds.clear();
   messageQueues.clear();
+  wifiMessageQueues.clear(); wifiMessageSequence = 0;
   lastReceivedMessages.clear();
   visualAnimations.clear();
   ottoOwners.clear();
@@ -596,6 +601,8 @@ function evaluateValue(expression: ValueExpression): number | string | boolean {
       if ((device.kind === 'lightSensor' || device.kind === 'potentiometer') && expression.property === 'value') return device.value;
       if (device.kind === 'wifiNode' && expression.property === 'connected') return device.status === 'connected';
       if (device.kind === 'wifiNode' && expression.property === 'status') return device.status;
+      if (device.kind === 'wifiNode' && expression.property === 'lastWifiMessage') return device.received.at(-1)?.text ?? '';
+      if (device.kind === 'wifiNode' && expression.property === 'lastWifiSender') return device.received.at(-1)?.sender ?? '';
       if (device.kind === 'messages' && expression.property === 'lastMessage') return lastReceivedMessages.get(expression.deviceId) ?? '';
       if (device.kind === 'otto' && expression.property === 'distance') return device.distance;
       if (device.kind === 'otto' && expression.property === 'motion') return device.motion;
@@ -854,6 +861,19 @@ function resolvePending(
     }
     return 'waiting';
   }
+  if (pending.kind === 'wifiMessage') {
+    const queue = wifiMessageQueues.get(pending.deviceId) ?? [];
+    const index = queue.findIndex(item => pending.sender === '*' || item.sender === pending.sender);
+    const received = index >= 0 ? queue.splice(index, 1)[0] : undefined;
+    if (received) {
+      execution.pending = null;
+      execution.pc = received.text === pending.expected ? pending.equalTarget : pending.differentTarget;
+      appendConsole(`${deviceName(pending.deviceId)} recibió de ${received.sender} “${received.text}”: ${received.text === pending.expected ? 'igual' : 'distinto'}`);
+      return 'advanced';
+    }
+    if (virtualNow >= pending.timeoutAt) { execution.pending = null; execution.pc = pending.timeoutTarget; appendConsole(`${deviceName(pending.deviceId)}: no llegó ningún mensaje Wi-Fi a tiempo`); return 'advanced'; }
+    return 'waiting';
+  }
   if (pending.kind === 'visual') {
     if (visualAnimations.has(pending.deviceId)) return 'waiting';
     execution.pending = null;
@@ -1035,6 +1055,10 @@ function executeInstruction(
       timeoutTarget: node.timeoutTarget,
       blockId: node.blockId,
     };
+    return 'wait';
+  }
+  if (node.op === 'wifiMessageReceiveWait') {
+    execution.pending = { kind: 'wifiMessage', startedAt: virtualNow, timeoutAt: virtualNow + Math.max(100, node.timeoutMs), deviceId: node.deviceId, expected: node.expected, sender: node.sender, equalTarget: node.equalTarget, differentTarget: node.differentTarget, timeoutTarget: node.timeoutTarget, blockId: node.blockId };
     return 'wait';
   }
   if (node.op === 'matrixScroll') {
@@ -1336,6 +1360,16 @@ function executeInstruction(
       }
       break;
     }
+    case 'wifiMessageSend': {
+      const device = state.devices[node.deviceId];
+      if (device?.kind === 'wifiNode') {
+        const text = node.expression ? valueText(evaluateValue(node.expression)) : node.text;
+        const sequence = ++wifiMessageSequence;
+        device.transmitted = [...device.transmitted.slice(-15), { target: node.target, text, sequence }];
+        appendConsole(`${deviceName(node.deviceId)} envió a ${node.target === '*' ? 'todas' : node.target} “${text}”`);
+      }
+      break;
+    }
   }
   return 'action';
 }
@@ -1363,7 +1397,7 @@ function executeOne(execution: ThreadExecution) {
       ? 'Terminó la espera; seguimos.'
       : pending.kind === 'otto'
         ? 'Terminó el movimiento de Otto; volvemos al centro.'
-      : pending.kind === 'message'
+      : pending.kind === 'message' || pending.kind === 'wifiMessage'
         ? (state.console.at(-1)?.replace(/^[^·]*· /, '') ?? 'Terminó la espera de mensaje.')
         : pending.kind === 'visual'
           ? 'Terminó la animación; seguimos.'
@@ -1383,6 +1417,7 @@ function executeOne(execution: ThreadExecution) {
       case 'otto': message = node.action === 'HOME' ? `${deviceName(node.deviceId)} vuelve al centro.` : `${deviceName(node.deviceId)} se mueve sin bloquear los otros caminos.`; break;
       case 'wifi': message = 'Buscamos una red Wi-Fi.'; break;
       case 'messageReceiveWait': message = `Esperamos “${node.expected}” sin detener los otros caminos.`; break;
+      case 'wifiMessageReceiveWait': message = `Esperamos “${node.expected}” por Wi-Fi sin detener los otros caminos.`; break;
       case 'matrixScroll': message = `Desplazamos “${node.text.slice(0, 32)}” sin detener los otros caminos.`; break;
       case 'displayAnimateText': message = `Animamos “${node.text.slice(0, 32)}” sin detener los otros caminos.`; break;
       case 'displayArtwork': message = `${deviceName(node.deviceId)}: mostramos y animamos el dibujo elegido.`; break;
@@ -1620,6 +1655,19 @@ function setInputById(deviceId: string, value: unknown) {
     messageQueues.set(deviceId, queue);
     device.received = [...device.received.slice(-15), value];
     appendConsole(`${deviceName(deviceId)} recibió un paquete “${value}”`);
+    return;
+  }
+  if (device?.kind === 'wifiNode' && (typeof value === 'string' || (value && typeof value === 'object'))) {
+    const record = typeof value === 'string' ? { sender: 'placa-simulada', text: value } : value as { sender?: unknown; text?: unknown };
+    if (typeof record.text === 'string') {
+      const sender = typeof record.sender === 'string' ? record.sender : 'placa-simulada';
+      const sequence = ++wifiMessageSequence;
+      const queue = wifiMessageQueues.get(deviceId) ?? [];
+      if (queue.length < 16) queue.push({ sender, text: record.text, sequence }); else device.rejected += 1;
+      wifiMessageQueues.set(deviceId, queue);
+      device.received = [...device.received.slice(-15), { sender, text: record.text, sequence }];
+      appendConsole(`${deviceName(deviceId)} recibió por la red de ${sender} “${record.text}”`);
+    }
     return;
   }
   inputOverrides.set(deviceId, value);

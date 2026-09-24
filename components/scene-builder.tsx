@@ -1055,6 +1055,25 @@ function SceneBuilderSession({
 
                   {selected.kind === 'display' && <DisplayProperties key={selected.id} device={selected} onChange={next => updateSelectedDraft(() => next)} />}
                   {selected.kind === 'ledMatrix' && <LedMatrixProperties key={selected.id} device={selected} onChange={next => updateSelectedDraft(() => next)} />}
+                  {selected.kind === 'wifiNode' && (
+                    <div className="messages-properties">
+                      <label htmlFor="wifi-role"><span>Qué hace esta placa</span><NativeSelect id="wifi-role" value={selected.config.role} onChange={event => updateSelectedDraft(device => device.kind === 'wifiNode' ? { ...device, config: { ...device.config, role: event.target.value === 'create' ? 'create' : 'join' } } : device)}>
+                        <NativeSelectOption value="create">Crear una red</NativeSelectOption><NativeSelectOption value="join">Conectarse a una red</NativeSelectOption>
+                      </NativeSelect></label>
+                      <label htmlFor="wifi-network"><span>Nombre de la red</span><Input id="wifi-network" maxLength={32} value={selected.config.ssid} onChange={event => updateSelectedDraft(device => device.kind === 'wifiNode' ? { ...device, config: { ...device.config, ssid: event.target.value.slice(0, 32) } } : device)} /></label>
+                      <label htmlFor="wifi-board-name"><span>Nombre de esta placa</span><Input id="wifi-board-name" maxLength={24} value={selected.config.boardName} onChange={event => updateSelectedDraft(device => device.kind === 'wifiNode' ? { ...device, config: { ...device.config, boardName: event.target.value.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 24) } } : device)} /><small>Letras, números, guion o guion bajo. Sirve para saber quién envió.</small></label>
+                      <label htmlFor="wifi-peers"><span>Otras placas conocidas · una por línea</span><textarea id="wifi-peers" rows={4} value={selected.config.peers.join('\n')} onChange={event => updateSelectedDraft(device => {
+                        if (device.kind !== 'wifiNode') return device;
+                        const peers = [...new Set(event.target.value.split(/\r?\n/).map(value => value.trim().replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 24)).filter(Boolean))].slice(0, 8);
+                        return { ...device, config: { ...device.config, peers } };
+                      })} /></label>
+                      <label htmlFor="wifi-messages"><span>Mensajes disponibles · uno por línea</span><textarea id="wifi-messages" rows={5} value={selected.config.messages.join('\n')} onChange={event => updateSelectedDraft(device => {
+                        if (device.kind !== 'wifiNode') return device;
+                        const messages = [...new Set(event.target.value.split(/\r?\n/).map(value => value.trim()).filter(Boolean))].filter(value => new TextEncoder().encode(value).length <= 120).slice(0, 24);
+                        return { ...device, config: { ...device.config, messages } };
+                      })} /><small>La contraseña no se guarda en la escena ni en el JSON. Se configura al compilar o directamente en la placa.</small></label>
+                    </div>
+                  )}
                   {selected.kind === 'messages' && (
                     <div className="messages-properties">
                       <label htmlFor="messages-mode">

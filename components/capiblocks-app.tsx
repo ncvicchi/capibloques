@@ -257,6 +257,7 @@ function runtimeFromDevice(
           device.config.status === 'idle'
             ? 'disconnected'
             : device.config.status,
+        received: [], transmitted: [], rejected: 0,
       };
   }
 }
@@ -1205,7 +1206,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     ['button', 'infraredBarrier', 'lightSensor', 'potentiometer'].includes(device.kind) ||
     (device.kind === 'otto' && ['biped4-explorer', 'biped4-expressive', 'humanoid6-expressive'].includes(device.config.profile)) ||
     (device.kind === 'display' && device.config.profile === 'lcd1602keypad') ||
-    (device.kind === 'messages' && device.config.mode !== 'send'),
+    (device.kind === 'messages' && device.config.mode !== 'send') ||
+    device.kind === 'wifiNode'
   );
   const programNodeCount = lastProgram.threads.reduce(
     (total, thread) => total + thread.nodes.length,
@@ -1553,6 +1555,17 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                           {runtime?.kind === 'messages' && (
                             <small>Último recibido: {runtime.received.at(-1) ?? 'ninguno'}</small>
                           )}
+                        </div>
+                      );
+                    }
+                    if (device.kind === 'wifiNode') {
+                      return (
+                        <div className="message-test-panel" key={device.id}>
+                          <span>📡 Mensajes simulados para {device.name}</span>
+                          <div className="message-test-buttons">
+                            {device.config.messages.map(message => <button type="button" key={message} onClick={() => setDeviceInput(device.id, message)}>{message}</button>)}
+                          </div>
+                          {runtime?.kind === 'wifiNode' && <small>Último: {runtime.received.at(-1) ? `${runtime.received.at(-1)!.sender}: ${runtime.received.at(-1)!.text}` : 'ninguno'} · Enviado: {runtime.transmitted.length}</small>}
                         </div>
                       );
                     }

@@ -16,6 +16,7 @@ La fase está **terminada en software**. Ya están implementados:
 - pantallas de texto LCD 16 × 2 y 20 × 4 por PCF8574 I2C, y LCD Keypad Shield paralelo, con texto fijo/dinámico, limpieza, animaciones cooperativas y lectura de sus cinco botones;
 - pantallas gráficas SSD1306 I2C e ILI9341/ILI9488 SPI con áreas de texto, fuente ASCII, dibujos propios/predefinidos y animaciones cooperativas;
 - Wi‑Fi cliente con aprovisionamiento separado: alias y clave viajan directamente por Web Serial, se guardan en la NVS de la placa y nunca forman parte de `CapiRules`, del proyecto, del servidor ni del historial;
+- la fase 33 amplió el runtime requerido a **1.3.0** con roles Wi‑Fi AP/cliente, mensajería identificada entre placas, CRC, deduplicación y la capacidad negociada `wifi-messages`;
 - construcción reproducible de dos artefactos estáticos, manifiestos con hash y publicación automática la primera vez que DEV recibe esta versión; los binarios generados no se guardan en Git;
 - pruebas de formato determinista, corrupción, placa cruzada, framing, empaquetado, USB simulado, UI Chrome, tipos, estilo, smoke y build estático.
 

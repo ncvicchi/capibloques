@@ -171,10 +171,22 @@ export type ProgramNode =
   | { op: 'variableChange'; variableId: string; delta: ValueExpression; blockId: string }
   | { op: 'serial'; text: string; expression?: ValueExpression; blockId: string }
   | { op: 'messageSend'; deviceId: string; text: string; expression?: ValueExpression; blockId: string }
+  | { op: 'wifiMessageSend'; deviceId: string; target: string; text: string; expression?: ValueExpression; blockId: string }
   | {
       op: 'messageReceive';
       deviceId: string;
       expected: string;
+      timeoutMs: number;
+      equal: ProgramNode[];
+      different: ProgramNode[];
+      timeout: ProgramNode[];
+      blockId: string;
+    }
+  | {
+      op: 'wifiMessageReceive';
+      deviceId: string;
+      expected: string;
+      sender: string;
       timeoutMs: number;
       equal: ProgramNode[];
       different: ProgramNode[];
@@ -335,7 +347,7 @@ export type RuntimeDeviceState =
   | { kind: 'infraredBarrier'; interrupted: boolean }
   | { kind: 'lightSensor'; value: number }
   | { kind: 'potentiometer'; value: number }
-  | { kind: 'wifiNode'; status: WifiRuntimeState }
+  | { kind: 'wifiNode'; status: WifiRuntimeState; received: Array<{ sender: string; text: string; sequence: number }>; transmitted: Array<{ target: string; text: string; sequence: number }>; rejected: number }
   | { kind: 'messages'; received: string[]; transmitted: string[]; damaged: number };
 
 export interface ExecutionEvent {
@@ -890,6 +902,8 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_sensor_compare',
   'capi_wifi_connect',
   'capi_wifi_connected',
+  'capi_wifi_message_send',
+  'capi_wifi_message_receive',
   'capi_serial',
   'capi_message_send',
   'capi_message_receive',
@@ -1724,6 +1738,8 @@ const compatibleKindsForNode = (
     case 'matrixScroll': return ['ledMatrix'];
     case 'messageSend':
     case 'messageReceive': return ['messages'];
+    case 'wifiMessageSend':
+    case 'wifiMessageReceive': return ['wifiNode'];
     case 'traffic':
       return ['trafficLight'];
     case 'led':
@@ -2107,6 +2123,9 @@ function normalizeNodes(
       case 'messageSend':
         result.push({ op: 'messageSend', deviceId: typeof node.deviceId === 'string' ? node.deviceId : '', text: typeof node.text === 'string' ? node.text : '', ...(node.expression ? { expression: normalizeValueExpression(node.expression) } : {}), blockId });
         break;
+      case 'wifiMessageSend':
+        result.push({ op: 'wifiMessageSend', deviceId: typeof node.deviceId === 'string' ? node.deviceId : '', target: typeof node.target === 'string' ? node.target : '*', text: typeof node.text === 'string' ? node.text : '', ...(node.expression ? { expression: normalizeValueExpression(node.expression) } : {}), blockId });
+        break;
       case 'messageReceive':
         result.push({
           op: 'messageReceive',
@@ -2117,6 +2136,14 @@ function normalizeNodes(
           different: normalizeNodes(node.different, scene),
           timeout: normalizeNodes(node.timeout, scene),
           blockId,
+        });
+        break;
+      case 'wifiMessageReceive':
+        result.push({
+          op: 'wifiMessageReceive', deviceId: typeof node.deviceId === 'string' ? node.deviceId : '',
+          expected: typeof node.expected === 'string' ? node.expected : '', sender: typeof node.sender === 'string' ? node.sender : '*',
+          timeoutMs: Math.max(100, finiteNumber(node.timeoutMs, 5000)),
+          equal: normalizeNodes(node.equal, scene), different: normalizeNodes(node.different, scene), timeout: normalizeNodes(node.timeout, scene), blockId,
         });
         break;
       case 'displayWrite':
@@ -2340,7 +2367,7 @@ function visitProgram(
         visit(node.consequent);
         visit(node.otherwise);
       }
-      if (node.op === 'messageReceive') {
+      if (node.op === 'messageReceive' || node.op === 'wifiMessageReceive') {
         visit(node.equal);
         visit(node.different);
         visit(node.timeout);
@@ -2387,10 +2414,10 @@ export function expandProgramRoutines(input: CompiledProgram): CompiledProgram {
     if (node.op === 'repeat') return [{ ...node, body: expandNodes(node.body, bindings, stack) }];
     if (node.op === 'parallel') return [{ ...node, branches: node.branches.map(branch => expandNodes(branch, bindings, stack)) }];
     if (node.op === 'if') return [{ ...node, condition: substituteCondition(node.condition, bindings, stack), consequent: expandNodes(node.consequent, bindings, stack), otherwise: expandNodes(node.otherwise, bindings, stack) }];
-    if (node.op === 'messageReceive') return [{ ...node, equal: expandNodes(node.equal, bindings, stack), different: expandNodes(node.different, bindings, stack), timeout: expandNodes(node.timeout, bindings, stack) }];
+    if (node.op === 'messageReceive' || node.op === 'wifiMessageReceive') return [{ ...node, equal: expandNodes(node.equal, bindings, stack), different: expandNodes(node.different, bindings, stack), timeout: expandNodes(node.timeout, bindings, stack) }];
     if (node.op === 'variableSet') return [{ ...node, value: substituteValue(node.value, bindings, stack) }];
     if (node.op === 'variableChange') return [{ ...node, delta: substituteValue(node.delta, bindings, stack) }];
-    if ((node.op === 'serial' || node.op === 'messageSend' || node.op === 'displayWrite') && node.expression) return [{ ...node, expression: substituteValue(node.expression, bindings, stack) }];
+    if ((node.op === 'serial' || node.op === 'messageSend' || node.op === 'wifiMessageSend' || node.op === 'displayWrite') && node.expression) return [{ ...node, expression: substituteValue(node.expression, bindings, stack) }];
     return [node];
   });
   return { ...input, threads: input.threads.map(thread => ({ ...thread, nodes: expandNodes(thread.nodes) })) };
@@ -2555,7 +2582,7 @@ export function validateProgramForScene(
     if (node.op === 'variableSet') expressions.push(node.value);
     if (node.op === 'variableChange') expressions.push(node.delta);
     if (node.op === 'procedureCall') expressions.push(...node.arguments);
-    if ((node.op === 'serial' || node.op === 'messageSend' || node.op === 'displayWrite') && node.expression) expressions.push(node.expression);
+    if ((node.op === 'serial' || node.op === 'messageSend' || node.op === 'wifiMessageSend' || node.op === 'displayWrite') && node.expression) expressions.push(node.expression);
     if (node.op === 'if' && node.condition.kind === 'value') expressions.push(node.condition.expression);
     if (node.op === 'if' && node.condition.kind === 'valueCompare') expressions.push(node.condition.left, node.condition.right);
     for (const expression of expressions) visitValueExpression(expression, value => {
@@ -2655,6 +2682,18 @@ export function validateProgramForScene(
         if (!dynamic && !device.config.messages.includes(text)) diagnostics.push({ severity: 'error', code: 'message-not-configured', message: `“${text}” ya no está en la lista de ${device.name}.`, blockId: node.blockId, deviceId: node.deviceId });
       }
       if (node.op === 'messageReceive' && (!Number.isFinite(node.timeoutMs) || node.timeoutMs < 100 || node.timeoutMs > 300_000)) diagnostics.push({ severity: 'error', code: 'message-timeout', message: 'La espera debe durar entre 0,1 y 300 segundos.', blockId: node.blockId, deviceId: node.deviceId });
+    }
+    if (node.op === 'wifiMessageSend' || node.op === 'wifiMessageReceive') {
+      const device = deviceMap.get(node.deviceId);
+      const text = node.op === 'wifiMessageSend' ? node.text : node.expected;
+      const dynamic = node.op === 'wifiMessageSend' && Boolean(node.expression);
+      if (device?.kind !== 'wifiNode') diagnostics.push({ severity: 'error', code: 'wifi-message-device', message: 'Elegí una conexión Wi-Fi colocada en la escena.', blockId: node.blockId, deviceId: node.deviceId });
+      else {
+        if (!dynamic && (!device.config.messages.includes(text) || new TextEncoder().encode(text).length > 120)) diagnostics.push({ severity: 'error', code: 'wifi-message-value', message: `Elegí un mensaje configurado en ${device.name}.`, blockId: node.blockId, deviceId: node.deviceId });
+        const peer = node.op === 'wifiMessageSend' ? node.target : node.sender;
+        if (peer !== '*' && !device.config.peers.includes(peer)) diagnostics.push({ severity: 'error', code: 'wifi-message-peer', message: `Elegí una placa conocida por ${device.name}.`, blockId: node.blockId, deviceId: node.deviceId });
+      }
+      if (node.op === 'wifiMessageReceive' && (!Number.isFinite(node.timeoutMs) || node.timeoutMs < 100 || node.timeoutMs > 300_000)) diagnostics.push({ severity: 'error', code: 'wifi-message-timeout', message: 'La espera Wi-Fi debe durar entre 0,1 y 300 segundos.', blockId: node.blockId, deviceId: node.deviceId });
     }
     if (
       node.op === 'displayWrite' ||
@@ -2776,8 +2815,9 @@ export function validateProgramForScene(
 }
 
 export type FlatInstruction =
-  | Exclude<ProgramNode, { op: 'repeat' } | { op: 'if' } | { op: 'parallel' } | { op: 'messageReceive' }>
+  | Exclude<ProgramNode, { op: 'repeat' } | { op: 'if' } | { op: 'parallel' } | { op: 'messageReceive' } | { op: 'wifiMessageReceive' }>
   | { op: 'messageReceiveWait'; deviceId: string; expected: string; timeoutMs: number; equalTarget: number; differentTarget: number; timeoutTarget: number; blockId: string }
+  | { op: 'wifiMessageReceiveWait'; deviceId: string; expected: string; sender: string; timeoutMs: number; equalTarget: number; differentTarget: number; timeoutTarget: number; blockId: string }
   | { op: 'fork' | 'join'; children: number[]; blockId: string }
   | {
       op: 'repeatStart';
@@ -2868,6 +2908,15 @@ function flattenProgram(nodes: ProgramNode[], branchTask: (nodes: ProgramNode[],
         const timeoutTarget = output.length;
         visit(node.timeout);
         const end = output.length;
+        Object.assign(output[receiveIndex], { equalTarget, differentTarget, timeoutTarget });
+        (output[equalJump] as Extract<FlatInstruction, { op: 'jump' }>).target = end;
+        (output[differentJump] as Extract<FlatInstruction, { op: 'jump' }>).target = end;
+      } else if (node.op === 'wifiMessageReceive') {
+        const receiveIndex = output.length;
+        output.push({ op: 'wifiMessageReceiveWait', deviceId: node.deviceId, expected: node.expected, sender: node.sender, timeoutMs: node.timeoutMs, equalTarget: -1, differentTarget: -1, timeoutTarget: -1, blockId: node.blockId });
+        const equalTarget = output.length; visit(node.equal); const equalJump = output.length; output.push({ op: 'jump', target: -1, blockId: node.blockId });
+        const differentTarget = output.length; visit(node.different); const differentJump = output.length; output.push({ op: 'jump', target: -1, blockId: node.blockId });
+        const timeoutTarget = output.length; visit(node.timeout); const end = output.length;
         Object.assign(output[receiveIndex], { equalTarget, differentTarget, timeoutTarget });
         (output[equalJump] as Extract<FlatInstruction, { op: 'jump' }>).target = end;
         (output[differentJump] as Extract<FlatInstruction, { op: 'jump' }>).target = end;
@@ -3045,8 +3094,10 @@ function valueToCpp(expression: ValueExpression, context: GeneratorContext): str
         return `${context.framework === 'esp-idf' ? 'capiDigitalRead' : 'digitalRead'}(${pinConstant(context, device.id)}) == ${level}`;
       }
       if (device.kind === 'otto' && capability.key === 'distance') return `DEV_${deviceSymbol(context, device.id)}.distanceCm`;
-      if (device.kind === 'wifiNode' && capability.key === 'connected') return context.framework === 'esp-idf' ? 'capiWifiConnected()' : 'WiFi.status() == WL_CONNECTED';
-      if (device.kind === 'wifiNode' && capability.key === 'status') return `capiText(${context.framework === 'esp-idf' ? 'capiWifiConnected()' : 'WiFi.status() == WL_CONNECTED'} ? "conectado" : "desconectado")`;
+      if (device.kind === 'wifiNode' && capability.key === 'connected') return 'capiWifiConnected()';
+      if (device.kind === 'wifiNode' && capability.key === 'status') return 'capiText(capiWifiConnected() ? "conectado" : "desconectado")';
+      if (device.kind === 'wifiNode' && capability.key === 'lastWifiMessage') return 'capiText(CAPI_WIFI_LAST_MESSAGE)';
+      if (device.kind === 'wifiNode' && capability.key === 'lastWifiSender') return 'capiText(CAPI_WIFI_LAST_SENDER)';
       if (device.kind === 'messages') return `capiText(MESSAGE_LAST_${deviceSymbol(context, device.id)})`;
       return expression.valueType === 'text' ? 'capiText("")' : expression.valueType === 'boolean' ? 'false' : '0';
     }
@@ -3065,7 +3116,7 @@ function valueToCpp(expression: ValueExpression, context: GeneratorContext): str
       return `capiDisplayButtonPressed(${buttons[expression.button]})`;
     }
     case 'messageValue': return `capiText(MESSAGE_LAST_${deviceSymbol(context, expression.deviceId)})`;
-    case 'wifiValue': return context.framework === 'esp-idf' ? 'capiWifiConnected()' : 'WiFi.status() == WL_CONNECTED';
+    case 'wifiValue': return 'capiWifiConnected()';
     case 'variable': {
       const symbol = variableSymbol(expression.variableId);
       return context.variables.get(expression.variableId)?.type === 'text' ? `capiText(${symbol})` : symbol;
@@ -3097,8 +3148,7 @@ function conditionToCpp(condition: Condition, context: GeneratorContext) {
     GT: '>',
     GTE: '>=',
   } as const;
-  if (condition.kind === 'wifiConnected')
-    return context.framework === 'esp-idf' ? 'capiWifiConnected()' : 'WiFi.status() == WL_CONNECTED';
+  if (condition.kind === 'wifiConnected') return 'capiWifiConnected()';
   if (condition.kind === 'buttonPressed')
     return `${context.framework === 'esp-idf' ? 'capiDigitalRead' : 'digitalRead'}(${pinConstant(context, condition.deviceId)}) == ${context.framework === 'esp-idf' ? '0' : 'LOW'}`;
   if (condition.kind === 'displayButtonPressed') {
@@ -3216,7 +3266,7 @@ function instructionToCpp(
     }
     case 'wifi':
       if (native) return `${comment}\n        if (!wifiAttemptActive_${suffix}) {\n          capiWifiBegin();\n          wifiAttemptStarted_${suffix} = now;\n          wifiAttemptActive_${suffix} = true;\n          return;\n        }\n        if (capiWifiConnected() || (uint32_t)(now - wifiAttemptStarted_${suffix}) >= ${Math.max(1000, Math.round(instruction.timeoutMs))}U) {\n          wifiAttemptActive_${suffix} = false;\n          ${pc} = ${nextPc};\n          break;\n        }\n        return;`;
-      return `${comment}\n        if (!wifiAttemptActive_${suffix}) {\n          WiFi.persistent(false);\n          WiFi.mode(WIFI_STA);\n          WiFi.begin(WIFI_SSID, WIFI_PASSWORD);\n          wifiAttemptStarted_${suffix} = now;\n          wifiAttemptActive_${suffix} = true;\n          return;\n        }\n        if (WiFi.status() == WL_CONNECTED || (uint32_t)(now - wifiAttemptStarted_${suffix}) >= ${Math.max(1000, Math.round(instruction.timeoutMs))}U) {\n          wifiAttemptActive_${suffix} = false;\n          ${pc} = ${nextPc};\n          break;\n        }\n        return;`;
+      return `${comment}\n        if (!wifiAttemptActive_${suffix}) {\n          WiFi.persistent(false);\n          ${context.scene.devices.some(device => device.kind === 'wifiNode' && device.config.role === 'create') ? 'WiFi.mode(WIFI_AP); WiFi.softAP(WIFI_SSID, WIFI_PASSWORD);' : 'WiFi.mode(WIFI_STA); WiFi.begin(WIFI_SSID, WIFI_PASSWORD);'}\n          wifiAttemptStarted_${suffix} = now;\n          wifiAttemptActive_${suffix} = true;\n          return;\n        }\n        if (capiWifiConnected() || (uint32_t)(now - wifiAttemptStarted_${suffix}) >= ${Math.max(1000, Math.round(instruction.timeoutMs))}U) {\n          wifiAttemptActive_${suffix} = false;\n          ${pc} = ${nextPc};\n          break;\n        }\n        return;`;
     case 'counterSet':
       return `${comment}\n        counterValue = ${normalizeCounterValue(instruction.value)};\n        ${pc} = ${nextPc};\n        break;`;
     case 'counterChange':
@@ -3255,6 +3305,10 @@ function instructionToCpp(
       return `${comment}\n        if (!capiMessageSend(DEV_${deviceSymbol(context, instruction.deviceId)}, ${instruction.expression ? `${valueAsTextToCpp(instruction.expression, context)}.data` : cppString(instruction.text)})) return;\n        ${pc} = ${nextPc};\n        break;`;
     case 'messageReceiveWait':
       return `${comment}\n        if (!${waiting}) { ${waitStarted} = now; ${waiting} = true; }\n        { char received[121] = {}; const int result = capiMessagePoll(DEV_${deviceSymbol(context, instruction.deviceId)}, received);\n          if (result == 1) { capiAssignText(MESSAGE_LAST_${deviceSymbol(context, instruction.deviceId)}, received); ${waiting} = false; ${pc} = strcmp(received, ${cppString(instruction.expected)}) == 0 ? ${instruction.equalTarget} : ${instruction.differentTarget}; break; }\n          if ((uint32_t)(now - ${waitStarted}) >= ${Math.max(100, Math.round(instruction.timeoutMs))}U) { ${waiting} = false; ${pc} = ${instruction.timeoutTarget}; break; }\n        }\n        return;`;
+    case 'wifiMessageSend':
+      return `${comment}\n        if (!capiWifiMessageSend(${cppString(instruction.target)}, ${instruction.expression ? `${valueAsTextToCpp(instruction.expression, context)}.data` : cppString(instruction.text)})) return;\n        ${pc} = ${nextPc};\n        break;`;
+    case 'wifiMessageReceiveWait':
+      return `${comment}\n        if (!${waiting}) { ${waitStarted} = now; ${waiting} = true; }\n        { char received[121] = {}; char sender[25] = {}; const int result = capiWifiMessagePoll(${cppString(instruction.sender)}, received, sender);\n          if (result == 1) { ${waiting} = false; ${pc} = strcmp(received, ${cppString(instruction.expected)}) == 0 ? ${instruction.equalTarget} : ${instruction.differentTarget}; break; }\n          if ((uint32_t)(now - ${waitStarted}) >= ${Math.max(100, Math.round(instruction.timeoutMs))}U) { ${waiting} = false; ${pc} = ${instruction.timeoutTarget}; break; }\n        }\n        return;`;
     case 'displayWrite':
     case 'displayClear': {
       const device = context.scene.devices.find(device => device.id === instruction.deviceId);
@@ -3316,17 +3370,17 @@ function instructionToCpp(
 export function programUsesWifi(program: CompiledProgram) {
   let usesWifi = false;
   visitProgram(program, (node) => {
-    if (node.op === 'wifi') usesWifi = true;
+    if (node.op === 'wifi' || node.op === 'wifiMessageSend' || node.op === 'wifiMessageReceive') usesWifi = true;
     if (node.op === 'if' && node.condition.kind === 'wifiConnected') {
       usesWifi = true;
     }
     const expressions: ValueExpression[] = [];
     if (node.op === 'variableSet') expressions.push(node.value);
     if (node.op === 'variableChange') expressions.push(node.delta);
-    if ((node.op === 'serial' || node.op === 'messageSend' || node.op === 'displayWrite') && node.expression) expressions.push(node.expression);
+    if ((node.op === 'serial' || node.op === 'messageSend' || node.op === 'wifiMessageSend' || node.op === 'displayWrite') && node.expression) expressions.push(node.expression);
     if (node.op === 'if' && node.condition.kind === 'value') expressions.push(node.condition.expression);
     if (node.op === 'if' && node.condition.kind === 'valueCompare') expressions.push(node.condition.left, node.condition.right);
-    expressions.forEach(expression => visitValueExpression(expression, value => { if (value.kind === 'wifiValue' || (value.kind === 'componentValue' && (value.property === 'connected' || value.property === 'status'))) usesWifi = true; }));
+    expressions.forEach(expression => visitValueExpression(expression, value => { if (value.kind === 'wifiValue' || (value.kind === 'componentValue' && (value.property === 'connected' || value.property === 'status' || value.property.startsWith('lastWifi')))) usesWifi = true; }));
   });
   return usesWifi;
 }
@@ -3455,6 +3509,46 @@ function messageSetupLines(scene: SceneDefinition, symbols: Map<string, string>,
     if (native) return `  { uart_config_t config = {}; config.baud_rate = DEV_${symbol}.baud; config.data_bits = UART_DATA_8_BITS; config.parity = UART_PARITY_DISABLE; config.stop_bits = UART_STOP_BITS_1; config.flow_ctrl = UART_HW_FLOWCTRL_DISABLE; config.source_clk = UART_SCLK_DEFAULT; ESP_ERROR_CHECK(uart_param_config((uart_port_t)DEV_${symbol}.port, &config)); ESP_ERROR_CHECK(uart_set_pin((uart_port_t)DEV_${symbol}.port, DEV_${symbol}.tx == 255 ? UART_PIN_NO_CHANGE : DEV_${symbol}.tx, DEV_${symbol}.rx == 255 ? UART_PIN_NO_CHANGE : DEV_${symbol}.rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE)); ESP_ERROR_CHECK(uart_driver_install((uart_port_t)DEV_${symbol}.port, 512, 512, 0, nullptr, 0)); }`;
     return `  capiMessagePort(DEV_${symbol}).begin(DEV_${symbol}.baud, SERIAL_8N1, DEV_${symbol}.rx == 255 ? -1 : DEV_${symbol}.rx, DEV_${symbol}.tx == 255 ? -1 : DEV_${symbol}.tx);`;
   }).join('\n');
+}
+
+function wifiMessageRuntimeSupport(scene: SceneDefinition, native: boolean) {
+  const device = scene.devices.find(item => item.kind === 'wifiNode');
+  if (device?.kind !== 'wifiNode') return '';
+  const sender = cppString(device.config.boardName);
+  const socketDeclarations = native
+    ? '#include "lwip/sockets.h"\n#include "lwip/inet.h"\n#include <fcntl.h>\nint CAPI_WIFI_SOCKET = -1;'
+    : 'WiFiUDP CAPI_WIFI_UDP;';
+  const begin = native
+    ? `if (CAPI_WIFI_SOCKET >= 0) return true; CAPI_WIFI_SOCKET = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP); if (CAPI_WIFI_SOCKET < 0) return false; int yes = 1; setsockopt(CAPI_WIFI_SOCKET, SOL_SOCKET, SO_BROADCAST, &yes, sizeof(yes)); sockaddr_in local{}; local.sin_family = AF_INET; local.sin_port = htons(4217); local.sin_addr.s_addr = htonl(INADDR_ANY); if (bind(CAPI_WIFI_SOCKET, (sockaddr*)&local, sizeof(local)) != 0) { close(CAPI_WIFI_SOCKET); CAPI_WIFI_SOCKET = -1; return false; } fcntl(CAPI_WIFI_SOCKET, F_SETFL, O_NONBLOCK); return true;`
+    : 'static bool ready = false; if (!ready) ready = CAPI_WIFI_UDP.begin(4217); return ready;';
+  const send = native
+    ? `sockaddr_in remote{}; remote.sin_family=AF_INET; remote.sin_port=htons(4217); remote.sin_addr.s_addr=inet_addr("255.255.255.255"); return sendto(CAPI_WIFI_SOCKET, packet, total, 0, (sockaddr*)&remote, sizeof(remote)) == total;`
+    : 'if (!CAPI_WIFI_UDP.beginPacket(IPAddress(255,255,255,255), 4217)) return false; CAPI_WIFI_UDP.write(packet, total); return CAPI_WIFI_UDP.endPacket() == 1;';
+  const receive = native
+    ? 'const int size = recv(CAPI_WIFI_SOCKET, packet, sizeof(packet), 0); if (size <= 0) return 0;'
+    : 'const int size = CAPI_WIFI_UDP.parsePacket(); if (size <= 0) return 0; if (size > (int)sizeof(packet) || CAPI_WIFI_UDP.read(packet, size) != size) return -1;';
+  return `${socketDeclarations}
+char CAPI_WIFI_LAST_MESSAGE[121] = {};
+char CAPI_WIFI_LAST_SENDER[25] = {};
+uint32_t CAPI_WIFI_SEQUENCE = 0;
+struct CapiWifiSeen { char sender[25] = {}; uint32_t sequence = 0; };
+CapiWifiSeen CAPI_WIFI_SEEN[8];
+uint16_t capiWifiMessageCrc(const uint8_t* data, size_t size) { uint16_t crc=0xFFFF; for(size_t i=0;i<size;++i){crc^=(uint16_t)data[i]<<8;for(uint8_t bit=0;bit<8;++bit)crc=(crc&0x8000)?(uint16_t)((crc<<1)^0x1021):(uint16_t)(crc<<1);}return crc; }
+bool capiWifiMessageBegin() { ${begin} }
+bool capiWifiMessageSend(const char* target,const char* text) {
+  if (!capiWifiMessageBegin() || !target || !text) return false; const size_t senderSize=strlen(${sender}),targetSize=strlen(target),textSize=strlen(text);
+  if (!senderSize || senderSize>24 || !targetSize || targetSize>24 || !textSize || textSize>120) return false;
+  uint8_t packet[184]={0x43,0x42,0x57,1}; const uint32_t sequence=++CAPI_WIFI_SEQUENCE; memcpy(packet+4,&sequence,4); packet[8]=(uint8_t)senderSize;packet[9]=(uint8_t)targetSize;packet[10]=(uint8_t)(textSize&0xFF);packet[11]=(uint8_t)(textSize>>8);
+  memcpy(packet+12,${sender},senderSize);memcpy(packet+12+senderSize,target,targetSize);memcpy(packet+12+senderSize+targetSize,text,textSize);const size_t crcAt=12+senderSize+targetSize+textSize;const uint16_t crc=capiWifiMessageCrc(packet+3,crcAt-3);memcpy(packet+crcAt,&crc,2);const size_t total=crcAt+2;${send}
+}
+int capiWifiMessagePoll(const char* expectedSender,char* outText,char* outSender) {
+  if (!capiWifiMessageBegin()) return 0; uint8_t packet[184]={}; ${receive}
+  if (size<17||packet[0]!=0x43||packet[1]!=0x42||packet[2]!=0x57||packet[3]!=1) return -1;uint32_t sequence=0;memcpy(&sequence,packet+4,4);const size_t senderSize=packet[8],targetSize=packet[9],textSize=(size_t)packet[10]|((size_t)packet[11]<<8),crcAt=12+senderSize+targetSize+textSize;
+  if(!senderSize||senderSize>24||!targetSize||targetSize>24||!textSize||textSize>120||crcAt+2!=(size_t)size)return -1;uint16_t received=0;memcpy(&received,packet+crcAt,2);if(received!=capiWifiMessageCrc(packet+3,crcAt-3))return -1;
+  char senderName[25]={},targetName[25]={};memcpy(senderName,packet+12,senderSize);memcpy(targetName,packet+12+senderSize,targetSize);if(strcmp(targetName,"*")&&strcmp(targetName,${sender}))return 0;if(expectedSender&&strcmp(expectedSender,"*")&&strcmp(expectedSender,senderName))return 0;
+  CapiWifiSeen* slot=nullptr;for(auto &seen:CAPI_WIFI_SEEN)if(!strcmp(seen.sender,senderName)){slot=&seen;break;}else if(!slot&&!seen.sender[0])slot=&seen;if(!slot||sequence<=slot->sequence)return 0;snprintf(slot->sender,sizeof(slot->sender),"%s",senderName);slot->sequence=sequence;
+  memcpy(outText,packet+12+senderSize+targetSize,textSize);outText[textSize]=0;snprintf(outSender,25,"%s",senderName);snprintf(CAPI_WIFI_LAST_MESSAGE,sizeof(CAPI_WIFI_LAST_MESSAGE),"%s",outText);snprintf(CAPI_WIFI_LAST_SENDER,sizeof(CAPI_WIFI_LAST_SENDER),"%s",outSender);return 1;
+}`;
 }
 
 function buzzerDeclarations(
@@ -3620,13 +3714,17 @@ export function generateEsp32CodeResult(
     })),
   );
   const usesWifi = programUsesWifi(program);
+  const usesWifiMessages = JSON.stringify(program).includes('wifiMessage') || JSON.stringify(program).includes('lastWifi');
   const displaySupport = native ? displayIdfSupport(scene) : displayArduinoSupport(scene);
   const matrixSupport = matrixFirmwareSupport(scene, native);
+  const wifiDevice = scene.devices.find(device => device.kind === 'wifiNode');
   const wifiHeader = usesWifi && !native
     ? `#include <WiFi.h>
+#include <WiFiUdp.h>
 
 const char* WIFI_SSID = "TU_RED";
 const char* WIFI_PASSWORD = "TU_CLAVE";
+bool capiWifiConnected() { return ${wifiDevice?.kind === 'wifiNode' && wifiDevice.config.role === 'create' ? 'WiFi.getMode() == WIFI_AP' : 'WiFi.status() == WL_CONNECTED'}; }
 `
     : '';
   const errors = diagnostics.filter((item) => item.severity === 'error');
@@ -3780,6 +3878,7 @@ ${componentStateDeclarations(scene)}
 ${messageRuntimeSupport(scene, native)}
 
 ${valueRuntime}
+${usesWifiMessages ? wifiMessageRuntimeSupport(scene, native) : ''}
 ${variableDeclarations}
 ${timerRuntime}
 ${messageValueDeclarations}

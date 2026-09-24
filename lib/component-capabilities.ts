@@ -17,6 +17,8 @@ const common: Partial<Record<SceneDeviceKind, ComponentValueCapability[]>> = {
   wifiNode: [
     { key:'connected', label:'está conectado', type:'boolean', source:'service', help:'Indica si Wi-Fi tiene conexión en este momento.' },
     { key:'status', label:'estado de conexión', type:'text', source:'service', help:'Devuelve desconectado, conectando, conectado o error.' },
+    { key:'lastWifiMessage', label:'último mensaje Wi-Fi', type:'text', source:'service', help:'Es el último texto válido recibido desde otra placa.' },
+    { key:'lastWifiSender', label:'placa que lo envió', type:'text', source:'service', help:'Es el nombre configurado por la placa remitente.' },
   ],
   messages: [{ key:'lastMessage', label:'último mensaje recibido', type:'text', source:'service', help:'Es el último texto válido recibido por Mensajes.' }],
   otto: [

@@ -6,7 +6,7 @@ import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 
 export const CAPI_RULES_FORMAT = 1;
 export const CAPI_INTERPRETER_ABI = 1;
-export const CAPI_INTERPRETER_VERSION = '1.2.0';
+export const CAPI_INTERPRETER_VERSION = '1.3.0';
 export const CAPI_RULES_MAX_BYTES = 32 * 1024;
 export const CAPI_RULES_MAX_INSTRUCTIONS = 2048;
 const HEADER_BYTES = 32;
@@ -41,7 +41,7 @@ const capabilityForOperation = (operation: string) => ({
   servo: 'servo', buzzer: 'buzzer', tone: 'buzzer', otto: 'otto', ottoSound: 'otto', ottoExpression: 'otto', ottoArms: 'otto',
   displayWrite: 'display', displayClear: 'display', displayAnimateText: 'display', displayArtwork: 'display', visualWait: 'visual-wait',
   matrixClear: 'matrix', matrixPixel: 'matrix', matrixPattern: 'matrix', matrixScroll: 'matrix',
-  messageSend: 'messages', messageReceiveWait: 'messages', wifi: 'wifi', fork: 'parallel', join: 'parallel',
+  messageSend: 'messages', messageReceiveWait: 'messages', wifi: 'wifi', wifiMessageSend: 'wifi-messages', wifiMessageReceiveWait: 'wifi-messages', fork: 'parallel', join: 'parallel',
   counterSet: 'counter', counterChange: 'counter', variableSet: 'variables', variableChange: 'variables', serial: 'serial',
   timerStart: 'timers', timerRestart: 'timers', timerPause: 'timers', timerResume: 'timers', timerStop: 'timers', timerWait: 'timers',
 }[operation] ?? 'core');
