@@ -125,6 +125,14 @@ export class InterpreterSession {
       throw error;
     }
   }
+  async provisionWifi(ssid: string, password: string) {
+    if (this.state.stage !== 'ready' && this.state.stage !== 'stopped') throw new InterpreterProtocolError('Conectá el intérprete antes de configurar Wi-Fi.');
+    if (!ssid.trim() || new TextEncoder().encode(ssid).length > 32) throw new InterpreterProtocolError('El nombre de red debe ocupar entre 1 y 32 bytes.');
+    if (password && (password.length < 8 || password.length > 63)) throw new InterpreterProtocolError('La clave debe tener entre 8 y 63 caracteres, o quedar vacía si la red es abierta.');
+    await this.write({ type: 'CONFIG_WIFI', ssid, password });
+    await this.next('WIFI_CONFIGURED');
+    this.update({ message: `Red “${ssid}” guardada sólo en la placa.` });
+  }
   async command(type: 'RUN' | 'PAUSE' | 'RESUME' | 'STOP' | 'RESET_PROGRAM') {
     try {
       await this.write({ type }); await this.next('OK');

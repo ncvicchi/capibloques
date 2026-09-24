@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { createCapiRules, CapiRulesError, type CapiRulesBundle } from '@/lib/capi-rules';
 import { InterpreterSession } from '@/lib/interpreter-protocol';
 import { fetchInterpreterFirmware } from '@/lib/interpreter-firmware';
@@ -22,6 +23,9 @@ export default function InterpreterBoard({ account, store, program, scene, board
   const installState = useSyncExternalStore(installer.subscribe, installer.snapshot, installer.snapshot);
   const [installing, setInstalling] = useState(false);
   const [actionError, setActionError] = useState('');
+  const wifiDevice = scene.devices.find(device => device.kind === 'wifiNode');
+  const [wifiSsid, setWifiSsid] = useState(wifiDevice?.kind === 'wifiNode' ? wifiDevice.config.ssid : '');
+  const [wifiPassword, setWifiPassword] = useState('');
   const [revoked, setRevoked] = useState(false);
   const [identified, setIdentified] = useState(false), [safe, setSafe] = useState(false), [replace, setReplace] = useState(false);
   const [bundle, error] = useMemo<[CapiRulesBundle | null, string]>(() => {
@@ -55,6 +59,7 @@ export default function InterpreterBoard({ account, store, program, scene, board
   const flash = () => installer.flash(requestVerifiedPort, signal => fetchInterpreterFirmware(board, signal), signal => verifySession(signal));
   const act = (operation: Promise<unknown>) => { setActionError(''); void operation.catch(cause => setActionError(cause instanceof Error ? cause.message : 'La placa rechazó la operación.')); };
   const authorized = (operation: () => Promise<unknown>) => act(verifySession().then(operation));
+  const configureWifi = () => authorized(async () => { await session.provisionWifi(wifiSsid, wifiPassword); setWifiPassword(''); });
   return <Dialog open onOpenChange={open => { if (!open) close(); }}><DialogContent className="firmware-dialog usb-dialog" showCloseButton={state.stage !== 'sending'}>
     <DialogHeader><DialogTitle>⚡ Ejecutar en la placa</DialogTitle><DialogDescription>Envía reglas al intérprete ya instalado. No compila el proyecto y no manda el programa al servidor.</DialogDescription></DialogHeader>
     {!available && <p role="alert" className="account-error">Web Serial requiere Chrome o Edge de escritorio y una dirección HTTPS o localhost.</p>}
@@ -73,6 +78,15 @@ export default function InterpreterBoard({ account, store, program, scene, board
       {!installing && state.stage === 'sending' && <><progress value={state.progress} max={100} /><span>{state.progress}%</span></>}
       {installing && installState.writingStarted && <><progress value={installState.progress} max={100} /><span>{installState.progress}%</span></>}
     </div>
+    {!installing && bundle?.requiredCapabilities.includes('wifi') && connected && <section className="firmware-wifi">
+      <h3>📶 Red guardada en esta placa</h3>
+      <p>La clave viaja directamente por USB y no entra al proyecto, al servidor ni al historial.</p>
+      <label htmlFor="interpreter-wifi-ssid">Nombre de la red</label>
+      <Input id="interpreter-wifi-ssid" autoComplete="off" maxLength={32} value={wifiSsid} onChange={event => setWifiSsid(event.target.value)} />
+      <label htmlFor="interpreter-wifi-password">Clave de la red</label>
+      <Input id="interpreter-wifi-password" type="password" autoComplete="new-password" maxLength={63} value={wifiPassword} onChange={event => setWifiPassword(event.target.value)} placeholder="Vacía sólo para una red abierta" />
+      <Button variant="outline" disabled={!wifiSsid.trim() || (!!wifiPassword && wifiPassword.length < 8) || state.stage === 'running' || state.stage === 'paused'} onClick={configureWifi}>Guardar Wi-Fi en la placa</Button>
+    </section>}
     {installing && <fieldset className="usb-checks" disabled={usbBusy(installState)}><legend>Antes de grabar, revisá con una persona adulta</legend><label><input type="checkbox" checked={identified} onChange={event => setIdentified(event.target.checked)} /> Identifiqué la placa correcta.</label><label><input type="checkbox" checked={safe} onChange={event => setSafe(event.target.checked)} /> Desconecté motores y actuadores.</label><label><input type="checkbox" checked={replace} onChange={event => setReplace(event.target.checked)} /> Entiendo que reemplaza el programa actual.</label></fieldset>}
     <div className="usb-actions">
       {!installing && !connected && <Button disabled={!available || !!error || revoked || state.stage === 'connecting'} onClick={() => void session.connect(requestVerifiedPort, board)}>Elegir placa y comprobar</Button>}

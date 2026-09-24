@@ -53,6 +53,7 @@ function instructionCapabilities(instruction: ExecutableTask['output'][number]) 
   if (encodedInstruction.includes('displayButtonValue')) result.push('display-keypad');
   if (encodedInstruction.includes('ottoDistance')) result.push('otto');
   if (encodedInstruction.includes('messageValue')) result.push('messages');
+  if (encodedInstruction.includes('wifiValue')) result.push('wifi');
   if (encodedInstruction.includes('"kind":"variable"')) result.push('variables');
   if (instruction.op === 'jumpIfFalse') {
     const condition = instruction.condition;
@@ -68,6 +69,7 @@ function instructionCapabilities(instruction: ExecutableTask['output'][number]) 
     if (encoded.includes('ottoDistance')) result.push('otto');
     if (encoded.includes('variable')) result.push('variables');
     if (encoded.includes('messageValue')) result.push('messages');
+    if (encoded.includes('wifiValue')) result.push('wifi');
   }
   return result;
 }

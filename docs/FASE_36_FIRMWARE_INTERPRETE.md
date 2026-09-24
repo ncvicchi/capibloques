@@ -15,10 +15,11 @@ La fase fue autorizada y tiene una primera entrega ejecutable en software. Ya es
 - familia Otto genérica con cuatro o seis servos, movimientos cooperativos, brazos, sonidos, ultrasonido y expresiones MAX7219 según el perfil configurado;
 - pantallas de texto LCD 16 × 2 y 20 × 4 por PCF8574 I2C, y LCD Keypad Shield paralelo, con texto fijo/dinámico, limpieza, animaciones cooperativas y lectura de sus cinco botones;
 - pantallas gráficas SSD1306 I2C e ILI9341/ILI9488 SPI con áreas de texto, fuente ASCII, dibujos propios/predefinidos y animaciones cooperativas;
+- Wi‑Fi cliente con aprovisionamiento separado: alias y clave viajan directamente por Web Serial, se guardan en la NVS de la placa y nunca forman parte de `CapiRules`, del proyecto, del servidor ni del historial;
 - construcción reproducible de dos artefactos estáticos, manifiestos con hash y publicación automática la primera vez que DEV recibe esta versión; los binarios generados no se guardan en Git;
 - pruebas de formato determinista, corrupción, placa cruzada, framing, empaquetado, USB simulado, UI Chrome, tipos, estilo, smoke y build estático.
 
-La fase **no se considera cerrada físicamente**. La versión actual rechaza de forma explícita Wi‑Fi o RGB; nunca los ejecuta parcialmente. Falta definir el aprovisionamiento privado de Wi‑Fi dentro del recorrido del intérprete; RGB pertenece a una fase de componente todavía pendiente. También falta compilar el proyecto ESP-IDF ampliado en el entorno fijado, desplegar sus artefactos y probar con Wemos/DIYmall reales. Waveshare permanece fuera hasta validar su perfil exacto. Arduino y ESP-IDF por proyecto siguen disponibles mientras tanto.
+La fase **no se considera cerrada físicamente**. RGB se rechaza explícitamente porque pertenece a una fase de componente todavía pendiente; nunca se ejecuta parcialmente. Falta compilar el proyecto ESP-IDF ampliado en el entorno fijado, desplegar sus artefactos y probar con Wemos/DIYmall reales. Waveshare permanece fuera hasta validar su perfil exacto. Arduino y ESP-IDF por proyecto siguen disponibles mientras tanto.
 
 **Estado:** planificada, no autorizada ni implementada.
 
