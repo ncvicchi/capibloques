@@ -272,12 +272,19 @@ if ((RUN_MIGRATIONS)); then
 fi
 
 if ((BUILD_INTERPRETER)); then
-  echo "Construyendo los dos firmwares intérprete reproducibles. La primera ejecución puede descargar la imagen ESP-IDF."
+  # La imagen del compilador ya contiene exactamente ESP-IDF 5.5.5 y sus
+  # herramientas. Reutilizarla evita conservar y extraer una segunda imagen
+  # oficial de varios GB, algo que no entra en el disco pequeño de DEV.
+  interpreter_builder_image=capibloques-compiler-dev:phase9
+  docker image inspect "$interpreter_builder_image" >/dev/null 2>&1 || \
+    fail "falta la imagen local $interpreter_builder_image para construir el intérprete"
+  echo "Construyendo los dos firmwares intérprete con la toolchain local del compilador."
   docker run --rm --cpus 1 --memory 1200m --memory-swap 1500m \
+    --entrypoint /bin/bash \
     --user "$(id -u capi):$(id -g capi)" -e HOME=/tmp/capi-idf -e IDF_PY_BUILD_JOBS=2 \
     -v "$REPOSITORY:/project" -w /project \
-    espressif/idf:v5.5.5@sha256:a9231d0697ab8f7517cc072e93b7c83e04907bfbfba80b6440d7dbbf90665cf2 \
-    bash -lc '. "$IDF_PATH/export.sh" >/dev/null && bash ./scripts/build-interpreter-firmware.sh 1.4.0 /project/public/interpreter '"$INTERPRETER_SOURCE"
+    "$interpreter_builder_image" \
+    -lc '. "$IDF_PATH/export.sh" >/dev/null && bash ./scripts/build-interpreter-firmware.sh 1.4.0 /project/public/interpreter '"$INTERPRETER_SOURCE"
   python3 - "$REPOSITORY/public/interpreter" "$INTERPRETER_SOURCE" <<'PY'
 import hashlib, json, pathlib, sys
 root, revision = pathlib.Path(sys.argv[1]), sys.argv[2]
