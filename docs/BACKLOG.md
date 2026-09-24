@@ -447,7 +447,7 @@ Arduino y ESP-IDF nativos se mantienen como alternativas. El servidor continúa 
 
 Asignación: **fase 36 — Firmware intérprete y ejecución directa en placa**. La arquitectura, formato, flujo web, runtime, seguridad, compatibilidad, pruebas, criterios y decisiones pendientes están centralizados en [FASE_36_FIRMWARE_INTERPRETE.md](FASE_36_FIRMWARE_INTERPRETE.md).
 
-Estado del 23 de septiembre de 2026: **en curso**. Se implementó la columna vertebral ejecutable —reglas/ABI, `CapiLink`, selector Simulador/Placa, instalación Web Serial, persistencia posterior a verificación, telemetría y builds reproducibles Wemos/S3— con capacidades fail-closed. Restan controladores avanzados y pruebas físicas; ver el estado preciso al inicio del documento de fase.
+Estado del 24 de septiembre de 2026: **terminado en software; despliegue en DEV y aceptación física pendientes**. Se implementaron reglas/ABI, `CapiLink`, selector Simulador/Placa, instalación Web Serial, persistencia posterior a verificación, telemetría, controladores actuales y builds reproducibles Wemos/S3 con capacidades fail-closed. Ambos intérpretes compilan y se empaquetan con ESP-IDF 5.5.5; ver el inventario y los límites precisos al inicio del documento de fase.
 
 ## 35. Herramientas pedagógicas revisadas, autoría de desafíos y bloque `según`
 

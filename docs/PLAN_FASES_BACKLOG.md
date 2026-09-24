@@ -552,7 +552,7 @@ Aceptación:
 
 ## Fase 36 — Firmware intérprete y ejecución directa en placa
 
-**Estado:** autorizada y en curso. Primera entrega software implementada: ABI/reglas, protocolo, selector de destino, actualización Web Serial, almacenamiento atómico, runtime base Wemos/S3, telemetría y artefactos reproducibles. Los controladores avanzados y la aceptación física siguen pendientes; el firmware declara capacidades y la web bloquea cualquier proyecto no cubierto.
+**Estado:** terminada en software el 24 de septiembre de 2026; despliegue en DEV y aceptación física pendientes. ABI/reglas, protocolo, selector de destino, actualización Web Serial, almacenamiento atómico, runtime Wemos/S3, telemetría, Wi-Fi privado y los controladores actuales están implementados. Ambos intérpretes compilan y se empaquetan con ESP-IDF 5.5.5; el firmware declara capacidades y la web bloquea cualquier proyecto no cubierto.
 
 **Objetivo:** convertir la compilación nativa en una alternativa y no en el recorrido cotidiano: instalar desde la web un firmware CapiBloques precompilado por placa y enviar luego reglas locales compactas para ejecutar en segundos.
 
@@ -622,7 +622,7 @@ El gateway sigue siendo sólo un salto SSH, con prohibición de cambios. Tampoco
 ## Cómo se trabaja y qué falta decidir
 
 - Una fase completa autorizada por vez, con implementación, pruebas proporcionales, entrega en DEV y commit/push. Informar avances con evidencia y pendientes; no inventar porcentajes ni tiempos exactos.
-- **Fases 11–14 y 29 entregadas; fases 15, 16, 27 y 28 terminadas en software; fase 23 en curso.** Actualizar la documentación viva al cerrar cada entrega solicitada. No ejecutar las fases restantes, completar la aceptación física ni avanzar a producción sin autorización y hardware correspondientes.
+- **Fases 11–14 y 29 entregadas; fases 15, 16, 27, 28 y 36 terminadas en software; fase 23 en curso.** Actualizar la documentación viva al cerrar cada entrega solicitada. No ejecutar las fases restantes, completar la aceptación física ni avanzar a producción sin autorización y hardware correspondientes.
 - Para fase 17 hace falta el modelo Waveshare exacto antes de fijar drivers/pines; para cerrar las aceptaciones físicas de 15, 16 y 23 hace falta autorización para reemplazar firmware y los montajes correspondientes.
 - La fase 14 fija el paralelo como un contenedor con caminos apilados de arriba hacia abajo y mantiene fork/join. Desafíos y `según` se especifican en 19; display en 18; UX en 21; displays/matriz en 23; datos en 29; temporizadores en 30; procedimientos en 31; estados en 32; red en 33; servicios remotos en 34; RGB en 35; intérprete en 36; ayuda de componentes en 37 y el catálogo ampliado en 38–41. Son decisiones dentro de esas fases, no nuevas fases con letras.
 - No hay estimaciones horarias comprometidas: hardware, alcance de la adaptación gráfica y mediciones en la VM condicionan el esfuerzo. No retrasar ahora la planificación esperando esos datos, ni prometer implementaciones específicas de un modelo no identificado.

@@ -1,8 +1,8 @@
 # Fase 36 — Firmware intérprete y ejecución directa en placa
 
-## Estado de implementación — 23 de septiembre de 2026
+## Estado de implementación — 24 de septiembre de 2026
 
-La fase fue autorizada y tiene una primera entrega ejecutable en software. Ya están implementados:
+La fase está **terminada en software**. Ya están implementados:
 
 - `CapiRules` v1 / ABI 1: sobre binario acotado inicialmente a 32 KiB para no prometer RAM inexistente en Wemos, carga útil canónica, placa, recursos, grafo cooperativo compartido, tabla de depuración, conteos y CRC32;
 - `CapiLink`: `HELLO`, negociación placa/versión/ABI/capacidades, carga fragmentada `BEGIN/CHUNK/VERIFY/COMMIT`, ejecución, pausa, continuación, detención y telemetría acotada;
@@ -19,9 +19,9 @@ La fase fue autorizada y tiene una primera entrega ejecutable en software. Ya es
 - construcción reproducible de dos artefactos estáticos, manifiestos con hash y publicación automática la primera vez que DEV recibe esta versión; los binarios generados no se guardan en Git;
 - pruebas de formato determinista, corrupción, placa cruzada, framing, empaquetado, USB simulado, UI Chrome, tipos, estilo, smoke y build estático.
 
-La fase **no se considera cerrada físicamente**. RGB se rechaza explícitamente porque pertenece a una fase de componente todavía pendiente; nunca se ejecuta parcialmente. Falta compilar el proyecto ESP-IDF ampliado en el entorno fijado, desplegar sus artefactos y probar con Wemos/DIYmall reales. Waveshare permanece fuera hasta validar su perfil exacto. Arduino y ESP-IDF por proyecto siguen disponibles mientras tanto.
+La compilación fijada en ESP-IDF 5.5.5 produjo y empaquetó correctamente los intérpretes de Wemos D1 R32 y ESP32-S3 en CI el 24 de septiembre de 2026. La fase **no tiene aún aceptación física**: falta publicar los artefactos en DEV y probar instalación, reinicio, carga de reglas y controladores con una Wemos/DIYmall y una ESP32-S3 reales. RGB se rechaza explícitamente porque pertenece a una fase de componente todavía pendiente; nunca se ejecuta parcialmente. Waveshare permanece fuera hasta validar su perfil exacto. Arduino y ESP-IDF por proyecto siguen disponibles.
 
-**Estado:** planificada, no autorizada ni implementada.
+**Estado:** software terminado; despliegue en DEV y aceptación física pendientes.
 
 Este documento concentra la planificación completa. La entrada breve vive en [BACKLOG.md](BACKLOG.md) y la asignación de fase en [PLAN_FASES_BACKLOG.md](PLAN_FASES_BACKLOG.md).
 
