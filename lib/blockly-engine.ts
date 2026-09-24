@@ -475,6 +475,24 @@ const toolbox = {
       ],
     },
     {
+      kind: 'category', name: 'Mis bloques', colour: '#8E5BB7', contents: [
+        { kind: 'label', text: 'Definiciones (quedan fuera de Al comenzar)' },
+        { kind: 'block', type: 'capi_procedure_def' },
+        { kind: 'block', type: 'capi_function_def_number' },
+        { kind: 'block', type: 'capi_function_def_text' },
+        { kind: 'block', type: 'capi_function_def_boolean' },
+        { kind: 'label', text: 'Usar mis bloques' },
+        { kind: 'block', type: 'capi_procedure_call' },
+        { kind: 'block', type: 'capi_function_call_number' },
+        { kind: 'block', type: 'capi_function_call_text' },
+        { kind: 'block', type: 'capi_function_call_boolean' },
+        { kind: 'label', text: 'Datos recibidos' },
+        { kind: 'block', type: 'capi_parameter_number' },
+        { kind: 'block', type: 'capi_parameter_text' },
+        { kind: 'block', type: 'capi_parameter_boolean' },
+      ],
+    },
+    {
       kind: 'category',
       name: 'Datos',
       colour: '#7A58C1',
@@ -742,6 +760,41 @@ function registerBlocks(Blockly: BlocklyApi) {
       args0: [{ type: 'field_variable', name: 'TIMER', variable: 'mi temporizador', variableTypes: ['Timer'], defaultType: 'Timer' }],
       output: 'Number', colour: '#D46B32', tooltip: 'Lee los segundos que faltan para el próximo evento.',
     },
+    {
+      type: 'capi_procedure_def', message0: '🧩 tarea %1',
+      args0: [{ type: 'field_variable', name: 'ROUTINE', variable: 'mi tarea', variableTypes: ['Procedure'], defaultType: 'Procedure' }],
+      message1: 'recibe 1 %1 %2  2 %3 %4  3 %5 %6',
+      args1: [
+        { type: 'field_input', name: 'P1_NAME', text: 'dato 1' }, { type: 'field_dropdown', name: 'P1_TYPE', options: [['número','number'],['texto','text'],['sí/no','boolean'],['no usar','none']] },
+        { type: 'field_input', name: 'P2_NAME', text: 'dato 2' }, { type: 'field_dropdown', name: 'P2_TYPE', options: [['no usar','none'],['número','number'],['texto','text'],['sí/no','boolean']] },
+        { type: 'field_input', name: 'P3_NAME', text: 'dato 3' }, { type: 'field_dropdown', name: 'P3_TYPE', options: [['no usar','none'],['número','number'],['texto','text'],['sí/no','boolean']] },
+      ],
+      message2: 'hacer %1', args2: [{ type: 'input_statement', name: 'BODY' }], colour: '#8E5BB7', tooltip: 'Define una tarea reutilizable. Usá solamente los datos recibidos que marcaste.',
+    },
+    ...(['number','text','boolean'] as const).map(type => ({
+      type: `capi_function_def_${type}`, message0: `🧮 función ${type === 'number' ? 'número' : type === 'text' ? 'texto' : 'sí/no'} %1`,
+      args0: [{ type: 'field_variable', name: 'ROUTINE', variable: 'mi función', variableTypes: [`Function${type === 'number' ? 'Number' : type === 'text' ? 'Text' : 'Boolean'}`], defaultType: `Function${type === 'number' ? 'Number' : type === 'text' ? 'Text' : 'Boolean'}` }],
+      message1: 'recibe 1 %1 %2  2 %3 %4  3 %5 %6', args1: [
+        { type: 'field_input', name: 'P1_NAME', text: 'dato 1' }, { type: 'field_dropdown', name: 'P1_TYPE', options: [['número','number'],['texto','text'],['sí/no','boolean'],['no usar','none']] },
+        { type: 'field_input', name: 'P2_NAME', text: 'dato 2' }, { type: 'field_dropdown', name: 'P2_TYPE', options: [['no usar','none'],['número','number'],['texto','text'],['sí/no','boolean']] },
+        { type: 'field_input', name: 'P3_NAME', text: 'dato 3' }, { type: 'field_dropdown', name: 'P3_TYPE', options: [['no usar','none'],['número','number'],['texto','text'],['sí/no','boolean']] },
+      ],
+      message2: 'resultado %1', args2: [{ type: 'input_value', name: 'RETURN', check: type === 'number' ? 'Number' : type === 'text' ? 'String' : 'Boolean' }], colour: '#8E5BB7', tooltip: 'Define un cálculo reutilizable que devuelve un dato.',
+    })),
+    {
+      type: 'capi_procedure_call', message0: '🧩 hacer %1', args0: [{ type: 'field_variable', name: 'ROUTINE', variable: 'mi tarea', variableTypes: ['Procedure'], defaultType: 'Procedure' }],
+      message1: 'con %1 %2 %3', args1: [{ type: 'input_value', name: 'ARG1' }, { type: 'input_value', name: 'ARG2' }, { type: 'input_value', name: 'ARG3' }],
+      previousStatement: null, nextStatement: null, inputsInline: true, colour: '#8E5BB7', tooltip: 'Ejecuta una tarea creada por vos.',
+    },
+    ...(['number','text','boolean'] as const).map(type => ({
+      type: `capi_function_call_${type}`, message0: `resultado de %1 con %2 %3 %4`,
+      args0: [{ type: 'field_variable', name: 'ROUTINE', variable: 'mi función', variableTypes: [`Function${type === 'number' ? 'Number' : type === 'text' ? 'Text' : 'Boolean'}`], defaultType: `Function${type === 'number' ? 'Number' : type === 'text' ? 'Text' : 'Boolean'}` }, { type: 'input_value', name: 'ARG1' }, { type: 'input_value', name: 'ARG2' }, { type: 'input_value', name: 'ARG3' }],
+      output: type === 'number' ? 'Number' : type === 'text' ? 'String' : 'Boolean', inputsInline: true, colour: '#8E5BB7', tooltip: 'Usa el resultado de una función creada por vos.',
+    })),
+    ...(['number','text','boolean'] as const).map(type => ({
+      type: `capi_parameter_${type}`, message0: `dato recibido %1 (${type === 'number' ? 'número' : type === 'text' ? 'texto' : 'sí/no'})`, args0: [{ type: 'field_dropdown', name: 'PARAM', options: [['1','1'],['2','2'],['3','3']] }],
+      output: type === 'number' ? 'Number' : type === 'text' ? 'String' : 'Boolean', colour: '#8E5BB7', tooltip: 'Lee uno de los datos recibidos por la tarea o función.',
+    })),
     {
       type: 'capi_if',
       message0: '🧠 si %1',
@@ -1584,6 +1637,17 @@ function compileValue(block: BlocklyBlock | null, fallback: VariableType = 'numb
     case 'capi_counter_value': return { kind: 'counterValue' };
     case 'capi_timer_elapsed': return { kind: 'timerElapsed', timerId: String(block.getFieldValue('TIMER') ?? '') };
     case 'capi_timer_remaining': return { kind: 'timerRemaining', timerId: String(block.getFieldValue('TIMER') ?? '') };
+    case 'capi_parameter_number': return { kind: 'parameter', parameterId: String(block.getFieldValue('PARAM') ?? '1'), valueType: 'number' };
+    case 'capi_parameter_text': return { kind: 'parameter', parameterId: String(block.getFieldValue('PARAM') ?? '1'), valueType: 'text' };
+    case 'capi_parameter_boolean': return { kind: 'parameter', parameterId: String(block.getFieldValue('PARAM') ?? '1'), valueType: 'boolean' };
+    case 'capi_function_call_number':
+    case 'capi_function_call_text':
+    case 'capi_function_call_boolean': {
+      const valueType = block.type.endsWith('_text') ? 'text' : block.type.endsWith('_boolean') ? 'boolean' : 'number';
+      const args: ValueExpression[] = [];
+      for (const name of ['ARG1','ARG2','ARG3']) { const child = block.getInputTargetBlock(name); if (!child) break; args.push(compileValue(child)); }
+      return { kind: 'functionCall', routineId: String(block.getFieldValue('ROUTINE') ?? ''), arguments: args, valueType };
+    }
     case 'capi_sensor_value': return { kind: 'sensorValue', deviceId: selectedDeviceId(block) };
     case 'capi_otto_distance': return { kind: 'ottoDistance', deviceId: selectedDeviceId(block) };
     case 'capi_message_value': return { kind: 'messageValue', deviceId: selectedDeviceId(block) };
@@ -1735,6 +1799,12 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
       case 'capi_timer_wait': {
         const operations = { capi_timer_restart: 'timerRestart', capi_timer_pause: 'timerPause', capi_timer_resume: 'timerResume', capi_timer_stop: 'timerStop', capi_timer_wait: 'timerWait' } as const;
         result.push({ op: operations[block.type as keyof typeof operations], timerId: String(block.getFieldValue('TIMER') ?? ''), blockId });
+        break;
+      }
+      case 'capi_procedure_call': {
+        const args: ValueExpression[] = [];
+        for (const name of ['ARG1','ARG2','ARG3']) { const child = block.getInputTargetBlock(name); if (!child) break; args.push(compileValue(child)); }
+        result.push({ op: 'procedureCall', routineId: String(block.getFieldValue('ROUTINE') ?? ''), arguments: args, blockId });
         break;
       }
       case 'capi_variable_set_number':
@@ -1934,6 +2004,17 @@ function compileWorkspace(workspace: BlocklyWorkspaceSvg): CompiledProgram {
   const starts = workspace
     .getTopBlocks(true)
     .filter((block) => block.type === 'capi_start');
+  const routineDefinitions = workspace.getTopBlocks(true).filter(block => block.type === 'capi_procedure_def' || block.type.startsWith('capi_function_def_'));
+  const variableName = (id: string) => workspace.getVariableMap().getVariableById(id)?.getName() ?? 'sin nombre';
+  const parameters = (block: BlocklyBlock) => {
+    const result: Array<{id:string;name:string;type:VariableType}> = [];
+    for (let index = 1; index <= 3; index += 1) {
+      const type = String(block.getFieldValue(`P${index}_TYPE`) ?? 'none');
+      if (type === 'none') break;
+      result.push({ id: String(index), name: String(block.getFieldValue(`P${index}_NAME`) ?? `dato ${index}`).slice(0, 24), type: type as VariableType });
+    }
+    return result;
+  };
   return {
     version: 2,
     variables: workspace.getVariableMap().getAllVariables().flatMap(variable => {
@@ -1942,6 +2023,12 @@ function compileWorkspace(workspace: BlocklyWorkspaceSvg): CompiledProgram {
       return type ? [{ id: variable.getId(), name: variable.getName(), type } as const] : [];
     }),
     timers: workspace.getVariableMap().getVariablesOfType('Timer').map(timer => ({ id: timer.getId(), name: timer.getName() })),
+    routines: routineDefinitions.map(block => {
+      const id = String(block.getFieldValue('ROUTINE') ?? '');
+      const functionType = block.type.endsWith('_text') ? 'text' : block.type.endsWith('_boolean') ? 'boolean' : 'number';
+      const isFunction = block.type.startsWith('capi_function_def_');
+      return { id, name: variableName(id), kind: isFunction ? 'function' as const : 'procedure' as const, ...(isFunction ? { returnType: functionType as VariableType, returnValue: compileValue(block.getInputTargetBlock('RETURN'), functionType as VariableType) } : {}), parameters: parameters(block), body: isFunction ? [] : compileStack(block.getInputTargetBlock('BODY')), blockId: block.id };
+    }),
     threads: starts.map((start) => ({
       id: start.id,
       startBlockId: start.id,

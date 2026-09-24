@@ -576,6 +576,8 @@ function evaluateValue(expression: ValueExpression): number | string | boolean {
     case 'counterValue': return state.counter;
     case 'timerElapsed': return Math.floor((state.timers[expression.timerId]?.elapsedMs ?? 0) / 1000);
     case 'timerRemaining': return Math.ceil((state.timers[expression.timerId]?.remainingMs ?? 0) / 1000);
+    case 'parameter': return expression.valueType === 'text' ? '' : expression.valueType === 'boolean' ? false : 0;
+    case 'functionCall': return expression.valueType === 'text' ? '' : expression.valueType === 'boolean' ? false : 0;
     case 'variable': return state.variables[expression.variableId] ?? (expression.valueType === 'text' ? '' : expression.valueType === 'boolean' ? false : 0);
     case 'sensorValue': {
       const device = state.devices[expression.deviceId];

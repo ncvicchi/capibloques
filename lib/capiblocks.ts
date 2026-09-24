@@ -52,6 +52,18 @@ export interface ProgramTimer {
   name: string;
 }
 
+export interface ProgramRoutineParameter { id: string; name: string; type: VariableType }
+export interface ProgramRoutine {
+  id: string;
+  name: string;
+  kind: 'procedure' | 'function';
+  returnType?: VariableType;
+  parameters: ProgramRoutineParameter[];
+  body: ProgramNode[];
+  returnValue?: ValueExpression;
+  blockId: string;
+}
+
 export type ValueExpression =
   | { kind: 'number'; value: number }
   | { kind: 'text'; value: string }
@@ -60,6 +72,8 @@ export type ValueExpression =
   | { kind: 'counterValue' }
   | { kind: 'timerElapsed'; timerId: string }
   | { kind: 'timerRemaining'; timerId: string }
+  | { kind: 'parameter'; parameterId: string; valueType: VariableType }
+  | { kind: 'functionCall'; routineId: string; arguments: ValueExpression[]; valueType: VariableType }
   | { kind: 'sensorValue'; deviceId: string }
   | { kind: 'ottoDistance'; deviceId: string }
   | { kind: 'buttonValue'; deviceId: string }
@@ -149,6 +163,7 @@ export type ProgramNode =
   | { op: 'timerResume'; timerId: string; blockId: string }
   | { op: 'timerStop'; timerId: string; blockId: string }
   | { op: 'timerWait'; timerId: string; blockId: string }
+  | { op: 'procedureCall'; routineId: string; arguments: ValueExpression[]; blockId: string }
   | { op: 'variableSet'; variableId: string; value: ValueExpression; blockId: string }
   | { op: 'variableChange'; variableId: string; delta: ValueExpression; blockId: string }
   | { op: 'serial'; text: string; expression?: ValueExpression; blockId: string }
@@ -199,6 +214,7 @@ export interface CompiledProgram {
   version: 2;
   variables?: ProgramVariable[];
   timers?: ProgramTimer[];
+  routines?: ProgramRoutine[];
   threads: ProgramThread[];
 }
 
@@ -823,6 +839,17 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_timer_wait',
   'capi_timer_elapsed',
   'capi_timer_remaining',
+  'capi_procedure_def',
+  'capi_function_def_number',
+  'capi_function_def_text',
+  'capi_function_def_boolean',
+  'capi_procedure_call',
+  'capi_function_call_number',
+  'capi_function_call_text',
+  'capi_function_call_boolean',
+  'capi_parameter_number',
+  'capi_parameter_text',
+  'capi_parameter_boolean',
   'capi_variable_set_number',
   'capi_variable_change',
   'capi_variable_set_text',
@@ -1751,6 +1778,8 @@ function normalizeValueExpression(raw: unknown): ValueExpression {
     case 'counterValue': return { kind: 'counterValue' };
     case 'timerElapsed': return { kind: 'timerElapsed', timerId: typeof value.timerId === 'string' ? value.timerId : '' };
     case 'timerRemaining': return { kind: 'timerRemaining', timerId: typeof value.timerId === 'string' ? value.timerId : '' };
+    case 'parameter': return { kind: 'parameter', parameterId: typeof value.parameterId === 'string' ? value.parameterId : '', valueType: variableTypes.includes(value.valueType as VariableType) ? value.valueType as VariableType : 'number' };
+    case 'functionCall': return { kind: 'functionCall', routineId: typeof value.routineId === 'string' ? value.routineId : '', arguments: Array.isArray(value.arguments) ? value.arguments.slice(0, 3).map(normalizeValueExpression) : [], valueType: variableTypes.includes(value.valueType as VariableType) ? value.valueType as VariableType : 'number' };
     case 'sensorValue': return { kind: 'sensorValue', deviceId: typeof value.deviceId === 'string' ? value.deviceId : '' };
     case 'ottoDistance': return { kind: 'ottoDistance', deviceId: typeof value.deviceId === 'string' ? value.deviceId : '' };
     case 'buttonValue': return { kind: 'buttonValue', deviceId: typeof value.deviceId === 'string' ? value.deviceId : '' };
@@ -2035,6 +2064,9 @@ function normalizeNodes(
       case 'timerWait':
         result.push({ op: node.op, timerId: typeof node.timerId === 'string' ? node.timerId : '', blockId });
         break;
+      case 'procedureCall':
+        result.push({ op: 'procedureCall', routineId: typeof node.routineId === 'string' ? node.routineId : '', arguments: Array.isArray(node.arguments) ? node.arguments.slice(0, 3).map(normalizeValueExpression) : [], blockId });
+        break;
       case 'variableSet':
         result.push({
           op: 'variableSet',
@@ -2205,6 +2237,7 @@ export function normalizeCompiledProgram(
       version: 2,
       variables: [],
       timers: [],
+      routines: [],
       threads: [
         {
           id: 'main',
@@ -2214,9 +2247,9 @@ export function normalizeCompiledProgram(
       ],
     };
   }
-  if (!input || typeof input !== 'object') return { version: 2, variables: [], timers: [], threads: [] };
-  const candidate = input as { threads?: unknown; variables?: unknown; timers?: unknown };
-  if (!Array.isArray(candidate.threads)) return { version: 2, variables: [], timers: [], threads: [] };
+  if (!input || typeof input !== 'object') return { version: 2, variables: [], timers: [], routines: [], threads: [] };
+  const candidate = input as { threads?: unknown; variables?: unknown; timers?: unknown; routines?: unknown };
+  if (!Array.isArray(candidate.threads)) return { version: 2, variables: [], timers: [], routines: [], threads: [] };
   const usedIds = new Set<string>();
   const usedVariableIds = new Set<string>();
   const variables = Array.isArray(candidate.variables) ? candidate.variables.flatMap((raw, index) => {
@@ -2238,10 +2271,25 @@ export function normalizeCompiledProgram(
     usedTimerIds.add(id);
     return [{ id, name: typeof timer.name === 'string' && timer.name.trim() ? timer.name.trim().slice(0, 32) : `temporizador ${index + 1}` }];
   }) : [];
+  const usedRoutineIds = new Set<string>();
+  const routines = Array.isArray(candidate.routines) ? candidate.routines.flatMap((raw, index) => {
+    const routine = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
+    const id = typeof routine.id === 'string' && routine.id.trim() ? routine.id : `routine-${index + 1}`;
+    if (usedRoutineIds.has(id) || usedRoutineIds.size >= 24) return [];
+    usedRoutineIds.add(id);
+    const kind = routine.kind === 'function' ? 'function' as const : 'procedure' as const;
+    const parameters = Array.isArray(routine.parameters) ? routine.parameters.slice(0, 3).map((rawParameter, parameterIndex) => {
+      const parameter = rawParameter && typeof rawParameter === 'object' ? rawParameter as Record<string, unknown> : {};
+      return { id: typeof parameter.id === 'string' && parameter.id ? parameter.id : String(parameterIndex + 1), name: typeof parameter.name === 'string' && parameter.name.trim() ? parameter.name.trim().slice(0, 24) : `dato ${parameterIndex + 1}`, type: variableTypes.includes(parameter.type as VariableType) ? parameter.type as VariableType : 'number' };
+    }) : [];
+    const returnType = variableTypes.includes(routine.returnType as VariableType) ? routine.returnType as VariableType : 'number';
+    return [{ id, name: typeof routine.name === 'string' && routine.name.trim() ? routine.name.trim().slice(0, 32) : `${kind === 'function' ? 'cálculo' : 'tarea'} ${index + 1}`, kind, returnType: kind === 'function' ? returnType : undefined, parameters, body: normalizeNodes(routine.body, scene), returnValue: kind === 'function' ? normalizeValueExpression(routine.returnValue) : undefined, blockId: typeof routine.blockId === 'string' ? routine.blockId : id }];
+  }) : [];
   return {
     version: 2,
     variables,
     timers,
+    routines,
     threads: candidate.threads.map((raw, index) => {
       const thread =
         raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
@@ -2287,6 +2335,52 @@ function visitProgram(
     }
   };
   program.threads.forEach((thread) => visit(thread.nodes));
+  for (const routine of program.routines ?? []) visit(routine.body);
+}
+
+function defaultValue(type: VariableType): ValueExpression {
+  return type === 'text' ? { kind: 'text', value: '' } : type === 'boolean' ? { kind: 'boolean', value: false } : { kind: 'number', value: 0 };
+}
+
+/** Expand bounded, non-recursive routines so every runtime shares one graph. */
+export function expandProgramRoutines(input: CompiledProgram): CompiledProgram {
+  const routines = new Map((input.routines ?? []).map(routine => [routine.id, routine]));
+  const substituteValue = (value: ValueExpression, bindings: Map<string, ValueExpression>, stack: string[]): ValueExpression => {
+    if (value.kind === 'parameter') return bindings.get(value.parameterId) ?? defaultValue(value.valueType);
+    if (value.kind === 'functionCall') {
+      const routine = routines.get(value.routineId);
+      if (!routine || routine.kind !== 'function' || stack.includes(routine.id) || stack.length >= 8) return defaultValue(value.valueType);
+      const args = value.arguments.map(argument => substituteValue(argument, bindings, stack));
+      const nested = new Map(routine.parameters.map((parameter, index) => [parameter.id, args[index] ?? defaultValue(parameter.type)]));
+      return substituteValue(routine.returnValue ?? defaultValue(routine.returnType ?? 'number'), nested, [...stack, routine.id]);
+    }
+    if (value.kind === 'join') return { ...value, parts: value.parts.map(part => substituteValue(part, bindings, stack)) };
+    if (value.kind === 'math') return { ...value, left: substituteValue(value.left, bindings, stack), right: substituteValue(value.right, bindings, stack) };
+    return value;
+  };
+  const substituteCondition = (condition: Condition, bindings: Map<string, ValueExpression>, stack: string[]): Condition => {
+    if (condition.kind === 'value') return { ...condition, expression: substituteValue(condition.expression, bindings, stack) };
+    if (condition.kind === 'valueCompare') return { ...condition, left: substituteValue(condition.left, bindings, stack), right: substituteValue(condition.right, bindings, stack) };
+    return condition;
+  };
+  const expandNodes = (nodes: ProgramNode[], bindings = new Map<string, ValueExpression>(), stack: string[] = []): ProgramNode[] => nodes.flatMap(node => {
+    if (node.op === 'procedureCall') {
+      const routine = routines.get(node.routineId);
+      if (!routine || routine.kind !== 'procedure' || stack.includes(routine.id) || stack.length >= 8) return [];
+      const args = node.arguments.map(argument => substituteValue(argument, bindings, stack));
+      const nested = new Map(routine.parameters.map((parameter, index) => [parameter.id, args[index] ?? defaultValue(parameter.type)]));
+      return [{ op: 'wait', ms: 0, blockId: node.blockId } as ProgramNode, ...expandNodes(routine.body, nested, [...stack, routine.id]), { op: 'wait', ms: 0, blockId: node.blockId } as ProgramNode];
+    }
+    if (node.op === 'repeat') return [{ ...node, body: expandNodes(node.body, bindings, stack) }];
+    if (node.op === 'parallel') return [{ ...node, branches: node.branches.map(branch => expandNodes(branch, bindings, stack)) }];
+    if (node.op === 'if') return [{ ...node, condition: substituteCondition(node.condition, bindings, stack), consequent: expandNodes(node.consequent, bindings, stack), otherwise: expandNodes(node.otherwise, bindings, stack) }];
+    if (node.op === 'messageReceive') return [{ ...node, equal: expandNodes(node.equal, bindings, stack), different: expandNodes(node.different, bindings, stack), timeout: expandNodes(node.timeout, bindings, stack) }];
+    if (node.op === 'variableSet') return [{ ...node, value: substituteValue(node.value, bindings, stack) }];
+    if (node.op === 'variableChange') return [{ ...node, delta: substituteValue(node.delta, bindings, stack) }];
+    if ((node.op === 'serial' || node.op === 'messageSend' || node.op === 'displayWrite') && node.expression) return [{ ...node, expression: substituteValue(node.expression, bindings, stack) }];
+    return [node];
+  });
+  return { ...input, threads: input.threads.map(thread => ({ ...thread, nodes: expandNodes(thread.nodes) })) };
 }
 
 export function collectRawOutputPins(
@@ -2347,6 +2441,7 @@ export function valueExpressionType(expression: ValueExpression): VariableType {
   if (expression.kind === 'text' || expression.kind === 'join' || expression.kind === 'messageValue') return 'text';
   if (expression.kind === 'boolean' || expression.kind === 'buttonValue' || expression.kind === 'barrierValue' || expression.kind === 'displayButtonValue' || expression.kind === 'wifiValue') return 'boolean';
   if (expression.kind === 'variable') return expression.valueType;
+  if (expression.kind === 'parameter' || expression.kind === 'functionCall') return expression.valueType;
   return 'number';
 }
 
@@ -2357,6 +2452,7 @@ function visitValueExpression(expression: ValueExpression, visitor: (value: Valu
     visitValueExpression(expression.left, visitor);
     visitValueExpression(expression.right, visitor);
   }
+  if (expression.kind === 'functionCall') expression.arguments.forEach(argument => visitValueExpression(argument, visitor));
 }
 
 export function validateProgramForScene(
@@ -2369,6 +2465,7 @@ export function validateProgramForScene(
   const deviceMap = new Map(scene.devices.map((device) => [device.id, device]));
   const variables = new Map((program.variables ?? []).map(variable => [variable.id, variable]));
   const timers = new Map((program.timers ?? []).map(timer => [timer.id, timer]));
+  const routines = new Map((program.routines ?? []).map(routine => [routine.id, routine]));
   const variableNames = new Set<string>();
   for (const variable of program.variables ?? []) {
     const normalizedName = variable.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -2381,6 +2478,30 @@ export function validateProgramForScene(
     if (!timer.name.trim() || timer.name.length > 32 || timerNames.has(normalizedName)) diagnostics.push({ severity: 'error', code: 'timer-name', message: 'Cada temporizador necesita un nombre distinto de hasta 32 caracteres.' });
     timerNames.add(normalizedName);
   }
+  const routineNames = new Set<string>();
+  for (const routine of program.routines ?? []) {
+    const normalizedName = routine.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if (!routine.name.trim() || routine.name.length > 32 || routineNames.has(normalizedName)) diagnostics.push({ severity: 'error', code: 'routine-name', message: 'Cada tarea o función necesita un nombre distinto de hasta 32 caracteres.', blockId: routine.blockId });
+    routineNames.add(normalizedName);
+    const parameterNames = new Set<string>();
+    for (const parameter of routine.parameters) {
+      const name = parameter.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      if (!parameter.name.trim() || parameterNames.has(name)) diagnostics.push({ severity: 'error', code: 'routine-parameter-name', message: `${routine.name}: cada dato de entrada necesita un nombre distinto.`, blockId: routine.blockId });
+      parameterNames.add(name);
+    }
+    if (routine.kind === 'function' && (!routine.returnValue || valueExpressionType(routine.returnValue) !== routine.returnType)) diagnostics.push({ severity: 'error', code: 'routine-return-type', message: `${routine.name}: el resultado no coincide con el tipo elegido.`, blockId: routine.blockId });
+  }
+  const routineDependencies = new Map<string, string[]>();
+  for (const routine of program.routines ?? []) {
+    const encoded = JSON.stringify({ body: routine.body, value: routine.returnValue });
+    routineDependencies.set(routine.id, [...routines.keys()].filter(id => encoded.includes(`"routineId":"${id}"`)));
+  }
+  const visitRoutine = (id: string, path: string[]) => {
+    if (path.includes(id)) { diagnostics.push({ severity: 'error', code: 'routine-cycle', message: 'Las tareas y funciones no pueden llamarse formando un círculo.', blockId: routines.get(id)?.blockId }); return; }
+    if (path.length >= 8) { diagnostics.push({ severity: 'error', code: 'routine-depth', message: 'Hay demasiadas llamadas anidadas. Usá hasta 8 niveles.', blockId: routines.get(id)?.blockId }); return; }
+    for (const dependency of routineDependencies.get(id) ?? []) visitRoutine(dependency, [...path, id]);
+  };
+  for (const id of routines.keys()) visitRoutine(id, []);
   const profile = boardProfile(profileId);
   const sceneValidation = validateScene(scene, profileId);
   const hardwareBlockingSceneCodes = new Set([
@@ -2420,6 +2541,7 @@ export function validateProgramForScene(
     const expressions: ValueExpression[] = [];
     if (node.op === 'variableSet') expressions.push(node.value);
     if (node.op === 'variableChange') expressions.push(node.delta);
+    if (node.op === 'procedureCall') expressions.push(...node.arguments);
     if ((node.op === 'serial' || node.op === 'messageSend' || node.op === 'displayWrite') && node.expression) expressions.push(node.expression);
     if (node.op === 'if' && node.condition.kind === 'value') expressions.push(node.condition.expression);
     if (node.op === 'if' && node.condition.kind === 'valueCompare') expressions.push(node.condition.left, node.condition.right);
@@ -2430,6 +2552,11 @@ export function validateProgramForScene(
         else if (variable.type !== value.valueType) diagnostics.push({ severity: 'error', code: 'variable-type', message: `${variable.name} cambió de tipo; volvé a elegirla.`, blockId: node.blockId });
       }
       if ((value.kind === 'timerElapsed' || value.kind === 'timerRemaining') && !timers.has(value.timerId)) diagnostics.push({ severity: 'error', code: 'timer-missing', message: 'Elegí un temporizador que todavía exista.', blockId: node.blockId });
+      if (value.kind === 'functionCall') {
+        const routine = routines.get(value.routineId);
+        if (!routine || routine.kind !== 'function') diagnostics.push({ severity: 'error', code: 'routine-missing', message: 'Elegí una función que todavía exista.', blockId: node.blockId });
+        else if (routine.returnType !== value.valueType || routine.parameters.length !== value.arguments.length || routine.parameters.some((parameter, index) => valueExpressionType(value.arguments[index] ?? defaultValue(parameter.type)) !== parameter.type)) diagnostics.push({ severity: 'error', code: 'routine-arguments', message: `${routine.name}: revisá la cantidad y el tipo de sus datos de entrada.`, blockId: node.blockId });
+      }
       if (value.kind === 'sensorValue') {
         const device = deviceMap.get(value.deviceId);
         if (!device || (device.kind !== 'lightSensor' && device.kind !== 'potentiometer')) diagnostics.push({ severity: 'error', code: 'value-sensor-missing', message: 'Elegí un sensor numérico colocado en la escena.', blockId: node.blockId, deviceId: value.deviceId });
@@ -2480,6 +2607,11 @@ export function validateProgramForScene(
     if (node.op === 'timerStart' || node.op === 'timerRestart' || node.op === 'timerPause' || node.op === 'timerResume' || node.op === 'timerStop' || node.op === 'timerWait') {
       if (!timers.has(node.timerId)) diagnostics.push({ severity: 'error', code: 'timer-missing', message: 'Elegí un temporizador que todavía exista.', blockId: node.blockId });
       if (node.op === 'timerStart' && (!Number.isFinite(node.durationMs) || node.durationMs < 100 || node.durationMs > 86_400_000)) diagnostics.push({ severity: 'error', code: 'timer-duration', message: 'El temporizador debe durar entre 0,1 segundos y 24 horas.', blockId: node.blockId });
+    }
+    if (node.op === 'procedureCall') {
+      const routine = routines.get(node.routineId);
+      if (!routine || routine.kind !== 'procedure') diagnostics.push({ severity: 'error', code: 'routine-missing', message: 'Elegí una tarea que todavía exista.', blockId: node.blockId });
+      else if (routine.parameters.length !== node.arguments.length || routine.parameters.some((parameter, index) => valueExpressionType(node.arguments[index] ?? defaultValue(parameter.type)) !== parameter.type)) diagnostics.push({ severity: 'error', code: 'routine-arguments', message: `${routine.name}: revisá la cantidad y el tipo de sus datos de entrada.`, blockId: node.blockId });
     }
     if (node.op === 'if' && node.condition.kind === 'value' && valueExpressionType(node.condition.expression) !== 'boolean') diagnostics.push({ severity: 'error', code: 'condition-type', message: 'La condición necesita un valor de tipo sí/no.', blockId: node.blockId });
     if (node.op === 'if' && node.condition.kind === 'valueCompare') {
@@ -2742,6 +2874,7 @@ export interface ExecutableTask {
 
 /** One bounded task graph is shared by simulation and the Arduino scheduler. */
 export function compileTaskGraph(program: CompiledProgram): ExecutableTask[] {
+  program = expandProgramRoutines(program);
   const tasks: ExecutableTask[] = [];
   const reservedIds = new Set(program.threads.map(thread => thread.id));
   const add = (nodes: ProgramNode[], blockId: string, label: string, initial: boolean, depth: number): number => {
@@ -2872,6 +3005,8 @@ function valueToCpp(expression: ValueExpression, context: GeneratorContext): str
     case 'counterValue': return 'counterValue';
     case 'timerElapsed': return `capiTimerElapsed(${timerIndex(context, expression.timerId)})`;
     case 'timerRemaining': return `capiTimerRemaining(${timerIndex(context, expression.timerId)})`;
+    case 'parameter': return expression.valueType === 'text' ? 'capiText("")' : expression.valueType === 'boolean' ? 'false' : '0';
+    case 'functionCall': return expression.valueType === 'text' ? 'capiText("")' : expression.valueType === 'boolean' ? 'false' : '0';
     case 'sensorValue': return `${context.framework === 'esp-idf' ? 'capiAnalogRead' : 'analogRead'}(${pinConstant(context, expression.deviceId)})`;
     case 'ottoDistance': return `DEV_${deviceSymbol(context, expression.deviceId)}.distanceCm`;
     case 'buttonValue': return `${context.framework === 'esp-idf' ? 'capiDigitalRead' : 'digitalRead'}(${pinConstant(context, expression.deviceId)}) == ${context.framework === 'esp-idf' ? '0' : 'LOW'}`;

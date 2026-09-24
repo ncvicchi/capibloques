@@ -28,7 +28,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 28 | Barrera infrarroja digital | 26 | Módulo exacto y entrada digital disponible |
 | 29 | Datos, variables y textos dinámicos | 27 | Tipos y expresiones comunes para componentes y destinos |
 | 30 | Software entregado: temporizadores y eventos cooperativos; DEV/físico pendientes | 28 | Planificador no bloqueante y modelo de valores de fase 29 |
-| 31 | Procedimientos y funciones | 29 | Tipos de fase 29 y validación del grafo de llamadas |
+| 31 | Software entregado: procedimientos y funciones; DEV/uso pendientes | 29 | Tipos de fase 29 y validación del grafo de llamadas |
 | 32 | Estados y valores consultables de componentes | 30 | Contrato de valores de fase 29 e inventario de capacidades por componente |
 | 33 | Wi-Fi AP/cliente y mensajes entre placas | 31 | Wi-Fi y Mensajes existentes; secretos privados; simulación multiplaca |
 | 34 | Servicios y control remoto entre placas | 32 | Mensajería de fase 33 validada física y funcionalmente |
@@ -464,6 +464,8 @@ Aceptación:
 La prueba física de esos criterios queda abierta; las pruebas locales cubren simulador, JSON, generación nativa y reglas del intérprete.
 
 ## Fase 31 — Procedimientos y funciones
+
+**Estado: implementada en software el 24 de septiembre de 2026; despliegue DEV y aceptación de uso pendientes.** Ver [contrato y límites](FASE_31_PROCEDIMIENTOS_FUNCIONES.md).
 
 **Objetivo:** reutilizar comportamiento visual sin copiar cadenas de bloques.
 

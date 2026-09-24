@@ -391,6 +391,8 @@ La interfaz distinguirá **hacer una tarea** —procedimiento que ejecuta accion
 
 Definiciones, parámetros, llamadas y valores devueltos formarán parte de JSON, historial, copiar/pegar, deshacer/rehacer, simulación y generadores Arduino/ESP-IDF. Se deben detectar nombres repetidos, ciclos de llamadas, parámetros faltantes y tipos incompatibles con mensajes accionables.
 
+Estado: **implementada en software en fase 31 el 24 de septiembre de 2026; despliegue DEV y aceptación de uso pendientes**. Se entregaron tareas, funciones número/texto/sí-no, hasta tres parámetros locales tipados, expansión acotada sin recursión, validación y los cuatro destinos de ejecución. Ver [FASE_31_PROCEDIMIENTOS_FUNCIONES.md](FASE_31_PROCEDIMIENTOS_FUNCIONES.md).
+
 Asignación: **fase 31 — Procedimientos y funciones**.
 
 ## 30. Estados y valores consultables de componentes
