@@ -2,6 +2,8 @@
 
 Estado al 24 de septiembre de 2026: **terminada en software y pendiente de aceptación física**. El propietario redefinió la fase para que el recorrido cotidiano sea instalar el firmware intérprete precompilado y enviar reglas localmente. La compilación Arduino/ESP-IDF por proyecto se conserva como herramienta avanzada, pero deja de competir con la acción principal.
 
+Implementación publicada en `main`: `6dece1e`. DEV todavía permanece en `8103b14` hasta que el propietario ejecute la actualización rápida.
+
 ## Decisión de producto
 
 El recorrido infantil es:
