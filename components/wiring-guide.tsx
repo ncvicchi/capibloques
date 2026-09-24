@@ -44,6 +44,7 @@ const deviceAdvice: Record<SceneDevice['kind'], string> = {
   otto: 'Usa cuatro señales PWM para piernas/pies y, según el perfil, dos más para brazos. Alimentá los servos con una fuente externa de 5 V y GND común. En sensores ultrasónicos HC-SR04 de 5 V, reducí ECHO a 3,3 V antes del ESP32.',
   motor: 'DRV8833 y fuente para el motor; nunca lo conectes directo al GPIO.',
   led: 'Una resistencia de 220–330 Ω en serie con el LED.',
+  smartLights: 'DIN recibe una sola señal. Usá fuente externa dimensionada para la cantidad y brillo, uní GND y conectá por DIN, nunca DOUT. La corriente mostrada es una estimación, no una medición.',
   servo: 'Fuente de 5 V adecuada y GND compartido; el GPIO sólo lleva señal.',
   activeBuzzer:
     'Revisá la corriente del módulo; usa transistor si supera lo admitido por el GPIO.',

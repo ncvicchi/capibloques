@@ -6,7 +6,7 @@ import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 
 export const CAPI_RULES_FORMAT = 1;
 export const CAPI_INTERPRETER_ABI = 1;
-export const CAPI_INTERPRETER_VERSION = '1.3.0';
+export const CAPI_INTERPRETER_VERSION = '1.4.0';
 export const CAPI_RULES_MAX_BYTES = 32 * 1024;
 export const CAPI_RULES_MAX_INSTRUCTIONS = 2048;
 const HEADER_BYTES = 32;
@@ -38,6 +38,7 @@ export class CapiRulesError extends Error {}
 
 const capabilityForOperation = (operation: string) => ({
   pin: 'gpio', led: 'led', traffic: 'traffic', motor: 'motor', robot: 'robot',
+  rgbFill: 'smart-lights', rgbPixel: 'smart-lights', rgbSegment: 'smart-lights', rgbCoordinate: 'smart-lights', rgbGradient: 'smart-lights', rgbPattern: 'smart-lights', rgbAnimation: 'smart-lights',
   servo: 'servo', buzzer: 'buzzer', tone: 'buzzer', otto: 'otto', ottoSound: 'otto', ottoExpression: 'otto', ottoArms: 'otto',
   displayWrite: 'display', displayClear: 'display', displayAnimateText: 'display', displayArtwork: 'display', visualWait: 'visual-wait',
   matrixClear: 'matrix', matrixPixel: 'matrix', matrixPattern: 'matrix', matrixScroll: 'matrix',

@@ -20,7 +20,7 @@ RUN curl -fL --retry 3 https://github.com/arduino/arduino-cli/releases/download/
     && tar -xzf /tmp/arduino-cli.tar.gz -C /usr/local/bin arduino-cli \
     && arduino-cli --config-file /opt/arduino/arduino-cli.yaml core update-index \
     && arduino-cli --config-file /opt/arduino/arduino-cli.yaml core install esp32:esp32@3.3.11 \
-    && arduino-cli --config-file /opt/arduino/arduino-cli.yaml lib install 'LiquidCrystal_PCF8574@2.3.0' 'U8g2@2.36.19' 'GFX Library for Arduino@1.6.7' \
+    && arduino-cli --config-file /opt/arduino/arduino-cli.yaml lib install 'LiquidCrystal_PCF8574@2.3.0' 'U8g2@2.36.19' 'GFX Library for Arduino@1.6.7' 'Adafruit NeoPixel@1.12.3' \
     && rm -rf /tmp/arduino-cli.tar.gz /tmp/arduino-downloads /opt/arduino/data/staging
 COPY lib /opt/capi/lib
 COPY scripts/compiler-generate.mjs /opt/capi/scripts/compiler-generate.mjs

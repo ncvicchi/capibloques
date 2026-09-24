@@ -543,6 +543,8 @@ Aceptación:
 
 ## Fase 35 — Luces RGB inteligentes WS281x/SK6812
 
+**Estado:** terminada en software el 24 de septiembre de 2026; actualización de DEV y aceptación física pendientes. Ver [FASE_35_LUCES_RGB.md](FASE_35_LUCES_RGB.md).
+
 **Objetivo:** controlar tiras, aros, barras y matrices RGB direccionables desde un mismo componente, con simulación fiel y animaciones no bloqueantes.
 
 Alcance:

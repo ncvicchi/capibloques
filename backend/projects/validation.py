@@ -28,16 +28,18 @@ BLOCKS.add("capi_parallel")
 BLOCKS.update(("capi_display_write", "capi_display_clear", "capi_display_animate_text", "capi_display_artwork", "capi_display_button_pressed", "capi_visual_wait"))
 BLOCKS.update(("capi_message_send", "capi_message_receive"))
 BLOCKS.update(("capi_matrix_clear", "capi_matrix_pixel", "capi_matrix_pattern", "capi_matrix_scroll"))
+BLOCKS.update(("capi_rgb_fill", "capi_rgb_pixel", "capi_rgb_segment", "capi_rgb_coordinate", "capi_rgb_gradient", "capi_rgb_pattern", "capi_rgb_animation"))
 BLOCKS.update(("capi_variable_set_number", "capi_variable_change", "capi_variable_set_text", "capi_variable_set_boolean", "capi_variable_get_number", "capi_variable_get_text", "capi_variable_get_boolean", "capi_value_number", "capi_value_text", "capi_value_boolean", "capi_counter_value", "capi_sensor_value", "capi_message_value", "capi_number_math", "capi_text_join"))
 BLOCKS.add("capi_value_compare")
 BLOCKS.add("capi_barrier_state")
 BLOCKS.update(("capi_otto", "capi_otto_sound", "capi_otto_expression", "capi_otto_arms", "capi_otto_distance"))
-PINS = {"trafficLight": ["red", "yellow", "green"], "robot": ["leftIn1", "leftIn2", "rightIn1", "rightIn2"], "otto": ["leftLeg", "rightLeg", "leftFoot", "rightFoot", "leftArm", "rightArm", "buzzer", "trigger", "echo", "matrixDin", "matrixClk", "matrixCs"], "motor": ["in1", "in2"], **{kind: ["signal"] for kind in ("led", "servo", "activeBuzzer", "passiveBuzzer", "button", "infraredBarrier", "lightSensor", "potentiometer")}, "wifiNode": []}
+PINS = {"trafficLight": ["red", "yellow", "green"], "robot": ["leftIn1", "leftIn2", "rightIn1", "rightIn2"], "otto": ["leftLeg", "rightLeg", "leftFoot", "rightFoot", "leftArm", "rightArm", "buzzer", "trigger", "echo", "matrixDin", "matrixClk", "matrixCs"], "motor": ["in1", "in2"], **{kind: ["signal"] for kind in ("led", "smartLights", "servo", "activeBuzzer", "passiveBuzzer", "button", "infraredBarrier", "lightSensor", "potentiometer")}, "wifiNode": []}
 CONFIGS = {
     "trafficLight": {"redBrightness": (0, 100), "yellowBrightness": (0, 100), "greenBrightness": (0, 100)},
     "robot": {"speed": (0, 100), "heading": (-360000, 360000), "color": 64},
     "otto": {"profile": ["biped4", "biped4-sound", "biped4-explorer", "biped4-expressive", "humanoid6-expressive"], "matrixBrightness": (0, 15)},
     "motor": {"power": (0, 100), "driver": ["DRV8833"]}, "led": {"brightness": (0, 100), "color": 64},
+    "smartLights": {"profile": ["WS2812B", "SK6812_RGB"], "geometry": ["strip", "ring", "matrix"], "count": (1, 256), "width": (1, 256), "height": (1, 32), "layout": ["progressive", "zigzag"], "origin": ["top-left", "top-right", "bottom-left", "bottom-right"], "colorOrder": ["GRB", "RGB"], "brightness": (0, 100)},
     "servo": {"angle": (0, 180)}, "activeBuzzer": {"enabled": bool},
     "passiveBuzzer": {"frequency": (20, 20000), "durationMs": (10, 60000)},
     "button": {"pressed": bool, "pullup": bool}, "lightSensor": {"value": (0, 4095)}, "potentiometer": {"value": (0, 4095)},
@@ -302,6 +304,9 @@ def scene(value, board_profile="wemos-d1-r32"):
                 require(all(text(message, 120, 1) and message.strip() and len(message.encode("utf-8")) <= 120 for message in messages))
                 require(config["mode"] != "send" or item["pins"]["rx"] is None)
                 require(config["mode"] != "receive" or item["pins"]["tx"] is None)
+            if kind == "smartLights":
+                require(all(type(config[key]) is int for key in ("count", "width", "height", "brightness")))
+                require(config["width"] * config["height"] == config["count"] if config["geometry"] == "matrix" else config["width"] == config["count"] and config["height"] == 1)
             if not is_widget:
                 require(number(item["rotation"], 0, 360) and item["rotation"] < 360)
                 if kind != "display":

@@ -1,13 +1,15 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { generateEsp32CodeResult } from '../lib/capiblocks.ts';
-import { firmwareFixture, matrixFirmwareFixture, ottoFirmwareFixture } from './firmware-fixtures.mjs';
+import { firmwareFixture, matrixFirmwareFixture, ottoFirmwareFixture, smartLightsFirmwareFixture } from './firmware-fixtures.mjs';
 import { createSceneFromTemplate, addDeviceToScene, assignSafePins } from '../lib/scene-model.ts';
 
 const outputArgument = process.argv[2];
 if (!outputArgument) throw new Error('Indicar ruta/sketch.ino');
 const s3 = process.argv[3] === 's3';
-let fixture = process.argv[3] === 'matrix'
+let fixture = process.argv[3] === 'smart-lights'
+  ? smartLightsFirmwareFixture()
+  : process.argv[3] === 'matrix'
   ? matrixFirmwareFixture()
   : process.argv[3] === 'otto'
     ? ottoFirmwareFixture()

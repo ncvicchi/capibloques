@@ -25,6 +25,7 @@ Cada incorporación incluye escena, configuración, ayuda infantil, simulación,
 - Perfiles: WS2812B/WS2812 y SK6812 RGB; tira/cadena, barra, aro, figura y matriz.
 - Capacidades: conjunto, píxel, tramo, color, brillo, degradado, dibujos y animaciones cooperativas.
 - Ya está especificado como [pedido 33 del backlog](BACKLOG.md#33-luces-rgb-inteligentes-ws281x-y-sk6812) y asignado a la fase 35. No duplicar esa fase ni crear componentes diferentes por cada forma.
+- Estado: **implementada en software**; ver contrato y pendientes físicos en [FASE_35_LUCES_RGB.md](FASE_35_LUCES_RGB.md).
 
 ### 2.2 Sensor de distancia
 
@@ -170,7 +171,7 @@ Se conservan en la lista para impedir que reaparezcan sin analizar, pero no form
 
 La lista se entrega por familias completas, no por subfases con letras:
 
-- **Fase 35:** Luces RGB inteligentes, ya planificada.
+- **Fase 35:** Luces RGB inteligentes, terminada en software; aceptación física pendiente.
 - **Fase 38:** Entradas y control cotidiano: Sensor de distancia, Detector de movimiento, Palanca de control, Encender aparato y Perilla infinita.
 - **Fase 39:** Ambiente y medición: Sensor ambiental, Humedad de tierra, Sensor de color, Nivel de sonido y Detector de agua.
 - **Fase 40:** Movimiento e identificación: Sensor de movimiento e inclinación, Lector de tarjetas y Teclado de números y teclas.

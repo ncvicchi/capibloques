@@ -7,6 +7,7 @@ export interface ComponentValueCapability { key: string; label: string; type: Va
 const common: Partial<Record<SceneDeviceKind, ComponentValueCapability[]>> = {
   trafficLight: [{ key:'color', label:'color ordenado', type:'text', source:'ordered', help:'Es el color que pidió el programa; no mide las lámparas.' }],
   led: [{ key:'brightness', label:'brillo ordenado', type:'number', source:'ordered', help:'Es el porcentaje pedido al LED.' }],
+  smartLights: [{ key:'brightness', label:'brillo ordenado', type:'number', source:'ordered', help:'Es el último límite de brillo pedido a las luces RGB.' }],
   robot: [{ key:'motion', label:'movimiento ordenado', type:'text', source:'ordered', help:'Es el último movimiento pedido; no confirma desplazamiento físico.' }],
   motor: [{ key:'power', label:'potencia ordenada', type:'number', source:'ordered', help:'Positivo avanza, negativo retrocede y cero detiene.' }],
   servo: [{ key:'angle', label:'ángulo ordenado', type:'number', source:'ordered', help:'Es el ángulo pedido; un servo común no informa su posición real.' }],

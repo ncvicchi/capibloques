@@ -53,6 +53,7 @@ const deviceLabels: Record<SceneDeviceKind, string> = {
   otto: 'un robot Otto',
   motor: 'un motor',
   led: 'un LED',
+  smartLights: 'luces RGB inteligentes',
   servo: 'un servo',
   activeBuzzer: 'un buzzer activo',
   passiveBuzzer: 'un buzzer pasivo',
@@ -77,7 +78,7 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
     case 'capi_display_clear':
     case 'capi_display_animate_text':
     case 'capi_display_artwork': return ['display'];
-    case 'capi_visual_wait': return ['display', 'ledMatrix'];
+    case 'capi_visual_wait': return ['display', 'ledMatrix', 'smartLights'];
     case 'capi_matrix_clear':
     case 'capi_matrix_pixel':
     case 'capi_matrix_pattern':
@@ -89,6 +90,14 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
       return ['trafficLight'];
     case 'capi_led':
       return ['led'];
+    case 'capi_rgb_fill':
+    case 'capi_rgb_pixel':
+    case 'capi_rgb_segment':
+    case 'capi_rgb_coordinate':
+    case 'capi_rgb_gradient':
+    case 'capi_rgb_pattern':
+    case 'capi_rgb_animation':
+      return ['smartLights'];
     case 'capi_robot':
       return ['robot'];
     case 'capi_otto':
@@ -588,6 +597,13 @@ const toolbox = {
       contents: [
         { kind: 'block', type: 'capi_traffic' },
         { kind: 'block', type: 'capi_led' },
+        { kind: 'block', type: 'capi_rgb_fill' },
+        { kind: 'block', type: 'capi_rgb_pixel' },
+        { kind: 'block', type: 'capi_rgb_segment' },
+        { kind: 'block', type: 'capi_rgb_coordinate' },
+        { kind: 'block', type: 'capi_rgb_gradient' },
+        { kind: 'block', type: 'capi_rgb_pattern' },
+        { kind: 'block', type: 'capi_rgb_animation' },
         { kind: 'block', type: 'capi_pin_write' },
       ],
     },
@@ -1135,6 +1151,41 @@ function registerBlocks(Blockly: BlocklyApi) {
       colour: '#12AA8C',
       tooltip: 'Cambia el brillo con PWM. Usa una resistencia con el LED.',
       extensions: [DEVICE_EXTENSION],
+    },
+    {
+      type: 'capi_rgb_fill', message0: '🌈 %1 todas color %2 con brillo %3 %%',
+      args0: [deviceField('⚠️ agrega Luces RGB inteligentes'), { type: 'field_input', name: 'COLOR', text: '#00ff88' }, { type: 'field_number', name: 'BRIGHTNESS', value: 40, min: 0, max: 100, precision: 1 }],
+      previousStatement: null, nextStatement: null, colour: '#12AA8C', tooltip: 'Pone el mismo color en todas las luces.', extensions: [DEVICE_EXTENSION],
+    },
+    {
+      type: 'capi_rgb_pixel', message0: '✨ %1 luz número %2 color %3',
+      args0: [deviceField('⚠️ agrega Luces RGB inteligentes'), { type: 'field_number', name: 'PIXEL', value: 1, min: 1, max: 256, precision: 1 }, { type: 'field_input', name: 'COLOR', text: '#ff0066' }],
+      previousStatement: null, nextStatement: null, colour: '#12AA8C', tooltip: 'Cambia una luz; la primera es la número 1.', extensions: [DEVICE_EXTENSION],
+    },
+    {
+      type: 'capi_rgb_segment', message0: '🟰 %1 luces desde %2 hasta %3 color %4',
+      args0: [deviceField('⚠️ agrega Luces RGB inteligentes'), { type: 'field_number', name: 'FROM', value: 1, min: 1, max: 256, precision: 1 }, { type: 'field_number', name: 'TO', value: 4, min: 1, max: 256, precision: 1 }, { type: 'field_input', name: 'COLOR', text: '#22aaff' }],
+      previousStatement: null, nextStatement: null, colour: '#12AA8C', tooltip: 'Colorea un tramo inclusivo de luces.', extensions: [DEVICE_EXTENSION],
+    },
+    {
+      type: 'capi_rgb_coordinate', message0: '🔳 %1 punto x %2 y %3 color %4',
+      args0: [deviceField('⚠️ agrega una matriz RGB'), { type: 'field_number', name: 'X', value: 1, min: 1, max: 256, precision: 1 }, { type: 'field_number', name: 'Y', value: 1, min: 1, max: 32, precision: 1 }, { type: 'field_input', name: 'COLOR', text: '#ffffff' }],
+      previousStatement: null, nextStatement: null, colour: '#12AA8C', tooltip: 'Colorea un punto usando coordenadas de la matriz.', extensions: [DEVICE_EXTENSION],
+    },
+    {
+      type: 'capi_rgb_gradient', message0: '🌅 %1 degradado de %2 a %3 desde %4 hasta %5',
+      args0: [deviceField('⚠️ agrega Luces RGB inteligentes'), { type: 'field_number', name: 'FROM', value: 1, min: 1, max: 256, precision: 1 }, { type: 'field_number', name: 'TO', value: 8, min: 1, max: 256, precision: 1 }, { type: 'field_input', name: 'START_COLOR', text: '#ff0000' }, { type: 'field_input', name: 'END_COLOR', text: '#0000ff' }],
+      previousStatement: null, nextStatement: null, colour: '#12AA8C', tooltip: 'Mezcla suavemente dos colores a lo largo de un tramo.', extensions: [DEVICE_EXTENSION],
+    },
+    {
+      type: 'capi_rgb_pattern', message0: '🖼️ %1 dibujo %2 color %3',
+      args0: [deviceField('⚠️ agrega una matriz RGB'), { type: 'field_dropdown', name: 'PATTERN', options: [['corazón', 'HEART'], ['sonrisa', 'SMILE'], ['damero', 'CHECKER']] }, { type: 'field_input', name: 'COLOR', text: '#ff2266' }],
+      previousStatement: null, nextStatement: null, colour: '#12AA8C', tooltip: 'Muestra un dibujo predefinido adaptado al tamaño de la matriz.', extensions: [DEVICE_EXTENSION],
+    },
+    {
+      type: 'capi_rgb_animation', message0: '🎨 %1 animación %2 color %3 repetir %4 veces',
+      args0: [deviceField('⚠️ agrega Luces RGB inteligentes'), { type: 'field_dropdown', name: 'EFFECT', options: [['arcoíris', 'RAINBOW'], ['persecución', 'CHASE'], ['parpadeo', 'BLINK'], ['pulso', 'PULSE']] }, { type: 'field_input', name: 'COLOR', text: '#22aaff' }, { type: 'field_number', name: 'REPEAT', value: 1, min: 0, max: 100, precision: 1 }],
+      previousStatement: null, nextStatement: null, colour: '#12AA8C', tooltip: 'Inicia una animación sin detener el programa. Cero significa sin parar.', extensions: [DEVICE_EXTENSION],
     },
     {
       type: 'capi_pin_write',
@@ -1950,6 +2001,27 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           brightness: numberField(block, 'BRIGHTNESS', 75),
           blockId,
         });
+        break;
+      case 'capi_rgb_fill':
+        result.push({ op: 'rgbFill', deviceId: selectedDeviceId(block), color: String(block.getFieldValue('COLOR') ?? '#000000'), brightness: numberField(block, 'BRIGHTNESS', 40), blockId });
+        break;
+      case 'capi_rgb_pixel':
+        result.push({ op: 'rgbPixel', deviceId: selectedDeviceId(block), pixel: numberField(block, 'PIXEL', 1), color: String(block.getFieldValue('COLOR') ?? '#000000'), blockId });
+        break;
+      case 'capi_rgb_segment':
+        result.push({ op: 'rgbSegment', deviceId: selectedDeviceId(block), from: numberField(block, 'FROM', 1), to: numberField(block, 'TO', 1), color: String(block.getFieldValue('COLOR') ?? '#000000'), blockId });
+        break;
+      case 'capi_rgb_coordinate':
+        result.push({ op: 'rgbCoordinate', deviceId: selectedDeviceId(block), x: numberField(block, 'X', 1), y: numberField(block, 'Y', 1), color: String(block.getFieldValue('COLOR') ?? '#000000'), blockId });
+        break;
+      case 'capi_rgb_gradient':
+        result.push({ op: 'rgbGradient', deviceId: selectedDeviceId(block), from: numberField(block, 'FROM', 1), to: numberField(block, 'TO', 1), startColor: String(block.getFieldValue('START_COLOR') ?? '#000000'), endColor: String(block.getFieldValue('END_COLOR') ?? '#ffffff'), blockId });
+        break;
+      case 'capi_rgb_pattern':
+        result.push({ op: 'rgbPattern', deviceId: selectedDeviceId(block), pattern: block.getFieldValue('PATTERN'), color: String(block.getFieldValue('COLOR') ?? '#ff2266'), blockId });
+        break;
+      case 'capi_rgb_animation':
+        result.push({ op: 'rgbAnimation', deviceId: selectedDeviceId(block), effect: block.getFieldValue('EFFECT'), color: String(block.getFieldValue('COLOR') ?? '#000000'), repeat: numberField(block, 'REPEAT', 1), blockId });
         break;
       case 'capi_pin_write':
         result.push({

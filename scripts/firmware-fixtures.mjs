@@ -262,6 +262,26 @@ export function matrixFirmwareFixture() {
   };
 }
 
+export function smartLightsFirmwareFixture() {
+  const added = addDeviceToScene(createEmptyScene('Luces RGB CI'), 'smartLights');
+  const lights = added.device;
+  lights.config.geometry = 'matrix'; lights.config.count = 64; lights.config.width = 8; lights.config.height = 8;
+  lights.config.layout = 'zigzag'; lights.config.origin = 'bottom-right';
+  return {
+    scene: added.scene,
+    program: { version: 2, threads: [{ id: 'rgb-thread', startBlockId: 'rgb-start', nodes: [
+      { op: 'rgbFill', deviceId: lights.id, color: '#102030', brightness: 35, blockId: 'rgb-fill' },
+      { op: 'rgbPixel', deviceId: lights.id, pixel: 2, color: '#ff0000', blockId: 'rgb-pixel' },
+      { op: 'rgbSegment', deviceId: lights.id, from: 3, to: 8, color: '#00ff00', blockId: 'rgb-segment' },
+      { op: 'rgbCoordinate', deviceId: lights.id, x: 2, y: 3, color: '#ffffff', blockId: 'rgb-coordinate' },
+      { op: 'rgbGradient', deviceId: lights.id, from: 1, to: 8, startColor: '#ff0000', endColor: '#0000ff', blockId: 'rgb-gradient' },
+      { op: 'rgbPattern', deviceId: lights.id, pattern: 'HEART', color: '#ff2266', blockId: 'rgb-pattern' },
+      { op: 'rgbAnimation', deviceId: lights.id, effect: 'PULSE', color: '#22aaff', repeat: 2, blockId: 'rgb-animation' },
+      { op: 'visualWait', deviceId: lights.id, blockId: 'rgb-wait' },
+    ] }] },
+  };
+}
+
 export function ottoFirmwareFixture() {
   const added = addDeviceToScene(createEmptyScene('Otto completo CI'), 'otto');
   const otto = added.device;

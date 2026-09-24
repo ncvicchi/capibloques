@@ -14,7 +14,7 @@ def main():
     parser.add_argument("--profile", choices=PROFILES, required=True)
     parser.add_argument("--build", type=pathlib.Path, required=True)
     parser.add_argument("--output", type=pathlib.Path, required=True)
-    parser.add_argument("--version", default="1.3.0")
+    parser.add_argument("--version", default="1.4.0")
     parser.add_argument("--revision", default="unknown")
     args = parser.parse_args()
     metadata = json.loads((args.build / "flasher_args.json").read_text(encoding="utf-8"))

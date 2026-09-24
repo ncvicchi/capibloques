@@ -24,6 +24,8 @@ export type RuntimeVisualDevice = {
   kind: string;
   color?: 'RED' | 'YELLOW' | 'GREEN' | 'OFF';
   brightness?: number;
+  pixels?: string[];
+  animation?: string | null;
   x?: number;
   y?: number;
   angle?: number;
@@ -70,6 +72,7 @@ const icons: Record<SceneDevice['kind'], string> = {
   otto: '🕺',
   motor: '⚙️',
   led: '💡',
+  smartLights: '🌈',
   servo: '🦾',
   activeBuzzer: '📣',
   passiveBuzzer: '🎵',
@@ -143,6 +146,10 @@ function DeviceVisual({
         💡
       </span>
     );
+  }
+  if (device.kind === 'smartLights') {
+    const pixels = runtime?.kind === 'smartLights' && runtime.pixels ? runtime.pixels : Array.from({ length: Math.min(device.config.count, 16) }, () => '#000000');
+    return <span className="stage-smart-lights" aria-hidden="true" style={{ display: 'grid', gridTemplateColumns: `repeat(${device.config.geometry === 'matrix' ? device.config.width : Math.min(device.config.count, 8)}, 10px)`, gap: 2 }}>{pixels.slice(0, 32).map((color, index) => <i key={index} style={{ width: 10, height: 10, borderRadius: '50%', background: color, boxShadow: color === '#000000' ? 'none' : `0 0 6px ${color}` }} />)}<small style={{ gridColumn: '1 / -1' }}>{runtime?.kind === 'smartLights' && runtime.animation ? runtime.animation : `${device.config.count} luces`}</small></span>;
   }
   if (device.kind === 'robot') {
     const left = Math.round(runtime?.left ?? 0);

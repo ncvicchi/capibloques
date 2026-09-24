@@ -1,12 +1,12 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
-import { firmwareFixture, matrixFirmwareFixture, ottoFirmwareFixture } from './firmware-fixtures.mjs';
+import { firmwareFixture, matrixFirmwareFixture, ottoFirmwareFixture, smartLightsFirmwareFixture } from './firmware-fixtures.mjs';
 import { generateEspIdfCodeResult } from '../lib/capiblocks.ts';
 import { addDeviceToScene, assignSafePins, createEmptyScene, createSceneFromTemplate } from '../lib/scene-model.ts';
 import { displayConfig, displayProfiles, displayTargets } from '../lib/display-model.ts';
 import { espIdfProjectFiles, createEspIdfArchive } from '../lib/firmware-archive.ts';
 
-const fixtures = [['main', firmwareFixture()], ['auxiliary', firmwareFixture(true)], ['matrix', matrixFirmwareFixture()], ['otto', ottoFirmwareFixture()]];
+const fixtures = [['main', firmwareFixture()], ['auxiliary', firmwareFixture(true)], ['matrix', matrixFirmwareFixture()], ['otto', ottoFirmwareFixture()], ['smart-lights', smartLightsFirmwareFixture()]];
 let s3Scene = createSceneFromTemplate('traffic');
 s3Scene = addDeviceToScene(s3Scene, 'servo', { boardProfile: 'diymall-esp32-s3-devkitc-v1-n16r8' }).scene;
 s3Scene = addDeviceToScene(s3Scene, 'passiveBuzzer', { boardProfile: 'diymall-esp32-s3-devkitc-v1-n16r8' }).scene;

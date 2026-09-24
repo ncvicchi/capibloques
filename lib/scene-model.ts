@@ -25,6 +25,7 @@ export const sceneDeviceKinds = [
   'otto',
   'motor',
   'led',
+  'smartLights',
   'servo',
   'activeBuzzer',
   'passiveBuzzer',
@@ -120,6 +121,22 @@ export type LedDevice = SceneDeviceBase<
   { brightness: number; color: string }
 >;
 
+export type SmartLightsDevice = SceneDeviceBase<
+  'smartLights',
+  { signal: PinNumber },
+  {
+    profile: 'WS2812B' | 'SK6812_RGB';
+    geometry: 'strip' | 'ring' | 'matrix';
+    count: number;
+    width: number;
+    height: number;
+    layout: 'progressive' | 'zigzag';
+    origin: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+    colorOrder: 'GRB' | 'RGB';
+    brightness: number;
+  }
+>;
+
 export type ServoDevice = SceneDeviceBase<
   'servo',
   { signal: PinNumber },
@@ -200,6 +217,7 @@ export interface SceneDeviceByKind {
   otto: OttoDevice;
   motor: MotorDevice;
   led: LedDevice;
+  smartLights: SmartLightsDevice;
   servo: ServoDevice;
   activeBuzzer: ActiveBuzzerDevice;
   passiveBuzzer: PassiveBuzzerDevice;
@@ -308,6 +326,7 @@ const requirementsByKind: Record<SceneDeviceKind, readonly PinRequirement[]> = {
     { key: 'in2', label: 'DRV8833 IN2', capability: 'pwmOutput' },
   ],
   led: [{ key: 'signal', label: 'LED', capability: 'pwmOutput' }],
+  smartLights: [{ key: 'signal', label: 'Datos (DIN)', capability: 'pwmOutput' }],
   servo: [{ key: 'signal', label: 'Señal', capability: 'pwmOutput' }],
   activeBuzzer: [{ key: 'signal', label: 'Señal', capability: 'pwmOutput' }],
   passiveBuzzer: [
@@ -388,6 +407,14 @@ export const sceneComponentCatalog: readonly SceneComponentCatalogEntry[] = [
     pinRequirements: requirementsByKind.led,
   },
   {
+    kind: 'smartLights',
+    icon: '🌈',
+    name: 'Luces RGB inteligentes',
+    description: 'Tiras, aros y matrices donde cada luz puede tener su propio color.',
+    childFriendlyControl: 'Color, brillo, píxeles y animaciones',
+    pinRequirements: requirementsByKind.smartLights,
+  },
+  {
     kind: 'servo',
     icon: '🦾',
     name: 'Servo',
@@ -463,6 +490,7 @@ const kindIdBases: Record<SceneDeviceKind, string> = {
   otto: 'otto',
   motor: 'motor',
   led: 'led',
+  smartLights: 'smart-lights',
   servo: 'servo',
   activeBuzzer: 'active-buzzer',
   passiveBuzzer: 'passive-buzzer',
@@ -725,6 +753,14 @@ function unassignedDevice<K extends SceneDeviceKind>(
         kind,
         pins: { signal: null },
         config: { brightness: 0, color: '#facc15' },
+      };
+      break;
+    case 'smartLights':
+      device = {
+        ...base,
+        kind,
+        pins: { signal: null },
+        config: { profile: 'WS2812B', geometry: 'strip', count: 8, width: 8, height: 1, layout: 'progressive', origin: 'top-left', colorOrder: 'GRB', brightness: 40 },
       };
       break;
     case 'servo':
@@ -1887,6 +1923,22 @@ function validDeviceConfig(
         Number(config.brightness) <= 100 &&
         typeof config.color === 'string' &&
         config.color.length <= 64
+      );
+    case 'smartLights':
+      return (
+        hasOnlyKeys(config, ['profile', 'geometry', 'count', 'width', 'height', 'layout', 'origin', 'colorOrder', 'brightness']) &&
+        ['WS2812B', 'SK6812_RGB'].includes(String(config.profile)) &&
+        ['strip', 'ring', 'matrix'].includes(String(config.geometry)) &&
+        ['GRB', 'RGB'].includes(String(config.colorOrder)) &&
+        ['progressive', 'zigzag'].includes(String(config.layout)) &&
+        ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(String(config.origin)) &&
+        hasFiniteNumber(config, 'count') && Number.isInteger(config.count) && Number(config.count) >= 1 && Number(config.count) <= 256 &&
+        hasFiniteNumber(config, 'width') && Number.isInteger(config.width) && Number(config.width) >= 1 && Number(config.width) <= 256 &&
+        hasFiniteNumber(config, 'height') && Number.isInteger(config.height) && Number(config.height) >= 1 && Number(config.height) <= 32 &&
+        (config.geometry === 'matrix'
+          ? Number(config.width) * Number(config.height) === Number(config.count)
+          : Number(config.width) === Number(config.count) && Number(config.height) === 1) &&
+        hasFiniteNumber(config, 'brightness') && Number(config.brightness) >= 0 && Number(config.brightness) <= 100
       );
     case 'servo':
       return (

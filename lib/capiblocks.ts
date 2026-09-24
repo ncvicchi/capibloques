@@ -123,6 +123,13 @@ export type ProgramNode =
       blockId: string;
     }
   | { op: 'led'; deviceId: string; brightness: number; blockId: string }
+  | { op: 'rgbFill'; deviceId: string; color: string; brightness: number; blockId: string }
+  | { op: 'rgbPixel'; deviceId: string; pixel: number; color: string; blockId: string }
+  | { op: 'rgbSegment'; deviceId: string; from: number; to: number; color: string; blockId: string }
+  | { op: 'rgbCoordinate'; deviceId: string; x: number; y: number; color: string; blockId: string }
+  | { op: 'rgbGradient'; deviceId: string; from: number; to: number; startColor: string; endColor: string; blockId: string }
+  | { op: 'rgbPattern'; deviceId: string; pattern: 'HEART' | 'SMILE' | 'CHECKER'; color: string; blockId: string }
+  | { op: 'rgbAnimation'; deviceId: string; effect: 'RAINBOW' | 'CHASE' | 'BLINK' | 'PULSE'; color: string; repeat: number; blockId: string }
   | { op: 'pin'; pin: number; value: boolean; blockId: string }
   | {
       op: 'robot';
@@ -321,6 +328,7 @@ export type RuntimeDeviceState =
       color: 'RED' | 'YELLOW' | 'GREEN' | 'OFF';
     }
   | { kind: 'led'; brightness: number }
+  | { kind: 'smartLights'; pixels: string[]; brightness: number; animation: string | null }
   | {
       kind: 'robot';
       x: number;
@@ -887,6 +895,13 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_text_join',
   'capi_traffic',
   'capi_led',
+  'capi_rgb_fill',
+  'capi_rgb_pixel',
+  'capi_rgb_segment',
+  'capi_rgb_coordinate',
+  'capi_rgb_gradient',
+  'capi_rgb_pattern',
+  'capi_rgb_animation',
   'capi_pin_write',
   'capi_robot',
   'capi_otto',
@@ -1370,6 +1385,14 @@ const blockKind = (block: Record<string, unknown>): SceneDeviceKind | null => {
       return 'trafficLight';
     case 'capi_led':
       return 'led';
+    case 'capi_rgb_fill':
+    case 'capi_rgb_pixel':
+    case 'capi_rgb_segment':
+    case 'capi_rgb_coordinate':
+    case 'capi_rgb_gradient':
+    case 'capi_rgb_pattern':
+    case 'capi_rgb_animation':
+      return 'smartLights';
     case 'capi_robot':
       return 'robot';
     case 'capi_otto':
@@ -1733,7 +1756,7 @@ const compatibleKindsForNode = (
     case 'displayClear':
     case 'displayAnimateText':
     case 'displayArtwork': return ['display'];
-    case 'visualWait': return ['display', 'ledMatrix'];
+    case 'visualWait': return ['display', 'ledMatrix', 'smartLights'];
     case 'matrixClear':
     case 'matrixPixel':
     case 'matrixPattern':
@@ -1746,6 +1769,14 @@ const compatibleKindsForNode = (
       return ['trafficLight'];
     case 'led':
       return ['led'];
+    case 'rgbFill':
+    case 'rgbPixel':
+    case 'rgbSegment':
+    case 'rgbCoordinate':
+    case 'rgbGradient':
+    case 'rgbPattern':
+    case 'rgbAnimation':
+      return ['smartLights'];
     case 'robot':
       return ['robot'];
     case 'otto':
@@ -1964,6 +1995,27 @@ function normalizeNodes(
           brightness: finiteNumber(node.brightness, 0),
           blockId,
         });
+        break;
+      case 'rgbFill':
+        result.push({ op: 'rgbFill', deviceId, color: /^#[0-9a-f]{6}$/i.test(String(node.color)) ? String(node.color) : '#000000', brightness: Math.max(0, Math.min(100, finiteNumber(node.brightness, 40))), blockId });
+        break;
+      case 'rgbPixel':
+        result.push({ op: 'rgbPixel', deviceId, pixel: Math.max(1, Math.min(256, Math.trunc(finiteNumber(node.pixel, 1)))), color: /^#[0-9a-f]{6}$/i.test(String(node.color)) ? String(node.color) : '#000000', blockId });
+        break;
+      case 'rgbSegment':
+        result.push({ op: 'rgbSegment', deviceId, from: Math.max(1, Math.min(256, Math.trunc(finiteNumber(node.from, 1)))), to: Math.max(1, Math.min(256, Math.trunc(finiteNumber(node.to, 1)))), color: /^#[0-9a-f]{6}$/i.test(String(node.color)) ? String(node.color) : '#000000', blockId });
+        break;
+      case 'rgbCoordinate':
+        result.push({ op: 'rgbCoordinate', deviceId, x: Math.max(1, Math.min(256, Math.trunc(finiteNumber(node.x, 1)))), y: Math.max(1, Math.min(32, Math.trunc(finiteNumber(node.y, 1)))), color: /^#[0-9a-f]{6}$/i.test(String(node.color)) ? String(node.color) : '#000000', blockId });
+        break;
+      case 'rgbGradient':
+        result.push({ op: 'rgbGradient', deviceId, from: Math.max(1, Math.min(256, Math.trunc(finiteNumber(node.from, 1)))), to: Math.max(1, Math.min(256, Math.trunc(finiteNumber(node.to, 1)))), startColor: /^#[0-9a-f]{6}$/i.test(String(node.startColor)) ? String(node.startColor) : '#000000', endColor: /^#[0-9a-f]{6}$/i.test(String(node.endColor)) ? String(node.endColor) : '#ffffff', blockId });
+        break;
+      case 'rgbPattern':
+        result.push({ op: 'rgbPattern', deviceId, pattern: ['HEART', 'SMILE', 'CHECKER'].includes(String(node.pattern)) ? node.pattern as 'HEART'|'SMILE'|'CHECKER' : 'HEART', color: /^#[0-9a-f]{6}$/i.test(String(node.color)) ? String(node.color) : '#ff2266', blockId });
+        break;
+      case 'rgbAnimation':
+        result.push({ op: 'rgbAnimation', deviceId, effect: ['RAINBOW', 'CHASE', 'BLINK', 'PULSE'].includes(String(node.effect)) ? node.effect as 'RAINBOW'|'CHASE'|'BLINK'|'PULSE' : 'RAINBOW', color: /^#[0-9a-f]{6}$/i.test(String(node.color)) ? String(node.color) : '#000000', repeat: Math.max(0, Math.min(100, Math.trunc(finiteNumber(node.repeat, 1)))), blockId });
         break;
       case 'pin':
         result.push({
@@ -2671,6 +2723,16 @@ export function validateProgramForScene(
         diagnostics.push({ severity: 'error', code: 'animation-repeat-range', message: 'La animación debe repetirse entre 1 y 100 veces, o quedar sin parar.', blockId: node.blockId, deviceId: node.deviceId });
       if (node.repeatCount === 0 && !(node.op === 'displayArtwork' && node.effect === 'still')) foreverVisualDevices.add(node.deviceId);
     }
+    if (node.op === 'rgbAnimation' && node.repeat === 0) foreverVisualDevices.add(node.deviceId);
+    if (node.op === 'rgbPixel' || node.op === 'rgbSegment' || node.op === 'rgbGradient' || node.op === 'rgbCoordinate' || node.op === 'rgbPattern') {
+      const lights = scene.devices.find(device => device.id === node.deviceId);
+      if (lights?.kind === 'smartLights') {
+        if (node.op === 'rgbPixel' && node.pixel > lights.config.count) diagnostics.push({ severity: 'error', code: 'rgb-index-range', message: `${lights.name} tiene ${lights.config.count} luces. Elegí un número dentro de ese límite.`, blockId: node.blockId, deviceId: node.deviceId });
+        if ((node.op === 'rgbSegment' || node.op === 'rgbGradient') && (node.from > lights.config.count || node.to > lights.config.count)) diagnostics.push({ severity: 'error', code: 'rgb-index-range', message: `${lights.name} tiene ${lights.config.count} luces. Revisá el inicio y el final.`, blockId: node.blockId, deviceId: node.deviceId });
+        if ((node.op === 'rgbCoordinate' || node.op === 'rgbPattern') && lights.config.geometry !== 'matrix') diagnostics.push({ severity: 'error', code: 'rgb-matrix-required', message: 'Las coordenadas y los dibujos necesitan que el componente tenga forma de matriz.', blockId: node.blockId, deviceId: node.deviceId });
+        if (node.op === 'rgbCoordinate' && (node.x > lights.config.width || node.y > lights.config.height)) diagnostics.push({ severity: 'error', code: 'rgb-coordinate-range', message: `La matriz mide ${lights.config.width} × ${lights.config.height}. Revisá x e y.`, blockId: node.blockId, deviceId: node.deviceId });
+      }
+    }
     if (node.op === 'visualWait') visualWaitBlocks.set(node.deviceId, node.blockId);
     if (node.op === 'messageSend' || node.op === 'messageReceive') {
       const text = node.op === 'messageSend' ? node.text : node.expected;
@@ -3204,6 +3266,37 @@ function instructionToCpp(
       );
       return `${comment}\n        ${logical ? '// Objeto lógico del tablero: sin salida GPIO.' : `${pwmWrite}(${pinConstant(context, instruction.deviceId)}, ${duty});`}\n        ${componentStateSymbol(instruction.deviceId, 'brightness')} = ${Math.max(0, Math.min(100, Math.round(instruction.brightness)))};\n        ${pc} = ${nextPc};\n        break;`;
     }
+    case 'rgbFill': {
+      const [r, g, b] = rgbBytes(instruction.color);
+      const brightness = Math.max(0, Math.min(100, Math.round(instruction.brightness)));
+      return `${comment}\n        capiRgbFill_${deviceSymbol(context, instruction.deviceId)}(${r}, ${g}, ${b}, ${brightness});\n        ${componentStateSymbol(instruction.deviceId, 'brightness')} = ${brightness};\n        ${pc} = ${nextPc};\n        break;`;
+    }
+    case 'rgbPixel': {
+      const [r, g, b] = rgbBytes(instruction.color);
+      return `${comment}\n        capiRgbPixel_${deviceSymbol(context, instruction.deviceId)}(${Math.max(1, Math.round(instruction.pixel))}, ${r}, ${g}, ${b});\n        ${pc} = ${nextPc};\n        break;`;
+    }
+    case 'rgbSegment': {
+      const [r, g, b] = rgbBytes(instruction.color);
+      return `${comment}\n        capiRgbSegment_${deviceSymbol(context, instruction.deviceId)}(${Math.round(instruction.from)}, ${Math.round(instruction.to)}, ${r}, ${g}, ${b});\n        ${pc} = ${nextPc};\n        break;`;
+    }
+    case 'rgbCoordinate': {
+      const [r, g, b] = rgbBytes(instruction.color);
+      return `${comment}\n        capiRgbCoordinate_${deviceSymbol(context, instruction.deviceId)}(${Math.round(instruction.x)}, ${Math.round(instruction.y)}, ${r}, ${g}, ${b});\n        ${pc} = ${nextPc};\n        break;`;
+    }
+    case 'rgbGradient': {
+      const [r1, g1, b1] = rgbBytes(instruction.startColor), [r2, g2, b2] = rgbBytes(instruction.endColor);
+      return `${comment}\n        capiRgbGradient_${deviceSymbol(context, instruction.deviceId)}(${Math.round(instruction.from)}, ${Math.round(instruction.to)}, ${r1}, ${g1}, ${b1}, ${r2}, ${g2}, ${b2});\n        ${pc} = ${nextPc};\n        break;`;
+    }
+    case 'rgbPattern': {
+      const [r, g, b] = rgbBytes(instruction.color);
+      const pattern = instruction.pattern === 'HEART' ? 1 : instruction.pattern === 'SMILE' ? 2 : 3;
+      return `${comment}\n        capiRgbPattern_${deviceSymbol(context, instruction.deviceId)}(${pattern}, ${r}, ${g}, ${b});\n        ${pc} = ${nextPc};\n        break;`;
+    }
+    case 'rgbAnimation': {
+      const [r, g, b] = rgbBytes(instruction.color);
+      const effect = instruction.effect === 'RAINBOW' ? 1 : instruction.effect === 'CHASE' ? 2 : instruction.effect === 'PULSE' ? 4 : 3;
+      return `${comment}\n        capiRgbAnimate_${deviceSymbol(context, instruction.deviceId)}(${effect}, ${r}, ${g}, ${b}, ${Math.max(0, Math.min(100, Math.round(instruction.repeat)))});\n        ${pc} = ${nextPc};\n        break;`;
+    }
     case 'pin':
       if (native) return `${comment}\n        capiOutput(${instruction.pin});\n        capiDigitalWrite(${instruction.pin}, ${instruction.value ? 1 : 0});\n        ${pc} = ${nextPc};\n        break;`;
       return `${comment}\n        pinMode(${instruction.pin}, OUTPUT);\n        digitalWrite(${instruction.pin}, ${instruction.value ? 'HIGH' : 'LOW'});\n        ${pc} = ${nextPc};\n        break;`;
@@ -3346,7 +3439,9 @@ function instructionToCpp(
         ? 'capiDisplayAnimationActive()'
         : device?.kind === 'ledMatrix'
           ? 'capiMatrixAnimationActive()'
-          : 'false';
+          : device?.kind === 'smartLights'
+            ? `capiRgbAnimationActive_${deviceSymbol(context, instruction.deviceId)}()`
+            : 'false';
       return `${comment}\n        if (${active}) return;\n        ${pc} = ${nextPc};\n        break;`;
     }
     case 'matrixClear':
@@ -3434,6 +3529,7 @@ function componentStateDeclarations(scene: SceneDefinition) {
     switch (device.kind) {
       case 'trafficLight': return [`char ${componentStateSymbol(device.id, 'color')}[121] = "OFF";`];
       case 'led': return [`int32_t ${componentStateSymbol(device.id, 'brightness')} = 0;`];
+      case 'smartLights': return [`int32_t ${componentStateSymbol(device.id, 'brightness')} = ${Math.max(0, Math.min(100, Math.round(device.config.brightness)))};`];
       case 'robot': return [`char ${componentStateSymbol(device.id, 'motion')}[121] = "STOP";`];
       case 'motor': return [`int32_t ${componentStateSymbol(device.id, 'power')} = 0;`];
       case 'servo': return [`int32_t ${componentStateSymbol(device.id, 'angle')} = ${Math.max(0, Math.min(180, Math.round(device.config.angle)))};`];
@@ -3444,6 +3540,56 @@ function componentStateDeclarations(scene: SceneDefinition) {
       default: return [];
     }
   }).join('\n');
+}
+
+function smartLightsFirmwareSupport(scene: SceneDefinition, native: boolean, symbols: Map<string, string>) {
+  const devices = scene.devices.filter(device => device.kind === 'smartLights');
+  if (!devices.length) return '';
+  const common = `
+struct CapiRgbAnimation { uint8_t effect = 0; uint8_t r = 0, g = 0, b = 0; uint16_t repeats = 0, frame = 0; uint32_t nextAt = 0; };
+static uint8_t capiRgbScale(uint8_t value, uint8_t brightness) { return (uint8_t)(((uint16_t)value * brightness + 50U) / 100U); }
+`;
+  if (!native) return `#include <Adafruit_NeoPixel.h>\n${common}\n${devices.map(device => {
+    const symbol = symbols.get(device.id) ?? cppIdentifier(device.id), order = device.config.colorOrder === 'RGB' ? 'NEO_RGB' : 'NEO_GRB';
+    return `Adafruit_NeoPixel RGB_${symbol}(${device.config.count}, ${gpioOrPlaceholder(device.pins.signal)}, ${order} + NEO_KHZ800);
+CapiRgbAnimation RGB_ANIM_${symbol};
+void capiRgbShow_${symbol}() { RGB_${symbol}.show(); }
+void capiRgbFill_${symbol}(uint8_t r,uint8_t g,uint8_t b,uint8_t brightness) { RGB_ANIM_${symbol}.effect=0; for(uint16_t i=0;i<${device.config.count};++i) RGB_${symbol}.setPixelColor(i,capiRgbScale(r,brightness),capiRgbScale(g,brightness),capiRgbScale(b,brightness)); capiRgbShow_${symbol}(); }
+void capiRgbPixel_${symbol}(uint16_t pixel,uint8_t r,uint8_t g,uint8_t b) { RGB_ANIM_${symbol}.effect=0; if(pixel>=1 && pixel<=${device.config.count}) RGB_${symbol}.setPixelColor(pixel-1,capiRgbScale(r,${device.config.brightness}),capiRgbScale(g,${device.config.brightness}),capiRgbScale(b,${device.config.brightness})); capiRgbShow_${symbol}(); }
+uint16_t capiRgbIndex_${symbol}(uint16_t x,uint16_t y) { if(x<1||x>${device.config.width}||y<1||y>${device.config.height})return 65535; uint16_t xx=x-1,yy=y-1; ${device.config.origin.includes('right') ? `xx=${device.config.width}-1-xx;` : ''} ${device.config.origin.startsWith('bottom') ? `yy=${device.config.height}-1-yy;` : ''} ${device.config.layout === 'zigzag' ? `if(yy&1)xx=${device.config.width}-1-xx;` : ''} return yy*${device.config.width}+xx; }
+void capiRgbSegment_${symbol}(uint16_t from,uint16_t to,uint8_t r,uint8_t g,uint8_t b) { RGB_ANIM_${symbol}.effect=0;if(from>to){uint16_t swap=from;from=to;to=swap;}for(uint16_t p=from;p<=to&&p<=${device.config.count};++p)if(p>=1)RGB_${symbol}.setPixelColor(p-1,capiRgbScale(r,${device.config.brightness}),capiRgbScale(g,${device.config.brightness}),capiRgbScale(b,${device.config.brightness}));capiRgbShow_${symbol}(); }
+void capiRgbCoordinate_${symbol}(uint16_t x,uint16_t y,uint8_t r,uint8_t g,uint8_t b) { uint16_t p=capiRgbIndex_${symbol}(x,y);if(p!=65535)capiRgbPixel_${symbol}(p+1,r,g,b); }
+void capiRgbGradient_${symbol}(uint16_t from,uint16_t to,uint8_t r1,uint8_t g1,uint8_t b1,uint8_t r2,uint8_t g2,uint8_t b2) { RGB_ANIM_${symbol}.effect=0;if(from>to){uint16_t swap=from;from=to;to=swap;}uint16_t span=to>from?to-from:1;for(uint16_t p=from;p<=to&&p<=${device.config.count};++p)if(p>=1){uint16_t step=p-from;RGB_${symbol}.setPixelColor(p-1,capiRgbScale((r1*(span-step)+r2*step)/span,${device.config.brightness}),capiRgbScale((g1*(span-step)+g2*step)/span,${device.config.brightness}),capiRgbScale((b1*(span-step)+b2*step)/span,${device.config.brightness}));}capiRgbShow_${symbol}(); }
+void capiRgbPattern_${symbol}(uint8_t pattern,uint8_t r,uint8_t g,uint8_t b) { static const uint8_t heart[8]={0x00,0x66,0xff,0xff,0x7e,0x3c,0x18,0x00},smile[8]={0x00,0x42,0x00,0x00,0x42,0x24,0x18,0x00};RGB_ANIM_${symbol}.effect=0;RGB_${symbol}.clear();for(uint16_t y=1;y<=${device.config.height};++y)for(uint16_t x=1;x<=${device.config.width};++x){uint8_t sx=(x-1)*8/${device.config.width},sy=(y-1)*8/${device.config.height};bool on=pattern==3?((x+y)&1):((pattern==1?heart[sy]:smile[sy])&(1U<<(7-sx)));uint16_t p=capiRgbIndex_${symbol}(x,y);if(on&&p!=65535)RGB_${symbol}.setPixelColor(p,capiRgbScale(r,${device.config.brightness}),capiRgbScale(g,${device.config.brightness}),capiRgbScale(b,${device.config.brightness}));}capiRgbShow_${symbol}(); }
+void capiRgbAnimate_${symbol}(uint8_t effect,uint8_t r,uint8_t g,uint8_t b,uint16_t repeats) { RGB_ANIM_${symbol}={effect,r,g,b,repeats,0,0}; }
+bool capiRgbAnimationActive_${symbol}() { return RGB_ANIM_${symbol}.effect != 0; }
+void capiRgbService_${symbol}(uint32_t now) { auto &a=RGB_ANIM_${symbol}; if(!a.effect || (int32_t)(now-a.nextAt)<0)return; a.nextAt=now+80; uint8_t level=a.effect==4?(uint8_t)(10+90*(a.frame<=${device.config.count}?a.frame:${device.config.count * 2}-a.frame)/${device.config.count}):100; for(uint16_t i=0;i<${device.config.count};++i){ uint8_t on=(a.effect==1||a.effect==4)?1:(a.effect==2)?((i+a.frame)%4==0):(a.frame%2); uint8_t r=a.r,g=a.g,b=a.b; if(a.effect==1){const uint8_t p=(i+a.frame)%6; r=p==0||p==5?255:0; g=p==1||p==2?255:0; b=p==3||p==4?255:0;} RGB_${symbol}.setPixelColor(i,on?capiRgbScale(r,${device.config.brightness}*level/100):0,on?capiRgbScale(g,${device.config.brightness}*level/100):0,on?capiRgbScale(b,${device.config.brightness}*level/100):0);} capiRgbShow_${symbol}(); if(++a.frame>=${device.config.count * 2}){a.frame=0;if(a.repeats&&!--a.repeats)a.effect=0;} }
+`;
+  }).join('\n')}`;
+  return `#include "driver/rmt_tx.h"\n${common}
+${devices.map(device => {
+    const symbol = symbols.get(device.id) ?? cppIdentifier(device.id), order = device.config.colorOrder;
+    return `uint8_t RGB_PIXELS_${symbol}[${device.config.count}][3] = {};
+uint8_t RGB_BYTES_${symbol}[${device.config.count * 3}] = {};
+rmt_channel_handle_t RGB_CHANNEL_${symbol}=nullptr; rmt_encoder_handle_t RGB_ENCODER_${symbol}=nullptr; CapiRgbAnimation RGB_ANIM_${symbol};
+void capiRgbShow_${symbol}(){ rmt_tx_wait_all_done(RGB_CHANNEL_${symbol},20); for(uint16_t i=0;i<${device.config.count};++i){ RGB_BYTES_${symbol}[i*3+0]=RGB_PIXELS_${symbol}[i][${order === 'GRB' ? 1 : 0}]; RGB_BYTES_${symbol}[i*3+1]=RGB_PIXELS_${symbol}[i][${order === 'GRB' ? 0 : 1}]; RGB_BYTES_${symbol}[i*3+2]=RGB_PIXELS_${symbol}[i][2]; } rmt_transmit_config_t tx={}; rmt_transmit(RGB_CHANNEL_${symbol},RGB_ENCODER_${symbol},RGB_BYTES_${symbol},sizeof(RGB_BYTES_${symbol}),&tx); }
+void capiRgbFill_${symbol}(uint8_t r,uint8_t g,uint8_t b,uint8_t brightness){RGB_ANIM_${symbol}.effect=0;for(uint16_t i=0;i<${device.config.count};++i){RGB_PIXELS_${symbol}[i][0]=capiRgbScale(r,brightness);RGB_PIXELS_${symbol}[i][1]=capiRgbScale(g,brightness);RGB_PIXELS_${symbol}[i][2]=capiRgbScale(b,brightness);}capiRgbShow_${symbol}();}
+void capiRgbPixel_${symbol}(uint16_t pixel,uint8_t r,uint8_t g,uint8_t b){RGB_ANIM_${symbol}.effect=0;if(pixel>=1&&pixel<=${device.config.count}){auto &p=RGB_PIXELS_${symbol}[pixel-1];p[0]=capiRgbScale(r,${device.config.brightness});p[1]=capiRgbScale(g,${device.config.brightness});p[2]=capiRgbScale(b,${device.config.brightness});}capiRgbShow_${symbol}();}
+uint16_t capiRgbIndex_${symbol}(uint16_t x,uint16_t y){if(x<1||x>${device.config.width}||y<1||y>${device.config.height})return 65535;uint16_t xx=x-1,yy=y-1;${device.config.origin.includes('right') ? `xx=${device.config.width}-1-xx;` : ''}${device.config.origin.startsWith('bottom') ? `yy=${device.config.height}-1-yy;` : ''}${device.config.layout === 'zigzag' ? `if(yy&1)xx=${device.config.width}-1-xx;` : ''}return yy*${device.config.width}+xx;}
+void capiRgbSegment_${symbol}(uint16_t from,uint16_t to,uint8_t r,uint8_t g,uint8_t b){RGB_ANIM_${symbol}.effect=0;if(from>to){uint16_t swap=from;from=to;to=swap;}for(uint16_t p=from;p<=to&&p<=${device.config.count};++p)if(p>=1){auto&q=RGB_PIXELS_${symbol}[p-1];q[0]=capiRgbScale(r,${device.config.brightness});q[1]=capiRgbScale(g,${device.config.brightness});q[2]=capiRgbScale(b,${device.config.brightness});}capiRgbShow_${symbol}();}
+void capiRgbCoordinate_${symbol}(uint16_t x,uint16_t y,uint8_t r,uint8_t g,uint8_t b){uint16_t p=capiRgbIndex_${symbol}(x,y);if(p!=65535)capiRgbPixel_${symbol}(p+1,r,g,b);}
+void capiRgbGradient_${symbol}(uint16_t from,uint16_t to,uint8_t r1,uint8_t g1,uint8_t b1,uint8_t r2,uint8_t g2,uint8_t b2){RGB_ANIM_${symbol}.effect=0;if(from>to){uint16_t swap=from;from=to;to=swap;}uint16_t span=to>from?to-from:1;for(uint16_t p=from;p<=to&&p<=${device.config.count};++p)if(p>=1){uint16_t step=p-from;auto&q=RGB_PIXELS_${symbol}[p-1];q[0]=capiRgbScale((r1*(span-step)+r2*step)/span,${device.config.brightness});q[1]=capiRgbScale((g1*(span-step)+g2*step)/span,${device.config.brightness});q[2]=capiRgbScale((b1*(span-step)+b2*step)/span,${device.config.brightness});}capiRgbShow_${symbol}();}
+void capiRgbPattern_${symbol}(uint8_t pattern,uint8_t r,uint8_t g,uint8_t b){static const uint8_t heart[8]={0x00,0x66,0xff,0xff,0x7e,0x3c,0x18,0x00},smile[8]={0x00,0x42,0x00,0x00,0x42,0x24,0x18,0x00};RGB_ANIM_${symbol}.effect=0;memset(RGB_PIXELS_${symbol},0,sizeof(RGB_PIXELS_${symbol}));for(uint16_t y=1;y<=${device.config.height};++y)for(uint16_t x=1;x<=${device.config.width};++x){uint8_t sx=(x-1)*8/${device.config.width},sy=(y-1)*8/${device.config.height};bool on=pattern==3?((x+y)&1):((pattern==1?heart[sy]:smile[sy])&(1U<<(7-sx)));uint16_t p=capiRgbIndex_${symbol}(x,y);if(on&&p!=65535){auto&q=RGB_PIXELS_${symbol}[p];q[0]=capiRgbScale(r,${device.config.brightness});q[1]=capiRgbScale(g,${device.config.brightness});q[2]=capiRgbScale(b,${device.config.brightness});}}capiRgbShow_${symbol}();}
+void capiRgbAnimate_${symbol}(uint8_t effect,uint8_t r,uint8_t g,uint8_t b,uint16_t repeats){RGB_ANIM_${symbol}={effect,r,g,b,repeats,0,0};}
+bool capiRgbAnimationActive_${symbol}(){return RGB_ANIM_${symbol}.effect!=0;}
+void capiRgbService_${symbol}(uint32_t now){auto&a=RGB_ANIM_${symbol};if(!a.effect||(int32_t)(now-a.nextAt)<0)return;a.nextAt=now+80;uint8_t level=a.effect==4?(uint8_t)(10+90*(a.frame<=${device.config.count}?a.frame:${device.config.count * 2}-a.frame)/${device.config.count}):100;for(uint16_t i=0;i<${device.config.count};++i){uint8_t on=(a.effect==1||a.effect==4)?1:(a.effect==2)?((i+a.frame)%4==0):(a.frame%2);uint8_t r=a.r,g=a.g,b=a.b;if(a.effect==1){const uint8_t p=(i+a.frame)%6;r=p==0||p==5?255:0;g=p==1||p==2?255:0;b=p==3||p==4?255:0;}RGB_PIXELS_${symbol}[i][0]=on?capiRgbScale(r,${device.config.brightness}*level/100):0;RGB_PIXELS_${symbol}[i][1]=on?capiRgbScale(g,${device.config.brightness}*level/100):0;RGB_PIXELS_${symbol}[i][2]=on?capiRgbScale(b,${device.config.brightness}*level/100):0;}capiRgbShow_${symbol}();if(++a.frame>=${device.config.count * 2}){a.frame=0;if(a.repeats&&!--a.repeats)a.effect=0;}}
+`;
+  }).join('\n')}`;
+}
+
+function rgbBytes(color: string) {
+  const safe = /^#[0-9a-f]{6}$/i.test(color) ? color : '#000000';
+  return [Number.parseInt(safe.slice(1, 3), 16), Number.parseInt(safe.slice(3, 5), 16), Number.parseInt(safe.slice(5, 7), 16)] as const;
 }
 
 function dashboardFirmwareSupport(scene: SceneDefinition) {
@@ -3807,6 +3953,7 @@ export function generateEsp32CodeResult(
   const displaySupport = native ? displayIdfSupport(scene) : displayArduinoSupport(scene);
   const dashboardSupport = dashboardFirmwareSupport(scene);
   const matrixSupport = matrixFirmwareSupport(scene, native);
+  const smartLightsSupport = smartLightsFirmwareSupport(scene, native, symbols);
   const wifiDevice = scene.devices.find(device => device.kind === 'wifiNode');
   const wifiHeader = usesWifi && !native
     ? `#include <WiFi.h>
@@ -3962,6 +4109,8 @@ ${displaySupport}
 
 ${matrixSupport}
 
+${smartLightsSupport}
+
 ${deviceDeclarations(scene, symbols)}
 ${componentStateDeclarations(scene)}
 ${dashboardSupport}
@@ -4112,6 +4261,10 @@ ${scene.devices.filter(device => device.kind === 'otto').map(device => {
 }).join('\n')}
 ${displaySupport ? '  capiDisplayBegin();' : ''}
 ${matrixSupport ? '  capiMatrixBegin();' : ''}
+${scene.devices.filter(device => device.kind === 'smartLights').map(device => {
+  const symbol = symbols.get(device.id) ?? cppIdentifier(device.id);
+  return `  { rmt_tx_channel_config_t channel={}; channel.clk_src=RMT_CLK_SRC_DEFAULT; channel.gpio_num=(gpio_num_t)PIN_${symbol}; channel.mem_block_symbols=64; channel.resolution_hz=10000000; channel.trans_queue_depth=4; ESP_ERROR_CHECK(rmt_new_tx_channel(&channel,&RGB_CHANNEL_${symbol})); rmt_bytes_encoder_config_t encoder={}; encoder.bit0.duration0=4; encoder.bit0.level0=1; encoder.bit0.duration1=9; encoder.bit0.level1=0; encoder.bit1.duration0=8; encoder.bit1.level0=1; encoder.bit1.duration1=5; encoder.bit1.level1=0; encoder.flags.msb_first=1; ESP_ERROR_CHECK(rmt_new_bytes_encoder(&encoder,&RGB_ENCODER_${symbol})); ESP_ERROR_CHECK(rmt_enable(RGB_CHANNEL_${symbol})); }`;
+}).join('\n')}
   for (;;) {
     const uint32_t now = capiMillis();
     capiTimerService(now);
@@ -4119,6 +4272,7 @@ ${serviceBuzzerLines(scene, symbols, framework)}
 ${displaySupport ? '    capiDisplayService(now);' : ''}
 ${dashboardSupport ? '    capiDashboardService(now);' : ''}
 ${matrixSupport ? '    capiMatrixService(now);' : ''}
+${scene.devices.filter(device => device.kind === 'smartLights').map(device => `    capiRgbService_${symbols.get(device.id) ?? cppIdentifier(device.id)}(now);`).join('\n')}
 ${scene.devices.filter(device => device.kind === 'otto').map(device => `    ottoService(DEV_${symbols.get(device.id)}, now);`).join('\n')}
     if ((uint32_t)(now - lastSchedulerTick) >= SCHEDULER_QUANTUM_MS) {
       lastSchedulerTick = now;
@@ -4133,6 +4287,7 @@ ${setupLines(scene, symbols, servoResolutionBits)}
 ${messageSetupLines(scene, symbols, false)}
 ${displaySupport ? '  capiDisplayBegin();' : ''}
 ${matrixSupport ? '  capiMatrixBegin();' : ''}
+${scene.devices.filter(device => device.kind === 'smartLights').map(device => { const symbol = symbols.get(device.id) ?? cppIdentifier(device.id); return `  RGB_${symbol}.begin(); RGB_${symbol}.clear(); RGB_${symbol}.show();`; }).join('\n')}
 }
 
 void loop() {
@@ -4142,6 +4297,7 @@ ${serviceBuzzerLines(scene, symbols)}
 ${displaySupport ? '  capiDisplayService(now);' : ''}
 ${dashboardSupport ? '  capiDashboardService(now);' : ''}
 ${matrixSupport ? '  capiMatrixService(now);' : ''}
+${scene.devices.filter(device => device.kind === 'smartLights').map(device => `  capiRgbService_${symbols.get(device.id) ?? cppIdentifier(device.id)}(now);`).join('\n')}
 ${scene.devices.filter(device => device.kind === 'otto').map(device => `  ottoService(DEV_${symbols.get(device.id)}, now);`).join('\n')}
   if ((uint32_t)(now - lastSchedulerTick) < SCHEDULER_QUANTUM_MS) {
     yield();

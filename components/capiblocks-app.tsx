@@ -220,6 +220,8 @@ function runtimeFromDevice(
       return { kind: device.kind, color: 'OFF' };
     case 'led':
       return { kind: device.kind, brightness: device.config.brightness };
+    case 'smartLights':
+      return { kind: device.kind, pixels: Array.from({ length: device.config.count }, () => '#000000'), brightness: device.config.brightness, animation: null };
     case 'robot':
       return {
         kind: device.kind,
@@ -399,6 +401,7 @@ function DeviceStateCard({
     otto: '🕺',
     motor: '⚙️',
     led: '💡',
+    smartLights: '🌈',
     servo: '🦾',
     activeBuzzer: '📣',
     passiveBuzzer: '🎵',

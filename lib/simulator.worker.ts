@@ -43,7 +43,8 @@ type Pending =
 type VisualAnimation =
   | { kind: 'matrix'; startedAt: number; until: number; cycleMs: number; deviceId: string; text: string; speedMs: number }
   | { kind: 'displayText'; startedAt: number; until: number; cycleMs: number; deviceId: string; areaId: string; text: string; effect: 'type' | 'scroll' | 'blink'; speedMs: number }
-  | { kind: 'displayArtwork'; startedAt: number; until: number; cycleMs: number; deviceId: string; rows: number[]; effect: 'slide' | 'blink'; speedMs: number };
+  | { kind: 'displayArtwork'; startedAt: number; until: number; cycleMs: number; deviceId: string; rows: number[]; effect: 'slide' | 'blink'; speedMs: number }
+  | { kind: 'smartLights'; startedAt: number; until: number; cycleMs: number; deviceId: string; effect: 'RAINBOW' | 'CHASE' | 'BLINK' | 'PULSE'; color: string; speedMs: number };
 
 type ThreadExecution = {
   thread: ProgramThread;
@@ -195,6 +196,8 @@ function runtimeForDevice(device: SceneDevice): RuntimeDeviceState {
         kind: 'led',
         brightness: Math.max(0, Math.min(100, device.config.brightness)),
       };
+    case 'smartLights':
+      return { kind: 'smartLights', pixels: Array.from({ length: device.config.count }, () => '#000000'), brightness: device.config.brightness, animation: null };
     case 'robot':
       return {
         kind: 'robot',
@@ -790,6 +793,7 @@ function cancelVisualAnimation(deviceId: string) {
   const device = state.devices[deviceId];
   if (device?.kind === 'display') device.animation = null;
   if (device?.kind === 'ledMatrix') device.scrolling = false;
+  if (device?.kind === 'smartLights') device.animation = null;
 }
 
 function updateVisualAnimations() {
@@ -798,7 +802,24 @@ function updateVisualAnimations() {
     let done = virtualNow >= animation.until;
     const elapsed = Math.max(0, virtualNow - animation.startedAt);
     const cycleElapsed = done ? animation.cycleMs : elapsed % animation.cycleMs;
-    if (animation.kind === 'matrix') {
+    if (animation.kind === 'smartLights') {
+      if (device?.kind === 'smartLights') {
+        const step = Math.floor(cycleElapsed / animation.speedMs);
+        const rainbow = ['#ff1744', '#ff9100', '#ffee00', '#00e676', '#00b0ff', '#7c4dff'];
+        device.pixels = device.pixels.map((_, index) => {
+          if (animation.effect === 'RAINBOW') return rainbow[(index + step) % rainbow.length];
+          if (animation.effect === 'CHASE') return (index + step) % 4 === 0 ? animation.color : '#000000';
+          if (animation.effect === 'PULSE') {
+            const level = 0.1 + 0.9 * (1 - Math.abs((step % 16) - 8) / 8);
+            const value = Number.parseInt(animation.color.slice(1), 16);
+            const channel = (shift: number) => Math.round(((value >> shift) & 255) * level).toString(16).padStart(2, '0');
+            return `#${channel(16)}${channel(8)}${channel(0)}`;
+          }
+          return step % 2 === 0 ? animation.color : '#000000';
+        });
+        device.animation = done ? null : animation.effect === 'RAINBOW' ? 'arcoíris' : animation.effect === 'CHASE' ? 'persecución' : animation.effect === 'PULSE' ? 'pulso' : 'parpadeo';
+      } else done = true;
+    } else if (animation.kind === 'matrix') {
       if (device?.kind === 'ledMatrix') {
         const offset = Math.floor(cycleElapsed / animation.speedMs);
         device.rows = matrixScrollRows(animation.text, offset);
@@ -1232,6 +1253,91 @@ function executeInstruction(
       }
       break;
     }
+    case 'rgbFill': {
+      const device = state.devices[node.deviceId];
+      if (device?.kind === 'smartLights') {
+        cancelVisualAnimation(node.deviceId);
+        const color = /^#[0-9a-f]{6}$/i.test(node.color) ? node.color.toLowerCase() : '#000000';
+        device.pixels.fill(color); device.brightness = Math.max(0, Math.min(100, node.brightness)); device.animation = null;
+        appendConsole(`${deviceName(node.deviceId)}: todas ${color}`);
+      }
+      break;
+    }
+    case 'rgbPixel': {
+      const device = state.devices[node.deviceId];
+      if (device?.kind === 'smartLights') {
+        cancelVisualAnimation(node.deviceId);
+        const index = Math.max(0, Math.min(device.pixels.length - 1, Math.round(node.pixel) - 1));
+        device.pixels[index] = /^#[0-9a-f]{6}$/i.test(node.color) ? node.color.toLowerCase() : '#000000'; device.animation = null;
+      }
+      break;
+    }
+    case 'rgbSegment': {
+      const device = state.devices[node.deviceId];
+      if (device?.kind === 'smartLights') {
+        cancelVisualAnimation(node.deviceId);
+        const color = /^#[0-9a-f]{6}$/i.test(node.color) ? node.color.toLowerCase() : '#000000';
+        const from = Math.max(0, Math.min(device.pixels.length - 1, Math.min(node.from, node.to) - 1));
+        const to = Math.max(0, Math.min(device.pixels.length - 1, Math.max(node.from, node.to) - 1));
+        for (let index = from; index <= to; index += 1) device.pixels[index] = color;
+      }
+      break;
+    }
+    case 'rgbCoordinate': {
+      const device = state.devices[node.deviceId];
+      const definition = scene.devices.find(item => item.id === node.deviceId);
+      if (device?.kind === 'smartLights' && definition?.kind === 'smartLights') {
+        cancelVisualAnimation(node.deviceId);
+        let x = Math.round(node.x) - 1, y = Math.round(node.y) - 1;
+        if (definition.config.origin.includes('right')) x = definition.config.width - 1 - x;
+        if (definition.config.origin.startsWith('bottom')) y = definition.config.height - 1 - y;
+        if (definition.config.layout === 'zigzag' && y % 2 === 1) x = definition.config.width - 1 - x;
+        const index = y * definition.config.width + x;
+        if (index >= 0 && index < device.pixels.length) device.pixels[index] = /^#[0-9a-f]{6}$/i.test(node.color) ? node.color.toLowerCase() : '#000000';
+      }
+      break;
+    }
+    case 'rgbGradient': {
+      const device = state.devices[node.deviceId];
+      if (device?.kind === 'smartLights') {
+        cancelVisualAnimation(node.deviceId);
+        const decode = (color: string) => { const value = Number.parseInt((/^#[0-9a-f]{6}$/i.test(color) ? color : '#000000').slice(1), 16); return [(value >> 16) & 255, (value >> 8) & 255, value & 255]; };
+        const start = decode(node.startColor), end = decode(node.endColor);
+        const from = Math.max(0, Math.min(device.pixels.length - 1, Math.min(node.from, node.to) - 1)), to = Math.max(0, Math.min(device.pixels.length - 1, Math.max(node.from, node.to) - 1)), span = Math.max(1, to - from);
+        for (let index = from; index <= to; index += 1) { const amount = (index - from) / span; device.pixels[index] = `#${start.map((channel, part) => Math.round(channel + (end[part] - channel) * amount).toString(16).padStart(2, '0')).join('')}`; }
+      }
+      break;
+    }
+    case 'rgbPattern': {
+      const device = state.devices[node.deviceId];
+      const definition = scene.devices.find(item => item.id === node.deviceId);
+      if (device?.kind === 'smartLights' && definition?.kind === 'smartLights') {
+        cancelVisualAnimation(node.deviceId);
+        device.pixels.fill('#000000');
+        const rows = node.pattern === 'HEART' ? [0, 0x66, 0xff, 0xff, 0x7e, 0x3c, 0x18, 0] : [0, 0x42, 0, 0, 0x42, 0x24, 0x18, 0];
+        for (let y = 0; y < definition.config.height; y += 1) for (let x = 0; x < definition.config.width; x += 1) {
+          const on = node.pattern === 'CHECKER' ? (x + y) % 2 === 0 : Boolean(rows[Math.floor(y * 8 / definition.config.height)] & (1 << (7 - Math.floor(x * 8 / definition.config.width))));
+          if (!on) continue;
+          let xx = x, yy = y;
+          if (definition.config.origin.includes('right')) xx = definition.config.width - 1 - xx;
+          if (definition.config.origin.startsWith('bottom')) yy = definition.config.height - 1 - yy;
+          if (definition.config.layout === 'zigzag' && yy % 2 === 1) xx = definition.config.width - 1 - xx;
+          device.pixels[yy * definition.config.width + xx] = /^#[0-9a-f]{6}$/i.test(node.color) ? node.color.toLowerCase() : '#ff2266';
+        }
+      }
+      break;
+    }
+    case 'rgbAnimation': {
+      const device = state.devices[node.deviceId];
+      if (device?.kind === 'smartLights') {
+        device.animation = node.effect === 'RAINBOW' ? 'arcoíris' : node.effect === 'CHASE' ? 'persecución' : node.effect === 'PULSE' ? 'pulso' : 'parpadeo';
+        const palette = node.effect === 'RAINBOW' ? ['#ff1744','#ff9100','#ffee00','#00e676','#00b0ff','#7c4dff'] : [node.color.toLowerCase(), '#000000'];
+        device.pixels = device.pixels.map((_, index) => palette[index % palette.length]);
+        const cycleMs = Math.max(160, device.pixels.length * 80);
+        visualAnimations.set(node.deviceId, { kind: 'smartLights', startedAt: virtualNow, until: node.repeat === 0 ? Number.POSITIVE_INFINITY : virtualNow + cycleMs * node.repeat, cycleMs, deviceId: node.deviceId, effect: node.effect, color: /^#[0-9a-f]{6}$/i.test(node.color) ? node.color.toLowerCase() : '#ffffff', speedMs: 80 });
+      }
+      break;
+    }
     case 'pin':
       state.pins = { ...state.pins, [node.pin]: node.value };
       appendConsole(
@@ -1470,6 +1576,13 @@ function executeOne(execution: ThreadExecution) {
       case 'messageReceiveWait': message = `Esperamos “${node.expected}” sin detener los otros caminos.`; break;
       case 'wifiMessageReceiveWait': message = `Esperamos “${node.expected}” por Wi-Fi sin detener los otros caminos.`; break;
       case 'matrixScroll': message = `Desplazamos “${node.text.slice(0, 32)}” sin detener los otros caminos.`; break;
+      case 'rgbFill': message = `${deviceName(node.deviceId)}: encendemos todas las luces con el color elegido.`; break;
+      case 'rgbPixel': message = `${deviceName(node.deviceId)}: cambiamos la luz ${node.pixel}.`; break;
+      case 'rgbSegment': message = `${deviceName(node.deviceId)}: coloreamos un tramo de luces.`; break;
+      case 'rgbCoordinate': message = `${deviceName(node.deviceId)}: cambiamos un punto de la matriz.`; break;
+      case 'rgbGradient': message = `${deviceName(node.deviceId)}: mezclamos dos colores en un tramo.`; break;
+      case 'rgbPattern': message = `${deviceName(node.deviceId)}: mostramos el dibujo elegido.`; break;
+      case 'rgbAnimation': message = `${deviceName(node.deviceId)}: iniciamos una animación sin detener los otros caminos.`; break;
       case 'displayAnimateText': message = `Animamos “${node.text.slice(0, 32)}” sin detener los otros caminos.`; break;
       case 'displayArtwork': message = `${deviceName(node.deviceId)}: mostramos y animamos el dibujo elegido.`; break;
       case 'visualWait': message = `Esperamos que termine ${deviceName(node.deviceId)} sin detener los otros caminos.`; break;

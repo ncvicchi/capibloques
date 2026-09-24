@@ -102,12 +102,12 @@ jobs:
           node-version: 22
       - name: Generar proyectos nativos y ZIP
         run: node --experimental-strip-types scripts/generate-idf-fixtures.mjs
-      - name: Compilar diez proyectos ESP-IDF nativos
+      - name: Compilar doce proyectos ESP-IDF nativos
         run: |
           . "$IDF_PATH/export.sh" >/dev/null
           python scripts/verify-idf-archives.py
           mkdir -p .idf-ci/build-project
-          for profile in main auxiliary matrix lcd1602keypad lcd1602 lcd2004 ssd1306 ili9341 ili9488; do
+          for profile in main auxiliary matrix smart-lights lcd1602keypad lcd1602 lcd2004 ssd1306 ili9341 ili9488; do
             # Same IDF/configuration: reuse framework objects, not the generated app.
             # Do NOT preserve timestamps: each extracted main.cpp must rebuild.
             cp -R ".idf-ci/from-zip/$profile/capibloques/." .idf-ci/build-project/
@@ -273,6 +273,9 @@ jobs:
           arduino-cli compile --fqbn esp32:esp32:d1_uno32 .arduino-ci/matrix
           node --experimental-strip-types scripts/generate-arduino-fixture.mjs .arduino-ci/otto/otto.ino otto
           arduino-cli compile --fqbn esp32:esp32:d1_uno32 .arduino-ci/otto
+          arduino-cli lib install "Adafruit NeoPixel@1.12.3"
+          node --experimental-strip-types scripts/generate-arduino-fixture.mjs .arduino-ci/smart-lights/smart-lights.ino smart-lights
+          arduino-cli compile --fqbn esp32:esp32:d1_uno32 .arduino-ci/smart-lights
 
       - name: Compilar el código generado para DIYmall ESP32-S3 N16R8
         run: |
@@ -281,7 +284,7 @@ jobs:
 
       - name: Compilar los siete perfiles de pantalla
         run: |
-          arduino-cli lib install "LiquidCrystal@1.0.7" "LiquidCrystal_PCF8574@2.3.0" "U8g2@2.36.19" "GFX Library for Arduino@1.6.7"
+          arduino-cli lib install "LiquidCrystal@1.0.7" "LiquidCrystal_PCF8574@2.3.0" "U8g2@2.36.19" "GFX Library for Arduino@1.6.7" "Adafruit NeoPixel@1.12.3"
           node --experimental-strip-types scripts/generate-display-fixtures.mjs
           for profile in lcd1602keypad lcd1602 lcd2004 ssd1306 ili9341 ili9488; do
             arduino-cli compile --fqbn esp32:esp32:d1_uno32 ".arduino-ci/$profile"

@@ -447,6 +447,8 @@ Arduino y ESP-IDF compartirán el framebuffer y la semántica. ESP-IDF usará un
 
 Asignación: **fase 35 — Luces RGB inteligentes WS281x/SK6812**.
 
+Estado: **implementada en software el 24 de septiembre de 2026; actualización de DEV y aceptación física pendientes**. Incluye escena, ayuda, simulador, conjunto/píxel/tramo/coordenada/degradado/dibujo, animaciones cooperativas, Arduino, ESP-IDF y firmware intérprete 1.4.0. Ver [FASE_35_LUCES_RGB.md](FASE_35_LUCES_RGB.md).
+
 Referencias técnicas primarias: [ESP-IDF `led_strip`](https://docs.espressif.com/projects/esp-board-manager/en/latest/references/devices/led-strip.html), [RMT de Arduino ESP32](https://docs.espressif.com/projects/arduino-esp32/en/latest/api/rmt.html), [formatos y protocolo NeoPixel](https://learn.adafruit.com/adafruit-neopixel-uberguide/form-factors), [mapeo de matrices](https://learn.adafruit.com/adafruit-neopixel-uberguide/neomatrix-library) y [alimentación/conexión](https://learn.adafruit.com/adafruit-neopixel-uberguide/basic-connections).
 
 ## 34. Firmware intérprete y ejecución directa en placa

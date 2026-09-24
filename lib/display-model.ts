@@ -285,7 +285,7 @@ export function validDisplayConfig(
         typeof id === 'string' &&
         id.trim().length > 0 &&
         id.length <= 128 &&
-        [...id].every(character => character.charCodeAt(0) >= 32 && character.charCodeAt(0) !== 127),
+        Array.from(id).every(character => character.charCodeAt(0) >= 32 && character.charCodeAt(0) !== 127),
       )
     ) return false;
     if (value.dashboard.enabled && value.dashboard.deviceIds.length > 0 && Array.isArray(value.areas) && value.areas.length > 0) return false;
