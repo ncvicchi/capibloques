@@ -50,6 +50,7 @@ function instructionCapabilities(instruction: ExecutableTask['output'][number]) 
   if (instruction.op === 'variableSet' || instruction.op === 'variableChange' || (instruction.op === 'serial' && instruction.expression)) result.push('expressions');
   if (encodedInstruction.includes('sensorValue')) result.push('analog-input');
   if (encodedInstruction.includes('buttonValue') || encodedInstruction.includes('barrierValue')) result.push('digital-input');
+  if (encodedInstruction.includes('displayButtonValue')) result.push('display-keypad');
   if (encodedInstruction.includes('ottoDistance')) result.push('otto');
   if (encodedInstruction.includes('messageValue')) result.push('messages');
   if (encodedInstruction.includes('"kind":"variable"')) result.push('variables');
@@ -63,6 +64,7 @@ function instructionCapabilities(instruction: ExecutableTask['output'][number]) 
     const encoded = JSON.stringify(condition);
     if (encoded.includes('sensorValue')) result.push('analog-input');
     if (encoded.includes('buttonValue') || encoded.includes('barrierValue')) result.push('digital-input');
+    if (encoded.includes('displayButtonValue') || condition.kind === 'displayButtonPressed') result.push('display-keypad');
     if (encoded.includes('ottoDistance')) result.push('otto');
     if (encoded.includes('variable')) result.push('variables');
     if (encoded.includes('messageValue')) result.push('messages');
@@ -139,7 +141,13 @@ export function createCapiRules(programInput: CompiledProgram, scene: SceneDefin
   view.setUint32(24, scene.devices.length, true);
   view.setUint32(28, tasks.length, true);
   bytes.set(payload, HEADER_BYTES);
-  const requiredCapabilities = [...new Set(tasks.flatMap(task => task.output.flatMap(instructionCapabilities)))].sort();
+  const capabilities = tasks.flatMap(task => task.output.flatMap(instructionCapabilities));
+  const usedDeviceIds = new Set(tasks.flatMap(task => task.output.flatMap(instruction => 'deviceId' in instruction ? [instruction.deviceId] : [])));
+  for (const device of scene.devices) if (device.kind === 'display' && usedDeviceIds.has(device.id)) {
+    capabilities.push(['lcd1602', 'lcd2004', 'lcd1602keypad'].includes(device.config.profile) ? 'display-lcd' : 'display-graphic');
+    if (device.config.profile === 'lcd1602keypad') capabilities.push('display-keypad');
+  }
+  const requiredCapabilities = [...new Set(capabilities)].sort();
   return { bytes, document, checksum: checksumHex(payloadCrc), instructionCount, requiredCapabilities, resourceRequirements: resourceRequirements(document) };
 }
 
