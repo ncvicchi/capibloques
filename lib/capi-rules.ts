@@ -38,7 +38,7 @@ export class CapiRulesError extends Error {}
 const capabilityForOperation = (operation: string) => ({
   pin: 'gpio', led: 'led', traffic: 'traffic', motor: 'motor', robot: 'robot',
   servo: 'servo', buzzer: 'buzzer', tone: 'buzzer', otto: 'otto', ottoSound: 'otto', ottoExpression: 'otto', ottoArms: 'otto',
-  displayWrite: 'display', displayClear: 'display', displayAnimateText: 'display', displayArtwork: 'display', visualWait: 'display',
+  displayWrite: 'display', displayClear: 'display', displayAnimateText: 'display', displayArtwork: 'display', visualWait: 'visual-wait',
   matrixClear: 'matrix', matrixPixel: 'matrix', matrixPattern: 'matrix', matrixScroll: 'matrix',
   messageSend: 'messages', messageReceiveWait: 'messages', wifi: 'wifi', fork: 'parallel', join: 'parallel',
   counterSet: 'counter', counterChange: 'counter', variableSet: 'variables', variableChange: 'variables', serial: 'serial',
@@ -46,6 +46,13 @@ const capabilityForOperation = (operation: string) => ({
 
 function instructionCapabilities(instruction: ExecutableTask['output'][number]) {
   const result = [capabilityForOperation(instruction.op)];
+  const encodedInstruction = JSON.stringify(instruction);
+  if (instruction.op === 'variableSet' || instruction.op === 'variableChange' || (instruction.op === 'serial' && instruction.expression)) result.push('expressions');
+  if (encodedInstruction.includes('sensorValue')) result.push('analog-input');
+  if (encodedInstruction.includes('buttonValue') || encodedInstruction.includes('barrierValue')) result.push('digital-input');
+  if (encodedInstruction.includes('ottoDistance')) result.push('otto');
+  if (encodedInstruction.includes('messageValue')) result.push('messages');
+  if (encodedInstruction.includes('"kind":"variable"')) result.push('variables');
   if (instruction.op === 'jumpIfFalse') {
     const condition = instruction.condition;
     if (condition.kind === 'sensor') result.push('analog-input');
@@ -64,7 +71,7 @@ function instructionCapabilities(instruction: ExecutableTask['output'][number]) 
 }
 
 function resourceRequirements(document: CapiRulesDocument) {
-  const deviceIds = new Set(document.tasks.flatMap(task => task.output.flatMap(instruction => ['led', 'traffic', 'motor', 'robot'].includes(instruction.op) && 'deviceId' in instruction ? [instruction.deviceId] : [])));
+  const deviceIds = new Set(document.tasks.flatMap(task => task.output.flatMap(instruction => ['led', 'traffic', 'motor', 'robot', 'servo', 'buzzer', 'tone'].includes(instruction.op) && 'deviceId' in instruction ? [instruction.deviceId] : [])));
   const pwmPins = new Set<number>();
   for (const device of document.resources.devices) if (deviceIds.has(device.id)) for (const value of Object.values(device.pins)) if (typeof value === 'number') pwmPins.add(value);
   return { pwmChannels: pwmPins.size };

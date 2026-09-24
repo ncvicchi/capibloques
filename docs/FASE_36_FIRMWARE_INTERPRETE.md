@@ -9,11 +9,13 @@ La fase fue autorizada y tiene una primera entrega ejecutable en software. Ya es
 - bloqueo en navegador de placa equivocada, firmware anterior a 1.0.0, ABI distinta, programa sobredimensionado o capacidad ausente;
 - selector visible **Simulador / Placa conectada**, sin enviar reglas o proyectos al servidor;
 - instalación/actualización Web Serial usando los mismos controles de detección, flash y verificación existentes;
-- proyecto ESP-IDF del intérprete para ESP32 y ESP32-S3, dos ranuras de reglas A/B y selector NVS con conmutación posterior a escritura/lectura/verificación, arranque autónomo, GPIO/LED/semaforización/motores/robot/contador/consola y entradas digitales básicas;
+- proyecto ESP-IDF del intérprete para ESP32 y ESP32-S3, dos ranuras de reglas A/B y selector NVS con conmutación posterior a escritura/lectura/verificación, arranque autónomo, scheduler con paralelo/fork-join, expresiones y variables tipadas, entradas analógicas/digitales, GPIO/LED/semaforización/motores/robot, servo, buzzers, contador y consola;
+- matriz MAX7219 32 × 8 con orden/orientación configurables, dibujos, píxeles y desplazamiento cooperativo, además de `Esperar animación` explícito;
+- Mensajes sobre un puerto reasignable: envío y recepción cooperativa con cabecera, tamaño, CRC16, cierre, comparación y timeout;
 - construcción reproducible de dos artefactos estáticos, manifiestos con hash y publicación automática la primera vez que DEV recibe esta versión; los binarios generados no se guardan en Git;
 - pruebas de formato determinista, corrupción, placa cruzada, framing, empaquetado, USB simulado, UI Chrome, tipos, estilo, smoke y build estático.
 
-La fase **no se considera cerrada físicamente**. La primera versión publica sólo las capacidades anteriores y rechaza de forma explícita proyectos con servo, buzzer, Otto, pantallas, matriz, Mensajes, Wi‑Fi, variables complejas o paralelo; nunca los ejecuta parcialmente. Faltan portar esos controladores, compilar el proyecto ESP-IDF en el entorno fijado, desplegar los artefactos y probar con Wemos/DIYmall reales. Waveshare permanece fuera hasta validar su perfil exacto. Arduino y ESP-IDF por proyecto siguen disponibles mientras tanto.
+La fase **no se considera cerrada físicamente**. La versión actual rechaza de forma explícita proyectos con Otto, pantallas, Wi‑Fi o RGB; nunca los ejecuta parcialmente. Faltan esos controladores, compilar el proyecto ESP-IDF ampliado en el entorno fijado, desplegar los artefactos y probar con Wemos/DIYmall reales. Waveshare permanece fuera hasta validar su perfil exacto. Arduino y ESP-IDF por proyecto siguen disponibles mientras tanto.
 
 **Estado:** planificada, no autorizada ni implementada.
 
