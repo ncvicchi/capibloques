@@ -1046,7 +1046,7 @@ function SceneBuilderSession({
                     />
                   </label>
 
-                  {selected.kind === 'display' && <DisplayProperties key={selected.id} device={selected} onChange={next => updateSelectedDraft(() => next)} />}
+                  {selected.kind === 'display' && <DisplayProperties key={selected.id} device={selected} boardProfile={draftBoardProfile} onChange={next => updateSelectedDraft(() => next)} />}
                   {selected.kind === 'ledMatrix' && <LedMatrixProperties key={selected.id} device={selected} onChange={next => updateSelectedDraft(() => next)} />}
                   {selected.kind === 'wifiNode' && (
                     <div className="messages-properties">

@@ -14,11 +14,14 @@ MAX_FILE_BYTES = 2_000_000
 TARGETS = {
     "wemos-d1-r32": {"family": "esp32", "framework": "arduino", "coreMajor": 3, "coreVersion": "3.3.11", "boardProfile": "wemos-d1-r32", "fqbn": "esp32:esp32:d1_uno32"},
     "diymall-esp32-s3-devkitc-v1-n16r8": {"family": "esp32-s3", "framework": "arduino", "coreMajor": 3, "coreVersion": "3.3.11", "boardProfile": "diymall-esp32-s3-devkitc-v1-n16r8", "fqbn": "esp32:esp32:esp32s3"},
+    "waveshare-esp32-s3-touch-lcd-5-28117": {"family": "esp32-s3", "framework": "arduino", "coreMajor": 3, "coreVersion": "3.3.11", "boardProfile": "waveshare-esp32-s3-touch-lcd-5-28117", "fqbn": "esp32:esp32:esp32s3"},
 }
 BOARD_PINS = {
     "wemos-d1-r32": {4, 13, 14, 16, 17, 18, 19, 23, 25, 26, 27, 34, 35, 36, 39},
     # N16R8: GPIO35-37 belong to the Octal PSRAM and are intentionally unavailable.
     "diymall-esp32-s3-devkitc-v1-n16r8": {0, 1, 2, 3, *range(4, 22), *range(38, 49)},
+    # Los conectores externos son buses/IO dedicadas, no GPIO escolares genéricos.
+    "waveshare-esp32-s3-touch-lcd-5-28117": set(),
 }
 BLOCKS = {"capi_" + name for name in ("start", "forever", "repeat", "wait", "if", "compare", "counter_compare", "counter_set", "counter_change", "traffic", "led", "pin_write", "robot", "otto", "motor", "servo", "buzzer", "tone", "button_pressed", "sensor_compare", "wifi_connect", "wifi_connected", "serial")}
 BLOCKS.add("capi_parallel")
@@ -47,7 +50,7 @@ LEGACY_DISPLAY_PINS = {"sda", "scl", "sck", "mosi", "cs", "dc", "rst"}
 PINS["messages"] = ["tx", "rx"]
 PINS["ledMatrix"] = ["din", "clk", "cs"]
 CONFIGS["messages"] = {"mode": ["send", "receive", "both"], "baudRate": [9600, 19200, 38400, 57600, 115200]}
-DISPLAY_PROFILES = {"lcd1602keypad": (16, 2, False, "parallel"), "lcd1602": (16, 2, False, "i2c"), "lcd2004": (20, 4, False, "i2c"), "ssd1306": (16, 8, True, "i2c"), "ili9341": (26, 15, True, "spi"), "ili9488": (40, 20, True, "spi")}
+DISPLAY_PROFILES = {"lcd1602keypad": (16, 2, False, "parallel"), "lcd1602": (16, 2, False, "i2c"), "lcd2004": (20, 4, False, "i2c"), "ssd1306": (16, 8, True, "i2c"), "ili9341": (26, 15, True, "spi"), "ili9488": (40, 20, True, "spi"), "waveshare5": (50, 30, True, "integrated-rgb")}
 
 
 def display_config(config):
@@ -56,7 +59,7 @@ def display_config(config):
     require(legacy or set(config) == {"profile", "address", "areas", "retiredAreaIds", "animationSpeed", "artworks", "retiredArtworkIds"})
     require(isinstance(config["profile"], str) and config["profile"] in DISPLAY_PROFILES)
     columns, rows, graphic, bus = DISPLAY_PROFILES[config["profile"]]
-    require(type(config["address"]) is int and (config["address"] == 0 if bus in ("spi", "parallel") else config["address"] in ([0x3c, 0x3d] if config["profile"] == "ssd1306" else [*range(0x20, 0x28), *range(0x38, 0x40)])))
+    require(type(config["address"]) is int and (config["address"] == 0 if bus in ("spi", "parallel", "integrated-rgb") else config["address"] in ([0x3c, 0x3d] if config["profile"] == "ssd1306" else [*range(0x20, 0x28), *range(0x38, 0x40)])))
     areas, retired = config["areas"], config["retiredAreaIds"]
     require(isinstance(areas, list) and len(areas) <= 8 and (graphic or not areas))
     require(isinstance(retired, list) and len(retired) <= 4096)
@@ -91,7 +94,7 @@ def display_config(config):
         for artwork_id in retired_artworks:
             require(isinstance(artwork_id, str) and re.fullmatch(r"[a-z0-9][a-z0-9-]{0,31}", artwork_id) and artwork_id not in artwork_ids)
             artwork_ids.add(artwork_id)
-    return ["sda", "scl"] if bus == "i2c" else ["rs", "en", "d4", "d5", "d6", "d7", "backlight", "keys"] if bus == "parallel" else ["sck", "mosi", "cs", "dc", "rst"]
+    return ["sda", "scl"] if bus == "i2c" else ["rs", "en", "d4", "d5", "d6", "d7", "backlight", "keys"] if bus == "parallel" else [] if bus == "integrated-rgb" else ["sck", "mosi", "cs", "dc", "rst"]
 
 
 def matrix_config(config):
@@ -250,6 +253,7 @@ def scene(value, board_profile="wemos-d1-r32"):
                 display_count += 1
                 require(display_count <= 1, "Cada proyecto admite una sola pantalla o matriz.")
                 used_pins = display_config(config)
+                require((config["profile"] == "waveshare5") == (board_profile == "waveshare-esp32-s3-touch-lcd-5-28117"), "El perfil de pantalla no corresponde a la placa elegida.")
                 require(isinstance(item["pins"], dict) and all(item["pins"].get(key) is None for key in PINS[kind] if key not in used_pins))
                 require(set(item["pins"]) == set(PINS[kind]) or (config["profile"] != "lcd1602keypad" and set(item["pins"]) == LEGACY_DISPLAY_PINS))
             elif kind == "ledMatrix":

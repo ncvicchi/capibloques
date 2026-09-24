@@ -16,8 +16,8 @@ export function DisplayPreview({
   const profile = displayProfiles[device.config.profile];
   const linesFor = (id: string) =>
     Object.hasOwn(texts, id) ? texts[id] : undefined;
-  const cellWidth = profile.bus === 'spi' ? 12 : 8;
-  const cellHeight = profile.bus === 'spi' ? 16 : profile.graphic ? 8 : 12;
+  const cellWidth = profile.bus === 'integrated-rgb' ? 16 : profile.bus === 'spi' ? 12 : 8;
+  const cellHeight = profile.bus === 'integrated-rgb' || profile.bus === 'spi' ? 16 : profile.graphic ? 8 : 12;
   const width = profile.graphic ? profile.width : profile.columns * cellWidth;
   const screenHeight = profile.graphic ? profile.height : profile.rows * cellHeight;
   const height = screenHeight + (profile.keypad ? 18 : 0);

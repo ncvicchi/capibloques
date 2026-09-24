@@ -666,7 +666,10 @@ function unassignedDevice<K extends SceneDeviceKind>(
       device = { ...base, kind, pins: { din: null, clk: null, cs: null }, config: ledMatrixConfig() };
       break;
     case 'display':
-      device = { ...base, kind, pins: displayPins(), config: displayConfig((options.config as Partial<DisplayConfig> | undefined)?.profile) };
+      device = { ...base, kind, pins: displayPins(), config: displayConfig(
+        (options.config as Partial<DisplayConfig> | undefined)?.profile ??
+        (options.boardProfile === 'waveshare-esp32-s3-touch-lcd-5-28117' ? 'waveshare5' : undefined),
+      ) };
       break;
     case 'trafficLight':
       device = {
@@ -1372,6 +1375,7 @@ export type SceneValidationIssueCode =
   | 'external-servo-power'
   | 'led-resistor-required'
   | 'invalid-display'
+  | 'display-board-mismatch'
   | 'display-limit'
   | 'invalid-led-matrix'
   | 'invalid-otto-pin'
@@ -1487,6 +1491,12 @@ export function validateScene(
     if (!validDisplayConfig(device.config)) {
       issues.push({ code: 'invalid-display', severity: 'error', deviceId: device.id, message: `${device.name}: revisá el modelo, los nombres y las zonas de texto. Deben caber en pantalla, sin superponerse.` });
       continue;
+    }
+    if (device.config.profile === 'waveshare5' && profileId !== 'waveshare-esp32-s3-touch-lcd-5-28117') {
+      issues.push({ code: 'display-board-mismatch', severity: 'error', deviceId: device.id, message: `${device.name}: la pantalla integrada sólo existe en la Waveshare ESP32-S3 Touch LCD 5.` });
+    }
+    if (profileId === 'waveshare-esp32-s3-touch-lcd-5-28117' && device.config.profile !== 'waveshare5') {
+      issues.push({ code: 'display-board-mismatch', severity: 'error', deviceId: device.id, message: `${device.name}: elegí la pantalla integrada Waveshare; los conectores de esta placa no exponen un bus genérico para este perfil.` });
     }
     const required = requiredDisplayPins(device.config);
     if (displayPinKeys.some(key => !required.includes(key) && device.pins[key] !== null)) issues.push({ code: 'invalid-display', severity: 'error', deviceId: device.id, message: `${device.name}: hay pines configurados que no pertenecen a este modelo.` });

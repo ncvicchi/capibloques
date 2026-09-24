@@ -20,7 +20,7 @@ El ajuste menor de espacios de fase 6 no resolvía este pedido. La reorganizaci�
 - Incorporar capacidades, pines reservados, conexiones, validación, generación, compilación y posterior grabación para cada perfil, tanto en Arduino como en ESP-IDF según las fases acordadas.
 - No tratar las dos placas nuevas como intercambiables ni trasladarles automáticamente el mapa de pines de Wemos.
 
-La DevKit quedó identificada e implementada en fase 16. La segunda unidad fue identificada el 19 de septiembre de 2026 como **Waveshare ESP32-S3-Touch-LCD-5, SKU 28117**: módulo ESP32-S3-WROOM-1-N16R8, LCD RGB táctil capacitivo de 5 pulgadas, GT911 por I2C, 16 MiB de flash y 8 MiB de PSRAM. La lectura física sin escritura confirmó ESP32-S3 rev. 0.2, flash Quad 16 MiB y PSRAM 8 MiB. Fuente primaria: [documentación oficial de Waveshare](https://docs.waveshare.com/ESP32-S3-Touch-LCD-5). Fase 17 sigue pendiente de autorización e implementación: falta fijar la resolución de la unidad y contrastar revisión, serigrafía y esquema antes de generar firmware o diagrama.
+La DevKit quedó identificada e implementada en fase 16. La segunda unidad es **Waveshare ESP32-S3-Touch-LCD-5, SKU 28117**: módulo ESP32-S3-WROOM-1-N16R8, LCD RGB táctil **800 × 480**, GT911 por I2C, 16 MiB de flash y 8 MiB de PSRAM. Resolución, revisión y esquema fueron contrastados con la [documentación oficial de Waveshare](https://docs.waveshare.com/ESP32-S3-Touch-LCD-5) al implementar la fase 17; su prueba física permanece separada.
 
 Al implementar, definir cómo se elige o cambia la placa sin perder dispositivos ni ocultar conexiones incompatibles. No trasladar el mapa de DevKit: la pantalla ocupa la mayoría de GPIO y la placa usa CH422G para backlight, resets, tarjeta e I/O aisladas.
 

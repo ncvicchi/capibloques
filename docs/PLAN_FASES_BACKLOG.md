@@ -194,7 +194,7 @@ Aceptación:
 
 **Objetivo:** incorporar el perfil real de la Waveshare, su pantalla y las entradas disponibles antes de construir una aplicación gráfica interactiva.
 
-Unidad identificada: **Waveshare ESP32-S3-Touch-LCD-5, SKU 28117**, ESP32-S3-WROOM-1-N16R8, display RGB de 5 pulgadas y táctil capacitivo GT911 por I2C. La inspección física sin escritura confirmó ESP32-S3 rev. 0.2, flash Quad 16 MiB y PSRAM 8 MiB; coincide con la [documentación oficial](https://docs.waveshare.com/ESP32-S3-Touch-LCD-5). Antes de implementar todavía hay que fijar la resolución de la unidad —el producto admite 800 × 480 o 1024 × 600— y contrastar revisión, serigrafía y esquema. No asignar un controlador ILI: es un panel RGB paralelo.
+Unidad identificada: **Waveshare ESP32-S3-Touch-LCD-5, SKU 28117**, ESP32-S3-WROOM-1-N16R8, display RGB **800 × 480** de 5 pulgadas y táctil capacitivo GT911 por I2C. La SKU y resolución se contrastaron con la [documentación oficial](https://docs.waveshare.com/ESP32-S3-Touch-LCD-5) y la [ficha oficial del producto](https://www.waveshare.com/product/mcu-tools/esp32-s3-touch-lcd-5.htm): la variante 5B de 1024 × 600 es otra SKU. La inspección física sin escritura confirmó ESP32-S3 rev. 0.2, flash Quad 16 MiB y PSRAM 8 MiB. No asignar un controlador ILI: es un panel RGB paralelo.
 
 Alcance:
 

@@ -60,6 +60,7 @@ for (const header of [
     '#pragma once\n#include "driver-stub.h"\n',
   );
 for (const profile of Object.keys(displayProfiles)) {
+  if (profile === 'waveshare5') continue; // esp_lcd RGB se compila con las toolchains reales, no con este doble de Arduino.
   const { scene } = addDeviceToScene(createEmptyScene('Driver'), 'display', {
     config: displayConfig(profile),
   });

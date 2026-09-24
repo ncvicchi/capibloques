@@ -8,11 +8,99 @@ import { IDF_TFT_INIT } from './idf-tft-init.ts';
 import { displayAnimationFirmwareSupport } from './display-animation-firmware.ts';
 import type { SceneDefinition } from './scene-model.ts';
 
+function waveshareIdfSupport() {
+  return `#include "driver/i2c_master.h"
+#include "esp_lcd_panel_ops.h"
+#include "esp_lcd_panel_rgb.h"
+constexpr uint16_t CAPI_DISPLAY_COLUMNS = 50, CAPI_DISPLAY_ROWS = 30;
+constexpr uint16_t CAPI_DISPLAY_CELLS = CAPI_DISPLAY_COLUMNS * CAPI_DISPLAY_ROWS;
+constexpr uint8_t capiFont[] = { ${IDF_FONT.join(', ')} };
+char capiDisplayWanted[CAPI_DISPLAY_CELLS], capiDisplaySent[CAPI_DISPLAY_CELLS];
+bool capiDisplayReady = false, capiTouchDown = false;
+uint16_t capiTouchX = 0, capiTouchY = 0;
+esp_lcd_panel_handle_t capiScreen = nullptr;
+i2c_master_bus_handle_t capiWsBus = nullptr;
+i2c_master_dev_handle_t capiCh422Mode = nullptr, capiCh422Io = nullptr, capiGt911 = nullptr;
+uint8_t capiGlyphColumn(uint8_t character, uint8_t column) {
+  if (character < 32 || character > 126) character = '?';
+  return column < 5 ? capiFont[(character - 32) * 5 + column] : 0;
+}
+bool capiWsDevice(uint8_t address, i2c_master_dev_handle_t* handle) {
+  i2c_device_config_t config = {}; config.dev_addr_length = I2C_ADDR_BIT_LEN_7;
+  config.device_address = address; config.scl_speed_hz = 400000;
+  return i2c_master_bus_add_device(capiWsBus, &config, handle) == ESP_OK;
+}
+bool capiWsWrite(i2c_master_dev_handle_t device, uint8_t value) { return i2c_master_transmit(device, &value, 1, 5) == ESP_OK; }
+bool capiGtRead(uint16_t reg, uint8_t* data, size_t count) {
+  const uint8_t address[] = {(uint8_t)(reg >> 8), (uint8_t)reg};
+  return i2c_master_transmit_receive(capiGt911, address, sizeof(address), data, count, 5) == ESP_OK;
+}
+bool capiGtWrite(uint16_t reg, uint8_t value) {
+  const uint8_t data[] = {(uint8_t)(reg >> 8), (uint8_t)reg, value};
+  return i2c_master_transmit(capiGt911, data, sizeof(data), 5) == ESP_OK;
+}
+void capiTouchService() {
+  static uint32_t last = 0; const uint32_t now = capiMillis();
+  if ((uint32_t)(now - last) < 16U) return; last = now;
+  uint8_t status = 0; if (!capiGtRead(0x814e, &status, 1) || !(status & 0x80)) return;
+  const uint8_t points = status & 0x0f; capiTouchDown = points > 0;
+  if (points) { uint8_t point[4]; if (capiGtRead(0x8150, point, sizeof(point))) {
+    capiTouchX = point[0] | ((uint16_t)point[1] << 8); capiTouchY = point[2] | ((uint16_t)point[3] << 8);
+  }}
+  capiGtWrite(0x814e, 0);
+}
+bool capiDisplayGlyph(uint16_t x, uint16_t y, uint8_t character) {
+  uint16_t pixels[16 * 16];
+  for (int row = 0; row < 16; ++row) for (int column = 0; column < 16; ++column) {
+    const bool on = character == 0x7f || ((capiGlyphColumn(character, column / 2) >> (row / 2)) & 1);
+    pixels[row * 16 + column] = on ? 0xffff : 0x0000;
+  }
+  return esp_lcd_panel_draw_bitmap(capiScreen, x * 16, y * 16, x * 16 + 16, y * 16 + 16, pixels) == ESP_OK;
+}
+${displayAnimationFirmwareSupport()}
+void capiDisplayBegin() {
+  memset(capiDisplayWanted, ' ', CAPI_DISPLAY_CELLS); memset(capiDisplaySent, ' ', CAPI_DISPLAY_CELLS);
+  i2c_master_bus_config_t bus = {}; bus.i2c_port = I2C_NUM_0; bus.sda_io_num = GPIO_NUM_8; bus.scl_io_num = GPIO_NUM_9;
+  bus.clk_source = I2C_CLK_SRC_DEFAULT; bus.glitch_ignore_cnt = 7; bus.flags.enable_internal_pullup = true;
+  if (i2c_new_master_bus(&bus, &capiWsBus) != ESP_OK || !capiWsDevice(0x24, &capiCh422Mode) || !capiWsDevice(0x38, &capiCh422Io) || !capiWsDevice(0x5d, &capiGt911)) return;
+  if (!capiWsWrite(capiCh422Mode, 0x01) || !capiWsWrite(capiCh422Io, 0x2c)) return;
+  gpio_set_direction(GPIO_NUM_4, GPIO_MODE_OUTPUT); gpio_set_level(GPIO_NUM_4, 0); vTaskDelay(pdMS_TO_TICKS(10));
+  if (!capiWsWrite(capiCh422Io, 0x2e)) return;
+  gpio_set_direction(GPIO_NUM_4, GPIO_MODE_INPUT); vTaskDelay(pdMS_TO_TICKS(50));
+  if (!capiWsWrite(capiCh422Io, 0x1e)) return;
+  esp_lcd_rgb_panel_config_t config = {};
+  config.data_width = 16; config.bits_per_pixel = 16; config.num_fbs = 1; config.clk_src = LCD_CLK_SRC_DEFAULT;
+  config.bounce_buffer_size_px = 800 * 10; config.sram_trans_align = 4; config.psram_trans_align = 64;
+  config.hsync_gpio_num = 46; config.vsync_gpio_num = 3; config.de_gpio_num = 5; config.pclk_gpio_num = 7; config.disp_gpio_num = -1;
+  const int dataPins[16] = {14,38,18,17,10,39,0,45,48,47,21,1,2,42,41,40};
+  for (int i = 0; i < 16; ++i) config.data_gpio_nums[i] = dataPins[i];
+  config.timings.pclk_hz = 16000000; config.timings.h_res = 800; config.timings.v_res = 480;
+  config.timings.hsync_pulse_width = 4; config.timings.hsync_back_porch = 8; config.timings.hsync_front_porch = 8;
+  config.timings.vsync_pulse_width = 4; config.timings.vsync_back_porch = 8; config.timings.vsync_front_porch = 8;
+  config.timings.flags.pclk_active_neg = true; config.flags.fb_in_psram = true;
+  if (esp_lcd_new_rgb_panel(&config, &capiScreen) != ESP_OK || esp_lcd_panel_reset(capiScreen) != ESP_OK || esp_lcd_panel_init(capiScreen) != ESP_OK) return;
+  capiDisplayReady = true;
+}
+void capiDisplayService(uint32_t now) {
+  capiTouchService(); capiDisplayAnimationService(now);
+  static uint32_t last = 0; static uint16_t cursor = 0;
+  if (!capiDisplayReady || (uint32_t)(now - last) < 2U) return; last = now;
+  for (uint16_t scanned = 0; scanned < CAPI_DISPLAY_CELLS; ++scanned) {
+    const uint16_t index = cursor; cursor = (cursor + 1) % CAPI_DISPLAY_CELLS;
+    if (capiDisplaySent[index] == capiDisplayWanted[index]) continue;
+    if (!capiDisplayGlyph(index % CAPI_DISPLAY_COLUMNS, index / CAPI_DISPLAY_COLUMNS, capiDisplayWanted[index])) { capiDisplayReady = false; return; }
+    capiDisplaySent[index] = capiDisplayWanted[index]; return;
+  }
+}
+`;
+}
+
 /** Native, write-only text drivers; one display and no shared external bus. */
 export function displayIdfSupport(scene: SceneDefinition) {
   const device = scene.devices.find(device => device.kind === 'display');
   if (!device || device.kind !== 'display' || !validDisplayConfig(device.config)) return '';
   const profile = displayProfiles[device.config.profile];
+  if (device.config.profile === 'waveshare5') return waveshareIdfSupport();
   const pin = (name: keyof typeof device.pins) => device.pins[name] ?? -1;
   const lcd = !profile.graphic;
   const i2c = profile.bus === 'i2c';

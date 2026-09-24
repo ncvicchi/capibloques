@@ -149,6 +149,7 @@ export default function ReviewSimulation({
       type: 'LOAD',
       program,
       scene: project.scene,
+      boardProfile: project.target.boardProfile,
     });
     worker.current?.postMessage({ type: 'SET_SPEED', speed: speedRef.current });
   }, [program, project]);

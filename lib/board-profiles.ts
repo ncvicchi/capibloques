@@ -1,6 +1,7 @@
 export type BoardProfileId =
   | 'wemos-d1-r32'
-  | 'diymall-esp32-s3-devkitc-v1-n16r8';
+  | 'diymall-esp32-s3-devkitc-v1-n16r8'
+  | 'waveshare-esp32-s3-touch-lcd-5-28117';
 
 export type PinCapability = 'pwmOutput' | 'digitalInput' | 'analogInput';
 
@@ -46,11 +47,21 @@ export type ProjectTarget =
       coreVersion: '3.3.11';
       boardProfile: 'diymall-esp32-s3-devkitc-v1-n16r8';
       fqbn: 'esp32:esp32:esp32s3';
+    }
+  | {
+      family: 'esp32-s3';
+      framework: 'arduino';
+      coreMajor: 3;
+      coreVersion: '3.3.11';
+      boardProfile: 'waveshare-esp32-s3-touch-lcd-5-28117';
+      fqbn: 'esp32:esp32:esp32s3';
     };
 
 export const WEMOS_PROFILE_ID: BoardProfileId = 'wemos-d1-r32';
 export const DIYMALL_S3_PROFILE_ID: BoardProfileId =
   'diymall-esp32-s3-devkitc-v1-n16r8';
+export const WAVESHARE_TOUCH_LCD_5_PROFILE_ID: BoardProfileId =
+  'waveshare-esp32-s3-touch-lcd-5-28117';
 
 export const wemosD1R32Pins: readonly BoardPinDefinition[] = [
   { gpio: 26, label: 'D2', capabilities: ['pwmOutput', 'digitalInput'], recommended: true },
@@ -118,20 +129,34 @@ export const boardProfiles: Record<BoardProfileId, BoardProfile> = {
     safeDigitalInputPins: [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 21, 38, 39, 40, 41, 42, 47],
     safeAnalogInputPins: [1, 2, 4, 5, 6, 7, 8, 9, 10],
   },
+  'waveshare-esp32-s3-touch-lcd-5-28117': {
+    id: 'waveshare-esp32-s3-touch-lcd-5-28117',
+    name: 'Waveshare ESP32-S3 Touch LCD 5 · SKU 28117 · 800 × 480',
+    shortName: 'Waveshare 5″', family: 'esp32-s3', chip: 'ESP32-S3', idfTarget: 'esp32s3',
+    fqbn: 'esp32:esp32:esp32s3', flashBytes: 16 * 1024 * 1024, flashSize: '16MB',
+    psramBytes: 8 * 1024 * 1024, pwmChannels: 8,
+    // La pantalla RGB, touch, USB, microSD, CAN y RS485 ocupan los GPIO del módulo.
+    // Los bornes CAN/RS485 y las E/S aisladas no son GPIO genéricos y no se ofrecen
+    // para autoconectar componentes escolares.
+    pins: [], safeOutputPins: [], safeDigitalInputPins: [], safeAnalogInputPins: [],
+  },
 };
 
 export const boardProfile = (id: BoardProfileId) => boardProfiles[id];
 
 export function projectTargetForBoard(id: BoardProfileId): ProjectTarget {
-  return id === WEMOS_PROFILE_ID
-    ? {
+  if (id === WEMOS_PROFILE_ID) return {
         family: 'esp32', framework: 'arduino', coreMajor: 3, coreVersion: '3.3.11',
         boardProfile: 'wemos-d1-r32', fqbn: 'esp32:esp32:d1_uno32',
-      }
-    : {
+      };
+  if (id === DIYMALL_S3_PROFILE_ID) return {
         family: 'esp32-s3', framework: 'arduino', coreMajor: 3, coreVersion: '3.3.11',
         boardProfile: 'diymall-esp32-s3-devkitc-v1-n16r8', fqbn: 'esp32:esp32:esp32s3',
       };
+  return {
+    family: 'esp32-s3', framework: 'arduino', coreMajor: 3, coreVersion: '3.3.11',
+    boardProfile: 'waveshare-esp32-s3-touch-lcd-5-28117', fqbn: 'esp32:esp32:esp32s3',
+  };
 }
 
 export function isProjectTarget(value: unknown): value is ProjectTarget {

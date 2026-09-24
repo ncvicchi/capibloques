@@ -26,6 +26,8 @@ import {
 } from './scene-model.ts';
 // @ts-expect-error Node strip-types tests import the source extension.
 import { matrixPixel, matrixScrollRows, matrixScrollSteps } from './led-matrix.ts';
+// @ts-expect-error Node's type-stripping smoke runner needs the explicit suffix.
+import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 
 type Pending =
   | { kind: 'wait'; startedAt: number; until: number; blockId: string }
@@ -59,7 +61,7 @@ type BuzzerRuntimeState = Extract<RuntimeDeviceState, { playing: boolean }>;
 type SensorRuntimeState = Extract<RuntimeDeviceState, { value: number }>;
 
 type WorkerInboundMessage =
-  | { type: 'LOAD'; program: unknown; scene?: unknown }
+  | { type: 'LOAD'; program: unknown; scene?: unknown; boardProfile?: unknown }
   | { type: 'RUN' | 'PAUSE' | 'STOP' | 'RESET' | 'STEP' }
   | { type: 'SET_SPEED'; speed: unknown }
   | { type: 'SET_MODE'; mode: 'normal' | 'guided' }
@@ -81,6 +83,7 @@ const scope = self as unknown as {
 
 let program: CompiledProgram = { version: 2, threads: [] };
 let scene: SceneDefinition = inferSceneForProgram(program);
+let currentBoardProfile: BoardProfileId = 'wemos-d1-r32';
 let executions: ThreadExecution[] = [];
 let schedulerCursor = 0;
 let schedulerBudgetUsed = 0;
@@ -131,7 +134,7 @@ const HARDWARE_ONLY_ERROR_CODES = new Set([
 ]);
 
 function refreshDiagnostics(extra: CapiDiagnostic[] = []) {
-  diagnostics = [...validateProgramForScene(program, scene), ...extra];
+  diagnostics = [...validateProgramForScene(program, scene, currentBoardProfile), ...extra];
   simulationBlocked = diagnostics.some(
     (item) =>
       item.severity === 'error' && !HARDWARE_ONLY_ERROR_CODES.has(item.code),
@@ -1703,6 +1706,7 @@ scope.addEventListener('message', (event) => {
       const invalidScene =
         message.scene !== undefined && !isSceneDefinition(message.scene);
       try {
+        currentBoardProfile = isBoardProfileId(message.boardProfile) ? message.boardProfile : 'wemos-d1-r32';
         scene = isSceneDefinition(message.scene)
           ? cloneScene(message.scene)
           : inferSceneForProgram(message.program);

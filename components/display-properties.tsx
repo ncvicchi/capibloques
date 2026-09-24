@@ -23,13 +23,16 @@ import {
   type DisplayArtwork,
 } from '@/lib/display-graphics';
 import type { DisplayDevice } from '@/lib/scene-model';
+import type { BoardProfileId } from '@/lib/board-profiles';
 
 export function DisplayProperties({
   device,
   onChange,
+  boardProfile,
 }: {
   device: DisplayDevice;
   onChange: (device: DisplayDevice) => void;
+  boardProfile: BoardProfileId;
 }) {
   const [pendingProfile, setPendingProfile] = useState<DisplayProfile | null>(
     null,
@@ -136,7 +139,9 @@ export function DisplayProperties({
             if (next !== config.profile) setPendingProfile(next);
           }}
         >
-          {Object.entries(displayProfiles).map(([id, model]) => (
+          {Object.entries(displayProfiles).filter(([id]) =>
+            boardProfile === 'waveshare-esp32-s3-touch-lcd-5-28117' ? id === 'waveshare5' : id !== 'waveshare5',
+          ).map(([id, model]) => (
             <option key={id} value={id}>
               {model.name}
             </option>
@@ -168,6 +173,7 @@ export function DisplayProperties({
           ? 'Cada zona tiene su propio mensaje; las zonas no pueden superponerse.'
           : 'Los mensajes van directamente a toda la pantalla.'}
       </p>
+      {profile.bus === 'integrated-rgb' && <p>La pantalla y el touch ya vienen conectados en la placa. No ocupan conexiones configurables de la escena.</p>}
       {profile.keypad && (
         <p>
           Incluye los botones Izquierda, Arriba, Abajo, Derecha y Elegir. En

@@ -45,19 +45,20 @@ for (const auxiliary of [false, true]) {
   assert.throws(() => espIdfProjectFiles(arduino));
 }
 for (const profile of Object.keys(displayProfiles)) {
-  const { scene, device } = addDeviceToScene(createEmptyScene('Display'), 'display', { config: displayConfig(profile) });
+  const boardProfile = profile === 'waveshare5' ? 'waveshare-esp32-s3-touch-lcd-5-28117' : 'wemos-d1-r32';
+  const { scene, device } = addDeviceToScene(createEmptyScene('Display'), 'display', { config: displayConfig(profile), boardProfile });
   const areaId = displayTargets(device.config)[0].id;
   const program = { version: 2, threads: [{ id: 'start', startBlockId: 'start', nodes: [
     { op: 'displayWrite', deviceId: device.id, areaId, text: '¡Sí!\nESP32', blockId: 'text' },
     { op: 'displayClear', deviceId: device.id, areaId, blockId: 'clear' },
   ] }] };
-  const native = generateEspIdfCodeResult(program, 'Pantalla', scene);
-  const arduino = generateEsp32CodeResult(program, 'Pantalla', scene);
+  const native = generateEspIdfCodeResult(program, 'Pantalla', scene, boardProfile);
+  const arduino = generateEsp32CodeResult(program, 'Pantalla', scene, 'arduino', boardProfile);
   const calls = code => [...code.matchAll(/^\s+capiDisplayWrite\([0-9].*$/gm)].map(match => match[0]);
   assert.deepEqual(calls(native.code), calls(arduino.code));
   assert.equal(native.diagnostics.filter(item => item.severity === 'error').length, 0);
   assert.match(native.code, /capiDisplayService\(now\)/);
-  assert.match(native.code, /capiDisplayReady = false; capiPrintln/);
+  if (profile !== 'waveshare5') assert.match(native.code, /capiDisplayReady = false; capiPrintln/);
   if (profile.startsWith('ili')) {
     assert.match(native.code, /spi_device_queue_trans.*pdMS_TO_TICKS\(20\)/);
     assert.match(native.code, /spi_device_get_trans_result.*pdMS_TO_TICKS\(20\)/);
@@ -65,13 +66,16 @@ for (const profile of Object.keys(displayProfiles)) {
   } else if (profile === 'lcd1602keypad') {
     assert.match(native.code, /capiDisplayButtonPressed/);
     assert.match(native.code, /esp_rom_delay_us/);
+  } else if (profile === 'waveshare5') {
+    assert.match(native.code, /esp_lcd_new_rgb_panel/);
+    assert.match(native.code, /capiGtRead\(0x814e/);
   } else assert.match(native.code, /i2c_master_transmit\(capiDisplayDevice, data, count, 5\)/);
-  device.pins[profile.startsWith('ili') ? 'sck' : profile === 'lcd1602keypad' ? 'rs' : 'sda'] = null;
-  const invalid = generateEspIdfCodeResult(program, 'Invalid', scene);
+  if (profile !== 'waveshare5') device.pins[profile.startsWith('ili') ? 'sck' : profile === 'lcd1602keypad' ? 'rs' : 'sda'] = null;
+  const invalid = generateEspIdfCodeResult(program, 'Invalid', scene, profile === 'waveshare5' ? 'wemos-d1-r32' : boardProfile);
   assert.throws(() => espIdfProjectFiles(invalid));
 }
 assert.equal(IDF_FONT.length, 475);
 assert.match(IDF_FONT_LICENSE, /Copyright \(c\) 2012 Adafruit/);
 for (const path of ['../oops', '/root', 'x/../oops', 'x//y', 'x\\y']) assert.throws(() => zipFirmwareFiles({ [path]: 'x' }));
 assert.throws(() => zipFirmwareFiles({ 'main.cpp': 'x'.repeat(17 * 1024 * 1024) }));
-console.log('ESP-IDF: shared graph, native APIs, PWM timer isolation, six displays, deterministic ZIP and invalid-input guards passed.');
+console.log('ESP-IDF: shared graph, native APIs, PWM timer isolation, seven displays, deterministic ZIP and invalid-input guards passed.');

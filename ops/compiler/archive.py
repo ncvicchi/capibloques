@@ -9,6 +9,7 @@ import zipfile
 TARGETS = {
     "wemos-d1-r32": {"chip": "esp32", "flash": 4 * 1024 * 1024, "settings": {"flashMode": "dio", "flashFrequency": "40m", "flashSize": "4MB"}, "boot": 0x1000, "name": "Wemos D1 R32"},
     "diymall-esp32-s3-devkitc-v1-n16r8": {"chip": "esp32s3", "flash": 16 * 1024 * 1024, "settings": {"flashMode": "qio", "flashFrequency": "80m", "flashSize": "16MB"}, "boot": 0x0, "name": "DIYmall ESP32-S3-DevKitC V1.0 N16R8"},
+    "waveshare-esp32-s3-touch-lcd-5-28117": {"chip": "esp32s3", "flash": 16 * 1024 * 1024, "settings": {"flashMode": "qio", "flashFrequency": "80m", "flashSize": "16MB"}, "boot": 0x0, "name": "Waveshare ESP32-S3 Touch LCD 5 SKU 28117"},
 }
 
 

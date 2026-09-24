@@ -739,7 +739,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       return;
     }
     playbackSourceRef.current = JSON.stringify(editorRef.current?.save());
-    postToWorker({ type: 'LOAD', program, scene });
+    postToWorker({ type: 'LOAD', program, scene, boardProfile: projectTarget.boardProfile });
     postToWorker({ type: 'SET_SPEED', speed });
     postToWorker({ type: 'RUN' });
     setNotice(
@@ -782,13 +782,13 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         return;
       }
       playbackSourceRef.current = JSON.stringify(editorRef.current?.save());
-      postToWorker({ type: 'LOAD', program, scene });
+      postToWorker({ type: 'LOAD', program, scene, boardProfile: projectTarget.boardProfile });
       postToWorker({ type: 'SET_SPEED', speed });
     }
     postToWorker({ type: 'STEP' });
     setNotice('Avanzamos un paso visible. El panel «Ahora» explica qué ocurrió.');
     setNoticeTone('ok');
-  }, [compile, postToWorker, scene, sim.status, speed]);
+  }, [compile, postToWorker, projectTarget.boardProfile, scene, sim.status, speed]);
 
   const reset = useCallback(() => {
     postToWorker({ type: 'RESET' });
@@ -1079,6 +1079,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         stopSound();
         setProjectName(imported.metadata.title);
         setScene(nextScene);
+        setProjectTarget(imported.target);
         setSim(makeInitialState(nextScene));
         setSpeed(imported.simulation.speed);
         setWorkspace(normalizeWorkspace(imported.workspace));

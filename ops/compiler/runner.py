@@ -123,6 +123,7 @@ def validate_archive(raw, job):
         target_spec = {
             "wemos-d1-r32": ("esp32", 4_194_304),
             "diymall-esp32-s3-devkitc-v1-n16r8": ("esp32s3", 16_777_216),
+            "waveshare-esp32-s3-touch-lcd-5-28117": ("esp32s3", 16_777_216),
         }.get(target.get("boardProfile"))
         if not target_spec:
             raise ValueError

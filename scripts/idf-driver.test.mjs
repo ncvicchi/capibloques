@@ -226,6 +226,7 @@ int main() {
 `);
 
 for (const profile of Object.keys(displayProfiles)) {
+  if (profile === 'waveshare5') continue; // esp_lcd RGB se valida con ESP-IDF real; este ejecutable usa un HAL mínimo de escritorio.
   const {scene, device} = addDeviceToScene(createEmptyScene('HAL display'), 'display', {config:displayConfig(profile)});
   if (profile === 'lcd1602keypad') Object.assign(device.pins, {rs:4,en:13,d4:14,d5:16,d6:17,d7:18,backlight:19,keys:34});
   const code = generateEspIdfCodeResult({version:2,threads:[{id:'start',startBlockId:'start',nodes:[]}]}, 'Display', scene).code;

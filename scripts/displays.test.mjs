@@ -28,20 +28,22 @@ import {
   makeProject,
   validateProgramForScene,
 } from '../lib/capiblocks.ts';
+import { projectTargetForBoard } from '../lib/board-profiles.ts';
 
 const wrap = (nodes) => ({
   version: 2,
   threads: [{ id: 'start', startBlockId: 'start', nodes }],
 });
 for (const profile of Object.keys(displayProfiles)) {
+  const boardProfile = profile === 'waveshare5' ? 'waveshare-esp32-s3-touch-lcd-5-28117' : 'wemos-d1-r32';
   const config = displayConfig(profile);
   assert.equal(validDisplayConfig(config), true, profile);
   const { scene, device } = addDeviceToScene(
     createEmptyScene('Pantalla'),
     'display',
-    { config },
+    { config, boardProfile },
   );
-  assert.equal(validateScene(scene).hardwareReady, true, profile);
+  assert.equal(validateScene(scene, boardProfile).hardwareReady, true, profile);
   assert.equal(isSceneDefinition(scene), true);
   assert.equal(duplicateSceneDevice(scene, device.id), null);
   assert.throws(() => addDeviceToScene(scene, 'display'), /una sola pantalla/);
@@ -100,7 +102,7 @@ for (const profile of Object.keys(displayProfiles)) {
       },
     );
   }
-  const generated = generateEsp32CodeResult(wrap(nodes), profile, scene);
+  const generated = generateEsp32CodeResult(wrap(nodes), profile, scene, 'arduino', boardProfile);
   assert.equal(
     generated.diagnostics.filter((item) => item.severity === 'error').length,
     0,
@@ -118,9 +120,14 @@ for (const profile of Object.keys(displayProfiles)) {
   }
   assert.ok(generated.code.indexOf('struct TrafficDevice') < generated.code.indexOf('void capiDisplayWrite'), 'Arduino inserts prototypes before the first sketch function: declare helper types first');
   assert.doesNotMatch(generated.code, /Serial.println\("!Hola/);
-  assert.doesNotMatch(generated.code, /delay\(/);
+  if (profile !== 'waveshare5') assert.doesNotMatch(generated.code, /\bdelay\(/);
   if (profile === 'ili9488')
     assert.match(generated.code, /Arduino_ILI9488_18bit/);
+  if (profile === 'waveshare5') {
+    assert.match(generated.code, /esp_lcd_new_rgb_panel/);
+    assert.match(generated.code, /capiTouchService/);
+    assert.match(generated.code, /16000000/);
+  }
   const saved = makeProject('Texto', scene, {
     blocks: {
       languageVersion: 0,
@@ -144,7 +151,7 @@ for (const profile of Object.keys(displayProfiles)) {
         },
       ],
     },
-  });
+  }, 1, projectTargetForBoard(boardProfile));
   assert.deepEqual(decodeProject(saved).project.scene, scene);
   assert.ok(
     validateProgramForScene(
@@ -391,5 +398,5 @@ assert.deepEqual(
 );
 assert.equal(state().devices[animated.device.id].animation, null);
 console.log(
-  'Displays: six profiles, keypad, drawings, animations, JSON, isolated areas, worker modes and generated adapters passed.',
+  'Displays: seven profiles, keypad/touch, drawings, animations, JSON, isolated areas, worker modes and generated adapters passed.',
 );

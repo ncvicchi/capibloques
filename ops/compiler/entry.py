@@ -39,7 +39,7 @@ def main():
     generated = json.loads(run(["node", "--experimental-strip-types", "/opt/capi/scripts/compiler-generate.mjs"], input=payload, structured=True))
     target = generated["target"]
     board = target["boardProfile"]
-    if board not in ("wemos-d1-r32", "diymall-esp32-s3-devkitc-v1-n16r8"):
+    if board not in ("wemos-d1-r32", "diymall-esp32-s3-devkitc-v1-n16r8", "waveshare-esp32-s3-touch-lcd-5-28117"):
         raise ValueError
     for name, text in generated["files"].items():
         path = (Path("/work/project") / name).resolve()

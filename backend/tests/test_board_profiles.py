@@ -30,6 +30,19 @@ class BoardProfileValidationTests(SimpleTestCase):
         value["scene"]["devices"] = [device]
         with self.assertRaises(ValidationError):
             document(value)
+
+    def test_waveshare_exact_target_and_integrated_display(self):
+        value = self.s3_project()
+        value["target"]["boardProfile"] = "waveshare-esp32-s3-touch-lcd-5-28117"
+        display = copy.deepcopy(EXAMPLES[0]["scene"]["devices"][0])
+        display.update(kind="display", id="waveshare-screen", name="Pantalla integrada", pins=dict.fromkeys(("sda", "scl", "sck", "mosi", "cs", "dc", "rst", "rs", "en", "d4", "d5", "d6", "d7", "backlight", "keys")))
+        display["config"] = {"profile": "waveshare5", "address": 0, "areas": [{"id": "text-1", "name": "Mensaje", "column": 0, "row": 0, "columns": 16, "rows": 4}], "retiredAreaIds": []}
+        value["scene"]["devices"] = [display]
+        self.assertGreater(document(value), 0)
+        display["config"]["profile"] = "ssd1306"
+        display["config"]["address"] = 0x3c
+        with self.assertRaisesMessage(ValidationError, "perfil de pantalla"):
+            document(value)
         value = self.s3_project()
         value["target"]["fqbn"] = "esp32:esp32:d1_uno32"
         with self.assertRaises(ValidationError):

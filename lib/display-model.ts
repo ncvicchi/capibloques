@@ -69,6 +69,17 @@ export const displayProfiles = {
     height: 320,
     address: 0,
   },
+  waveshare5: {
+    name: 'Pantalla integrada Waveshare 5″ · 800 × 480 + touch',
+    bus: 'integrated-rgb',
+    graphic: true,
+    keypad: false,
+    columns: 50,
+    rows: 30,
+    width: 800,
+    height: 480,
+    address: 0,
+  },
 } as const;
 
 export type DisplayProfile = keyof typeof displayProfiles;
@@ -181,6 +192,7 @@ export function requiredDisplayPins(
   config: DisplayConfig,
 ): readonly DisplayPinKey[] {
   const bus = displayProfiles[config.profile].bus;
+  if (bus === 'integrated-rgb') return [];
   if (bus === 'i2c') return ['sda', 'scl'];
   if (bus === 'parallel')
     return ['rs', 'en', 'd4', 'd5', 'd6', 'd7', 'backlight', 'keys'];
@@ -255,7 +267,7 @@ export function validDisplayConfig(
         );
   if (
     !integer(value.address, 0, 127) ||
-    (profile.bus === 'spi' || profile.bus === 'parallel'
+    (profile.bus === 'spi' || profile.bus === 'parallel' || profile.bus === 'integrated-rgb'
       ? value.address !== 0
       : !addresses.includes(value.address))
   )

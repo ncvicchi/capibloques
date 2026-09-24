@@ -11,6 +11,7 @@ import {
   type DisplayProfile,
 } from '../lib/display-model';
 import { displayArtworkPixel } from '../lib/display-graphics';
+import { projectTargetForBoard } from '../lib/board-profiles';
 
 async function open(page: Page) {
   await mockEditorSession(page);
@@ -20,6 +21,7 @@ async function open(page: Page) {
   });
 }
 function sample(profile: DisplayProfile = 'ssd1306') {
+  const boardProfile = profile === 'waveshare5' ? 'waveshare-esp32-s3-touch-lcd-5-28117' : 'wemos-d1-r32';
   const config = displayConfig(profile);
   // Imported identities may match Object.prototype names; an empty preview must remain safe.
   if (profile === 'ili9488') config.areas[0].id = 'constructor';
@@ -35,7 +37,7 @@ function sample(profile: DisplayProfile = 'ssd1306') {
   const { scene, device } = addDeviceToScene(
     createEmptyScene('Pantalla de prueba'),
     'display',
-    { config, name: 'Mi pantalla', position: { x: 480, y: 270 } },
+    { config, name: 'Mi pantalla', position: { x: 480, y: 270 }, boardProfile },
   );
   const area = displayTargets(config)[0];
   const write = (id: string, areaId: string, text: string) => ({
@@ -78,7 +80,7 @@ function sample(profile: DisplayProfile = 'ssd1306') {
         },
       ],
     },
-  });
+  }, 1, projectTargetForBoard(boardProfile));
 }
 
 function animatedSample() {
@@ -357,7 +359,7 @@ test('pantalla: retirar zona no retargetea bloques; layout inválido no se guard
     .getByRole('button', { name: 'Guardar escena', exact: true })
     .click();
   await expect(editor).toBeVisible();
-  await expect(editor.getByRole('alert')).toContainText('superponerse');
+  await expect(editor.getByRole('alert').filter({ hasText: 'superponerse' }).first()).toBeVisible();
   await editor
     .getByRole('button', { name: 'Cancelar cambios', exact: true })
     .click();
@@ -376,7 +378,7 @@ test('pantalla: retirar zona no retargetea bloques; layout inválido no se guard
   expect(JSON.stringify(exported.workspace)).toContain('text-1');
 });
 
-test('pantalla: los seis modelos se importan, simulan y exportan sin cambiar el destino', async ({
+test('pantalla: los siete modelos se importan, simulan y exportan sin cambiar el destino', async ({
   page,
 }) => {
   test.setTimeout(60_000);

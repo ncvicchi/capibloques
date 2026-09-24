@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Check, ShieldAlert, ShieldCheck } from 'lucide-react';
 import WemosBoard from '@/components/wemos-board';
 import S3Board from '@/components/s3-board';
+import WaveshareBoard from '@/components/waveshare-board';
 import ComponentHelpDialog from '@/components/component-help';
 import { physicalWemosLabel } from '@/lib/wemos-board';
 import { physicalS3Label } from '@/lib/s3-board';
@@ -192,7 +193,9 @@ export default function WiringGuide({
           </label>
           {profileId === 'wemos-d1-r32'
             ? <WemosBoard connections={connectionRows} selectedPin={selectedPin} selectedDevice={selectedDevice} onSelect={pin => setSelection({ signature, pin })} />
-            : <S3Board connections={connectionRows} selectedPin={selectedPin} selectedDevice={selectedDevice} onSelect={pin => setSelection({ signature, pin })} />}
+            : profileId === 'waveshare-esp32-s3-touch-lcd-5-28117'
+              ? <WaveshareBoard />
+              : <S3Board connections={connectionRows} selectedPin={selectedPin} selectedDevice={selectedDevice} onSelect={pin => setSelection({ signature, pin })} />}
 
           <section className="wiring-status">
             {hardwareReady ? (
@@ -233,7 +236,7 @@ export default function WiringGuide({
                         <td>{index + 1}</td>
                         <td>{row.deviceName}</td>
                         <td>{row.signal}</td>
-                        <td>{(profileId === 'wemos-d1-r32' ? physicalWemosLabel(row.pin) : physicalS3Label(row.pin)) ?? (row.pin == null ? 'Sin asignar' : 'No localizado')}{row.boardLabel ? ` / ${row.boardLabel}` : ''}</td>
+                        <td>{(profileId === 'wemos-d1-r32' ? physicalWemosLabel(row.pin) : profileId === 'waveshare-esp32-s3-touch-lcd-5-28117' ? undefined : physicalS3Label(row.pin)) ?? (row.pin == null ? 'Integrado / sin cable' : 'No localizado')}{row.boardLabel ? ` / ${row.boardLabel}` : ''}</td>
                         <td>{row.pin == null ? '—' : <button type="button" className="wiring-pin-button" aria-label={`Localizar conexión ${index + 1}: ${row.deviceName}, ${row.signal}, GPIO ${row.pin}`} aria-pressed={row.pin === selectedPin} onClick={() => setSelection({ signature, pin: row.pin! })}>GPIO {row.pin}</button>}</td>
                       </tr>
                     ))}

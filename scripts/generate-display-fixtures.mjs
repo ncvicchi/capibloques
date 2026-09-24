@@ -9,12 +9,13 @@ import { addDeviceToScene, createEmptyScene } from '../lib/scene-model.ts';
 import { generateEsp32CodeResult } from '../lib/capiblocks.ts';
 
 for (const profile of Object.keys(displayProfiles)) {
+  const boardProfile = profile === 'waveshare5' ? 'waveshare-esp32-s3-touch-lcd-5-28117' : 'wemos-d1-r32';
   const { scene, device } = addDeviceToScene(
     createEmptyScene(`Pantalla ${profile}`),
     'display',
-    { config: displayConfig(profile) },
+    { config: displayConfig(profile), boardProfile },
   );
-  const led = addDeviceToScene(scene, 'led');
+  const led = profile === 'waveshare5' ? { scene, device: null } : addDeviceToScene(scene, 'led');
   const areaId = displayTargets(device.config)[0].id;
   const generated = generateEsp32CodeResult(
     {
@@ -53,12 +54,12 @@ for (const profile of Object.keys(displayProfiles)) {
                   },
                 ]
               : []),
-            {
+            ...(led.device ? [{
               op: 'led',
               deviceId: led.device.id,
               brightness: 50,
               blockId: 'light',
-            },
+            }] : []),
             { op: 'wait', ms: 2000, blockId: 'wait' },
             {
               op: 'displayClear',
@@ -73,6 +74,8 @@ for (const profile of Object.keys(displayProfiles)) {
     },
     `Pantalla ${profile}`,
     led.scene,
+    'arduino',
+    boardProfile,
   );
   if (generated.diagnostics.some((issue) => issue.severity === 'error'))
     throw new Error(JSON.stringify(generated.diagnostics));
