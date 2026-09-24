@@ -247,7 +247,9 @@ static bool condition(cJSON *value) {
 struct TaskContext { cJSON *task; int index; };
 static void execute_task(void *parameter);
 static bool start_task(int index) {
-  if(!running||index<0||index>=32)return false; int expected=0;if(!task_states[index].compare_exchange_strong(expected,1))return expected==1||expected==2;
+  if (!running || index < 0 || index >= 32) return false;
+  int expected = 0;
+  if (!task_states[index].compare_exchange_strong(expected, 1)) return expected == 1 || expected == 2;
   cJSON *tasks=cJSON_GetObjectItem(active,"tasks"),*task=cJSON_GetArrayItem(tasks,index);if(!task){task_states[index]=0;return false;}
   TaskContext *context=new(std::nothrow) TaskContext{task,index};if(!context){task_states[index]=0;return false;}++active_tasks;
   char name[16];snprintf(name,sizeof(name),"capi-%d",index);if(xTaskCreate(execute_task,name,6144,context,5,nullptr)!=pdPASS){--active_tasks;task_states[index]=0;delete context;return false;}return true;
@@ -255,7 +257,8 @@ static bool start_task(int index) {
 static void execute_task(void *parameter) {
   TaskContext *context=(TaskContext*)parameter;cJSON *task=context->task,*instructions=cJSON_GetObjectItem(task,"output");int task_index=context->index;delete context;int pc=0,reported=-1;std::vector<int> loops(32,0);bool message_waiting=false,otto_waiting=false,wifi_waiting=false;TickType_t message_started=0,otto_started=0,wifi_started_at=0;
   while (running && pc < cJSON_GetArraySize(instructions)) {
-    while (paused && running) vTaskDelay(pdMS_TO_TICKS(20)); if (!running) break;
+    while (paused && running) vTaskDelay(pdMS_TO_TICKS(20));
+    if (!running) break;
     cJSON *instruction = cJSON_GetArrayItem(instructions, pc), *dev = device(text(instruction,"deviceId")); const char *op = text(instruction,"op"), *block = text(instruction,"blockId",nullptr);
     if(reported!=pc){telemetry("block",block,op);reported=pc;}
     if (!strcmp(op,"halt")) break;
