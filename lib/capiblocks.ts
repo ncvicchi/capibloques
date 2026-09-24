@@ -14,6 +14,7 @@ import {
   type SceneDefinition,
   type SceneDevice,
   type SceneDeviceKind,
+  type EducationalModuleDevice,
   // @ts-expect-error Node's type-stripping smoke runner needs the explicit suffix.
 } from './scene-model.ts';
 
@@ -38,6 +39,8 @@ import { matrixFirmwareSupport, normalizedMatrixTextLiteral } from './led-matrix
 import { componentValueCapability, type ComponentValueSource } from './component-capabilities.ts';
 // @ts-expect-error Node strip-types runner.
 import { boardProfile, isProjectTarget, projectTargetForBoard, type BoardProfileId, type ProjectTarget } from './board-profiles.ts';
+// @ts-expect-error Node strip-types runner.
+import { educationalModuleSpecs, isEducationalModuleKind } from './educational-modules.ts';
 
 export type FirmwareFramework = 'arduino' | 'esp-idf';
 
@@ -123,6 +126,7 @@ export type ProgramNode =
       blockId: string;
     }
   | { op: 'led'; deviceId: string; brightness: number; blockId: string }
+  | { op: 'stepper'; deviceId: string; steps: number; speed: number; blockId: string }
   | { op: 'rgbFill'; deviceId: string; color: string; brightness: number; blockId: string }
   | { op: 'rgbPixel'; deviceId: string; pixel: number; color: string; blockId: string }
   | { op: 'rgbSegment'; deviceId: string; from: number; to: number; color: string; blockId: string }
@@ -315,6 +319,7 @@ export type WifiRuntimeState =
   | 'error';
 
 export type RuntimeDeviceState =
+  | { kind: 'educationalModule'; deviceKind: string; values: Record<string, number | string | boolean> }
   | {
       kind: 'display';
       texts: Record<string, string[]>;
@@ -1385,6 +1390,8 @@ const blockKind = (block: Record<string, unknown>): SceneDeviceKind | null => {
       return 'trafficLight';
     case 'capi_led':
       return 'led';
+    case 'capi_power_switch': return 'powerSwitch';
+    case 'capi_stepper': return 'stepper';
     case 'capi_rgb_fill':
     case 'capi_rgb_pixel':
     case 'capi_rgb_segment':
@@ -1768,7 +1775,8 @@ const compatibleKindsForNode = (
     case 'traffic':
       return ['trafficLight'];
     case 'led':
-      return ['led'];
+      return ['led', 'powerSwitch'];
+    case 'stepper': return ['stepper'];
     case 'rgbFill':
     case 'rgbPixel':
     case 'rgbSegment':
@@ -1995,6 +2003,9 @@ function normalizeNodes(
           brightness: finiteNumber(node.brightness, 0),
           blockId,
         });
+        break;
+      case 'stepper':
+        result.push({ op:'stepper', deviceId, steps:Math.max(-100000, Math.min(100000, Math.trunc(finiteNumber(node.steps, 0)))), speed:Math.max(1, Math.min(1000, finiteNumber(node.speed, 300))), blockId });
         break;
       case 'rgbFill':
         result.push({ op: 'rgbFill', deviceId, color: /^#[0-9a-f]{6}$/i.test(String(node.color)) ? String(node.color) : '#000000', brightness: Math.max(0, Math.min(100, finiteNumber(node.brightness, 40))), blockId });
@@ -3122,7 +3133,8 @@ function deviceSymbol(context: GeneratorContext, deviceId: string) {
 }
 
 function pinConstant(context: GeneratorContext, deviceId: string) {
-  return `PIN_${deviceSymbol(context, deviceId)}`;
+  const device = context.scene.devices.find(item => item.id === deviceId);
+  return `PIN_${deviceSymbol(context, deviceId)}${device?.kind === 'powerSwitch' ? '_SIGNAL' : ''}`;
 }
 
 function variableSymbol(variableId: string) {
@@ -3163,6 +3175,10 @@ function valueToCpp(expression: ValueExpression, context: GeneratorContext): str
       if (device.kind === 'wifiNode' && capability.key === 'lastWifiMessage') return 'capiText(CAPI_WIFI_LAST_MESSAGE)';
       if (device.kind === 'wifiNode' && capability.key === 'lastWifiSender') return 'capiText(CAPI_WIFI_LAST_SENDER)';
       if (device.kind === 'messages') return `capiText(MESSAGE_LAST_${deviceSymbol(context, device.id)})`;
+      if (isEducationalModuleKind(device.kind)) {
+        const symbol = componentStateSymbol(device.id, capability.key);
+        return capability.type === 'text' ? `capiText(${symbol})` : symbol;
+      }
       return expression.valueType === 'text' ? 'capiText("")' : expression.valueType === 'boolean' ? 'false' : '0';
     }
     case 'sensorValue': return `${context.framework === 'esp-idf' ? 'capiAnalogRead' : 'analogRead'}(${pinConstant(context, expression.deviceId)})`;
@@ -3264,8 +3280,13 @@ function instructionToCpp(
       const duty = Math.round(
         (Math.max(0, Math.min(100, instruction.brightness)) / 100) * 255,
       );
-      return `${comment}\n        ${logical ? '// Objeto lógico del tablero: sin salida GPIO.' : `${pwmWrite}(${pinConstant(context, instruction.deviceId)}, ${duty});`}\n        ${componentStateSymbol(instruction.deviceId, 'brightness')} = ${Math.max(0, Math.min(100, Math.round(instruction.brightness)))};\n        ${pc} = ${nextPc};\n        break;`;
+      const target = context.scene.devices.find(device => device.id === instruction.deviceId);
+      const property = target?.kind === 'powerSwitch' ? 'power' : 'brightness';
+      const relay = target?.kind === 'powerSwitch' && target.config.profile === 'RELAY_LOW_VOLTAGE';
+      return `${comment}\n        ${logical ? '// Objeto lógico del tablero: sin salida GPIO.' : relay ? `${native ? 'capiDigitalWrite' : 'digitalWrite'}(${pinConstant(context, instruction.deviceId)}, ${instruction.brightness > 0 ? (native ? '1' : 'HIGH') : (native ? '0' : 'LOW')});` : `${pwmWrite}(${pinConstant(context, instruction.deviceId)}, ${duty});`}\n        ${componentStateSymbol(instruction.deviceId, property)} = ${Math.max(0, Math.min(100, Math.round(instruction.brightness)))};\n        ${pc} = ${nextPc};\n        break;`;
     }
+    case 'stepper':
+      return `${comment}\n        capiStepperMove_${deviceSymbol(context, instruction.deviceId)}(${Math.trunc(instruction.steps)}, ${Math.round(instruction.speed)});\n        ${componentStateSymbol(instruction.deviceId, 'position')} += ${Math.trunc(instruction.steps)};\n        ${componentStateSymbol(instruction.deviceId, 'moving')} = ${Math.trunc(instruction.steps) !== 0 ? 'true' : 'false'};\n        ${pc} = ${nextPc};\n        break;`;
     case 'rgbFill': {
       const [r, g, b] = rgbBytes(instruction.color);
       const brightness = Math.max(0, Math.min(100, Math.round(instruction.brightness)));
@@ -3497,6 +3518,7 @@ function deviceDeclarations(
       const symbol = symbols.get(device.id) ?? cppIdentifier(device.id);
       const label = (pin: number | null) =>
         `${gpioOrPlaceholder(pin)}; // ${pinLabel(pin)}`;
+      if (isEducationalModuleKind(device.kind)) return Object.entries(device.pins).map(([key, pin]) => `constexpr uint8_t PIN_${symbol}_${cppIdentifier(key)} = ${label(pin)}`).join('\n');
       switch (device.kind) {
         case 'trafficLight':
           return `constexpr TrafficDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.red)}, ${gpioOrPlaceholder(device.pins.yellow)}, ${gpioOrPlaceholder(device.pins.green)}}; // ${cppLineComment(device.name)}`;
@@ -3526,6 +3548,12 @@ function deviceDeclarations(
 
 function componentStateDeclarations(scene: SceneDefinition) {
   return scene.devices.flatMap(device => {
+    if (isEducationalModuleKind(device.kind)) { const moduleDevice = device as EducationalModuleDevice; return educationalModuleSpecs[device.kind].values.map(value => {
+      const initial = moduleDevice.config.values[value.key];
+      if (value.type === 'text') return `char ${componentStateSymbol(device.id, value.key)}[121] = ${cppString(String(initial))};`;
+      if (value.type === 'boolean') return `bool ${componentStateSymbol(device.id, value.key)} = ${initial ? 'true' : 'false'};`;
+      return `double ${componentStateSymbol(device.id, value.key)} = ${Number(initial)};`;
+    }); }
     switch (device.kind) {
       case 'trafficLight': return [`char ${componentStateSymbol(device.id, 'color')}[121] = "OFF";`];
       case 'led': return [`int32_t ${componentStateSymbol(device.id, 'brightness')} = 0;`];
@@ -3806,6 +3834,14 @@ function setupLines(scene: SceneDefinition, symbols: Map<string, string>, servoR
   for (const device of scene.devices) {
     if (logical.has(device.id)) continue;
     const symbol = symbols.get(device.id) ?? cppIdentifier(device.id);
+    if (isEducationalModuleKind(device.kind)) {
+      const moduleDevice = device as EducationalModuleDevice;
+      for (const requirement of educationalModuleSpecs[device.kind].pins) {
+        const mode = requirement.capability === 'pwmOutput' ? 'OUTPUT' : 'INPUT';
+        if (moduleDevice.pins[requirement.key] !== null) lines.push(`  pinMode(PIN_${symbol}_${cppIdentifier(requirement.key)}, ${mode});`);
+      }
+      continue;
+    }
     switch (device.kind) {
       case 'trafficLight':
         lines.push(
@@ -3911,6 +3947,34 @@ function serviceBuzzerLines(
   }`;
     })
     .join('\n');
+}
+
+function serviceEducationalLines(scene: SceneDefinition, symbols: Map<string, string>, framework: FirmwareFramework) {
+  const readAnalog = framework === 'esp-idf' ? 'capiAnalogRead' : 'analogRead';
+  const readDigital = framework === 'esp-idf' ? 'capiDigitalRead' : 'digitalRead';
+  return scene.devices.filter(device => isEducationalModuleKind(device.kind)).flatMap(device => {
+    const symbol = symbols.get(device.id) ?? cppIdentifier(device.id);
+    const state = (key: string) => componentStateSymbol(device.id, key);
+    const pin = (key: string) => `PIN_${symbol}_${cppIdentifier(key)}`;
+    switch (device.kind) {
+      case 'pirSensor': return [`  ${state('motion')} = ${readDigital}(${pin('signal')}) != 0;`];
+      case 'joystick': return [`  ${state('x')} = ${readAnalog}(${pin('x')});`, `  ${state('y')} = ${readAnalog}(${pin('y')});`, `  ${state('pressed')} = ${readDigital}(${pin('button')}) == 0;`];
+      case 'soilMoisture': { const dry = Number(device.config.settings.dry), wet = Number(device.config.settings.wet), clamp = framework === 'esp-idf' ? 'std::clamp' : 'constrain'; return [`  ${state('moisture')} = ${clamp}(100.0 * (${dry} - ${readAnalog}(${pin('signal')})) / (${dry - wet || 1}), 0.0, 100.0);`]; }
+      case 'soundLevel': { const threshold = Number(device.config.settings.threshold); return [`  ${state('level')} = ${readAnalog}(${pin('signal')}) * 100.0 / 4095.0;`, `  ${state('loud')} = ${state('level')} >= ${threshold};`]; }
+      case 'waterSensor': { const threshold = Number(device.config.settings.threshold); return [`  ${state('level')} = ${readAnalog}(${pin('signal')}) * 100.0 / 4095.0;`, `  ${state('wet')} = ${state('level')} >= ${threshold};`]; }
+      default: return [];
+    }
+  }).join('\n');
+}
+
+function stepperFirmwareSupport(scene: SceneDefinition, symbols: Map<string, string>, native: boolean) {
+  return scene.devices.filter(device => device.kind === 'stepper').map(device => {
+    const symbol = symbols.get(device.id) ?? cppIdentifier(device.id);
+    const write = native ? 'capiDigitalWrite' : 'digitalWrite';
+    return `struct CapiStepper_${symbol} { int32_t remaining=0; int8_t direction=1; uint8_t phase=0; uint32_t nextAt=0; uint32_t interval=3333; } STEPPER_${symbol};
+void capiStepperMove_${symbol}(int32_t steps,uint16_t speed){ STEPPER_${symbol}.direction=steps<0?-1:1; STEPPER_${symbol}.remaining=abs(steps); STEPPER_${symbol}.interval=1000000U/(speed?speed:1); ${componentStateSymbol(device.id, 'moving')}=steps!=0; }
+void capiStepperService_${symbol}(uint32_t now){ auto &s=STEPPER_${symbol};if(!s.remaining||((int32_t)(now-s.nextAt)<0))return;s.nextAt=now+std::max<uint32_t>(1,s.interval/1000U);static const uint8_t seq[8]={1,3,2,6,4,12,8,9};s.phase=(s.phase+s.direction+8)%8;uint8_t bits=seq[s.phase];${write}(PIN_${symbol}_IN1,bits&1);${write}(PIN_${symbol}_IN2,bits&2);${write}(PIN_${symbol}_IN3,bits&4);${write}(PIN_${symbol}_IN4,bits&8);if(!--s.remaining){${componentStateSymbol(device.id, 'moving')}=false;${write}(PIN_${symbol}_IN1,0);${write}(PIN_${symbol}_IN2,0);${write}(PIN_${symbol}_IN3,0);${write}(PIN_${symbol}_IN4,0);}}`;
+  }).join('\n');
 }
 
 export interface CodeGenerationResult {
@@ -4113,6 +4177,7 @@ ${smartLightsSupport}
 
 ${deviceDeclarations(scene, symbols)}
 ${componentStateDeclarations(scene)}
+${stepperFirmwareSupport(scene, symbols, native)}
 ${dashboardSupport}
 
 ${messageRuntimeSupport(scene, native)}
@@ -4269,6 +4334,8 @@ ${scene.devices.filter(device => device.kind === 'smartLights').map(device => {
     const uint32_t now = capiMillis();
     capiTimerService(now);
 ${serviceBuzzerLines(scene, symbols, framework)}
+${serviceEducationalLines(scene, symbols, framework)}
+${scene.devices.filter(device => device.kind === 'stepper').map(device => `    capiStepperService_${symbols.get(device.id) ?? cppIdentifier(device.id)}(now);`).join('\n')}
 ${displaySupport ? '    capiDisplayService(now);' : ''}
 ${dashboardSupport ? '    capiDashboardService(now);' : ''}
 ${matrixSupport ? '    capiMatrixService(now);' : ''}
@@ -4294,6 +4361,8 @@ void loop() {
   const uint32_t now = millis();
   capiTimerService(now);
 ${serviceBuzzerLines(scene, symbols)}
+${serviceEducationalLines(scene, symbols, 'arduino')}
+${scene.devices.filter(device => device.kind === 'stepper').map(device => `  capiStepperService_${symbols.get(device.id) ?? cppIdentifier(device.id)}(now);`).join('\n')}
 ${displaySupport ? '  capiDisplayService(now);' : ''}
 ${dashboardSupport ? '  capiDashboardService(now);' : ''}
 ${matrixSupport ? '  capiMatrixService(now);' : ''}

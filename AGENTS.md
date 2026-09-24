@@ -2,7 +2,7 @@
 
 ## Fases y autorización
 
-- Las fases del plan se numeran con enteros consecutivos, sin letras. Producción es la **Fase final**, sin número y postergada. **Fases 0–9, 11–14 y 29 entregadas; fases 10, 15–18, 27, 28, 30–33 y 35–37 terminadas en software con las aceptaciones indicadas; fase 23 en curso; 19–22, 24–26, 34 y 38–41 pendientes.** El propietario autorizó continuar, en orden y sin pausas, con 38–41. Fase 13 publicó DEV, no producción.
+- Las fases del plan se numeran con enteros consecutivos, sin letras. Producción es la **Fase final**, sin número y postergada. **Fases 0–9, 11–14 y 29 entregadas; fases 10, 15–18, 27, 28, 30–33 y 35–41 terminadas en software con las aceptaciones indicadas; fase 23 en curso; 19–22, 24–26 y 34 pendientes.** Las fases 35 y 38–41 conservan aceptación física explícita. Fase 13 publicó DEV, no producción.
 
 - Trabajar una fase completa por vez. Al cerrar cada entrega solicitada, actualizar `docs/CONTEXTO_PARA_CONTINUAR.md`, plan, evidencia, pendientes y versión desplegada. Fases 15 y la parte de matriz de 23 ya fueron autorizadas; el resto necesita autorización propia. La Fase final está postergada. Informar avances breves y no pedir OK entre subfases de una fase autorizada.
 - Implementar, probar y entregar el resultado de la fase. No avanzar a la siguiente sin el OK del propietario. Informar pendientes o fallos sin presentarlos como completados.

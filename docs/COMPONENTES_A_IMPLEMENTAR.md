@@ -172,10 +172,7 @@ Se conservan en la lista para impedir que reaparezcan sin analizar, pero no form
 La lista se entrega por familias completas, no por subfases con letras:
 
 - **Fase 35:** Luces RGB inteligentes, terminada en software; aceptación física pendiente.
-- **Fase 38:** Entradas y control cotidiano: Sensor de distancia, Detector de movimiento, Palanca de control, Encender aparato y Perilla infinita.
-- **Fase 39:** Ambiente y medición: Sensor ambiental, Humedad de tierra, Sensor de color, Nivel de sonido y Detector de agua.
-- **Fase 40:** Movimiento e identificación: Sensor de movimiento e inclinación, Lector de tarjetas y Teclado de números y teclas.
-- **Fase 41:** Actuación y medición avanzada: Motor de pasos, Balanza y Ubicación GPS.
+- **Fases 38–41:** terminadas en software con catálogo, escena, JSON, ayuda, valores, simulación y generadores; aceptación física pendiente por cada perfil. Ver las guías `FASE_38` a `FASE_41`.
 
 Cada fase se considera terminada sólo cuando todos sus componentes cumplen el contrato común y se prueba físicamente al menos un perfil declarado de cada uno. Si el hardware no está disponible, puede quedar terminado en software, pero no aceptado físicamente; ambos estados se informan por separado.
 

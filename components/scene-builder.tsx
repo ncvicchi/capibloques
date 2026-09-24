@@ -46,12 +46,14 @@ import {
   type SceneBackground,
   type SceneDefinition,
   type SceneDevice,
+  type EducationalModuleDevice,
   type SceneDeviceKind,
   type ScenePosition,
   type SceneWidget,
   type BoardProfileId,
 } from '@/lib/scene-model';
 import { boardProfile, boardProfiles } from '@/lib/board-profiles';
+import { educationalModuleSpecs, isEducationalModuleKind } from '@/lib/educational-modules';
 import {
   commitSnapshot,
   createSnapshotHistory,
@@ -1049,6 +1051,15 @@ function SceneBuilderSession({
                   {selected.kind === 'display' && <DisplayProperties key={selected.id} device={selected} boardProfile={draftBoardProfile} sceneDevices={draftScene.devices} onChange={next => updateSelectedDraft(() => next)} />}
                   {selected.kind === 'ledMatrix' && <LedMatrixProperties key={selected.id} device={selected} onChange={next => updateSelectedDraft(() => next)} />}
                   {/* oxlint-disable jsx-a11y/label-has-associated-control -- compound design-system controls are wrapped by their visible labels */}
+                  {isEducationalModuleKind(selected.kind) && (() => {
+                    const spec = educationalModuleSpecs[selected.kind];
+                    const moduleDevice = selected as EducationalModuleDevice;
+                    return <div className="messages-properties">
+                      <label><span>Modelo</span><NativeSelect value={moduleDevice.config.profile} onChange={event => updateSelectedDraft(device => isEducationalModuleKind(device.kind) ? { ...(device as EducationalModuleDevice), config: { ...(device as EducationalModuleDevice).config, profile: event.target.value } } as SceneDevice : device)}>{spec.profiles.map(profile => <NativeSelectOption key={profile.id} value={profile.id}>{profile.label}</NativeSelectOption>)}</NativeSelect></label>
+                      <small>{spec.description}</small>
+                      {Object.entries(moduleDevice.config.settings).map(([key, value]) => <label key={key}><span>{key === 'threshold' ? 'Umbral' : key === 'speed' ? 'Velocidad' : key === 'baudRate' ? 'Velocidad de comunicación' : key === 'deadZone' ? 'Zona central' : key === 'maxDistance' ? 'Distancia máxima' : key}</span>{typeof value === 'boolean' ? <input type="checkbox" checked={value} onChange={event => updateSelectedDraft(device => { if (!isEducationalModuleKind(device.kind)) return device; const current = device as EducationalModuleDevice; return { ...current, config: { ...current.config, settings: { ...current.config.settings, [key]: event.target.checked } } } as SceneDevice; })} /> : <Input type={typeof value === 'number' ? 'number' : 'text'} value={String(value)} onChange={event => updateSelectedDraft(device => { if (!isEducationalModuleKind(device.kind)) return device; const current = device as EducationalModuleDevice; return { ...current, config: { ...current.config, settings: { ...current.config.settings, [key]: typeof value === 'number' ? Number(event.target.value) : event.target.value } } } as SceneDevice; })} />}</label>)}
+                    </div>;
+                  })()}
                   {selected.kind === 'smartLights' && (
                     <div className="messages-properties">
                       {selected.config.geometry === 'matrix' && <>

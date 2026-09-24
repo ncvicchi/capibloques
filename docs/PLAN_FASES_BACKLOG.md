@@ -35,10 +35,10 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 35 | Luces RGB inteligentes WS281x/SK6812 | 33 | Perfiles físicos identificados; planificador cooperativo; recursos RMT/SPI medidos por placa |
 | 36 | Software entregado: firmware intérprete y ejecución directa en placa; DEV/físico pendientes | 34 | ABI común, artefactos precompilados por placa, Web Serial y suite de conformidad |
 | 37 | Software entregado: ayuda infantil de componentes; DEV/usuarios pendientes | 36 | Perfiles, pinouts y evidencia física vigentes; activos visuales con licencia |
-| 38 | Entradas y control cotidiano | 37 | Contratos de valores/eventos de fases 29–32; perfiles físicos identificados |
-| 39 | Ambiente y medición | 37 | Fase 38 y ADC/I²C compartidos validados por placa |
-| 40 | Movimiento e identificación | 37 | Eventos cooperativos, privacidad y buses validados |
-| 41 | Actuación y medición avanzada | 37 | Planificador cooperativo, privacidad GPS y hardware concreto |
+| 38 | Software entregado: entradas y control cotidiano; físico pendiente | 37 | Contratos de valores/eventos de fases 29–32; perfiles físicos identificados |
+| 39 | Software entregado: ambiente y medición; físico pendiente | 37 | Fase 38 y ADC/I²C compartidos validados por placa |
+| 40 | Software entregado: movimiento e identificación; físico pendiente | 37 | Eventos cooperativos, privacidad y buses validados |
+| 41 | Software entregado: actuación y medición avanzada; físico pendiente | 37 | Planificador cooperativo, privacidad GPS y hardware concreto |
 | Final | Producción, HTTPS, respaldos y piloto | Antigua fase 11 | Postergada hasta autorización explícita y validaciones de salida |
 
 Primero se asegura la continuidad desde otra cuenta sin depender de este chat; después se atienden los problemas cotidianos del editor y se vuelve DEV accesible desde fuera mediante un servicio controlado. TX/RX se incorpora antes de las placas nuevas para tener un contrato de comportamiento que luego se valide en cada destino. Separar DevKit, Waveshare y display interactivo permite comprobar por separado placa, pantalla y aplicación gráfica: no son el mismo soporte. Los desafíos aprovechan esas funciones como recorrido educativo propio. Las fases 20–26 separan flujos de compilación, pulido de edición, motivación, periféricos, control local, intercambio e identidad de aula para no mezclar permisos o hardware distintos en una entrega inmanejable.
@@ -605,11 +605,15 @@ El contrato completo está en [FASE_37_AYUDA_COMPONENTES.md](FASE_37_AYUDA_COMPO
 
 Incluye Sensor de distancia —HC-SR04/VL53L0X—, Detector de movimiento PIR, Palanca de control, Encender aparato mediante MOSFET/relé de baja tensión y Perilla infinita. Debe completar escena, simulación, valores/eventos, ambos generadores, firmware intérprete, ayuda y aceptación física por perfil. Se prohíbe el uso guiado de relés con tensión de red.
 
+**Software entregado:** ver [FASE_38_ENTRADAS_CONTROL.md](FASE_38_ENTRADAS_CONTROL.md). Aceptación física pendiente.
+
 ## Fase 39 — Ambiente y medición
 
 **Objetivo:** trabajar con magnitudes ambientales y analógicas calibrables mediante contratos y unidades comprensibles.
 
 Incluye Sensor ambiental BME280, Humedad de tierra capacitiva, Sensor de color, Nivel de sonido sin capturar audio y Detector de agua/lluvia. Debe distinguir medida, estimación, umbral y estado derivado, y no presentar estos módulos como dispositivos de seguridad.
+
+**Software entregado:** ver [FASE_39_AMBIENTE_MEDICION.md](FASE_39_AMBIENTE_MEDICION.md). Aceptación física pendiente.
 
 ## Fase 40 — Movimiento e identificación
 
@@ -617,11 +621,15 @@ Incluye Sensor ambiental BME280, Humedad de tierra capacitiva, Sensor de color, 
 
 Incluye Sensor de movimiento e inclinación MPU6050, Lector de tarjetas PN532 y Teclado de números y teclas 4 × 4/3 × 4. Debe simular gestos y tarjetas predefinidas, evitar registrar identificadores reales innecesarios y no equiparar el UID de una tarjeta con autenticación segura.
 
+**Software entregado:** ver [FASE_40_MOVIMIENTO_IDENTIFICACION.md](FASE_40_MOVIMIENTO_IDENTIFICACION.md). Aceptación física pendiente.
+
 ## Fase 41 — Actuación y medición avanzada
 
 **Objetivo:** completar periféricos que requieren planificación cooperativa, calibración o privacidad adicional.
 
 Incluye Motor de pasos 28BYJ-48/ULN2003, Balanza HX711 y Ubicación GPS. El motor no bloquea otros caminos; la balanza separa calibración y lectura; GPS usa recorridos ficticios en simulación y nunca accede o publica ubicación real del alumno por defecto.
+
+**Software entregado:** ver [FASE_41_ACTUACION_MEDICION.md](FASE_41_ACTUACION_MEDICION.md). Aceptación física pendiente.
 
 El alcance transversal, orden, perfiles, componentes postergados y fuentes de las fases 35 y 38–41 están centralizados en [COMPONENTES_A_IMPLEMENTAR.md](COMPONENTES_A_IMPLEMENTAR.md). Esa lista evita duplicar componentes por fabricante y exige separar software terminado de aceptación física.
 

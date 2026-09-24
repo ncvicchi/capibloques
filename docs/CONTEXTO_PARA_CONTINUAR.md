@@ -5,8 +5,8 @@ Documento vivo iniciado en **fase 11**. Actualización: **24 de septiembre de 20
 ## 1. Punto de entrada y autorización actual
 
 - Repositorio: [ncvicchi/capibloques](https://github.com/ncvicchi/capibloques). Rama de trabajo actual: `main`. Nuevas ramas, si hacen falta: prefijo `codex/`. Respetar el árbol existente, sin reset/force ni descartar cambios ajenos.
-- El propietario autorizó ejecutar en orden las fases **17, 18, 35, 38, 39, 40 y 41**, con una fase completa, pruebas y commit/push antes de la siguiente. Las fases 17 y 18 quedaron implementadas en software y publicadas; faltan actualizar DEV y sus aceptaciones físicas. No iniciar 35 sin el OK posterior al cierre de 18.
-- **Fases 11–18, 27–33, 36 y 37 entregadas en software; fase 23 en curso.** Las entregas que involucran hardware conservan sus aceptaciones físicas explícitas. La Matriz LED 32 × 8 tiene editor, bloques, simulación y Arduino/ESP-IDF; faltan su ensayo eléctrico y la aceptación física de los displays existentes.
+- El propietario autorizó y se implementaron en software las fases **17, 18, 35, 38, 39, 40 y 41**. Las fases de hardware conservan aceptación física pendiente; no convertir esa ausencia de módulos en una prueba aprobada.
+- **Fases 11–18, 27–33 y 35–41 entregadas en software; fase 23 en curso.** Las entregas que involucran hardware conservan sus aceptaciones físicas explícitas. La Matriz LED 32 × 8 tiene editor, bloques, simulación y Arduino/ESP-IDF; faltan su ensayo eléctrico y la aceptación física de los displays existentes.
 - Fase 10: software entregado, **aceptación física pendiente**. El propietario no tiene Wemos disponible; no dar por probada la placa ni conectar/programar otro puerto como sustituto.
 - Producción es **Fase final, postergada**, no «fase 11». Los documentos históricos con letras son evidencias antiguas, no fases nuevas ni puntos para pedir OK.
 - Este contexto no transfiere automáticamente credenciales, chats, sesiones ni permisos. Otra cuenta debe tener su propio acceso verificado y la solicitud del propietario antes de operar.

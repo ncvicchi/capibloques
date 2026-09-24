@@ -11,6 +11,8 @@ import type { SceneDevice, SceneDeviceKind } from './scene-model.ts';
 import { boardProfile, type BoardProfileId } from './board-profiles.ts';
 // @ts-expect-error Node strip-types runner.
 import { componentValueCapabilities, type ComponentValueSource } from './component-capabilities.ts';
+// @ts-expect-error Node strip-types runner.
+import { educationalModuleSpecs } from './educational-modules.ts';
 type BlocklyApi = typeof import('blockly');
 type BlocklyWorkspaceSvg = import('blockly').WorkspaceSvg;
 type BlocklyBlock = import('blockly').Block;
@@ -65,7 +67,8 @@ const deviceLabels: Record<SceneDeviceKind, string> = {
   display: 'una pantalla',
   ledMatrix: 'una matriz LED',
   messages: 'un componente Mensajes',
-};
+  ...Object.fromEntries(Object.entries(educationalModuleSpecs).map(([kind, spec]) => [kind, spec.name.toLocaleLowerCase('es')])),
+} as Record<SceneDeviceKind, string>;
 
 function targetWorkspaceForBlock(block: BlocklyBlock) {
   const workspace = block.workspace as BlocklyWorkspaceSvg;
@@ -90,6 +93,9 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
       return ['trafficLight'];
     case 'capi_led':
       return ['led'];
+    case 'capi_power_switch':
+      return ['powerSwitch'];
+    case 'capi_stepper': return ['stepper'];
     case 'capi_rgb_fill':
     case 'capi_rgb_pixel':
     case 'capi_rgb_segment':
@@ -597,6 +603,8 @@ const toolbox = {
       contents: [
         { kind: 'block', type: 'capi_traffic' },
         { kind: 'block', type: 'capi_led' },
+        { kind: 'block', type: 'capi_power_switch' },
+        { kind: 'block', type: 'capi_stepper' },
         { kind: 'block', type: 'capi_rgb_fill' },
         { kind: 'block', type: 'capi_rgb_pixel' },
         { kind: 'block', type: 'capi_rgb_segment' },
@@ -1151,6 +1159,12 @@ function registerBlocks(Blockly: BlocklyApi) {
       colour: '#12AA8C',
       tooltip: 'Cambia el brillo con PWM. Usa una resistencia con el LED.',
       extensions: [DEVICE_EXTENSION],
+    },
+    {
+      type: 'capi_power_switch', message0: '🔌 %1 con potencia %2 %%', args0: [deviceField('⚠️ agrega un interruptor de potencia'), { type:'field_number', name:'POWER', value:75, min:0, max:100, precision:1 }], previousStatement:null, nextStatement:null, colour:'#12AA8C', tooltip:'Controla una carga de baja tensión con MOSFET o relé.', extensions:[DEVICE_EXTENSION],
+    },
+    {
+      type:'capi_stepper', message0:'⚙️ %1 mover %2 pasos a velocidad %3', args0:[deviceField('⚠️ agrega un motor paso a paso'),{type:'field_number',name:'STEPS',value:100,min:-100000,max:100000,precision:1},{type:'field_number',name:'SPEED',value:300,min:1,max:1000,precision:1}], previousStatement:null,nextStatement:null,colour:'#328BDD',tooltip:'Inicia un movimiento cooperativo; otros caminos siguen funcionando.',extensions:[DEVICE_EXTENSION],
     },
     {
       type: 'capi_rgb_fill', message0: '🌈 %1 todas color %2 con brillo %3 %%',
@@ -2001,6 +2015,12 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           brightness: numberField(block, 'BRIGHTNESS', 75),
           blockId,
         });
+        break;
+      case 'capi_power_switch':
+        result.push({ op:'led', deviceId:selectedDeviceId(block), brightness:numberField(block, 'POWER', 75), blockId });
+        break;
+      case 'capi_stepper':
+        result.push({ op:'stepper', deviceId:selectedDeviceId(block), steps:numberField(block,'STEPS',100), speed:numberField(block,'SPEED',300), blockId });
         break;
       case 'capi_rgb_fill':
         result.push({ op: 'rgbFill', deviceId: selectedDeviceId(block), color: String(block.getFieldValue('COLOR') ?? '#000000'), brightness: numberField(block, 'BRIGHTNESS', 40), blockId });

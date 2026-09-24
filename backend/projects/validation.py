@@ -25,6 +25,8 @@ BOARD_PINS = {
 }
 BLOCKS = {"capi_" + name for name in ("start", "forever", "repeat", "wait", "if", "compare", "counter_compare", "counter_set", "counter_change", "traffic", "led", "pin_write", "robot", "otto", "motor", "servo", "buzzer", "tone", "button_pressed", "sensor_compare", "wifi_connect", "wifi_connected", "serial")}
 BLOCKS.add("capi_parallel")
+BLOCKS.add("capi_power_switch")
+BLOCKS.add("capi_stepper")
 BLOCKS.update(("capi_display_write", "capi_display_clear", "capi_display_animate_text", "capi_display_artwork", "capi_display_button_pressed", "capi_visual_wait"))
 BLOCKS.update(("capi_message_send", "capi_message_receive"))
 BLOCKS.update(("capi_matrix_clear", "capi_matrix_pixel", "capi_matrix_pattern", "capi_matrix_scroll"))
@@ -52,6 +54,26 @@ LEGACY_DISPLAY_PINS = {"sda", "scl", "sck", "mosi", "cs", "dc", "rst"}
 PINS["messages"] = ["tx", "rx"]
 PINS["ledMatrix"] = ["din", "clk", "cs"]
 CONFIGS["messages"] = {"mode": ["send", "receive", "both"], "baudRate": [9600, 19200, 38400, 57600, 115200]}
+MODULES = {
+    "distanceSensor": (["trigger", "echo"], ["HC-SR04", "VL53L0X"], {"distance": (int, float)}),
+    "pirSensor": (["signal"], ["HC-SR501"], {"motion": bool}),
+    "joystick": (["x", "y", "button"], ["KY-023"], {"x": (int, float), "y": (int, float), "pressed": bool}),
+    "powerSwitch": (["signal"], ["MOSFET", "RELAY_LOW_VOLTAGE"], {"power": (int, float)}),
+    "rotaryEncoder": (["a", "b", "button"], ["KY-040"], {"position": (int, float), "pressed": bool}),
+    "environmentSensor": (["sda", "scl"], ["BME280"], {"temperature": (int, float), "humidity": (int, float), "pressure": (int, float)}),
+    "soilMoisture": (["signal"], ["CAPACITIVE_V1"], {"moisture": (int, float)}),
+    "colorSensor": (["sda", "scl"], ["TCS34725"], {"red": (int, float), "green": (int, float), "blue": (int, float), "light": (int, float)}),
+    "soundLevel": (["signal"], ["ANALOG_MIC"], {"level": (int, float), "loud": bool}),
+    "waterSensor": (["signal"], ["ANALOG_WATER"], {"level": (int, float), "wet": bool}),
+    "motionSensor": (["sda", "scl"], ["MPU6050"], {"x": (int, float), "y": (int, float), "z": (int, float), "moving": bool}),
+    "cardReader": (["sda", "scl"], ["PN532"], {"card": str, "present": bool}),
+    "keypad": (["r1", "r2", "r3", "r4", "c1", "c2", "c3", "c4"], ["KEYPAD_4X4", "KEYPAD_3X4"], {"key": str, "pressed": bool}),
+    "stepper": (["in1", "in2", "in3", "in4"], ["28BYJ-48_ULN2003"], {"position": (int, float), "moving": bool}),
+    "scale": (["data", "clock"], ["HX711"], {"weight": (int, float)}),
+    "gps": (["rx", "tx"], ["NMEA_UART"], {"latitude": (int, float), "longitude": (int, float), "speed": (int, float), "signal": bool}),
+}
+for module_kind, (module_pins, _, _) in MODULES.items():
+    PINS[module_kind] = module_pins
 DISPLAY_PROFILES = {"lcd1602keypad": (16, 2, False, "parallel"), "lcd1602": (16, 2, False, "i2c"), "lcd2004": (20, 4, False, "i2c"), "ssd1306": (16, 8, True, "i2c"), "ili9341": (26, 15, True, "spi"), "ili9488": (40, 20, True, "spi"), "waveshare5": (50, 30, True, "integrated-rgb")}
 
 
@@ -272,6 +294,12 @@ def scene(value, board_profile="wemos-d1-r32"):
                 require(display_count <= 1, "Cada proyecto admite una sola pantalla o matriz.")
                 matrix_config(config)
             else:
+                if kind in MODULES:
+                    module_pins, profiles, value_types = MODULES[kind]
+                    exact(config, ("profile", "values", "settings"))
+                    require(config["profile"] in profiles and isinstance(config["values"], dict) and set(config["values"]) == set(value_types) and isinstance(config["settings"], dict))
+                    require(all(type(config["values"][key]) in ((rule,) if isinstance(rule, type) else rule) for key, rule in value_types.items()))
+                    require(all(isinstance(key, str) and isinstance(value, (str, int, float, bool)) for key, value in config["settings"].items()))
                 if kind == "messages":
                     messages_count += 1
                     require(messages_count <= 2, "La placa admite hasta dos componentes Mensajes.")
@@ -293,7 +321,7 @@ def scene(value, board_profile="wemos-d1-r32"):
                     if config["profile"] in ("biped4-expressive", "humanoid6-expressive"):
                         display_count += 1
                         require(display_count <= 1, "Cada proyecto admite una sola pantalla o matriz.")
-                else:
+                elif kind not in MODULES:
                     exact(config, (*CONFIGS[kind], "messages") if kind == "messages" else CONFIGS[kind])
             for key, rule in CONFIGS.get(kind, {}).items():
                 setting = config[key]

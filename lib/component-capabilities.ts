@@ -1,5 +1,7 @@
 import type { VariableType } from './capiblocks.ts';
 import type { SceneDevice, SceneDeviceKind } from './scene-model.ts';
+// @ts-expect-error Node strip-types tests import the source extension.
+import { educationalModuleSpecs, isEducationalModuleKind } from './educational-modules.ts';
 
 export type ComponentValueSource = 'measured' | 'ordered' | 'service';
 export interface ComponentValueCapability { key: string; label: string; type: VariableType; source: ComponentValueSource; help: string }
@@ -30,6 +32,7 @@ const common: Partial<Record<SceneDeviceKind, ComponentValueCapability[]>> = {
 };
 
 export function componentValueCapabilities(device: SceneDevice): ComponentValueCapability[] {
+  if (isEducationalModuleKind(device.kind)) return educationalModuleSpecs[device.kind].values.map(value => ({ key: value.key, label: value.label, type: value.type, source: ['powerSwitch','stepper'].includes(device.kind) ? 'ordered' : 'measured', help: value.help }));
   const values = [...(common[device.kind] ?? [])];
   if (device.kind === 'otto' && !['biped4-explorer','biped4-expressive','humanoid6-expressive'].includes(device.config.profile)) return values.filter(item => item.key !== 'distance' && item.key !== 'expression');
   if (device.kind === 'otto' && !['biped4-expressive','humanoid6-expressive'].includes(device.config.profile)) return values.filter(item => item.key !== 'expression');

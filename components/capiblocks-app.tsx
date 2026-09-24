@@ -98,6 +98,7 @@ import {
   type SceneDefinition,
   type SceneDevice,
   type SceneDeviceKind,
+  type EducationalModuleDevice,
 } from '@/lib/scene-model';
 import { exportLocalSceneCopy, isSceneDraft, type SceneDraft } from '@/lib/scene-recovery';
 // Vite convierte el sufijo `?worker` en un constructor durante el build.
@@ -112,6 +113,7 @@ import InterpreterBoard from '@/components/interpreter-board';
 import ComponentHelpDialog from '@/components/component-help';
 import type { FirmwareJob } from '@/lib/usb-firmware';
 import { projectFingerprint } from '@/lib/project-library';
+import { educationalModuleSpecs, isEducationalModuleKind } from '@/lib/educational-modules';
 
 const SceneBuilder = lazy(() => import('@/components/scene-builder'));
 const WiringGuide = lazy(() => import('@/components/wiring-guide'));
@@ -205,6 +207,7 @@ function runtimeFromDevice(
   device: SceneDevice,
   scene: SceneDefinition,
 ): RuntimeDeviceState {
+  if (isEducationalModuleKind(device.kind)) { const moduleDevice = device as EducationalModuleDevice; return { kind: 'educationalModule', deviceKind: device.kind, values: structuredClone(moduleDevice.config.values) }; }
   switch (device.kind) {
     case 'display':
       return {
@@ -351,6 +354,7 @@ function hasExecutableNodes(program: CompiledProgram) {
 function deviceReading(device: RuntimeDeviceState | undefined) {
   if (!device) return 'Listo';
   switch (device.kind) {
+    case 'educationalModule': return Object.values(device.values).map(value => typeof value === 'boolean' ? value ? 'sí' : 'no' : String(value)).join(' · ');
     case 'trafficLight':
       return device.color === 'OFF' ? 'Apagado' : device.color;
     case 'display': return Object.values(device.texts).some(lines => lines.join('').trim()) ? 'Con texto' : 'Sin texto';
@@ -395,7 +399,7 @@ function DeviceStateCard({
   device: SceneDevice;
   runtime?: RuntimeDeviceState;
 }) {
-  const icons: Record<SceneDeviceKind, string> = {
+  const icons = {
     trafficLight: '🚦',
     robot: '🤖',
     otto: '🕺',
@@ -413,7 +417,8 @@ function DeviceStateCard({
     display: '📺',
     ledMatrix: '🟨',
     messages: '↔️',
-  };
+    ...Object.fromEntries(Object.entries(educationalModuleSpecs).map(([kind, spec]) => [kind, spec.icon])),
+  } as Record<SceneDeviceKind, string>;
   return (
     <article>
       <span>
@@ -1127,8 +1132,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   );
 
   const setDeviceInput = useCallback(
-    (deviceId: string, value: boolean | number | string) => {
-      postToWorker({ type: 'SET_INPUT', deviceId, value });
+    (deviceId: string, value: boolean | number | string, property?: string) => {
+      postToWorker({ type: 'SET_INPUT', deviceId, value: property ? { property, value } : value });
     },
     [postToWorker],
   );
@@ -1218,7 +1223,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   }, [addSceneComponent, loadExample, draftStore]);
 
   const inputDevices = scene.devices.filter((device) =>
-    ['button', 'infraredBarrier', 'lightSensor', 'potentiometer'].includes(device.kind) ||
+    isEducationalModuleKind(device.kind) || ['button', 'infraredBarrier', 'lightSensor', 'potentiometer'].includes(device.kind) ||
     (device.kind === 'otto' && ['biped4-explorer', 'biped4-expressive', 'humanoid6-expressive'].includes(device.config.profile)) ||
     (device.kind === 'display' && device.config.profile === 'lcd1602keypad') ||
     (device.kind === 'messages' && device.config.mode !== 'send') ||
@@ -1533,6 +1538,16 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                   <h3>Entradas para probar</h3>
                   {inputDevices.map((device) => {
                     const runtime = sim.devices[device.id];
+                    if (isEducationalModuleKind(device.kind)) {
+                      const moduleDevice = device as EducationalModuleDevice;
+                      const spec = educationalModuleSpecs[device.kind];
+                      return <div className="message-test-panel" key={device.id}><strong>{spec.icon} {device.name}</strong>{spec.values.map(valueSpec => {
+                        const current = runtime?.kind === 'educationalModule' ? runtime.values[valueSpec.key] : moduleDevice.config.values[valueSpec.key];
+                        if (valueSpec.type === 'boolean') return <div className="message-test-buttons" key={valueSpec.key}><span>{valueSpec.label}</span><button type="button" aria-pressed={!current} onClick={() => setDeviceInput(device.id, false, valueSpec.key)}>No</button><button type="button" aria-pressed={Boolean(current)} onClick={() => setDeviceInput(device.id, true, valueSpec.key)}>Sí</button></div>;
+                        if (valueSpec.type === 'text') return <label key={valueSpec.key}><span>{valueSpec.label}</span><select value={String(current)} onChange={event => setDeviceInput(device.id, event.target.value, valueSpec.key)}>{(valueSpec.choices ?? [String(current)]).map(choice => <option key={choice} value={choice}>{choice || 'ninguna'}</option>)}</select></label>;
+                        return <div className="range-row" key={valueSpec.key}><span>{valueSpec.label}: <b>{Number(current).toFixed(valueSpec.step && valueSpec.step < 1 ? 1 : 0)} {valueSpec.unit}</b></span><Slider aria-label={`${valueSpec.label} simulada de ${device.name}`} min={valueSpec.min} max={valueSpec.max} step={valueSpec.step} value={[Number(current)]} onValueChange={values => setDeviceInput(device.id, Array.isArray(values) ? values[0] : values, valueSpec.key)} /></div>;
+                      })}</div>;
+                    }
                     if (device.kind === 'display') {
                       const pressed = runtime?.kind === 'display' ? runtime.pressedButton : null;
                       const buttons = [['LEFT', 'Izquierda'], ['UP', 'Arriba'], ['DOWN', 'Abajo'], ['RIGHT', 'Derecha'], ['SELECT', 'Elegir']] as const;

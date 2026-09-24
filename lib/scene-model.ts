@@ -12,6 +12,8 @@ import { displayConfig, displayPins, displayPinKeys, requiredDisplayPins, validD
 import { ledMatrixConfig, validMatrixConfig, type LedMatrixConfig } from './led-matrix.ts';
 // @ts-expect-error Node strip-types tests import the source extension.
 import { boardProfile, type BoardPinDefinition, type BoardProfileId, type PinCapability } from './board-profiles.ts';
+// @ts-expect-error Node strip-types tests import the source extension.
+import { educationalModuleKinds, educationalModulePins, educationalModuleSpecs, isEducationalModuleKind, validEducationalModuleConfig, type EducationalModuleKind } from './educational-modules.ts';
 
 export const SCENE_SCHEMA_VERSION = 1 as const;
 
@@ -37,6 +39,7 @@ export const sceneDeviceKinds = [
   'display',
   'ledMatrix',
   'messages',
+  ...educationalModuleKinds,
 ] as const;
 
 export type SceneDeviceKind = (typeof sceneDeviceKinds)[number];
@@ -209,6 +212,12 @@ export type LedMatrixDevice = SceneDeviceBase<
   LedMatrixConfig
 >;
 
+export type EducationalModuleDevice<K extends EducationalModuleKind = EducationalModuleKind> = SceneDeviceBase<
+  K,
+  Record<string, PinNumber>,
+  { profile: string; values: Record<string, number | string | boolean>; settings: Record<string, number | string | boolean> }
+>;
+
 export interface SceneDeviceByKind {
   display: DisplayDevice;
   ledMatrix: LedMatrixDevice;
@@ -227,6 +236,22 @@ export interface SceneDeviceByKind {
   potentiometer: PotentiometerDevice;
   wifiNode: WifiNodeDevice;
   messages: MessagesDevice;
+  distanceSensor: EducationalModuleDevice<'distanceSensor'>;
+  pirSensor: EducationalModuleDevice<'pirSensor'>;
+  joystick: EducationalModuleDevice<'joystick'>;
+  powerSwitch: EducationalModuleDevice<'powerSwitch'>;
+  rotaryEncoder: EducationalModuleDevice<'rotaryEncoder'>;
+  environmentSensor: EducationalModuleDevice<'environmentSensor'>;
+  soilMoisture: EducationalModuleDevice<'soilMoisture'>;
+  colorSensor: EducationalModuleDevice<'colorSensor'>;
+  soundLevel: EducationalModuleDevice<'soundLevel'>;
+  waterSensor: EducationalModuleDevice<'waterSensor'>;
+  motionSensor: EducationalModuleDevice<'motionSensor'>;
+  cardReader: EducationalModuleDevice<'cardReader'>;
+  keypad: EducationalModuleDevice<'keypad'>;
+  stepper: EducationalModuleDevice<'stepper'>;
+  scale: EducationalModuleDevice<'scale'>;
+  gps: EducationalModuleDevice<'gps'>;
 }
 
 export type SceneDevice = SceneDeviceByKind[SceneDeviceKind];
@@ -359,9 +384,14 @@ const requirementsByKind: Record<SceneDeviceKind, readonly PinRequirement[]> = {
     { key: 'tx', label: 'Enviar', capability: 'pwmOutput' },
     { key: 'rx', label: 'Recibir', capability: 'digitalInput' },
   ],
+  ...Object.fromEntries(educationalModuleKinds.map(kind => [kind, educationalModuleSpecs[kind].pins])) as Record<EducationalModuleKind, readonly PinRequirement[]>,
 };
 
 export const sceneComponentCatalog: readonly SceneComponentCatalogEntry[] = [
+  ...educationalModuleKinds.map(kind => {
+    const spec = educationalModuleSpecs[kind];
+    return { kind, icon: spec.icon, name: spec.name, description: spec.description, childFriendlyControl: spec.values.map(value => value.label).join(', '), pinRequirements: requirementsByKind[kind] };
+  }),
   { kind: 'ledMatrix', icon: '🟨', name: 'Matriz LED', description: 'Panel de 32 × 8 luces con cuatro MAX7219.', childFriendlyControl: 'Píxeles, dibujos y texto en movimiento', pinRequirements: requirementsByKind.ledMatrix },
   { kind: 'messages', icon: '↔️', name: 'Mensajes', description: 'Envía y recibe mensajes de texto protegidos por cable.', childFriendlyControl: 'Enviar, recibir o ambas cosas', pinRequirements: requirementsByKind.messages },
   { kind: 'display', icon: '📺', name: 'Pantalla de texto', description: 'LCD, OLED o TFT para escribir mensajes.', childFriendlyControl: 'Escribir y borrar mensajes', pinRequirements: requirementsByKind.display },
@@ -502,6 +532,7 @@ const kindIdBases: Record<SceneDeviceKind, string> = {
   display: 'display',
   ledMatrix: 'led-matrix',
   messages: 'messages',
+  ...Object.fromEntries(educationalModuleKinds.map(kind => [kind, kind.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)])) as Record<EducationalModuleKind, string>,
 };
 
 const defaultCanvas: SceneCanvas = {
@@ -844,6 +875,13 @@ function unassignedDevice<K extends SceneDeviceKind>(
       };
       break;
       }
+    default:
+      if (isEducationalModuleKind(kind)) {
+        const spec = educationalModuleSpecs[kind];
+        device = { ...base, kind, pins: educationalModulePins(kind), config: structuredClone(spec.defaults) } as SceneDeviceByKind[K];
+        break;
+      }
+      throw new Error(`Componente desconocido: ${String(kind)}`);
   }
 
   return {
@@ -2009,6 +2047,8 @@ function validDeviceConfig(
         ) &&
         new Set(config.messages).size === config.messages.length
       );
+    default:
+      return isEducationalModuleKind(kind) && validEducationalModuleConfig(kind, config);
   }
 }
 

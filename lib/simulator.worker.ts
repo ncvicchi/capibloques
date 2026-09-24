@@ -17,12 +17,15 @@ import {
   type ValueExpression,
   // @ts-expect-error Node's type-stripping smoke runner needs the explicit suffix.
 } from './capiblocks.ts';
+// @ts-expect-error Node strip-types tests import the source extension.
+import { isEducationalModuleKind } from './educational-modules.ts';
 import {
   cloneScene,
   dashboardDeviceIds,
   isSceneDefinition,
   type SceneDefinition,
   type SceneDevice,
+  type EducationalModuleDevice,
   // @ts-expect-error Node's type-stripping smoke runner needs the explicit suffix.
 } from './scene-model.ts';
 // @ts-expect-error Node strip-types tests import the source extension.
@@ -179,6 +182,7 @@ import { displayArtworks, displayTargets, layoutDisplayText } from './display-mo
 import { displayAnimationMs, displayArtworkById } from './display-graphics.ts';
 
 function runtimeForDevice(device: SceneDevice): RuntimeDeviceState {
+  if (isEducationalModuleKind(device.kind)) return { kind: 'educationalModule', deviceKind: device.kind, values: structuredClone((device as EducationalModuleDevice).config.values) };
   switch (device.kind) {
     case 'display': return {
       kind: 'display',
@@ -640,6 +644,7 @@ function evaluateValue(expression: ValueExpression): number | string | boolean {
     case 'componentValue': {
       const device = state.devices[expression.deviceId];
       if (!device) return expression.valueType === 'text' ? '' : expression.valueType === 'boolean' ? false : 0;
+      if (device.kind === 'educationalModule') return device.values[expression.property] ?? (expression.valueType === 'text' ? '' : expression.valueType === 'boolean' ? false : 0);
       if (device.kind === 'trafficLight' && expression.property === 'color') return device.color;
       if (device.kind === 'led' && expression.property === 'brightness') return device.brightness;
       if (device.kind === 'robot' && expression.property === 'motion') {
@@ -1251,6 +1256,10 @@ function executeInstruction(
           `${deviceName(node.deviceId)}: ${Math.round(device.brightness)}%`,
         );
       }
+      if (device?.kind === 'educationalModule' && device.deviceKind === 'powerSwitch') {
+        device.values.power = Math.max(0, Math.min(100, node.brightness));
+        appendConsole(`${deviceName(node.deviceId)}: ${Math.round(Number(device.values.power))}%`);
+      }
       break;
     }
     case 'rgbFill': {
@@ -1375,6 +1384,15 @@ function executeInstruction(
         appendConsole(
           `${deviceName(node.deviceId)}: potencia ${Math.round(device.power)}%`,
         );
+      }
+      break;
+    }
+    case 'stepper': {
+      const device = programDevice(node.deviceId);
+      if (device?.kind === 'educationalModule' && device.deviceKind === 'stepper') {
+        device.values.position = Number(device.values.position) + node.steps;
+        device.values.moving = node.steps !== 0;
+        appendConsole(`${deviceName(node.deviceId)}: ${Math.round(node.steps)} pasos a ${Math.round(node.speed)}`);
       }
       break;
     }
@@ -1813,6 +1831,11 @@ function stopOutputs() {
 
 function setInputById(deviceId: string, value: unknown) {
   const device = state.devices[deviceId];
+  if (device?.kind === 'educationalModule' && value && typeof value === 'object') {
+    const record = value as { property?: unknown; value?: unknown };
+    if (typeof record.property === 'string' && ['number','string','boolean'].includes(typeof record.value) && record.property in device.values) device.values[record.property] = record.value as number | string | boolean;
+    return;
+  }
   if (device?.kind === 'messages' && typeof value === 'string') {
     const queue = messageQueues.get(deviceId) ?? [];
     if (queue.length < 16) queue.push(value);

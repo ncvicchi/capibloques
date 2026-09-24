@@ -16,6 +16,7 @@ import type {
   ScenePosition,
   SceneWidget,
 } from '@/lib/scene-model';
+import { educationalModuleKinds, educationalModuleSpecs } from '@/lib/educational-modules';
 
 export type RuntimeVisualDevice = {
   texts?: Record<string, string[]>;
@@ -66,7 +67,7 @@ interface SceneStageProps {
   onDashboardAction?: (deviceId: string, action: 'cycle' | 'program') => void;
 }
 
-const icons: Record<SceneDevice['kind'], string> = {
+const icons = {
   trafficLight: '🚦',
   robot: '🤖',
   otto: '🕺',
@@ -84,7 +85,8 @@ const icons: Record<SceneDevice['kind'], string> = {
   display: '📺',
   ledMatrix: '🟨',
   messages: '↔️',
-};
+  ...Object.fromEntries(educationalModuleKinds.map(kind => [kind, educationalModuleSpecs[kind].icon])),
+} as Record<SceneDevice['kind'], string>;
 
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.min(maximum, Math.max(minimum, value));

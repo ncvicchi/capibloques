@@ -24,6 +24,7 @@ import {
 } from '@/lib/scene-model';
 import type { CapiDiagnostic } from '@/lib/capiblocks';
 import { displayProfiles } from '@/lib/display-model';
+import { educationalModuleSpecs } from '@/lib/educational-modules';
 
 interface WiringGuideProps {
   open: boolean;
@@ -56,7 +57,8 @@ const deviceAdvice: Record<SceneDevice['kind'], string> = {
   potentiometer: 'Extremos a 3,3 V y GND; cursor central al GPIO analógico.',
   wifiNode: 'No necesita cables: Wi-Fi está integrado en el ESP32.',
   messages: 'Cruza las señales: Enviar va a Recibir del otro equipo y Recibir va a Enviar. Uní también las masas (GND). Solo 3,3 V.',
-};
+  ...Object.fromEntries(Object.entries(educationalModuleSpecs).map(([kind, spec]) => [kind, `${spec.needs.join(', ')}. ${spec.cautions.join(' ')}`])),
+} as Record<SceneDevice['kind'], string>;
 
 function sceneSignature(scene: SceneDefinition, rawPins: number[], profileId: BoardProfileId) {
   return JSON.stringify([

@@ -1,7 +1,9 @@
 // @ts-expect-error Node strip-types runners need the explicit extension.
 import { displayProfiles, type DisplayProfile } from './display-model.ts';
 // @ts-expect-error Node strip-types runners need the explicit extension.
-import { sceneComponentCatalog, type SceneDevice, type SceneDeviceKind } from './scene-model.ts';
+import { sceneComponentCatalog, type EducationalModuleDevice, type SceneDevice, type SceneDeviceKind } from './scene-model.ts';
+// @ts-expect-error Node strip-types runners need the explicit extension.
+import { educationalModuleSpecs, isEducationalModuleKind } from './educational-modules.ts';
 
 export const COMPONENT_HELP_VERSION = 1 as const;
 export const ottoHelpProfiles = ['biped4', 'biped4-sound', 'biped4-explorer', 'biped4-expressive', 'humanoid6-expressive'] as const;
@@ -60,7 +62,7 @@ const commonTrouble = (signal: string) => [
   { symptom: 'Funciona al revés o de forma extraña', check: 'Revisá el perfil, la polaridad y la masa GND común antes de cambiar el programa.' },
 ];
 
-const seeds: Record<SceneDeviceKind, HelpSeed> = {
+const seeds: Partial<Record<SceneDeviceKind, HelpSeed>> = {
   trafficLight: seed('Tres LED con resistencias', 'Es un semáforo de tres luces que puede estar rojo, amarillo, verde o apagado.', 'Recibe una orden de color. El estado consultable es la última orden, no una medición de la luz real.', ['Tres LED', 'Tres resistencias de 220–330 Ω', 'Cables'], ['Cada LED necesita su propia resistencia.', 'Conectá con la placa apagada.'], ['Poné “al comenzar”.', 'Elegí verde durante 2 segundos.', 'Cambiá a amarillo y luego a rojo.'], commonTrouble('los GPIO rojo, amarillo y verde'), 'Usa tres salidas. Un color ordenado no confirma que el LED físico encendió.', 'Sirve para conversar sobre estados, secuencias y seguridad vial sin imponer un único desafío.'),
   robot: seed('Robot diferencial con DRV8833', 'Es un robot con dos motores que puede avanzar, retroceder, girar o detenerse.', 'Controla potencia y sentido de dos motores mediante un driver.', ['Chasis con dos motores', 'Driver DRV8833', 'Fuente para motores', 'Cables'], ['Nunca conectes motores directo a un GPIO.', 'Uní GND de la fuente y de la placa.'], ['Avanzá a potencia 40.', 'Esperá 1 segundo.', 'Detené el robot.'], commonTrouble('las cuatro entradas del driver'), 'El simulador muestra movimiento lógico; distancia, piso y batería cambian el resultado físico.', 'Permite trabajar secuencias, estimación, depuración y movimiento por tiempo.'),
   otto: seed('Robot bípedo Otto DIY', 'Es una familia de robots que camina con servos y puede sumar sonido, distancia, cara LED y brazos.', 'Coordina varios servos sin bloquear otros caminos. Las funciones disponibles dependen del perfil.', ['Piezas Otto', '4 o 6 microservos', 'Fuente de 5 V adecuada', 'Opcionales según perfil'], ['No alimentes todos los servos desde la placa.', 'Calibrá centros con el robot levantado y una persona adulta.'], ['Mandalo a posición inicial.', 'Caminá una vez.', 'Mostrá una sonrisa si el perfil tiene cara.'], commonTrouble('los servos y la calibración del perfil'), 'Sólo están implementados los cinco perfiles indicados; Ninja y Wheels siguen pendientes.', 'Es útil para descomponer movimientos en procedimientos y comparar sensores con decisiones.'),
@@ -101,6 +103,7 @@ const ottoNotes: Record<OttoHelpProfile, { name: string; summary: string; limits
 function profileOf(device?: SceneDevice) {
   if (device?.kind === 'display') return device.config.profile;
   if (device?.kind === 'otto') return device.config.profile;
+  if (device && isEducationalModuleKind(device.kind)) return (device as EducationalModuleDevice).config.profile;
   return undefined;
 }
 
@@ -108,6 +111,11 @@ export function componentHelp(kind: SceneDeviceKind, device?: SceneDevice): Comp
   const catalog = sceneComponentCatalog.find(item => item.kind === kind)!;
   const profile = profileOf(device);
   let value = seeds[kind];
+  if (!value && isEducationalModuleKind(kind)) {
+    const spec = educationalModuleSpecs[kind];
+    value = seed(spec.profiles.map(item => item.label).join(' / '), spec.description, `Entrega ${spec.values.map(item => item.label).join(', ')} para usar en condiciones, variables y mensajes.`, spec.needs, spec.cautions, ['Agregalo a la escena y asigná sus pines.', 'Probá sus valores desde el simulador.', 'Usá “valor de componente” dentro de una condición.'], commonTrouble(spec.pins.map(item => item.label).join(', ')), 'La simulación usa valores educativos. El resultado físico depende de calibración y del módulo exacto.', `Permite explorar ${spec.values.map(item => item.label).join(', ')} con datos visibles y decisiones.`);
+  }
+  if (!value) throw new Error(`Falta ayuda para ${kind}`);
   let friendlyName = catalog.name;
   if (kind === 'display' && profile) {
     const note = displayNotes[profile as DisplayProfile];
