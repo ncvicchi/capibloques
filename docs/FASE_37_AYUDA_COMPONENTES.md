@@ -1,6 +1,18 @@
 # Fase 37 — Ayuda infantil de componentes
 
-**Estado:** planificada, no autorizada ni implementada.
+**Estado al 24 de septiembre de 2026:** implementada y verificada en software; actualización de DEV y evaluación de comprensión con alumnos/docentes pendientes.
+
+## Implementación entregada
+
+- Registro estructurado y versionado `component.*`, con **27 fichas base/perfil**: todos los componentes publicados, los seis perfiles de pantalla y las cinco configuraciones Otto.
+- Contenido en capas: resumen infantil, funcionamiento, usos, piezas, cuidados, simulación, primer programa, diagnóstico, límites y apartado docente/glosario.
+- Acceso desde la tarjeta del catálogo, el inspector de la escena, cada componente de la guía de conexiones, el menú contextual de un bloque y los diagnósticos que conocen el componente.
+- Tabla de conexiones derivada en vivo de la instancia, la placa elegida y sus GPIO actuales; no se copia un pinout estático a la ficha.
+- Ilustraciones mediante los símbolos locales del catálogo, declaradas expresamente como orientativas. No se presentan como fotografías ni como prueba del pinout.
+- Diálogo navegable con teclado, retorno de foco provisto por el componente modal, adaptación móvil, enlaces internos e impresión sin datos del alumno.
+- Prueba de cobertura que falla si un componente o perfil publicado queda sin ficha o sin secciones esenciales.
+
+No se inventaron fotografías de modelos que todavía no fueron identificados físicamente. Incorporar fotos exactas propias o con licencia sigue siendo una mejora de contenido: deberán conservar procedencia, texto alternativo y relación inequívoca con el perfil. La aceptación con chicos de 8–12 años y docentes debe comprobar vocabulario, navegación y montaje supervisado en DEV; las pruebas automáticas no sustituyen esa observación.
 
 ## Objetivo
 
@@ -62,3 +74,4 @@ La ayuda deriva nombres de instancia, pines, placa y conflictos del proyecto act
 - Enlaces, imágenes, licencias y texto alternativo se validan en CI; no hay recursos remotos frágiles ni datos privados.
 - La ayuda declara con honestidad qué fue compilado, simulado y probado físicamente.
 
+Verificación automática realizada: `npm run typecheck`, `npm run lint`, `npm run test:smoke` y `npm run build`. La cobertura estructural vive en `scripts/component-help.test.mjs`.

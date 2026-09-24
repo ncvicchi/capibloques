@@ -109,6 +109,7 @@ import ProjectLibrary, { type ProjectLibraryHandle } from '@/components/project-
 import FirmwareBuilds from '@/components/firmware-builds';
 import UsbBoard from '@/components/usb-board';
 import InterpreterBoard from '@/components/interpreter-board';
+import ComponentHelpDialog from '@/components/component-help';
 import type { FirmwareJob } from '@/lib/usb-firmware';
 import { projectFingerprint } from '@/lib/project-library';
 
@@ -475,6 +476,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const [sceneStorage, setSceneStorage] = useState({ error: draftStore.recoveryError, busy: draftStore.recovering });
   useEffect(() => draftStore.subscribe(() => setSceneStorage({ error: draftStore.recoveryError, busy: draftStore.recovering })), [draftStore]);
   const [wiringOpen, setWiringOpen] = useState(false);
+  const [helpTarget, setHelpTarget] = useState<{ id: string; section?: 'summary' | 'connect' | 'try' | 'problems' } | null>(null);
   const [wiringAcknowledgedSignature, setWiringAcknowledgedSignature] =
     useState<string | null>(null);
   const [codeOpen, setCodeOpen] = useState(false);
@@ -1433,6 +1435,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
               boardProfile={projectTarget.boardProfile}
               onChange={onWorkspaceChange}
               onBlockSnap={onBlockSnap}
+              onHelpDevice={id => setHelpTarget({ id })}
               onHistoryChange={setBlockHistory}
               onError={(message) => {
                 setNotice(message);
@@ -1762,6 +1765,11 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         </Suspense>
       )}
 
+      {helpTarget && (() => {
+        const device = scene.devices.find(item => item.id === helpTarget.id);
+        return device ? <ComponentHelpDialog open onOpenChange={next => !next && setHelpTarget(null)} kind={device.kind} device={device} boardProfileId={projectTarget.boardProfile} initialSection={helpTarget.section} /> : null;
+      })()}
+
       <Dialog open={problemsOpen} onOpenChange={setProblemsOpen}>
         <DialogContent className="problems-dialog">
           <DialogHeader>
@@ -1773,11 +1781,11 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           <div className="diagnostic-list">
             {diagnostics.length ? (
               diagnostics.map((diagnostic, index) => (
-                <button
-                  type="button"
+                <article
                   className={`diagnostic-item ${diagnostic.severity}`}
                   key={`${diagnostic.code}-${diagnostic.deviceId ?? diagnostic.blockId ?? index}`}
-                  onClick={() => {
+                >
+                  <button type="button" className="diagnostic-main" onClick={() => {
                     if (diagnostic.blockId) {
                       editorRef.current?.highlight(diagnostic.blockId);
                       setProblemsOpen(false);
@@ -1785,8 +1793,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                       setProblemsOpen(false);
                       toggleSceneBuilder(true);
                     }
-                  }}
-                >
+                  }}>
                   <span aria-hidden="true">
                     {diagnostic.severity === 'error' ? '⛔' : '⚠️'}
                   </span>
@@ -1803,7 +1810,9 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                       {diagnostic.blockId ? 'Mostrar bloque' : 'Abrir escena'}
                     </em>
                   )}
-                </button>
+                  </button>
+                  {diagnostic.deviceId && scene.devices.some(device => device.id === diagnostic.deviceId) && <button type="button" className="diagnostic-help" onClick={() => { setProblemsOpen(false); setHelpTarget({ id: diagnostic.deviceId!, section: 'problems' }); }}>Ayuda para resolverlo</button>}
+                </article>
               ))
             ) : (
               <div className="diagnostic-empty">

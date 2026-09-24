@@ -38,6 +38,7 @@ export interface BlocklyHistoryState {
 interface BlocklyWorkspaceProps {
   favorites?: readonly string[];
   onChooseFavorites?: () => void;
+  onHelpDevice?: (deviceId: string) => void;
   readOnly?: boolean;
   initialWorkspace: Record<string, unknown>;
   revision: number;
@@ -130,6 +131,7 @@ function refreshBlockAccessibility(workspace: BlocklyWorkspaceSvg) {
 function createBlockDraggingConfigurator(
   Blockly: BlocklyApi,
   workspace: BlocklyWorkspaceSvg,
+  onHelpDevice: (deviceId: string) => void,
 ) {
   class CapiBlockDragStrategy extends Blockly.dragging.BlockDragStrategy {
     protected override shouldHealStack(event: PointerEvent | undefined) {
@@ -142,6 +144,8 @@ function createBlockDraggingConfigurator(
       const renderedBlock = block as BlocklyBlockSvg;
       if (configured.has(renderedBlock)) continue;
       renderedBlock.setDragStrategy(new CapiBlockDragStrategy(renderedBlock));
+      const deviceId = String(block.getFieldValue(DEVICE_FIELD) ?? '');
+      if (deviceId) block.customContextMenu = options => options.push({ text: '❓ Ayuda de este componente', enabled: true, callback: () => { const current = String(block.getFieldValue(DEVICE_FIELD) ?? ''); if (current) onHelpDevice(current); } });
       configured.add(renderedBlock);
     }
   };
@@ -353,6 +357,7 @@ const BlocklyWorkspace = forwardRef<
     readOnly = false,
     favorites = EMPTY_FAVORITES,
     onChooseFavorites,
+    onHelpDevice,
   },
   ref,
 ) {
@@ -375,7 +380,8 @@ const BlocklyWorkspace = forwardRef<
   const onHistoryChangeRef = useRef(onHistoryChange);
   const favoritesRef = useRef(favorites);
   const onChooseFavoritesRef = useRef(onChooseFavorites);
-  useEffect(() => { favoritesRef.current = favorites; onChooseFavoritesRef.current = onChooseFavorites; }, [favorites, onChooseFavorites]);
+  const onHelpDeviceRef = useRef(onHelpDevice);
+  useEffect(() => { favoritesRef.current = favorites; onChooseFavoritesRef.current = onChooseFavorites; onHelpDeviceRef.current = onHelpDevice; }, [favorites, onChooseFavorites, onHelpDevice]);
   const highlightedBlockIdsRef = useRef(new Set<string>());
   const keyboardStatusRef = useRef<HTMLOutputElement>(null);
   const [ready, setReady] = useState(false);
@@ -477,6 +483,7 @@ const BlocklyWorkspace = forwardRef<
         const configureBlockDragging = createBlockDraggingConfigurator(
           Blockly,
           workspace,
+          deviceId => onHelpDeviceRef.current?.(deviceId),
         );
         const configureBlockDraggingWhenIdle = () => {
           dragConfigurationFrame = undefined;

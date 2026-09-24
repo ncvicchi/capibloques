@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Check, ShieldAlert, ShieldCheck } from 'lucide-react';
 import WemosBoard from '@/components/wemos-board';
 import S3Board from '@/components/s3-board';
+import ComponentHelpDialog from '@/components/component-help';
 import { physicalWemosLabel } from '@/lib/wemos-board';
 import { physicalS3Label } from '@/lib/s3-board';
 import { boardProfile, type BoardProfileId } from '@/lib/board-profiles';
@@ -76,6 +77,7 @@ export default function WiringGuide({
   const signature = sceneSignature(scene, rawPins, profileId);
   const [selection, setSelection] = useState<{ signature: string; pin: number } | null>(null);
   const [deviceSelection, setDeviceSelection] = useState<{ signature: string; id: string } | null>(null);
+  const [helpDevice, setHelpDevice] = useState<SceneDevice | null>(null);
   const selectedPin = selection?.signature === signature ? selection.pin : undefined;
   const selectedDevice = selectedPin === undefined && deviceSelection?.signature === signature ? deviceSelection.id : undefined;
   const needsLedSafety = scene.devices.some((device) =>
@@ -169,7 +171,7 @@ export default function WiringGuide({
   );
   const allChecked = checklist.every((item) => checks[item.id]);
 
-  return (
+  return (<>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="wiring-dialog">
         <DialogHeader>
@@ -249,7 +251,7 @@ export default function WiringGuide({
             <section className="device-advice-grid">
               {scene.devices.map((device) => (
                 <article key={device.id}>
-                  <strong>{device.name}</strong>
+                  <div className="device-advice-title"><strong>{device.name}</strong><button type="button" onClick={() => setHelpDevice(device)} aria-label={`Abrir ayuda de ${device.name}`}>? Ayuda</button></div>
                   {device.kind === 'display' && <span>{displayProfiles[device.config.profile].name}{displayProfiles[device.config.profile].bus === 'i2c' ? ` · dirección 0x${device.config.address.toString(16).toUpperCase()}` : ' · orientación horizontal'}</span>}
                   {device.kind === 'ledMatrix' && <span>4 × MAX7219 · {device.config.order === 'left-to-right' ? 'DIN junto al módulo izquierdo' : 'DIN junto al módulo derecho'} · brillo {device.config.brightness}/15</span>}
                   <span>{deviceAdvice[device.kind]}</span>
@@ -349,5 +351,7 @@ export default function WiringGuide({
         </div>
       </DialogContent>
     </Dialog>
+    {helpDevice && <ComponentHelpDialog open onOpenChange={next => !next && setHelpDevice(null)} kind={helpDevice.kind} device={helpDevice} boardProfileId={profileId} initialSection="connect" />}
+    </>
   );
 }

@@ -1472,20 +1472,16 @@ select:focus-visible {
 .diagnostic-item {
   width: 100%;
   min-height: 68px;
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  padding: 11px 12px;
+  display: flex;
+  align-items: stretch;
   border: 1px solid var(--line);
   border-radius: 13px;
   background: #fff;
   text-align: left;
-  cursor: default;
 }
-.diagnostic-item:has(em) {
-  cursor: pointer;
-}
+.diagnostic-main { min-width: 0; flex: 1; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 11px 12px; border: 0; border-radius: inherit; background: transparent; text-align: left; cursor: default; }
+.diagnostic-main:has(em) { cursor: pointer; }
+.diagnostic-help { margin: 8px; padding: 7px 9px; border: 1px solid #c8c2eb; border-radius: 8px; background: #f7f5ff; color: #56379b; font-size: 12px; font-weight: 800; cursor: help; }
 .diagnostic-item.error {
   border-color: #f0bec8;
   background: #fff6f7;
@@ -1494,7 +1490,7 @@ select:focus-visible {
   border-color: #ead785;
   background: #fffbeb;
 }
-.diagnostic-item > span:nth-child(2) {
+.diagnostic-main > span:nth-child(2) {
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -1889,7 +1885,8 @@ select:focus-visible {
   cursor: pointer;
 }
 .template-palette button:hover,
-.component-palette button:hover {
+.component-palette .component-add-button:hover,
+.component-palette .component-help-button:hover {
   border-color: #9c94f2;
   background: #f5f2ff;
 }
@@ -1920,7 +1917,8 @@ select:focus-visible {
   line-height: 1.35;
 }
 .visual-output-limit strong { font-size: 12px; }
-.component-palette button {
+.component-palette-card { position: relative; }
+.component-palette .component-add-button {
   min-height: 52px;
   display: grid;
   grid-template-columns: 31px 1fr 22px;
@@ -1933,11 +1931,11 @@ select:focus-visible {
   text-align: left;
   cursor: pointer;
 }
-.component-palette button > span:first-child {
+.component-palette .component-add-button > span:first-child {
   font-size: 22px;
   text-align: center;
 }
-.component-palette button > span:nth-child(2) {
+.component-palette .component-add-button > span:nth-child(2) {
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -1955,6 +1953,70 @@ select:focus-visible {
 .component-palette b {
   color: var(--purple);
   font-size: 18px;
+}
+.component-palette .component-help-button {
+  position: absolute;
+  right: 31px;
+  bottom: 5px;
+  min-height: 0;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid #c8c2eb;
+  border-radius: 999px;
+  background: #f7f5ff;
+  color: #56379b;
+  font-weight: 900;
+  text-align: center;
+  cursor: help;
+}
+.inspector-help-button { margin-left: auto; white-space: nowrap; }
+.device-advice-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.device-advice-title button { padding: 4px 7px; border: 1px solid #c8c2eb; border-radius: 7px; background: #f7f5ff; color: #56379b; font-size: 11px; font-weight: 800; cursor: help; }
+
+.component-help-dialog { width: min(900px, calc(100vw - 28px)); max-width: 900px; max-height: calc(100vh - 28px); overflow: hidden; }
+.component-help-nav { display: flex; flex-wrap: wrap; gap: 6px; }
+.component-help-nav a { padding: 6px 9px; border: 1px solid #d9d5ef; border-radius: 999px; background: #f8f7ff; color: #49317d; font-size: 12px; font-weight: 750; text-decoration: none; }
+.component-help-scroll { display: grid; gap: 14px; max-height: min(66vh, 680px); padding-right: 6px; overflow: auto; scroll-behavior: smooth; }
+.component-help-scroll > section, .component-help-teacher { padding: 14px 16px; border: 1px solid #dfe3f3; border-radius: 14px; background: #fff; scroll-margin-top: 8px; }
+.component-help-scroll h2, .component-help-scroll h3, .component-help-scroll p { margin-top: 0; }
+.component-help-scroll h2 { font-size: 18px; }
+.component-help-scroll h3 { margin-top: 14px; font-size: 14px; }
+.component-help-scroll p, .component-help-scroll li, .component-help-scroll dd, .component-help-scroll dt { font-size: 13px; line-height: 1.55; }
+.component-help-hero { display: flex; align-items: center; gap: 13px; margin-bottom: 12px; padding: 12px; border-radius: 12px; background: linear-gradient(135deg, #f0efff, #e7fbf7); }
+.component-help-hero > span { font-size: 42px; }
+.component-help-hero > div { display: flex; flex-direction: column; }
+.component-help-hero small { color: var(--muted); }
+.component-help-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.component-help-facts > div { padding: 8px 10px; border-radius: 9px; background: #f7f8fc; }
+.component-help-facts dt { color: var(--muted); font-weight: 700; }
+.component-help-facts dd { margin: 0; font-weight: 800; }
+.component-help-table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+.component-help-table-wrap table { width: 100%; border-collapse: collapse; }
+.component-help-table-wrap th, .component-help-table-wrap td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; font-size: 13px; }
+.component-help-note { padding: 9px 11px; border-radius: 9px; background: #fff7dc; color: #604b0b; }
+.component-help-troubleshooting { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.component-help-troubleshooting article { padding: 10px; border-radius: 10px; background: #f7f8fc; }
+.component-help-troubleshooting p { margin: 4px 0 0; }
+.component-help-teacher summary { cursor: pointer; font-weight: 850; }
+.component-help-teacher[open] summary { margin-bottom: 10px; }
+.component-help-footer { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.component-help-footer > span { margin-right: auto; color: var(--muted); font-size: 12px; }
+
+@media (max-width: 650px) {
+  .component-help-facts, .component-help-troubleshooting { grid-template-columns: 1fr; }
+  .component-help-footer { align-items: stretch; flex-direction: column; }
+  .component-help-footer > span { margin: 0; }
+}
+
+@media print {
+  body * { visibility: hidden; }
+  .component-help-dialog, .component-help-dialog * { visibility: visible; }
+  .component-help-dialog { position: absolute !important; inset: 0 !important; width: 100% !important; max-width: none !important; max-height: none !important; transform: none !important; box-shadow: none !important; }
+  .component-help-scroll { max-height: none; overflow: visible; }
+  .component-help-nav, .component-help-footer, .component-help-dialog > button { display: none !important; }
 }
 .scene-builder-canvas {
   min-width: 0;

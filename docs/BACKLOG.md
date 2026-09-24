@@ -469,6 +469,8 @@ Pedido del 23 de septiembre de 2026: cada componente debe tener una ayuda asocia
 
 Asignación: **fase 37 — Ayuda infantil de componentes**. El contenido obligatorio, puntos de acceso, modelo versionado, lenguaje, mantenimiento y aceptación están en [FASE_37_AYUDA_COMPONENTES.md](FASE_37_AYUDA_COMPONENTES.md).
 
+Estado: **implementada en software el 24 de septiembre de 2026; actualización de DEV y evaluación con alumnos/docentes pendientes**. Hay 27 fichas base/perfil con conexiones derivadas de la escena, accesos contextuales, impresión y control automático de cobertura. Las imágenes actuales son ilustraciones locales declaradas, no fotografías de hardware exacto.
+
 ## 37. Lista maestra de componentes a implementar
 
 Pedido del 23 de septiembre de 2026: centralizar todos los componentes adicionales recomendados, con prioridad, nombre infantil, perfiles físicos, capacidades, simulación, precauciones, componentes postergados y aceptación física. La lista incluye Luces RGB inteligentes, distancia, movimiento PIR, ambiente, joystick, potencia de baja tensión, inclinación/IMU, NFC/RFID, humedad de tierra, encoder, motor paso a paso, color, nivel de sonido, teclado matricial, agua/lluvia, balanza y GPS. No crear un componente infantil distinto por cada fabricante ni presentar sensores experimentales como dispositivos de seguridad.

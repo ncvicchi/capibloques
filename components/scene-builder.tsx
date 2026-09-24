@@ -1,6 +1,7 @@
 'use client';
 import { DisplayProperties } from '@/components/display-properties';
 import { LedMatrixProperties } from '@/components/led-matrix-properties';
+import ComponentHelpDialog from '@/components/component-help';
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { InspectorDraft, SceneDraft } from '@/lib/scene-recovery';
@@ -45,6 +46,7 @@ import {
   type SceneBackground,
   type SceneDefinition,
   type SceneDevice,
+  type SceneDeviceKind,
   type ScenePosition,
   type SceneWidget,
   type BoardProfileId,
@@ -240,6 +242,7 @@ function SceneBuilderSession({
   const [discardSceneOpen, setDiscardSceneOpen] = useState(false);
   const [pendingBoardProfile, setPendingBoardProfile] = useState<BoardProfileId | null>(null);
   const [message, setMessage] = useState('');
+  const [helpTarget, setHelpTarget] = useState<{ kind: SceneDeviceKind; device?: SceneDevice } | null>(null);
   const [baselineScene] = useState(() => cloneScene(savedScene));
   const [finishing, setFinishing] = useState(false);
   const finishingRef = useRef(false);
@@ -911,23 +914,12 @@ function SceneBuilderSession({
                       : messagesBlocked
                         ? 'No disponible: máximo dos por proyecto'
                         : component.childFriendlyControl;
-                    return (
-                      <button
-                        type="button"
-                        key={component.kind}
-                        disabled={visualBlocked || messagesBlocked}
-                        onClick={() => addComponent(component.kind)}
-                        title={visualBlocked ? `${reason}. Para cambiar, quitá primero la salida visual actual.` : component.description}
-                        aria-label={`Agregar ${component.name}. ${reason}`}
-                      >
-                        <span aria-hidden="true">{component.icon}</span>
-                        <span>
-                          <strong>{component.name}</strong>
-                          <small>{reason}</small>
-                        </span>
-                        <b aria-hidden="true">{visualBlocked || messagesBlocked ? '🔒' : '＋'}</b>
+                    return <div className="component-palette-card" key={component.kind}>
+                      <button type="button" className="component-add-button" disabled={visualBlocked || messagesBlocked} onClick={() => addComponent(component.kind)} title={visualBlocked ? `${reason}. Para cambiar, quitá primero la salida visual actual.` : component.description} aria-label={`Agregar ${component.name}. ${reason}`}>
+                        <span aria-hidden="true">{component.icon}</span><span><strong>{component.name}</strong><small>{reason}</small></span><b aria-hidden="true">{visualBlocked || messagesBlocked ? '🔒' : '＋'}</b>
                       </button>
-                    );
+                      <button type="button" className="component-help-button" onClick={() => setHelpTarget({ kind: component.kind })} aria-label={`Ayuda sobre ${component.name}`} title={`Qué es y cómo usar ${component.name}`}>?</button>
+                    </div>;
                   })}
                 </div>
               </section>
@@ -1020,6 +1012,7 @@ function SceneBuilderSession({
                       <small>Componente seleccionado</small>
                       <strong>{selected.name}</strong>
                     </div>
+                    <Button type="button" size="sm" variant="outline" className="inspector-help-button" onClick={() => setHelpTarget({ kind: selected.kind, device: selected })}>? Ayuda</Button>
                   </div>
                   <label htmlFor="selected-device-name">
                     <span>Nombre</span>
@@ -1570,6 +1563,7 @@ function SceneBuilderSession({
           </AlertDialogContent>
         </AlertDialog>
       </Dialog>
+      {helpTarget && <ComponentHelpDialog open onOpenChange={next => !next && setHelpTarget(null)} kind={helpTarget.kind} device={helpTarget.device} boardProfileId={draftBoardProfile} />}
     </>
   );
 }
