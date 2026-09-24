@@ -145,6 +145,7 @@ export function createCapiRules(programInput: CompiledProgram, scene: SceneDefin
   const usedDeviceIds = new Set(tasks.flatMap(task => task.output.flatMap(instruction => 'deviceId' in instruction ? [instruction.deviceId] : [])));
   for (const device of scene.devices) if (device.kind === 'display' && usedDeviceIds.has(device.id)) {
     capabilities.push(['lcd1602', 'lcd2004', 'lcd1602keypad'].includes(device.config.profile) ? 'display-lcd' : 'display-graphic');
+    capabilities.push(`display-${device.config.profile}`);
     if (device.config.profile === 'lcd1602keypad') capabilities.push('display-keypad');
   }
   const requiredCapabilities = [...new Set(capabilities)].sort();
