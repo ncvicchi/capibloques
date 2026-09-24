@@ -6,7 +6,7 @@ La fase está **terminada en software**. Ya están implementados:
 
 - `CapiRules` v1 / ABI 1: sobre binario acotado inicialmente a 32 KiB para no prometer RAM inexistente en Wemos, carga útil canónica, placa, recursos, grafo cooperativo compartido, tabla de depuración, conteos y CRC32;
 - `CapiLink`: `HELLO`, negociación placa/versión/ABI/capacidades, carga fragmentada `BEGIN/CHUNK/VERIFY/COMMIT`, ejecución, pausa, continuación, detención y telemetría acotada;
-- bloqueo en navegador de placa equivocada, firmware anterior a 1.0.0, ABI distinta, programa sobredimensionado o capacidad ausente;
+- bloqueo en navegador de placa equivocada, firmware anterior a la versión requerida, ABI distinta, programa sobredimensionado o capacidad ausente;
 - selector visible **Simulador / Placa conectada**, sin enviar reglas o proyectos al servidor;
 - instalación/actualización Web Serial usando los mismos controles de detección, flash y verificación existentes;
 - proyecto ESP-IDF del intérprete para ESP32 y ESP32-S3, dos ranuras de reglas A/B y selector NVS con conmutación posterior a escritura/lectura/verificación, arranque autónomo, scheduler con paralelo/fork-join, expresiones y variables tipadas, entradas analógicas/digitales, GPIO/LED/semaforización/motores/robot, servo, buzzers, contador y consola;
@@ -18,6 +18,8 @@ La fase está **terminada en software**. Ya están implementados:
 - Wi‑Fi cliente con aprovisionamiento separado: alias y clave viajan directamente por Web Serial, se guardan en la NVS de la placa y nunca forman parte de `CapiRules`, del proyecto, del servidor ni del historial;
 - construcción reproducible de dos artefactos estáticos, manifiestos con hash y publicación automática la primera vez que DEV recibe esta versión; los binarios generados no se guardan en Git;
 - pruebas de formato determinista, corrupción, placa cruzada, framing, empaquetado, USB simulado, UI Chrome, tipos, estilo, smoke y build estático.
+
+La fase 30 amplió el runtime a **1.1.0** con temporizadores consultables, eventos cooperativos de una vez/repetitivos, pausa/reanudación y cancelación; la capacidad negociada es `timers`. La web considera obsoleto 1.0.0, ofrece actualizarlo y no envía reglas hasta completar la actualización, incluso si el proyecto todavía no usa temporizadores.
 
 La compilación fijada en ESP-IDF 5.5.5 produjo y empaquetó correctamente los intérpretes de Wemos D1 R32 y ESP32-S3 en CI el 24 de septiembre de 2026. La fase **no tiene aún aceptación física**: falta publicar los artefactos en DEV y probar instalación, reinicio, carga de reglas y controladores con una Wemos/DIYmall y una ESP32-S3 reales. RGB se rechaza explícitamente porque pertenece a una fase de componente todavía pendiente; nunca se ejecuta parcialmente. Waveshare permanece fuera hasta validar su perfil exacto. Arduino y ESP-IDF por proyecto siguen disponibles.
 

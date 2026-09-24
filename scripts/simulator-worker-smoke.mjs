@@ -449,6 +449,36 @@ assert.ok(latestState().console.some(line => line.includes('El contador está en
 assert.ok(latestState().console.some(line => line.endsWith('listo')));
 assert.ok(latestState().console.some(line => line.endsWith('doce puntos')));
 
+// Los temporizadores generan eventos cooperativos: esperar uno no impide que
+// otro camino continúe y el valor restante se puede consultar.
+send({ type: 'LOAD', scene: baseScene([]), program: {
+  version: 2,
+  timers: [{ id: 'timer-pulse', name: 'Pulso' }],
+  threads: [
+    { id: 'timer-thread', startBlockId: 'timer-start', nodes: [
+      { op: 'timerStart', timerId: 'timer-pulse', durationMs: 160, repeat: true, blockId: 'start-pulse' },
+      { op: 'parallel', blockId: 'parallel-timer', branches: [
+        [
+          { op: 'timerWait', timerId: 'timer-pulse', blockId: 'wait-first-pulse' },
+          { op: 'counterChange', delta: 10, blockId: 'after-pulse' },
+        ],
+        [
+          { op: 'wait', ms: 16, blockId: 'short-wait' },
+          { op: 'counterChange', delta: 1, blockId: 'parallel-counter' },
+        ],
+      ] },
+    ] },
+  ],
+} });
+send({ type: 'RUN' });
+for (let turn = 0; turn < 8 && latestState().counter === 0; turn++) advance(16);
+assert.equal(latestState().counter, 1, 'el camino paralelo debe avanzar mientras espera el temporizador');
+assert.equal(latestState().timers['timer-pulse'].status, 'running');
+assert.ok(latestState().timers['timer-pulse'].remainingMs > 0);
+for (let turn = 0; turn < 16 && latestState().status !== 'done'; turn++) advance(16);
+assert.equal(latestState().counter, 11);
+assert.equal(latestState().status, 'done');
+
 // La barrera es una entrada digital infantil (libre/interrumpida), utilizable
 // como cualquier dato sí/no dentro de una bifurcación.
 send({

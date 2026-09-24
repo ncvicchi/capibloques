@@ -460,6 +460,22 @@ const toolbox = {
     },
     {
       kind: 'category',
+      name: 'Temporizadores',
+      colour: '#D46B32',
+      contents: [
+        { kind: 'button', text: 'Crear temporizador', callbackKey: 'CAPI_CREATE_TIMER' },
+        { kind: 'block', type: 'capi_timer_start' },
+        { kind: 'block', type: 'capi_timer_restart' },
+        { kind: 'block', type: 'capi_timer_pause' },
+        { kind: 'block', type: 'capi_timer_resume' },
+        { kind: 'block', type: 'capi_timer_stop' },
+        { kind: 'block', type: 'capi_timer_wait' },
+        { kind: 'block', type: 'capi_timer_elapsed' },
+        { kind: 'block', type: 'capi_timer_remaining' },
+      ],
+    },
+    {
+      kind: 'category',
       name: 'Datos',
       colour: '#7A58C1',
       contents: [
@@ -679,6 +695,52 @@ function registerBlocks(Blockly: BlocklyApi) {
       nextStatement: null,
       colour: '#FF7D3B',
       tooltip: 'Espera sin bloquear otros programas.',
+    },
+    {
+      type: 'capi_timer_start', message0: '⏱ iniciar %1 por %2 segundos %3',
+      args0: [
+        { type: 'field_variable', name: 'TIMER', variable: 'mi temporizador', variableTypes: ['Timer'], defaultType: 'Timer' },
+        { type: 'field_number', name: 'SECONDS', value: 5, min: 0.1, max: 86400, precision: 0.1 },
+        { type: 'field_dropdown', name: 'MODE', options: [['una vez', 'ONCE'], ['repetir', 'REPEAT']] },
+      ],
+      previousStatement: null, nextStatement: null, colour: '#D46B32',
+      tooltip: 'Inicia desde cero. En repetir, produce un nuevo evento en cada vuelta.',
+    },
+    {
+      type: 'capi_timer_restart', message0: '↻ reiniciar %1',
+      args0: [{ type: 'field_variable', name: 'TIMER', variable: 'mi temporizador', variableTypes: ['Timer'], defaultType: 'Timer' }],
+      previousStatement: null, nextStatement: null, colour: '#D46B32', tooltip: 'Vuelve a empezar con la última duración y modo elegidos.',
+    },
+    {
+      type: 'capi_timer_pause', message0: '⏸ pausar %1',
+      args0: [{ type: 'field_variable', name: 'TIMER', variable: 'mi temporizador', variableTypes: ['Timer'], defaultType: 'Timer' }],
+      previousStatement: null, nextStatement: null, colour: '#D46B32', tooltip: 'Congela el tiempo que queda.',
+    },
+    {
+      type: 'capi_timer_resume', message0: '▶ continuar %1',
+      args0: [{ type: 'field_variable', name: 'TIMER', variable: 'mi temporizador', variableTypes: ['Timer'], defaultType: 'Timer' }],
+      previousStatement: null, nextStatement: null, colour: '#D46B32', tooltip: 'Continúa un temporizador pausado.',
+    },
+    {
+      type: 'capi_timer_stop', message0: '⏹ detener %1',
+      args0: [{ type: 'field_variable', name: 'TIMER', variable: 'mi temporizador', variableTypes: ['Timer'], defaultType: 'Timer' }],
+      previousStatement: null, nextStatement: null, colour: '#D46B32', tooltip: 'Detiene y vuelve a cero.',
+    },
+    {
+      type: 'capi_timer_wait', message0: '🔔 esperar próximo evento de %1',
+      args0: [{ type: 'field_variable', name: 'TIMER', variable: 'mi temporizador', variableTypes: ['Timer'], defaultType: 'Timer' }],
+      previousStatement: null, nextStatement: null, colour: '#D46B32',
+      tooltip: 'Espera el próximo vencimiento sin frenar los otros caminos. Usalo en Al mismo tiempo.',
+    },
+    {
+      type: 'capi_timer_elapsed', message0: 'segundos transcurridos de %1',
+      args0: [{ type: 'field_variable', name: 'TIMER', variable: 'mi temporizador', variableTypes: ['Timer'], defaultType: 'Timer' }],
+      output: 'Number', colour: '#D46B32', tooltip: 'Lee segundos completos desde que se inició o reinició.',
+    },
+    {
+      type: 'capi_timer_remaining', message0: 'segundos restantes de %1',
+      args0: [{ type: 'field_variable', name: 'TIMER', variable: 'mi temporizador', variableTypes: ['Timer'], defaultType: 'Timer' }],
+      output: 'Number', colour: '#D46B32', tooltip: 'Lee los segundos que faltan para el próximo evento.',
     },
     {
       type: 'capi_if',
@@ -1520,6 +1582,8 @@ function compileValue(block: BlocklyBlock | null, fallback: VariableType = 'numb
     case 'capi_variable_get_text': return { kind: 'variable', variableId: String(block.getFieldValue('VAR') ?? ''), valueType: 'text' };
     case 'capi_variable_get_boolean': return { kind: 'variable', variableId: String(block.getFieldValue('VAR') ?? ''), valueType: 'boolean' };
     case 'capi_counter_value': return { kind: 'counterValue' };
+    case 'capi_timer_elapsed': return { kind: 'timerElapsed', timerId: String(block.getFieldValue('TIMER') ?? '') };
+    case 'capi_timer_remaining': return { kind: 'timerRemaining', timerId: String(block.getFieldValue('TIMER') ?? '') };
     case 'capi_sensor_value': return { kind: 'sensorValue', deviceId: selectedDeviceId(block) };
     case 'capi_otto_distance': return { kind: 'ottoDistance', deviceId: selectedDeviceId(block) };
     case 'capi_message_value': return { kind: 'messageValue', deviceId: selectedDeviceId(block) };
@@ -1661,6 +1725,18 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           blockId,
         });
         break;
+      case 'capi_timer_start':
+        result.push({ op: 'timerStart', timerId: String(block.getFieldValue('TIMER') ?? ''), durationMs: numberField(block, 'SECONDS', 5) * 1000, repeat: block.getFieldValue('MODE') === 'REPEAT', blockId });
+        break;
+      case 'capi_timer_restart':
+      case 'capi_timer_pause':
+      case 'capi_timer_resume':
+      case 'capi_timer_stop':
+      case 'capi_timer_wait': {
+        const operations = { capi_timer_restart: 'timerRestart', capi_timer_pause: 'timerPause', capi_timer_resume: 'timerResume', capi_timer_stop: 'timerStop', capi_timer_wait: 'timerWait' } as const;
+        result.push({ op: operations[block.type as keyof typeof operations], timerId: String(block.getFieldValue('TIMER') ?? ''), blockId });
+        break;
+      }
       case 'capi_variable_set_number':
         result.push({ op: 'variableSet', variableId: String(block.getFieldValue('VAR') ?? ''), value: compileValue(block.getInputTargetBlock('VALUE'), 'number'), blockId });
         break;
@@ -1865,6 +1941,7 @@ function compileWorkspace(workspace: BlocklyWorkspaceSvg): CompiledProgram {
       const type = blocklyType === 'String' ? 'text' : blocklyType === 'Boolean' ? 'boolean' : blocklyType === 'Number' ? 'number' : null;
       return type ? [{ id: variable.getId(), name: variable.getName(), type } as const] : [];
     }),
+    timers: workspace.getVariableMap().getVariablesOfType('Timer').map(timer => ({ id: timer.getId(), name: timer.getName() })),
     threads: starts.map((start) => ({
       id: start.id,
       startBlockId: start.id,

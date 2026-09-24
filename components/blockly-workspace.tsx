@@ -493,6 +493,7 @@ const BlocklyWorkspace = forwardRef<
         workspace.registerButtonCallback('CAPI_CREATE_NUMBER', button => Blockly.Variables.createVariableButtonHandler(button.getTargetWorkspace(), undefined, 'Number'));
         workspace.registerButtonCallback('CAPI_CREATE_TEXT', button => Blockly.Variables.createVariableButtonHandler(button.getTargetWorkspace(), undefined, 'String'));
         workspace.registerButtonCallback('CAPI_CREATE_BOOLEAN', button => Blockly.Variables.createVariableButtonHandler(button.getTargetWorkspace(), undefined, 'Boolean'));
+        workspace.registerButtonCallback('CAPI_CREATE_TIMER', button => Blockly.Variables.createVariableButtonHandler(button.getTargetWorkspace(), undefined, 'Timer'));
         workspace.registerToolboxCategoryCallback('CAPI_FAVORITES', () => [
           {kind:'button',text:'☆ Elegir favoritos',callbackKey:'CAPI_CHOOSE_FAVORITES'},
           ...(!favoritesRef.current.length ? [{kind:'label',text:'Marcá estrellas para agregar tus bloques.'}] : []),

@@ -1,6 +1,6 @@
 # Nuevas fases de CapiBloques
 
-Plan elaborado el 8 de septiembre de 2026 y actualizado el 23 de septiembre de 2026. **Fases 11–14 y 29 entregadas; fases 15, 16, 27 y 28 terminadas en software; fase 23 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`. La fase 19 queda ampliada por el inventario pedagógico y el bloque `según`; las fases 30–41 incorporan las demás capacidades planificadas hasta el catálogo ampliado de componentes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
+Plan elaborado el 8 de septiembre de 2026 y actualizado el 24 de septiembre de 2026. **Fases 11–14 y 29 entregadas; fases 15, 16, 27, 28, 30 y 36 terminadas en software; fase 23 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`, aunque cada cierre posterior requiere su actualización explícita. La fase 19 queda ampliada por el inventario pedagógico y el bloque `según`; las fases 31–35 y 37–41 conservan las capacidades pendientes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
 
 La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros consecutivos; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. Los pedidos del 23 de septiembre amplían la fase 19 y continúan hasta la fase 41 sin alterar entregas cerradas.
 
@@ -27,13 +27,13 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 27 | Familia de robots HP Robots / Otto | 25 | Perfiles físicos identificados, planificador cooperativo y componentes existentes |
 | 28 | Barrera infrarroja digital | 26 | Módulo exacto y entrada digital disponible |
 | 29 | Datos, variables y textos dinámicos | 27 | Tipos y expresiones comunes para componentes y destinos |
-| 30 | Temporizadores y eventos cooperativos | 28 | Planificador no bloqueante y modelo de valores de fase 29 |
+| 30 | Software entregado: temporizadores y eventos cooperativos; DEV/físico pendientes | 28 | Planificador no bloqueante y modelo de valores de fase 29 |
 | 31 | Procedimientos y funciones | 29 | Tipos de fase 29 y validación del grafo de llamadas |
 | 32 | Estados y valores consultables de componentes | 30 | Contrato de valores de fase 29 e inventario de capacidades por componente |
 | 33 | Wi-Fi AP/cliente y mensajes entre placas | 31 | Wi-Fi y Mensajes existentes; secretos privados; simulación multiplaca |
 | 34 | Servicios y control remoto entre placas | 32 | Mensajería de fase 33 validada física y funcionalmente |
 | 35 | Luces RGB inteligentes WS281x/SK6812 | 33 | Perfiles físicos identificados; planificador cooperativo; recursos RMT/SPI medidos por placa |
-| 36 | Firmware intérprete y ejecución directa en placa | 34 | ABI común, artefactos precompilados por placa, Web Serial y suite de conformidad |
+| 36 | Software entregado: firmware intérprete y ejecución directa en placa; DEV/físico pendientes | 34 | ABI común, artefactos precompilados por placa, Web Serial y suite de conformidad |
 | 37 | Ayuda infantil de componentes | 36 | Perfiles, pinouts y evidencia física vigentes; activos visuales con licencia |
 | 38 | Entradas y control cotidiano | 37 | Contratos de valores/eventos de fases 29–32; perfiles físicos identificados |
 | 39 | Ambiente y medición | 37 | Fase 38 y ADC/I²C compartidos validados por placa |
@@ -443,6 +443,8 @@ Aceptación:
 
 ## Fase 30 — Temporizadores y eventos cooperativos
 
+**Estado: implementada en software el 24 de septiembre de 2026; despliegue DEV y aceptación física pendientes.** Ver [contrato, semántica y evidencia](FASE_30_TEMPORIZADORES.md).
+
 **Objetivo:** medir tiempo y reaccionar a vencimientos sin bloquear el programa.
 
 Alcance:
@@ -458,6 +460,8 @@ Aceptación:
 - Un proyecto mantiene dos temporizadores mientras sensores, mensajes y animaciones continúan respondiendo.
 - Comparar un temporizador y reaccionar a su evento producen el mismo orden observable en simulación y hardware.
 - Pausa, reinicio, repetición y vencimientos simultáneos no duplican ni pierden eventos.
+
+La prueba física de esos criterios queda abierta; las pruebas locales cubren simulador, JSON, generación nativa y reglas del intérprete.
 
 ## Fase 31 — Procedimientos y funciones
 

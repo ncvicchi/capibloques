@@ -2,7 +2,7 @@
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 : "${IDF_PATH:?Definí IDF_PATH o ejecutá primero export.sh de ESP-IDF}"
-VERSION=${1:-1.0.0}
+VERSION=${1:-1.1.0}
 DEST=${2:-$ROOT/public/interpreter}
 REVISION=${3:-unknown}
 build_profile() {

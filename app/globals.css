@@ -3042,6 +3042,9 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .execution-now > strong { font-size: 1.1rem; }
 .execution-now small { max-width: 22ch; }
 .execution-paths { display: flex; flex-wrap: wrap; gap: 6px 20px; padding: 0; margin: 8px 0; list-style: none; max-height: 96px; overflow-y: auto; }
+.execution-timers { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 8px 0 0; list-style: none; }
+.execution-timers li { display: grid; gap: 3px; min-width: min(230px, 100%); padding: 6px 9px; border: 1px solid #cbd1e5; border-radius: 9px; background: #fff; font-size: .8rem; }
+.execution-timers progress { width: 100%; height: 7px; accent-color: #6653ba; }
 .execution-panel summary { cursor: pointer; padding: 6px 0; font-weight: 700; }
 .execution-trace { max-height: 220px; overflow-y: auto; padding-left: 24px; }
 .execution-trace button { text-align: left; padding: 6px; border-radius: 5px; max-width: 100%; cursor: pointer; }

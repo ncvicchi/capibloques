@@ -33,6 +33,7 @@ type Pending =
   | { kind: 'wifi'; startedAt: number; readyAt: number; timeoutAt: number; blockId: string }
   | { kind: 'message'; startedAt: number; timeoutAt: number; deviceId: string; expected: string; equalTarget: number; differentTarget: number; timeoutTarget: number; blockId: string }
   | { kind: 'visual'; startedAt: number; deviceId: string; blockId: string }
+  | { kind: 'timer'; startedAt: number; timerId: string; blockId: string }
   | null;
 
 type VisualAnimation =
@@ -266,6 +267,7 @@ function freshState(): SimulatorState {
     wifiAvailable: true,
     counter: 0,
     variables: Object.fromEntries((program.variables ?? []).map(variable => [variable.id, variable.type === 'text' ? '' : variable.type === 'boolean' ? false : 0])),
+    timers: Object.fromEntries((program.timers ?? []).map(timer => [timer.id, { name: timer.name, status: 'stopped' as const, elapsedMs: 0, remainingMs: 0, durationMs: 0, repeat: false, pendingEvents: 0 }])),
     pins: {},
     console: [],
     activeBlockIds: {},
@@ -375,6 +377,13 @@ function executionTaskState(execution: ThreadExecution): ExecutionTaskState {
   if (pending) {
     if (pending.kind === 'visual') {
       task.detail = 'Esperando que termine la animación';
+    } else if (pending.kind === 'timer') {
+      const timer = state.timers[pending.timerId];
+      task.remainingMs = timer?.remainingMs;
+      task.durationMs = timer?.durationMs;
+      task.detail = timer
+        ? `Esperando el evento de ${timer.name}${timer.status === 'stopped' ? ' (todavía no iniciado)' : ''}`
+        : 'Temporizador no disponible';
     } else {
       const target = pending.kind === 'wait'
         ? pending.until
@@ -565,6 +574,8 @@ function evaluateValue(expression: ValueExpression): number | string | boolean {
     case 'text': return expression.value.slice(0, 120);
     case 'boolean': return expression.value;
     case 'counterValue': return state.counter;
+    case 'timerElapsed': return Math.floor((state.timers[expression.timerId]?.elapsedMs ?? 0) / 1000);
+    case 'timerRemaining': return Math.ceil((state.timers[expression.timerId]?.remainingMs ?? 0) / 1000);
     case 'variable': return state.variables[expression.variableId] ?? (expression.valueType === 'text' ? '' : expression.valueType === 'boolean' ? false : 0);
     case 'sensorValue': {
       const device = state.devices[expression.deviceId];
@@ -823,6 +834,27 @@ function resolvePending(
     execution.pc += 1;
     return 'advanced';
   }
+  if (pending.kind === 'timer') {
+    const timer = state.timers[pending.timerId];
+    if (!timer) {
+      execution.pending = null;
+      execution.pc += 1;
+      return 'advanced';
+    }
+    if (timer.status === 'stopped' && timer.pendingEvents < 0) {
+      timer.pendingEvents = 0;
+      execution.pending = null;
+      execution.pc += 1;
+      appendConsole(`${timer.name}: espera cancelada`);
+      return 'advanced';
+    }
+    if (timer.pendingEvents <= 0) return 'waiting';
+    timer.pendingEvents -= 1;
+    execution.pending = null;
+    execution.pc += 1;
+    appendConsole(`${timer.name}: llegó el evento`);
+    return 'advanced';
+  }
   if (pending.kind !== 'wifi') return 'waiting';
   if (state.wifiAvailable && virtualNow >= pending.readyAt) {
     state.wifi = 'connected';
@@ -1065,6 +1097,17 @@ function executeInstruction(
     execution.pending = { kind: 'visual', startedAt: virtualNow, deviceId: node.deviceId, blockId: node.blockId };
     return 'wait';
   }
+  if (node.op === 'timerWait') {
+    const timer = state.timers[node.timerId];
+    if (timer && timer.pendingEvents > 0) {
+      timer.pendingEvents -= 1;
+      execution.pc += 1;
+      appendConsole(`${timer.name}: llegó el evento`);
+      return 'action';
+    }
+    execution.pending = { kind: 'timer', startedAt: virtualNow, timerId: node.timerId, blockId: node.blockId };
+    return 'wait';
+  }
 
   execution.pc += 1;
   switch (node.op) {
@@ -1209,6 +1252,35 @@ function executeInstruction(
       state.counter = addCounterValues(state.counter, node.delta);
       appendConsole(`Contador = ${state.counter}`);
       break;
+    case 'timerStart': {
+      const timer = state.timers[node.timerId];
+      if (timer) {
+        timer.status = 'running'; timer.durationMs = Math.max(100, node.durationMs); timer.remainingMs = timer.durationMs;
+        timer.elapsedMs = 0; timer.repeat = node.repeat; timer.pendingEvents = 0;
+        appendConsole(`${timer.name}: ${node.repeat ? 'repite' : 'una vez'} cada ${(timer.durationMs / 1000).toFixed(1)} s`);
+      }
+      break;
+    }
+    case 'timerRestart': {
+      const timer = state.timers[node.timerId];
+      if (timer?.durationMs) { timer.status = 'running'; timer.remainingMs = timer.durationMs; timer.elapsedMs = 0; timer.pendingEvents = 0; appendConsole(`${timer.name}: reiniciado`); }
+      break;
+    }
+    case 'timerPause': {
+      const timer = state.timers[node.timerId];
+      if (timer?.status === 'running') { timer.status = 'paused'; appendConsole(`${timer.name}: pausado`); }
+      break;
+    }
+    case 'timerResume': {
+      const timer = state.timers[node.timerId];
+      if (timer?.status === 'paused') { timer.status = 'running'; appendConsole(`${timer.name}: continúa`); }
+      break;
+    }
+    case 'timerStop': {
+      const timer = state.timers[node.timerId];
+      if (timer) { timer.status = 'stopped'; timer.elapsedMs = 0; timer.remainingMs = 0; timer.pendingEvents = -1; appendConsole(`${timer.name}: detenido`); }
+      break;
+    }
     case 'variableSet': {
       const variable = program.variables?.find(variable => variable.id === node.variableId);
       if (variable) {
@@ -1289,6 +1361,9 @@ function executeOne(execution: ThreadExecution) {
       case 'displayAnimateText': message = `Animamos “${node.text.slice(0, 32)}” sin detener los otros caminos.`; break;
       case 'displayArtwork': message = `${deviceName(node.deviceId)}: mostramos y animamos el dibujo elegido.`; break;
       case 'visualWait': message = `Esperamos que termine ${deviceName(node.deviceId)} sin detener los otros caminos.`; break;
+      case 'timerWait': message = 'Esperamos el próximo evento sin detener los otros caminos.'; break;
+      case 'timerStart': message = `Temporizador iniciado por ${node.durationMs / 1000} segundos${node.repeat ? ' y repetitivo' : ''}.`; break;
+      case 'timerRestart': case 'timerPause': case 'timerResume': case 'timerStop': message = state.console !== consoleBefore ? state.console.at(-1)!.replace(/^[^·]*· /, '') : 'Temporizador actualizado.'; break;
       case 'matrixClear': message = `${deviceName(node.deviceId)}: apagamos todos los puntos.`; break;
       case 'matrixPixel': message = `${deviceName(node.deviceId)}: ${node.enabled ? 'encendemos' : 'apagamos'} x ${node.x}, y ${node.y}.`; break;
       case 'matrixPattern': message = `${deviceName(node.deviceId)}: mostramos el dibujo elegido.`; break;
@@ -1304,6 +1379,27 @@ function executeOne(execution: ThreadExecution) {
 
 function updatePhysics(deltaMs: number) {
   updateVisualAnimations();
+  for (const timer of Object.values(state.timers)) {
+    if (timer.status !== 'running' || timer.durationMs <= 0 || deltaMs <= 0) continue;
+    if (deltaMs < timer.remainingMs) {
+      timer.elapsedMs += deltaMs;
+      timer.remainingMs -= deltaMs;
+      continue;
+    }
+    if (!timer.repeat) {
+      timer.elapsedMs = timer.durationMs;
+      timer.remainingMs = 0;
+      timer.pendingEvents = Math.min(65_535, timer.pendingEvents + 1);
+      timer.status = 'expired';
+      continue;
+    }
+    timer.elapsedMs += deltaMs;
+    const afterFirst = deltaMs - timer.remainingMs;
+    const expirations = 1 + Math.floor(afterFirst / timer.durationMs);
+    timer.pendingEvents = Math.min(65_535, timer.pendingEvents + expirations);
+    const remainder = afterFirst % timer.durationMs;
+    timer.remainingMs = remainder === 0 ? timer.durationMs : timer.durationMs - remainder;
+  }
   for (const [deviceId, device] of Object.entries(state.devices)) {
     if (device.kind === 'robot') {
       const average = (device.left + device.right) / 2;

@@ -209,6 +209,22 @@ int main() {
 }
 `);
 
+const timerProgram = {version:2,timers:[{id:'pulse',name:'Pulso'}],threads:[{id:'start',startBlockId:'start',nodes:[]}]};
+await run('timers', generateEspIdfCodeResult(timerProgram, 'Timers', createEmptyScene('Timers')).code, `
+int main() {
+  capiTimerStart(0,100,false,UINT32_MAX-39);
+  capiTimerService(20); assert(capiTimers[0].elapsed==60 && capiTimers[0].remaining==40);
+  capiTimerService(60); assert(capiTimers[0].status==CapiTimerStatus::EXPIRED && capiTimers[0].pending==1);
+  assert(capiTimerConsume(0) && !capiTimerConsume(0));
+  capiTimerStart(0,100,true,1000); capiTimerService(1350);
+  assert(capiTimers[0].elapsed==350 && capiTimers[0].remaining==50 && capiTimers[0].pending==3);
+  assert(capiTimerConsume(0) && capiTimerConsume(0) && capiTimerConsume(0) && !capiTimerConsume(0));
+  capiTimerPause(0); capiTimerService(4000); assert(capiTimers[0].remaining==50);
+  capiTimerResume(0,5000); capiTimerService(5025); assert(capiTimers[0].remaining==25);
+  capiTimerStop(0); assert(capiTimerConsume(0) && !capiTimerConsume(0));
+}
+`);
+
 for (const profile of Object.keys(displayProfiles)) {
   const {scene, device} = addDeviceToScene(createEmptyScene('HAL display'), 'display', {config:displayConfig(profile)});
   if (profile === 'lcd1602keypad') Object.assign(device.pins, {rs:4,en:13,d4:14,d5:16,d6:17,d7:18,backlight:19,keys:34});

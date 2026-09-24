@@ -304,6 +304,7 @@ function makeInitialState(scene: SceneDefinition): SimulatorState {
     wifiAvailable: true,
     counter: 0,
     variables: {},
+    timers: {},
     pins: {},
     console: [],
     activeBlockIds: {},

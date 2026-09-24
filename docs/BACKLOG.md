@@ -381,6 +381,8 @@ La fase debe fijar unidad, alcance, reinicio, repetición, orden cuando vencen v
 
 Asignación: **fase 30 — Temporizadores y eventos cooperativos**.
 
+Estado: **implementada en software el 24 de septiembre de 2026; despliegue DEV y aceptación física pendientes**. Se entregaron nombres, una vez/repetir, iniciar/reiniciar/pausar/continuar/detener, espera cooperativa explícita, valores transcurrido/restante, progreso visible, JSON, simulador, Arduino, ESP-IDF y firmware intérprete 1.1.0. Contrato y límites en [FASE_30_TEMPORIZADORES.md](FASE_30_TEMPORIZADORES.md).
+
 ## 29. Procedimientos y funciones
 
 Pedido del 23 de septiembre de 2026: permitir agrupar bloques reutilizables como procedimientos o funciones.

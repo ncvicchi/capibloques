@@ -130,7 +130,7 @@ jobs:
       - name: Conservar firmware genérico verificable
         uses: actions/upload-artifact@v4
         with:
-          name: capibloques-interpreter-1.0.0
+          name: capibloques-interpreter-1.1.0
           path: outputs/interpreter-release/
           retention-days: 14
   backend:

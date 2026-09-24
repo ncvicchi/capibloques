@@ -47,12 +47,19 @@ export interface ProgramVariable {
   type: VariableType;
 }
 
+export interface ProgramTimer {
+  id: string;
+  name: string;
+}
+
 export type ValueExpression =
   | { kind: 'number'; value: number }
   | { kind: 'text'; value: string }
   | { kind: 'boolean'; value: boolean }
   | { kind: 'variable'; variableId: string; valueType: VariableType }
   | { kind: 'counterValue' }
+  | { kind: 'timerElapsed'; timerId: string }
+  | { kind: 'timerRemaining'; timerId: string }
   | { kind: 'sensorValue'; deviceId: string }
   | { kind: 'ottoDistance'; deviceId: string }
   | { kind: 'buttonValue'; deviceId: string }
@@ -136,6 +143,12 @@ export type ProgramNode =
   | { op: 'wifi'; timeoutMs: number; blockId: string }
   | { op: 'counterSet'; value: number; blockId: string }
   | { op: 'counterChange'; delta: number; blockId: string }
+  | { op: 'timerStart'; timerId: string; durationMs: number; repeat: boolean; blockId: string }
+  | { op: 'timerRestart'; timerId: string; blockId: string }
+  | { op: 'timerPause'; timerId: string; blockId: string }
+  | { op: 'timerResume'; timerId: string; blockId: string }
+  | { op: 'timerStop'; timerId: string; blockId: string }
+  | { op: 'timerWait'; timerId: string; blockId: string }
   | { op: 'variableSet'; variableId: string; value: ValueExpression; blockId: string }
   | { op: 'variableChange'; variableId: string; delta: ValueExpression; blockId: string }
   | { op: 'serial'; text: string; expression?: ValueExpression; blockId: string }
@@ -185,6 +198,7 @@ export interface ProgramThread {
 export interface CompiledProgram {
   version: 2;
   variables?: ProgramVariable[];
+  timers?: ProgramTimer[];
   threads: ProgramThread[];
 }
 
@@ -349,6 +363,15 @@ export interface SimulatorState {
   wifiAvailable: boolean;
   counter: number;
   variables: Record<string, number | string | boolean>;
+  timers: Record<string, {
+    name: string;
+    status: 'stopped' | 'running' | 'paused' | 'expired';
+    elapsedMs: number;
+    remainingMs: number;
+    durationMs: number;
+    repeat: boolean;
+    pendingEvents: number;
+  }>;
   pins: Record<number, boolean>;
   console: string[];
   activeBlockIds: Record<string, string | undefined>;
@@ -792,6 +815,14 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_counter_compare',
   'capi_counter_set',
   'capi_counter_change',
+  'capi_timer_start',
+  'capi_timer_restart',
+  'capi_timer_pause',
+  'capi_timer_resume',
+  'capi_timer_stop',
+  'capi_timer_wait',
+  'capi_timer_elapsed',
+  'capi_timer_remaining',
   'capi_variable_set_number',
   'capi_variable_change',
   'capi_variable_set_text',
@@ -1718,6 +1749,8 @@ function normalizeValueExpression(raw: unknown): ValueExpression {
       valueType: variableTypes.includes(value.valueType as VariableType) ? value.valueType as VariableType : 'number',
     };
     case 'counterValue': return { kind: 'counterValue' };
+    case 'timerElapsed': return { kind: 'timerElapsed', timerId: typeof value.timerId === 'string' ? value.timerId : '' };
+    case 'timerRemaining': return { kind: 'timerRemaining', timerId: typeof value.timerId === 'string' ? value.timerId : '' };
     case 'sensorValue': return { kind: 'sensorValue', deviceId: typeof value.deviceId === 'string' ? value.deviceId : '' };
     case 'ottoDistance': return { kind: 'ottoDistance', deviceId: typeof value.deviceId === 'string' ? value.deviceId : '' };
     case 'buttonValue': return { kind: 'buttonValue', deviceId: typeof value.deviceId === 'string' ? value.deviceId : '' };
@@ -1986,6 +2019,22 @@ function normalizeNodes(
           blockId,
         });
         break;
+      case 'timerStart':
+        result.push({
+          op: 'timerStart',
+          timerId: typeof node.timerId === 'string' ? node.timerId : '',
+          durationMs: Math.max(100, Math.min(86_400_000, finiteNumber(node.durationMs, 1000))),
+          repeat: Boolean(node.repeat),
+          blockId,
+        });
+        break;
+      case 'timerRestart':
+      case 'timerPause':
+      case 'timerResume':
+      case 'timerStop':
+      case 'timerWait':
+        result.push({ op: node.op, timerId: typeof node.timerId === 'string' ? node.timerId : '', blockId });
+        break;
       case 'variableSet':
         result.push({
           op: 'variableSet',
@@ -2155,6 +2204,7 @@ export function normalizeCompiledProgram(
     return {
       version: 2,
       variables: [],
+      timers: [],
       threads: [
         {
           id: 'main',
@@ -2164,9 +2214,9 @@ export function normalizeCompiledProgram(
       ],
     };
   }
-  if (!input || typeof input !== 'object') return { version: 2, variables: [], threads: [] };
-  const candidate = input as { threads?: unknown; variables?: unknown };
-  if (!Array.isArray(candidate.threads)) return { version: 2, variables: [], threads: [] };
+  if (!input || typeof input !== 'object') return { version: 2, variables: [], timers: [], threads: [] };
+  const candidate = input as { threads?: unknown; variables?: unknown; timers?: unknown };
+  if (!Array.isArray(candidate.threads)) return { version: 2, variables: [], timers: [], threads: [] };
   const usedIds = new Set<string>();
   const usedVariableIds = new Set<string>();
   const variables = Array.isArray(candidate.variables) ? candidate.variables.flatMap((raw, index) => {
@@ -2180,9 +2230,18 @@ export function normalizeCompiledProgram(
       type: variableTypes.includes(variable.type as VariableType) ? variable.type as VariableType : 'number',
     }];
   }) : [];
+  const usedTimerIds = new Set<string>();
+  const timers = Array.isArray(candidate.timers) ? candidate.timers.flatMap((raw, index) => {
+    const timer = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
+    const id = typeof timer.id === 'string' && timer.id.trim() ? timer.id : `timer-${index + 1}`;
+    if (usedTimerIds.has(id) || usedTimerIds.size >= 16) return [];
+    usedTimerIds.add(id);
+    return [{ id, name: typeof timer.name === 'string' && timer.name.trim() ? timer.name.trim().slice(0, 32) : `temporizador ${index + 1}` }];
+  }) : [];
   return {
     version: 2,
     variables,
+    timers,
     threads: candidate.threads.map((raw, index) => {
       const thread =
         raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
@@ -2309,11 +2368,18 @@ export function validateProgramForScene(
   const diagnostics: CapiDiagnostic[] = [];
   const deviceMap = new Map(scene.devices.map((device) => [device.id, device]));
   const variables = new Map((program.variables ?? []).map(variable => [variable.id, variable]));
+  const timers = new Map((program.timers ?? []).map(timer => [timer.id, timer]));
   const variableNames = new Set<string>();
   for (const variable of program.variables ?? []) {
     const normalizedName = variable.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     if (!variable.name.trim() || variable.name.length > 32 || variableNames.has(normalizedName)) diagnostics.push({ severity: 'error', code: 'variable-name', message: 'Cada variable necesita un nombre distinto de hasta 32 caracteres.' });
     variableNames.add(normalizedName);
+  }
+  const timerNames = new Set<string>();
+  for (const timer of program.timers ?? []) {
+    const normalizedName = timer.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if (!timer.name.trim() || timer.name.length > 32 || timerNames.has(normalizedName)) diagnostics.push({ severity: 'error', code: 'timer-name', message: 'Cada temporizador necesita un nombre distinto de hasta 32 caracteres.' });
+    timerNames.add(normalizedName);
   }
   const profile = boardProfile(profileId);
   const sceneValidation = validateScene(scene, profileId);
@@ -2363,6 +2429,7 @@ export function validateProgramForScene(
         if (!variable) diagnostics.push({ severity: 'error', code: 'variable-missing', message: 'Elegí una variable que todavía exista.', blockId: node.blockId });
         else if (variable.type !== value.valueType) diagnostics.push({ severity: 'error', code: 'variable-type', message: `${variable.name} cambió de tipo; volvé a elegirla.`, blockId: node.blockId });
       }
+      if ((value.kind === 'timerElapsed' || value.kind === 'timerRemaining') && !timers.has(value.timerId)) diagnostics.push({ severity: 'error', code: 'timer-missing', message: 'Elegí un temporizador que todavía exista.', blockId: node.blockId });
       if (value.kind === 'sensorValue') {
         const device = deviceMap.get(value.deviceId);
         if (!device || (device.kind !== 'lightSensor' && device.kind !== 'potentiometer')) diagnostics.push({ severity: 'error', code: 'value-sensor-missing', message: 'Elegí un sensor numérico colocado en la escena.', blockId: node.blockId, deviceId: value.deviceId });
@@ -2409,6 +2476,10 @@ export function validateProgramForScene(
     if (node.op === 'variableChange') {
       const variable = variables.get(node.variableId);
       if (!variable || variable.type !== 'number' || valueExpressionType(node.delta) !== 'number') diagnostics.push({ severity: 'error', code: 'variable-type', message: 'Cambiar una variable necesita una variable numérica y un número.', blockId: node.blockId });
+    }
+    if (node.op === 'timerStart' || node.op === 'timerRestart' || node.op === 'timerPause' || node.op === 'timerResume' || node.op === 'timerStop' || node.op === 'timerWait') {
+      if (!timers.has(node.timerId)) diagnostics.push({ severity: 'error', code: 'timer-missing', message: 'Elegí un temporizador que todavía exista.', blockId: node.blockId });
+      if (node.op === 'timerStart' && (!Number.isFinite(node.durationMs) || node.durationMs < 100 || node.durationMs > 86_400_000)) diagnostics.push({ severity: 'error', code: 'timer-duration', message: 'El temporizador debe durar entre 0,1 segundos y 24 horas.', blockId: node.blockId });
     }
     if (node.op === 'if' && node.condition.kind === 'value' && valueExpressionType(node.condition.expression) !== 'boolean') diagnostics.push({ severity: 'error', code: 'condition-type', message: 'La condición necesita un valor de tipo sí/no.', blockId: node.blockId });
     if (node.op === 'if' && node.condition.kind === 'valueCompare') {
@@ -2774,6 +2845,11 @@ interface GeneratorContext {
   symbols: Map<string, string>;
   threadIndex: number;
   variables: Map<string, ProgramVariable>;
+  timers: Map<string, number>;
+}
+
+function timerIndex(context: GeneratorContext, timerId: string) {
+  return context.timers.get(timerId) ?? 0;
 }
 
 function deviceSymbol(context: GeneratorContext, deviceId: string) {
@@ -2794,6 +2870,8 @@ function valueToCpp(expression: ValueExpression, context: GeneratorContext): str
     case 'text': return `capiText(${cppString(expression.value)})`;
     case 'boolean': return expression.value ? 'true' : 'false';
     case 'counterValue': return 'counterValue';
+    case 'timerElapsed': return `capiTimerElapsed(${timerIndex(context, expression.timerId)})`;
+    case 'timerRemaining': return `capiTimerRemaining(${timerIndex(context, expression.timerId)})`;
     case 'sensorValue': return `${context.framework === 'esp-idf' ? 'capiAnalogRead' : 'analogRead'}(${pinConstant(context, expression.deviceId)})`;
     case 'ottoDistance': return `DEV_${deviceSymbol(context, expression.deviceId)}.distanceCm`;
     case 'buttonValue': return `${context.framework === 'esp-idf' ? 'capiDigitalRead' : 'digitalRead'}(${pinConstant(context, expression.deviceId)}) == ${context.framework === 'esp-idf' ? '0' : 'LOW'}`;
@@ -2965,6 +3043,18 @@ function instructionToCpp(
       return `${comment}\n        counterValue = ${normalizeCounterValue(instruction.value)};\n        ${pc} = ${nextPc};\n        break;`;
     case 'counterChange':
       return `${comment}\n        counterValue = addCounter(counterValue, ${normalizeCounterValue(instruction.delta)});\n        ${pc} = ${nextPc};\n        break;`;
+    case 'timerStart':
+      return `${comment}\n        capiTimerStart(${timerIndex(context, instruction.timerId)}, ${Math.max(100, Math.round(instruction.durationMs))}U, ${instruction.repeat ? 'true' : 'false'}, now);\n        ${pc} = ${nextPc};\n        break;`;
+    case 'timerRestart':
+      return `${comment}\n        capiTimerRestart(${timerIndex(context, instruction.timerId)}, now);\n        ${pc} = ${nextPc};\n        break;`;
+    case 'timerPause':
+      return `${comment}\n        capiTimerPause(${timerIndex(context, instruction.timerId)});\n        ${pc} = ${nextPc};\n        break;`;
+    case 'timerResume':
+      return `${comment}\n        capiTimerResume(${timerIndex(context, instruction.timerId)}, now);\n        ${pc} = ${nextPc};\n        break;`;
+    case 'timerStop':
+      return `${comment}\n        capiTimerStop(${timerIndex(context, instruction.timerId)});\n        ${pc} = ${nextPc};\n        break;`;
+    case 'timerWait':
+      return `${comment}\n        if (!capiTimerConsume(${timerIndex(context, instruction.timerId)})) return;\n        ${pc} = ${nextPc};\n        break;`;
     case 'variableSet': {
       const variable = context.variables.get(instruction.variableId);
       if (!variable) return `${comment}\n        ${pc} = ${nextPc};\n        break;`;
@@ -3321,6 +3411,7 @@ export function generateEsp32CodeResult(
     : inferSceneForProgram(input);
   const program = normalizeCompiledProgram(input, scene);
   const programVariables = new Map((program.variables ?? []).map(variable => [variable.id, variable]));
+  const programTimers = new Map((program.timers ?? []).map((timer, index) => [timer.id, index]));
   const profile = boardProfile(profileId);
   const diagnostics = validateProgramForScene(program, scene, profileId);
   if (native && !allocateIdfPwm(scene, profileId)) diagnostics.push({ severity: 'error', code: 'idf-pwm-timer-limit', message: 'No hay una combinación de canales y temporizadores PWM disponible para esta escena. Reducí componentes PWM antes de exportar ESP-IDF.' });
@@ -3374,7 +3465,7 @@ ${usesWifi ? `bool wifiAttemptActive_${suffix} = false;\nuint32_t wifiAttemptSta
     .join('\n\n');
   const threadFunctions = flattened
     .map(({ output }, threadIndex) => {
-      const context: GeneratorContext = { scene, symbols, threadIndex, usesWifi, framework, variables: programVariables };
+      const context: GeneratorContext = { scene, symbols, threadIndex, usesWifi, framework, variables: programVariables, timers: programTimers };
       const cases = output
         .map(
           (instruction, index) =>
@@ -3440,6 +3531,29 @@ CapiTextValue capiLayoutText(CapiTextValue input, uint16_t columns, uint16_t row
     if (variable.type === 'boolean') return `bool ${symbol} = false; // ${cppLineComment(variable.name)}`;
     return `int32_t ${symbol} = 0; // ${cppLineComment(variable.name)}`;
   }).join('\n');
+  const timerCount = Math.max(1, program.timers?.length ?? 0);
+  const timerRuntime = `enum class CapiTimerStatus : uint8_t { STOPPED, RUNNING, PAUSED, EXPIRED };
+struct CapiTimer { CapiTimerStatus status = CapiTimerStatus::STOPPED; uint32_t duration = 0; uint32_t remaining = 0; uint32_t lastUpdate = 0; uint64_t elapsed = 0; uint16_t pending = 0; bool repeat = false; bool cancelled = false; };
+CapiTimer capiTimers[${timerCount}];${(program.timers ?? []).map((timer, index) => `\n// temporizador ${index}: ${cppLineComment(timer.name)}`).join('')}
+void capiTimerStart(uint8_t id, uint32_t duration, bool repeat, uint32_t now) { CapiTimer &timer = capiTimers[id]; timer.status = CapiTimerStatus::RUNNING; timer.duration = duration; timer.remaining = duration; timer.lastUpdate = now; timer.elapsed = 0; timer.pending = 0; timer.repeat = repeat; timer.cancelled = false; }
+void capiTimerStop(uint8_t id) { CapiTimer &timer = capiTimers[id]; timer.status = CapiTimerStatus::STOPPED; timer.remaining = 0; timer.elapsed = 0; timer.pending = 0; timer.cancelled = true; }
+void capiTimerRestart(uint8_t id, uint32_t now) { CapiTimer &timer = capiTimers[id]; if (!timer.duration) return; timer.status = CapiTimerStatus::RUNNING; timer.remaining = timer.duration; timer.lastUpdate = now; timer.elapsed = 0; timer.pending = 0; timer.cancelled = false; }
+void capiTimerPause(uint8_t id) { if (capiTimers[id].status == CapiTimerStatus::RUNNING) capiTimers[id].status = CapiTimerStatus::PAUSED; }
+void capiTimerResume(uint8_t id, uint32_t now) { CapiTimer &timer = capiTimers[id]; if (timer.status == CapiTimerStatus::PAUSED) { timer.status = CapiTimerStatus::RUNNING; timer.lastUpdate = now; } }
+bool capiTimerConsume(uint8_t id) { CapiTimer &timer = capiTimers[id]; if (timer.cancelled) { timer.cancelled = false; return true; } if (!timer.pending) return false; --timer.pending; return true; }
+int32_t capiTimerElapsed(uint8_t id) { const uint64_t seconds = capiTimers[id].elapsed / 1000U; return seconds > INT32_MAX ? INT32_MAX : (int32_t)seconds; }
+int32_t capiTimerRemaining(uint8_t id) { return (int32_t)((capiTimers[id].remaining + 999U) / 1000U); }
+void capiTimerService(uint32_t now) {
+${(program.timers?.length ?? 0) === 0 ? '  (void)now;' : `  for (uint8_t id = 0; id < ${program.timers?.length ?? 0}; ++id) {
+    CapiTimer &timer = capiTimers[id]; if (timer.status != CapiTimerStatus::RUNNING || !timer.duration) continue;
+    uint32_t delta = (uint32_t)(now - timer.lastUpdate); timer.lastUpdate = now; if (!delta) continue;
+    if (delta < timer.remaining) { timer.elapsed += delta; timer.remaining -= delta; continue; }
+    if (!timer.repeat) { timer.elapsed = timer.duration; timer.remaining = 0; if (timer.pending < UINT16_MAX) ++timer.pending; timer.status = CapiTimerStatus::EXPIRED; continue; }
+    timer.elapsed += delta; uint32_t afterFirst = delta - timer.remaining; uint32_t expirations = 1U + afterFirst / timer.duration;
+    timer.pending = ((uint32_t)timer.pending + expirations > 65535U) ? 65535U : (uint16_t)(timer.pending + expirations);
+    uint32_t remainder = afterFirst % timer.duration; timer.remaining = remainder ? timer.duration - remainder : timer.duration;
+  }`}
+}`;
   const messageValueDeclarations = scene.devices
     .filter(device => device.kind === 'messages')
     .map(device => `char MESSAGE_LAST_${symbols.get(device.id) ?? cppIdentifier(device.id)}[CAPI_VALUE_TEXT_MAX + 1] = {}; // último mensaje recibido`)
@@ -3471,6 +3585,7 @@ ${messageRuntimeSupport(scene, native)}
 
 ${valueRuntime}
 ${variableDeclarations}
+${timerRuntime}
 ${messageValueDeclarations}
 int32_t counterValue = 0;
 uint32_t lastSchedulerTick = 0;
@@ -3613,6 +3728,7 @@ ${displaySupport ? '  capiDisplayBegin();' : ''}
 ${matrixSupport ? '  capiMatrixBegin();' : ''}
   for (;;) {
     const uint32_t now = capiMillis();
+    capiTimerService(now);
 ${serviceBuzzerLines(scene, symbols, framework)}
 ${displaySupport ? '    capiDisplayService(now);' : ''}
 ${matrixSupport ? '    capiMatrixService(now);' : ''}
@@ -3634,6 +3750,7 @@ ${matrixSupport ? '  capiMatrixBegin();' : ''}
 
 void loop() {
   const uint32_t now = millis();
+  capiTimerService(now);
 ${serviceBuzzerLines(scene, symbols)}
 ${displaySupport ? '  capiDisplayService(now);' : ''}
 ${matrixSupport ? '  capiMatrixService(now);' : ''}

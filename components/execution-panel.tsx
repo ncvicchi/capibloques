@@ -86,6 +86,25 @@ export default function ExecutionPanel({
           </small>
         )}
       </div>
+      {state && Object.keys(state.timers).length > 0 && (
+        <ul className="execution-timers" aria-label="Estado de los temporizadores">
+          {Object.entries(state.timers).map(([id, timer]) => {
+            const progress = timer.durationMs > 0
+              ? Math.max(0, Math.min(100, ((timer.durationMs - timer.remainingMs) / timer.durationMs) * 100))
+              : 0;
+            const status = timer.status === 'running' ? 'en marcha'
+              : timer.status === 'paused' ? 'en pausa'
+                : timer.status === 'expired' ? 'cumplido'
+                  : 'detenido';
+            return (
+              <li key={id}>
+                <span><strong>⏱ {timer.name}</strong> · {status} · {(timer.remainingMs / 1000).toFixed(1)} s</span>
+                <progress max={100} value={progress} aria-label={`${timer.name}: ${Math.round(progress)}%`} />
+              </li>
+            );
+          })}
+        </ul>
+      )}
       <details className="execution-detail">
         <summary>Últimos {execution?.trace.length ?? 0} pasos (máximo 30)</summary>
         {latest && (

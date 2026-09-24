@@ -6,7 +6,7 @@ import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 
 export const CAPI_RULES_FORMAT = 1;
 export const CAPI_INTERPRETER_ABI = 1;
-export const CAPI_INTERPRETER_VERSION = '1.0.0';
+export const CAPI_INTERPRETER_VERSION = '1.1.0';
 export const CAPI_RULES_MAX_BYTES = 32 * 1024;
 export const CAPI_RULES_MAX_INSTRUCTIONS = 2048;
 const HEADER_BYTES = 32;
@@ -19,6 +19,7 @@ export interface CapiRulesDocument {
   board: BoardProfileId;
   resources: SceneDefinition;
   variables: CompiledProgram['variables'];
+  timers: CompiledProgram['timers'];
   tasks: ExecutableTask[];
   initial: { taskIds: string[] };
   debug: { blockIds: string[] };
@@ -42,6 +43,7 @@ const capabilityForOperation = (operation: string) => ({
   matrixClear: 'matrix', matrixPixel: 'matrix', matrixPattern: 'matrix', matrixScroll: 'matrix',
   messageSend: 'messages', messageReceiveWait: 'messages', wifi: 'wifi', fork: 'parallel', join: 'parallel',
   counterSet: 'counter', counterChange: 'counter', variableSet: 'variables', variableChange: 'variables', serial: 'serial',
+  timerStart: 'timers', timerRestart: 'timers', timerPause: 'timers', timerResume: 'timers', timerStop: 'timers', timerWait: 'timers',
 }[operation] ?? 'core');
 
 function instructionCapabilities(instruction: ExecutableTask['output'][number]) {
@@ -55,6 +57,7 @@ function instructionCapabilities(instruction: ExecutableTask['output'][number]) 
   if (encodedInstruction.includes('messageValue')) result.push('messages');
   if (encodedInstruction.includes('wifiValue')) result.push('wifi');
   if (encodedInstruction.includes('"kind":"variable"')) result.push('variables');
+  if (encodedInstruction.includes('"kind":"timerElapsed"') || encodedInstruction.includes('"kind":"timerRemaining"')) result.push('timers');
   if (instruction.op === 'jumpIfFalse') {
     const condition = instruction.condition;
     if (condition.kind === 'sensor') result.push('analog-input');
@@ -68,6 +71,7 @@ function instructionCapabilities(instruction: ExecutableTask['output'][number]) 
     if (encoded.includes('displayButtonValue') || condition.kind === 'displayButtonPressed') result.push('display-keypad');
     if (encoded.includes('ottoDistance')) result.push('otto');
     if (encoded.includes('variable')) result.push('variables');
+    if (encoded.includes('timerElapsed') || encoded.includes('timerRemaining')) result.push('timers');
     if (encoded.includes('messageValue')) result.push('messages');
     if (encoded.includes('wifiValue')) result.push('wifi');
   }
@@ -125,7 +129,7 @@ export function createCapiRules(programInput: CompiledProgram, scene: SceneDefin
   const blockIds = [...new Set(tasks.flatMap(task => task.output.map(item => item.blockId)))];
   const document: CapiRulesDocument = {
     format: 'CapiRules', version: CAPI_RULES_FORMAT, abi: CAPI_INTERPRETER_ABI, board,
-    resources: scene, variables: program.variables ?? [], tasks,
+    resources: scene, variables: program.variables ?? [], timers: program.timers ?? [], tasks,
     initial: { taskIds: tasks.filter(task => task.initial).map(task => task.id) },
     debug: { blockIds },
   };
@@ -164,7 +168,7 @@ export function parseCapiRules(bytes: Uint8Array, expectedBoard?: BoardProfileId
   let document: CapiRulesDocument;
   try { document = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(payload)); } catch { throw new CapiRulesError('Las reglas no contienen datos válidos.'); }
   if (document.format !== 'CapiRules' || document.version !== version || document.abi !== abi || !isBoardProfileId(document.board) || (expectedBoard && document.board !== expectedBoard)) throw new CapiRulesError('Las reglas no corresponden a esta placa.');
-  if (!Array.isArray(document.tasks) || document.tasks.length !== view.getUint32(28, true) || !Array.isArray(document.resources?.devices) || document.resources.devices.length !== view.getUint32(24, true)) throw new CapiRulesError('Las reglas tienen una tabla incompleta.');
+  if (!Array.isArray(document.tasks) || !Array.isArray(document.variables) || !Array.isArray(document.timers) || document.tasks.length !== view.getUint32(28, true) || !Array.isArray(document.resources?.devices) || document.resources.devices.length !== view.getUint32(24, true)) throw new CapiRulesError('Las reglas tienen una tabla incompleta.');
   const instructionCount = document.tasks.reduce((total, task) => total + (Array.isArray(task.output) ? task.output.length : CAPI_RULES_MAX_INSTRUCTIONS + 1), 0);
   if (instructionCount !== view.getUint32(20, true) || instructionCount > CAPI_RULES_MAX_INSTRUCTIONS) throw new CapiRulesError('Las reglas exceden los límites del intérprete.');
   const requiredCapabilities = [...new Set(document.tasks.flatMap(task => task.output.flatMap(instructionCapabilities)))].sort();
