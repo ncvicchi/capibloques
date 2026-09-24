@@ -1,6 +1,6 @@
 # Nuevas fases de CapiBloques
 
-Plan elaborado el 8 de septiembre de 2026 y actualizado el 24 de septiembre de 2026. **Fases 11–14 y 29–33 entregadas; fases 15–18, 27, 28, 36 y 37 terminadas en software; fase 23 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`, aunque cada cierre posterior requiere su actualización explícita. La fase 19 queda ampliada por el inventario pedagógico y el bloque `según`; las fases 34–35 y 38–41 conservan las capacidades pendientes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
+Plan elaborado el 8 de septiembre de 2026 y actualizado el 24 de septiembre de 2026. **Fases 11–18, 20, 27–33 y 35–41 entregadas en software; fase 23 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`, aunque cada cierre posterior requiere su actualización explícita. La fase 19 queda ampliada por el inventario pedagógico y el bloque `según`; 21–22, 24–26 y 34 permanecen pendientes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
 
 La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros consecutivos; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. Los pedidos del 23 de septiembre amplían la fase 19 y continúan hasta la fase 41 sin alterar entregas cerradas.
 
@@ -17,7 +17,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 17 | Software entregado: perfil Waveshare ESP32-S3 con pantalla de 5 pulgadas; DEV/físico pendientes | 2: Waveshare; 9: guía visual Waveshare | Perfiles de fase 16 y modelo/revisión exactos identificados |
 | 18 | Software entregado: tablero de estados lógicos y controles locales en el display; DEV/físico pendientes | 3: display interactivo | Perfiles de pantalla de fase 17 y ejecución/componentes existentes |
 | 19 | Desafíos progresivos, herramientas pedagógicas y bloque `según` | 12 y 35 | Plan completo versionado; primeros retos sin hardware; valores tipados de fase 29 |
-| 20 | Compilación y grabación guiadas, medibles y comprensibles | 15 y 17; informe externo vital 1–3 | Fase 10 aceptada físicamente para cerrar el recorrido USB; métricas sintéticas previas a optimizar |
+| 20 | Software entregado: uso guiado de placa mediante firmware intérprete y reglas; compilación nativa oculta como avanzada | 15, 17, 23 y 34 | Intérprete de fase 36 publicado; aceptación física USB pendiente |
 | 21 | Claridad y ergonomía educativa del editor | Informe externo vital 4, sutiles 1–8 y futuras 1–2, 5–7 | Fases 12 y 14; reproducción previa de cada observación |
 | 22 | Avatar acompañante y reacciones accesibles | 14; informe futuro 3 | Fase 19 para reacciones de desafíos y fase 20 para resultados de compilar/grabar |
 | 23 | En curso: software de matriz MAX7219 implementado; aceptación física de matriz y displays pendiente | 18 y 19 | Módulos exactos identificados; fase 10 para el recorrido físico por USB |
@@ -257,26 +257,19 @@ Aceptación:
 
 No incluye una competencia pública, chat o tutor de IA, creación libre de desafíos por cualquier usuario ni soporte de hardware que no haya sido entregado y validado en su fase correspondiente. La cantidad exacta y los contenidos del catálogo inicial se fijan al autorizar la fase.
 
-## Fase 20 — Compilación y grabación guiadas, medibles y comprensibles
+## Fase 20 — Uso guiado de la placa
 
-**Objetivo:** convertir el recorrido ya seguro de guardar, compilar y grabar en un asistente secuencial para chicos, alimentado por estados reales y mediciones del compilador.
+**Estado:** terminada en software; aceptación física pendiente. Ver [decisión, recorrido y evidencia](FASE_20_USO_GUIADO_PLACA.md).
 
-La fase también debe reducir al mínimo razonable la latencia: comparar workers calientes, cachés por receta/placa/toolchain, compilación incremental y componentes precompilados. Toda reutilización conserva aislamiento, reproducibilidad y exclusión de credenciales Wi-Fi; se elige por p50/p95 y consumo bajo concurrencia, no por intuición.
+**Objetivo redefinido por el propietario:** que la actividad normal no compile un firmware por proyecto. La web instala o actualiza un firmware CapiBloques precompilado por placa y después genera, envía y ejecuta reglas locales en pocos segundos.
 
-Alcance:
+- **Usar en placa** es una acción principal, independiente de los controles del simulador.
+- El asistente visible recorre Conectar → Preparar → Enviar y ejecutar, permite preparar una placa vacía y obliga a actualizar versiones incompatibles.
+- Enviar y ejecutar es una sola acción; conserva comprobación de sesión, placa, versión, ABI, capacidades, tamaño, recursos, almacenamiento atómico y Wi-Fi privado.
+- Arduino, ESP-IDF, compilación específica y monitor Serial no se destruyen: quedan reunidos bajo **Herramientas avanzadas para adultos**.
+- La cola pesada deja de ser parte del camino infantil. Su administración, privacidad y compatibilidad se mantienen mientras exista el modo avanzado; una futura retirada requerirá otra decisión y migración.
 
-- Documentar y medir con fixtures sintéticos validación, cola, reserva, preparación, generación, compilación, enlace, empaquetado y publicación; registrar espera, duración, CPU, RAM y disco en frío/caliente.
-- Exponer estados verificables, tiempo transcurrido y última actividad. Posición o tiempo restante sólo se muestran cuando pueden calcularse honestamente; no inventar porcentajes.
-- Crear un asistente grande «Paso N de M» que integre Guardar, revisión de cableado, opciones/Wi-Fi privado, cola, resultado, conexión USB, confirmaciones, grabación y resultado final, sin duplicar operaciones ni quitar permisos, cuotas, consentimiento o idempotencia.
-- Dar jerarquía al proyecto todavía local o con cambios, permitir Guardar desde el flujo y reanudarlo después de ACK/conflicto.
-- Investigar y validar con la Wemos real el reinicio posterior a la grabación y la capacidad DTR/RTS. Si no es confiable, conservar una instrucción física clara; no presentar compilación o transferencia como ejecución observada.
-- Agregar una vista administrativa de etapas, tiempos y fallos agregados, sin abrir fuentes, proyectos, credenciales o logs crudos.
-
-Aceptación:
-
-- Doble clic, recarga, desconexión, ACK perdido, cancelación, lease vencido y reinicio del planificador no duplican trabajos ni liberan cupo antes de terminar el ejecutor.
-- Un alumno completa el recorrido con teclado, táctil, lector de pantalla y texto ampliado, pudiendo cancelar o retomar sin perder el proyecto.
-- Toda mejora de rendimiento se compara con línea base y conserva techo, aislamiento sin red, privacidad y concurrencia configurada. Para cerrar la grabación y reinicio se requiere la aceptación física de fase 10.
+La aceptación física exige instalar, actualizar y ejecutar reglas en Wemos y DIYmall S3 reales. No se presenta como realizada por la compilación reproducible de los binarios.
 
 ## Fase 21 — Claridad y ergonomía educativa del editor
 

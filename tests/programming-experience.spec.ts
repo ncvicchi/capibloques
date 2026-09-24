@@ -124,12 +124,18 @@ test('arrastre normal mueve sólo el bloque y Control mueve los siguientes', asy
 test('permite elegir simulador o placa sin confundir sus controles', async ({ page }) => {
   await open(page);
   await importBlocks(page, [start('board-start', block('wait', 'board-wait', { SECONDS: 1 }))]);
-  await page.getByLabel('Dónde ejecutar').selectOption('board');
-  await expect(page.getByRole('button', { name: 'Conectar y ejecutar' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Paso' })).toBeDisabled();
-  await page.getByRole('button', { name: 'Conectar y ejecutar' }).click();
-  await expect(page.getByRole('heading', { name: '⚡ Ejecutar en la placa' })).toBeVisible();
-  await expect(page.getByText('No compila el proyecto y no manda el programa al servidor.')).toBeVisible();
+  await page.getByRole('button', { name: 'Exportar', exact: true }).click();
+  await expect(page.getByRole('menuitem', { name: 'Compilar y descargar firmware', exact: true })).toHaveCount(0);
+  await page.getByRole('menuitem', { name: 'Herramientas avanzadas para adultos', exact: true }).click();
+  const advanced = page.getByRole('dialog', { name: 'Herramientas avanzadas para adultos' });
+  await expect(advanced.getByRole('button', { name: 'Compilar un firmware específico' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Usar en placa' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Paso' })).toBeEnabled();
+  await page.getByRole('button', { name: 'Usar en placa' }).click();
+  await expect(page.getByRole('heading', { name: '⚡ Usar mi placa' })).toBeVisible();
+  await expect(page.getByText(/no se compila el proyecto ni se manda al servidor/i)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Preparar esta placa' })).toBeVisible();
 });
 
 test('el autoguardado conserva un proyecto válido durante un arrastre prolongado', async ({

@@ -496,7 +496,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const [buildsOpen, setBuildsOpen] = useState(false);
   const [usbOpen, setUsbOpen] = useState(false);
   const [interpreterOpen, setInterpreterOpen] = useState(false);
-  const [executionTarget, setExecutionTarget] = useState<'simulator' | 'board'>('simulator');
+  const [advancedToolsOpen, setAdvancedToolsOpen] = useState(false);
   const [usbJob, setUsbJob] = useState<FirmwareJob | null>(null);
   const exportInFlight = useRef(false);
   const exportEpoch = useRef(0);
@@ -1283,23 +1283,15 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                 <DropdownMenuItem onClick={exportJson}>
                   <FileJson /> Proyecto editable JSON
                 </DropdownMenuItem>
-                <DropdownMenuItem disabled={exportBusy} onClick={() => void exportCode('arduino')}>
-                  <Code2 /> Código Arduino .ino
-                </DropdownMenuItem>
-                <DropdownMenuItem disabled={exportBusy} onClick={() => void exportCode('esp-idf')}>
-                  <Code2 /> Proyecto ESP-IDF .zip
-                </DropdownMenuItem>
-                <DropdownMenuItem disabled={offline || sceneBuilderOpen || !hydrated} onClick={() => setBuildsOpen(true)}>
-                  <Settings2 /> Compilar y descargar firmware
-                </DropdownMenuItem>
-                <DropdownMenuItem disabled={offline || sceneBuilderOpen || !hydrated} onClick={() => { setUsbJob(null); setUsbOpen(true); }}>
-                  <Settings2 /> USB y monitor Serial
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={saveToBrowser}><Save />Guardar sólo en este navegador</DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
                 <Upload /> Importar proyecto JSON
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setAdvancedToolsOpen(true)}>
+                <Settings2 /> Herramientas avanzadas para adultos
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -1334,18 +1326,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       {!sceneBuilderOpen && draftStore.sceneDraft && <aside className="scene-recovery-banner"><span>🧩 Hay una escena sin terminar en esta computadora. Tu escena confirmada no cambió.</span><button onClick={() => toggleSceneBuilder(true)}>Revisar escena pendiente</button></aside>}
 
       <section className="toolbar" aria-label="Controles del simulador">
-        <label className="speed-control">
-          Destino
-          <select aria-label="Dónde ejecutar" value={executionTarget} disabled={sim.status === 'running' || sim.status === 'paused'} title={sim.status === 'running' || sim.status === 'paused' ? 'Detené el simulador antes de cambiar el destino.' : 'Elegí dónde ejecutar el programa.'} onChange={event => setExecutionTarget(event.target.value as 'simulator' | 'board')}>
-            <option value="simulator">Simulador</option>
-            <option value="board" disabled={offline}>Placa conectada</option>
-          </select>
-        </label>
-        {executionTarget === 'board' ? (
-          <button className="run-button" onClick={openInterpreter}>
-            <Play size={18} fill="currentColor" /> Conectar y ejecutar
-          </button>
-        ) : sim.status === 'running' ? (
+        {sim.status === 'running' ? (
           <button
             className="pause-button"
             onClick={() => {
@@ -1367,11 +1348,10 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             <Play size={18} fill="currentColor" /> Ejecutar
           </button>
         )}
-        <button disabled={executionTarget === 'board'} onClick={step}>
+        <button onClick={step}>
           <StepForward size={18} /> Paso
         </button>
         <button
-          disabled={executionTarget === 'board'}
           onClick={() => {
             postToWorker({ type: 'STOP' });
             stopSound();
@@ -1381,15 +1361,18 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         >
           <CircleStop size={18} /> Detener
         </button>
-        <button disabled={executionTarget === 'board'} onClick={reset}>
+        <button onClick={reset}>
           <RotateCcw size={18} /> Reiniciar
+        </button>
+        <button className="board-run-button" disabled={offline || sim.status === 'running' || sim.status === 'paused'} title={offline ? 'Necesitás conexión para verificar tu cuenta antes de usar USB.' : sim.status === 'running' || sim.status === 'paused' ? 'Detené el simulador antes de usar la placa.' : 'Instalá CapiBloques una vez y después enviá reglas en segundos.'} onClick={openInterpreter}>
+          <Cable size={18} /> Usar en placa
         </button>
         <span className="toolbar-separator" />
         <label className="speed-control">
           <Gauge size={18} /> Velocidad
           <select
             value={speed}
-            disabled={executionTarget === 'board' || sim.execution?.mode === 'guided'}
+            disabled={sim.execution?.mode === 'guided'}
             title={sim.execution?.mode === 'guided' ? 'En modo guiado miramos un paso por vez. Esta velocidad se aplica al modo normal.' : 'Velocidad del reloj en modo normal'}
             onChange={(event) => {
               const value = Number(event.target.value);
@@ -1852,6 +1835,24 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
               </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={advancedToolsOpen} onOpenChange={setAdvancedToolsOpen}>
+        <DialogContent className="firmware-dialog advanced-tools-dialog">
+          <DialogHeader>
+            <DialogTitle>Herramientas avanzadas para adultos</DialogTitle>
+            <DialogDescription>
+              No hacen falta para usar CapiBloques normalmente. Se conservan para estudiar el código, trabajar sin el intérprete o diagnosticar una placa.
+            </DialogDescription>
+          </DialogHeader>
+          <section className="advanced-tools-list">
+            <button disabled={exportBusy} onClick={() => { setAdvancedToolsOpen(false); void exportCode('arduino'); }}><Code2 /> Exportar código Arduino .ino</button>
+            <button disabled={exportBusy} onClick={() => { setAdvancedToolsOpen(false); void exportCode('esp-idf'); }}><Code2 /> Exportar proyecto ESP-IDF .zip</button>
+            <button disabled={offline || sceneBuilderOpen || !hydrated} onClick={() => { setAdvancedToolsOpen(false); setBuildsOpen(true); }}><Settings2 /> Compilar un firmware específico</button>
+            <button disabled={offline || sceneBuilderOpen || !hydrated} onClick={() => { setAdvancedToolsOpen(false); setUsbJob(null); setUsbOpen(true); }}><Cable /> Firmware específico y monitor Serial</button>
+          </section>
+          <p className="account-help">Para el uso cotidiano cerrá este panel y elegí <strong>Usar en placa</strong>: el navegador instala el firmware CapiBloques cuando hace falta y luego envía solamente las reglas.</p>
         </DialogContent>
       </Dialog>
 

@@ -159,7 +159,7 @@ Pedido del 12 de septiembre de 2026: usar el avatar elegido por cada alumno como
 
 Los conceptos 2D de cuerpo completo ya están guardados en dos juegos: [detallados](../public/avatars/full-body/README.md) y [simples](../public/avatars/full-body-simple/README.md). Son referencias visuales para la futura adaptación 3D; todavía no son modelos STL ni animaciones integradas a la interfaz.
 
-Asignación: **fase 22**. Depende de los resultados que expondrán fase 19 (desafíos) y fase 20 (compilación/grabación); la asignación no autoriza todavía su ejecución.
+Asignación: **fase 22**. Depende de los resultados que expondrán fase 19 (desafíos) y fase 20 (preparación, reglas y ejecución en placa); la asignación no autoriza todavía su ejecución.
 
 ## 15. Asistente grande para compilar y grabar la placa
 
@@ -172,7 +172,7 @@ Pedido del 13 de septiembre de 2026: el flujo actual exige compilar, esperar la 
 - Usar texto grande, alto contraste, controles táctiles amplios, foco administrado, lector de pantalla y teclado. Los detalles técnicos pueden desplegarse, pero el error principal debe explicar qué puede hacer el alumno a continuación.
 - Conservar las pantallas actuales como base funcional y reutilizar sus estados; el asistente coordina el recorrido, no introduce otra definición de compilación o grabación.
 
-Asignación: **fase 20**, junto con medición/progreso real del pedido 17. Se coordina después con las reacciones de fase 22, sin hacer que una animación sustituya el estado textual ni la acción siguiente.
+**Replanteado y entregado en software en fase 20.** El asistente pesado de compilación deja de ser el recorrido infantil: **Usar en placa** guía Conectar → Preparar firmware CapiBloques → Enviar reglas y ejecutar. La compilación específica permanece accesible en Herramientas avanzadas para adultos. Ver [FASE_20_USO_GUIADO_PLACA.md](FASE_20_USO_GUIADO_PLACA.md).
 
 ## 16. Movimiento individual y grupal de bloques
 
@@ -198,7 +198,7 @@ Pedido del 13 de septiembre de 2026: explicar con precisión cómo se genera un 
 - Agregar una vista administrativa con etapas, tiempos y fallos agregados que permita detectar cuellos de botella sin abrir proyectos privados. Toda optimización debe compararse con una línea base y conservar aislamiento, techo de recursos, compilación sin red y limpieza de secretos.
 - Coordinar esta información con el asistente del pedido 15: el asistente presenta el recorrido al alumno; este pedido define y mejora los estados reales que lo alimentan.
 
-Asignación: **fase 20**, antes y como fundamento del asistente de compilación/grabación. No habilita aumentar recursos de la VM ni relajar aislamiento, privacidad o límites de concurrencia.
+**Alcance revisado en fase 20:** la cola pesada ya no alimenta el recorrido cotidiano de alumnos. Sus estados, aislamiento, privacidad y administración existentes se conservan para el modo avanzado, sin aumentar recursos. La optimización profunda deja de ser requisito del uso normal porque las reglas se generan localmente y no compilan por proyecto.
 
 ## 18. Displays I2C: LCD alfanumérico 20 × 4 y OLED SSD1306 128 × 64
 
@@ -331,7 +331,7 @@ Precompilar funciones o componentes **puede ayudar**, pero no debe asumirse como
 
 Toda caché debe incluir toolchain, framework, placa, memoria, particiones, bibliotecas, receta y fuentes relevantes; una coincidencia parcial no es válida. Conservar aislamiento entre cuentas, limpieza de secretos y builds reproducibles. Medir latencia p50/p95, tasa de aciertos, consumo y equidad bajo concurrencia; no optimizar sólo una compilación de laboratorio.
 
-Asignación: **fase 20**, ampliando el pedido 17 de medición y mejora del compilador antes de diseñar el asistente. La implementación se decide a partir del perfil medido en DEV; no se promete que una biblioteca monolítica precompilada sea la mejor opción.
+**Resuelto por cambio de arquitectura en fase 20/36:** el firmware intérprete se precompila una vez por placa y el proyecto cotidiano envía reglas locales; no corresponde introducir una caché compleja para ese recorrido. Las optimizaciones enumeradas siguen siendo opciones del compilador nativo avanzado si vuelve a convertirse en un cuello de botella medido.
 
 ## 24. Identidad del colegio como centro del ingreso
 
@@ -555,9 +555,9 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 12. Desafíos progresivos | 19. Pendiente de autorización |
 | 13. Barra residual del catálogo | Implementado el 13 de septiembre de 2026, revisión `d096fd9` |
 | 14. Reacciones animadas del avatar | 22. Avatar acompañante y reacciones accesibles |
-| 15. Asistente grande para compilar y grabar | 20. Compilación y grabación guiadas, medibles y comprensibles |
+| 15. Asistente grande para compilar y grabar | 20. Replanteado: preparar el intérprete y enviar reglas; compilación específica sólo avanzada |
 | 16. Movimiento individual y grupal de bloques | Implementado y desplegado el 13 de septiembre de 2026, revisión `0fc9ff2` |
-| 17. Comprender, medir y mejorar la compilación | 20. Medición, estados reales y mejoras antes del asistente |
+| 17. Comprender, medir y mejorar la compilación | 20. Resuelto para el uso normal al eliminar la compilación por proyecto; métricas sólo para el modo avanzado |
 | 18. LCD 20 × 4 PCF8574 y OLED SSD1306 128 × 64 | 23. Aceptación física de perfiles LCD/OLED/TFT existentes |
 | 19. Matriz de LED 32 × 8 con cuatro MAX7219 | 23. Nuevo componente, simulación, ambos generadores y ensayo físico |
 | 20. Panel web local para celular | 24. Panel local seguro y programable en la misma LAN |
@@ -580,4 +580,4 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 37. Lista maestra de componentes a implementar | 35 y 38–41. Prioridades, perfiles y exclusiones centralizados |
 | 23. Reducir al mínimo la latencia de compilación | 20. Medición, caché, precompilación y arquitectura del compilador |
 
-Las observaciones externas quedan asignadas así: fase 20 (progreso/guardado/reinicio de compilación), fase 21 (superposición y claridad/escena), fase 22 (avatar), fase 25 (enlaces/QR) y fase 26 (acceso de aula/asistencia). Producción es la **Fase final, postergada**, fuera de esta numeración. La fase 10 mantiene su aceptación física pendiente. La fase 15 está implementada en software y la fase 23 está en curso con la matriz implementada; el resto requiere autorización propia. Los números de pedido no son fases nuevas.
+Las observaciones externas quedan asignadas así: fase 20 resolvió el recorrido cotidiano mediante firmware intérprete/reglas y conserva el compilador como modo avanzado; fase 21 cubre superposición y claridad/escena, fase 22 avatar, fase 25 enlaces/QR y fase 26 acceso de aula/asistencia. Producción es la **Fase final, postergada**, fuera de esta numeración. Las fases 10 y 20 mantienen aceptación física pendiente. La fase 23 está en curso con la matriz implementada; el resto requiere autorización propia. Los números de pedido no son fases nuevas.

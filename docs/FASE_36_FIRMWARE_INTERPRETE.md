@@ -7,7 +7,7 @@ La fase está **terminada en software**. Ya están implementados:
 - `CapiRules` v1 / ABI 1: sobre binario acotado inicialmente a 32 KiB para no prometer RAM inexistente en Wemos, carga útil canónica, placa, recursos, grafo cooperativo compartido, tabla de depuración, conteos y CRC32;
 - `CapiLink`: `HELLO`, negociación placa/versión/ABI/capacidades, carga fragmentada `BEGIN/CHUNK/VERIFY/COMMIT`, ejecución, pausa, continuación, detención y telemetría acotada;
 - bloqueo en navegador de placa equivocada, firmware anterior a la versión requerida, ABI distinta, programa sobredimensionado o capacidad ausente;
-- selector visible **Simulador / Placa conectada**, sin enviar reglas o proyectos al servidor;
+- acceso visible **Usar en placa**, simplificado después por la [fase 20](FASE_20_USO_GUIADO_PLACA.md), sin enviar reglas o proyectos al servidor;
 - instalación/actualización Web Serial usando los mismos controles de detección, flash y verificación existentes;
 - proyecto ESP-IDF del intérprete para ESP32 y ESP32-S3, dos ranuras de reglas A/B y selector NVS con conmutación posterior a escritura/lectura/verificación, arranque autónomo, scheduler con paralelo/fork-join, expresiones y variables tipadas, entradas analógicas/digitales, GPIO/LED/semaforización/motores/robot, servo, buzzers, contador y consola;
 - matriz MAX7219 32 × 8 con orden/orientación configurables, dibujos, píxeles y desplazamiento cooperativo, además de `Esperar animación` explícito;

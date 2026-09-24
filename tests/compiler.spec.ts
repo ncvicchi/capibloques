@@ -34,7 +34,8 @@ async function builds(page: Page) {
 }
 async function open(page: Page) {
   await page.getByRole('button', { name: 'Exportar', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Compilar y descargar firmware', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Herramientas avanzadas para adultos', exact: true }).click();
+  await page.getByRole('button', { name: 'Compilar un firmware específico', exact: true }).click();
   return page.getByRole('dialog', { name: 'Compilar y descargar firmware' });
 }
 async function save(page: Page) {

@@ -48,7 +48,8 @@ async function setup(page: Page, options: { unsupported?: boolean; denied?: bool
 }
 async function openUsb(page: Page, compiled = false) {
   await page.getByRole('button', { name: 'Exportar', exact: true }).click();
-  await page.getByRole('menuitem', { name: compiled ? 'Compilar y descargar firmware' : 'USB y monitor Serial', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Herramientas avanzadas para adultos', exact: true }).click();
+  await page.getByRole('button', { name: compiled ? 'Compilar un firmware específico' : 'Firmware específico y monitor Serial', exact: true }).click();
   if (compiled) await page.getByRole('button', { name: /^Programar Wemos$/ }).click();
   return page.getByRole('dialog', { name: 'USB y monitor Serial' });
 }

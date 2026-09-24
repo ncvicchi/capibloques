@@ -375,6 +375,8 @@ Los pasos siguientes conservan la secuencia acordada al iniciar el proyecto; no 
 
 Estado: las dos salidas de fuentes están implementadas y compiladas en la fase 8. La fase 9 incorpora compilación en servidor y descarga de firmware completo. USB desde la web está implementado en la fase 10; su aceptación física sigue pendiente y no se validó en placa. El recorrido es simular comportamiento en la web, elegir salida, compilar, descargar o grabar y ejecutar autónomamente. Se conservan Arduino y exportación JSON; no se necesita controlar la placa en vivo.
 
+> Decisión posterior, fase 20: esta sección conserva la arquitectura de compatibilidad y respaldo, pero ya no describe el recorrido cotidiano. Para alumnos, «Usar en placa» guía la instalación del firmware intérprete precompilado y luego envía reglas locales. Las fuentes, la compilación específica, la grabación del firmware específico y el monitor Serial permanecen disponibles únicamente en «Herramientas avanzadas para adultos». Ver [FASE_20_USO_GUIADO_PLACA.md](FASE_20_USO_GUIADO_PLACA.md).
+
 ### A. Dos generadores y salidas portables
 
 - Opciones visibles: «Descargar proyecto JSON», «Descargar Arduino (.ino)», «Descargar proyecto ESP-IDF (.zip)», «Descargar firmware» y «Programar mi Wemos». Las dos últimas usan el framework seleccionado y muestran versión del proyecto/placa; no exigir descargar archivos intermedios al usar la grabación directa.

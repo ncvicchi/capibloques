@@ -60,18 +60,26 @@ export default function InterpreterBoard({ account, store, program, scene, board
   const act = (operation: Promise<unknown>) => { setActionError(''); void operation.catch(cause => setActionError(cause instanceof Error ? cause.message : 'La placa rechazó la operación.')); };
   const authorized = (operation: () => Promise<unknown>) => act(verifySession().then(operation));
   const configureWifi = () => authorized(async () => { await session.provisionWifi(wifiSsid, wifiPassword); setWifiPassword(''); });
+  const sendAndRun = () => bundle && authorized(async () => { await session.send(bundle); await session.command('RUN'); });
+  const compatible = ['ready', 'sending', 'running', 'paused', 'stopped'].includes(state.stage);
+  const rulesLoaded = state.progress === 100 || state.stage === 'running' || state.stage === 'paused';
   return <Dialog open onOpenChange={open => { if (!open) close(); }}><DialogContent className="firmware-dialog usb-dialog" showCloseButton={state.stage !== 'sending'}>
-    <DialogHeader><DialogTitle>⚡ Ejecutar en la placa</DialogTitle><DialogDescription>Envía reglas al intérprete ya instalado. No compila el proyecto y no manda el programa al servidor.</DialogDescription></DialogHeader>
+    <DialogHeader><DialogTitle>⚡ Usar mi placa</DialogTitle><DialogDescription>Prepará la placa una sola vez. Después, cada cambio se envía como reglas en pocos segundos: no se compila el proyecto ni se manda al servidor.</DialogDescription></DialogHeader>
+    <ol className="board-steps" aria-label="Pasos para usar la placa">
+      <li data-active={!installing && !connected} data-done={connected}>Conectar</li>
+      <li data-active={installing || state.stage === 'incompatible'} data-done={compatible}>Preparar</li>
+      <li data-active={!installing && compatible && !rulesLoaded} data-done={rulesLoaded}>Enviar y ejecutar</li>
+    </ol>
     {!available && <p role="alert" className="account-error">Web Serial requiere Chrome o Edge de escritorio y una dirección HTTPS o localhost.</p>}
     {error && <p role="alert" className="account-error">{error}</p>}
     {actionError && <p role="alert" className="account-error">{actionError}</p>}
     {revoked && <p role="alert" className="account-error">La sesión cambió o perdió conexión con el servidor. Cerramos USB; volvé a ingresar antes de usar la placa.</p>}
     {!installing && <section className="usb-target">
       <h3>{boardProfile(board).name}</h3>
-      {bundle && <p>{bundle.instructionCount} instrucciones · {bundle.bytes.length.toLocaleString('es-AR')} bytes · control {bundle.checksum}</p>}
-      <p>La placa conserva las últimas reglas completas. Si se corta el cable durante el envío, no reemplaza el programa anterior.</p>
+      <p>{connected ? 'La placa está conectada. Ya podés enviar este proyecto.' : 'Conectá el cable USB y elegí la placa. Si todavía no tiene CapiBloques, podés prepararla desde aquí.'}</p>
+      {bundle && <details><summary>Datos de estas reglas</summary><p>{bundle.instructionCount} instrucciones · {bundle.bytes.length.toLocaleString('es-AR')} bytes · control {bundle.checksum}</p><p>La placa conserva las últimas reglas completas. Una transferencia interrumpida no reemplaza el programa anterior.</p></details>}
     </section>}
-    {installing && <section className="usb-target"><h3>Instalar o actualizar el intérprete</h3><p>Esto reemplaza el programa actual de la placa. Después podrás cambiar proyectos enviando reglas, sin recompilar.</p></section>}
+    {installing && <section className="usb-target"><h3>Preparar {boardProfile(board).shortName}</h3><p>Instala el firmware CapiBloques precompilado y reemplaza el programa actual. Sólo hace falta la primera vez o cuando la web pide actualizarlo.</p></section>}
     <div className="usb-status" role={state.stage === 'error' || state.stage === 'incompatible' || installState.stage === 'error' ? 'alert' : 'status'} aria-live="polite">
       <strong>{installing ? installState.message : state.message}</strong>
       {state.hello && <span>{state.hello.board} · firmware {state.hello.firmware} · ABI {state.hello.abi}</span>}
@@ -89,16 +97,16 @@ export default function InterpreterBoard({ account, store, program, scene, board
     </section>}
     {installing && <fieldset className="usb-checks" disabled={usbBusy(installState)}><legend>Antes de grabar, revisá con una persona adulta</legend><label><input type="checkbox" checked={identified} onChange={event => setIdentified(event.target.checked)} /> Identifiqué la placa correcta.</label><label><input type="checkbox" checked={safe} onChange={event => setSafe(event.target.checked)} /> Desconecté motores y actuadores.</label><label><input type="checkbox" checked={replace} onChange={event => setReplace(event.target.checked)} /> Entiendo que reemplaza el programa actual.</label></fieldset>}
     <div className="usb-actions">
-      {!installing && !connected && <Button disabled={!available || !!error || revoked || state.stage === 'connecting'} onClick={() => void session.connect(requestVerifiedPort, board)}>Elegir placa y comprobar</Button>}
-      {!installing && state.stage === 'incompatible' && <Button onClick={() => void beginInstall()}>Actualizar intérprete</Button>}
-      {(state.stage === 'ready' || state.stage === 'stopped') && <Button disabled={!bundle} onClick={() => bundle && authorized(() => session.send(bundle))}>Enviar reglas</Button>}
-      {state.stage === 'ready' && state.progress === 100 && <Button onClick={() => authorized(() => session.command('RUN'))}>Ejecutar en placa</Button>}
+      {!installing && !connected && <Button disabled={!available || !!error || revoked || state.stage === 'connecting'} onClick={() => void session.connect(requestVerifiedPort, board)}>Conectar y comprobar</Button>}
+      {!installing && !connected && state.stage !== 'connecting' && <Button variant="outline" disabled={!available || revoked} onClick={() => void beginInstall()}>Preparar esta placa</Button>}
+      {!installing && state.stage === 'incompatible' && <Button onClick={() => void beginInstall()}>Instalar la versión correcta</Button>}
+      {(state.stage === 'ready' || state.stage === 'stopped') && <Button disabled={!bundle} onClick={sendAndRun}>{state.progress === 100 ? 'Volver a enviar y ejecutar' : 'Enviar reglas y ejecutar'}</Button>}
       {state.stage === 'running' && <><Button onClick={() => authorized(() => session.command('PAUSE'))}>Pausar</Button><Button variant="outline" onClick={() => authorized(() => session.command('STOP'))}>Detener</Button></>}
       {state.stage === 'paused' && <><Button onClick={() => authorized(() => session.command('RESUME'))}>Continuar</Button><Button variant="outline" onClick={() => authorized(() => session.command('STOP'))}>Detener</Button></>}
       {!installing && connected && state.stage !== 'sending' && <Button variant="outline" onClick={() => void session.close()}>Desconectar</Button>}
-      {installing && !usbBusy(installState) && installState.stage !== 'done' && <><Button disabled={!available || revoked || !identified || !safe || !replace} onClick={flash}>Elegir placa y grabar intérprete</Button><Button variant="outline" onClick={() => setInstalling(false)}>Volver</Button></>}
+      {installing && !usbBusy(installState) && installState.stage !== 'done' && <><Button disabled={!available || revoked || !identified || !safe || !replace} onClick={flash}>Elegir placa e instalar CapiBloques</Button><Button variant="outline" onClick={() => setInstalling(false)}>Volver</Button></>}
       {installing && usbBusy(installState) && <Button variant="outline" onClick={() => installer.cancel()}>Cancelar</Button>}
-      {installing && installState.stage === 'done' && <Button onClick={() => { setInstalling(false); setIdentified(false); setSafe(false); setReplace(false); }}>Comprobar intérprete instalado</Button>}
+      {installing && installState.stage === 'done' && <Button onClick={() => { setInstalling(false); setIdentified(false); setSafe(false); setReplace(false); }}>Conectar y enviar mis reglas</Button>}
     </div>
     {!!state.telemetry.length && <section className="usb-monitor"><h3>Qué está haciendo la placa</h3><ol className="execution-trace">{state.telemetry.slice(-20).map((item, index) => <li key={`${item.event}-${index}`}>{item.blockId ? `${item.blockId}: ` : ''}{item.message ?? item.event}{showTelemetryValue(item.value)}</li>)}</ol></section>}
     <details><summary>¿Por qué puede pedir una actualización?</summary><p>La web compara placa, versión y ABI antes de enviar. Si el firmware es viejo o pertenece a otra placa, bloquea las reglas para evitar ejecutar algo incompatible.</p></details>
