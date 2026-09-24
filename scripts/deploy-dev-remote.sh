@@ -277,7 +277,7 @@ if ((BUILD_INTERPRETER)); then
     --user "$(id -u capi):$(id -g capi)" -e HOME=/tmp/capi-idf -e IDF_PY_BUILD_JOBS=2 \
     -v "$REPOSITORY:/project" -w /project \
     espressif/idf:v5.5.5@sha256:a9231d0697ab8f7517cc072e93b7c83e04907bfbfba80b6440d7dbbf90665cf2 \
-    bash -lc '. "$IDF_PATH/export.sh" >/dev/null && ./scripts/build-interpreter-firmware.sh 1.3.0 /project/public/interpreter '"$INTERPRETER_SOURCE"
+    bash -lc '. "$IDF_PATH/export.sh" >/dev/null && bash ./scripts/build-interpreter-firmware.sh 1.3.0 /project/public/interpreter '"$INTERPRETER_SOURCE"
   python3 - "$REPOSITORY/public/interpreter" "$INTERPRETER_SOURCE" <<'PY'
 import hashlib, json, pathlib, sys
 root, revision = pathlib.Path(sys.argv[1]), sys.argv[2]
