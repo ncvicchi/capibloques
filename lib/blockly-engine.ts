@@ -9,6 +9,8 @@ import type { CompiledProgram, Condition, ProgramNode, ValueExpression, Variable
 import type { SceneDevice, SceneDeviceKind } from './scene-model.ts';
 // @ts-expect-error Node strip-types runner.
 import { boardProfile, type BoardProfileId } from './board-profiles.ts';
+// @ts-expect-error Node strip-types runner.
+import { componentValueCapabilities, type ComponentValueSource } from './component-capabilities.ts';
 type BlocklyApi = typeof import('blockly');
 type BlocklyWorkspaceSvg = import('blockly').WorkspaceSvg;
 type BlocklyBlock = import('blockly').Block;
@@ -21,12 +23,14 @@ const AREA_FIELD = 'AREA_ID';
 const MESSAGE_FIELD = 'MESSAGE';
 const PATTERN_FIELD = 'PATTERN_ID';
 const DISPLAY_ARTWORK_FIELD = 'ARTWORK_ID';
+const COMPONENT_PROPERTY_FIELD = 'PROPERTY';
 const serializedAreaIds = new WeakMap<BlocklyWorkspaceSvg, Map<string, string>>();
 const EMPTY_FAVORITES: readonly string[] = [];
 const DEVICE_EXTENSION = 'capi_device_target_v2';
 const ANIMATION_REPEAT_EXTENSION = 'capi_animation_repeat_v1';
 const MATRIX_TEXT_EXTENSION = 'capi_matrix_text_limit_v1';
 const BOARD_PIN_EXTENSION = 'capi_board_pin_v1';
+const COMPONENT_VALUE_EXTENSION = 'capi_component_value_v1';
 const DEVICE_WARNING = 'capi-device-target';
 const MISSING_DEVICE_PREFIX = '__missing__:';
 
@@ -113,6 +117,12 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
         : ['lightSensor'];
     case 'capi_sensor_value':
       return ['lightSensor', 'potentiometer'];
+    case 'capi_component_number':
+      return ['led', 'motor', 'servo', 'lightSensor', 'potentiometer', 'otto'];
+    case 'capi_component_text':
+      return ['trafficLight', 'robot', 'otto', 'wifiNode', 'messages'];
+    case 'capi_component_boolean':
+      return ['button', 'infraredBarrier', 'wifiNode'];
     default:
       return [];
   }
@@ -294,6 +304,28 @@ function displayArtworkMenuGenerator(
     : [['Usá OLED o TFT para dibujos', '__missing_artwork__']];
 }
 
+function componentPropertyMenuGenerator(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
+  const block = this.getSourceBlock();
+  if (!block) return [['Elegí un componente', '__missing_property__']];
+  const workspace = targetWorkspaceForBlock(block);
+  const device = (workspaceDevices.get(workspace) ?? []).find(item => item.id === block.getFieldValue(DEVICE_FIELD));
+  const type: VariableType = block.type.endsWith('_text') ? 'text' : block.type.endsWith('_boolean') ? 'boolean' : 'number';
+  const options: BlocklyMenuOption[] = device ? componentValueCapabilities(device).filter(item => item.type === type).map(item => [`${item.label} · ${item.source === 'measured' ? 'medido' : item.source === 'ordered' ? 'ordenado' : 'servicio'}`, item.key]) : [];
+  const current = this.getValue();
+  if (current && current !== '__missing_property__' && !options.some(option => option[1] === current)) options.push([`⚠️ Dato retirado (${current})`, current]);
+  return options.length ? options : [['Elegí un dato disponible', '__missing_property__']];
+}
+
+function refreshComponentPropertyField(block: BlocklyBlock) {
+  const field = block.getField(COMPONENT_PROPERTY_FIELD) as BlocklyFieldDropdown | null;
+  if (!field) return;
+  const previous = field.getValue();
+  field.setOptions(componentPropertyMenuGenerator);
+  const options = field.getOptions(false);
+  field.setValue(options.some(option => option[1] === previous) ? previous : options[0][1]);
+  field.forceRerender();
+}
+
 function refreshAreaField(block: BlocklyBlock) {
   const field = block.getField(AREA_FIELD) as BlocklyFieldDropdown | null;
   if (!field) return;
@@ -362,6 +394,7 @@ function refreshDeviceField(block: BlocklyBlock) {
   refreshMessageField(block);
   refreshPatternField(block);
   refreshDisplayArtworkField(block);
+  refreshComponentPropertyField(block);
   updateDeviceWarning(block);
   return previous !== nextValue;
 }
@@ -512,6 +545,9 @@ const toolbox = {
         { kind: 'block', type: 'capi_value_boolean' },
         { kind: 'block', type: 'capi_counter_value' },
         { kind: 'block', type: 'capi_sensor_value' },
+        { kind: 'block', type: 'capi_component_number' },
+        { kind: 'block', type: 'capi_component_text' },
+        { kind: 'block', type: 'capi_component_boolean' },
         { kind: 'block', type: 'capi_otto_distance' },
         { kind: 'block', type: 'capi_barrier_state' },
         { kind: 'block', type: 'capi_message_value' },
@@ -610,6 +646,11 @@ function registerBlocks(Blockly: BlocklyApi) {
         return value;
       });
       showCount(String(mode?.getValue() ?? 'ONCE'));
+    });
+  }
+  if (!Blockly.Extensions.isRegistered(COMPONENT_VALUE_EXTENSION)) {
+    Blockly.Extensions.register(COMPONENT_VALUE_EXTENSION, function (this: BlocklyBlock) {
+      refreshComponentPropertyField(this);
     });
   }
   if (!Blockly.Extensions.isRegistered(MATRIX_TEXT_EXTENSION)) {
@@ -992,6 +1033,14 @@ function registerBlocks(Blockly: BlocklyApi) {
       args0: [deviceField('⚠️ agrega un sensor')], output: 'Number', colour: '#12AA8C',
       extensions: [DEVICE_EXTENSION], tooltip: 'Lee el valor actual de un sensor, entre 0 y 4095.',
     },
+    ...(['number', 'text', 'boolean'] as const).map(type => ({
+      type: `capi_component_${type}`,
+      message0: `dato ${type === 'number' ? 'numérico' : type === 'text' ? 'de texto' : 'sí/no'} de %1 %2`,
+      args0: [deviceField('⚠️ agrega un componente'), { type: 'field_dropdown', name: COMPONENT_PROPERTY_FIELD, options: [['Elegí un dato', '__missing_property__']] }],
+      output: type === 'number' ? 'Number' : type === 'text' ? 'String' : 'Boolean', colour: '#2A8C75',
+      extensions: [DEVICE_EXTENSION, COMPONENT_VALUE_EXTENSION],
+      tooltip: 'Lee un dato del componente. La etiqueta aclara si es medido, ordenado por el programa o de un servicio.',
+    })),
     {
       type: 'capi_message_value', message0: 'último mensaje recibido en %1',
       args0: [deviceField('⚠️ agrega Mensajes')], output: 'String', colour: '#59627D',
@@ -1647,6 +1696,16 @@ function compileValue(block: BlocklyBlock | null, fallback: VariableType = 'numb
       const args: ValueExpression[] = [];
       for (const name of ['ARG1','ARG2','ARG3']) { const child = block.getInputTargetBlock(name); if (!child) break; args.push(compileValue(child)); }
       return { kind: 'functionCall', routineId: String(block.getFieldValue('ROUTINE') ?? ''), arguments: args, valueType };
+    }
+    case 'capi_component_number':
+    case 'capi_component_text':
+    case 'capi_component_boolean': {
+      const valueType: VariableType = block.type.endsWith('_text') ? 'text' : block.type.endsWith('_boolean') ? 'boolean' : 'number';
+      const deviceId = selectedDeviceId(block);
+      const device = (workspaceDevices.get(targetWorkspaceForBlock(block)) ?? []).find(item => item.id === deviceId);
+      const property = String(block.getFieldValue(COMPONENT_PROPERTY_FIELD) ?? '');
+      const capability = device ? componentValueCapabilities(device).find(item => item.key === property && item.type === valueType) : undefined;
+      return { kind: 'componentValue', deviceId, property, valueType, source: (capability?.source ?? 'ordered') as ComponentValueSource };
     }
     case 'capi_sensor_value': return { kind: 'sensorValue', deviceId: selectedDeviceId(block) };
     case 'capi_otto_distance': return { kind: 'ottoDistance', deviceId: selectedDeviceId(block) };

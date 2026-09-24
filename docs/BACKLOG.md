@@ -405,6 +405,8 @@ Debe distinguirse en la interfaz y documentación entre un valor **medido** por 
 
 Asignación: **fase 32 — Estados y valores consultables de componentes**.
 
+Estado: **implementada en software el 24 de septiembre de 2026; despliegue DEV y aceptación física pendientes**. Incluye registro tipado por perfil, selectores comunes número/texto/sí-no, origen medido/ordenado/servicio, simulador, Arduino, ESP-IDF y firmware intérprete 1.2.0. Ver [FASE_32_ESTADOS_COMPONENTES.md](FASE_32_ESTADOS_COMPONENTES.md).
+
 ## 31. Red entre placas por Wi-Fi
 
 Pedido del 23 de septiembre de 2026: completar y probar Wi-Fi con dos roles. Una placa podrá **crear la red** —punto de acceso, equivalente al rol maestro propuesto— y una o más placas podrán **conectarse a esa red** como clientes. La interfaz evitará depender de «maestro/esclavo» y explicará los roles por lo que hacen.

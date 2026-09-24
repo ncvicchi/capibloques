@@ -578,6 +578,30 @@ function evaluateValue(expression: ValueExpression): number | string | boolean {
     case 'timerRemaining': return Math.ceil((state.timers[expression.timerId]?.remainingMs ?? 0) / 1000);
     case 'parameter': return expression.valueType === 'text' ? '' : expression.valueType === 'boolean' ? false : 0;
     case 'functionCall': return expression.valueType === 'text' ? '' : expression.valueType === 'boolean' ? false : 0;
+    case 'componentValue': {
+      const device = state.devices[expression.deviceId];
+      if (!device) return expression.valueType === 'text' ? '' : expression.valueType === 'boolean' ? false : 0;
+      if (device.kind === 'trafficLight' && expression.property === 'color') return device.color;
+      if (device.kind === 'led' && expression.property === 'brightness') return device.brightness;
+      if (device.kind === 'robot' && expression.property === 'motion') {
+        if (device.left === 0 && device.right === 0) return 'STOP';
+        if (device.left > 0 && device.right > 0) return 'FORWARD';
+        if (device.left < 0 && device.right < 0) return 'BACKWARD';
+        return device.left < device.right ? 'LEFT' : 'RIGHT';
+      }
+      if (device.kind === 'motor' && expression.property === 'power') return device.power;
+      if (device.kind === 'servo' && expression.property === 'angle') return device.angle;
+      if (device.kind === 'button' && expression.property === 'pressed') return device.pressed;
+      if (device.kind === 'infraredBarrier' && expression.property === 'interrupted') return device.interrupted;
+      if ((device.kind === 'lightSensor' || device.kind === 'potentiometer') && expression.property === 'value') return device.value;
+      if (device.kind === 'wifiNode' && expression.property === 'connected') return device.status === 'connected';
+      if (device.kind === 'wifiNode' && expression.property === 'status') return device.status;
+      if (device.kind === 'messages' && expression.property === 'lastMessage') return lastReceivedMessages.get(expression.deviceId) ?? '';
+      if (device.kind === 'otto' && expression.property === 'distance') return device.distance;
+      if (device.kind === 'otto' && expression.property === 'motion') return device.motion;
+      if (device.kind === 'otto' && expression.property === 'expression') return device.expression;
+      return expression.valueType === 'text' ? '' : expression.valueType === 'boolean' ? false : 0;
+    }
     case 'variable': return state.variables[expression.variableId] ?? (expression.valueType === 'text' ? '' : expression.valueType === 'boolean' ? false : 0);
     case 'sensorValue': {
       const device = state.devices[expression.deviceId];

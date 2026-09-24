@@ -5,7 +5,7 @@ const source = await readFile(new URL('../interpreter/main/main.cpp', import.met
 
 for (const operation of ['servo', 'buzzer', 'tone', 'wifi', 'timerStart', 'timerRestart', 'timerPause', 'timerResume', 'timerStop', 'timerWait', 'otto', 'ottoSound', 'ottoExpression', 'ottoArms', 'displayWrite', 'displayClear', 'displayAnimateText', 'displayArtwork', 'matrixScroll', 'visualWait', 'messageSend', 'messageReceiveWait'])
   assert.match(source, new RegExp(`"${operation}"`), `missing interpreter operation ${operation}`);
-for (const capability of ['parallel', 'variables', 'timers', 'servo', 'buzzer', 'wifi', 'otto', 'display-lcd', 'display-keypad', 'display-ssd1306', 'display-ili9341', 'display-ili9488', 'matrix', 'messages'])
+for (const capability of ['parallel', 'variables', 'timers', 'component-state', 'servo', 'buzzer', 'wifi', 'otto', 'display-lcd', 'display-keypad', 'display-ssd1306', 'display-ili9341', 'display-ili9488', 'matrix', 'messages'])
   assert.match(source, new RegExp(`"${capability}"`), `missing negotiated capability ${capability}`);
 assert.match(source, /rules_a/);
 assert.match(source, /rules_b/);

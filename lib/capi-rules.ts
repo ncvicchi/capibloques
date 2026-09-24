@@ -6,7 +6,7 @@ import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 
 export const CAPI_RULES_FORMAT = 1;
 export const CAPI_INTERPRETER_ABI = 1;
-export const CAPI_INTERPRETER_VERSION = '1.1.0';
+export const CAPI_INTERPRETER_VERSION = '1.2.0';
 export const CAPI_RULES_MAX_BYTES = 32 * 1024;
 export const CAPI_RULES_MAX_INSTRUCTIONS = 2048;
 const HEADER_BYTES = 32;
@@ -58,6 +58,7 @@ function instructionCapabilities(instruction: ExecutableTask['output'][number]) 
   if (encodedInstruction.includes('wifiValue')) result.push('wifi');
   if (encodedInstruction.includes('"kind":"variable"')) result.push('variables');
   if (encodedInstruction.includes('"kind":"timerElapsed"') || encodedInstruction.includes('"kind":"timerRemaining"')) result.push('timers');
+  if (encodedInstruction.includes('"kind":"componentValue"')) result.push('component-state');
   if (instruction.op === 'jumpIfFalse') {
     const condition = instruction.condition;
     if (condition.kind === 'sensor') result.push('analog-input');
@@ -72,6 +73,7 @@ function instructionCapabilities(instruction: ExecutableTask['output'][number]) 
     if (encoded.includes('ottoDistance')) result.push('otto');
     if (encoded.includes('variable')) result.push('variables');
     if (encoded.includes('timerElapsed') || encoded.includes('timerRemaining')) result.push('timers');
+    if (encoded.includes('componentValue')) result.push('component-state');
     if (encoded.includes('messageValue')) result.push('messages');
     if (encoded.includes('wifiValue')) result.push('wifi');
   }

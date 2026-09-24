@@ -34,6 +34,8 @@ import { MAX_MATRIX_TEXT, normalizeMatrixText, validMatrixConfig } from './led-m
 // @ts-expect-error Node strip-types runner.
 import { matrixFirmwareSupport, normalizedMatrixTextLiteral } from './led-matrix-firmware.ts';
 // @ts-expect-error Node strip-types runner.
+import { componentValueCapability, type ComponentValueSource } from './component-capabilities.ts';
+// @ts-expect-error Node strip-types runner.
 import { boardProfile, isProjectTarget, projectTargetForBoard, type BoardProfileId, type ProjectTarget } from './board-profiles.ts';
 
 export type FirmwareFramework = 'arduino' | 'esp-idf';
@@ -74,6 +76,7 @@ export type ValueExpression =
   | { kind: 'timerRemaining'; timerId: string }
   | { kind: 'parameter'; parameterId: string; valueType: VariableType }
   | { kind: 'functionCall'; routineId: string; arguments: ValueExpression[]; valueType: VariableType }
+  | { kind: 'componentValue'; deviceId: string; property: string; valueType: VariableType; source: ComponentValueSource }
   | { kind: 'sensorValue'; deviceId: string }
   | { kind: 'ottoDistance'; deviceId: string }
   | { kind: 'buttonValue'; deviceId: string }
@@ -862,6 +865,9 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_value_boolean',
   'capi_counter_value',
   'capi_sensor_value',
+  'capi_component_number',
+  'capi_component_text',
+  'capi_component_boolean',
   'capi_message_value',
   'capi_number_math',
   'capi_text_join',
@@ -1780,6 +1786,13 @@ function normalizeValueExpression(raw: unknown): ValueExpression {
     case 'timerRemaining': return { kind: 'timerRemaining', timerId: typeof value.timerId === 'string' ? value.timerId : '' };
     case 'parameter': return { kind: 'parameter', parameterId: typeof value.parameterId === 'string' ? value.parameterId : '', valueType: variableTypes.includes(value.valueType as VariableType) ? value.valueType as VariableType : 'number' };
     case 'functionCall': return { kind: 'functionCall', routineId: typeof value.routineId === 'string' ? value.routineId : '', arguments: Array.isArray(value.arguments) ? value.arguments.slice(0, 3).map(normalizeValueExpression) : [], valueType: variableTypes.includes(value.valueType as VariableType) ? value.valueType as VariableType : 'number' };
+    case 'componentValue': return {
+      kind: 'componentValue',
+      deviceId: typeof value.deviceId === 'string' ? value.deviceId : '',
+      property: typeof value.property === 'string' ? value.property : '',
+      valueType: variableTypes.includes(value.valueType as VariableType) ? value.valueType as VariableType : 'number',
+      source: ['measured', 'ordered', 'service'].includes(String(value.source)) ? value.source as ComponentValueSource : 'ordered',
+    };
     case 'sensorValue': return { kind: 'sensorValue', deviceId: typeof value.deviceId === 'string' ? value.deviceId : '' };
     case 'ottoDistance': return { kind: 'ottoDistance', deviceId: typeof value.deviceId === 'string' ? value.deviceId : '' };
     case 'buttonValue': return { kind: 'buttonValue', deviceId: typeof value.deviceId === 'string' ? value.deviceId : '' };
@@ -2440,7 +2453,7 @@ function validateConditionTarget(
 export function valueExpressionType(expression: ValueExpression): VariableType {
   if (expression.kind === 'text' || expression.kind === 'join' || expression.kind === 'messageValue') return 'text';
   if (expression.kind === 'boolean' || expression.kind === 'buttonValue' || expression.kind === 'barrierValue' || expression.kind === 'displayButtonValue' || expression.kind === 'wifiValue') return 'boolean';
-  if (expression.kind === 'variable') return expression.valueType;
+  if (expression.kind === 'variable' || expression.kind === 'componentValue') return expression.valueType;
   if (expression.kind === 'parameter' || expression.kind === 'functionCall') return expression.valueType;
   return 'number';
 }
@@ -2556,6 +2569,12 @@ export function validateProgramForScene(
         const routine = routines.get(value.routineId);
         if (!routine || routine.kind !== 'function') diagnostics.push({ severity: 'error', code: 'routine-missing', message: 'Elegí una función que todavía exista.', blockId: node.blockId });
         else if (routine.returnType !== value.valueType || routine.parameters.length !== value.arguments.length || routine.parameters.some((parameter, index) => valueExpressionType(value.arguments[index] ?? defaultValue(parameter.type)) !== parameter.type)) diagnostics.push({ severity: 'error', code: 'routine-arguments', message: `${routine.name}: revisá la cantidad y el tipo de sus datos de entrada.`, blockId: node.blockId });
+      }
+      if (value.kind === 'componentValue') {
+        const device = deviceMap.get(value.deviceId);
+        const capability = componentValueCapability(device, value.property);
+        if (!capability) diagnostics.push({ severity: 'error', code: 'component-value-missing', message: 'Elegí un dato disponible en un componente de la escena.', blockId: node.blockId, deviceId: value.deviceId });
+        else if (capability.type !== value.valueType || capability.source !== value.source) diagnostics.push({ severity: 'error', code: 'component-value-stale', message: `${device?.name ?? 'El componente'} cambió. Volvé a elegir el dato que querés consultar.`, blockId: node.blockId, deviceId: value.deviceId });
       }
       if (value.kind === 'sensorValue') {
         const device = deviceMap.get(value.deviceId);
@@ -2997,6 +3016,10 @@ function variableSymbol(variableId: string) {
   return `VAR_${cppIdentifier(variableId)}`;
 }
 
+function componentStateSymbol(deviceId: string, property: string) {
+  return `STATE_${cppIdentifier(deviceId)}_${cppIdentifier(property)}`;
+}
+
 function valueToCpp(expression: ValueExpression, context: GeneratorContext): string {
   switch (expression.kind) {
     case 'number': return String(normalizeCounterValue(expression.value));
@@ -3007,6 +3030,26 @@ function valueToCpp(expression: ValueExpression, context: GeneratorContext): str
     case 'timerRemaining': return `capiTimerRemaining(${timerIndex(context, expression.timerId)})`;
     case 'parameter': return expression.valueType === 'text' ? 'capiText("")' : expression.valueType === 'boolean' ? 'false' : '0';
     case 'functionCall': return expression.valueType === 'text' ? 'capiText("")' : expression.valueType === 'boolean' ? 'false' : '0';
+    case 'componentValue': {
+      const device = context.scene.devices.find(item => item.id === expression.deviceId);
+      const capability = componentValueCapability(device, expression.property);
+      if (!device || !capability) return expression.valueType === 'text' ? 'capiText("")' : expression.valueType === 'boolean' ? 'false' : '0';
+      if (capability.source === 'ordered') {
+        const symbol = componentStateSymbol(device.id, capability.key);
+        return capability.type === 'text' ? `capiText(${symbol})` : symbol;
+      }
+      if (device.kind === 'lightSensor' || device.kind === 'potentiometer') return `${context.framework === 'esp-idf' ? 'capiAnalogRead' : 'analogRead'}(${pinConstant(context, device.id)})`;
+      if (device.kind === 'button') return `${context.framework === 'esp-idf' ? 'capiDigitalRead' : 'digitalRead'}(${pinConstant(context, device.id)}) == ${context.framework === 'esp-idf' ? '0' : 'LOW'}`;
+      if (device.kind === 'infraredBarrier') {
+        const level = context.framework === 'esp-idf' ? (device.config.interruptedLevel === 'HIGH' ? '1' : '0') : device.config.interruptedLevel;
+        return `${context.framework === 'esp-idf' ? 'capiDigitalRead' : 'digitalRead'}(${pinConstant(context, device.id)}) == ${level}`;
+      }
+      if (device.kind === 'otto' && capability.key === 'distance') return `DEV_${deviceSymbol(context, device.id)}.distanceCm`;
+      if (device.kind === 'wifiNode' && capability.key === 'connected') return context.framework === 'esp-idf' ? 'capiWifiConnected()' : 'WiFi.status() == WL_CONNECTED';
+      if (device.kind === 'wifiNode' && capability.key === 'status') return `capiText(${context.framework === 'esp-idf' ? 'capiWifiConnected()' : 'WiFi.status() == WL_CONNECTED'} ? "conectado" : "desconectado")`;
+      if (device.kind === 'messages') return `capiText(MESSAGE_LAST_${deviceSymbol(context, device.id)})`;
+      return expression.valueType === 'text' ? 'capiText("")' : expression.valueType === 'boolean' ? 'false' : '0';
+    }
     case 'sensorValue': return `${context.framework === 'esp-idf' ? 'capiAnalogRead' : 'analogRead'}(${pinConstant(context, expression.deviceId)})`;
     case 'ottoDistance': return `DEV_${deviceSymbol(context, expression.deviceId)}.distanceCm`;
     case 'buttonValue': return `${context.framework === 'esp-idf' ? 'capiDigitalRead' : 'digitalRead'}(${pinConstant(context, expression.deviceId)}) == ${context.framework === 'esp-idf' ? '0' : 'LOW'}`;
@@ -3101,12 +3144,12 @@ function instructionToCpp(
     case 'join':
       return `${comment}\n        if (${instruction.children.map(child => `active_T${child}`).join(' || ') || 'false'}) return;\n        ${pc} = ${nextPc};\n        break;`;
     case 'traffic':
-      return `${comment}\n        setTraffic(DEV_${deviceSymbol(context, instruction.deviceId)}, TrafficColor::${instruction.color});\n        ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        setTraffic(DEV_${deviceSymbol(context, instruction.deviceId)}, TrafficColor::${instruction.color});\n        capiAssignText(${componentStateSymbol(instruction.deviceId, 'color')}, ${cppString(instruction.color)});\n        ${pc} = ${nextPc};\n        break;`;
     case 'led': {
       const duty = Math.round(
         (Math.max(0, Math.min(100, instruction.brightness)) / 100) * 255,
       );
-      return `${comment}\n        ${pwmWrite}(${pinConstant(context, instruction.deviceId)}, ${duty});\n        ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        ${pwmWrite}(${pinConstant(context, instruction.deviceId)}, ${duty});\n        ${componentStateSymbol(instruction.deviceId, 'brightness')} = ${Math.max(0, Math.min(100, Math.round(instruction.brightness)))};\n        ${pc} = ${nextPc};\n        break;`;
     }
     case 'pin':
       if (native) return `${comment}\n        capiOutput(${instruction.pin});\n        capiDigitalWrite(${instruction.pin}, ${instruction.value ? 1 : 0});\n        ${pc} = ${nextPc};\n        break;`;
@@ -3122,16 +3165,16 @@ function instructionToCpp(
         RIGHT: `${speed}, ${-speed}`,
         STOP: '0, 0',
       };
-      return `${comment}\n        driveRobot(DEV_${deviceSymbol(context, instruction.deviceId)}, ${motorPairs[instruction.action]});\n        ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        driveRobot(DEV_${deviceSymbol(context, instruction.deviceId)}, ${motorPairs[instruction.action]});\n        capiAssignText(${componentStateSymbol(instruction.deviceId, 'motion')}, ${cppString(instruction.action)});\n        ${pc} = ${nextPc};\n        break;`;
     }
     case 'otto': {
       const device = `DEV_${deviceSymbol(context, instruction.deviceId)}`;
       if (instruction.action === 'HOME')
-        return `${comment}\n        ${device}.owner = -1; ottoHome(${device});\n        ${waiting} = false; ${pc} = ${nextPc};\n        break;`;
+        return `${comment}\n        ${device}.owner = -1; ottoHome(${device});\n        capiAssignText(${componentStateSymbol(instruction.deviceId, 'motion')}, "HOME");\n        ${waiting} = false; ${pc} = ${nextPc};\n        break;`;
       const action = { WALK_FORWARD: 0, WALK_BACKWARD: 1, TURN_LEFT: 2, TURN_RIGHT: 3, DANCE: 4, JUMP: 5, SWING: 6, TIPTOE: 7, JITTER: 8, MOONWALK_LEFT: 9, MOONWALK_RIGHT: 10, BEND_LEFT: 11, BEND_RIGHT: 12, SHAKE_LEFT: 13, SHAKE_RIGHT: 14, FLAP_FORWARD: 15, FLAP_BACKWARD: 16 }[instruction.action];
       const stepMs = 480 - Math.round(Math.max(0, Math.min(100, instruction.speed)) * 3);
       const duration = stepMs * 4 * Math.max(1, Math.min(20, Math.round(instruction.repetitions)));
-      return `${comment}\n        if (!${waiting}) { ${device}.owner = ${context.threadIndex}; ${waitStarted} = now; ${waiting} = true; }\n        if (${device}.owner != ${context.threadIndex}) { ${waiting} = false; ${pc} = ${nextPc}; break; }\n        ottoMove(${device}, ${action}, (uint8_t)(((uint32_t)(now - ${waitStarted}) / ${stepMs}U) % 4U));\n        if ((uint32_t)(now - ${waitStarted}) < ${duration}U) return;\n        ${device}.owner = -1; ottoHome(${device}); ${waiting} = false; ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        if (!${waiting}) { ${device}.owner = ${context.threadIndex}; capiAssignText(${componentStateSymbol(instruction.deviceId, 'motion')}, ${cppString(instruction.action)}); ${waitStarted} = now; ${waiting} = true; }\n        if (${device}.owner != ${context.threadIndex}) { ${waiting} = false; ${pc} = ${nextPc}; break; }\n        ottoMove(${device}, ${action}, (uint8_t)(((uint32_t)(now - ${waitStarted}) / ${stepMs}U) % 4U));\n        if ((uint32_t)(now - ${waitStarted}) < ${duration}U) return;\n        ${device}.owner = -1; ottoHome(${device}); capiAssignText(${componentStateSymbol(instruction.deviceId, 'motion')}, "HOME"); ${waiting} = false; ${pc} = ${nextPc};\n        break;`;
     }
     case 'ottoSound': {
       const sound = { HAPPY: 0, SAD: 1, SURPRISE: 2, CONFUSED: 3, SLEEPING: 4, BUTTON: 5, MODE: 6, FART: 7 }[instruction.sound];
@@ -3139,7 +3182,7 @@ function instructionToCpp(
     }
     case 'ottoExpression': {
       const expression = { SMILE: 0, SAD: 1, ANGRY: 2, SURPRISED: 3, SLEEPY: 4, LOVE: 5, CLEAR: 6 }[instruction.expression];
-      return `${comment}\n        ottoExpression(DEV_${deviceSymbol(context, instruction.deviceId)}, ${expression});\n        ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        ottoExpression(DEV_${deviceSymbol(context, instruction.deviceId)}, ${expression});\n        capiAssignText(${componentStateSymbol(instruction.deviceId, 'expression')}, ${cppString(instruction.expression)});\n        ${pc} = ${nextPc};\n        break;`;
     }
     case 'ottoArms': {
       const pose = { DOWN: 0, UP: 1, LEFT_UP: 2, RIGHT_UP: 3, OPEN: 4 }[instruction.pose];
@@ -3153,10 +3196,10 @@ function instructionToCpp(
           : instruction.direction === 'STOP'
             ? 0
             : power;
-      return `${comment}\n        driveMotor(DEV_${deviceSymbol(context, instruction.deviceId)}, ${signedPower});\n        ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        driveMotor(DEV_${deviceSymbol(context, instruction.deviceId)}, ${signedPower});\n        ${componentStateSymbol(instruction.deviceId, 'power')} = ${signedPower};\n        ${pc} = ${nextPc};\n        break;`;
     }
     case 'servo':
-      return `${comment}\n        setServoAngle(${pinConstant(context, instruction.deviceId)}, ${Math.max(0, Math.min(180, Math.round(instruction.angle)))});\n        ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        setServoAngle(${pinConstant(context, instruction.deviceId)}, ${Math.max(0, Math.min(180, Math.round(instruction.angle)))});\n        ${componentStateSymbol(instruction.deviceId, 'angle')} = ${Math.max(0, Math.min(180, Math.round(instruction.angle)))};\n        ${pc} = ${nextPc};\n        break;`;
     case 'buzzer': {
       const pin = pinConstant(context, instruction.deviceId);
       const stop = `BUZZER_STOP_${deviceSymbol(context, instruction.deviceId)}`;
@@ -3283,7 +3326,7 @@ export function programUsesWifi(program: CompiledProgram) {
     if ((node.op === 'serial' || node.op === 'messageSend' || node.op === 'displayWrite') && node.expression) expressions.push(node.expression);
     if (node.op === 'if' && node.condition.kind === 'value') expressions.push(node.condition.expression);
     if (node.op === 'if' && node.condition.kind === 'valueCompare') expressions.push(node.condition.left, node.condition.right);
-    expressions.forEach(expression => visitValueExpression(expression, value => { if (value.kind === 'wifiValue') usesWifi = true; }));
+    expressions.forEach(expression => visitValueExpression(expression, value => { if (value.kind === 'wifiValue' || (value.kind === 'componentValue' && (value.property === 'connected' || value.property === 'status'))) usesWifi = true; }));
   });
   return usesWifi;
 }
@@ -3327,6 +3370,23 @@ function deviceDeclarations(
       }
     })
     .join('\n');
+}
+
+function componentStateDeclarations(scene: SceneDefinition) {
+  return scene.devices.flatMap(device => {
+    switch (device.kind) {
+      case 'trafficLight': return [`char ${componentStateSymbol(device.id, 'color')}[121] = "OFF";`];
+      case 'led': return [`int32_t ${componentStateSymbol(device.id, 'brightness')} = 0;`];
+      case 'robot': return [`char ${componentStateSymbol(device.id, 'motion')}[121] = "STOP";`];
+      case 'motor': return [`int32_t ${componentStateSymbol(device.id, 'power')} = 0;`];
+      case 'servo': return [`int32_t ${componentStateSymbol(device.id, 'angle')} = ${Math.max(0, Math.min(180, Math.round(device.config.angle)))};`];
+      case 'otto': return [
+        `char ${componentStateSymbol(device.id, 'motion')}[121] = "HOME";`,
+        ...(['biped4-expressive', 'humanoid6-expressive'].includes(device.config.profile) ? [`char ${componentStateSymbol(device.id, 'expression')}[121] = "SMILE";`] : []),
+      ];
+      default: return [];
+    }
+  }).join('\n');
 }
 
 function messageRuntimeSupport(scene: SceneDefinition, native: boolean) {
@@ -3715,6 +3775,7 @@ ${displaySupport}
 ${matrixSupport}
 
 ${deviceDeclarations(scene, symbols)}
+${componentStateDeclarations(scene)}
 
 ${messageRuntimeSupport(scene, native)}
 

@@ -484,6 +484,8 @@ Aceptación:
 
 ## Fase 32 — Estados y valores consultables de componentes
 
+**Estado: implementada en software el 24 de septiembre de 2026; despliegue DEV y aceptación física pendientes.** Ver [contrato y límites](FASE_32_ESTADOS_COMPONENTES.md).
+
 **Objetivo:** usar en condiciones y expresiones los datos relevantes de sensores, actuadores y servicios mediante un contrato común.
 
 Alcance:
