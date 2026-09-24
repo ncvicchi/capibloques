@@ -3,6 +3,7 @@ import {
   cloneScene,
   createEmptyScene,
   createSceneFromTemplate,
+  dashboardDeviceIds,
   isLegacySceneId,
   isSceneDefinition,
   migrateSceneDefinition,
@@ -390,6 +391,7 @@ export interface SimulatorState {
   now: number;
   status: 'idle' | 'running' | 'paused' | 'done' | 'stopped';
   devices: Record<string, RuntimeDeviceState>;
+  dashboardModes: Record<string, 'program' | 'manual'>;
   wifi: WifiRuntimeState;
   wifiAvailable: boolean;
   counter: number;
@@ -3188,18 +3190,19 @@ function instructionToCpp(
   const native = context.framework === 'esp-idf';
   const pwmWrite = native ? 'capiPwmWrite' : 'ledcWrite';
   const toneWrite = native ? 'capiTone' : 'ledcWriteTone';
+  const logical = 'deviceId' in instruction && dashboardDeviceIds(context.scene).has(instruction.deviceId);
   switch (instruction.op) {
     case 'fork':
       return `${comment}\n${instruction.children.map(child => `        pc_T${child} = 0; active_T${child} = true; waiting_T${child} = false;\n        for (auto &value : loopCounters_T${child}) value = -1;\n${context.usesWifi ? `        wifiAttemptActive_T${child} = false;` : ''}`).join('\n')}\n        ${pc} = ${nextPc};\n        return;`;
     case 'join':
       return `${comment}\n        if (${instruction.children.map(child => `active_T${child}`).join(' || ') || 'false'}) return;\n        ${pc} = ${nextPc};\n        break;`;
     case 'traffic':
-      return `${comment}\n        setTraffic(DEV_${deviceSymbol(context, instruction.deviceId)}, TrafficColor::${instruction.color});\n        capiAssignText(${componentStateSymbol(instruction.deviceId, 'color')}, ${cppString(instruction.color)});\n        ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        ${logical ? '// Objeto lógico del tablero: sin salida GPIO.' : `setTraffic(DEV_${deviceSymbol(context, instruction.deviceId)}, TrafficColor::${instruction.color});`}\n        capiAssignText(${componentStateSymbol(instruction.deviceId, 'color')}, ${cppString(instruction.color)});\n        ${pc} = ${nextPc};\n        break;`;
     case 'led': {
       const duty = Math.round(
         (Math.max(0, Math.min(100, instruction.brightness)) / 100) * 255,
       );
-      return `${comment}\n        ${pwmWrite}(${pinConstant(context, instruction.deviceId)}, ${duty});\n        ${componentStateSymbol(instruction.deviceId, 'brightness')} = ${Math.max(0, Math.min(100, Math.round(instruction.brightness)))};\n        ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        ${logical ? '// Objeto lógico del tablero: sin salida GPIO.' : `${pwmWrite}(${pinConstant(context, instruction.deviceId)}, ${duty});`}\n        ${componentStateSymbol(instruction.deviceId, 'brightness')} = ${Math.max(0, Math.min(100, Math.round(instruction.brightness)))};\n        ${pc} = ${nextPc};\n        break;`;
     }
     case 'pin':
       if (native) return `${comment}\n        capiOutput(${instruction.pin});\n        capiDigitalWrite(${instruction.pin}, ${instruction.value ? 1 : 0});\n        ${pc} = ${nextPc};\n        break;`;
@@ -3215,7 +3218,7 @@ function instructionToCpp(
         RIGHT: `${speed}, ${-speed}`,
         STOP: '0, 0',
       };
-      return `${comment}\n        driveRobot(DEV_${deviceSymbol(context, instruction.deviceId)}, ${motorPairs[instruction.action]});\n        capiAssignText(${componentStateSymbol(instruction.deviceId, 'motion')}, ${cppString(instruction.action)});\n        ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        ${logical ? '// Objeto lógico del tablero: sin salida GPIO.' : `driveRobot(DEV_${deviceSymbol(context, instruction.deviceId)}, ${motorPairs[instruction.action]});`}\n        capiAssignText(${componentStateSymbol(instruction.deviceId, 'motion')}, ${cppString(instruction.action)});\n        ${pc} = ${nextPc};\n        break;`;
     }
     case 'otto': {
       const device = `DEV_${deviceSymbol(context, instruction.deviceId)}`;
@@ -3246,10 +3249,10 @@ function instructionToCpp(
           : instruction.direction === 'STOP'
             ? 0
             : power;
-      return `${comment}\n        driveMotor(DEV_${deviceSymbol(context, instruction.deviceId)}, ${signedPower});\n        ${componentStateSymbol(instruction.deviceId, 'power')} = ${signedPower};\n        ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        ${logical ? '// Objeto lógico del tablero: sin salida GPIO.' : `driveMotor(DEV_${deviceSymbol(context, instruction.deviceId)}, ${signedPower});`}\n        ${componentStateSymbol(instruction.deviceId, 'power')} = ${signedPower};\n        ${pc} = ${nextPc};\n        break;`;
     }
     case 'servo':
-      return `${comment}\n        setServoAngle(${pinConstant(context, instruction.deviceId)}, ${Math.max(0, Math.min(180, Math.round(instruction.angle)))});\n        ${componentStateSymbol(instruction.deviceId, 'angle')} = ${Math.max(0, Math.min(180, Math.round(instruction.angle)))};\n        ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        ${logical ? '// Objeto lógico del tablero: sin salida GPIO.' : `setServoAngle(${pinConstant(context, instruction.deviceId)}, ${Math.max(0, Math.min(180, Math.round(instruction.angle)))});`}\n        ${componentStateSymbol(instruction.deviceId, 'angle')} = ${Math.max(0, Math.min(180, Math.round(instruction.angle)))};\n        ${pc} = ${nextPc};\n        break;`;
     case 'buzzer': {
       const pin = pinConstant(context, instruction.deviceId);
       const stop = `BUZZER_STOP_${deviceSymbol(context, instruction.deviceId)}`;
@@ -3443,6 +3446,90 @@ function componentStateDeclarations(scene: SceneDefinition) {
   }).join('\n');
 }
 
+function dashboardFirmwareSupport(scene: SceneDefinition) {
+  const ids = [...dashboardDeviceIds(scene)];
+  const devices = ids.map(id => scene.devices.find(device => device.id === id)).filter((device): device is SceneDevice => !!device);
+  if (!devices.length) return '';
+  const programCases = devices.map((device, index) => {
+    const state = (property: string) => componentStateSymbol(device.id, property);
+    if (device.kind === 'trafficLight') return `    case ${index}: return !strcmp(${state('color')}, "RED") ? 1 : !strcmp(${state('color')}, "YELLOW") ? 2 : !strcmp(${state('color')}, "GREEN") ? 3 : 0;`;
+    if (device.kind === 'robot') return `    case ${index}: return !strcmp(${state('motion')}, "FORWARD") ? 1 : !strcmp(${state('motion')}, "BACKWARD") ? 2 : !strcmp(${state('motion')}, "LEFT") ? 3 : !strcmp(${state('motion')}, "RIGHT") ? 4 : 0;`;
+    if (device.kind === 'motor') return `    case ${index}: return ${state('power')};`;
+    if (device.kind === 'led') return `    case ${index}: return ${state('brightness')};`;
+    return `    case ${index}: return ${state('angle')};`;
+  }).join('\n');
+  const nextCases = devices.map((device, index) => {
+    if (device.kind === 'trafficLight') return `    case ${index}: return (value + 1) % 4;`;
+    if (device.kind === 'robot') return `    case ${index}: return (value + 1) % 5;`;
+    if (device.kind === 'motor') return `    case ${index}: return value <= -100 ? 0 : value == 0 ? 100 : -100;`;
+    if (device.kind === 'led') return `    case ${index}: return value >= 100 ? 0 : value + 25;`;
+    return `    case ${index}: return value >= 180 ? 0 : value + 45;`;
+  }).join('\n');
+  const labelCases = devices.map((device, index) => {
+    if (device.kind === 'trafficLight') return `    case ${index}: snprintf(out, size, "%s", value == 1 ? "ROJO" : value == 2 ? "AMARILLO" : value == 3 ? "VERDE" : "APAGADO"); break;`;
+    if (device.kind === 'robot') return `    case ${index}: snprintf(out, size, "%s", value == 1 ? "AVANZA" : value == 2 ? "RETROCEDE" : value == 3 ? "IZQUIERDA" : value == 4 ? "DERECHA" : "DETENIDO"); break;`;
+    if (device.kind === 'servo') return `    case ${index}: snprintf(out, size, "%ld grados", (long)value); break;`;
+    return `    case ${index}: snprintf(out, size, "%ld%%", (long)value); break;`;
+  }).join('\n');
+  const names = devices.map(device => cppString(device.name.slice(0, 18))).join(', ');
+  return `constexpr uint8_t CAPI_DASHBOARD_COUNT = ${devices.length};
+const char* CAPI_DASHBOARD_NAMES[CAPI_DASHBOARD_COUNT] = { ${names} };
+bool capiDashboardManual[CAPI_DASHBOARD_COUNT] = {};
+int32_t capiDashboardManualValue[CAPI_DASHBOARD_COUNT] = {};
+int32_t capiDashboardProgramValue(uint8_t id) {
+  switch (id) {
+${programCases}
+    default: return 0;
+  }
+}
+int32_t capiDashboardNextValue(uint8_t id, int32_t value) {
+  switch (id) {
+${nextCases}
+    default: return value;
+  }
+}
+void capiDashboardValueLabel(uint8_t id, int32_t value, char* out, size_t size) {
+  switch (id) {
+${labelCases}
+    default: snprintf(out, size, "-"); break;
+  }
+}
+void capiDashboardWriteRow(uint8_t row, const char* text) {
+  char cells[CAPI_DISPLAY_COLUMNS]; memset(cells, ' ', sizeof(cells));
+  const size_t count = strlen(text) < sizeof(cells) ? strlen(text) : sizeof(cells);
+  memcpy(cells, text, count); capiDisplayWriteCells(0, row, CAPI_DISPLAY_COLUMNS, 1, cells);
+}
+void capiDashboardService(uint32_t now) {
+  static bool wasDown = false; static uint32_t nextPaint = 0;
+  if (capiTouchDown && !wasDown && capiTouchY >= 48) {
+    const uint8_t id = (uint8_t)((capiTouchY - 48) / 64);
+    if (id < CAPI_DASHBOARD_COUNT) {
+      if (capiTouchX >= 600) capiDashboardManual[id] = false;
+      else {
+        const int32_t current = capiDashboardManual[id] ? capiDashboardManualValue[id] : capiDashboardProgramValue(id);
+        capiDashboardManualValue[id] = capiDashboardNextValue(id, current); capiDashboardManual[id] = true;
+      }
+      nextPaint = 0;
+    }
+  }
+  wasDown = capiTouchDown;
+  if ((int32_t)(now - nextPaint) < 0) return; nextPaint = now + 120U;
+  capiDashboardWriteRow(0, "TABLERO LOCAL - ESTADOS LOGICOS");
+  capiDashboardWriteRow(1, "Toca izquierda: cambiar | derecha: programa");
+  capiDashboardWriteRow(2, "No hay salidas fisicas conectadas");
+  for (uint8_t id = 0; id < CAPI_DASHBOARD_COUNT; ++id) {
+    char value[20] = {}, line[64] = {};
+    const int32_t effective = capiDashboardManual[id] ? capiDashboardManualValue[id] : capiDashboardProgramValue(id);
+    capiDashboardValueLabel(id, effective, value, sizeof(value));
+    snprintf(line, sizeof(line), "%u. %-18s | %-8s | %s", id + 1, CAPI_DASHBOARD_NAMES[id], capiDashboardManual[id] ? "MANUAL" : "PROGRAMA", value);
+    const uint8_t row = 3 + id * 4; capiDashboardWriteRow(row, line);
+    capiDashboardWriteRow(row + 1, capiDashboardManual[id] ? "[ cambiar ]                         [ programa ]" : "[ tomar control manual ]            [ programa ]");
+    capiDashboardWriteRow(row + 2, ""); capiDashboardWriteRow(row + 3, "");
+  }
+}
+`;
+}
+
 function messageRuntimeSupport(scene: SceneDefinition, native: boolean) {
   if (!scene.devices.some(device => device.kind === 'messages')) return '';
   const stream = native
@@ -3569,7 +3656,9 @@ function buzzerDeclarations(
 
 function setupLines(scene: SceneDefinition, symbols: Map<string, string>, servoResolutionBits = 16) {
   const lines: string[] = [];
+  const logical = dashboardDeviceIds(scene);
   for (const device of scene.devices) {
+    if (logical.has(device.id)) continue;
     const symbol = symbols.get(device.id) ?? cppIdentifier(device.id);
     switch (device.kind) {
       case 'trafficLight':
@@ -3716,6 +3805,7 @@ export function generateEsp32CodeResult(
   const usesWifi = programUsesWifi(program);
   const usesWifiMessages = JSON.stringify(program).includes('wifiMessage') || JSON.stringify(program).includes('lastWifi');
   const displaySupport = native ? displayIdfSupport(scene) : displayArduinoSupport(scene);
+  const dashboardSupport = dashboardFirmwareSupport(scene);
   const matrixSupport = matrixFirmwareSupport(scene, native);
   const wifiDevice = scene.devices.find(device => device.kind === 'wifiNode');
   const wifiHeader = usesWifi && !native
@@ -3874,6 +3964,7 @@ ${matrixSupport}
 
 ${deviceDeclarations(scene, symbols)}
 ${componentStateDeclarations(scene)}
+${dashboardSupport}
 
 ${messageRuntimeSupport(scene, native)}
 
@@ -4011,7 +4102,7 @@ ${threadFunctions}
 ${native ? `extern "C" void app_main() {
   capiHardwareBegin();
 ${messageSetupLines(scene, symbols, true)}
-${scene.devices.filter(device => device.kind === 'servo').map(device => `  setServoAngle(PIN_${symbols.get(device.id)}, ${Math.max(0, Math.min(180, Math.round(device.config.angle)))});`).join('\n')}
+${scene.devices.filter((device): device is Extract<SceneDevice, { kind: 'servo' }> => device.kind === 'servo' && !dashboardDeviceIds(scene).has(device.id)).map(device => `  setServoAngle(PIN_${symbols.get(device.id)}, ${Math.max(0, Math.min(180, Math.round(device.config.angle)))});`).join('\n')}
 ${scene.devices.filter(device => device.kind === 'otto').map(device => {
   const symbol = symbols.get(device.id);
   const lines = [`  ottoBegin(DEV_${symbol});`];
@@ -4026,6 +4117,7 @@ ${matrixSupport ? '  capiMatrixBegin();' : ''}
     capiTimerService(now);
 ${serviceBuzzerLines(scene, symbols, framework)}
 ${displaySupport ? '    capiDisplayService(now);' : ''}
+${dashboardSupport ? '    capiDashboardService(now);' : ''}
 ${matrixSupport ? '    capiMatrixService(now);' : ''}
 ${scene.devices.filter(device => device.kind === 'otto').map(device => `    ottoService(DEV_${symbols.get(device.id)}, now);`).join('\n')}
     if ((uint32_t)(now - lastSchedulerTick) >= SCHEDULER_QUANTUM_MS) {
@@ -4048,6 +4140,7 @@ void loop() {
   capiTimerService(now);
 ${serviceBuzzerLines(scene, symbols)}
 ${displaySupport ? '  capiDisplayService(now);' : ''}
+${dashboardSupport ? '  capiDashboardService(now);' : ''}
 ${matrixSupport ? '  capiMatrixService(now);' : ''}
 ${scene.devices.filter(device => device.kind === 'otto').map(device => `  ottoService(DEV_${symbols.get(device.id)}, now);`).join('\n')}
   if ((uint32_t)(now - lastSchedulerTick) < SCHEDULER_QUANTUM_MS) {

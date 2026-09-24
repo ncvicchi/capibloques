@@ -5,8 +5,8 @@ Documento vivo iniciado en **fase 11**. Actualización: **24 de septiembre de 20
 ## 1. Punto de entrada y autorización actual
 
 - Repositorio: [ncvicchi/capibloques](https://github.com/ncvicchi/capibloques). Rama de trabajo actual: `main`. Nuevas ramas, si hacen falta: prefijo `codex/`. Respetar el árbol existente, sin reset/force ni descartar cambios ajenos.
-- El propietario autorizó ejecutar en orden las fases **17, 18, 35, 38, 39, 40 y 41**, con una fase completa, pruebas y commit/push antes de la siguiente. La fase 17 quedó implementada y verificada localmente; falta publicar su commit, actualizar DEV y hacer la aceptación física antes de avanzar a 18.
-- **Fases 11–16, 27–30 y 36 entregadas en software; fase 23 en curso.** Las entregas que involucran hardware conservan sus aceptaciones físicas explícitas. La Matriz LED 32 × 8 tiene editor, bloques, simulación y Arduino/ESP-IDF; faltan su ensayo eléctrico y la aceptación física de los displays existentes.
+- El propietario autorizó ejecutar en orden las fases **17, 18, 35, 38, 39, 40 y 41**, con una fase completa, pruebas y commit/push antes de la siguiente. Las fases 17 y 18 quedaron implementadas en software y publicadas; faltan actualizar DEV y sus aceptaciones físicas. No iniciar 35 sin el OK posterior al cierre de 18.
+- **Fases 11–18, 27–33, 36 y 37 entregadas en software; fase 23 en curso.** Las entregas que involucran hardware conservan sus aceptaciones físicas explícitas. La Matriz LED 32 × 8 tiene editor, bloques, simulación y Arduino/ESP-IDF; faltan su ensayo eléctrico y la aceptación física de los displays existentes.
 - Fase 10: software entregado, **aceptación física pendiente**. El propietario no tiene Wemos disponible; no dar por probada la placa ni conectar/programar otro puerto como sustituto.
 - Producción es **Fase final, postergada**, no «fase 11». Los documentos históricos con letras son evidencias antiguas, no fases nuevas ni puntos para pedir OK.
 - Este contexto no transfiere automáticamente credenciales, chats, sesiones ni permisos. Otra cuenta debe tener su propio acceso verificado y la solicitud del propietario antes de operar.
@@ -202,7 +202,7 @@ Las pruebas locales de tipos, lint, smoke/modelo S3, ZIP IDF, USB e aislamiento 
 
 El propietario identificó la segunda unidad con la [página oficial](https://docs.waveshare.com/ESP32-S3-Touch-LCD-5): **Waveshare ESP32-S3-Touch-LCD-5, SKU 28117**. Es un ESP32-S3-WROOM-1-N16R8 con panel RGB de 5 pulgadas, táctil capacitivo GT911 por I2C y expansor CH422G. La consulta física de `COM12` mediante USB nativo, sin escritura, confirmó ESP32-S3 rev. 0.2, flash Quad 16 MiB, PSRAM 8 MiB, 3,3 V y cristal de 40 MHz. No registrar identificadores únicos del chip.
 
-La fase 17 no está implementada. Antes de fijar su perfil hay que confirmar en la unidad resolución 800 × 480 o 1024 × 600 y revisión de PCB, y contrastar esquema/serigrafía. La pantalla ocupa la mayoría de GPIO; USB usa 19/20, I2C/GT911/RTC/CH422G usa 8/9, TF usa 11–13 más EXIO4, RS485 43/44 y CAN 15/16. No reutilizar el mapa de la DevKit ni tratar el panel RGB como ILI/SPI.
+La fase 17 quedó implementada exclusivamente para la unidad identificada como SKU 28117, 800 × 480, y documentada en [FASE_17_WAVESHARE_5.md](FASE_17_WAVESHARE_5.md). La fase 18 agrega su tablero lógico según [FASE_18_CONTROLES_LOCALES.md](FASE_18_CONTROLES_LOCALES.md). Ambas conservan aceptación física pendiente.
 
 ## 4. Arquitectura y mapa de archivos
 
@@ -322,6 +322,12 @@ Recuperar acceso mediante [guía de cuentas](FASE_2A_ACCESO.md) y [script del ad
 
 Artefactos compilados caducan y pueden contener Wi-Fi; no subirlos como contexto ni respaldarlos rutinariamente. Logs, traces, capturas y `work/outputs` locales tampoco se suben indiscriminadamente. Sólo fixtures sintéticos y documentación saneada en Git.
 
+### Entrega de fase 18 — 24 de septiembre de 2026
+
+La [guía de fase 18](FASE_18_CONTROLES_LOCALES.md) registra el contrato acordado. El selector de la pantalla integrada admite hasta seis semáforos, robots, motores, LEDs o servos como **estados lógicos sin salida física**. Simulador, Arduino y ESP-IDF comparten prioridad manual por objeto: el programa sigue por debajo y `Volver al programa` muestra su último estado. JSON y backend validan las referencias; el firmware no configura GPIO/PWM/ADC ficticios para esos objetos.
+
+La verificación local incluye typecheck, lint, smoke, generación/validación de fixtures Arduino y ESP-IDF, drivers de display/IDF, USB, build y el recorrido Chromium del tablero manual/programa. El test backend específico queda incorporado para CI/DEV porque Windows no tiene el entorno Python del proyecto. Compilación real de toolchain, despliegue DEV y ensayo táctil/físico permanecen pendientes y no se presentan como realizados.
+
 ## 8. Qué está pendiente
 
 El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BACKLOG.md) conserva la intención original. Resumen:
@@ -334,7 +340,7 @@ El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BAC
 - 15: **software entregado y verificado en DEV/CI**, componente Mensajes con modos Enviar/Recibir/Ambos, trama protegida, simulación por botones y ambos generadores; falta aceptación física Wemos.
 - 16: **entregada en software** para DIYmall ESP32-S3-DevKitC V1.0 N16R8; [perfil, evidencia e integración](FASE_16_ESP32_S3_DEVKIT.md). Chip/flash/PSRAM se identificaron físicamente sin escribir. Falta grabación y ejecución física de consola/PWM/TX-RX, más comparación física Wemos.
 - 17: **implementada en software** para Waveshare ESP32-S3 Touch LCD 5 SKU 28117, exclusivamente 800 × 480/N16R8. Incluye perfil exacto, panel RGB integrado, lectura GT911, guía visual, simulación y generación Arduino/ESP-IDF. Pasaron build, validaciones de generación/USB y 8/8 pruebas Chromium; falta compilación real de toolchain en CI, actualización DEV y aceptación física. Ver [FASE_17_WAVESHARE_5.md](FASE_17_WAVESHARE_5.md).
-- 18: escena y controles locales en display, prioridad manual/programa explícita.
+- 18: **terminada en software**; tablero Waveshare de hasta seis semáforos/robots/motores/LEDs/servos lógicos, prioridad manual por objeto y retorno al último estado programado. No configura salidas físicas ni inventa GPIO. Falta DEV y aceptación táctil/física; ver [FASE_18_CONTROLES_LOCALES.md](FASE_18_CONTROLES_LOCALES.md).
 - 19: pendiente; desafíos progresivos ampliados tras revisar a fondo Pilas Bloques 3.0.2, su creador y recursos docentes. Incluye paletas por reto, programas iniciales vacíos/parciales/incorrectos/refactorizables, escenarios y semillas reproducibles, validación funcional/conceptual separada, depuración paso a paso, autoría docente sobre escenas existentes, pistas, actividades abiertas, accesibilidad y bloque infantil `según`. Plan y fuentes en [FASE_19_HERRAMIENTAS_PEDAGOGICAS.md](FASE_19_HERRAMIENTAS_PEDAGOGICAS.md); no copiar contenidos de Pilas Bloques.
 - 20: compilación/grabación guiadas, estados reales, medición, Guardar integrado y reinicio posgrabación validado.
 - 21: claridad y ergonomía educativa: superposición de bloques, borrador de escena, operadores/menús/emojis, textos, advertencias y nueva auditoría de interfaz.
@@ -358,11 +364,11 @@ El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BAC
 - El [informe externo del 14 de septiembre](BACKLOG.md#pedidos-externos-a-analizar) queda distribuido entre 20–22 y 25–26. El selector angular con reloj está expresamente descartado y no es trabajo pendiente. La barra residual, el arrastre individual/grupal y el guardado estable ya están corregidos en `d096fd9`, `0fc9ff2` y `2b97af9`.
 - Final: producción/HTTPS, restauración/backups externos, carga, monitoreo, rollback y piloto; postergada.
 
-Las fases 31, 32, 33 y 37 ya están entregadas en software. El propietario ya autorizó continuar, en orden, con 18, 35, 38, 39, 40 y 41 después del cierre de fase 17. Las aceptaciones físicas de fases 10, 15, 16, 17, 23, 27, 28, 30, 32, 33 y 36 siguen separadas. La fase 16 sólo corresponde a la DIYmall N16R8 inspeccionada y la 17 sólo a la Waveshare SKU 28117: no extrapolar perfiles a otras revisiones. Exigir modelo/documentación y ensayo físico antes de anunciar soporte de una placa nueva. Los diagramas fueron contrastados con las fuentes enlazadas; una ilustración nunca es fuente única de verdad.
+Las fases 17, 18, 31, 32, 33 y 37 ya están entregadas en software. El propietario autorizó continuar, en orden, con 35, 38, 39, 40 y 41 después del cierre de fase 18, pero cada fase requiere el OK indicado por las reglas de trabajo. Las aceptaciones físicas de fases 10, 15–18, 23, 27, 28, 30, 32, 33 y 36 siguen separadas. La fase 16 sólo corresponde a la DIYmall N16R8 inspeccionada y las fases 17–18 sólo a la Waveshare SKU 28117: no extrapolar perfiles a otras revisiones. Exigir modelo/documentación y ensayo físico antes de anunciar soporte de una placa nueva. Los diagramas fueron contrastados con las fuentes enlazadas; una ilustración nunca es fuente única de verdad.
 
 ## 9. Mensaje listo para otra conversación
 
-> Continuá CapiBloques desde este repositorio. Primero leé AGENTS.md y docs/CONTEXTO_PARA_CONTINUAR.md, luego el plan y la guía de la entrega vigente. Confirmá rama, cambios locales y versión desplegada antes de operar. La fase 17 está terminada en software; el propietario autorizó continuar en orden con 18, 35, 38, 39, 40 y 41, siempre una fase completa con pruebas y commit/push antes de la siguiente. Trabajá una entrega completa por vez, informá avances y actualizá este contexto al terminar. Producción es la Fase final y está postergada. El gateway es exclusivamente un salto SSH y está prohibido modificarlo; tampoco modifiques Proxmox, router, PRD u otros sitios. No copies secretos, no documentes contraseñas ni borres datos para recuperar acceso. Las aceptaciones físicas siguen pendientes salvo evidencia posterior explícita.
+> Continuá CapiBloques desde este repositorio. Primero leé AGENTS.md y docs/CONTEXTO_PARA_CONTINUAR.md, luego el plan y la guía de la entrega vigente. Confirmá rama, cambios locales y versión desplegada antes de operar. Las fases 17 y 18 están terminadas en software; el propietario autorizó continuar en orden con 35, 38, 39, 40 y 41, siempre una fase completa con pruebas y commit/push antes de la siguiente y sin iniciar otra sin su OK. Trabajá una entrega completa por vez, informá avances y actualizá este contexto al terminar. Producción es la Fase final y está postergada. El gateway es exclusivamente un salto SSH y está prohibido modificarlo; tampoco modifiques Proxmox, router, PRD u otros sitios. No copies secretos, no documentes contraseñas ni borres datos para recuperar acceso. Las aceptaciones físicas siguen pendientes salvo evidencia posterior explícita.
 
 ## 10. Lista de cierre y mantenimiento obligatorio
 

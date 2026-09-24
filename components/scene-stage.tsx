@@ -60,6 +60,8 @@ interface SceneStageProps {
   onMoveEnd?: (deviceId: string) => void;
   onDelete?: (deviceId: string) => void;
   onDuplicate?: (deviceId: string) => void;
+  dashboardModes?: Record<string, 'program' | 'manual'>;
+  onDashboardAction?: (deviceId: string, action: 'cycle' | 'program') => void;
 }
 
 const icons: Record<SceneDevice['kind'], string> = {
@@ -89,9 +91,17 @@ type MovableSceneItem = Pick<SceneDevice | SceneWidget, 'id' | 'position'>;
 function DeviceVisual({
   device,
   runtime,
+  sceneDevices,
+  runtimeDevices,
+  dashboardModes,
+  onDashboardAction,
 }: {
   device: SceneDevice;
   runtime?: RuntimeVisualDevice;
+  sceneDevices: readonly SceneDevice[];
+  runtimeDevices: Record<string, RuntimeVisualDevice>;
+  dashboardModes?: Record<string, 'program' | 'manual'>;
+  onDashboardAction?: (deviceId: string, action: 'cycle' | 'program') => void;
 }) {
   if (device.kind === 'display')
     return (
@@ -100,6 +110,10 @@ function DeviceVisual({
         texts={runtime?.texts}
         artworkRows={runtime?.artworkRows}
         pressedButton={runtime?.pressedButton}
+        dashboardDevices={sceneDevices}
+        dashboardRuntime={runtimeDevices as Record<string, Record<string, unknown> | undefined>}
+        dashboardModes={dashboardModes}
+        onDashboardAction={onDashboardAction}
       />
     );
   if (device.kind === 'ledMatrix') return <LedMatrixPreview device={device} rows={runtime?.rows} />;
@@ -256,6 +270,8 @@ export default function SceneStage({
   onMoveEnd,
   onDelete,
   onDuplicate,
+  dashboardModes,
+  onDashboardAction,
 }: SceneStageProps) {
   const stageRef = useRef<HTMLElement>(null);
   const dragRef = useRef<{
@@ -526,7 +542,7 @@ export default function SceneStage({
         };
         const contents = (
           <>
-            <DeviceVisual device={device} runtime={runtime} />
+            <DeviceVisual device={device} runtime={runtime} sceneDevices={scene.devices} runtimeDevices={runtimeDevices} dashboardModes={dashboardModes} onDashboardAction={onDashboardAction} />
             <span className="scene-device-name">{device.name}</span>
           </>
         );

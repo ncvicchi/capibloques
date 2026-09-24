@@ -47,3 +47,22 @@ class BoardProfileValidationTests(SimpleTestCase):
         value["target"]["fqbn"] = "esp32:esp32:d1_uno32"
         with self.assertRaises(ValidationError):
             document(value)
+
+    def test_waveshare_dashboard_accepts_only_existing_logical_devices(self):
+        value = self.s3_project()
+        value["target"]["boardProfile"] = "waveshare-esp32-s3-touch-lcd-5-28117"
+        display = copy.deepcopy(EXAMPLES[0]["scene"]["devices"][0])
+        display.update(kind="display", id="waveshare-screen", name="Pantalla integrada", pins=dict.fromkeys(("sda", "scl", "sck", "mosi", "cs", "dc", "rst", "rs", "en", "d4", "d5", "d6", "d7", "backlight", "keys")))
+        display["config"] = {
+            "profile": "waveshare5", "address": 0, "areas": [], "retiredAreaIds": [],
+            "animationSpeed": "normal", "artworks": [], "retiredArtworkIds": [],
+            "dashboard": {"enabled": True, "deviceIds": ["traffic-logical"]},
+        }
+        traffic = copy.deepcopy(EXAMPLES[0]["scene"]["devices"][0])
+        traffic.update(id="traffic-logical", name="Semáforo lógico")
+        traffic["pins"] = {"red": None, "yellow": None, "green": None}
+        value["scene"]["devices"] = [display, traffic]
+        self.assertGreater(document(value), 0)
+        display["config"]["dashboard"]["deviceIds"] = ["missing-device"]
+        with self.assertRaisesMessage(ValidationError, "control retirado o incompatible"):
+            document(value)

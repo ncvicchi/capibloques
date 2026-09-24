@@ -19,6 +19,7 @@ import {
 } from './capiblocks.ts';
 import {
   cloneScene,
+  dashboardDeviceIds,
   isSceneDefinition,
   type SceneDefinition,
   type SceneDevice,
@@ -62,10 +63,12 @@ type SensorRuntimeState = Extract<RuntimeDeviceState, { value: number }>;
 
 type WorkerInboundMessage =
   | { type: 'LOAD'; program: unknown; scene?: unknown; boardProfile?: unknown }
+  | { type: 'SYNC_SCENE'; scene: unknown; boardProfile?: unknown }
   | { type: 'RUN' | 'PAUSE' | 'STOP' | 'RESET' | 'STEP' }
   | { type: 'SET_SPEED'; speed: unknown }
   | { type: 'SET_MODE'; mode: 'normal' | 'guided' }
   | { type: 'FRAME_SHOWN'; seq: number }
+  | { type: 'SET_DASHBOARD'; deviceId: unknown; action: unknown }
   | {
       type: 'SET_INPUT';
       deviceId?: unknown;
@@ -105,6 +108,8 @@ let lastSoundRealTime = Number.NEGATIVE_INFINITY;
 let pendingBlockActivity: { threadId: string; blockId: string } | null = null;
 const pendingSounds = new Map<string, { frequency: number }>();
 const inputOverrides = new Map<string, unknown>();
+const dashboardManual = new Set<string>();
+const dashboardProgramStates = new Map<string, RuntimeDeviceState>();
 const legacyInputOverrides = new Map<string, unknown>();
 const messageQueues = new Map<string, string[]>();
 const wifiMessageQueues = new Map<string, Array<{ sender: string; text: string; sequence: number }>>();
@@ -266,10 +271,14 @@ function defaultRobot() {
 }
 
 function freshState(): SimulatorState {
+  const devices = createDeviceState();
+  dashboardManual.clear(); dashboardProgramStates.clear();
+  for (const id of dashboardDeviceIds(scene)) if (devices[id]) dashboardProgramStates.set(id, structuredClone(devices[id]));
   return {
     now: 0,
     status: 'idle',
-    devices: createDeviceState(),
+    devices,
+    dashboardModes: Object.fromEntries([...dashboardDeviceIds(scene)].map(id => [id, 'program' as const])),
     wifi: 'disconnected',
     wifiAvailable: true,
     counter: 0,
@@ -290,6 +299,32 @@ function freshState(): SimulatorState {
       wifiAvailable: true,
     },
   };
+}
+
+function programDevice(deviceId: string) {
+  return dashboardManual.has(deviceId) ? dashboardProgramStates.get(deviceId) : state.devices[deviceId];
+}
+
+function setDashboardControl(deviceId: string, action: unknown) {
+  if (!dashboardDeviceIds(scene).has(deviceId)) return;
+  const device = state.devices[deviceId]; if (!device) return;
+  if (action === 'program') {
+    dashboardManual.delete(deviceId); state.dashboardModes[deviceId] = 'program';
+    const programmed = dashboardProgramStates.get(deviceId); if (programmed) state.devices[deviceId] = structuredClone(programmed);
+    appendConsole(`${deviceName(deviceId)}: vuelve al programa`); return;
+  }
+  if (action !== 'cycle') return;
+  if (!dashboardManual.has(deviceId)) dashboardProgramStates.set(deviceId, structuredClone(device));
+  dashboardManual.add(deviceId); state.dashboardModes[deviceId] = 'manual';
+  if (device.kind === 'trafficLight') device.color = device.color === 'OFF' ? 'RED' : device.color === 'RED' ? 'YELLOW' : device.color === 'YELLOW' ? 'GREEN' : 'OFF';
+  else if (device.kind === 'led') device.brightness = device.brightness >= 100 ? 0 : device.brightness + 25;
+  else if (device.kind === 'motor') device.power = device.power <= -100 ? 0 : device.power === 0 ? 100 : -100;
+  else if (device.kind === 'servo') device.angle = device.angle >= 180 ? 0 : device.angle + 45;
+  else if (device.kind === 'robot') {
+    const code = device.left === 0 && device.right === 0 ? 0 : device.left > 0 && device.right > 0 ? 1 : device.left < 0 && device.right < 0 ? 2 : device.left < device.right ? 3 : 4;
+    const speeds = [[60,60],[-60,-60],[-60,60],[60,-60],[0,0]] as const; [device.left, device.right] = speeds[code];
+  }
+  appendConsole(`${deviceName(deviceId)}: control manual desde la pantalla`);
 }
 
 let state = freshState();
@@ -499,9 +534,22 @@ function applyInputOverrides() {
   }
 }
 
-function resetExecution(status: SimulatorState['status'] = 'idle') {
+function resetExecution(status: SimulatorState['status'] = 'idle', preserveDashboardManual = false) {
+  const manualDevices = preserveDashboardManual
+    ? new Map(
+        [...dashboardManual]
+          .map(id => [id, state.devices[id] ? structuredClone(state.devices[id]) : null] as const)
+          .filter((entry): entry is readonly [string, RuntimeDeviceState] => entry[1] !== null),
+      )
+    : new Map<string, RuntimeDeviceState>();
   stopSounds();
   state = freshState();
+  for (const [deviceId, device] of manualDevices) {
+    if (!state.devices[deviceId] || !dashboardDeviceIds(scene).has(deviceId)) continue;
+    dashboardManual.add(deviceId);
+    state.dashboardModes[deviceId] = 'manual';
+    state.devices[deviceId] = device;
+  }
   applyInputOverrides();
   state.status = status;
   virtualNow = 0;
@@ -1165,7 +1213,7 @@ function executeInstruction(
   execution.pc += 1;
   switch (node.op) {
     case 'traffic': {
-      const device = state.devices[node.deviceId];
+      const device = programDevice(node.deviceId);
       if (device?.kind === 'trafficLight') {
         device.color = node.color;
         appendConsole(
@@ -1175,7 +1223,7 @@ function executeInstruction(
       break;
     }
     case 'led': {
-      const device = state.devices[node.deviceId];
+      const device = programDevice(node.deviceId);
       if (device?.kind === 'led') {
         device.brightness = Math.max(0, Math.min(100, node.brightness));
         appendConsole(
@@ -1191,7 +1239,7 @@ function executeInstruction(
       );
       break;
     case 'robot': {
-      const device = state.devices[node.deviceId];
+      const device = programDevice(node.deviceId);
       if (device?.kind === 'robot') {
         const value = Math.max(0, Math.min(100, node.speed));
         const speeds = {
@@ -1209,7 +1257,7 @@ function executeInstruction(
       break;
     }
     case 'motor': {
-      const device = state.devices[node.deviceId];
+      const device = programDevice(node.deviceId);
       if (device?.kind === 'motor') {
         const power = Math.max(0, Math.min(100, node.power));
         device.power =
@@ -1225,7 +1273,7 @@ function executeInstruction(
       break;
     }
     case 'servo': {
-      const device = state.devices[node.deviceId];
+      const device = programDevice(node.deviceId);
       if (device?.kind === 'servo') {
         device.angle = Math.max(0, Math.min(180, node.angle));
         appendConsole(
@@ -1702,6 +1750,14 @@ function setLegacyInput(name: unknown, value: unknown) {
 scope.addEventListener('message', (event) => {
   const message = event.data;
   switch (message.type) {
+    case 'SYNC_SCENE': {
+      if (!isSceneDefinition(message.scene)) break;
+      currentBoardProfile = isBoardProfileId(message.boardProfile) ? message.boardProfile : 'wemos-d1-r32';
+      scene = cloneScene(message.scene);
+      resetExecution();
+      refreshDiagnostics();
+      break;
+    }
     case 'LOAD': {
       const invalidScene =
         message.scene !== undefined && !isSceneDefinition(message.scene);
@@ -1711,7 +1767,7 @@ scope.addEventListener('message', (event) => {
           ? cloneScene(message.scene)
           : inferSceneForProgram(message.program);
         program = normalizeCompiledProgram(message.program, scene);
-        resetExecution();
+        resetExecution('idle', true);
         refreshDiagnostics(
           invalidScene
             ? [
@@ -1831,6 +1887,10 @@ scope.addEventListener('message', (event) => {
       } else {
         setLegacyInput(message.name, message.value);
       }
+      emit();
+      break;
+    case 'SET_DASHBOARD':
+      if (typeof message.deviceId === 'string') setDashboardControl(message.deviceId, message.action);
       emit();
       break;
   }

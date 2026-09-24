@@ -22,17 +22,19 @@ import {
   MAX_DISPLAY_ARTWORKS,
   type DisplayArtwork,
 } from '@/lib/display-graphics';
-import type { DisplayDevice } from '@/lib/scene-model';
+import { dashboardDeviceKinds, type DisplayDevice, type SceneDevice } from '@/lib/scene-model';
 import type { BoardProfileId } from '@/lib/board-profiles';
 
 export function DisplayProperties({
   device,
   onChange,
   boardProfile,
+  sceneDevices,
 }: {
   device: DisplayDevice;
   onChange: (device: DisplayDevice) => void;
   boardProfile: BoardProfileId;
+  sceneDevices: readonly SceneDevice[];
 }) {
   const [pendingProfile, setPendingProfile] = useState<DisplayProfile | null>(
     null,
@@ -174,6 +176,45 @@ export function DisplayProperties({
           : 'Los mensajes van directamente a toda la pantalla.'}
       </p>
       {profile.bus === 'integrated-rgb' && <p>La pantalla y el touch ya vienen conectados en la placa. No ocupan conexiones configurables de la escena.</p>}
+      {config.profile === 'waveshare5' && (
+        <fieldset className="display-dashboard-config">
+          <legend>Tablero táctil de la escena</legend>
+          <label>
+            <input
+              type="checkbox"
+              checked={config.dashboard?.enabled ?? false}
+              onChange={(event) => onChange({ ...device, config: { ...config, dashboard: { enabled: event.target.checked, deviceIds: config.dashboard?.deviceIds ?? [] } } })}
+            />{' '}
+            Mostrar controles locales en la pantalla
+          </label>
+          <p>Hasta seis objetos. Son estados lógicos sin cable: esta placa no expone GPIO escolares libres.</p>
+          {sceneDevices.filter(item => item.id !== device.id && dashboardDeviceKinds.includes(item.kind as (typeof dashboardDeviceKinds)[number])).map(item => {
+            const selected = config.dashboard?.deviceIds.includes(item.id) ?? false;
+            const full = (config.dashboard?.deviceIds.length ?? 0) >= 6;
+            return (
+              <label key={item.id}>
+                <input
+                  type="checkbox"
+                  checked={selected}
+                  disabled={!selected && full}
+                  onChange={(event) => {
+                    const current = config.dashboard?.deviceIds ?? [];
+                    const deviceIds = event.target.checked ? [...current, item.id].slice(0, 6) : current.filter(id => id !== item.id);
+                    onChange({ ...device, config: {
+                      ...config,
+                      ...(event.target.checked && current.length === 0 ? { areas: [], retiredAreaIds: [...config.retiredAreaIds, ...config.areas.map(area => area.id)] } : {}),
+                      dashboard: { enabled: config.dashboard?.enabled ?? true, deviceIds },
+                    } });
+                  }}
+                />{' '}
+                {item.name} · {item.kind === 'trafficLight' ? 'semáforo' : item.kind === 'robot' ? 'robot' : item.kind === 'motor' ? 'motor' : item.kind === 'led' ? 'luz' : 'servo'}
+              </label>
+            );
+          })}
+          {!sceneDevices.some(item => item.id !== device.id && dashboardDeviceKinds.includes(item.kind as (typeof dashboardDeviceKinds)[number])) && <small>Agregá un semáforo, robot, motor, LED o servo a la escena y después elegilo aquí.</small>}
+          <small>Al tocar, ese objeto pasa a Manual. «Volver al programa» recupera la última orden del programa; cerrar el navegador no controla la placa.</small>
+        </fieldset>
+      )}
       {profile.keypad && (
         <p>
           Incluye los botones Izquierda, Arriba, Abajo, Derecha y Elegir. En

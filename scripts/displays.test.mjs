@@ -173,6 +173,30 @@ for (const profile of Object.keys(displayProfiles)) {
     );
   }
 }
+
+{
+  const boardProfile = 'waveshare-esp32-s3-touch-lcd-5-28117';
+  const withDisplay = addDeviceToScene(createEmptyScene('Tablero local'), 'display', { config: displayConfig('waveshare5'), boardProfile });
+  const withTraffic = addDeviceToScene(withDisplay.scene, 'trafficLight', { boardProfile });
+  const display = withTraffic.scene.devices.find(item => item.kind === 'display');
+  display.config.retiredAreaIds.push(...display.config.areas.map(area => area.id));
+  display.config.areas = [];
+  display.config.dashboard = { enabled: true, deviceIds: [withTraffic.device.id] };
+  assert.equal(validateScene(withTraffic.scene, boardProfile).hardwareReady, true, 'logical dashboard needs no fake GPIO');
+  assert.equal(isSceneDefinition(withTraffic.scene), true);
+  const program = wrap([{ op: 'traffic', deviceId: withTraffic.device.id, color: 'GREEN', blockId: 'green' }]);
+  for (const framework of ['arduino', 'esp-idf']) {
+    const generated = generateEsp32CodeResult(program, 'Tablero', withTraffic.scene, framework, boardProfile);
+    assert.equal(generated.diagnostics.filter(item => item.severity === 'error').length, 0, framework);
+    assert.match(generated.code, /TABLERO LOCAL - ESTADOS LOGICOS/);
+    assert.match(generated.code, /capiDashboardService/);
+    assert.match(generated.code, /Objeto lógico del tablero: sin salida GPIO/);
+    assert.doesNotMatch(generated.code, /setTraffic\(DEV_traffic_light_1, TrafficColor::GREEN\)/);
+  }
+  const broken = cloneScene(withTraffic.scene);
+  broken.devices.find(item => item.kind === 'display').config.dashboard.deviceIds = ['retirado'];
+  assert.equal(validateScene(broken, boardProfile).valid, false);
+}
 assert.deepEqual(layoutDisplayText('abcd\nEF', { columns: 4, rows: 2 }).lines, [
   'abcd',
   'EF  ',
@@ -397,6 +421,25 @@ assert.deepEqual(
   BUILTIN_DISPLAY_ARTWORKS.find(item => item.id === 'builtin-capybara').rows,
 );
 assert.equal(state().devices[animated.device.id].animation, null);
+const dashboardBoard = 'waveshare-esp32-s3-touch-lcd-5-28117';
+const dashboardScreen = addDeviceToScene(createEmptyScene('Control táctil'), 'display', { config: displayConfig('waveshare5'), boardProfile: dashboardBoard });
+const dashboardTraffic = addDeviceToScene(dashboardScreen.scene, 'trafficLight', { boardProfile: dashboardBoard });
+const dashboardDisplay = dashboardTraffic.scene.devices.find(item => item.kind === 'display');
+dashboardDisplay.config.retiredAreaIds.push(...dashboardDisplay.config.areas.map(area => area.id));
+dashboardDisplay.config.areas = [];
+dashboardDisplay.config.dashboard = { enabled: true, deviceIds: [dashboardTraffic.device.id] };
+send({ type: 'LOAD', scene: dashboardTraffic.scene, boardProfile: dashboardBoard, program: wrap([
+  { op: 'traffic', deviceId: dashboardTraffic.device.id, color: 'GREEN', blockId: 'green' },
+]) });
+send({ type: 'SET_DASHBOARD', deviceId: dashboardTraffic.device.id, action: 'cycle' });
+assert.equal(state().dashboardModes[dashboardTraffic.device.id], 'manual');
+assert.equal(state().devices[dashboardTraffic.device.id].color, 'RED');
+send({ type: 'RUN' });
+for (let turn = 0; turn < 20 && state().status !== 'done'; turn += 1) { clock += 16; tick(); }
+assert.equal(state().devices[dashboardTraffic.device.id].color, 'RED', 'manual wins while program keeps running');
+send({ type: 'SET_DASHBOARD', deviceId: dashboardTraffic.device.id, action: 'program' });
+assert.equal(state().dashboardModes[dashboardTraffic.device.id], 'program');
+assert.equal(state().devices[dashboardTraffic.device.id].color, 'GREEN', 'return restores latest program order');
 console.log(
-  'Displays: seven profiles, keypad/touch, drawings, animations, JSON, isolated areas, worker modes and generated adapters passed.',
+  'Displays: seven profiles, keypad/touch, local dashboard priority, drawings, animations, JSON, isolated areas, worker modes and generated adapters passed.',
 );

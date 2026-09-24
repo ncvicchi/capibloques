@@ -245,6 +245,13 @@ export interface SceneDefinition {
   sourceTemplate?: LegacySceneId;
 }
 
+export const dashboardDeviceKinds = ['trafficLight', 'robot', 'motor', 'led', 'servo'] as const;
+export type DashboardDeviceKind = (typeof dashboardDeviceKinds)[number];
+export function dashboardDeviceIds(scene: SceneDefinition) {
+  const display = scene.devices.find((device): device is DisplayDevice => device.kind === 'display' && device.config.profile === 'waveshare5');
+  return new Set(display?.config.dashboard?.enabled ? display.config.dashboard.deviceIds : []);
+}
+
 export interface PinRequirement {
   key: string;
   label: string;
@@ -1456,6 +1463,7 @@ export function validateScene(
   profileId: BoardProfileId = 'wemos-d1-r32',
 ): SceneValidationResult {
   const profile = boardProfile(profileId);
+  const dashboardIds = dashboardDeviceIds(scene);
   const issues: SceneValidationIssue[] = [];
   if (!itemIdIsValid(scene.id)) {
     issues.push({
@@ -1500,6 +1508,13 @@ export function validateScene(
     }
     const required = requiredDisplayPins(device.config);
     if (displayPinKeys.some(key => !required.includes(key) && device.pins[key] !== null)) issues.push({ code: 'invalid-display', severity: 'error', deviceId: device.id, message: `${device.name}: hay pines configurados que no pertenecen a este modelo.` });
+  }
+  const dashboardDisplay = displays.find(device => device.config.profile === 'waveshare5');
+  for (const deviceId of dashboardDisplay?.config.dashboard?.deviceIds ?? []) {
+    const target = scene.devices.find(device => device.id === deviceId);
+    if (!target || !dashboardDeviceKinds.includes(target.kind as DashboardDeviceKind)) {
+      issues.push({ code: 'invalid-display', severity: 'error', deviceId: dashboardDisplay?.id, message: `${dashboardDisplay?.name ?? 'Pantalla'}: el tablero contiene un control retirado o incompatible.` });
+    }
   }
   const messageLinks = scene.devices.filter((device): device is MessagesDevice => device.kind === 'messages');
   if (messageLinks.length > 2) issues.push({ code: 'messages-limit', severity: 'error', message: 'La placa admite hasta dos componentes Mensajes; la conexión de programación queda reservada.' });
@@ -1708,7 +1723,7 @@ export function validateScene(
     }
   }
 
-  const requiredPwmChannels = pwmChannelCount(scene.devices);
+  const requiredPwmChannels = pwmChannelCount(scene.devices.filter(device => !dashboardIds.has(device.id)));
   if (requiredPwmChannels > profile.pwmChannels) {
     issues.push({
       code: 'pwm-channel-limit',
@@ -1729,7 +1744,7 @@ export function validateScene(
     });
   }
 
-  for (const slot of collectPinSlots(scene.devices)) {
+  for (const slot of collectPinSlots(scene.devices).filter(slot => !dashboardIds.has(slot.deviceId))) {
     if (slot.pin === null) {
       issues.push({
         code: 'missing-pin',

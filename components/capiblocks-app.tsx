@@ -302,6 +302,7 @@ function makeInitialState(scene: SceneDefinition): SimulatorState {
     now: 0,
     status: 'idle',
     devices,
+    dashboardModes: {},
     wifi: 'disconnected',
     wifiAvailable: true,
     counter: 0,
@@ -512,7 +513,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   );
 
   const postToWorker = useCallback((message: Record<string, unknown>) => {
-    if (!draftStore.active && message.type !== 'PAUSE' && message.type !== 'STOP') return;
+    if (!draftStore.active && message.type !== 'PAUSE' && message.type !== 'STOP' && message.type !== 'SET_DASHBOARD') return;
     workerRef.current?.postMessage(message);
   }, [draftStore]);
 
@@ -685,6 +686,14 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   useEffect(() => {
     speedRef.current = speed;
   }, [speed]);
+
+  useEffect(() => {
+    workerRef.current?.postMessage({
+      type: 'SYNC_SCENE',
+      scene,
+      boardProfile: projectTarget.boardProfile,
+    });
+  }, [projectTarget.boardProfile, scene]);
 
   const onBlockSnap = useCallback(
     () => sound(420, 45, mutedRef.current || !draftStore.active, 0.025),
@@ -1480,6 +1489,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                   scene={scene}
                   runtimeDevices={sim.devices}
                   counter={sim.counter}
+                  dashboardModes={sim.dashboardModes}
+                  onDashboardAction={(deviceId, action) => postToWorker({ type: 'SET_DASHBOARD', deviceId, action })}
                 />
               </div>
             </TabsContent>

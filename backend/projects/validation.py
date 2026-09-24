@@ -55,8 +55,8 @@ DISPLAY_PROFILES = {"lcd1602keypad": (16, 2, False, "parallel"), "lcd1602": (16,
 
 def display_config(config):
     legacy = set(config) == {"profile", "address", "areas", "retiredAreaIds"} if isinstance(config, dict) else False
-    exact(config, ("profile", "address", "areas", "retiredAreaIds"), ("animationSpeed", "artworks", "retiredArtworkIds"))
-    require(legacy or set(config) == {"profile", "address", "areas", "retiredAreaIds", "animationSpeed", "artworks", "retiredArtworkIds"})
+    exact(config, ("profile", "address", "areas", "retiredAreaIds"), ("animationSpeed", "artworks", "retiredArtworkIds", "dashboard"))
+    require(legacy or set(config) in ({"profile", "address", "areas", "retiredAreaIds", "animationSpeed", "artworks", "retiredArtworkIds"}, {"profile", "address", "areas", "retiredAreaIds", "animationSpeed", "artworks", "retiredArtworkIds", "dashboard"}))
     require(isinstance(config["profile"], str) and config["profile"] in DISPLAY_PROFILES)
     columns, rows, graphic, bus = DISPLAY_PROFILES[config["profile"]]
     require(type(config["address"]) is int and (config["address"] == 0 if bus in ("spi", "parallel", "integrated-rgb") else config["address"] in ([0x3c, 0x3d] if config["profile"] == "ssd1306" else [*range(0x20, 0x28), *range(0x38, 0x40)])))
@@ -94,6 +94,13 @@ def display_config(config):
         for artwork_id in retired_artworks:
             require(isinstance(artwork_id, str) and re.fullmatch(r"[a-z0-9][a-z0-9-]{0,31}", artwork_id) and artwork_id not in artwork_ids)
             artwork_ids.add(artwork_id)
+    if "dashboard" in config:
+        dashboard = config["dashboard"]
+        exact(dashboard, ("enabled", "deviceIds"))
+        require(config["profile"] == "waveshare5" and type(dashboard["enabled"]) is bool)
+        require(isinstance(dashboard["deviceIds"], list) and len(dashboard["deviceIds"]) <= 6 and len(set(dashboard["deviceIds"])) == len(dashboard["deviceIds"]))
+        require(all(identifier(device_id) for device_id in dashboard["deviceIds"]))
+        require(not dashboard["enabled"] or not dashboard["deviceIds"] or not config["areas"], "El tablero táctil ocupa la pantalla completa; retirà las zonas de texto.")
     return ["sda", "scl"] if bus == "i2c" else ["rs", "en", "d4", "d5", "d6", "d7", "backlight", "keys"] if bus == "parallel" else [] if bus == "integrated-rgb" else ["sck", "mosi", "cs", "dc", "rst"]
 
 
@@ -233,6 +240,7 @@ def scene(value, board_profile="wemos-d1-r32"):
     require(isinstance(value["devices"], list) and isinstance(value["widgets"], list) and len(value["devices"]) + len(value["widgets"]) <= 256 and len(value["widgets"]) <= 1)
     ids, names = set(), set()
     display_count = 0
+    dashboard_ids = []
     messages_count = 0
     for is_widget, items in ((False, value["devices"]), (True, value["widgets"])):
         for item in items:
@@ -256,6 +264,7 @@ def scene(value, board_profile="wemos-d1-r32"):
                 require((config["profile"] == "waveshare5") == (board_profile == "waveshare-esp32-s3-touch-lcd-5-28117"), "El perfil de pantalla no corresponde a la placa elegida.")
                 require(isinstance(item["pins"], dict) and all(item["pins"].get(key) is None for key in PINS[kind] if key not in used_pins))
                 require(set(item["pins"]) == set(PINS[kind]) or (config["profile"] != "lcd1602keypad" and set(item["pins"]) == LEGACY_DISPLAY_PINS))
+                dashboard_ids = config.get("dashboard", {}).get("deviceIds", []) if config.get("dashboard", {}).get("enabled") else []
             elif kind == "ledMatrix":
                 display_count += 1
                 require(display_count <= 1, "Cada proyecto admite una sola pantalla o matriz.")
@@ -299,6 +308,9 @@ def scene(value, board_profile="wemos-d1-r32"):
                     exact(item["pins"], PINS[kind])
                 require(all(pin is None or (type(pin) is int and -2147483648 <= pin <= 2147483647) for pin in item["pins"].values()))
                 require(all(pin is None or pin in BOARD_PINS[board_profile] for pin in item["pins"].values()), "La escena usa un GPIO que no pertenece a la placa elegida.")
+    dashboard_kinds = {"trafficLight", "robot", "motor", "led", "servo"}
+    dashboard_items = {item["id"]: item for item in value["devices"]}
+    require(all(device_id in dashboard_items and dashboard_items[device_id]["kind"] in dashboard_kinds for device_id in dashboard_ids), "El tablero contiene un control retirado o incompatible.")
     retired = value.get("retiredDeviceIds", [])
     require(isinstance(retired, list) and len(retired) <= 4096)
     retired_ids = set()

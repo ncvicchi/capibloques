@@ -1,5 +1,10 @@
-import type { SceneDefinition } from './scene-model.ts';
+import type { SceneDefinition } from './scene-model';
 import type { BoardProfileId } from './board-profiles.ts';
+
+function dashboardDeviceIds(scene: SceneDefinition) {
+  const display = scene.devices.find(device => device.kind === 'display' && device.config.profile === 'waveshare5');
+  return new Set(display?.kind === 'display' && display.config.dashboard?.enabled ? display.config.dashboard.deviceIds : []);
+}
 
 export const IDF_VERSION = '5.5.5';
 export const IDF_IMAGE = 'espressif/idf:v5.5.5@sha256:a9231d0697ab8f7517cc072e93b7c83e04907bfbfba80b6440d7dbbf90665cf2';
@@ -7,8 +12,10 @@ export type PwmAssignment = { pin: number; bank: number; channel: number; timer:
 
 /** ESP32 has two banks of eight channels / four timers. Never share a tone timer. */
 export function allocateIdfPwm(scene: SceneDefinition, profileId: BoardProfileId = 'wemos-d1-r32'): PwmAssignment[] | null {
+  const logical = dashboardDeviceIds(scene);
   const groups = new Map<string, { pins: number[]; frequency: number; resolution: number; tone: boolean }>();
   for (const device of scene.devices) {
+    if (logical.has(device.id)) continue;
     let pins: (number | null)[] = [], frequency = 0, resolution = 8;
     if (device.kind === 'otto') {
       const servoPins = [device.pins.leftLeg, device.pins.rightLeg, device.pins.leftFoot, device.pins.rightFoot, ...(device.config.profile === 'humanoid6-expressive' ? [device.pins.leftArm, device.pins.rightArm] : [])].filter((pin): pin is number => pin !== null);
@@ -59,15 +66,17 @@ export function allocateIdfPwm(scene: SceneDefinition, profileId: BoardProfileId
 export function idfRuntimeSupport(scene: SceneDefinition, usesWifi: boolean, profileId: BoardProfileId = 'wemos-d1-r32') {
   const s3 = profileId !== 'wemos-d1-r32';
   const assignments = allocateIdfPwm(scene, profileId) ?? [];
-  const hasAdc = scene.devices.some(device =>
+  const logical = dashboardDeviceIds(scene);
+  const hasAdc = scene.devices.some(device => !logical.has(device.id) && (
     device.kind === 'lightSensor' ||
     device.kind === 'potentiometer' ||
     (device.kind === 'display' && device.config.profile === 'lcd1602keypad')
-  );
+  ));
   const hasMessages = scene.devices.some(device => device.kind === 'messages');
   const wifiAp = scene.devices.some(device => device.kind === 'wifiNode' && device.config.role === 'create');
   const setup: string[] = [];
   for (const device of scene.devices) {
+    if (logical.has(device.id)) continue;
     if (device.kind === 'trafficLight') for (const pin of Object.values(device.pins)) setup.push(`  capiOutput(${pin ?? 255});`);
     if (device.kind === 'button') setup.push(`  capiInput(${device.pins.signal ?? 255}, ${device.config.pullup});`);
     if (device.kind === 'infraredBarrier') setup.push(`  capiInput(${device.pins.signal ?? 255}, false);`);

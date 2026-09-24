@@ -146,6 +146,18 @@ function animatedSample() {
     },
   });
 }
+
+function dashboardSample() {
+  const board = 'waveshare-esp32-s3-touch-lcd-5-28117' as const;
+  const screen = addDeviceToScene(createEmptyScene('Tablero táctil'), 'display', { config: displayConfig('waveshare5'), name: 'Pantalla táctil', boardProfile: board });
+  const traffic = addDeviceToScene(screen.scene, 'trafficLight', { name: 'Semáforo del patio', boardProfile: board });
+  const display = traffic.scene.devices.find(device => device.kind === 'display');
+  if (!display || display.kind !== 'display') throw new Error('fixture sin pantalla');
+  display.config.retiredAreaIds.push(...display.config.areas.map(area => area.id));
+  display.config.areas = [];
+  display.config.dashboard = { enabled: true, deviceIds: [traffic.device.id] };
+  return makeProject('Tablero Waveshare', traffic.scene, { blocks: { languageVersion: 0, blocks: [{ type: 'capi_start', id: 'start-dashboard', x: 40, y: 40, inputs: { DO: { block: { type: 'capi_traffic', id: 'dashboard-green', fields: { DEVICE_ID: traffic.device.id, COLOR: 'GREEN' } } } } }] } }, 1, projectTargetForBoard(board));
+}
 async function importProject(
   page: Page,
   profile: DisplayProfile = 'ssd1306',
@@ -502,4 +514,23 @@ test('pantalla gráfica: crea dibujos, ofrece avatares y anima sin bloquear', as
   await expect(page.getByText('Programa terminado', { exact: true })).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.simulator-panel .display-preview')).toHaveAttribute('aria-label', /dibujo visible/);
   await expect(page.locator('.simulator-panel .display-preview rect[fill="#9fffd5"]')).not.toHaveCount(0);
+});
+
+test('Waveshare: tablero táctil conserva prioridad manual y vuelve al programa', async ({ page }) => {
+  await open(page);
+  const project = dashboardSample();
+  await page.locator('input[type=file]').setInputFiles({ name: 'tablero.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) });
+  const preview = page.locator('.simulator-panel .display-preview');
+  await expect(preview).toContainText('TABLERO LOCAL');
+  await expect(preview).toContainText('PROGRAMA · OFF');
+  await preview.locator('[aria-label="Cambiar Semáforo del patio"]').click();
+  await expect(preview).toContainText('MANUAL · RED');
+  await page.getByRole('button', { name: 'Ejecutar', exact: true }).click();
+  await expect(page.getByText('Programa terminado', { exact: true })).toBeVisible();
+  await expect(preview).toContainText('MANUAL · RED');
+  await preview.locator('[aria-label="Volver al programa para Semáforo del patio"]').click();
+  await expect(preview).toContainText('PROGRAMA · GREEN');
+  const saved = await exportProject(page);
+  const display = saved.scene.devices.find((device: { kind: string }) => device.kind === 'display');
+  expect(display.config.dashboard).toEqual({ enabled: true, deviceIds: ['traffic-light-1'] });
 });

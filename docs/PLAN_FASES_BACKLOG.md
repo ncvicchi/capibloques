@@ -1,6 +1,6 @@
 # Nuevas fases de CapiBloques
 
-Plan elaborado el 8 de septiembre de 2026 y actualizado el 24 de septiembre de 2026. **Fases 11–14 y 29–33 entregadas; fases 15, 16, 27, 28, 36 y 37 terminadas en software; fase 23 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`, aunque cada cierre posterior requiere su actualización explícita. La fase 19 queda ampliada por el inventario pedagógico y el bloque `según`; las fases 34–35 y 38–41 conservan las capacidades pendientes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
+Plan elaborado el 8 de septiembre de 2026 y actualizado el 24 de septiembre de 2026. **Fases 11–14 y 29–33 entregadas; fases 15–18, 27, 28, 36 y 37 terminadas en software; fase 23 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`, aunque cada cierre posterior requiere su actualización explícita. La fase 19 queda ampliada por el inventario pedagógico y el bloque `según`; las fases 34–35 y 38–41 conservan las capacidades pendientes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
 
 La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros consecutivos; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. Los pedidos del 23 de septiembre amplían la fase 19 y continúan hasta la fase 41 sin alterar entregas cerradas.
 
@@ -14,8 +14,8 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 14 | Entregada y verificada en DEV: ejecución visual en los bloques y paralelo vertical | 4, 5 y 7 | Distribución de fase 12 |
 | 15 | Software entregado: componente y bloques TX/RX; aceptación Wemos pendiente | 3: TX/RX; 9: conexiones seriales | Wemos actual como primer destino; simulador y ambos generadores |
 | 16 | Soporte completo ESP32-S3 DevKit y selección de placa | 2: DevKit; 9: guía visual DevKit | Modelo exacto identificado; incorporar el contrato TX/RX de fase 15 |
-| 17 | Perfil Waveshare ESP32-S3 con pantalla de 5 pulgadas | 2: Waveshare; 9: guía visual Waveshare | Perfiles de fase 16 y modelo/revisión exactos identificados |
-| 18 | Escena gráfica y controles locales en el display | 3: display interactivo | Perfiles de pantalla de fase 17 y ejecución/componentes existentes |
+| 17 | Software entregado: perfil Waveshare ESP32-S3 con pantalla de 5 pulgadas; DEV/físico pendientes | 2: Waveshare; 9: guía visual Waveshare | Perfiles de fase 16 y modelo/revisión exactos identificados |
+| 18 | Software entregado: tablero de estados lógicos y controles locales en el display; DEV/físico pendientes | 3: display interactivo | Perfiles de pantalla de fase 17 y ejecución/componentes existentes |
 | 19 | Desafíos progresivos, herramientas pedagógicas y bloque `según` | 12 y 35 | Plan completo versionado; primeros retos sin hardware; valores tipados de fase 29 |
 | 20 | Compilación y grabación guiadas, medibles y comprensibles | 15 y 17; informe externo vital 1–3 | Fase 10 aceptada físicamente para cerrar el recorrido USB; métricas sintéticas previas a optimizar |
 | 21 | Claridad y ergonomía educativa del editor | Informe externo vital 4, sutiles 1–8 y futuras 1–2, 5–7 | Fases 12 y 14; reproducción previa de cada observación |
@@ -215,6 +215,8 @@ La escena gráfica y la interacción con dispositivos se entregan en fase 18. Es
 ## Fase 18 — Escena y controles locales en pantalla
 
 **Objetivo:** representar la escena en una pantalla gráfica y permitir accionar sus dispositivos desde controles locales del display.
+
+**Estado:** software entregado según [FASE_18_CONTROLES_LOCALES.md](FASE_18_CONTROLES_LOCALES.md). La Waveshare no posee GPIO escolares libres, por lo que el alcance acordado representa hasta seis estados lógicos y declara expresamente que no hay salidas físicas. Despliegue DEV y aceptación táctil en la SKU 28117 pendientes.
 
 Alcance:
 

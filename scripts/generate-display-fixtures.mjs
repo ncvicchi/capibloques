@@ -15,8 +15,14 @@ for (const profile of Object.keys(displayProfiles)) {
     'display',
     { config: displayConfig(profile), boardProfile },
   );
-  const led = profile === 'waveshare5' ? { scene, device: null } : addDeviceToScene(scene, 'led');
-  const areaId = displayTargets(device.config)[0].id;
+  const logical = profile === 'waveshare5' ? addDeviceToScene(scene, 'trafficLight', { boardProfile }) : null;
+  if (logical) {
+    const screen = logical.scene.devices.find(item => item.id === device.id);
+    screen.config.areas = [];
+    screen.config.dashboard = { enabled: true, deviceIds: [logical.device.id] };
+  }
+  const led = profile === 'waveshare5' ? { scene: logical.scene, device: null } : addDeviceToScene(scene, 'led');
+  const areaId = displayTargets(device.config)[0]?.id;
   const generated = generateEsp32CodeResult(
     {
       version: 2,
@@ -25,6 +31,8 @@ for (const profile of Object.keys(displayProfiles)) {
           id: 'start',
           startBlockId: 'start',
           nodes: [
+            ...(logical ? [{ op: 'traffic', deviceId: logical.device.id, color: 'GREEN', blockId: 'traffic' }] : []),
+            ...(!logical ? [
             {
               op: 'displayWrite',
               deviceId: device.id,
@@ -32,7 +40,8 @@ for (const profile of Object.keys(displayProfiles)) {
               text: 'Hola ESP32!\nListo',
               blockId: 'write',
             },
-            ...(displayProfiles[profile].graphic
+            ] : []),
+            ...(!logical && displayProfiles[profile].graphic
               ? [
                   {
                     op: 'displayAnimateText',
@@ -61,12 +70,14 @@ for (const profile of Object.keys(displayProfiles)) {
               blockId: 'light',
             }] : []),
             { op: 'wait', ms: 2000, blockId: 'wait' },
+            ...(!logical ? [
             {
               op: 'displayClear',
               deviceId: device.id,
               areaId,
               blockId: 'clear',
             },
+            ] : []),
             { op: 'serial', text: 'Mensaje independiente', blockId: 'console' },
           ],
         },

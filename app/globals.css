@@ -7,6 +7,8 @@
 .display-properties fieldset { padding: 10px; border: 1px solid #a2b8b1; border-radius: 8px; display: grid; gap: 8px; }
 .display-area-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .display-portable-note { padding: 8px; background: #edf4f1; border-radius: 6px; }
+.display-dashboard-config label { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px; }
+.display-dashboard-config input[type='checkbox'] { width: auto; min-width: 18px; height: 18px; margin: 0; }
 .display-preview { display: block; width: 210px; max-width: 100%; height: auto; min-height: 36px; }
 .display-artwork-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; }
 .display-artwork-editor {

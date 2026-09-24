@@ -1,17 +1,25 @@
 import { displayProfiles, displayTargets } from '@/lib/display-model';
 import { DISPLAY_ART_HEIGHT, DISPLAY_ART_WIDTH } from '@/lib/display-graphics';
-import type { DisplayDevice } from '@/lib/scene-model';
+import type { DisplayDevice, SceneDevice } from '@/lib/scene-model';
 
 export function DisplayPreview({
   device,
   texts = {},
   artworkRows = [],
   pressedButton = null,
+  dashboardDevices = [],
+  dashboardRuntime = {},
+  dashboardModes = {},
+  onDashboardAction,
 }: {
   device: DisplayDevice;
   texts?: Record<string, string[]>;
   artworkRows?: readonly number[];
   pressedButton?: 'RIGHT' | 'UP' | 'DOWN' | 'LEFT' | 'SELECT' | null;
+  dashboardDevices?: readonly SceneDevice[];
+  dashboardRuntime?: Record<string, Record<string, unknown> | undefined>;
+  dashboardModes?: Record<string, 'program' | 'manual'>;
+  onDashboardAction?: (deviceId: string, action: 'cycle' | 'program') => void;
 }) {
   const profile = displayProfiles[device.config.profile];
   const linesFor = (id: string) =>
@@ -21,6 +29,20 @@ export function DisplayPreview({
   const width = profile.graphic ? profile.width : profile.columns * cellWidth;
   const screenHeight = profile.graphic ? profile.height : profile.rows * cellHeight;
   const height = screenHeight + (profile.keypad ? 18 : 0);
+  const dashboardIds = device.config.dashboard?.enabled ? device.config.dashboard.deviceIds : [];
+  const dashboard = dashboardIds.map(id => dashboardDevices.find(item => item.id === id)).filter((item): item is SceneDevice => !!item);
+  const dashboardValue = (item: SceneDevice) => {
+    const runtime = dashboardRuntime[item.id] ?? {};
+    if (item.kind === 'trafficLight') return typeof runtime.color === 'string' ? runtime.color : 'OFF';
+    if (item.kind === 'robot') {
+      const left = Number(runtime.left ?? 0), right = Number(runtime.right ?? 0);
+      return left === 0 && right === 0 ? 'DETENIDO' : left > 0 && right > 0 ? 'AVANZA' : left < 0 && right < 0 ? 'RETROCEDE' : left < right ? 'IZQUIERDA' : 'DERECHA';
+    }
+    if (item.kind === 'servo') return `${Math.round(Number(runtime.angle ?? item.config.angle))}°`;
+    if (item.kind === 'led') return `${Math.round(Number(runtime.brightness ?? item.config.brightness))}%`;
+    if (item.kind === 'motor') return `${Math.round(Number(runtime.power ?? 0))}%`;
+    return '-';
+  };
   return (
     <svg
       className={`display-preview ${profile.graphic ? 'graphic' : 'character'}`}
@@ -41,7 +63,31 @@ export function DisplayPreview({
         rx={3}
         fill={profile.graphic ? '#101c24' : '#193b2a'}
       />
-      {profile.graphic &&
+      {dashboard.length > 0 && (
+        <g aria-label="Tablero táctil local">
+          <text x="20" y="28" fontSize="18" fontWeight="bold" fill="#9fffd5">TABLERO LOCAL · ESTADOS LÓGICOS</text>
+          <text x="20" y="48" fontSize="12" fill="#ffcf5a">Sin salidas físicas conectadas</text>
+          {dashboard.map((item, index) => {
+            const y = 64 + index * 66;
+            const ready = Object.hasOwn(dashboardModes, item.id);
+            const manual = dashboardModes[item.id] === 'manual';
+            return (
+              <g key={item.id}>
+                <rect x="16" y={y} width="768" height="56" rx="8" fill={manual ? '#3b2f17' : '#16352b'} stroke={manual ? '#ffcf5a' : '#73ab99'} />
+                <text x="30" y={y + 21} fontSize="16" fill="white">{item.name.slice(0, 24)}</text>
+                <text x="30" y={y + 43} fontSize="14" fill={manual ? '#ffcf5a' : '#9fffd5'}>{ready ? (manual ? 'MANUAL' : 'PROGRAMA') : 'PREPARANDO'} · {dashboardValue(item)}</text>
+                <foreignObject x="430" y={y + 9} width="150" height="38">
+                  <button type="button" aria-label={`Cambiar ${item.name}`} disabled={!onDashboardAction || !ready} onClick={() => onDashboardAction?.(item.id, 'cycle')} style={{ width: '100%', height: '100%', border: 0, borderRadius: 7, color: 'white', background: '#256b57', fontSize: 14 }}>Cambiar</button>
+                </foreignObject>
+                <foreignObject x="592" y={y + 9} width="176" height="38">
+                  <button type="button" aria-label={`Volver al programa para ${item.name}`} disabled={!onDashboardAction || !ready} onClick={() => onDashboardAction?.(item.id, 'program')} style={{ width: '100%', height: '100%', border: 0, borderRadius: 7, color: 'white', background: '#315264', fontSize: 13 }}>Volver al programa</button>
+                </foreignObject>
+              </g>
+            );
+          })}
+        </g>
+      )}
+      {dashboard.length === 0 && profile.graphic &&
         Array.from({ length: DISPLAY_ART_HEIGHT }, (_, artY) =>
           Array.from({ length: DISPLAY_ART_WIDTH }, (_, artX) => {
             const bit = 2 ** (DISPLAY_ART_WIDTH - 1 - artX);
@@ -67,7 +113,7 @@ export function DisplayPreview({
             );
           }),
         )}
-      {displayTargets(device.config).map((area) => (
+      {dashboard.length === 0 && displayTargets(device.config).map((area) => (
         <g key={area.id}>
           <rect
             x={area.column * cellWidth}

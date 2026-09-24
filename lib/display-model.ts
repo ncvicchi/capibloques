@@ -100,6 +100,8 @@ export type DisplayConfig = {
   animationSpeed?: DisplayAnimationSpeed;
   artworks?: DisplayArtwork[];
   retiredArtworkIds?: string[];
+  /** Waveshare-only local dashboard. Referenced devices are logical, not wired GPIO. */
+  dashboard?: { enabled: boolean; deviceIds: string[] };
 };
 export const DISPLAY_SCREEN = 'screen';
 export const MAX_DISPLAY_TEXT = 512;
@@ -149,6 +151,7 @@ export function displayConfig(
     animationSpeed: 'normal',
     artworks: displayProfiles[profile].graphic ? defaultDisplayArtworks() : [],
     retiredArtworkIds: [],
+    ...(profile === 'waveshare5' ? { dashboard: { enabled: true, deviceIds: [] } } : {}),
   };
 }
 
@@ -252,6 +255,16 @@ export function validDisplayConfig(
         'animationSpeed',
         'artworks',
         'retiredArtworkIds',
+      ]) ||
+      exact(value, [
+        'profile',
+        'address',
+        'areas',
+        'retiredAreaIds',
+        'animationSpeed',
+        'artworks',
+        'retiredArtworkIds',
+        'dashboard',
       ])
     ) ||
     typeof value.profile !== 'string' ||
@@ -259,6 +272,24 @@ export function validDisplayConfig(
   )
     return false;
   const profile = displayProfiles[value.profile as DisplayProfile];
+  if (Object.hasOwn(value, 'dashboard')) {
+    if (
+      value.profile !== 'waveshare5' ||
+      !record(value.dashboard) ||
+      !exact(value.dashboard, ['enabled', 'deviceIds']) ||
+      typeof value.dashboard.enabled !== 'boolean' ||
+      !Array.isArray(value.dashboard.deviceIds) ||
+      value.dashboard.deviceIds.length > 6 ||
+      new Set(value.dashboard.deviceIds).size !== value.dashboard.deviceIds.length ||
+      !value.dashboard.deviceIds.every(id =>
+        typeof id === 'string' &&
+        id.trim().length > 0 &&
+        id.length <= 128 &&
+        [...id].every(character => character.charCodeAt(0) >= 32 && character.charCodeAt(0) !== 127),
+      )
+    ) return false;
+    if (value.dashboard.enabled && value.dashboard.deviceIds.length > 0 && Array.isArray(value.areas) && value.areas.length > 0) return false;
+  }
   const addresses =
     value.profile === 'ssd1306'
       ? [0x3c, 0x3d]

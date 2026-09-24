@@ -28,6 +28,8 @@ Al implementar, definir cómo se elige o cambia la placa sin perder dispositivos
 
 ### Display interactivo
 
+**Software entregado en fase 18; despliegue DEV y aceptación física pendientes.** La [guía de fase](FASE_18_CONTROLES_LOCALES.md) registra el alcance acordado: tablero táctil de hasta seis estados lógicos, prioridad manual por objeto y retorno al último estado del programa, sin fingir GPIO o salidas físicas en la Waveshare SKU 28117.
+
 - Mostrar la escena en el display.
 - Permitir controlar manualmente los dispositivos agregados mediante controles de esa vista.
 - Representar en el simulador el comportamiento esperado y preservar la escena/configuración en JSON.
