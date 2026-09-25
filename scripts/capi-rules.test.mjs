@@ -27,7 +27,7 @@ assert.deepEqual(lines.push(packet.subarray(0, 4)), []);
 assert.deepEqual(lines.push(packet.subarray(4)), [{ type: 'HELLO', abi: 1 }]);
 assert.equal(pairSsid('A1B2C33FA21C'), 'WS3FA21C');
 assert.throws(() => pairSsid('123'));
-const pair = createPairCredentials({ protocol: 'CapiLink', firmware: '1.5.0', abi: 1, board: 'waveshare-esp32-s3-touch-lcd-5-28117', hardwareId: 'A1B2C33FA21C', maxRulesBytes: 32768, capabilities: ['pairing'], resources: { pwmChannels: 8 } });
+const pair = createPairCredentials({ protocol: 'CapiLink', firmware: '1.5.1', abi: 1, board: 'waveshare-esp32-s3-touch-lcd-5-28117', hardwareId: 'A1B2C33FA21C', maxRulesBytes: 32768, capabilities: ['pairing'], resources: { pwmChannels: 8 } });
 assert.equal(pair.ssid, 'WS3FA21C'); assert.equal(pair.password.length, 20); assert.match(pair.pairingKey, /^[a-f0-9]{32}$/); assert.equal(pair.screenHardwareId, 'A1B2C33FA21C');
 const emojiLines = new ProtocolLines(), emojiPacket = encodeProtocolPacket({ type: 'TELEMETRY', message: 'capibara 🐹' });
 const emojiAt = emojiPacket.indexOf(0xf0);

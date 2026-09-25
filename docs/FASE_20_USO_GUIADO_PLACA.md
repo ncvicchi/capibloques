@@ -29,8 +29,8 @@ Las reglas se generan en el navegador. No usan la cola de compilación, no enví
 
 ## Compatibilidad y límites
 
-- El firmware intérprete requerido es 1.5.0, ABI 1, para Wemos D1 R32, DIYmall ESP32-S3 DevKitC N16R8 y la base de emparejamiento de Waveshare SKU 28117.
-- El intérprete Waveshare 1.5.0 permite identificar, preparar y levantar su AP persistente. Todavía no representa la escena en el panel RGB ni procesa el touch remoto; el asistente lo explica y esa entrega continúa en fases 18/34.
+- El firmware intérprete requerido es 1.5.1, ABI 1, para Wemos D1 R32, DIYmall ESP32-S3 DevKitC N16R8 y la base de emparejamiento de Waveshare SKU 28117. La revisión 1.5.1 corrige el watchdog observado en 1.5.0: fija el tick de FreeRTOS en 1 ms y garantiza que cada servicio cooperativo ceda al menos un tick.
+- El intérprete Waveshare 1.5.1 permite identificar, preparar y levantar su AP persistente. Todavía no representa la escena en el panel RGB ni procesa el touch remoto; el asistente lo explica y esa entrega continúa en fases 18/34.
 - Si un proyecto usa una capacidad que el intérprete no declara, se bloquea antes de enviar reglas y se explica la actualización necesaria.
 - Web Serial requiere Chrome o Edge de escritorio y HTTPS o localhost. USB pertenece a la PC del navegador, no al servidor.
 - Arduino/ESP-IDF específicos siguen siendo una salida válida para diagnóstico, estudio o componentes todavía no cubiertos. Ocultarlos no autoriza retirar compatibilidad.
@@ -76,7 +76,7 @@ lugares con nombres funcionales, no a un selector único ambiguo:
 
 **Entregado en software en `1904e76`:** el asistente muestra «Placa actual» con las fotografías aportadas por el propietario, permite revisar un cambio Wemos ↔ DIYmall, conserva pines todavía válidos, enumera las conexiones que cambiarán y sólo aplica la nueva escena/perfil después de confirmar. La foto compuesta de Waveshare alterna frente y dorso cada dos segundos; con reducción de movimiento permanece estable. Se mantienen los diagramas técnicos propios para cableado. Los activos originales, sin regenerar, viven en `public/boards/`.
 
-**Entregado en software para emparejamiento:** el modelo portable conserva Placa del proyecto y Pantalla central por separado, sin secretos. El asistente instala el intérprete 1.5.0 en cualquiera de las dos, obtiene la identidad de la Waveshare, genera `WSMMMMMM` y una clave aleatoria local, guarda el rol/AP en NVS y luego prepara la placa ejecutora como cliente. No presenta selector de red ni campo de contraseña al alumno.
+**Entregado en software para emparejamiento:** el modelo portable conserva Placa del proyecto y Pantalla central por separado, sin secretos. El asistente instala el intérprete 1.5.1 en cualquiera de las dos, obtiene la identidad de la Waveshare, genera `WSMMMMMM` y una clave aleatoria local, guarda el rol/AP en NVS y luego prepara la placa ejecutora como cliente. No presenta selector de red ni campo de contraseña al alumno.
 
 **Pendiente:** reflejar y controlar la escena real en el panel RGB/touch, usar la clave de pareja para autenticar telemetría/comandos, integrar el cambio con un punto explícito del historial global más allá de la confirmación y el autoguardado actuales, y completar la aceptación física con ambas placas.
 

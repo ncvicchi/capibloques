@@ -19,12 +19,13 @@ La fase está **terminada en software**. Ya están implementados:
 - la fase 33 amplió el runtime requerido a **1.3.0** con roles Wi‑Fi AP/cliente, mensajería identificada entre placas, CRC, deduplicación y la capacidad negociada `wifi-messages`;
 - la fase 35 lo amplió a **1.4.0** con el controlador RMT cooperativo y la capacidad negociada `smart-lights` para luces RGB inteligentes;
 - la base de fase 34 lo amplió a **1.5.0** con identidad Wi-Fi, capacidad `pairing`, provisión persistente AP/cliente y artefacto inicial para Waveshare SKU 28117;
+- la primera prueba física de Waveshare con 1.5.0 detectó que las esperas de 1, 2 y 5 ms se redondeaban a cero con el tick predeterminado de ESP-IDF y `capi-matrix` podía impedir la ejecución de `IDLE0`; **1.5.1** fija `CONFIG_FREERTOS_HZ=1000` y aplica una espera cooperativa mínima de un tick en todos esos servicios;
 - construcción reproducible de tres artefactos estáticos, manifiestos con hash y publicación automática la primera vez que DEV recibe esta versión; los binarios generados no se guardan en Git;
 - pruebas de formato determinista, corrupción, placa cruzada, framing, empaquetado, USB simulado, UI Chrome, tipos, estilo, smoke y build estático.
 
 La fase 30 amplió el runtime a **1.1.0** con temporizadores consultables, eventos cooperativos de una vez/repetitivos, pausa/reanudación y cancelación; la capacidad negociada es `timers`. La web considera obsoleto 1.0.0, ofrece actualizarlo y no envía reglas hasta completar la actualización, incluso si el proyecto todavía no usa temporizadores.
 
-La compilación fijada en ESP-IDF 5.5.5 produjo y empaquetó correctamente los intérpretes anteriores de Wemos D1 R32 y ESP32-S3 en CI el 24 de septiembre de 2026. La versión 1.5.0 agrega el tercer perfil Waveshare y aún debe compilarse/publicarse en DEV. La fase **no tiene aún aceptación física**: faltan instalación, reinicio, carga de reglas, emparejamiento y controladores con las placas reales. El firmware Waveshare 1.5.0 sólo cubre por ahora identidad/AP; render RGB y touch pertenecen a fases 18/34. Arduino y ESP-IDF por proyecto siguen disponibles.
+La compilación fijada en ESP-IDF 5.5.5 produjo y empaquetó correctamente los intérpretes anteriores de Wemos D1 R32 y ESP32-S3 en CI el 24 de septiembre de 2026. La versión 1.5.1 incluye el tercer perfil Waveshare y aún debe compilarse/publicarse en DEV. La prueba física de 1.5.0 alcanzó el arranque, pero reveló el watchdog de `capi-matrix`; por eso 1.5.0 queda obsoleta y la web exigirá actualizar. La fase **no tiene aún aceptación física completa**: faltan confirmar 1.5.1 sin watchdog, carga de reglas, emparejamiento y controladores con las placas reales. El firmware Waveshare sólo cubre por ahora identidad/AP; render RGB y touch pertenecen a fases 18/34. Arduino y ESP-IDF por proyecto siguen disponibles.
 
 **Estado:** software terminado; despliegue en DEV y aceptación física pendientes.
 
