@@ -22,8 +22,9 @@ Los bornes CAN/RS485 y las E/S aisladas del CH422G no se presentan como GPIO gen
 Esto no significa que la placa carezca de conexiones externas: expone I2C, CAN,
 RS485 y dos entradas/dos salidas digitales aisladas. Deben modelarse como buses
 y E/S tipadas —con sus tensiones, direcciones y límites—, no incorporarse a la
-lista de GPIO escolares. La ampliación híbrida de fase 18 usará esas capacidades
-para componentes reales compatibles y mostrará el resto como simulación local.
+lista de GPIO escolares. Esas capacidades quedan como expansión avanzada
+futura; el camino principal de fases 18/34 usa la Waveshare como Pantalla
+central Wi‑Fi y conecta los componentes a una Wemos/NodeMCU/DevKit separada.
 
 ## Contrato implementado
 

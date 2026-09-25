@@ -5,18 +5,20 @@ Estado al 25 de septiembre de 2026: **base de tablero lógico implementada; fase
 ## Ampliación de alcance — escena híbrida
 
 El propietario aclaró que la pantalla debe representar la misma escena armada
-en la web. Cada componente conectado mediante una interfaz realmente soportada
-se ejecuta físicamente; los componentes restantes se simulan en la pantalla y
-continúan participando del mismo programa. La lista lógica de hasta seis objetos
-entregada el 24 de septiembre es una base parcial, no el cierre de esta fase.
+en la web. La arquitectura prioritaria usa una Wemos, NodeMCU ESP32 o DevKit
+como **Placa del proyecto**: allí corre todo el programa, se controlan los
+componentes reales y también se mantiene la lógica de los virtuales. La
+Waveshare es la **Pantalla central**: recibe telemetría por Wi‑Fi, dibuja la
+escena y envía entradas o solicitudes autorizadas. La lista lógica de hasta seis
+objetos entregada el 24 de septiembre es una base parcial, no el cierre.
 
-La ampliación debe reemplazar las filas del tablero por la escena compartida,
-marcar cada objeto como **real** o **simulado**, conservar controles táctiles y
-prioridad manual/programa, y permitir ambos destinos simultáneamente. La placa
-expone I2C, CAN, RS485, DI0/DI1 y DO0/DO1 aislados; se incorporan como interfaces
-tipadas cuando exista soporte, nunca como GPIO/PWM genéricos. Los componentes
-que requieran PWM, motores o conexiones no disponibles necesitan un expansor o
-controlador físico identificado y probado.
+La ampliación debe reemplazar las filas por la escena compartida, marcar cada
+objeto como **real** o **virtual**, conservar controles táctiles y prioridad
+manual/programa, y permitir ambos destinos simultáneamente. La Pantalla central
+no ejecuta otra copia del programa: al perder conexión muestra datos antiguos y
+la Placa del proyecto continúa autónomamente. I2C, CAN, RS485 y E/S aisladas de
+la Waveshare quedan como interfaces avanzadas tipadas, no como camino principal
+ni GPIO/PWM genéricos.
 
 El catálogo debe anticipar el resultado con etiquetas **Simulable**, **Real
 compatible** o **Necesita expansión**. Agregar una luz sin conexión física la
@@ -26,6 +28,8 @@ recién entonces aplica los diagnósticos de cableado.
 
 Referencia de capacidades y bornes: [documentación oficial de la Waveshare
 ESP32-S3-Touch-LCD-5](https://docs.waveshare.com/ESP32-S3-Touch-LCD-5).
+El contrato Wi‑Fi y de servicios se detalla en
+[FASE_34_PANTALLA_CENTRAL_WIFI.md](FASE_34_PANTALLA_CENTRAL_WIFI.md).
 
 ## Decisión de alcance
 

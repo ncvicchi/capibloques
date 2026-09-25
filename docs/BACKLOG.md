@@ -427,7 +427,7 @@ Posibilidad posterior derivada del pedido anterior: una placa podría publicar c
 
 No se expondrán escrituras arbitrarias de GPIO ni nombres internos del proyecto. El protocolo utilizará servicios explícitos y permitidos por el autor, con comandos tipados, confirmación y estado observable. Sólo se implementará después de validar la mensajería de fase 33; hasta entonces, el mismo comportamiento puede construirse de forma segura enviando mensajes predefinidos y haciendo que el programa receptor decida qué acción local ejecutar.
 
-Asignación: **fase 34 — Servicios y control remoto entre placas**, pendiente y opcional respecto de la mensajería base.
+Asignación: **fase 34 — Servicios y control remoto entre placas**, pendiente y opcional respecto de la mensajería base. La ampliación como Pantalla central Waveshare está detallada en [FASE_34_PANTALLA_CENTRAL_WIFI.md](FASE_34_PANTALLA_CENTRAL_WIFI.md).
 
 ## 33. Luces RGB inteligentes WS281x y SK6812
 
@@ -536,34 +536,34 @@ tamaños distintos; no se valida únicamente «a ojo» en una resolución.
 Corrección de alcance del 25 de septiembre de 2026: la pantalla integrada no
 debe reducir el proyecto a una lista de seis estados lógicos. Debe dibujar la
 misma escena que se armó en la web. Cada componente se ejecuta en uno de dos
-destinos visibles: **real**, cuando está conectado mediante una interfaz física
-soportada, o **simulado en pantalla**, cuando no está conectado o no existe un
-controlador físico compatible. Ambos conviven en el mismo programa.
+destinos visibles en la Placa del proyecto: **real**, cuando está conectado a
+esa Wemos/NodeMCU/DevKit, o **virtual**, cuando sólo conserva estado lógico. La
+Pantalla central muestra ambos. Todos conviven en el mismo programa remoto.
 
 Asignación: reapertura de la **fase 18 — Escena y controles locales en
 pantalla**. La pantalla debe conservar posiciones, nombres y estados; distinguir
 sin ambigüedad lo real de lo simulado; y permitir controles táctiles coherentes
 con la prioridad manual/programa. Un componente virtual no consume pines ni se
 convierte en una salida física. Un componente real sólo se habilita tras elegir
-un conector/controlador compatible y pasa por la validación eléctrica normal.
+un conector/controlador compatible en la Placa del proyecto y pasa por la
+validación eléctrica normal.
 En el catálogo cada componente debe indicar **Simulable**, **Conexión real
 disponible** o **Necesita expansión**. Al agregar una luz u otro objeto sin
 conexión compatible, debe crearse como virtual sin una cascada de errores; el
 usuario puede cambiarlo a real únicamente cuando configure hardware válido.
 
-La SKU 28117 no ofrece GPIO escolares genéricos, pero sí expone I2C, CAN,
-RS485, dos entradas digitales aisladas y dos salidas digitales aisladas. Esas
-interfaces requieren perfiles tipados: DO0/DO1 no son PWM genérico; DI0/DI1
-trabajan con el circuito aislado documentado; I2C debe respetar direcciones ya
-ocupadas. Expansores o controladores externos podrán ampliar componentes reales
-sin fingir que los GPIO usados por el panel quedaron libres. Referencia:
+La SKU 28117 no ofrece GPIO escolares genéricos. Aunque expone I2C, CAN, RS485
+y E/S aisladas, no serán el camino infantil principal: quedan como expansión
+avanzada futura y siempre tipada. La conexión normal de componentes se hace en
+la Placa del proyecto, sin fingir que los GPIO usados por el panel quedaron
+libres. Referencia:
 [documentación oficial Waveshare](https://docs.waveshare.com/ESP32-S3-Touch-LCD-5).
 
 La aceptación exige una escena mixta —por ejemplo, una salida real y un
-semáforo virtual— ejecutándose simultáneamente, con simulación web equivalente,
-persistencia JSON, Arduino/ESP-IDF/intérprete y ensayo físico de cada interfaz
-declarada. Hasta completar esto, el tablero lógico actual es una base parcial y
-no el cierre de la intención original.
+semáforo virtual en la Wemos/DevKit— ejecutándose simultáneamente y reflejada en
+la Waveshare, con simulación web equivalente, persistencia JSON,
+Arduino/ESP-IDF/intérprete y ensayo físico. Hasta completar esto, el tablero
+lógico actual es una base parcial y no el cierre de la intención original.
 
 ## 42. Brillo programable de matrices
 
@@ -578,6 +578,27 @@ visual y uso por efectos como pulso o fundido. El porcentaje se traduce al rango
 nativo del controlador —por ejemplo 0–15 en MAX7219— de forma idéntica en
 simulador, Arduino, ESP-IDF e intérprete. Los perfiles con brillo fijo no muestran
 el bloque; explican que el módulo no permite regularlo por software.
+
+## 43. Waveshare como Pantalla central Wi‑Fi
+
+Corrección de arquitectura del 25 de septiembre de 2026: priorizar la Waveshare
+como host visual de una placa separada. Una Wemos, NodeMCU ESP32 o DevKit actúa
+como **Placa del proyecto**, ejecuta el programa y controla componentes reales.
+La Waveshare actúa como **Pantalla central**, muestra la misma escena y recibe en
+tiempo interactivo estados, valores y progreso. También puede enviar botones,
+mensajes, sensores virtuales y solicitudes publicadas para cambiar el
+comportamiento.
+
+Asignación: **fase 34 — Pantalla central Wi‑Fi y servicios entre placas**, con
+integración visual en fase 18 y transporte base de fase 33. La placa del proyecto
+es la única autoridad de ejecución; la pantalla no corre otra copia del programa.
+Si se pierde Wi‑Fi, el proyecto continúa, la vista queda marcada como antigua y
+los controles se deshabilitan. No hay escritura GPIO remota, código arbitrario
+ni reemplazo silencioso de sensores físicos.
+
+Arquitectura, emparejamiento, telemetría, entradas virtuales, comandos,
+reconexión, seguridad, límites y aceptación están en
+[FASE_34_PANTALLA_CENTRAL_WIFI.md](FASE_34_PANTALLA_CENTRAL_WIFI.md).
 
 ## Pedidos externos a analizar
 
@@ -682,6 +703,7 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 40. Fidelidad espacial entre editor y simulación | 21. Geometría compartida sin alterar distancias relativas |
 | 41. Escena híbrida real/simulada en Waveshare | 18. Misma escena, destino por componente e interfaces tipadas |
 | 42. Brillo programable de matrices | 43. Control por capacidad y traducción al rango nativo |
+| 43. Waveshare como Pantalla central Wi‑Fi | 34 y 18. Telemetría/entradas remotas y escena compartida |
 | 23. Reducir al mínimo la latencia de compilación | 20. Medición, caché, precompilación y arquitectura del compilador |
 
 Las observaciones externas quedan asignadas así: fase 20 resolvió el recorrido cotidiano mediante firmware intérprete/reglas y conserva el compilador como modo avanzado; fase 21 cubre superposición y claridad/escena, fase 22 avatar, fase 25 enlaces/QR y fase 26 acceso de aula/asistencia. Producción es la **Fase final, postergada**, fuera de esta numeración. Las fases 10 y 20 mantienen aceptación física pendiente. La fase 23 está en curso con la matriz implementada; el resto requiere autorización propia. Los números de pedido no son fases nuevas.

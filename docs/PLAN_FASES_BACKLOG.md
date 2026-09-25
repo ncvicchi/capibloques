@@ -15,7 +15,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 15 | Software entregado: componente y bloques TX/RX; aceptación Wemos pendiente | 3: TX/RX; 9: conexiones seriales | Wemos actual como primer destino; simulador y ambos generadores |
 | 16 | Soporte completo ESP32-S3 DevKit y selección de placa | 2: DevKit; 9: guía visual DevKit | Modelo exacto identificado; incorporar el contrato TX/RX de fase 15 |
 | 17 | Software entregado: perfil Waveshare ESP32-S3 con pantalla de 5 pulgadas; DEV/físico pendientes | 2: Waveshare; 9: guía visual Waveshare | Perfiles de fase 16 y modelo/revisión exactos identificados |
-| 18 | En curso: base lógica entregada; falta escena híbrida real/simulada en el display | 3: display interactivo; pedido 41 | Perfiles de pantalla de fase 17, geometría compartida e interfaces físicas tipadas |
+| 18 | En curso: base lógica entregada; falta escena remota real/simulada en el display | 3: display interactivo; pedidos 41 y 43 | Perfil de fase 17, geometría compartida y telemetría de fase 34 |
 | 19 | Desafíos progresivos, herramientas pedagógicas y bloque `según` | 12 y 35 | Plan completo versionado; primeros retos sin hardware; valores tipados de fase 29 |
 | 20 | Asistente y cambio visual Wemos/DIYmall entregados; Waveshare/físico pendientes | 15, 17, 23 y 34 | Intérprete de fase 36 publicado; panel/touch Waveshare aún fuera del intérprete |
 | 21 | Claridad y ergonomía educativa del editor | Informe externo vital 4, sutiles 1–8, futuras 1–2 y 5–7; pedido 40 | Fases 12 y 14; reproducción previa de cada observación |
@@ -31,7 +31,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 31 | Software entregado: procedimientos y funciones; DEV/uso pendientes | 29 | Tipos de fase 29 y validación del grafo de llamadas |
 | 32 | Estados y valores consultables de componentes | 30 | Contrato de valores de fase 29 e inventario de capacidades por componente |
 | 33 | Software entregado: Wi-Fi AP/cliente y mensajes entre placas; DEV/físico pendientes | 31 | Wi-Fi y Mensajes existentes; secretos privados; simulación multiplaca |
-| 34 | Servicios y control remoto entre placas | 32 | Mensajería de fase 33 validada física y funcionalmente |
+| 34 | Pantalla central Wi‑Fi, telemetría y servicios entre placas | 32 y 43 | Mensajería de fase 33 validada física y funcionalmente |
 | 35 | Luces RGB inteligentes WS281x/SK6812 | 33 | Perfiles físicos identificados; planificador cooperativo; recursos RMT/SPI medidos por placa |
 | 36 | Software entregado: firmware intérprete y ejecución directa en placa; DEV/físico pendientes | 34 | ABI común, artefactos precompilados por placa, Web Serial y suite de conformidad |
 | 37 | Software entregado: ayuda infantil de componentes; DEV/usuarios pendientes | 36 | Perfiles, pinouts y evidencia física vigentes; activos visuales con licencia |
@@ -218,14 +218,14 @@ La escena gráfica y la interacción con dispositivos se entregan en fase 18. Es
 
 **Objetivo:** representar la escena en una pantalla gráfica y permitir accionar sus dispositivos desde controles locales del display.
 
-**Estado:** en curso. La base entregada según [FASE_18_CONTROLES_LOCALES.md](FASE_18_CONTROLES_LOCALES.md) representa hasta seis estados lógicos sin salidas físicas. El propietario aclaró después que el objetivo completo es dibujar la misma escena y ejecutar en hardware lo realmente conectado, simulando en pantalla el resto; esa ampliación todavía está pendiente.
+**Estado:** en curso. La base entregada según [FASE_18_CONTROLES_LOCALES.md](FASE_18_CONTROLES_LOCALES.md) representa hasta seis estados lógicos sin salidas físicas. El objetivo completo es que la Waveshare dibuje la misma escena y refleje por Wi‑Fi lo que ejecuta una Wemos/NodeMCU/DevKit, mientras permite entradas virtuales y solicitudes autorizadas; esa ampliación todavía está pendiente.
 
 Alcance:
 
 - Vista gráfica adaptada a la resolución: posiciones, nombres/representaciones y estados de los componentes. No ejecutar el editor web dentro del ESP32 ni prometer una copia pixel a pixel del navegador; el display no se dibuja recursivamente a sí mismo.
-- Asignar a cada componente un destino **real** o **simulado en pantalla**. Ambos destinos conviven; el segundo no exige pines y el primero sólo ofrece conectores/controladores realmente soportados.
+- Asignar en la Placa del proyecto cada componente como **real** o **virtual**. Ambos se ejecutan lógicamente allí y se reflejan por telemetría en la Pantalla central; sólo el primero usa hardware.
 - Mostrar esa compatibilidad antes de agregar: un componente sin conexión física disponible entra como virtual y no genera advertencias de pines; sólo el modo real exige elegir y validar hardware.
-- Incorporar de forma tipada I2C, CAN, RS485 y las E/S aisladas disponibles cuando exista un componente/controlador compatible. No tratarlos como GPIO/PWM intercambiables ni liberar pines ocupados por panel, touch, USB o almacenamiento.
+- Priorizar la comunicación Wi‑Fi con la Placa del proyecto. I2C, CAN, RS485 y E/S aisladas locales de la Waveshare quedan como capacidades avanzadas futuras, no como el camino infantil ni GPIO/PWM intercambiables.
 - Configurar controles de los dispositivos existentes: acciones y velocidad/potencia según corresponda, mensajes y zonas de texto integradas. Mantener una pantalla por proyecto y una edición con Guardar/Cancelar, deshacer/rehacer e importación/exportación.
 - Simular la misma interacción en la web. En hardware, los controles son locales a la placa/pantalla con una entrada compatible, no órdenes desde el navegador por Wi-Fi/USB.
 - Resolver explícitamente quién controla un actuador cuando hay bloques y controles manuales: proponer un modo manual por dispositivo, con prioridad y transición de vuelta al programa visibles y deterministas. No permitir que dos escritores se pisen sin explicación.
@@ -234,7 +234,7 @@ Alcance:
 Aceptación:
 
 - Escena de dos semáforos y escena de semáforo con robot, mensajes y controles de potencia. Probar interacción manual/programada, cambio de modo, guardar/cancelar/recargar y diferencias de tamaño de pantalla.
-- Escena híbrida con al menos un componente físico verificado y otro virtual, ambos avanzando en el mismo programa y claramente identificados en pantalla.
+- Escena remota con al menos un componente físico y otro virtual ejecutados en la Placa del proyecto, ambos claramente reflejados en la Waveshare.
 - El catálogo explica qué puede simularse, conectarse directamente o requiere expansión; agregar una luz virtual a Waveshare no produce errores de cableado.
 - Equivalencia lógica entre simulación y firmware; capacidad gráfica declarada por perfil, compilación en ambos frameworks y ensayo físico en la Waveshare identificada. No extender automáticamente esa certificación a otro display sin probar su adaptación.
 - Arranque y salida de modo manual seguros para el montaje verificado; no presentar el control gráfico como paro de emergencia ni confundir cerrar la pestaña con detener la placa.
@@ -529,11 +529,15 @@ Aceptación:
 
 ## Fase 34 — Servicios y control remoto entre placas
 
-**Objetivo:** permitir que una placa solicite operaciones explícitamente publicadas por otra, apoyándose en la mensajería ya validada.
+**Objetivo:** usar la Waveshare como Pantalla central de una Wemos/NodeMCU/DevKit que ejecuta el proyecto, y permitir servicios explícitamente publicados apoyándose en la mensajería validada.
+
+**Plan detallado:** [FASE_34_PANTALLA_CENTRAL_WIFI.md](FASE_34_PANTALLA_CENTRAL_WIFI.md).
 
 Alcance:
 
 - Servicios con nombre y comandos tipados autorizados por el autor del proyecto; sin escritura GPIO arbitraria.
+- Telemetría versionada de escena, estados, sensores y ejecución desde la Placa del proyecto hacia la Pantalla central, con instantánea de reconexión y cambios acotados.
+- Entradas virtuales —botones, mensajes y sensores de prueba— y prioridad manual visible, cuya decisión final pertenece al programa receptor.
 - Descubrimiento, identidad, permiso, confirmación, idempotencia, límites de frecuencia y estados de error.
 - Consulta de capacidades/estados de fase 32 y solicitudes de cambio cuya decisión final pertenece al programa receptor.
 - Simulación multiplaca, auditoría comprensible y equivalencia Arduino/ESP-IDF.
@@ -541,6 +545,7 @@ Alcance:
 Aceptación:
 
 - Un proyecto receptor puede autorizar cambiar su semáforo y rechazar una operación no publicada o de una placa no admitida.
+- La Wemos/DevKit continúa ejecutando si la Waveshare se desconecta; la pantalla marca datos antiguos, bloquea controles y se resincroniza sin repetir acciones.
 - Pérdida de red, reintentos y comandos duplicados no dejan estados ambiguos ni ejecutan dos veces una acción confirmada.
 - La fase puede postergarse sin impedir la mensajería de fase 33: los mismos casos siguen resolviéndose con mensajes y lógica local.
 
