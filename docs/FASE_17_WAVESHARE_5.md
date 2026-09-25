@@ -19,6 +19,12 @@ El driver usa HSYNC 46, VSYNC 3, DE 5, PCLK 7 y datos RGB 14/38/18/17/10/39/0/45
 
 Los bornes CAN/RS485 y las E/S aisladas del CH422G no se presentan como GPIO genéricos. Por eso este perfil tiene cero pines de autoconexión escolar: simular sigue permitido, pero CapiBloques no inventa que un LED, servo o motor puede conectarse a un GPIO que la placa no expone. La fase 18 deberá decidir una expansión física si pretende accionar componentes externos desde esta unidad.
 
+Esto no significa que la placa carezca de conexiones externas: expone I2C, CAN,
+RS485 y dos entradas/dos salidas digitales aisladas. Deben modelarse como buses
+y E/S tipadas —con sus tensiones, direcciones y límites—, no incorporarse a la
+lista de GPIO escolares. La ampliación híbrida de fase 18 usará esas capacidades
+para componentes reales compatibles y mostrará el resto como simulación local.
+
 ## Contrato implementado
 
 - Selector de placa, JSON v2, cliente, backend, cola, compilador, manifiesto y USB reconocen el destino exacto, sin mezclarlo con la DevKit S3.

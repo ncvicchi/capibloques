@@ -113,6 +113,19 @@ La vista puede superponer guías —centro, tercios o dibujo anterior— sin
 guardarlas como píxeles. Importar imágenes externas queda fuera del alcance
 inicial: antes requiere definir recorte, escala, umbral, privacidad y formatos.
 
+## Brillo según capacidad del módulo
+
+La matriz MAX7219 ya tiene brillo inicial de **0 a 15** en Armar escena. Esta
+fase lo hace visible también como acción del programa: `poner brillo de [matriz]
+a [porcentaje]`. El alumno usa 0–100%; cada perfil lo convierte a su rango
+nativo y expone el último brillo ordenado como dato consultable.
+
+Parpadeo, pulso y fundido reutilizan la misma capacidad sin competir con un
+segundo controlador. Al terminar, su cuadro final y brillo quedan definidos. Si
+el hardware sólo permite encendido/apagado o brillo fijo, el bloque no aparece y
+la ayuda explica la limitación. Simular menor brillo es una representación
+visual, no una medición de luminosidad o corriente.
+
 ## Ejecución y límites
 
 - Todos los efectos usan el planificador cooperativo; nunca llaman esperas
@@ -136,13 +149,15 @@ inicial: antes requiere definir recorte, escala, umbral, privacidad y formatos.
 1. Unificar el motor de línea de tiempo y su tabla de capacidades por perfil.
 2. Sustituir la cuadrícula pequeña por el editor modal con herramientas,
    historial local y vista previa fiel.
-3. Entregar el núcleo común: quieto, parpadeo, máquina de escribir, secuencia,
+3. Unificar brillo inicial, bloque programable, estado consultable y efectos de
+   intensidad según la capacidad declarada por cada perfil.
+4. Entregar el núcleo común: quieto, parpadeo, máquina de escribir, secuencia,
    desplazamientos en cuatro direcciones, rebote y persianas.
-4. Agregar efectos gráficos, dibujos y avatares sólo a OLED/TFT compatibles.
-5. Agregar patrones específicos de matriz y límites de intensidad/memoria.
-6. Extender `CapiRules` y publicar intérpretes versionados; firmware antiguo
+5. Agregar efectos gráficos, dibujos y avatares sólo a OLED/TFT compatibles.
+6. Agregar patrones específicos de matriz y límites de intensidad/memoria.
+7. Extender `CapiRules` y publicar intérpretes versionados; firmware antiguo
    debe rechazar reglas con capacidades nuevas y ofrecer actualización.
-7. Verificar equivalencia temporal/cancelación y hacer aceptación física en
+8. Verificar equivalencia temporal/cancelación y hacer aceptación física en
    LCD 16 × 2, LCD 20 × 4, ILI9341 y matriz MAX7219 disponibles.
 
 ## Aceptación
@@ -158,5 +173,7 @@ inicial: antes requiere definir recorte, escala, umbral, privacidad y formatos.
 - El editor modal permite crear y corregir un dibujo con lápiz, línea, curva,
   formas y relleno sin acertar píxeles diminutos; Guardar/Cancelar y
   Deshacer/Rehacer son predecibles con mouse, táctil y teclado.
+- En perfiles regulables, el brillo inicial, el bloque, los efectos y el estado
+  consultable coinciden; en perfiles fijos no se ofrece un control ficticio.
 - Se prueban cambio de placa/display, guardar/importar, Deshacer/Rehacer,
   reducción de movimiento y firmware incompatible.

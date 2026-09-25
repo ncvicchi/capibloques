@@ -1,6 +1,31 @@
 # Fase 18 — Tablero y controles locales en Waveshare
 
-Estado al 24 de septiembre de 2026: **implementación de software terminada; despliegue DEV y aceptación física pendientes**.
+Estado al 25 de septiembre de 2026: **base de tablero lógico implementada; fase reabierta por ampliación de alcance, despliegue DEV y aceptación física pendientes**.
+
+## Ampliación de alcance — escena híbrida
+
+El propietario aclaró que la pantalla debe representar la misma escena armada
+en la web. Cada componente conectado mediante una interfaz realmente soportada
+se ejecuta físicamente; los componentes restantes se simulan en la pantalla y
+continúan participando del mismo programa. La lista lógica de hasta seis objetos
+entregada el 24 de septiembre es una base parcial, no el cierre de esta fase.
+
+La ampliación debe reemplazar las filas del tablero por la escena compartida,
+marcar cada objeto como **real** o **simulado**, conservar controles táctiles y
+prioridad manual/programa, y permitir ambos destinos simultáneamente. La placa
+expone I2C, CAN, RS485, DI0/DI1 y DO0/DO1 aislados; se incorporan como interfaces
+tipadas cuando exista soporte, nunca como GPIO/PWM genéricos. Los componentes
+que requieran PWM, motores o conexiones no disponibles necesitan un expansor o
+controlador físico identificado y probado.
+
+El catálogo debe anticipar el resultado con etiquetas **Simulable**, **Real
+compatible** o **Necesita expansión**. Agregar una luz sin conexión física la
+crea como objeto virtual válido; no debe producir faltantes de GPIO ni obligar a
+entender el pinout. Cambiarla a real abre únicamente las conexiones válidas y
+recién entonces aplica los diagnósticos de cableado.
+
+Referencia de capacidades y bornes: [documentación oficial de la Waveshare
+ESP32-S3-Touch-LCD-5](https://docs.waveshare.com/ESP32-S3-Touch-LCD-5).
 
 ## Decisión de alcance
 

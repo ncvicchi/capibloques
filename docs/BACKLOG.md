@@ -28,7 +28,7 @@ Al implementar, definir cómo se elige o cambia la placa sin perder dispositivos
 
 ### Display interactivo
 
-**Software entregado en fase 18; despliegue DEV y aceptación física pendientes.** La [guía de fase](FASE_18_CONTROLES_LOCALES.md) registra el alcance acordado: tablero táctil de hasta seis estados lógicos, prioridad manual por objeto y retorno al último estado del programa, sin fingir GPIO o salidas físicas en la Waveshare SKU 28117.
+**Base lógica entregada; fase 18 reabierta.** La [guía de fase](FASE_18_CONTROLES_LOCALES.md) registra el tablero táctil de hasta seis estados lógicos, prioridad manual por objeto y retorno al programa. El alcance corregido exige además dibujar la misma escena y combinar componentes físicos compatibles con componentes simulados en pantalla, sin fingir GPIO o salidas inexistentes en la Waveshare SKU 28117.
 
 - Mostrar la escena en el display.
 - Permitir controlar manualmente los dispositivos agregados mediante controles de esa vista.
@@ -531,6 +531,54 @@ móviles. La aceptación compara automáticamente capturas o cajas normalizadas 
 ambas vistas para escenas pequeñas, grandes, importadas y con componentes de
 tamaños distintos; no se valida únicamente «a ojo» en una resolución.
 
+## 41. Escena híbrida en la Waveshare de 5 pulgadas
+
+Corrección de alcance del 25 de septiembre de 2026: la pantalla integrada no
+debe reducir el proyecto a una lista de seis estados lógicos. Debe dibujar la
+misma escena que se armó en la web. Cada componente se ejecuta en uno de dos
+destinos visibles: **real**, cuando está conectado mediante una interfaz física
+soportada, o **simulado en pantalla**, cuando no está conectado o no existe un
+controlador físico compatible. Ambos conviven en el mismo programa.
+
+Asignación: reapertura de la **fase 18 — Escena y controles locales en
+pantalla**. La pantalla debe conservar posiciones, nombres y estados; distinguir
+sin ambigüedad lo real de lo simulado; y permitir controles táctiles coherentes
+con la prioridad manual/programa. Un componente virtual no consume pines ni se
+convierte en una salida física. Un componente real sólo se habilita tras elegir
+un conector/controlador compatible y pasa por la validación eléctrica normal.
+En el catálogo cada componente debe indicar **Simulable**, **Conexión real
+disponible** o **Necesita expansión**. Al agregar una luz u otro objeto sin
+conexión compatible, debe crearse como virtual sin una cascada de errores; el
+usuario puede cambiarlo a real únicamente cuando configure hardware válido.
+
+La SKU 28117 no ofrece GPIO escolares genéricos, pero sí expone I2C, CAN,
+RS485, dos entradas digitales aisladas y dos salidas digitales aisladas. Esas
+interfaces requieren perfiles tipados: DO0/DO1 no son PWM genérico; DI0/DI1
+trabajan con el circuito aislado documentado; I2C debe respetar direcciones ya
+ocupadas. Expansores o controladores externos podrán ampliar componentes reales
+sin fingir que los GPIO usados por el panel quedaron libres. Referencia:
+[documentación oficial Waveshare](https://docs.waveshare.com/ESP32-S3-Touch-LCD-5).
+
+La aceptación exige una escena mixta —por ejemplo, una salida real y un
+semáforo virtual— ejecutándose simultáneamente, con simulación web equivalente,
+persistencia JSON, Arduino/ESP-IDF/intérprete y ensayo físico de cada interfaz
+declarada. Hasta completar esto, el tablero lógico actual es una base parcial y
+no el cierre de la intención original.
+
+## 42. Brillo programable de matrices
+
+Pedido del 25 de septiembre de 2026: permitir regular el brillo de pantallas
+matriciales cuando el módulo lo soporte. La matriz MAX7219 ya guarda un brillo
+inicial de 0 a 15 en la escena y lo aplica al arrancar; el trabajo pendiente es
+hacer esa capacidad más visible y programable durante la ejecución.
+
+Asignación: **fase 43 — Efectos y animaciones de pantallas**. Agregar un bloque
+infantil `poner brillo de [matriz] a [porcentaje]`, estado consultable, simulación
+visual y uso por efectos como pulso o fundido. El porcentaje se traduce al rango
+nativo del controlador —por ejemplo 0–15 en MAX7219— de forma idéntica en
+simulador, Arduino, ESP-IDF e intérprete. Los perfiles con brillo fijo no muestran
+el bloque; explican que el módulo no permite regularlo por software.
+
 ## Pedidos externos a analizar
 
 Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus observaciones para reproducirlas y contrastarlas con el comportamiento vigente. **No confirma que cada problema exista y la asignación no autoriza implementarlos.** Progreso/guardado/reinicio corresponden a fase 20; superposición y los ajustes de claridad/escena corresponden a fase 21; avatar a fase 22; compartir a fase 25; acceso de aula a fase 26. Las prioridades «vital» y «sutil» pertenecen al informe de origen y cada observación debe reproducirse antes de cambiar código.
@@ -632,6 +680,8 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 38. Simplificación integral de la interfaz sin perder funciones | 42. Recorridos principales, divulgación progresiva y herramientas avanzadas |
 | 39. Más efectos, animaciones y editor amplio de dibujos | 43. Editor modal y motor cooperativo por capacidad de LCD/OLED/TFT/matriz |
 | 40. Fidelidad espacial entre editor y simulación | 21. Geometría compartida sin alterar distancias relativas |
+| 41. Escena híbrida real/simulada en Waveshare | 18. Misma escena, destino por componente e interfaces tipadas |
+| 42. Brillo programable de matrices | 43. Control por capacidad y traducción al rango nativo |
 | 23. Reducir al mínimo la latencia de compilación | 20. Medición, caché, precompilación y arquitectura del compilador |
 
 Las observaciones externas quedan asignadas así: fase 20 resolvió el recorrido cotidiano mediante firmware intérprete/reglas y conserva el compilador como modo avanzado; fase 21 cubre superposición y claridad/escena, fase 22 avatar, fase 25 enlaces/QR y fase 26 acceso de aula/asistencia. Producción es la **Fase final, postergada**, fuera de esta numeración. Las fases 10 y 20 mantienen aceptación física pendiente. La fase 23 está en curso con la matriz implementada; el resto requiere autorización propia. Los números de pedido no son fases nuevas.
