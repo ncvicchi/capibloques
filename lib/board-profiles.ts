@@ -31,7 +31,15 @@ export interface BoardProfile {
   safeAnalogInputPins: readonly number[];
 }
 
-export type ProjectTarget =
+export interface CentralDisplayTarget {
+  boardProfile: 'waveshare-esp32-s3-touch-lcd-5-28117';
+  hardwareId?: string;
+  ssid?: string;
+}
+
+type OptionalCentralDisplay = { centralDisplay?: CentralDisplayTarget };
+
+export type ProjectTarget = (
   | {
       family: 'esp32';
       framework: 'arduino';
@@ -55,7 +63,7 @@ export type ProjectTarget =
       coreVersion: '3.3.11';
       boardProfile: 'waveshare-esp32-s3-touch-lcd-5-28117';
       fqbn: 'esp32:esp32:esp32s3';
-    };
+    }) & OptionalCentralDisplay;
 
 export const WEMOS_PROFILE_ID: BoardProfileId = 'wemos-d1-r32';
 export const DIYMALL_S3_PROFILE_ID: BoardProfileId =
@@ -164,13 +172,33 @@ export function isProjectTarget(value: unknown): value is ProjectTarget {
   const candidate = value as Partial<ProjectTarget>;
   if (!isBoardProfileId(candidate.boardProfile)) return false;
   const expected = projectTargetForBoard(candidate.boardProfile);
+  const central = (candidate as ProjectTarget).centralDisplay;
   return (
     candidate.family === expected.family &&
     candidate.framework === expected.framework &&
     candidate.coreMajor === expected.coreMajor &&
     candidate.coreVersion === expected.coreVersion &&
-    candidate.fqbn === expected.fqbn
+    candidate.fqbn === expected.fqbn &&
+    (central === undefined || (
+      central?.boardProfile === WAVESHARE_TOUCH_LCD_5_PROFILE_ID &&
+      (central.hardwareId === undefined || /^[A-F0-9]{12}$/.test(central.hardwareId)) &&
+      (central.ssid === undefined || /^WS[A-F0-9]{6}$/.test(central.ssid)) &&
+      (!central.hardwareId || !central.ssid || central.ssid === `WS${central.hardwareId.slice(-6)}`)
+    ))
   );
+}
+
+export function portableProjectTarget(target: ProjectTarget): ProjectTarget {
+  const base = projectTargetForBoard(target.boardProfile);
+  if (!target.centralDisplay) return base;
+  return {
+    ...base,
+    centralDisplay: {
+      boardProfile: 'waveshare-esp32-s3-touch-lcd-5-28117',
+      ...(target.centralDisplay.hardwareId ? { hardwareId: target.centralDisplay.hardwareId } : {}),
+      ...(target.centralDisplay.ssid ? { ssid: target.centralDisplay.ssid } : {}),
+    },
+  };
 }
 
 export function isBoardProfileId(value: unknown): value is BoardProfileId {

@@ -1,4 +1,4 @@
-idf_component_register(SRCS "main.cpp" INCLUDE_DIRS "." REQUIRES nvs_flash json driver esp_timer esp_wifi esp_event esp_netif mbedtls)
+idf_component_register(SRCS "main.cpp" INCLUDE_DIRS "." REQUIRES nvs_flash json driver esp_timer esp_wifi esp_event esp_netif esp_hw_support mbedtls)
 if(NOT DEFINED CAPI_BOARD_ID)
   set(CAPI_BOARD_ID "wemos-d1-r32")
 endif()

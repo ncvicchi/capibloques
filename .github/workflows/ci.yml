@@ -126,15 +126,17 @@ jobs:
       - name: Compilar y empaquetar el intérprete genérico
         run: |
           . "$IDF_PATH/export.sh" >/dev/null
-          rm -rf outputs/interpreter-wemos outputs/interpreter-s3 outputs/interpreter-release
+          rm -rf outputs/interpreter-wemos outputs/interpreter-s3 outputs/interpreter-waveshare outputs/interpreter-release
           idf.py -C interpreter -B outputs/interpreter-wemos -DIDF_TARGET=esp32 -DSDKCONFIG="$PWD/outputs/interpreter-wemos/sdkconfig" -DCAPI_BOARD_ID=wemos-d1-r32 build
           python scripts/package-interpreter-firmware.py --profile wemos-d1-r32 --build outputs/interpreter-wemos --output outputs/interpreter-release --revision "$GITHUB_SHA"
           idf.py -C interpreter -B outputs/interpreter-s3 -DIDF_TARGET=esp32s3 -DSDKCONFIG="$PWD/outputs/interpreter-s3/sdkconfig" -DCAPI_BOARD_ID=diymall-esp32-s3-devkitc-v1-n16r8 build
           python scripts/package-interpreter-firmware.py --profile diymall-esp32-s3-devkitc-v1-n16r8 --build outputs/interpreter-s3 --output outputs/interpreter-release --revision "$GITHUB_SHA"
+          idf.py -C interpreter -B outputs/interpreter-waveshare -DIDF_TARGET=esp32s3 -DSDKCONFIG="$PWD/outputs/interpreter-waveshare/sdkconfig" -DCAPI_BOARD_ID=waveshare-esp32-s3-touch-lcd-5-28117 build
+          python scripts/package-interpreter-firmware.py --profile waveshare-esp32-s3-touch-lcd-5-28117 --build outputs/interpreter-waveshare --output outputs/interpreter-release --revision "$GITHUB_SHA"
       - name: Conservar firmware genérico verificable
         uses: actions/upload-artifact@v4
         with:
-          name: capibloques-interpreter-1.1.0
+          name: capibloques-interpreter-1.5.0
           path: outputs/interpreter-release/
           retention-days: 14
   backend:

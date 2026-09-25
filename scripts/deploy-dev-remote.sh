@@ -111,12 +111,12 @@ INTERPRETER_SOURCE=$(repo_git rev-parse "$TARGET_COMMIT:interpreter")
 if ! python3 - "$REPOSITORY/public/interpreter" "$INTERPRETER_SOURCE" <<'PY'
 import json, pathlib, sys
 root, revision = pathlib.Path(sys.argv[1]), sys.argv[2]
-profiles = ("wemos-d1-r32", "diymall-esp32-s3-devkitc-v1-n16r8")
+profiles = ("wemos-d1-r32", "diymall-esp32-s3-devkitc-v1-n16r8", "waveshare-esp32-s3-touch-lcd-5-28117")
 for profile in profiles:
     try:
         info = json.loads((root / f"{profile}.json").read_text(encoding="utf-8"))
         bundle = root / info["bundle"]
-        assert info["sourceRevision"] == revision and info["version"] == "1.4.0" and bundle.is_file()
+        assert info["sourceRevision"] == revision and info["version"] == "1.5.0" and bundle.is_file()
     except Exception:
         raise SystemExit(1)
 PY
@@ -330,23 +330,23 @@ if ((BUILD_INTERPRETER)); then
   interpreter_builder_image=capibloques-compiler-dev:phase9
   docker image inspect "$interpreter_builder_image" >/dev/null 2>&1 || \
     fail "falta la imagen local $interpreter_builder_image para construir el intérprete"
-  echo "Construyendo los dos firmwares intérprete con la toolchain local del compilador."
+  echo "Construyendo los tres firmwares intérprete con la toolchain local del compilador."
   docker run --rm --cpus 1 --memory 1200m --memory-swap 1500m \
     --entrypoint /bin/bash \
     --user "$(id -u capi):$(id -g capi)" -e HOME=/tmp/capi-idf -e IDF_PY_BUILD_JOBS=2 \
     -v "$REPOSITORY:/project" -w /project \
     "$interpreter_builder_image" \
-    -lc '. "$IDF_PATH/export.sh" >/dev/null && bash ./scripts/build-interpreter-firmware.sh 1.4.0 /project/public/interpreter '"$INTERPRETER_SOURCE"
+    -lc '. "$IDF_PATH/export.sh" >/dev/null && bash ./scripts/build-interpreter-firmware.sh 1.5.0 /project/public/interpreter '"$INTERPRETER_SOURCE"
   python3 - "$REPOSITORY/public/interpreter" "$INTERPRETER_SOURCE" <<'PY'
 import hashlib, json, pathlib, sys
 root, revision = pathlib.Path(sys.argv[1]), sys.argv[2]
-for profile in ("wemos-d1-r32", "diymall-esp32-s3-devkitc-v1-n16r8"):
+for profile in ("wemos-d1-r32", "diymall-esp32-s3-devkitc-v1-n16r8", "waveshare-esp32-s3-touch-lcd-5-28117"):
     info = json.loads((root / f"{profile}.json").read_text(encoding="utf-8"))
     bundle = root / info["bundle"]
-    assert info["sourceRevision"] == revision and info["version"] == "1.4.0"
+    assert info["sourceRevision"] == revision and info["version"] == "1.5.0"
     assert bundle.stat().st_size == info["bytes"]
     assert hashlib.sha256(bundle.read_bytes()).hexdigest() == info["sha256"]
-print("Firmware intérprete empaquetado y verificado para las dos placas.")
+print("Firmware intérprete empaquetado y verificado para las tres placas.")
 PY
 fi
 

@@ -38,7 +38,7 @@ import { matrixFirmwareSupport, normalizedMatrixTextLiteral } from './led-matrix
 // @ts-expect-error Node strip-types runner.
 import { componentValueCapability, type ComponentValueSource } from './component-capabilities.ts';
 // @ts-expect-error Node strip-types runner.
-import { boardProfile, isProjectTarget, projectTargetForBoard, type BoardProfileId, type ProjectTarget } from './board-profiles.ts';
+import { boardProfile, isProjectTarget, portableProjectTarget, projectTargetForBoard, type BoardProfileId, type ProjectTarget } from './board-profiles.ts';
 // @ts-expect-error Node strip-types runner.
 import { educationalModuleSpecs, isEducationalModuleKind } from './educational-modules.ts';
 
@@ -1325,7 +1325,7 @@ export function makeProject(
       locale: 'es-AR',
       updatedAt: new Date().toISOString(),
     },
-    target: { ...target },
+    target: portableProjectTarget(target),
     scene: sceneDefinition,
     simulation: {
       scene: templateHint(sceneDefinition),
@@ -1571,7 +1571,7 @@ function decodeProjectUnsafe(value: unknown): ProjectDecodeResult {
           updatedAt: projectTimestamp(value.metadata.updatedAt),
           ...(value.metadata.migratedFrom === 1 ? { migratedFrom: 1 } : {}),
         },
-        target: { ...value.target },
+        target: portableProjectTarget(value.target),
         scene,
         simulation: {
           scene: isLegacySceneId(value.simulation.scene)

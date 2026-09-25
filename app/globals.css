@@ -170,9 +170,15 @@
 .board-choice p { margin: 0; font-size: .86rem; }
 .board-choice .board-photo-figure img, .board-choice .waveshare-photo { height: 120px; }
 .board-choice .board-photo-figure figcaption { display: none; }
+.board-role-grid { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: stretch; }
+.board-role-card { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 9px; padding: 14px; border: 2px solid var(--line); border-radius: 16px; background: white; text-align: center; }
+.board-role-card > span { color: var(--muted); font-size: .82rem; font-weight: 700; }
+.board-role-card h4 { margin: 0; font-size: 1.05rem; }
+.board-role-card .board-photo-figure img, .board-role-card .waveshare-photo { height: 125px; }
+.board-role-card .board-photo-figure figcaption { font-size: .72rem; }
 .board-change-confirm { width: min(100%, 600px); display: grid; gap: 10px; padding: 14px; border: 2px solid var(--purple); border-radius: 14px; background: #f4f1ff; text-align: left; }
 .board-change-confirm details { width: 100%; }
-@media (max-width: 720px) { .board-choice-grid { grid-template-columns: 1fr; } .board-choice { display: grid; grid-template-columns: 120px minmax(0, 1fr); text-align: left; } .board-choice .board-photo-figure { grid-row: 1 / span 4; } .board-choice .board-photo-figure img, .board-choice .waveshare-photo { height: 100px; } }
+@media (max-width: 720px) { .board-choice-grid, .board-role-grid { grid-template-columns: 1fr; } .board-choice { display: grid; grid-template-columns: 120px minmax(0, 1fr); text-align: left; } .board-choice .board-photo-figure { grid-row: 1 / span 4; } .board-choice .board-photo-figure img, .board-choice .waveshare-photo { height: 100px; } }
 @media (prefers-reduced-motion: reduce) { .waveshare-photo { transition: none; } }
 .advanced-tools-list { display: grid; gap: 10px; }
 .advanced-tools-list button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: white; text-align: left; font-weight: 700; }

@@ -788,10 +788,20 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
 
   const changeBoardFromAssistant = useCallback((nextBoard: BoardProfileId, nextScene: SceneDefinition) => {
     setScene(cloneScene(nextScene));
-    setProjectTarget(projectTargetForBoard(nextBoard));
+    setProjectTarget(current => ({ ...projectTargetForBoard(nextBoard), ...(current.centralDisplay ? { centralDisplay: current.centralDisplay } : {}) }));
     setSim(makeInitialState(nextScene));
     setWiringAcknowledgedSignature(null);
     setNotice(`Placa cambiada a ${boardProfile(nextBoard).name}. Revisá las conexiones propuestas antes de usar el montaje físico.`);
+    setNoticeTone('ok');
+  }, []);
+
+  const changeCentralDisplayFromAssistant = useCallback((centralDisplay: ProjectTarget['centralDisplay']) => {
+    setProjectTarget(current => {
+      if (centralDisplay) return { ...current, centralDisplay };
+      const { centralDisplay: _removed, ...projectBoard } = current;
+      return projectBoard as ProjectTarget;
+    });
+    setNotice(centralDisplay ? 'Pantalla central agregada. Prepará las dos placas para emparejarlas.' : 'Pantalla central quitada del proyecto.');
     setNoticeTone('ok');
   }, []);
 
@@ -911,7 +921,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     window.clearTimeout(localSaveTimerRef.current);
     const previousDraft = draftStore.sceneDraft;
     if (nextScene) { sceneCommitRef.current = cloneScene(nextScene); delete sceneCommitRef.current.sourceTemplate; }
-    if (nextBoardProfile) targetCommitRef.current = projectTargetForBoard(nextBoardProfile);
+    if (nextBoardProfile) targetCommitRef.current = { ...projectTargetForBoard(nextBoardProfile), ...(projectTarget.centralDisplay ? { centralDisplay: projectTarget.centralDisplay } : {}) };
     draftStore.setSceneDraft(null);
     try {
       draftStore.write(JSON.stringify(currentProject()));
@@ -922,7 +932,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       draftStore.setSceneDraft(previousDraft);
       throw failure;
     } finally { sceneCommitRef.current = null; targetCommitRef.current = null; }
-  }, [changeScene, currentProject, draftStore]);
+  }, [changeScene, currentProject, draftStore, projectTarget.centralDisplay]);
 
   const fingerprint = useMemo(() => projectFingerprint(makeProject(projectName, scene, workspace, speed, projectTarget)), [projectName, projectTarget, scene, workspace, speed]);
   const applyLibraryProject = useCallback((file: ProjectFile) => {
@@ -1866,7 +1876,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       </Dialog>
 
       {usbOpen && !offline && <UsbBoard account={account} store={draftStore} job={usbJob} currentBoardProfile={projectTarget.boardProfile} currentFingerprint={fingerprint} onClose={() => { setUsbOpen(false); setUsbJob(null); }} onBuilds={() => { setUsbOpen(false); setUsbJob(null); setBuildsOpen(true); }} />}
-      {interpreterOpen && <InterpreterBoard account={account} store={draftStore} program={lastProgram} scene={scene} board={projectTarget.boardProfile} onChangeBoard={changeBoardFromAssistant} onClose={() => setInterpreterOpen(false)} />}
+      {interpreterOpen && <InterpreterBoard account={account} store={draftStore} program={lastProgram} scene={scene} board={projectTarget.boardProfile} centralDisplay={projectTarget.centralDisplay} onChangeBoard={changeBoardFromAssistant} onChangeCentralDisplay={changeCentralDisplayFromAssistant} onClose={() => setInterpreterOpen(false)} />}
       {buildsOpen && !offline && <FirmwareBuilds account={account} store={draftStore} csrfToken={csrfToken} capture={currentProject} fingerprint={fingerprint} targetBoardProfile={projectTarget.boardProfile} onClose={() => setBuildsOpen(false)} onProgram={job => { setBuildsOpen(false); setUsbJob(job); setUsbOpen(true); }} validate={framework => {
         const generated = buildCode(framework);
         if (generated.diagnostics.some(item => item.severity === 'error')) { setProblemsOpen(true); return null; }

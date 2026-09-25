@@ -18,12 +18,13 @@ La fase está **terminada en software**. Ya están implementados:
 - Wi‑Fi cliente con aprovisionamiento separado: alias y clave viajan directamente por Web Serial, se guardan en la NVS de la placa y nunca forman parte de `CapiRules`, del proyecto, del servidor ni del historial;
 - la fase 33 amplió el runtime requerido a **1.3.0** con roles Wi‑Fi AP/cliente, mensajería identificada entre placas, CRC, deduplicación y la capacidad negociada `wifi-messages`;
 - la fase 35 lo amplió a **1.4.0** con el controlador RMT cooperativo y la capacidad negociada `smart-lights` para luces RGB inteligentes;
-- construcción reproducible de dos artefactos estáticos, manifiestos con hash y publicación automática la primera vez que DEV recibe esta versión; los binarios generados no se guardan en Git;
+- la base de fase 34 lo amplió a **1.5.0** con identidad Wi-Fi, capacidad `pairing`, provisión persistente AP/cliente y artefacto inicial para Waveshare SKU 28117;
+- construcción reproducible de tres artefactos estáticos, manifiestos con hash y publicación automática la primera vez que DEV recibe esta versión; los binarios generados no se guardan en Git;
 - pruebas de formato determinista, corrupción, placa cruzada, framing, empaquetado, USB simulado, UI Chrome, tipos, estilo, smoke y build estático.
 
 La fase 30 amplió el runtime a **1.1.0** con temporizadores consultables, eventos cooperativos de una vez/repetitivos, pausa/reanudación y cancelación; la capacidad negociada es `timers`. La web considera obsoleto 1.0.0, ofrece actualizarlo y no envía reglas hasta completar la actualización, incluso si el proyecto todavía no usa temporizadores.
 
-La compilación fijada en ESP-IDF 5.5.5 produjo y empaquetó correctamente los intérpretes de Wemos D1 R32 y ESP32-S3 en CI el 24 de septiembre de 2026. La fase **no tiene aún aceptación física**: falta publicar los artefactos en DEV y probar instalación, reinicio, carga de reglas y controladores con una Wemos/DIYmall y una ESP32-S3 reales. RGB se rechaza explícitamente porque pertenece a una fase de componente todavía pendiente; nunca se ejecuta parcialmente. Waveshare permanece fuera hasta validar su perfil exacto. Arduino y ESP-IDF por proyecto siguen disponibles.
+La compilación fijada en ESP-IDF 5.5.5 produjo y empaquetó correctamente los intérpretes anteriores de Wemos D1 R32 y ESP32-S3 en CI el 24 de septiembre de 2026. La versión 1.5.0 agrega el tercer perfil Waveshare y aún debe compilarse/publicarse en DEV. La fase **no tiene aún aceptación física**: faltan instalación, reinicio, carga de reglas, emparejamiento y controladores con las placas reales. El firmware Waveshare 1.5.0 sólo cubre por ahora identidad/AP; render RGB y touch pertenecen a fases 18/34. Arduino y ESP-IDF por proyecto siguen disponibles.
 
 **Estado:** software terminado; despliegue en DEV y aceptación física pendientes.
 

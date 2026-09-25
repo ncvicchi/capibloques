@@ -581,6 +581,11 @@ el bloque; explican que el módulo no permite regularlo por software.
 
 ## 43. Waveshare como Pantalla central Wi‑Fi
 
+Estado: **base de pareja implementada en software**. El selector de dos roles,
+la persistencia no secreta, `WSMMMMMM` y la provisión automática de ambos
+firmwares están entregados; siguen pendientes escena/telemetría autenticada,
+panel/touch y prueba física.
+
 Corrección de arquitectura del 25 de septiembre de 2026: priorizar la Waveshare
 como host visual de una placa separada. Una Wemos, NodeMCU ESP32 o DevKit actúa
 como **Placa del proyecto**, ejecuta el programa y controla componentes reales.

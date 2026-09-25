@@ -1,6 +1,6 @@
 # Fase 20 — Uso guiado de la placa
 
-Estado al 25 de septiembre de 2026: **asistente y selección visual terminados para los perfiles con intérprete; Waveshare y aceptación física pendientes**. El propietario redefinió la fase para que el recorrido cotidiano sea instalar el firmware intérprete precompilado y enviar reglas localmente. La compilación Arduino/ESP-IDF por proyecto se conserva como herramienta avanzada, pero deja de competir con la acción principal.
+Estado al 25 de septiembre de 2026: **asistente, selección visual y modelo de dos placas implementados en software; aceptación física y escena remota Waveshare pendientes**. El propietario redefinió la fase para que el recorrido cotidiano sea instalar el firmware intérprete precompilado y enviar reglas localmente. La compilación Arduino/ESP-IDF por proyecto se conserva como herramienta avanzada, pero deja de competir con la acción principal.
 
 La primera implementación se publicó en `main` como `6dece1e`. La corrección `9914ae8` del 25 de septiembre reemplaza el panel acumulativo por un asistente de pantallas. DEV todavía permanece en `8103b14` hasta que el propietario ejecute la actualización rápida.
 
@@ -29,8 +29,8 @@ Las reglas se generan en el navegador. No usan la cola de compilación, no enví
 
 ## Compatibilidad y límites
 
-- El firmware intérprete publicado es 1.4.0, ABI 1, para Wemos D1 R32 y DIYmall ESP32-S3 DevKitC N16R8.
-- La Waveshare SKU 28117 no se presenta como destino del intérprete mientras su pantalla/controladores no estén cubiertos de manera real.
+- El firmware intérprete requerido es 1.5.0, ABI 1, para Wemos D1 R32, DIYmall ESP32-S3 DevKitC N16R8 y la base de emparejamiento de Waveshare SKU 28117.
+- El intérprete Waveshare 1.5.0 permite identificar, preparar y levantar su AP persistente. Todavía no representa la escena en el panel RGB ni procesa el touch remoto; el asistente lo explica y esa entrega continúa en fases 18/34.
 - Si un proyecto usa una capacidad que el intérprete no declara, se bloquea antes de enviar reglas y se explica la actualización necesaria.
 - Web Serial requiere Chrome o Edge de escritorio y HTTPS o localhost. USB pertenece a la PC del navegador, no al servidor.
 - Arduino/ESP-IDF específicos siguen siendo una salida válida para diagnóstico, estudio o componentes todavía no cubiertos. Ocultarlos no autoriza retirar compatibilidad.
@@ -39,7 +39,7 @@ Las reglas se generan en el navegador. No usan la cola de compilación, no enví
 
 La placa forma parte del proyecto, pero no es una decisión irreversible. Puede cambiarse desde la escena o desde el propio asistente **Usar en placa**, incluso después de haber programado parte del proyecto.
 
-El modelo pendiente de Pantalla central amplía la selección a dos lugares con
+El modelo de Pantalla central amplía la selección a dos lugares con
 nombres funcionales, no a un selector único ambiguo:
 
 - **Placa del proyecto** es obligatoria y ejecuta reglas, sensores y actuadores.
@@ -72,7 +72,9 @@ nombres funcionales, no a un selector único ambiguo:
 
 **Entregado en software en `1904e76`:** el asistente muestra «Placa actual» con las fotografías aportadas por el propietario, permite revisar un cambio Wemos ↔ DIYmall, conserva pines todavía válidos, enumera las conexiones que cambiarán y sólo aplica la nueva escena/perfil después de confirmar. La foto compuesta de Waveshare alterna frente y dorso cada dos segundos; con reducción de movimiento permanece estable. Se mantienen los diagramas técnicos propios para cableado. Los activos originales, sin regenerar, viven en `public/boards/`.
 
-**Pendiente:** el firmware intérprete no incluye todavía el panel RGB/touch de la Waveshare SKU 28117. Por eso aparece reconocible pero deshabilitada con una explicación, en vez de permitir una elección que fallaría al grabar. También faltan el modelo de dos lugares, la provisión automática `WSMMMMMM`, integrar el cambio hecho desde el asistente con un punto explícito del historial global más allá de la confirmación y el autoguardado actuales, y completar la aceptación física.
+**Entregado en software para emparejamiento:** el modelo portable conserva Placa del proyecto y Pantalla central por separado, sin secretos. El asistente instala el intérprete 1.5.0 en cualquiera de las dos, obtiene la identidad de la Waveshare, genera `WSMMMMMM` y una clave aleatoria local, guarda el rol/AP en NVS y luego prepara la placa ejecutora como cliente. No presenta selector de red ni campo de contraseña al alumno.
+
+**Pendiente:** reflejar y controlar la escena real en el panel RGB/touch, usar la clave de pareja para autenticar telemetría/comandos, integrar el cambio con un punto explícito del historial global más allá de la confirmación y el autoguardado actuales, y completar la aceptación física con ambas placas.
 
 ## Verificación
 

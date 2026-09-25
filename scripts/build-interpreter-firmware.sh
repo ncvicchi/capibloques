@@ -2,7 +2,7 @@
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 : "${IDF_PATH:?Definí IDF_PATH o ejecutá primero export.sh de ESP-IDF}"
-VERSION=${1:-1.4.0}
+VERSION=${1:-1.5.0}
 DEST=${2:-$ROOT/public/interpreter}
 REVISION=${3:-unknown}
 profile_is_current() {
@@ -32,7 +32,9 @@ build_profile() {
   rm -rf "$build"
   IDF_TARGET="$target" idf.py -C "$ROOT/interpreter" -B "$build" -DIDF_TARGET="$target" -DSDKCONFIG="$build/sdkconfig" -DCAPI_BOARD_ID="$board_define" build
   python3 "$ROOT/scripts/package-interpreter-firmware.py" --profile "$profile" --build "$build" --output "$DEST" --version "$VERSION" --revision "$REVISION"
+  rm -rf "$build"
 }
 build_profile wemos-d1-r32 esp32 wemos-d1-r32
 build_profile diymall-esp32-s3-devkitc-v1-n16r8 esp32s3 diymall-esp32-s3-devkitc-v1-n16r8
+build_profile waveshare-esp32-s3-touch-lcd-5-28117 esp32s3 waveshare-esp32-s3-touch-lcd-5-28117
 echo "Firmware intérprete $VERSION listo en $DEST"

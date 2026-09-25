@@ -1,6 +1,6 @@
 # Fase 34 — Pantalla central Wi‑Fi y servicios entre placas
 
-**Estado:** pendiente de autorización e implementación.
+**Estado:** base de selección, persistencia y aprovisionamiento 1 a 1 implementada en software; transporte autenticado, escena remota, touch y aceptación física pendientes.
 
 ## Decisión de arquitectura
 
@@ -168,6 +168,21 @@ aceptación; no se obtiene gratis por permitir más conexiones Wi‑Fi.
 6. Incorporar botones, mensajes y sensores virtuales; luego servicios publicados
    con confirmación.
 7. Integrar firmware intérprete, Web Serial y pruebas de compatibilidad.
+
+## Base implementada
+
+El asistente ya presenta los dos roles y persiste en el JSON únicamente el
+perfil de Waveshare, su identidad no secreta y `WSMMMMMM`. CapiLink 1.5.0
+incluye identidad Wi-Fi en `HELLO` y el comando `CONFIG_PAIR`; el navegador crea
+la contraseña y la clave de pareja localmente, configura primero la Waveshare
+como AP y después la Wemos/DevKit como cliente. Ambos perfiles sobreviven en
+NVS y el firmware de pantalla inicia el AP al arrancar. El empaquetador y la
+actualización DEV generan firmware para las tres placas.
+
+Esta base permite probar instalación, nombre de AP y asociación automática. No
+equivale todavía a la fase completa: la clave almacenada aún debe incorporarse
+al canal autenticado, y faltan descriptor de escena, telemetría, render RGB,
+touch, reconexión e inputs/servicios tipados.
 
 ## Aceptación
 

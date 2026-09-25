@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createCapiRules, parseCapiRules, CAPI_RULES_MAX_BYTES } from '../lib/capi-rules.ts';
 import { createEmptyScene } from '../lib/scene-model.ts';
-import { ProtocolLines, encodeProtocolPacket } from '../lib/interpreter-protocol.ts';
+import { createPairCredentials, pairSsid, ProtocolLines, encodeProtocolPacket } from '../lib/interpreter-protocol.ts';
 
 const scene = createEmptyScene('Prueba de reglas');
 const program = { version: 2, variables: [{ id: 'score', name: 'Puntos', type: 'number' }], threads: [{ id: 'main', startBlockId: 'start', nodes: [
@@ -25,6 +25,10 @@ const lines = new ProtocolLines();
 const packet = encodeProtocolPacket({ type: 'HELLO', abi: 1 });
 assert.deepEqual(lines.push(packet.subarray(0, 4)), []);
 assert.deepEqual(lines.push(packet.subarray(4)), [{ type: 'HELLO', abi: 1 }]);
+assert.equal(pairSsid('A1B2C33FA21C'), 'WS3FA21C');
+assert.throws(() => pairSsid('123'));
+const pair = createPairCredentials({ protocol: 'CapiLink', firmware: '1.5.0', abi: 1, board: 'waveshare-esp32-s3-touch-lcd-5-28117', hardwareId: 'A1B2C33FA21C', maxRulesBytes: 32768, capabilities: ['pairing'], resources: { pwmChannels: 8 } });
+assert.equal(pair.ssid, 'WS3FA21C'); assert.equal(pair.password.length, 20); assert.match(pair.pairingKey, /^[a-f0-9]{32}$/); assert.equal(pair.screenHardwareId, 'A1B2C33FA21C');
 const emojiLines = new ProtocolLines(), emojiPacket = encodeProtocolPacket({ type: 'TELEMETRY', message: 'capibara 🐹' });
 const emojiAt = emojiPacket.indexOf(0xf0);
 assert.deepEqual(emojiLines.push(emojiPacket.subarray(0, emojiAt + 2)), []);

@@ -5,6 +5,7 @@ import argparse, hashlib, json, pathlib, zipfile
 PROFILES = {
     "wemos-d1-r32": {"chip": "esp32", "flashMode": "dio", "flashFrequency": "40m", "flashSize": "4MB"},
     "diymall-esp32-s3-devkitc-v1-n16r8": {"chip": "esp32s3", "flashMode": "qio", "flashFrequency": "80m", "flashSize": "16MB"},
+    "waveshare-esp32-s3-touch-lcd-5-28117": {"chip": "esp32s3", "flashMode": "qio", "flashFrequency": "80m", "flashSize": "16MB"},
 }
 
 def digest(data): return hashlib.sha256(data).hexdigest()
@@ -14,7 +15,7 @@ def main():
     parser.add_argument("--profile", choices=PROFILES, required=True)
     parser.add_argument("--build", type=pathlib.Path, required=True)
     parser.add_argument("--output", type=pathlib.Path, required=True)
-    parser.add_argument("--version", default="1.4.0")
+    parser.add_argument("--version", default="1.5.0")
     parser.add_argument("--revision", default="unknown")
     args = parser.parse_args()
     metadata = json.loads((args.build / "flasher_args.json").read_text(encoding="utf-8"))

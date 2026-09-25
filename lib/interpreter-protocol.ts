@@ -4,7 +4,9 @@ import { CAPI_INTERPRETER_ABI, CAPI_INTERPRETER_VERSION, type CapiRulesBundle } 
 import type { BoardProfileId } from './board-profiles.ts';
 
 export type InterpreterStage = 'idle' | 'connecting' | 'incompatible' | 'ready' | 'sending' | 'running' | 'paused' | 'stopped' | 'error' | 'closing';
-export interface InterpreterHello { protocol: 'CapiLink'; firmware: string; abi: number; board: BoardProfileId; maxRulesBytes: number; capabilities: string[]; resources: { pwmChannels: number }; }
+export interface InterpreterHello { protocol: 'CapiLink'; firmware: string; abi: number; board: BoardProfileId; hardwareId?: string; wifiMac?: string; maxRulesBytes: number; capabilities: string[]; resources: { pwmChannels: number }; }
+export type PairRole = 'screen' | 'project';
+export interface PairCredentials { ssid: string; password: string; pairingKey: string; screenHardwareId: string; }
 export interface InterpreterTelemetry { event: string; blockId?: string; taskId?: string; deviceId?: string; value?: unknown; message?: string; }
 export interface InterpreterState { stage: InterpreterStage; message: string; progress: number; hello: InterpreterHello | null; telemetry: InterpreterTelemetry[]; }
 type Packet = Record<string, unknown>;
@@ -20,6 +22,20 @@ function versionAtLeast(actual: string, minimum: string) {
 }
 
 export function encodeProtocolPacket(packet: Packet) { return new TextEncoder().encode(`${JSON.stringify(packet)}\n`); }
+
+export function pairSsid(hardwareId: string) {
+  const normalized = hardwareId.replace(/[^a-f0-9]/gi, '').toUpperCase();
+  if (normalized.length < 6) throw new InterpreterProtocolError('La pantalla no informó una identidad Wi-Fi válida.');
+  return `WS${normalized.slice(-6)}`;
+}
+
+export function createPairCredentials(hello: InterpreterHello): PairCredentials {
+  if (!hello.hardwareId) throw new InterpreterProtocolError('Actualizá el firmware de la pantalla para poder emparejarla.');
+  const random = new Uint8Array(24);
+  crypto.getRandomValues(random);
+  const encoded = Array.from(random, value => value.toString(16).padStart(2, '0')).join('');
+  return { ssid: pairSsid(hello.hardwareId), password: encoded.slice(0, 20), pairingKey: encoded.slice(16, 48), screenHardwareId: hello.hardwareId };
+}
 
 export class ProtocolLines {
   private pending = '';
@@ -132,6 +148,13 @@ export class InterpreterSession {
     await this.write({ type: 'CONFIG_WIFI', ssid, password });
     await this.next('WIFI_CONFIGURED');
     this.update({ message: `Red “${ssid}” guardada sólo en la placa.` });
+  }
+  async provisionPair(role: PairRole, credentials: PairCredentials) {
+    if (this.state.stage !== 'ready' && this.state.stage !== 'stopped') throw new InterpreterProtocolError('Conectá un intérprete compatible antes de emparejar.');
+    if (!/^WS[A-F0-9]{6}$/.test(credentials.ssid) || credentials.password.length < 8 || credentials.password.length > 63 || !/^[a-f0-9]{32}$/.test(credentials.pairingKey) || !/^[A-F0-9]{12}$/.test(credentials.screenHardwareId)) throw new InterpreterProtocolError('El perfil automático de la pareja no es válido.');
+    await this.write({ type: 'CONFIG_PAIR', role, ssid: credentials.ssid, password: credentials.password, pairingKey: credentials.pairingKey, screenHardwareId: credentials.screenHardwareId });
+    await this.next('PAIR_CONFIGURED');
+    this.update({ message: role === 'screen' ? `Pantalla lista con la red ${credentials.ssid}.` : `Placa vinculada automáticamente con ${credentials.ssid}.` });
   }
   async command(type: 'RUN' | 'PAUSE' | 'RESUME' | 'STOP' | 'RESET_PROGRAM') {
     try {

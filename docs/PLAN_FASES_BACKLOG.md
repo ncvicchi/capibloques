@@ -1,6 +1,6 @@
 # Nuevas fases de CapiBloques
 
-Plan elaborado el 8 de septiembre de 2026 y actualizado el 25 de septiembre de 2026. **Fases 11–17, 27–33 y 35–41 entregadas en software; fases 18, 20 y 23 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`, aunque cada cierre posterior requiere su actualización explícita. La fase 19 queda ampliada por el inventario pedagógico y el bloque `según`; 21–22, 24–26, 34 y 42–43 permanecen pendientes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
+Plan elaborado el 8 de septiembre de 2026 y actualizado el 25 de septiembre de 2026. **Fases 11–17, 27–33 y 35–41 entregadas en software; fases 18, 20, 23 y 34 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`, aunque cada cierre posterior requiere su actualización explícita. La fase 19 queda ampliada por el inventario pedagógico y el bloque `según`; 21–22, 24–26 y 42–43 permanecen pendientes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
 
 La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros consecutivos; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. Los pedidos del 23 de septiembre amplían la fase 19 y continúan hasta la fase 41 sin alterar entregas cerradas; la simplificación integral solicitada el 25 de septiembre es la fase 42.
 
@@ -266,7 +266,7 @@ No incluye una competencia pública, chat o tutor de IA, creación libre de desa
 
 ## Fase 20 — Uso guiado de la placa
 
-**Estado:** asistente base y selección visual Wemos/DIYmall entregados; intérprete Waveshare, historial global del cambio y aceptación física pendientes. Ver [decisión, recorrido y evidencia](FASE_20_USO_GUIADO_PLACA.md).
+**Estado:** asistente, selección visual y emparejamiento automático de dos placas entregados en software; escena remota Waveshare, historial global del cambio y aceptación física pendientes. Ver [decisión, recorrido y evidencia](FASE_20_USO_GUIADO_PLACA.md).
 
 **Objetivo redefinido por el propietario:** que la actividad normal no compile un firmware por proyecto. La web instala o actualiza un firmware CapiBloques precompilado por placa y después genera, envía y ejecuta reglas locales en pocos segundos.
 
@@ -275,8 +275,8 @@ No incluye una competencia pública, chat o tutor de IA, creación libre de desa
 - Enviar y ejecutar es una sola acción; conserva comprobación de sesión, placa, versión, ABI, capacidades, tamaño, recursos, almacenamiento atómico y Wi-Fi privado.
 - Arduino, ESP-IDF, compilación específica y monitor Serial no se destruyen: quedan reunidos bajo **Herramientas avanzadas para adultos**.
 - La cola pesada deja de ser parte del camino infantil. Su administración, privacidad y compatibilidad se mantienen mientras exista el modo avanzado; una futura retirada requerirá otra decisión y migración.
-- **Extensión entregada parcialmente en la misma fase:** ya muestra la placa actual con foto y permite cambiar Wemos ↔ DIYmall dentro del asistente después de revisar compatibilidad y conexiones. Waveshare alterna fotos frontal/trasera, pero permanece deshabilitada hasta disponer de intérprete real para panel/touch. Quedan el punto de historial global del cambio y la aceptación física. Ver el contrato completo en [FASE_20_USO_GUIADO_PLACA.md](FASE_20_USO_GUIADO_PLACA.md).
-- **Extensión pendiente para Pantalla central:** presentar dos lugares separados,
+- **Extensión entregada parcialmente en la misma fase:** ya muestra la placa actual con foto y permite cambiar Wemos ↔ DIYmall dentro del asistente después de revisar compatibilidad y conexiones. Waveshare alterna fotos frontal/trasera, se agrega como segundo rol y puede recibir el intérprete de emparejamiento 1.5.0; el panel/touch de escena remota sigue pendiente. Quedan el punto de historial global del cambio y la aceptación física. Ver el contrato completo en [FASE_20_USO_GUIADO_PLACA.md](FASE_20_USO_GUIADO_PLACA.md).
+- **Extensión entregada en software para Pantalla central:** presenta dos lugares separados,
   Placa del proyecto obligatoria y Pantalla central Waveshare opcional. Al usar
   Waveshare siempre se ven y preparan ambas placas. CapiBloques obtiene su MAC,
   crea el SSID `WSMMMMMM` y escribe automáticamente en las dos el SSID, la clave
@@ -533,6 +533,10 @@ Aceptación:
 - Simulación y tres placas físicas conservan orden, límites y recuperación documentados antes de declarar soporte.
 
 ## Fase 34 — Servicios y control remoto entre placas
+
+**Estado:** selección de pareja, `WSMMMMMM`, clave local, NVS y provisión Web
+Serial implementados en CapiLink 1.5.0; transporte autenticado, escena/touch y
+aceptación física pendientes.
 
 **Objetivo:** usar la Waveshare como Pantalla central de una Wemos/NodeMCU/DevKit que ejecuta el proyecto, y permitir servicios explícitamente publicados apoyándose en la mensajería validada.
 
