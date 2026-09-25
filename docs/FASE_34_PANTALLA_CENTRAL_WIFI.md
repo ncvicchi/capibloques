@@ -16,6 +16,13 @@ Esta separación evita dos relojes o estados divergentes. Si se corta Wi‑Fi, l
 placa del proyecto continúa autónomamente; la pantalla muestra que sus datos
 quedaron desactualizados y deja de fingir control.
 
+Separadamente, Waveshare puede elegirse como destino principal para una
+**simulación en pantalla** sin placa física asociada. En ese modo todos los
+componentes son virtuales, no se ofrecen conexiones GPIO y el único intérprete
+ejecuta la lógica local. No debe confundirse con la pareja Wi‑Fi descrita en
+esta fase. La validación y el asistente ya distinguen el modo; su renderer LCD
+completo sigue pendiente en fase 18.
+
 ## Dos roles de placa en el proyecto
 
 Todo proyecto físico conserva una **Placa del proyecto**. Activar Pantalla
@@ -27,7 +34,7 @@ como Pantalla central, la Placa del proyecto continúa siendo obligatoria.
 Cambiar cualquiera de las dos placas es una operación independiente y
 confirmada. El asistente explica qué firmware se actualiza, qué conexión se
 conserva y si el perfil nuevo puede ejecutar los componentes reales. Nunca
-reasigna la Waveshare como ejecutora por inferencia.
+reasigna la Waveshare como ejecutora física por inferencia.
 
 ## Punto de acceso persistente por Waveshare
 

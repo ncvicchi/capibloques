@@ -275,10 +275,11 @@ No incluye una competencia pública, chat o tutor de IA, creación libre de desa
 - Enviar y ejecutar es una sola acción; conserva comprobación de sesión, placa, versión, ABI, capacidades, tamaño, recursos, almacenamiento atómico y Wi-Fi privado.
 - Arduino, ESP-IDF, compilación específica y monitor Serial no se destruyen: quedan reunidos bajo **Herramientas avanzadas para adultos**.
 - La cola pesada deja de ser parte del camino infantil. Su administración, privacidad y compatibilidad se mantienen mientras exista el modo avanzado; una futura retirada requerirá otra decisión y migración.
-- **Extensión entregada parcialmente en la misma fase:** ya muestra la placa actual con foto y permite cambiar Wemos ↔ DIYmall dentro del asistente después de revisar compatibilidad y conexiones. Waveshare alterna fotos frontal/trasera, se agrega como segundo rol y puede recibir el intérprete de emparejamiento 1.5.0; el panel/touch de escena remota sigue pendiente. Quedan el punto de historial global del cambio y la aceptación física. Ver el contrato completo en [FASE_20_USO_GUIADO_PLACA.md](FASE_20_USO_GUIADO_PLACA.md).
-- **Extensión entregada en software para Pantalla central:** presenta dos lugares separados,
-  Placa del proyecto obligatoria y Pantalla central Waveshare opcional. Al usar
-  Waveshare siempre se ven y preparan ambas placas. CapiBloques obtiene su MAC,
+- **Extensión entregada parcialmente en la misma fase:** ya muestra la placa actual con foto y permite cambiar Wemos ↔ DIYmall dentro del asistente después de revisar compatibilidad y conexiones. Waveshare alterna fotos frontal/trasera: como destino principal representa una simulación sin GPIO; en un proyecto físico se agrega como segundo rol y puede recibir el intérprete de emparejamiento 1.5.0. El renderer LCD completo y el panel/touch de escena remota siguen pendientes. Quedan el punto de historial global del cambio y la aceptación física. Ver el contrato completo en [FASE_20_USO_GUIADO_PLACA.md](FASE_20_USO_GUIADO_PLACA.md).
+- **Extensión entregada en software para Pantalla central:** en el recorrido
+  físico presenta dos lugares separados, Placa del proyecto obligatoria y
+  Pantalla central Waveshare opcional. Al activar la pareja se ven y preparan
+  ambas placas. CapiBloques obtiene su MAC,
   crea el SSID `WSMMMMMM` y escribe automáticamente en las dos el SSID, la clave
   única y la identidad de pareja; el alumno no selecciona redes ni contraseñas.
 
@@ -547,7 +548,7 @@ Alcance:
 - Servicios con nombre y comandos tipados autorizados por el autor del proyecto; sin escritura GPIO arbitraria.
 - Telemetría versionada de escena, estados, sensores y ejecución desde la Placa del proyecto hacia la Pantalla central, con instantánea de reconexión y cambios acotados.
 - Entradas virtuales —botones, mensajes y sensores de prueba— y prioridad manual visible, cuya decisión final pertenece al programa receptor.
-- Dos roles visibles: activar Waveshare agrega Pantalla central y nunca reemplaza la Placa del proyecto. CapiBloques deriva `WSMMMMMM` de los seis últimos dígitos de su MAC y aprovisiona automáticamente SSID, clave única e identidad en ambas placas, sin elección Wi-Fi del alumno.
+- Dos roles visibles en el recorrido físico: activar Waveshare agrega Pantalla central y no reemplaza la Placa del proyecto. El modo separado Waveshare principal es una simulación sin GPIO. CapiBloques deriva `WSMMMMMM` de los seis últimos dígitos de su MAC y aprovisiona automáticamente SSID, clave única e identidad en ambas placas, sin elección Wi-Fi del alumno.
 - Descubrimiento, identidad, permiso, confirmación, idempotencia, límites de frecuencia y estados de error.
 - Consulta de capacidades/estados de fase 32 y solicitudes de cambio cuya decisión final pertenece al programa receptor.
 - Simulación multiplaca, auditoría comprensible y equivalencia Arduino/ESP-IDF.

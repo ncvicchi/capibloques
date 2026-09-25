@@ -52,7 +52,7 @@ import {
   type SceneWidget,
   type BoardProfileId,
 } from '@/lib/scene-model';
-import { boardProfile, boardProfiles } from '@/lib/board-profiles';
+import { boardProfile, boardProfiles, WAVESHARE_TOUCH_LCD_5_PROFILE_ID } from '@/lib/board-profiles';
 import { educationalModuleSpecs, isEducationalModuleKind } from '@/lib/educational-modules';
 import {
   commitSnapshot,
@@ -251,6 +251,7 @@ function SceneBuilderSession({
 
   const draftScene = history.present.scene;
   const draftBoardProfile = history.present.boardProfile;
+  const waveshareSimulation = draftBoardProfile === WAVESHARE_TOUCH_LCD_5_PROFILE_ID;
   const selectedId = history.present.selectedId;
   const storedSelectedItem = findSceneItem(draftScene, selectedId);
   const inspectorDirty = Boolean(
@@ -649,6 +650,10 @@ function SceneBuilderSession({
 
   const autoConnect = () => {
     if (!requireSettledInspector('asignar los pines')) return;
+    if (waveshareSimulation) {
+      setMessage('La Waveshare simula los componentes en su pantalla: no necesita conexiones GPIO.');
+      return;
+    }
     const result = assignSafePins(previewScene, { boardProfile: draftBoardProfile });
     commitScene(
       result.scene,
@@ -666,7 +671,9 @@ function SceneBuilderSession({
     }));
     setInspectorDraft(createInspectorDraft(previewScene, selectedId));
     setPendingBoardProfile(null);
-    setMessage(`Placa cambiada a ${boardProfile(nextProfile).name}. Las conexiones no se cambiaron: revisalas o usá Auto conectar.`);
+    setMessage(nextProfile === WAVESHARE_TOUCH_LCD_5_PROFILE_ID
+      ? 'Waveshare seleccionada: los componentes se simularán en su pantalla y no usarán conexiones GPIO.'
+      : `Placa cambiada a ${boardProfile(nextProfile).name}. Las conexiones no se cambiaron: revisalas o usá Auto conectar.`);
   };
 
   const discardInspectorAndSelect = () => {
@@ -754,10 +761,10 @@ function SceneBuilderSession({
                 }}
               >
                 {Object.values(boardProfiles).map(profile => (
-                  <NativeSelectOption key={profile.id} value={profile.id}>{profile.shortName}</NativeSelectOption>
+                  <NativeSelectOption key={profile.id} value={profile.id}>{profile.id === WAVESHARE_TOUCH_LCD_5_PROFILE_ID ? `${profile.shortName} · simulación en pantalla` : profile.shortName}</NativeSelectOption>
                 ))}
               </NativeSelect>
-              <small>{boardProfile(draftBoardProfile).flashSize} flash{boardProfile(draftBoardProfile).psramBytes ? ` · ${boardProfile(draftBoardProfile).psramBytes / 1024 / 1024} MB PSRAM` : ''}</small>
+              <small>{waveshareSimulation ? 'Sin GPIO: todo se representa de forma virtual en la pantalla.' : `${boardProfile(draftBoardProfile).flashSize} flash${boardProfile(draftBoardProfile).psramBytes ? ` · ${boardProfile(draftBoardProfile).psramBytes / 1024 / 1024} MB PSRAM` : ''}`}</small>
             </label>
             <label htmlFor="scene-name">
               <span>Nombre de la escena</span>
@@ -863,9 +870,11 @@ function SceneBuilderSession({
               variant="outline"
               onClick={autoConnect}
               aria-label="Auto conectar"
+              disabled={waveshareSimulation}
+              title={waveshareSimulation ? 'La simulación en pantalla no necesita GPIO.' : undefined}
             >
               <span aria-hidden="true">✨</span>
-              <span className="auto-connect-label">Auto conectar</span>
+              <span className="auto-connect-label">{waveshareSimulation ? 'Sin conexiones' : 'Auto conectar'}</span>
             </Button>
           </div>
 
@@ -1223,7 +1232,9 @@ function SceneBuilderSession({
                   )}
                   <div className="pin-editor">
                     <h4>Conexiones</h4>
-                    {getPinRequirements(selected).length ? (
+                    {waveshareSimulation ? (
+                      <p>Este componente es virtual. La Waveshare lo dibuja y lo controla en su pantalla; no se conecta a GPIO.</p>
+                    ) : getPinRequirements(selected).length ? (
                       getPinRequirements(selected).map((requirement) => {
                         const value =
                           (selected.pins as Record<string, PinNumber>)[
@@ -1584,7 +1595,9 @@ function SceneBuilderSession({
             <AlertDialogHeader>
               <AlertDialogTitle>¿Cambiar la placa del proyecto?</AlertDialogTitle>
               <AlertDialogDescription>
-                Los GPIO actuales se conservan para no cambiar tu circuito a escondidas. Los que no existan en la nueva placa quedarán marcados hasta que los corrijas o uses Auto conectar. Podés deshacer este cambio.
+                {pendingBoardProfile === WAVESHARE_TOUCH_LCD_5_PROFILE_ID
+                  ? 'Los componentes pasarán a ser virtuales en la pantalla. Los GPIO se conservarán sin usarse para que puedas volver a una placa física. Podés deshacer este cambio.'
+                  : 'Los GPIO actuales se conservan para no cambiar tu circuito a escondidas. Los que no existan en la nueva placa quedarán marcados hasta que los corrijas o uses Auto conectar. Podés deshacer este cambio.'}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

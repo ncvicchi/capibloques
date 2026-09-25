@@ -39,15 +39,19 @@ Las reglas se generan en el navegador. No usan la cola de compilación, no enví
 
 La placa forma parte del proyecto, pero no es una decisión irreversible. Puede cambiarse desde la escena o desde el propio asistente **Usar en placa**, incluso después de haber programado parte del proyecto.
 
-El modelo de Pantalla central amplía la selección a dos lugares con
-nombres funcionales, no a un selector único ambiguo:
+Hay dos recorridos explícitos. Si Waveshare es el destino principal, todos los
+componentes se simulan en su pantalla y no se piden GPIO. Si el proyecto usa
+hardware físico, el modelo de Pantalla central amplía la selección a dos
+lugares con nombres funcionales, no a un selector único ambiguo:
 
-- **Placa del proyecto** es obligatoria y ejecuta reglas, sensores y actuadores.
+- **Placa del proyecto** es obligatoria en el recorrido físico y ejecuta reglas,
+  sensores y actuadores.
 - **Pantalla central** es opcional y admite una Waveshare compatible. Al
   activarla, el asistente muestra siempre las dos placas; nunca sustituye la
   primera por la Waveshare.
-- Los proyectos existentes migran como Placa del proyecto + «Sin pantalla
-  central». Cada lugar puede cambiarse por separado, con comprobación y
+- Los proyectos físicos existentes migran como Placa del proyecto + «Sin
+  pantalla central». Un proyecto Waveshare existente conserva el modo de
+  simulación en pantalla. Cada lugar puede cambiarse con comprobación y
   confirmación.
 - Para preparar una pareja, CapiBloques conecta ambas por Web Serial, lee la MAC
   Wi-Fi de la Waveshare, forma `WS` más sus últimos seis dígitos hexadecimales y

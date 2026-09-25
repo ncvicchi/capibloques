@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mockEditorSession } from './editor-fixture';
 import { makeProject } from '../lib/capiblocks';
-import { createEmptyScene } from '../lib/scene-model';
+import { projectTargetForBoard, WAVESHARE_TOUCH_LCD_5_PROFILE_ID } from '../lib/board-profiles';
+import { addDeviceToScene, createEmptyScene } from '../lib/scene-model';
 import { viewportBounds } from './viewport-fixture';
 
 const block = (
@@ -159,6 +160,34 @@ test('permite elegir simulador o placa sin confundir sus controles', async ({ pa
   await expect(page.getByRole('button', { name: 'Conectar mi placa' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Todavía no tiene CapiBloques' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Placas del proyecto' })).toHaveCount(0);
+});
+
+test('Waveshare principal trata los componentes como simulación sin pedir GPIO', async ({ page }) => {
+  await open(page);
+  const added = addDeviceToScene(createEmptyScene('Mundo virtual'), 'trafficLight', {
+    boardProfile: WAVESHARE_TOUCH_LCD_5_PROFILE_ID,
+  });
+  const project = makeProject(
+    'Semáforo en pantalla',
+    added.scene,
+    { blocks: { languageVersion: 0, blocks: [start('waveshare-start', block('traffic', 'waveshare-green', { DEVICE_ID: added.device.id, COLOR: 'GREEN' }))] } },
+    1,
+    projectTargetForBoard(WAVESHARE_TOUCH_LCD_5_PROFILE_ID),
+  );
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'waveshare-virtual.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(project)),
+  });
+  await expect(page.getByRole('textbox', { name: 'Nombre del proyecto' })).toHaveValue('Semáforo en pantalla');
+
+  await page.getByRole('button', { name: 'Usar en placa' }).click();
+  await expect(page.getByRole('heading', { name: 'Simulación en la Waveshare' })).toBeVisible();
+  await expect(page.getByText('No requiere conexiones físicas')).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Qué hay que revisar' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Continuar' }).click();
+  await expect(page.getByRole('heading', { name: 'Conectá Waveshare 5″' })).toBeVisible();
+  await expect(page.getByText(/no conectes el semáforo ni otros componentes/i)).toBeVisible();
 });
 
 test('el autoguardado conserva un proyecto válido durante un arrastre prolongado', async ({

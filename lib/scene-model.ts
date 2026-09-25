@@ -11,7 +11,7 @@ import { displayConfig, displayPins, displayPinKeys, requiredDisplayPins, validD
 // @ts-expect-error Node strip-types tests import the source extension.
 import { ledMatrixConfig, validMatrixConfig, type LedMatrixConfig } from './led-matrix.ts';
 // @ts-expect-error Node strip-types tests import the source extension.
-import { boardProfile, type BoardPinDefinition, type BoardProfileId, type PinCapability } from './board-profiles.ts';
+import { boardProfile, WAVESHARE_TOUCH_LCD_5_PROFILE_ID, type BoardPinDefinition, type BoardProfileId, type PinCapability } from './board-profiles.ts';
 // @ts-expect-error Node strip-types tests import the source extension.
 import { educationalModuleKinds, educationalModulePins, educationalModuleSpecs, isEducationalModuleKind, validEducationalModuleConfig, type EducationalModuleKind } from './educational-modules.ts';
 
@@ -965,6 +965,10 @@ export function assignSafePins(
 ): PinAssignmentResult {
   const scene = cloneScene(source);
   const profileId = options.boardProfile ?? 'wemos-d1-r32';
+  // La Waveshare es una superficie de simulación/control. Conservamos los GPIO
+  // guardados para poder volver a una placa física, pero no los reasignamos ni
+  // inventamos conexiones sobre sus bornes especializados.
+  if (profileId === WAVESHARE_TOUCH_LCD_5_PROFILE_ID) return { scene, warnings: [] };
   const warnings: string[] = [];
   const used = new Map<number, PinSlot>();
   const slots = collectPinSlots(scene.devices);
@@ -1537,7 +1541,10 @@ export function validateScene(
   profileId: BoardProfileId = 'wemos-d1-r32',
 ): SceneValidationResult {
   const profile = boardProfile(profileId);
-  const dashboardIds = dashboardDeviceIds(scene);
+  const virtualOnly = profileId === WAVESHARE_TOUCH_LCD_5_PROFILE_ID;
+  const dashboardIds = virtualOnly
+    ? new Set(scene.devices.map(device => device.id))
+    : dashboardDeviceIds(scene);
   const issues: SceneValidationIssue[] = [];
   if (!itemIdIsValid(scene.id)) {
     issues.push({
@@ -1662,7 +1669,7 @@ export function validateScene(
       });
     }
 
-    if (device.kind === 'robot' || device.kind === 'motor') {
+    if (!virtualOnly && (device.kind === 'robot' || device.kind === 'motor')) {
       issues.push({
         code: 'external-motor-power',
         severity: 'warning',
@@ -1670,7 +1677,7 @@ export function validateScene(
         deviceId: device.id,
       });
     }
-    if (device.kind === 'servo' || device.kind === 'otto') {
+    if (!virtualOnly && (device.kind === 'servo' || device.kind === 'otto')) {
       issues.push({
         code: 'external-servo-power',
         severity: 'warning',
@@ -1678,7 +1685,7 @@ export function validateScene(
         deviceId: device.id,
       });
     }
-    if (device.kind === 'led' || device.kind === 'trafficLight') {
+    if (!virtualOnly && (device.kind === 'led' || device.kind === 'trafficLight')) {
       issues.push({
         code: 'led-resistor-required',
         severity: 'warning',
@@ -1687,6 +1694,7 @@ export function validateScene(
       });
     }
     if (
+      !virtualOnly &&
       device.kind === 'button' &&
       device.config.pullup &&
       [34, 35, 36, 39].includes(device.pins.signal ?? -1)
@@ -1699,7 +1707,7 @@ export function validateScene(
         pin: device.pins.signal ?? undefined,
       });
     }
-    if (device.kind === 'button' && !device.config.pullup) {
+    if (!virtualOnly && device.kind === 'button' && !device.config.pullup) {
       issues.push({
         code: 'button-external-bias-required',
         severity: 'warning',
@@ -1809,7 +1817,7 @@ export function validateScene(
   const passiveBuzzers = scene.devices.filter(
     (device) => device.kind === 'passiveBuzzer',
   );
-  if (passiveBuzzers.length > 1) {
+  if (!virtualOnly && passiveBuzzers.length > 1) {
     issues.push({
       code: 'passive-buzzer-limit',
       severity: 'warning',

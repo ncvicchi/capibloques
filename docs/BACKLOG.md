@@ -594,6 +594,14 @@ tiempo interactivo estados, valores y progreso. También puede enviar botones,
 mensajes, sensores virtuales y solicitudes publicadas para cambiar el
 comportamiento.
 
+Aclaración del 25 de septiembre de 2026: la Waveshare también puede seguir
+elegida como destino principal, pero en ese caso el proyecto es una
+**simulación en pantalla**. Todos sus componentes son virtuales: no solicitan
+GPIO, resistencias ni cableado físico. Este modo no se confunde con Pantalla
+central: no existe una segunda placa ni un montaje físico asociado. La
+validación y el asistente ya reconocen esta semántica; el renderer completo de
+la escena y sus controles en el LCD físico continúa pendiente en fase 18.
+
 El editor muestra siempre dos roles cuando se activa esta función: la Placa del
 proyecto original y la Waveshare agregada. Cada Waveshare crea al arrancar un AP
 propio, estable y único. CapiBloques forma el SSID `WSMMMMMM` con los últimos

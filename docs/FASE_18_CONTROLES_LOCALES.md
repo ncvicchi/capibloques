@@ -20,6 +20,13 @@ la Placa del proyecto continúa autónomamente. I2C, CAN, RS485 y E/S aisladas d
 la Waveshare quedan como interfaces avanzadas tipadas, no como camino principal
 ni GPIO/PWM genéricos.
 
+También existe un modo separado de **Waveshare principal**: toda la escena se
+ejecuta como simulación en su pantalla y ningún componente requiere GPIO,
+resistencias o cableado. No se debe mostrar como un montaje físico ni mezclar
+sus estados con los de una placa remota. La validación web y el asistente ya
+reconocen esta elección; aún falta completar y ensayar el renderer de escena y
+los controles en el LCD físico del intérprete.
+
 El catálogo debe anticipar el resultado con etiquetas **Simulable**, **Real
 compatible** o **Necesita expansión**. Agregar una luz sin conexión física la
 crea como objeto virtual válido; no debe producir faltantes de GPIO ni obligar a
