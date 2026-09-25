@@ -615,6 +615,34 @@ Arquitectura, emparejamiento, telemetría, entradas virtuales, comandos,
 reconexión, AP persistente por unidad, convivencia de aula, seguridad, límites y aceptación están en
 [FASE_34_PANTALLA_CENTRAL_WIFI.md](FASE_34_PANTALLA_CENTRAL_WIFI.md).
 
+## 44. Raspberry Pi como Central CapiBloques — para análisis
+
+**Estado: para análisis; no autoriza implementación ni crea todavía una fase.**
+
+Evaluar Raspberry Pi 4 y 5 con Raspberry Pi OS como una **Central CapiBloques**
+más potente, no como otra placa ESP32. Su primer alcance posible sería recibir
+telemetría de una o varias placas de proyecto, mostrar sus escenas en una
+pantalla grande y ofrecer controles virtuales autorizados, reutilizando el
+protocolo Wi-Fi, las identidades y los límites definidos para la Pantalla
+central Waveshare.
+
+El análisis debe comparar al menos:
+
+- Central fija Raspberry Pi frente a Pantalla central Waveshare portátil 1 a 1.
+- Una o varias placas de proyecto por central, identificación, emparejamiento y
+  aislamiento entre alumnos.
+- Aplicación web en modo kiosco frente a un servicio local dedicado, instalación,
+  actualización, recuperación y funcionamiento sin Internet.
+- Rendimiento, costo, mantenimiento docente, seguridad y complejidad para chicos.
+- Qué partes del protocolo de fase 34 pueden reutilizarse y cuáles requieren un
+  contrato nuevo.
+
+Una segunda posibilidad, separada y posterior, sería programar GPIO, PWM,
+I2C/SPI, cámara o audio de la Raspberry Pi mediante un intérprete Linux. Es un
+alcance considerablemente mayor por permisos, aislamiento, dependencias y
+apagado seguro, por lo que no debe mezclarse con la primera evaluación ni
+presentarse como soporte comprometido.
+
 ## Pedidos externos a analizar
 
 Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus observaciones para reproducirlas y contrastarlas con el comportamiento vigente. **No confirma que cada problema exista y la asignación no autoriza implementarlos.** Progreso/guardado/reinicio corresponden a fase 20; superposición y los ajustes de claridad/escena corresponden a fase 21; avatar a fase 22; compartir a fase 25; acceso de aula a fase 26. Las prioridades «vital» y «sutil» pertenecen al informe de origen y cada observación debe reproducirse antes de cambiar código.
@@ -719,6 +747,7 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 41. Escena híbrida real/simulada en Waveshare | 18. Misma escena, destino por componente e interfaces tipadas |
 | 42. Brillo programable de matrices | 43. Control por capacidad y traducción al rango nativo |
 | 43. Waveshare como Pantalla central Wi‑Fi | 18, 20 y 34. Escena compartida, selección/provisión de la pareja y telemetría/entradas remotas |
+| 44. Raspberry Pi como Central CapiBloques | Para análisis. Primero central de escenas/telemetría/controles; GPIO Linux queda como posibilidad posterior separada |
 | 23. Reducir al mínimo la latencia de compilación | 20. Medición, caché, precompilación y arquitectura del compilador |
 
 Las observaciones externas quedan asignadas así: fase 20 resolvió el recorrido cotidiano mediante firmware intérprete/reglas y conserva el compilador como modo avanzado; fase 21 cubre superposición y claridad/escena, fase 22 avatar, fase 25 enlaces/QR y fase 26 acceso de aula/asistencia. Producción es la **Fase final, postergada**, fuera de esta numeración. Las fases 10 y 20 mantienen aceptación física pendiente. La fase 23 está en curso con la matriz implementada; el resto requiere autorización propia. Los números de pedido no son fases nuevas.
