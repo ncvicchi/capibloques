@@ -17,7 +17,7 @@
 #include "driver/spi_master.h"
 #include "driver/uart.h"
 #include "driver/adc.h"
-#if CONFIG_IDF_TARGET_ESP32S3
+#ifdef CONFIG_IDF_TARGET_ESP32S3
 #include "driver/usb_serial_jtag.h"
 #endif
 #include "esp_timer.h"
@@ -48,7 +48,7 @@ static constexpr uint16_t ABI = 1;
 static constexpr size_t MAX_RULES = 32 * 1024;
 static constexpr uart_port_t LINK = UART_NUM_0;
 static bool link_uses_usb = false;
-#if CONFIG_IDF_TARGET_ESP32S3
+#ifdef CONFIG_IDF_TARGET_ESP32S3
 static bool usb_link_ready = false;
 #endif
 
@@ -116,7 +116,7 @@ static uint32_t crc32(const uint8_t *data, size_t size) {
 static uint16_t u16(const uint8_t *p) { return p[0] | ((uint16_t)p[1] << 8); }
 static uint32_t u32(const uint8_t *p) { return p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24); }
 static int link_write(const void *data,size_t size){
-#if CONFIG_IDF_TARGET_ESP32S3
+#ifdef CONFIG_IDF_TARGET_ESP32S3
   if(link_uses_usb&&usb_link_ready)return usb_serial_jtag_write_bytes(data,size,pdMS_TO_TICKS(1000));
 #endif
   return uart_write_bytes(LINK,data,size);
@@ -416,13 +416,13 @@ static void command(cJSON *request) {
 
 extern "C" void app_main() {
   nvs_flash_init();variables_mutex=xSemaphoreCreateMutex();timers_mutex=xSemaphoreCreateMutex();matrix_mutex=xSemaphoreCreateMutex();message_mutex=xSemaphoreCreateMutex();otto_mutex=xSemaphoreCreateMutex();display_mutex=xSemaphoreCreateMutex();smart_lights_mutex=xSemaphoreCreateMutex();xTaskCreate(matrix_service,"capi-matrix",3072,nullptr,3,nullptr);xTaskCreate(otto_service,"capi-otto",3072,nullptr,3,nullptr);xTaskCreate(display_service,"capi-display",3072,nullptr,3,nullptr);xTaskCreate(smart_service,"capi-rgb",3072,nullptr,3,nullptr);uart_driver_install(LINK,8192,0,0,nullptr,0); uart_config_t config={}; config.baud_rate=115200; config.data_bits=UART_DATA_8_BITS; config.parity=UART_PARITY_DISABLE; config.stop_bits=UART_STOP_BITS_1; config.flow_ctrl=UART_HW_FLOWCTRL_DISABLE; config.source_clk=UART_SCLK_DEFAULT; uart_param_config(LINK,&config);
-#if CONFIG_IDF_TARGET_ESP32S3
+#ifdef CONFIG_IDF_TARGET_ESP32S3
   usb_serial_jtag_driver_config_t usb_config=USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();usb_config.rx_buffer_size=8192;usb_config.tx_buffer_size=8192;usb_link_ready=usb_serial_jtag_driver_install(&usb_config)==ESP_OK;
 #endif
   if(!wifi_pair_role().empty())wifi_connect(); if(load_rules()&&!wifi_creates_network()) start_program();
   std::string line; uint8_t byte;
   for(;;){int received=0;
-#if CONFIG_IDF_TARGET_ESP32S3
+#ifdef CONFIG_IDF_TARGET_ESP32S3
     if(usb_link_ready&&(received=usb_serial_jtag_read_bytes(&byte,1,0))==1)link_uses_usb=true;else
 #endif
     if((received=uart_read_bytes(LINK,&byte,1,pdMS_TO_TICKS(20)))==1)link_uses_usb=false;if(received!=1)continue;if(byte=='\n'){ if(!line.empty()&&line.size()<32768){ cJSON *request=cJSON_ParseWithLength(line.data(),line.size()); if(request){command(request);cJSON_Delete(request);} else reply("ERROR","Mensaje inválido."); } line.clear(); } else if(byte!='\r'&&line.size()<32768) line.push_back((char)byte); }
