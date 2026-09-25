@@ -1,6 +1,6 @@
 # Nuevas fases de CapiBloques
 
-Plan elaborado el 8 de septiembre de 2026 y actualizado el 25 de septiembre de 2026. **Fases 11–18, 27–33 y 35–41 entregadas en software; fases 20 y 23 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`, aunque cada cierre posterior requiere su actualización explícita. La fase 19 queda ampliada por el inventario pedagógico y el bloque `según`; 21–22, 24–26, 34 y 42 permanecen pendientes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
+Plan elaborado el 8 de septiembre de 2026 y actualizado el 25 de septiembre de 2026. **Fases 11–18, 27–33 y 35–41 entregadas en software; fases 20 y 23 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`, aunque cada cierre posterior requiere su actualización explícita. La fase 19 queda ampliada por el inventario pedagógico y el bloque `según`; 21–22, 24–26, 34 y 42–43 permanecen pendientes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
 
 La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros consecutivos; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. Los pedidos del 23 de septiembre amplían la fase 19 y continúan hasta la fase 41 sin alterar entregas cerradas; la simplificación integral solicitada el 25 de septiembre es la fase 42.
 
@@ -40,6 +40,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 40 | Software entregado: movimiento e identificación; físico pendiente | 37 | Eventos cooperativos, privacidad y buses validados |
 | 41 | Software entregado: actuación y medición avanzada; físico pendiente | 37 | Planificador cooperativo, privacidad GPS y hardware concreto |
 | 42 | Simplificación integral de la interfaz | Pedido del 25 de septiembre | Inventario de funciones y recorridos; fase 20 como patrón de divulgación progresiva |
+| 43 | Efectos y animaciones de pantallas | Pedido 38 | Motor cooperativo existente, perfiles de fase 23 e intérprete versionado |
 | Final | Producción, HTTPS, respaldos y piloto | Antigua fase 11 | Postergada hasta autorización explícita y validaciones de salida |
 
 Primero se asegura la continuidad desde otra cuenta sin depender de este chat; después se atienden los problemas cotidianos del editor y se vuelve DEV accesible desde fuera mediante un servicio controlado. TX/RX se incorpora antes de las placas nuevas para tener un contrato de comportamiento que luego se valide en cada destino. Separar DevKit, Waveshare y display interactivo permite comprobar por separado placa, pantalla y aplicación gráfica: no son el mismo soporte. Los desafíos aprovechan esas funciones como recorrido educativo propio. Las fases 20–26 separan flujos de compilación, pulido de edición, motivación, periféricos, control local, intercambio e identidad de aula para no mezclar permisos o hardware distintos en una entrega inmanejable.
@@ -643,6 +644,25 @@ Alcance:
 
 Aceptación: los recorridos principales deben poder completarse sin conocer la arquitectura interna; cada pantalla ofrece una acción dominante y como máximo las alternativas necesarias para volver o cancelar. Un inventario automatizado/manual confirma que ninguna función quedó inaccesible. La fase 20 sirve como primer patrón, pero no equivale a completar esta auditoría global.
 
+## Fase 43 — Efectos y animaciones de pantallas
+
+**Estado:** pendiente. **Objetivo:** ampliar de forma coherente, infantil y no
+bloqueante los efectos de Pantalla de texto y Matriz LED.
+
+Incluye un editor modal amplio para dibujos personalizados, con zoom, lápiz,
+borrador, línea, curva, formas, relleno, selección, historial y vista previa al
+tamaño real. También incluye desplazamiento horizontal y vertical cuando la geometría lo permite,
+parpadeo, máquina de escribir, encendido secuencial de letras, rebote, cartel
+continuo, persianas, apertura desde el centro y alternancia. OLED/TFT agregan
+transiciones, dibujos y reacciones de avatar; las matrices agregan patrones de
+puntos, onda, pulso y transiciones entre dibujos. Cada bloque conserva una vez,
+N veces o sin parar, cancelación/reemplazo y espera explícita.
+
+No se ofrecen efectos imposibles para el perfil elegido ni se simulan como si
+existieran físicamente. Simulador, Arduino, ESP-IDF e intérprete deben compartir
+el mismo reloj cooperativo, límites y cuadro final. Alcance, catálogo y
+aceptación completos en [FASE_43_EFECTOS_DISPLAY.md](FASE_43_EFECTOS_DISPLAY.md).
+
 ## Fase final — Producción y piloto, postergada
 
 Es la antigua fase 11, renombrada por decisión del propietario. No se ejecuta como consecuencia de terminar una fase del backlog.
@@ -658,5 +678,5 @@ El gateway sigue siendo sólo un salto SSH, con prohibición de cambios. Tampoco
 - Una fase completa autorizada por vez, con implementación, pruebas proporcionales, entrega en DEV y commit/push. Informar avances con evidencia y pendientes; no inventar porcentajes ni tiempos exactos.
 - **Fases 11–14 y 29–33 entregadas; fases 15, 16, 27, 28, 36 y 37 terminadas en software; fase 23 en curso.** Actualizar la documentación viva al cerrar cada entrega solicitada. No ejecutar las fases restantes, completar la aceptación física ni avanzar a producción sin autorización y hardware correspondientes.
 - Para fase 17 hace falta el modelo Waveshare exacto antes de fijar drivers/pines; para cerrar las aceptaciones físicas de 15, 16 y 23 hace falta autorización para reemplazar firmware y los montajes correspondientes.
-- La fase 14 fija el paralelo como un contenedor con caminos apilados de arriba hacia abajo y mantiene fork/join. Desafíos y `según` se especifican en 19; display en 18; UX en 21; displays/matriz en 23; datos en 29; temporizadores en 30; procedimientos en 31; estados en 32; red en 33; servicios remotos en 34; RGB en 35; intérprete en 36; ayuda de componentes en 37 y el catálogo ampliado en 38–41. Son decisiones dentro de esas fases, no nuevas fases con letras.
+- La fase 14 fija el paralelo como un contenedor con caminos apilados de arriba hacia abajo y mantiene fork/join. Desafíos y `según` se especifican en 19; display en 18; UX en 21; displays/matriz en 23; datos en 29; temporizadores en 30; procedimientos en 31; estados en 32; red en 33; servicios remotos en 34; RGB en 35; intérprete en 36; ayuda de componentes en 37; catálogo ampliado en 38–41; simplificación en 42 y efectos de display en 43. Son decisiones dentro de esas fases, no nuevas fases con letras.
 - No hay estimaciones horarias comprometidas: hardware, alcance de la adaptación gráfica y mediciones en la VM condicionan el esfuerzo. No retrasar ahora la planificación esperando esos datos, ni prometer implementaciones específicas de un modelo no identificado.

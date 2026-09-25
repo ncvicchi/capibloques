@@ -481,6 +481,22 @@ Pedido del 23 de septiembre de 2026: centralizar todos los componentes adicional
 
 Asignación: Luces RGB conserva la **fase 35**; las demás familias quedan asignadas a las **fases 38–41**. La única fuente detallada es [COMPONENTES_A_IMPLEMENTAR.md](COMPONENTES_A_IMPLEMENTAR.md), que distingue implementar, postergar y excluir del alcance inicial. Esta entrada no declara comprado, implementado ni ensayado ningún módulo.
 
+## 38. Más efectos y animaciones para displays
+
+Pedido del 25 de septiembre de 2026: ampliar las pantallas más allá del
+desplazamiento horizontal con desplazamiento vertical, parpadeo, texto fijo
+encendido letra por letra y otras transiciones apropiadas para chicos. El mismo
+pedido reemplaza el editor diminuto de imágenes de matriz por un modal amplio
+con zoom, lápiz, borrador, líneas, curvas, formas, relleno, selección,
+Deshacer/Rehacer y previsualización real.
+
+Asignación: **fase 43 — Efectos y animaciones de pantallas**. El catálogo de
+ideas, editor gráfico, diferencias entre LCD de caracteres, OLED/TFT y matrices
+LED, bloques, repetición, ejecución cooperativa, accesibilidad, límites y aceptación están en
+[FASE_43_EFECTOS_DISPLAY.md](FASE_43_EFECTOS_DISPLAY.md). Planificarla no la
+declara implementada; los efectos deben anunciarse según capacidades reales del
+perfil y nunca bloquear el resto del programa.
+
 ## Pedidos externos a analizar
 
 Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus observaciones para reproducirlas y contrastarlas con el comportamiento vigente. **No confirma que cada problema exista y la asignación no autoriza implementarlos.** Progreso/guardado/reinicio corresponden a fase 20; superposición y los ajustes de claridad/escena corresponden a fase 21; avatar a fase 22; compartir a fase 25; acceso de aula a fase 26. Las prioridades «vital» y «sutil» pertenecen al informe de origen y cada observación debe reproducirse antes de cambiar código.
@@ -580,6 +596,7 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 36. Ayuda infantil de componentes | 37. Fichas contextuales, fotos, conexión, uso y diagnóstico |
 | 37. Lista maestra de componentes a implementar | 35 y 38–41. Prioridades, perfiles y exclusiones centralizados |
 | 38. Simplificación integral de la interfaz sin perder funciones | 42. Recorridos principales, divulgación progresiva y herramientas avanzadas |
+| 38. Más efectos, animaciones y editor amplio de dibujos | 43. Editor modal y motor cooperativo por capacidad de LCD/OLED/TFT/matriz |
 | 23. Reducir al mínimo la latencia de compilación | 20. Medición, caché, precompilación y arquitectura del compilador |
 
 Las observaciones externas quedan asignadas así: fase 20 resolvió el recorrido cotidiano mediante firmware intérprete/reglas y conserva el compilador como modo avanzado; fase 21 cubre superposición y claridad/escena, fase 22 avatar, fase 25 enlaces/QR y fase 26 acceso de aula/asistencia. Producción es la **Fase final, postergada**, fuera de esta numeración. Las fases 10 y 20 mantienen aceptación física pendiente. La fase 23 está en curso con la matriz implementada; el resto requiere autorización propia. Los números de pedido no son fases nuevas.
