@@ -18,7 +18,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 18 | Software entregado: tablero de estados lógicos y controles locales en el display; DEV/físico pendientes | 3: display interactivo | Perfiles de pantalla de fase 17 y ejecución/componentes existentes |
 | 19 | Desafíos progresivos, herramientas pedagógicas y bloque `según` | 12 y 35 | Plan completo versionado; primeros retos sin hardware; valores tipados de fase 29 |
 | 20 | Asistente y cambio visual Wemos/DIYmall entregados; Waveshare/físico pendientes | 15, 17, 23 y 34 | Intérprete de fase 36 publicado; panel/touch Waveshare aún fuera del intérprete |
-| 21 | Claridad y ergonomía educativa del editor | Informe externo vital 4, sutiles 1–8 y futuras 1–2, 5–7 | Fases 12 y 14; reproducción previa de cada observación |
+| 21 | Claridad y ergonomía educativa del editor | Informe externo vital 4, sutiles 1–8, futuras 1–2 y 5–7; pedido 40 | Fases 12 y 14; reproducción previa de cada observación |
 | 22 | Avatar acompañante y reacciones accesibles | 14; informe futuro 3 | Fase 19 para reacciones de desafíos y fase 20 para resultados de compilar/grabar |
 | 23 | En curso: software de matriz MAX7219 implementado; aceptación física de matriz y displays pendiente | 18 y 19 | Módulos exactos identificados; fase 10 para el recorrido físico por USB |
 | 24 | Panel web local para celular | 20 | Contrato Wi-Fi vigente, seguridad/emparejamiento y límites medidos |
@@ -40,7 +40,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 40 | Software entregado: movimiento e identificación; físico pendiente | 37 | Eventos cooperativos, privacidad y buses validados |
 | 41 | Software entregado: actuación y medición avanzada; físico pendiente | 37 | Planificador cooperativo, privacidad GPS y hardware concreto |
 | 42 | Simplificación integral de la interfaz | Pedido del 25 de septiembre | Inventario de funciones y recorridos; fase 20 como patrón de divulgación progresiva |
-| 43 | Efectos y animaciones de pantallas | Pedido 38 | Motor cooperativo existente, perfiles de fase 23 e intérprete versionado |
+| 43 | Efectos y animaciones de pantallas | Pedido 39 | Motor cooperativo existente, perfiles de fase 23 e intérprete versionado |
 | Final | Producción, HTTPS, respaldos y piloto | Antigua fase 11 | Postergada hasta autorización explícita y validaciones de salida |
 
 Primero se asegura la continuidad desde otra cuenta sin depender de este chat; después se atienden los problemas cotidianos del editor y se vuelve DEV accesible desde fuera mediante un servicio controlado. TX/RX se incorpora antes de las placas nuevas para tener un contrato de comportamiento que luego se valide en cada destino. Separar DevKit, Waveshare y display interactivo permite comprobar por separado placa, pantalla y aplicación gráfica: no son el mismo soporte. Los desafíos aprovechan esas funciones como recorrido educativo propio. Las fases 20–26 separan flujos de compilación, pulido de edición, motivación, periféricos, control local, intercambio e identidad de aula para no mezclar permisos o hardware distintos en una entrega inmanejable.
@@ -286,12 +286,14 @@ Alcance:
 - Hacer reconocible la edición del nombre; traducir colores en ejecución; mejorar advertencias de cableado cerrables; ampliar acciones del selector de avatar; escribir «segundos»; evaluar el pin `📌`; saludo con privacidad; y distinguir bloques desconectados sin depender sólo del color.
 - Distinguir menús desplegables de campos numéricos, expresar operadores con palabras cuando mejore comprensión y revisar tamaño/contraste de emojis con alternativas accesibles.
 - Hacer que Auto-conectar y el movimiento de componentes tengan una vista previa coherente dentro del borrador de escena, manteniendo Guardar/Cancelar, historial y autoguardado separados.
+- Compartir geometría, anclas y cajas visuales entre Armar escena y la simulación: la escala o el encuadre responsivo no pueden cambiar distancias relativas, alineaciones ni solapamientos elegidos por el alumno.
 - Auditar nuevamente encabezados y acciones con el público infantil objetivo, pantallas pequeñas, texto ampliado y teclado. Una simplificación nueva se mide; no elimina estados ni controles críticos.
 
 Aceptación:
 
 - Cada observación se reproduce primero o se descarta con evidencia. Los cambios pasan Chrome/Edge, móvil, teclado, zoom y movimiento reducido.
 - Importar, arrastrar, deshacer/rehacer, Guardar/Cancelar y recuperación no cambian silenciosamente el modelo ni pierden trabajo.
+- Escenas con componentes juntos, alineados o superpuestos conservan esas relaciones en editor y simulador a distintas resoluciones; la prueba compara geometría normalizada además de capturas.
 - Una revisión breve con usuarios representativos o, mientras no estén disponibles, pruebas moderadas documentadas distingue preferencias de problemas reales; no se declaran resultados infantiles inventados.
 
 ## Fase 22 — Avatar acompañante y reacciones accesibles

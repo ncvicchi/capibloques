@@ -481,7 +481,20 @@ Pedido del 23 de septiembre de 2026: centralizar todos los componentes adicional
 
 Asignación: Luces RGB conserva la **fase 35**; las demás familias quedan asignadas a las **fases 38–41**. La única fuente detallada es [COMPONENTES_A_IMPLEMENTAR.md](COMPONENTES_A_IMPLEMENTAR.md), que distingue implementar, postergar y excluir del alcance inicial. Esta entrada no declara comprado, implementado ni ensayado ningún módulo.
 
-## 38. Más efectos y animaciones para displays
+## 38. Simplificación integral de la interfaz sin perder funciones
+
+Pedido del 25 de septiembre de 2026: reducir la sobrecarga general de la
+interfaz sin retirar funcionalidad. Las acciones cotidianas del alumno deben
+ser principales y las opciones docentes, administrativas o avanzadas deben
+aparecer cuando corresponda, mediante recorridos y divulgación progresiva.
+
+Asignación: **fase 42 — Simplificación integral de la interfaz**. Incluye el
+inventario de acciones, reducción de encabezados y paneles simultáneos,
+asistentes para decisiones secuenciales, accesibilidad y comprobación de que
+ninguna función quede inaccesible. El alcance completo está en
+[PLAN_FASES_BACKLOG.md#fase-42--simplificación-integral-de-la-interfaz](PLAN_FASES_BACKLOG.md#fase-42--simplificación-integral-de-la-interfaz).
+
+## 39. Más efectos y animaciones para displays
 
 Pedido del 25 de septiembre de 2026: ampliar las pantallas más allá del
 desplazamiento horizontal con desplazamiento vertical, parpadeo, texto fijo
@@ -496,6 +509,27 @@ LED, bloques, repetición, ejecución cooperativa, accesibilidad, límites y ace
 [FASE_43_EFECTOS_DISPLAY.md](FASE_43_EFECTOS_DISPLAY.md). Planificarla no la
 declara implementada; los efectos deben anunciarse según capacidades reales del
 perfil y nunca bloquear el resto del programa.
+
+## 40. Fidelidad espacial entre editor y escena ejecutada
+
+Pedido del 25 de septiembre de 2026: los componentes colocados cerca, alineados
+o superpuestos en **Armar escena** deben conservar esa misma relación visual al
+simular. Hoy una barrera y un semáforo ubicados casi pegados debajo de un display
+pueden aparecer mucho más separados en la escena ejecutada.
+
+Asignación: **fase 21 — Claridad y ergonomía educativa del editor**. Primero hay
+que reproducir la diferencia y distinguir sus causas: sistemas de coordenadas,
+anclas distintas, dimensiones visuales que no coinciden con la caja manipulada,
+escala responsiva o un auto-layout aplicado sólo al ejecutar. Editor y simulador
+deben compartir el mismo modelo de geometría y cajas; cambiar el tamaño del
+panel puede escalar o encuadrar el conjunto, pero no alterar distancias relativas,
+alineaciones ni orden de superposición.
+
+La corrección debe conservar posiciones JSON portables, proyectos existentes,
+zoom/desplazamiento, selección, Guardar/Cancelar, Deshacer/Rehacer y vistas
+móviles. La aceptación compara automáticamente capturas o cajas normalizadas de
+ambas vistas para escenas pequeñas, grandes, importadas y con componentes de
+tamaños distintos; no se valida únicamente «a ojo» en una resolución.
 
 ## Pedidos externos a analizar
 
@@ -596,7 +630,8 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 36. Ayuda infantil de componentes | 37. Fichas contextuales, fotos, conexión, uso y diagnóstico |
 | 37. Lista maestra de componentes a implementar | 35 y 38–41. Prioridades, perfiles y exclusiones centralizados |
 | 38. Simplificación integral de la interfaz sin perder funciones | 42. Recorridos principales, divulgación progresiva y herramientas avanzadas |
-| 38. Más efectos, animaciones y editor amplio de dibujos | 43. Editor modal y motor cooperativo por capacidad de LCD/OLED/TFT/matriz |
+| 39. Más efectos, animaciones y editor amplio de dibujos | 43. Editor modal y motor cooperativo por capacidad de LCD/OLED/TFT/matriz |
+| 40. Fidelidad espacial entre editor y simulación | 21. Geometría compartida sin alterar distancias relativas |
 | 23. Reducir al mínimo la latencia de compilación | 20. Medición, caché, precompilación y arquitectura del compilador |
 
 Las observaciones externas quedan asignadas así: fase 20 resolvió el recorrido cotidiano mediante firmware intérprete/reglas y conserva el compilador como modo avanzado; fase 21 cubre superposición y claridad/escena, fase 22 avatar, fase 25 enlaces/QR y fase 26 acceso de aula/asistencia. Producción es la **Fase final, postergada**, fuera de esta numeración. Las fases 10 y 20 mantienen aceptación física pendiente. La fase 23 está en curso con la matriz implementada; el resto requiere autorización propia. Los números de pedido no son fases nuevas.
