@@ -16,17 +16,71 @@ Esta separación evita dos relojes o estados divergentes. Si se corta Wi‑Fi, l
 placa del proyecto continúa autónomamente; la pantalla muestra que sus datos
 quedaron desactualizados y deja de fingir control.
 
+## Dos roles de placa en el proyecto
+
+Todo proyecto físico conserva una **Placa del proyecto**. Activar Pantalla
+central no cambia esa placa por una Waveshare: agrega un segundo rol y la
+interfaz muestra ambas imágenes, nombres, firmware y estado de conexión. Un
+proyecto sencillo puede seguir usando sólo Wemos/DevKit; al elegir una Waveshare
+como Pantalla central, la Placa del proyecto continúa siendo obligatoria.
+
+Cambiar cualquiera de las dos placas es una operación independiente y
+confirmada. El asistente explica qué firmware se actualiza, qué conexión se
+conserva y si el perfil nuevo puede ejecutar los componentes reales. Nunca
+reasigna la Waveshare como ejecutora por inferencia.
+
+## Punto de acceso persistente por Waveshare
+
+Cada Waveshare provisionada inicia automáticamente su propio AP de 2,4 GHz con
+una identidad estable. El SSID se calcula sin intervención del alumno como
+`WSMMMMMM`, donde `MMMMMM` son los últimos seis dígitos hexadecimales de la MAC
+de Wi-Fi de esa Waveshare (por ejemplo, `WS3FA21C`). La contraseña es aleatoria
+y propia de esa unidad. No se usa un SSID o una contraseña universal: en un
+aula conectaría placas al puesto equivocado y permitiría que conocer una clave
+abra todas las pantallas.
+
+El docente prepara la pareja mediante el asistente y Web Serial. CapiBloques lee
+la identidad de la Waveshare, calcula el SSID y escribe automáticamente el mismo
+perfil —SSID, contraseña e identidad esperada— en ambas placas. Los chicos no
+eligen una red, no copian una clave y no ven una lista de AP. El perfil se guarda
+en almacenamiento local de las placas, fuera del proyecto, historial, Git y
+servidor. Sobrevive a reinicios y a una actualización normal del firmware; la
+contraseña puede regenerarse con una acción docente confirmada que obliga a
+volver a preparar la placa del proyecto.
+
+Al preparar la Placa del proyecto, el navegador le entrega localmente las
+credenciales de **esa** Pantalla central y su identidad esperada. Por lo tanto,
+“programar el mismo AP en ambas” significa que CapiBloques configura la
+Waveshare como dueña del AP y la Wemos/DevKit como cliente de ese perfil; no que
+todas las parejas compartan la misma red. El JSON portable guarda sólo la
+identidad no secreta de la pareja. Cambiar de Pantalla central exige volver a
+preparar la conexión de la Placa del proyecto.
+
+WPA protege la red, pero no sustituye el emparejamiento de aplicación. Un código
+breve mostrado por la Waveshare confirma la pareja y deriva una clave de sesión;
+una placa conectada al SSID correcto pero no emparejada no puede enviar comandos
+ni aparecer como origen válido.
+
+Varias parejas pueden convivir porque tienen SSID, contraseña e identidad
+distintos. Eso no crea espectro ilimitado: los AP comparten 2,4 GHz. La
+provisión distribuye canales no superpuestos cuando sea posible y la aceptación
+de aula mide pérdida/latencia con varias parejas simultáneas antes de fijar un
+máximo. La interfaz muestra la Pantalla central elegida y evita seleccionar dos
+unidades con el mismo alias visible.
+
 ## Recorrido infantil
 
-1. En la escena se elige una Waveshare como **Pantalla central** y una placa
-   compatible como **Placa del proyecto**.
-2. La pantalla crea una red local o ambas usan una red configurada. La primera
-   versión prioriza la red creada por la pantalla para no depender del router.
-3. Un código breve de emparejamiento confirma qué dos placas se vinculan. Las
+1. En la escena se conserva una placa compatible como **Placa del proyecto** y
+   se agrega una Waveshare como **Pantalla central**.
+2. El asistente conecta ambas por USB, obtiene la MAC de la pantalla y configura
+   automáticamente en las dos el perfil `WSMMMMMM`; el alumno no elige Wi-Fi.
+3. La pantalla inicia su AP persistente y la placa se conecta al perfil de esa
+   unidad, sin depender del router.
+4. Un código breve de emparejamiento confirma qué dos placas se vinculan. Las
    credenciales y claves de sesión quedan fuera del JSON, historial y Git.
-4. El firmware intérprete y las reglas se instalan en la placa del proyecto; la
+5. El firmware intérprete y las reglas se instalan en la placa del proyecto; la
    pantalla recibe el descriptor visual de la misma revisión de escena.
-5. Al ejecutar, la pantalla representa posiciones, nombres, estados, camino
+6. Al ejecutar, la pantalla representa posiciones, nombres, estados, camino
    activo y conexión. Cada objeto indica **real** o **virtual**.
 
 Se evita «maestro/esclavo» en la interfaz porque no explica la función y la
@@ -109,9 +163,11 @@ aceptación; no se obtiene gratis por permitir más conexiones Wi‑Fi.
    virtuales sobre un protocolo versionado.
 3. Renderizar en Waveshare la misma geometría y estados del simulador.
 4. Implementar emparejamiento y una pareja 1 a 1, con reconexión y revisión.
-5. Incorporar botones, mensajes y sensores virtuales; luego servicios publicados
+5. Implementar provisión automática: leer MAC, formar `WSMMMMMM`, generar la
+   clave y escribir el perfil en ambas placas, con rotación y recuperación.
+6. Incorporar botones, mensajes y sensores virtuales; luego servicios publicados
    con confirmación.
-6. Integrar firmware intérprete, Web Serial y pruebas de compatibilidad.
+7. Integrar firmware intérprete, Web Serial y pruebas de compatibilidad.
 
 ## Aceptación
 
@@ -123,6 +179,9 @@ aceptación; no se obtiene gratis por permitir más conexiones Wi‑Fi.
 - Al apagar la pantalla, la placa continúa; al reconectar, una instantánea
   corrige la vista sin repetir acciones.
 - Simulador multiplaca, Arduino, ESP-IDF e intérprete respetan el mismo contrato.
+- Dos o más parejas cercanas usan AP/identidad distintos y ninguna placa acepta
+  telemetría o comandos de la pareja vecina.
+- El alumno no selecciona SSID ni escribe contraseñas; CapiBloques configura las
+  dos placas y muestra sólo cuál pareja está preparando.
 - Latencia, pérdida, reconexión, tasa de eventos, RAM y uso de radio se miden en
   Wemos D1 R32, ESP32 DevKit y la Waveshare exacta antes de prometer límites.
-

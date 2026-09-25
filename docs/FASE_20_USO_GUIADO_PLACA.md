@@ -39,6 +39,28 @@ Las reglas se generan en el navegador. No usan la cola de compilación, no enví
 
 La placa forma parte del proyecto, pero no es una decisión irreversible. Puede cambiarse desde la escena o desde el propio asistente **Usar en placa**, incluso después de haber programado parte del proyecto.
 
+El modelo pendiente de Pantalla central amplía la selección a dos lugares con
+nombres funcionales, no a un selector único ambiguo:
+
+- **Placa del proyecto** es obligatoria y ejecuta reglas, sensores y actuadores.
+- **Pantalla central** es opcional y admite una Waveshare compatible. Al
+  activarla, el asistente muestra siempre las dos placas; nunca sustituye la
+  primera por la Waveshare.
+- Los proyectos existentes migran como Placa del proyecto + «Sin pantalla
+  central». Cada lugar puede cambiarse por separado, con comprobación y
+  confirmación.
+- Para preparar una pareja, CapiBloques conecta ambas por Web Serial, lee la MAC
+  Wi-Fi de la Waveshare, forma `WS` más sus últimos seis dígitos hexadecimales y
+  configura automáticamente ese SSID, una contraseña única y la identidad de
+  emparejamiento en las dos placas. El alumno no elige un AP ni escribe claves.
+- La contraseña queda en almacenamiento local de las placas, no en el JSON, el
+  servidor, Git ni el historial. Cambiar Pantalla central vuelve a preparar la
+  Placa del proyecto; cambiar la Placa del proyecto no borra el AP persistente
+  de la Waveshare.
+- El asistente muestra fotos, firmware, estado y pertenencia de ambas placas.
+  Las reglas se envían a la Placa del proyecto; la Waveshare recibe la escena y
+  telemetría según el contrato de fase 34.
+
 - La primera pantalla debe decir **Placa actual**, nunca «Elegiste», cuando el perfil provenga del valor predeterminado o de una importación.
 - Debe mostrar nombre completo y una fotografía clara de la placa actual, con texto alternativo. Los diagramas vectoriales existentes se conservan para cableado, pero no sustituyen la foto de reconocimiento.
 - **Cambiar placa** abre una pantalla propia dentro del asistente. Sólo ofrece perfiles que puedan recibir el proyecto o explica qué impide cada alternativa; no muestra un selector técnico indiscriminado.
@@ -50,7 +72,7 @@ La placa forma parte del proyecto, pero no es una decisión irreversible. Puede 
 
 **Entregado en software en `1904e76`:** el asistente muestra «Placa actual» con las fotografías aportadas por el propietario, permite revisar un cambio Wemos ↔ DIYmall, conserva pines todavía válidos, enumera las conexiones que cambiarán y sólo aplica la nueva escena/perfil después de confirmar. La foto compuesta de Waveshare alterna frente y dorso cada dos segundos; con reducción de movimiento permanece estable. Se mantienen los diagramas técnicos propios para cableado. Los activos originales, sin regenerar, viven en `public/boards/`.
 
-**Pendiente:** el firmware intérprete no incluye todavía el panel RGB/touch de la Waveshare SKU 28117. Por eso aparece reconocible pero deshabilitada con una explicación, en vez de permitir una elección que fallaría al grabar. También falta integrar el cambio hecho desde el asistente con un punto explícito del historial global más allá de la confirmación y el autoguardado actuales, y completar la aceptación física.
+**Pendiente:** el firmware intérprete no incluye todavía el panel RGB/touch de la Waveshare SKU 28117. Por eso aparece reconocible pero deshabilitada con una explicación, en vez de permitir una elección que fallaría al grabar. También faltan el modelo de dos lugares, la provisión automática `WSMMMMMM`, integrar el cambio hecho desde el asistente con un punto explícito del historial global más allá de la confirmación y el autoguardado actuales, y completar la aceptación física.
 
 ## Verificación
 

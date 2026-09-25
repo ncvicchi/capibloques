@@ -276,6 +276,11 @@ No incluye una competencia pública, chat o tutor de IA, creación libre de desa
 - Arduino, ESP-IDF, compilación específica y monitor Serial no se destruyen: quedan reunidos bajo **Herramientas avanzadas para adultos**.
 - La cola pesada deja de ser parte del camino infantil. Su administración, privacidad y compatibilidad se mantienen mientras exista el modo avanzado; una futura retirada requerirá otra decisión y migración.
 - **Extensión entregada parcialmente en la misma fase:** ya muestra la placa actual con foto y permite cambiar Wemos ↔ DIYmall dentro del asistente después de revisar compatibilidad y conexiones. Waveshare alterna fotos frontal/trasera, pero permanece deshabilitada hasta disponer de intérprete real para panel/touch. Quedan el punto de historial global del cambio y la aceptación física. Ver el contrato completo en [FASE_20_USO_GUIADO_PLACA.md](FASE_20_USO_GUIADO_PLACA.md).
+- **Extensión pendiente para Pantalla central:** presentar dos lugares separados,
+  Placa del proyecto obligatoria y Pantalla central Waveshare opcional. Al usar
+  Waveshare siempre se ven y preparan ambas placas. CapiBloques obtiene su MAC,
+  crea el SSID `WSMMMMMM` y escribe automáticamente en las dos el SSID, la clave
+  única y la identidad de pareja; el alumno no selecciona redes ni contraseñas.
 
 La aceptación física exige instalar, actualizar y ejecutar reglas en Wemos y DIYmall S3 reales. No se presenta como realizada por la compilación reproducible de los binarios.
 
@@ -538,6 +543,7 @@ Alcance:
 - Servicios con nombre y comandos tipados autorizados por el autor del proyecto; sin escritura GPIO arbitraria.
 - Telemetría versionada de escena, estados, sensores y ejecución desde la Placa del proyecto hacia la Pantalla central, con instantánea de reconexión y cambios acotados.
 - Entradas virtuales —botones, mensajes y sensores de prueba— y prioridad manual visible, cuya decisión final pertenece al programa receptor.
+- Dos roles visibles: activar Waveshare agrega Pantalla central y nunca reemplaza la Placa del proyecto. CapiBloques deriva `WSMMMMMM` de los seis últimos dígitos de su MAC y aprovisiona automáticamente SSID, clave única e identidad en ambas placas, sin elección Wi-Fi del alumno.
 - Descubrimiento, identidad, permiso, confirmación, idempotencia, límites de frecuencia y estados de error.
 - Consulta de capacidades/estados de fase 32 y solicitudes de cambio cuya decisión final pertenece al programa receptor.
 - Simulación multiplaca, auditoría comprensible y equivalencia Arduino/ESP-IDF.
@@ -546,6 +552,7 @@ Aceptación:
 
 - Un proyecto receptor puede autorizar cambiar su semáforo y rechazar una operación no publicada o de una placa no admitida.
 - La Wemos/DevKit continúa ejecutando si la Waveshare se desconecta; la pantalla marca datos antiguos, bloquea controles y se resincroniza sin repetir acciones.
+- Varias parejas cercanas conservan identidad y comandos aislados; se mide convivencia de canales antes de declarar un máximo de aula.
 - Pérdida de red, reintentos y comandos duplicados no dejan estados ambiguos ni ejecutan dos veces una acción confirmada.
 - La fase puede postergarse sin impedir la mensajería de fase 33: los mismos casos siguen resolviéndose con mensajes y lógica local.
 
