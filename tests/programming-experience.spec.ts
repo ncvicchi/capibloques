@@ -134,14 +134,25 @@ test('permite elegir simulador o placa sin confundir sus controles', async ({ pa
   await expect(page.getByRole('button', { name: 'Paso' })).toBeEnabled();
   await page.getByRole('button', { name: 'Usar en placa' }).click();
   await expect(page.getByRole('heading', { name: '⚡ Usar mi placa' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Tu proyecto está listo para continuar' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Placa actual' })).toBeVisible();
+  await expect(page.getByRole('img', { name: /Wemos D1 R32, vista superior/i })).toBeVisible();
   await expect(page.getByText('Paso 1 de 4 · Revisar el proyecto')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Conectar mi placa' })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Conectá Wemos' })).toBeVisible();
+  await page.getByRole('button', { name: 'Cambiar placa' }).click();
+  await expect(page.getByRole('heading', { name: '¿Qué placa vas a usar?' })).toBeVisible();
+  await expect(page.getByText(/firmware de reglas para su pantalla y touch todavía está pendiente/i)).toBeVisible();
+  const waveshare = page.locator('.board-choice').filter({ hasText: 'Waveshare 5″' });
+  await expect(waveshare).toContainText('vista frontal');
+  await expect(waveshare).toContainText('vista trasera', { timeout: 3000 });
+  const diymall = page.locator('.board-choice').filter({ hasText: 'DIYmall S3' });
+  await diymall.getByRole('button', { name: 'Revisar cambio' }).click();
+  await page.getByRole('button', { name: 'Confirmar cambio' }).click();
+  await expect(page.getByRole('dialog', { name: '⚡ Usar mi placa' }).locator('strong').filter({ hasText: 'DIYmall ESP32-S3-DevKitC V1.0' })).toBeVisible();
+  await page.getByRole('button', { name: 'Continuar con esta placa' }).click();
+  await expect(page.getByRole('heading', { name: 'Conectá DIYmall S3' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Conectar mi placa' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Todavía no tiene CapiBloques' })).toBeVisible();
-  await expect(page.getByText('Tu proyecto está listo para continuar')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Placa actual' })).toHaveCount(0);
 });
 
 test('el autoguardado conserva un proyecto válido durante un arrastre prolongado', async ({

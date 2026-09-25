@@ -786,6 +786,15 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     setInterpreterOpen(true);
   }, [compile, projectTarget.boardProfile, scene]);
 
+  const changeBoardFromAssistant = useCallback((nextBoard: BoardProfileId, nextScene: SceneDefinition) => {
+    setScene(cloneScene(nextScene));
+    setProjectTarget(projectTargetForBoard(nextBoard));
+    setSim(makeInitialState(nextScene));
+    setWiringAcknowledgedSignature(null);
+    setNotice(`Placa cambiada a ${boardProfile(nextBoard).name}. Revisá las conexiones propuestas antes de usar el montaje físico.`);
+    setNoticeTone('ok');
+  }, []);
+
   const step = useCallback(() => {
     if (
       sim.status === 'idle' ||
@@ -1857,7 +1866,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       </Dialog>
 
       {usbOpen && !offline && <UsbBoard account={account} store={draftStore} job={usbJob} currentBoardProfile={projectTarget.boardProfile} currentFingerprint={fingerprint} onClose={() => { setUsbOpen(false); setUsbJob(null); }} onBuilds={() => { setUsbOpen(false); setUsbJob(null); setBuildsOpen(true); }} />}
-      {interpreterOpen && <InterpreterBoard account={account} store={draftStore} program={lastProgram} scene={scene} board={projectTarget.boardProfile} onClose={() => setInterpreterOpen(false)} />}
+      {interpreterOpen && <InterpreterBoard account={account} store={draftStore} program={lastProgram} scene={scene} board={projectTarget.boardProfile} onChangeBoard={changeBoardFromAssistant} onClose={() => setInterpreterOpen(false)} />}
       {buildsOpen && !offline && <FirmwareBuilds account={account} store={draftStore} csrfToken={csrfToken} capture={currentProject} fingerprint={fingerprint} targetBoardProfile={projectTarget.boardProfile} onClose={() => setBuildsOpen(false)} onProgram={job => { setBuildsOpen(false); setUsbJob(job); setUsbOpen(true); }} validate={framework => {
         const generated = buildCode(framework);
         if (generated.diagnostics.some(item => item.severity === 'error')) { setProblemsOpen(true); return null; }

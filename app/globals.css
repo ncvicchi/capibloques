@@ -153,6 +153,27 @@
 .board-guide-screen.firmware-wifi > button { align-self: center; }
 .board-guide-screen details { width: min(100%, 540px); text-align: left; border-top: 1px solid var(--line); }
 .board-guide-footer { display: flex; justify-content: flex-start; gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; }
+.board-photo-figure { width: min(100%, 360px); margin: 0; display: grid; gap: 6px; justify-items: center; }
+.board-photo-figure img, .waveshare-photo { width: 100%; height: 190px; border: 1px solid var(--line); border-radius: 14px; background-color: white; }
+.board-photo-figure img { display: block; object-fit: contain; }
+.board-photo-figure.is-diymall img { object-fit: cover; object-position: center 49%; }
+.board-photo-figure figcaption { color: var(--muted); font-size: .82rem; }
+.waveshare-photo { background-repeat: no-repeat; background-size: 138% auto; transition: background-position .35s ease; }
+.waveshare-photo.is-front { background-position: center 5%; }
+.waveshare-photo.is-back { background-position: center 96%; }
+.board-picker-screen { justify-content: flex-start; padding-inline: 4px; }
+.board-choice-grid { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: stretch; }
+.board-choice { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: white; }
+.board-choice[data-current='true'] { border-color: var(--teal); background: #edf9f5; }
+.board-choice[data-unavailable='true'] { background: #f6f7fa; color: var(--muted); }
+.board-choice h4, .board-change-confirm h4 { margin: 0; font-weight: 800; }
+.board-choice p { margin: 0; font-size: .86rem; }
+.board-choice .board-photo-figure img, .board-choice .waveshare-photo { height: 120px; }
+.board-choice .board-photo-figure figcaption { display: none; }
+.board-change-confirm { width: min(100%, 600px); display: grid; gap: 10px; padding: 14px; border: 2px solid var(--purple); border-radius: 14px; background: #f4f1ff; text-align: left; }
+.board-change-confirm details { width: 100%; }
+@media (max-width: 720px) { .board-choice-grid { grid-template-columns: 1fr; } .board-choice { display: grid; grid-template-columns: 120px minmax(0, 1fr); text-align: left; } .board-choice .board-photo-figure { grid-row: 1 / span 4; } .board-choice .board-photo-figure img, .board-choice .waveshare-photo { height: 100px; } }
+@media (prefers-reduced-motion: reduce) { .waveshare-photo { transition: none; } }
 .advanced-tools-list { display: grid; gap: 10px; }
 .advanced-tools-list button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: white; text-align: left; font-weight: 700; }
 .usb-dialog button { max-width: 100%; }

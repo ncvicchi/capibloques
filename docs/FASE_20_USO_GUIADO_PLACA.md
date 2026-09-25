@@ -1,6 +1,6 @@
 # Fase 20 — Uso guiado de la placa
 
-Estado al 25 de septiembre de 2026: **asistente base terminado en software; selección visual de placa pendiente y aceptación física pendiente**. El propietario redefinió la fase para que el recorrido cotidiano sea instalar el firmware intérprete precompilado y enviar reglas localmente. La compilación Arduino/ESP-IDF por proyecto se conserva como herramienta avanzada, pero deja de competir con la acción principal.
+Estado al 25 de septiembre de 2026: **asistente y selección visual terminados para los perfiles con intérprete; Waveshare y aceptación física pendientes**. El propietario redefinió la fase para que el recorrido cotidiano sea instalar el firmware intérprete precompilado y enviar reglas localmente. La compilación Arduino/ESP-IDF por proyecto se conserva como herramienta avanzada, pero deja de competir con la acción principal.
 
 La primera implementación se publicó en `main` como `6dece1e`. La corrección `9914ae8` del 25 de septiembre reemplaza el panel acumulativo por un asistente de pantallas. DEV todavía permanece en `8103b14` hasta que el propietario ejecute la actualización rápida.
 
@@ -35,7 +35,7 @@ Las reglas se generan en el navegador. No usan la cola de compilación, no enví
 - Web Serial requiere Chrome o Edge de escritorio y HTTPS o localhost. USB pertenece a la PC del navegador, no al servidor.
 - Arduino/ESP-IDF específicos siguen siendo una salida válida para diagnóstico, estudio o componentes todavía no cubiertos. Ocultarlos no autoriza retirar compatibilidad.
 
-## Selección y cambio de placa — pendiente de esta fase
+## Selección y cambio de placa
 
 La placa forma parte del proyecto, pero no es una decisión irreversible. Puede cambiarse desde la escena o desde el propio asistente **Usar en placa**, incluso después de haber programado parte del proyecto.
 
@@ -48,7 +48,9 @@ La placa forma parte del proyecto, pero no es una decisión irreversible. Puede 
 - El cambio se persiste sólo después de confirmar y participa de Guardar/Cancelar, Deshacer/Rehacer, autoguardado e historial.
 - Al conectar por USB, si la placa detectada no coincide con la placa actual, se bloquea el envío y se ofrecen dos salidas explícitas: conectar la placa esperada o volver a la selección compatible. Detectar hardware no autoriza cambiar el proyecto automáticamente.
 
-Actualmente el repositorio tiene ilustraciones técnicas propias para Wemos, DIYmall S3 y Waveshare SKU 28117, pero no fotografías. Antes de cerrar esta extensión se incorporarán imágenes exactas aportadas por el propietario o con procedencia/licencia documentada; no se usará una foto genérica de otra revisión.
+**Entregado en software:** el asistente muestra «Placa actual» con las fotografías aportadas por el propietario, permite revisar un cambio Wemos ↔ DIYmall, conserva pines todavía válidos, enumera las conexiones que cambiarán y sólo aplica la nueva escena/perfil después de confirmar. La foto compuesta de Waveshare alterna frente y dorso cada dos segundos; con reducción de movimiento permanece estable. Se mantienen los diagramas técnicos propios para cableado.
+
+**Pendiente:** el firmware intérprete no incluye todavía el panel RGB/touch de la Waveshare SKU 28117. Por eso aparece reconocible pero deshabilitada con una explicación, en vez de permitir una elección que fallaría al grabar. También falta integrar el cambio hecho desde el asistente con un punto explícito del historial global más allá de la confirmación y el autoguardado actuales, y completar la aceptación física.
 
 ## Verificación
 
@@ -58,6 +60,7 @@ Actualmente el repositorio tiene ilustraciones técnicas propias para Wemos, DIY
 - Build estático correcto con sus diez rutas verificadas; permanece únicamente el aviso conocido de tamaño de chunks.
 - Regresión final de experiencia: 7/7 recorridos Chromium correctos, incluido que las herramientas nativas no aparezcan en el menú principal y sí dentro del panel avanzado.
 - Corrección de asistente: typecheck, lint, suite smoke completa, build estático y 7/7 recorridos Chromium correctos. La prueba comprueba que revisión y conexión no aparezcan juntas.
+- Selección visual: typecheck, lint, smoke y build correctos; el recorrido Chromium comprueba foto actual, cambio confirmado Wemos → DIYmall y alternancia frontal/trasera de Waveshare.
 
 ## Aceptación física pendiente
 

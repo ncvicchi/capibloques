@@ -1,5 +1,7 @@
 'use client';
 
+/* oxlint-disable next/no-img-element -- User-supplied board photos are static recognition assets, not responsive content. */
+
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -9,21 +11,39 @@ import { InterpreterSession } from '@/lib/interpreter-protocol';
 import { fetchInterpreterFirmware } from '@/lib/interpreter-firmware';
 import { createEspDriver } from '@/lib/usb-esptool';
 import { UsbSession, usbBusy } from '@/lib/usb-session';
-import { boardProfile, type BoardProfileId } from '@/lib/board-profiles';
-import type { CompiledProgram } from '@/lib/capiblocks';
-import type { SceneDefinition } from '@/lib/scene-model';
+import { boardProfile, boardProfiles, type BoardProfileId } from '@/lib/board-profiles';
+import { validateProgramForScene, type CompiledProgram } from '@/lib/capiblocks';
+import { assignSafePins, type SceneDefinition } from '@/lib/scene-model';
 import { sessionChangePending, watchSessionChange, type Account, type AccountDraftStore } from '@/lib/account-session';
 
 const showTelemetryValue = (value: unknown) => value === undefined ? '' : typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' ? ` · ${value}` : ` · ${JSON.stringify(value)}`;
-type GuideStep = 'review' | 'connect' | 'prepare' | 'wifi' | 'send' | 'run';
+type GuideStep = 'review' | 'board' | 'connect' | 'prepare' | 'wifi' | 'send' | 'run';
+const WAVESHARE = 'waveshare-esp32-s3-touch-lcd-5-28117';
+const boardPhotos: Record<BoardProfileId, string> = {
+  'wemos-d1-r32': '/boards/wemos-d1-r32.png',
+  'diymall-esp32-s3-devkitc-v1-n16r8': '/boards/diymall-esp32-s3-devkitc-v1-n16r8.png',
+  [WAVESHARE]: '/boards/waveshare-esp32-s3-touch-lcd-5-28117-front-back.png',
+};
 
-export default function InterpreterBoard({ account, store, program, scene, board, onClose }: { account: Account; store: AccountDraftStore; program: CompiledProgram; scene: SceneDefinition; board: BoardProfileId; onClose: () => void }) {
+function BoardPhoto({ id }: { id: BoardProfileId }) {
+  const [back, setBack] = useState(false);
+  useEffect(() => {
+    if (id !== WAVESHARE || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const timer = window.setInterval(() => setBack(value => !value), 2000);
+    return () => window.clearInterval(timer);
+  }, [id]);
+  if (id === WAVESHARE) return <figure className="board-photo-figure"><div className={`waveshare-photo ${back ? 'is-back' : 'is-front'}`} aria-hidden="true" style={{ backgroundImage: `url(${boardPhotos[id]})` }} /><figcaption>Waveshare ESP32-S3 Touch LCD 5 · {back ? 'vista trasera' : 'vista frontal'} · cambia cada 2 segundos</figcaption></figure>;
+  return <figure className={`board-photo-figure ${id === 'diymall-esp32-s3-devkitc-v1-n16r8' ? 'is-diymall' : ''}`}><img src={boardPhotos[id]} alt={`${boardProfile(id).name}, vista superior`} loading="lazy" /><figcaption>{boardProfile(id).shortName}</figcaption></figure>;
+}
+
+export default function InterpreterBoard({ account, store, program, scene, board, onChangeBoard, onClose }: { account: Account; store: AccountDraftStore; program: CompiledProgram; scene: SceneDefinition; board: BoardProfileId; onChangeBoard: (board: BoardProfileId, scene: SceneDefinition) => void; onClose: () => void }) {
   const [session] = useState(() => new InterpreterSession());
   const state = useSyncExternalStore(session.subscribe, session.snapshot, session.snapshot);
   const [installer] = useState(() => new UsbSession(createEspDriver));
   const installState = useSyncExternalStore(installer.subscribe, installer.snapshot, installer.snapshot);
   const [installing, setInstalling] = useState(false);
   const [step, setStep] = useState<GuideStep>('review');
+  const [candidate, setCandidate] = useState<BoardProfileId | null>(null);
   const [actionError, setActionError] = useState('');
   const wifiDevice = scene.devices.find(device => device.kind === 'wifiNode');
   const [wifiSsid, setWifiSsid] = useState(wifiDevice?.kind === 'wifiNode' ? wifiDevice.config.ssid : '');
@@ -35,6 +55,30 @@ export default function InterpreterBoard({ account, store, program, scene, board
   }, [board, program, scene]);
   const available = typeof window !== 'undefined' && window.isSecureContext && typeof navigator.serial?.requestPort === 'function';
   const needsWifi = Boolean(bundle?.requiredCapabilities.includes('wifi'));
+  const boardChoices = useMemo(() => Object.values(boardProfiles).map(profile => {
+    const assignment = assignSafePins(scene, { boardProfile: profile.id });
+    const diagnostics = validateProgramForScene(program, assignment.scene, profile.id).filter(item => item.severity === 'error');
+    const changes = scene.devices.flatMap(device => {
+      const next = assignment.scene.devices.find(item => item.id === device.id);
+      if (!next) return [];
+      return Object.entries(device.pins).flatMap(([signal, previous]) => {
+        const following = (next.pins as Record<string, number | null>)[signal] ?? null;
+        return previous === following ? [] : [`${device.name} · ${signal}: ${previous === null ? 'sin pin' : `GPIO ${previous}`} → ${following === null ? 'sin pin' : `GPIO ${following}`}`];
+      });
+    });
+    let rulesError = '';
+    try { createCapiRules(program, assignment.scene, profile.id); } catch (cause) { rulesError = cause instanceof Error ? cause.message : 'El proyecto no puede convertirse en reglas para esta placa.'; }
+    const interpreterMissing = profile.id === WAVESHARE;
+    return {
+      profile,
+      scene: assignment.scene,
+      warnings: assignment.warnings,
+      changes,
+      errors: diagnostics.map(item => item.message),
+      available: !interpreterMissing && diagnostics.length === 0 && !rulesError,
+      reason: interpreterMissing ? 'El firmware de reglas para su pantalla y touch todavía está pendiente.' : diagnostics[0]?.message ?? rulesError,
+    };
+  }), [program, scene]);
   useEffect(() => () => { void session.close(); installer.dispose(); }, [installer, session]);
   useEffect(() => {
     let alive = true;
@@ -70,23 +114,25 @@ export default function InterpreterBoard({ account, store, program, scene, board
   const sendAndRun = () => bundle && authorized(async () => { await session.send(bundle); await session.command('RUN'); setStep('run'); });
   const rulesLoaded = state.progress === 100 || state.stage === 'running' || state.stage === 'paused';
   const flow = useMemo(() => ['review', 'connect', ...(needsWifi ? ['wifi'] : []), 'send', 'run'] as GuideStep[], [needsWifi]);
-  const flowIndex = Math.max(0, flow.indexOf(step === 'prepare' ? 'connect' : step));
+  const flowIndex = Math.max(0, flow.indexOf(step === 'prepare' ? 'connect' : step === 'board' ? 'review' : step));
   const back = () => {
     setActionError('');
-    if (step === 'connect') setStep('review');
+    if (step === 'board') { setCandidate(null); setStep('review'); }
+    else if (step === 'connect') setStep('review');
     else if (step === 'prepare' && !usbBusy(installState)) { setInstalling(false); setStep('connect'); }
     else if (step === 'wifi') setStep('connect');
     else if (step === 'send') setStep(needsWifi ? 'wifi' : 'connect');
     else if (step === 'run') setStep('send');
   };
   return <Dialog open onOpenChange={open => { if (!open) close(); }}><DialogContent className="firmware-dialog usb-dialog" showCloseButton={state.stage !== 'sending'}>
-    <DialogHeader><DialogTitle>⚡ Usar mi placa</DialogTitle><DialogDescription>Paso {flowIndex + 1} de {flow.length} · {step === 'review' ? 'Revisar el proyecto' : step === 'connect' ? 'Conectar la placa' : step === 'prepare' ? 'Preparar la placa' : step === 'wifi' ? 'Configurar Wi-Fi' : step === 'send' ? 'Enviar el programa' : 'Programa en marcha'}</DialogDescription></DialogHeader>
+    <DialogHeader><DialogTitle>⚡ Usar mi placa</DialogTitle><DialogDescription>Paso {flowIndex + 1} de {flow.length} · {step === 'review' ? 'Revisar el proyecto' : step === 'board' ? 'Elegir la placa' : step === 'connect' ? 'Conectar la placa' : step === 'prepare' ? 'Preparar la placa' : step === 'wifi' ? 'Configurar Wi-Fi' : step === 'send' ? 'Enviar el programa' : 'Programa en marcha'}</DialogDescription></DialogHeader>
     <progress className="board-guide-progress" value={flowIndex + 1} max={flow.length} aria-label={`Paso ${flowIndex + 1} de ${flow.length}`} />
     {!available && <p role="alert" className="account-error">Web Serial requiere Chrome o Edge de escritorio y una dirección HTTPS o localhost.</p>}
     {error && <p role="alert" className="account-error">{error}</p>}
     {actionError && <p role="alert" className="account-error">{actionError}</p>}
     {revoked && <p role="alert" className="account-error">La sesión cambió o perdió conexión con el servidor. Cerramos USB; volvé a ingresar antes de usar la placa.</p>}
-    {step === 'review' && <section className="board-guide-screen"><div className="board-guide-hero" aria-hidden="true">🧩</div><h3>Tu proyecto está listo para continuar</h3><ul className="board-guide-checks"><li>✓ Tiene acciones para ejecutar</li><li>✓ Los bloques y componentes son compatibles</li><li>✓ Elegiste {boardProfile(board).name}</li>{store.remote?.course && <li>✓ Pertenece al curso {store.remote.course.name}</li>}</ul><p>En los cursos que exijan aprobación docente, esa comprobación ocupará esta pantalla y no quedará escondida entre datos técnicos.</p><Button onClick={() => setStep('connect')}>Continuar</Button></section>}
+    {step === 'review' && <section className="board-guide-screen"><h3>Placa actual</h3><BoardPhoto id={board} /><strong>{boardProfile(board).name}</strong><ul className="board-guide-checks"><li>✓ Tiene acciones para ejecutar</li><li>✓ Los bloques y componentes son compatibles</li>{store.remote?.course && <li>✓ Pertenece al curso {store.remote.course.name}</li>}</ul><p>Podés cambiar de placa ahora o más adelante. Primero revisaremos que tu proyecto sea compatible.</p><Button variant="outline" onClick={() => setStep('board')}>Cambiar placa</Button><Button onClick={() => setStep('connect')} disabled={board === WAVESHARE}>Continuar con esta placa</Button>{board === WAVESHARE && <output className="account-help">La Waveshare puede usarse en el proyecto, pero todavía no tiene el firmware de reglas para continuar por este asistente.</output>}</section>}
+    {step === 'board' && <section className="board-guide-screen board-picker-screen"><h3>¿Qué placa vas a usar?</h3><p>Sólo habilitamos cambios que conservan el proyecto. Las conexiones propuestas se aplican recién al confirmar.</p><div className="board-choice-grid">{boardChoices.map(choice => <article className="board-choice" data-current={choice.profile.id === board} data-unavailable={!choice.available && choice.profile.id !== board} key={choice.profile.id}><BoardPhoto id={choice.profile.id} /><h4>{choice.profile.shortName}</h4><p>{choice.profile.flashSize} flash{choice.profile.psramBytes ? ` · ${choice.profile.psramBytes / 1024 / 1024} MB PSRAM` : ''}</p>{choice.profile.id === board ? <strong>Placa actual</strong> : choice.available ? <Button variant="outline" onClick={() => setCandidate(choice.profile.id)}>Revisar cambio</Button> : <p className="account-help">No disponible: {choice.reason}</p>}</article>)}</div>{candidate && (() => { const choice = boardChoices.find(item => item.profile.id === candidate)!; return <output className="board-change-confirm"><h4>Cambiar a {choice.profile.name}</h4><p>{choice.changes.length ? `Hay ${choice.changes.length} conexión${choice.changes.length === 1 ? '' : 'es'} que cambiará${choice.changes.length === 1 ? '' : 'n'} al confirmar.` : 'Todas las conexiones actuales sirven en esta placa.'}</p>{(choice.changes.length > 0 || choice.warnings.length > 0) && <details><summary>Ver cambios de conexión</summary><ul>{choice.changes.map(change => <li key={change}>{change}</li>)}{choice.warnings.map((warning, index) => <li key={`warning-${index}`}>{warning}</li>)}</ul></details>}<div className="usb-actions"><Button onClick={() => { onChangeBoard(candidate, choice.scene); setCandidate(null); setStep('review'); }}>Confirmar cambio</Button><Button variant="outline" onClick={() => setCandidate(null)}>Cancelar</Button></div></output>; })()}</section>}
     {step === 'connect' && <section className="board-guide-screen"><div className="board-guide-hero" aria-hidden="true">🔌</div><h3>Conectá {boardProfile(board).shortName}</h3><p>Usá un cable USB de datos. Después elegí la placa en la ventana del navegador.</p><div className="usb-status" role={state.stage === 'error' ? 'alert' : 'status'} aria-live="polite"><strong>{state.message}</strong></div><Button disabled={!available || !!error || revoked || state.stage === 'connecting'} onClick={() => void connectBoard()}>Conectar mi placa</Button>{state.stage !== 'connecting' && <Button variant="outline" disabled={!available || revoked} onClick={() => void beginInstall()}>Todavía no tiene CapiBloques</Button>}</section>}
     {step === 'prepare' && <section className="board-guide-screen"><div className="board-guide-hero" aria-hidden="true">⚙️</div><h3>Preparar {boardProfile(board).shortName}</h3><p>Instalaremos CapiBloques una sola vez. Esto reemplaza el programa que tenga ahora la placa.</p>{!installing && <Button onClick={() => void beginInstall()}>{state.stage === 'incompatible' ? 'Instalar la versión correcta' : 'Preparar esta placa'}</Button>}{installing && <><div className="usb-status" role={installState.stage === 'error' ? 'alert' : 'status'} aria-live="polite"><strong>{installState.message}</strong>{installState.writingStarted && <><progress value={installState.progress} max={100} /><span>{installState.progress}%</span></>}</div>{installState.stage !== 'done' && <fieldset className="usb-checks" disabled={usbBusy(installState)}><legend>Revisalo con una persona adulta</legend><label><input type="checkbox" checked={identified} onChange={event => setIdentified(event.target.checked)} /> Es la placa correcta.</label><label><input type="checkbox" checked={safe} onChange={event => setSafe(event.target.checked)} /> Motores y actuadores están desconectados.</label><label><input type="checkbox" checked={replace} onChange={event => setReplace(event.target.checked)} /> Podemos reemplazar el programa actual.</label></fieldset>}{!usbBusy(installState) && installState.stage !== 'done' && <Button disabled={!available || revoked || !identified || !safe || !replace} onClick={flash}>Instalar CapiBloques</Button>}{usbBusy(installState) && <Button variant="outline" onClick={() => installer.cancel()}>Cancelar instalación</Button>}{installState.stage === 'done' && <Button onClick={() => { setInstalling(false); setIdentified(false); setSafe(false); setReplace(false); setStep('connect'); }}>Continuar</Button>}</>}</section>}
     {step === 'wifi' && <section className="board-guide-screen firmware-wifi"><div className="board-guide-hero" aria-hidden="true">📶</div><h3>¿Este proyecto usará Wi-Fi?</h3><p>La clave viaja directamente a la placa. No se guarda en el proyecto ni se envía al servidor.</p><label htmlFor="interpreter-wifi-ssid">Nombre de la red</label><Input id="interpreter-wifi-ssid" autoComplete="off" maxLength={32} value={wifiSsid} onChange={event => setWifiSsid(event.target.value)} /><label htmlFor="interpreter-wifi-password">Clave de la red</label><Input id="interpreter-wifi-password" type="password" autoComplete="new-password" maxLength={63} value={wifiPassword} onChange={event => setWifiPassword(event.target.value)} placeholder="Vacía sólo para una red abierta" /><Button disabled={!wifiSsid.trim() || (!!wifiPassword && wifiPassword.length < 8)} onClick={configureWifi}>Guardar y continuar</Button><Button variant="outline" onClick={() => setStep('send')}>No cambiar la red ahora</Button></section>}
