@@ -2,7 +2,7 @@
 
 Estado al 24 de septiembre de 2026: **terminada en software y pendiente de aceptación física**. El propietario redefinió la fase para que el recorrido cotidiano sea instalar el firmware intérprete precompilado y enviar reglas localmente. La compilación Arduino/ESP-IDF por proyecto se conserva como herramienta avanzada, pero deja de competir con la acción principal.
 
-La primera implementación se publicó en `main` como `6dece1e`. La corrección del 25 de septiembre reemplaza el panel acumulativo por un asistente de pantallas; su revisión se registra al cerrar esta entrega. DEV todavía permanece en `8103b14` hasta que el propietario ejecute la actualización rápida.
+La primera implementación se publicó en `main` como `6dece1e`. La corrección `9914ae8` del 25 de septiembre reemplaza el panel acumulativo por un asistente de pantallas. DEV todavía permanece en `8103b14` hasta que el propietario ejecute la actualización rápida.
 
 ## Decisión de producto
 
@@ -42,6 +42,7 @@ Las reglas se generan en el navegador. No usan la cola de compilación, no enví
 - Suite smoke completa correcta, incluido `CapiRules`, protocolo `CapiLink`, contrato fuente del intérprete, perfiles, componentes y generadores.
 - Build estático correcto con sus diez rutas verificadas; permanece únicamente el aviso conocido de tamaño de chunks.
 - Regresión final de experiencia: 7/7 recorridos Chromium correctos, incluido que las herramientas nativas no aparezcan en el menú principal y sí dentro del panel avanzado.
+- Corrección de asistente: typecheck, lint, suite smoke completa, build estático y 7/7 recorridos Chromium correctos. La prueba comprueba que revisión y conexión no aparezcan juntas.
 
 ## Aceptación física pendiente
 
