@@ -1,6 +1,6 @@
 # Fase 20 — Uso guiado de la placa
 
-Estado al 24 de septiembre de 2026: **terminada en software y pendiente de aceptación física**. El propietario redefinió la fase para que el recorrido cotidiano sea instalar el firmware intérprete precompilado y enviar reglas localmente. La compilación Arduino/ESP-IDF por proyecto se conserva como herramienta avanzada, pero deja de competir con la acción principal.
+Estado al 25 de septiembre de 2026: **asistente base terminado en software; selección visual de placa pendiente y aceptación física pendiente**. El propietario redefinió la fase para que el recorrido cotidiano sea instalar el firmware intérprete precompilado y enviar reglas localmente. La compilación Arduino/ESP-IDF por proyecto se conserva como herramienta avanzada, pero deja de competir con la acción principal.
 
 La primera implementación se publicó en `main` como `6dece1e`. La corrección `9914ae8` del 25 de septiembre reemplaza el panel acumulativo por un asistente de pantallas. DEV todavía permanece en `8103b14` hasta que el propietario ejecute la actualización rápida.
 
@@ -34,6 +34,21 @@ Las reglas se generan en el navegador. No usan la cola de compilación, no enví
 - Si un proyecto usa una capacidad que el intérprete no declara, se bloquea antes de enviar reglas y se explica la actualización necesaria.
 - Web Serial requiere Chrome o Edge de escritorio y HTTPS o localhost. USB pertenece a la PC del navegador, no al servidor.
 - Arduino/ESP-IDF específicos siguen siendo una salida válida para diagnóstico, estudio o componentes todavía no cubiertos. Ocultarlos no autoriza retirar compatibilidad.
+
+## Selección y cambio de placa — pendiente de esta fase
+
+La placa forma parte del proyecto, pero no es una decisión irreversible. Puede cambiarse desde la escena o desde el propio asistente **Usar en placa**, incluso después de haber programado parte del proyecto.
+
+- La primera pantalla debe decir **Placa actual**, nunca «Elegiste», cuando el perfil provenga del valor predeterminado o de una importación.
+- Debe mostrar nombre completo y una fotografía clara de la placa actual, con texto alternativo. Los diagramas vectoriales existentes se conservan para cableado, pero no sustituyen la foto de reconocimiento.
+- **Cambiar placa** abre una pantalla propia dentro del asistente. Sólo ofrece perfiles que puedan recibir el proyecto o explica qué impide cada alternativa; no muestra un selector técnico indiscriminado.
+- Para proyectos con GPIO/componentes externos, los candidatos habituales son Wemos D1 R32 y DIYmall ESP32-S3 DevKitC. La Waveshare de 5″ se trata como una familia separada cuando el proyecto depende de pantalla/touch integrados. La lista final se calcula por capacidades reales, no sólo por nombre de familia.
+- Antes de confirmar, se hace una prueba sin modificar el proyecto: capacidades, memoria, cantidad/tipo de pines, PWM, buses y dependencias integradas. Se presenta el resultado en lenguaje cotidiano.
+- Un cambio compatible conserva bloques, escena y configuración. Las reasignaciones automáticas seguras se muestran antes de aplicarse. Conflictos restantes ofrecen volver o abrir la escena para resolverlos; nunca se borran componentes ni se cambian conexiones silenciosamente.
+- El cambio se persiste sólo después de confirmar y participa de Guardar/Cancelar, Deshacer/Rehacer, autoguardado e historial.
+- Al conectar por USB, si la placa detectada no coincide con la placa actual, se bloquea el envío y se ofrecen dos salidas explícitas: conectar la placa esperada o volver a la selección compatible. Detectar hardware no autoriza cambiar el proyecto automáticamente.
+
+Actualmente el repositorio tiene ilustraciones técnicas propias para Wemos, DIYmall S3 y Waveshare SKU 28117, pero no fotografías. Antes de cerrar esta extensión se incorporarán imágenes exactas aportadas por el propietario o con procedencia/licencia documentada; no se usará una foto genérica de otra revisión.
 
 ## Verificación
 

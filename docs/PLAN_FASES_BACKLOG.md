@@ -1,6 +1,6 @@
 # Nuevas fases de CapiBloques
 
-Plan elaborado el 8 de septiembre de 2026 y actualizado el 25 de septiembre de 2026. **Fases 11–18, 20, 27–33 y 35–41 entregadas en software; fase 23 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`, aunque cada cierre posterior requiere su actualización explícita. La fase 19 queda ampliada por el inventario pedagógico y el bloque `según`; 21–22, 24–26, 34 y 42 permanecen pendientes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
+Plan elaborado el 8 de septiembre de 2026 y actualizado el 25 de septiembre de 2026. **Fases 11–18, 27–33 y 35–41 entregadas en software; fases 20 y 23 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`, aunque cada cierre posterior requiere su actualización explícita. La fase 19 queda ampliada por el inventario pedagógico y el bloque `según`; 21–22, 24–26, 34 y 42 permanecen pendientes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
 
 La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros consecutivos; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. Los pedidos del 23 de septiembre amplían la fase 19 y continúan hasta la fase 41 sin alterar entregas cerradas; la simplificación integral solicitada el 25 de septiembre es la fase 42.
 
@@ -17,7 +17,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 17 | Software entregado: perfil Waveshare ESP32-S3 con pantalla de 5 pulgadas; DEV/físico pendientes | 2: Waveshare; 9: guía visual Waveshare | Perfiles de fase 16 y modelo/revisión exactos identificados |
 | 18 | Software entregado: tablero de estados lógicos y controles locales en el display; DEV/físico pendientes | 3: display interactivo | Perfiles de pantalla de fase 17 y ejecución/componentes existentes |
 | 19 | Desafíos progresivos, herramientas pedagógicas y bloque `según` | 12 y 35 | Plan completo versionado; primeros retos sin hardware; valores tipados de fase 29 |
-| 20 | Software entregado: uso guiado de placa mediante firmware intérprete y reglas; compilación nativa oculta como avanzada | 15, 17, 23 y 34 | Intérprete de fase 36 publicado; aceptación física USB pendiente |
+| 20 | Asistente base entregado; pendiente selección/cambio visual y aceptación física | 15, 17, 23 y 34 | Intérprete de fase 36 publicado; compatibilidad real por perfil y fotos exactas pendientes |
 | 21 | Claridad y ergonomía educativa del editor | Informe externo vital 4, sutiles 1–8 y futuras 1–2, 5–7 | Fases 12 y 14; reproducción previa de cada observación |
 | 22 | Avatar acompañante y reacciones accesibles | 14; informe futuro 3 | Fase 19 para reacciones de desafíos y fase 20 para resultados de compilar/grabar |
 | 23 | En curso: software de matriz MAX7219 implementado; aceptación física de matriz y displays pendiente | 18 y 19 | Módulos exactos identificados; fase 10 para el recorrido físico por USB |
@@ -260,7 +260,7 @@ No incluye una competencia pública, chat o tutor de IA, creación libre de desa
 
 ## Fase 20 — Uso guiado de la placa
 
-**Estado:** terminada en software; aceptación física pendiente. Ver [decisión, recorrido y evidencia](FASE_20_USO_GUIADO_PLACA.md).
+**Estado:** asistente base entregado; selección/cambio visual de placa y aceptación física pendientes. Ver [decisión, recorrido y evidencia](FASE_20_USO_GUIADO_PLACA.md).
 
 **Objetivo redefinido por el propietario:** que la actividad normal no compile un firmware por proyecto. La web instala o actualiza un firmware CapiBloques precompilado por placa y después genera, envía y ejecuta reglas locales en pocos segundos.
 
@@ -269,6 +269,7 @@ No incluye una competencia pública, chat o tutor de IA, creación libre de desa
 - Enviar y ejecutar es una sola acción; conserva comprobación de sesión, placa, versión, ABI, capacidades, tamaño, recursos, almacenamiento atómico y Wi-Fi privado.
 - Arduino, ESP-IDF, compilación específica y monitor Serial no se destruyen: quedan reunidos bajo **Herramientas avanzadas para adultos**.
 - La cola pesada deja de ser parte del camino infantil. Su administración, privacidad y compatibilidad se mantienen mientras exista el modo avanzado; una futura retirada requerirá otra decisión y migración.
+- **Extensión pendiente de la misma fase:** mostrar la placa actual con foto, permitir cambiarla en cualquier momento también dentro del asistente y ofrecer únicamente destinos compatibles. El cambio debe previsualizar capacidades, pines y reasignaciones, respetar Guardar/Cancelar y Deshacer/Rehacer, y bloquear silencios o pérdidas. Waveshare 5″ se separa de las placas de GPIO general cuando el proyecto usa su pantalla/touch integrado. Ver el contrato completo en [FASE_20_USO_GUIADO_PLACA.md](FASE_20_USO_GUIADO_PLACA.md).
 
 La aceptación física exige instalar, actualizar y ejecutar reglas en Wemos y DIYmall S3 reales. No se presenta como realizada por la compilación reproducible de los binarios.
 
