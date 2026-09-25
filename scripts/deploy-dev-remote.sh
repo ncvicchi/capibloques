@@ -9,6 +9,8 @@ REPOSITORY=/home/capi/capibloques
 STATE_FILE=/var/lib/capibloques/dev-deploy.state
 EXPECTED_COMMIT=
 CHECK_ONLY=0
+REINSTALL_RUNTIME=0
+RUNTIME_TEMP=
 
 while (($#)); do
   case "$1" in
@@ -39,8 +41,24 @@ fail() {
 
 cd "$REPOSITORY"
 repo_git() {
-  sudo -u capi git -C "$REPOSITORY" "$@"
+  sudo -H -u capi -- git -C "$REPOSITORY" "$@"
 }
+
+preserve_git_owner() {
+  # A privileged diagnostic must never leave Git unusable for the operator.
+  # This is a final guard; runtime.py also executes every Git command as capi.
+  if find "$REPOSITORY/.git" ! -user capi -print -quit | grep -q .; then
+    chown -R capi:capi "$REPOSITORY/.git"
+  fi
+}
+
+cleanup() {
+  if [[ -n $RUNTIME_TEMP ]]; then
+    rm -f -- "$RUNTIME_TEMP"
+  fi
+  preserve_git_owner
+}
+trap cleanup EXIT
 
 [[ -z $(repo_git status --porcelain) ]] || fail "el checkout DEV tiene cambios locales"
 TARGET_COMMIT=$(repo_git rev-parse origin/main)
@@ -65,6 +83,19 @@ while IFS= read -r file; do
     ops/public-dev/test_contracts.py)
       # Es una prueba local/CI del contrato operativo; no se instala ni forma
       # parte del runtime público de la VM.
+      ;;
+    ops/public-dev/runtime.py)
+      runtime_object=$(repo_git rev-parse "$TARGET_COMMIT:$file" 2>/dev/null || true)
+      [[ $runtime_object == 31596bd23eaba09b876a15d61b86ac438a37eca4 ]] || \
+        fail "runtime.py no coincide con la corrección de ownership auditada; DEV no fue modificado"
+      REINSTALL_RUNTIME=1
+      ;;
+    ops/public-dev/install.py)
+      # Sólo se usa en una reinstalación explícita de la entrada pública. La
+      # copia activa de runtime.py se actualiza por el caso anterior.
+      installer_object=$(repo_git rev-parse "$TARGET_COMMIT:$file" 2>/dev/null || true)
+      [[ $installer_object == d537c3dd5ad804b005c5062f7d04ca0a5c42c883 ]] || \
+        fail "install.py no coincide con la corrección de ownership auditada; DEV no fue modificado"
       ;;
     *)
       unknown_maintenance+=("$file")
@@ -145,6 +176,7 @@ printf 'Preflight: checkout=%s objetivo=%s pausa=%s revision=%s cola=%s activos=
 ((RUN_MIGRATIONS)) && echo "Mantenimiento reconocido: respaldo PostgreSQL y migración compiler.0002."
 ((REBUILD_COMPILER)) && echo "Mantenimiento reconocido: reconstrucción y registro de la imagen del compilador."
 ((BUILD_INTERPRETER)) && echo "Firmware intérprete: se construirá una vez para Wemos y ESP32-S3; no se compila por proyecto."
+((REINSTALL_RUNTIME)) && echo "Runtime DEV: se instalará la corrección que preserva el propietario Git."
 
 if ((CHECK_ONLY)); then
   runtime status
@@ -161,6 +193,10 @@ if [[ -f $STATE_FILE ]]; then
   saved_verify_backend=$(sed -n 's/^verify_backend=//p' "$STATE_FILE")
   saved_run_migrations=$(sed -n 's/^run_migrations=//p' "$STATE_FILE")
   saved_rebuild_compiler=$(sed -n 's/^rebuild_compiler=//p' "$STATE_FILE")
+  saved_reinstall_runtime=$(sed -n 's/^reinstall_runtime=//p' "$STATE_FILE")
+  # Los marcadores creados antes de esta corrección no conocían este paso.
+  # Cero es la única interpretación segura: el diff nuevo volverá a activarlo.
+  [[ -n $saved_reinstall_runtime ]] || saved_reinstall_runtime=0
   [[ $original_paused =~ ^[01]$ && $saved_with_api =~ ^[01]$ && $saved_verify_backend =~ ^[01]$ ]] || \
     fail "el estado del mantenimiento anterior está incompleto; revisar $STATE_FILE"
   [[ $saved_target =~ ^[0-9a-f]{40}$ ]] && repo_git cat-file -e "$saved_target^{commit}" 2>/dev/null || \
@@ -171,9 +207,10 @@ if [[ -f $STATE_FILE ]]; then
     # no queda un diff viejo del que inferir pasos de mantenimiento pendientes.
     saved_run_migrations=0
     saved_rebuild_compiler=0
+    saved_reinstall_runtime=0
     echo "Migrando marcador anterior ya aplicado en $saved_target"
   fi
-  [[ $saved_run_migrations =~ ^[01]$ && $saved_rebuild_compiler =~ ^[01]$ ]] || \
+  [[ $saved_run_migrations =~ ^[01]$ && $saved_rebuild_compiler =~ ^[01]$ && $saved_reinstall_runtime =~ ^[01]$ ]] || \
     fail "el marcador anterior no permite deducir mantenimiento pendiente; revisar $STATE_FILE"
   if [[ $saved_target != "$TARGET_COMMIT" ]]; then
     repo_git merge-base --is-ancestor "$saved_target" "$TARGET_COMMIT" || \
@@ -187,22 +224,24 @@ if [[ -f $STATE_FILE ]]; then
     if ((saved_verify_backend)); then VERIFY_BACKEND=1; fi
     if ((saved_run_migrations)); then RUN_MIGRATIONS=1; fi
     if ((saved_rebuild_compiler)); then REBUILD_COMPILER=1; fi
+    if ((saved_reinstall_runtime)); then REINSTALL_RUNTIME=1; fi
     umask 077
-    printf 'target=%s\noriginal_paused=%s\nwith_api=%s\nverify_backend=%s\nrun_migrations=%s\nrebuild_compiler=%s\n' \
-      "$TARGET_COMMIT" "$original_paused" "$WITH_API" "$VERIFY_BACKEND" "$RUN_MIGRATIONS" "$REBUILD_COMPILER" >"$STATE_FILE"
+    printf 'target=%s\noriginal_paused=%s\nwith_api=%s\nverify_backend=%s\nrun_migrations=%s\nrebuild_compiler=%s\nreinstall_runtime=%s\n' \
+      "$TARGET_COMMIT" "$original_paused" "$WITH_API" "$VERIFY_BACKEND" "$RUN_MIGRATIONS" "$REBUILD_COMPILER" "$REINSTALL_RUNTIME" >"$STATE_FILE"
     echo "Reanudando el mantenimiento $saved_target y avanzando al descendiente auditado $TARGET_COMMIT"
   else
     WITH_API=$saved_with_api
     VERIFY_BACKEND=$saved_verify_backend
     RUN_MIGRATIONS=$saved_run_migrations
     REBUILD_COMPILER=$saved_rebuild_compiler
+    REINSTALL_RUNTIME=$saved_reinstall_runtime
     echo "Reanudando mantenimiento interrumpido para $saved_target"
   fi
 else
   original_paused=$paused
   umask 077
-  printf 'target=%s\noriginal_paused=%s\nwith_api=%s\nverify_backend=%s\nrun_migrations=%s\nrebuild_compiler=%s\n' \
-    "$TARGET_COMMIT" "$original_paused" "$WITH_API" "$VERIFY_BACKEND" "$RUN_MIGRATIONS" "$REBUILD_COMPILER" >"$STATE_FILE"
+  printf 'target=%s\noriginal_paused=%s\nwith_api=%s\nverify_backend=%s\nrun_migrations=%s\nrebuild_compiler=%s\nreinstall_runtime=%s\n' \
+    "$TARGET_COMMIT" "$original_paused" "$WITH_API" "$VERIFY_BACKEND" "$RUN_MIGRATIONS" "$REBUILD_COMPILER" "$REINSTALL_RUNTIME" >"$STATE_FILE"
 fi
 
 # Un estado reanudado puede exigir una migración que ya no aparece en el diff
@@ -254,6 +293,19 @@ fi
 echo "Actualizando checkout por fast-forward."
 repo_git pull --ff-only origin main
 [[ $(repo_git rev-parse HEAD) == "$TARGET_COMMIT" ]] || fail "el checkout no quedó en el commit objetivo"
+
+if ((REINSTALL_RUNTIME)); then
+  echo "Instalando runtime DEV corregido mediante reemplazo atómico."
+  python3 - <<'PY'
+from pathlib import Path
+source = Path("ops/public-dev/runtime.py").read_text(encoding="utf-8")
+compile(source, "ops/public-dev/runtime.py", "exec")
+PY
+  RUNTIME_TEMP=$(mktemp /usr/local/sbin/.capibloques-dev-runtime.XXXXXX)
+  install -m 0755 -o root -g root ops/public-dev/runtime.py "$RUNTIME_TEMP"
+  mv -f "$RUNTIME_TEMP" /usr/local/sbin/capibloques-dev-runtime
+  RUNTIME_TEMP=
+fi
 
 if ((REBUILD_COMPILER)); then
   echo "Reconstruyendo la imagen aislada del compilador (se reutilizan las capas locales)."

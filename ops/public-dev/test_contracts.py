@@ -115,6 +115,18 @@ class PublicRuntimeContracts(unittest.TestCase):
         self.assertIn("CAPIBLOQUES_API_RECREATE_REQUIRED", runtime)
         self.assertIn("if not candidate_exists:", runtime)
 
+    def test_privileged_runtime_never_runs_git_as_root(self):
+        runtime = load("runtime")
+        with patch.object(runtime.subprocess, "check_output", side_effect=["", "a" * 40]) as command:
+            self.assertEqual(runtime.current_revision(Path("/srv/capibloques")), "a" * 40)
+        for call in command.call_args_list:
+            arguments = call.args[0]
+            self.assertEqual(arguments[:6], ["sudo", "-H", "-u", "capi", "--", "git"])
+
+        installer = (OPS / "install.py").read_text(encoding="utf-8")
+        self.assertIn("git_as_checkout_user(checkout, \"status\", \"--porcelain\")", installer)
+        self.assertNotIn('subprocess.check_output(["git", "-C", checkout', installer)
+
     def test_updater_cannot_lose_its_script_to_a_child_stdin_reader(self):
         updater = (ROOT / "scripts/update-dev.sh").read_text(encoding="utf-8")
         deployer = (ROOT / "scripts/deploy-dev-remote.sh").read_text(encoding="utf-8")
@@ -123,9 +135,16 @@ class PublicRuntimeContracts(unittest.TestCase):
         self.assertNotIn('git show "$target:scripts/deploy-dev-remote.sh" |', updater)
         self.assertIn("Modo DEV directo: no se espera GitHub Actions", updater)
         self.assertIn("if [[ $CI_MODE == fast ]]", updater)
+        self.assertIn('sudo chown -R capi:capi "$REPOSITORY/.git"', updater)
+        self.assertIn('[[ -r .git/index && -w .git/index ]]', updater)
         self.assertIn("pg_dump -U postgres -d capibloques -Fc </dev/null", deployer)
         self.assertIn("Editor activo verificado", deployer)
         self.assertIn("ops/public-dev/test_contracts.py)", deployer)
+        self.assertIn("ops/public-dev/runtime.py)", deployer)
+        self.assertIn("trap cleanup EXIT", deployer)
+        self.assertIn("preserve_git_owner", deployer)
+        self.assertIn("runtime.py no coincide con la corrección de ownership auditada", deployer)
+        self.assertIn("install.py no coincide con la corrección de ownership auditada", deployer)
 
     def test_reconfiguration_keeps_listener_closed_until_api_recreate(self):
         installer = (OPS / "install.py").read_text(encoding="utf-8")

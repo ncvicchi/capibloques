@@ -163,6 +163,15 @@ Un corte eléctrico ocurrió antes de autenticar la ventana de despliegue: no se
 
 Para evitar operación manual repetitiva se agregaron `scripts/update-dev.sh`, `scripts/deploy-dev.ps1` y el orquestador remoto reanudable. El modo normal `--fast` actualiza directamente el ambiente de prueba sin consultar ni esperar GitHub Actions; `--full` es optativo y dispara mediante una etiqueta Git temporal la CI completa de backend, web/E2E, Arduino y ESP-IDF para el mismo commit antes de actualizar. La etiqueta se elimina al terminar. Luego el proceso pausa de forma auditada, elige API automáticamente cuando corresponde, prueba, valida y restaura el estado previo. Toda salida termina con un banner inequívoco de actualización completada o fallida. Si el checkout aún contiene un actualizador antiguo, se inicia una vez con `git fetch --quiet origin main && git show origin/main:scripts/update-dev.sh | bash -s -- --fast`; después vuelve a servir `./scripts/update-dev.sh --fast`. La actualización acumulada desde `f772026` reconoce específicamente la migración aditiva `compiler.0002` y la nueva receta Wemos/S3: respalda PostgreSQL, reconstruye el compilador, migra y registra su imagen; cualquier otra migración o infraestructura continúa bloqueada y se enumera. Un marcador privado permite repetir la misma orden después de un corte. La guía y límites están en [FASE_13_ACCESO_EXTERNO_DEV.md](FASE_13_ACCESO_EXTERNO_DEV.md).
 
+Se corrigió además una alteración recurrente de permisos: el runtime ejecutado
+como `root` consultaba Git directamente y `git status` podía refrescar
+`.git/index` con propietario `root`. Runtime e instalador ahora ejecutan toda
+consulta Git como `capi`; el actualizador repara sólo `.git` al arrancar si
+encuentra residuos antiguos, conserva su propietario al salir e instala de
+forma explícita la copia corregida del runtime. Para arrancar desde un checkout
+que todavía tiene el índice dañado hay que anteponer una única reparación de
+`.git` antes del `git fetch`, según la receta vigente de fase 13.
+
 El 21 de septiembre se comprobó que el checkout podía quedar avanzado mientras
 el contenedor web continuaba en una imagen anterior. El cierre del orquestador
 ahora exige que la imagen activa y su etiqueta OCI coincidan con el commit

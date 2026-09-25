@@ -32,11 +32,17 @@ API_BOUNDARY_KEYS = frozenset({
     "CAPIBLOQUES_TRUSTED_PROXY_IPS",
     "CAPIBLOQUES_SECURE_COOKIES",
 })
+CHECKOUT_USER = "capi"
 
 
 def require_dev_root():
     if os.getuid() != 0 or socket.gethostname() != "capi-dev":
         raise SystemExit("Sólo root en capi-dev puede instalar esta entrada DEV")
+
+
+def git_as_checkout_user(checkout, *arguments):
+    """Installer is privileged, but the checkout and its index belong to capi."""
+    return ["sudo", "-H", "-u", CHECKOUT_USER, "--", "git", "-C", str(checkout), *arguments]
 
 
 def exact_ipv4(value, *, private=False, loopback=False):
@@ -235,9 +241,9 @@ def install(args):
         raise SystemExit("El edge y capi-dev deben ser hosts distintos")
     public_network_exists = validate_docker_subnet(network)
     validate_host_network(network, args.public_bind_ip, args.edge_ip, public_network_exists)
-    if subprocess.check_output(["git", "-C", checkout, "status", "--porcelain"], text=True).strip():
+    if subprocess.check_output(git_as_checkout_user(checkout, "status", "--porcelain"), text=True).strip():
         raise SystemExit("El checkout debe estar limpio antes de instalar el runtime versionado")
-    revision = subprocess.check_output(["git", "-C", checkout, "rev-parse", "HEAD"], text=True).strip()
+    revision = subprocess.check_output(git_as_checkout_user(checkout, "rev-parse", "HEAD"), text=True).strip()
     if not re.fullmatch(r"[0-9a-f]{40}", revision):
         raise SystemExit("No se pudo identificar el commit del checkout")
 

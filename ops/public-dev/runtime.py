@@ -14,11 +14,17 @@ ENV_FILE = Path("/etc/capibloques/public-dev.env")
 WEB_UNIT = "capibloques-dev-web.service"
 IMAGE = "capibloques-editor-dev"
 TAG = re.compile(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$")
+CHECKOUT_USER = "capi"
 
 
 def require_dev_root():
     if os.getuid() != 0 or socket.gethostname() != "capi-dev":
         raise SystemExit("Sólo root en capi-dev puede operar este runtime DEV")
+
+
+def git_as_checkout_user(checkout, *arguments):
+    """Git may refresh .git/index even for status; never run it as root."""
+    return ["sudo", "-H", "-u", CHECKOUT_USER, "--", "git", "-C", str(checkout), *arguments]
 
 
 def read_environment(path=ENV_FILE):
@@ -106,9 +112,9 @@ def wait_healthy(checkout, env_file, timeout=180):
 
 
 def current_revision(checkout):
-    if subprocess.check_output(["git", "-C", checkout, "status", "--porcelain"], text=True).strip():
+    if subprocess.check_output(git_as_checkout_user(checkout, "status", "--porcelain"), text=True).strip():
         raise SystemExit("El checkout debe estar limpio antes de construir una versión desplegable")
-    revision = subprocess.check_output(["git", "-C", checkout, "rev-parse", "HEAD"], text=True).strip()
+    revision = subprocess.check_output(git_as_checkout_user(checkout, "rev-parse", "HEAD"), text=True).strip()
     if not re.fullmatch(r"[0-9a-f]{40}", revision):
         raise SystemExit("Commit inválido")
     return revision

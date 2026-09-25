@@ -50,10 +50,18 @@ También puede iniciarse desde la PC de trabajo con `powershell -File .\scripts\
 Cuando el checkout de DEV todavía contiene un actualizador antiguo, la primera ejecución debe cargar el actualizador nuevo directamente desde `origin/main`:
 
 ```bash
-cd /home/capi/capibloques && git fetch --quiet origin main && git show origin/main:scripts/update-dev.sh | bash
+cd /home/capi/capibloques && if find .git ! -user capi -print -quit | grep -q . || test ! -w .git/index; then sudo chown -R capi:capi .git; fi && git fetch --quiet origin main && git show origin/main:scripts/update-dev.sh | bash -s -- --fast
 ```
 
 Después de ese despliegue vuelve a bastar `./scripts/update-dev.sh`.
+
+El servicio privilegiado nunca ejecuta Git directamente: incluso `git status`
+puede refrescar `.git/index`, por lo que todas sus consultas se ejecutan como
+`capi`. El actualizador comprueba al comenzar que los metadatos Git pertenecen
+a ese usuario y repara únicamente `.git` si detecta residuos de una versión
+anterior. Como `runtime.py` se instala fuera del checkout, su cambio es un
+mantenimiento reconocido que valida y sustituye atómicamente la copia activa;
+actualizar solamente el repositorio no deja ejecutándose el runtime antiguo.
 
 El operador elige el alcance:
 
@@ -102,7 +110,7 @@ La compilación normal de proyectos sí funciona con editor/API activos; la excl
 - El runtime utiliza la configuración privada junto con los tres archivos Compose: editor, backend y compilador. El tercero conserva el montaje privado de firmware. Toda operación adicional de build, migración o recreación debe preservar esa combinación y el entorno vigente; no copiar una receta antigua con valores por defecto.
 - `deploy --with-api` recrea API con la configuración privada y espera salud. Es obligatorio si el instalador marcó un cambio en hosts/proxies/cookies. **No construye la imagen API ni ejecuta migraciones.** Si cambian dependencias o esquema, preparar respaldo privado, construcción y migración según el diff, antes de habilitar el servicio. No presentar esos pasos como ejecutados por este comando.
 - El código Python está montado desde el checkout. Un pull puede modificar archivos utilizados por API aunque la imagen frontend no cambie; evaluar la parada/recreación necesaria antes de actualizar. No recrear API/base ni cambiar receta del compilador con intentos activos.
-- El [instalador público](../ops/public-dev/install.py) copia runtime, firewall y unidades al sistema; actualizar Git por sí solo no actualiza esas copias instaladas. Revisar su instalación respaldada si cambian esos archivos o la configuración de red. No reinstalarlo como efecto de un cambio de documentación o frontend. Ninguno de estos comandos modifica la VM Nginx; cualquier cambio allí necesita el alcance correspondiente.
+- El [instalador público](../ops/public-dev/install.py) copia runtime, firewall y unidades al sistema; actualizar Git por sí solo no actualiza esas copias instaladas. El orquestador reconoce específicamente una modificación de `runtime.py`, valida su sintaxis y reemplaza su copia activa; otros cambios del instalador, unidades o configuración de red requieren un mantenimiento explícito. No reinstalarlo como efecto de un cambio de documentación o frontend. Ninguno de estos comandos modifica la VM Nginx; cualquier cambio allí necesita el alcance correspondiente.
 - `sudo sh scripts/verify-backend-dev.sh`, **sin `--restart`**, usa API/DB existentes y migradas, ejecuta comprobaciones y pruebas en `test_capibloques`, y crea esa base de pruebas si falta. Django prepara el esquema de pruebas; el script no migra la base principal `capibloques` ni trabaja sobre proyectos reales como fixtures.
 - El script de pruebas no carga la configuración privada pública. **No ejecutar su opción `--restart` tal cual en DEV:** recrea API/DB y podría aplicar hosts, CSRF, proxies y cookies por defecto. Se conserva en CI aislado; un ensayo equivalente en DEV requiere adaptar y verificar la operación con el entorno público, además de pausar y esperar los trabajos. Esta corrección documental no modifica el script.
 

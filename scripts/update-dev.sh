@@ -59,6 +59,11 @@ done
 [[ $(hostname) == capi-dev ]] || { echo "Esta orden sólo funciona en capi-dev." >&2; exit 1; }
 
 cd "$REPOSITORY"
+if find .git ! -user capi -print -quit | grep -q . || [[ ! -w .git/index ]]; then
+  echo "Reparando propietario de los metadatos Git del checkout DEV."
+  sudo chown -R capi:capi "$REPOSITORY/.git"
+fi
+[[ -r .git/index && -w .git/index ]] || { echo "No se pudo recuperar .git/index para el usuario capi." >&2; exit 1; }
 [[ -z $(git status --porcelain) ]] || { echo "El checkout tiene cambios locales; no se actualizó." >&2; exit 1; }
 git fetch --quiet origin main
 target=$(git rev-parse origin/main)
