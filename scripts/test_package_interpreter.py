@@ -15,6 +15,6 @@ class PackageInterpreterTests(unittest.TestCase):
             self.assertEqual(info["sha256"], hashlib.sha256(bundle.read_bytes()).hexdigest())
             with zipfile.ZipFile(bundle) as archive:
                 self.assertEqual(archive.namelist(), ["manifest.json", "LEEME.txt", "firmware/part-0.bin", "firmware/part-1.bin", "firmware/part-2.bin"])
-                manifest = json.loads(archive.read("manifest.json")); self.assertEqual(manifest["interpreter"], {"version":"1.5.1","abi":1})
+                manifest = json.loads(archive.read("manifest.json")); self.assertEqual(manifest["interpreter"], {"version":"1.5.2","abi":1})
 
 if __name__ == "__main__": unittest.main()

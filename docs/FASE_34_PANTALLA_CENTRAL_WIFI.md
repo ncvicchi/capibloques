@@ -179,7 +179,7 @@ aceptación; no se obtiene gratis por permitir más conexiones Wi‑Fi.
 ## Base implementada
 
 El asistente ya presenta los dos roles y persiste en el JSON únicamente el
-perfil de Waveshare, su identidad no secreta y `WSMMMMMM`. CapiLink 1.5.1
+perfil de Waveshare, su identidad no secreta y `WSMMMMMM`. CapiLink 1.5.2
 incluye identidad Wi-Fi en `HELLO` y el comando `CONFIG_PAIR`; el navegador crea
 la contraseña y la clave de pareja localmente, configura primero la Waveshare
 como AP y después la Wemos/DevKit como cliente. Ambos perfiles sobreviven en
