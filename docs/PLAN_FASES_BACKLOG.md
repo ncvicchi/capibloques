@@ -1,8 +1,8 @@
 # Nuevas fases de CapiBloques
 
-Plan elaborado el 8 de septiembre de 2026 y actualizado el 24 de septiembre de 2026. **Fases 11–18, 20, 27–33 y 35–41 entregadas en software; fase 23 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`, aunque cada cierre posterior requiere su actualización explícita. La fase 19 queda ampliada por el inventario pedagógico y el bloque `según`; 21–22, 24–26 y 34 permanecen pendientes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
+Plan elaborado el 8 de septiembre de 2026 y actualizado el 25 de septiembre de 2026. **Fases 11–18, 20, 27–33 y 35–41 entregadas en software; fase 23 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`, aunque cada cierre posterior requiere su actualización explícita. La fase 19 queda ampliada por el inventario pedagógico y el bloque `según`; 21–22, 24–26, 34 y 42 permanecen pendientes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
 
-La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros consecutivos; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. Los pedidos del 23 de septiembre amplían la fase 19 y continúan hasta la fase 41 sin alterar entregas cerradas.
+La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros consecutivos; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. Los pedidos del 23 de septiembre amplían la fase 19 y continúan hasta la fase 41 sin alterar entregas cerradas; la simplificación integral solicitada el 25 de septiembre es la fase 42.
 
 ## Orden y cobertura
 
@@ -39,6 +39,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 39 | Software entregado: ambiente y medición; físico pendiente | 37 | Fase 38 y ADC/I²C compartidos validados por placa |
 | 40 | Software entregado: movimiento e identificación; físico pendiente | 37 | Eventos cooperativos, privacidad y buses validados |
 | 41 | Software entregado: actuación y medición avanzada; físico pendiente | 37 | Planificador cooperativo, privacidad GPS y hardware concreto |
+| 42 | Simplificación integral de la interfaz | Pedido del 25 de septiembre | Inventario de funciones y recorridos; fase 20 como patrón de divulgación progresiva |
 | Final | Producción, HTTPS, respaldos y piloto | Antigua fase 11 | Postergada hasta autorización explícita y validaciones de salida |
 
 Primero se asegura la continuidad desde otra cuenta sin depender de este chat; después se atienden los problemas cotidianos del editor y se vuelve DEV accesible desde fuera mediante un servicio controlado. TX/RX se incorpora antes de las placas nuevas para tener un contrato de comportamiento que luego se valide en cada destino. Separar DevKit, Waveshare y display interactivo permite comprobar por separado placa, pantalla y aplicación gráfica: no son el mismo soporte. Los desafíos aprovechan esas funciones como recorrido educativo propio. Las fases 20–26 separan flujos de compilación, pulido de edición, motivación, periféricos, control local, intercambio e identidad de aula para no mezclar permisos o hardware distintos en una entrega inmanejable.
@@ -625,6 +626,21 @@ Incluye Motor de pasos 28BYJ-48/ULN2003, Balanza HX711 y Ubicación GPS. El moto
 **Software entregado:** ver [FASE_41_ACTUACION_MEDICION.md](FASE_41_ACTUACION_MEDICION.md). Aceptación física pendiente.
 
 El alcance transversal, orden, perfiles, componentes postergados y fuentes de las fases 35 y 38–41 están centralizados en [COMPONENTES_A_IMPLEMENTAR.md](COMPONENTES_A_IMPLEMENTAR.md). Esa lista evita duplicar componentes por fabricante y exige separar software terminado de aceptación física.
+
+## Fase 42 — Simplificación integral de la interfaz
+
+**Estado:** pendiente. **Objetivo:** conservar toda la funcionalidad, pero dejar de presentarla simultáneamente como una colección de barras, paneles y decisiones competidoras.
+
+Alcance:
+
+- Inventariar cada acción visible del editor y asignarla a un recorrido principal, menú contextual, panel temporal o herramienta avanzada; ninguna función se elimina por ocultarla.
+- Definir una vista infantil centrada en **crear, simular y usar en placa**, con una acción principal clara por contexto y divulgación progresiva para opciones menos frecuentes.
+- Convertir operaciones complejas —escena, guardado/recuperación, revisión, placa y errores— en asistentes breves cuando requieran decisiones secuenciales; no acumular todas sus etapas en una sola pantalla.
+- Reducir altura y cantidad de encabezados, agrupar estado de cuenta/proyecto y trasladar estados al objeto relevante cuando sea posible.
+- Mantener acceso docente/administrativo y herramientas avanzadas sin mezclarlas con el recorrido cotidiano del alumno.
+- Verificar que las funciones existentes sigan siendo descubribles con teclado, lector de pantalla, texto ampliado, móvil, Chrome y Edge. Probar tareas completas, no sólo capturas limpias.
+
+Aceptación: los recorridos principales deben poder completarse sin conocer la arquitectura interna; cada pantalla ofrece una acción dominante y como máximo las alternativas necesarias para volver o cancelar. Un inventario automatizado/manual confirma que ninguna función quedó inaccesible. La fase 20 sirve como primer patrón, pero no equivale a completar esta auditoría global.
 
 ## Fase final — Producción y piloto, postergada
 

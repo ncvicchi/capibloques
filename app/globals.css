@@ -137,6 +137,22 @@
 .board-steps li[data-active='true'] { border-color: var(--purple); background: #f4f1ff; color: #352d8f; }
 .board-steps li[data-done='true'] { border-color: #9bd6c8; background: #edf9f5; color: #075e52; }
 .board-steps li[data-done='true']::before { content: '✓'; background: var(--teal); color: white; }
+.board-guide-progress { width: 100%; height: 8px; accent-color: var(--purple); }
+.board-guide-screen { min-height: 360px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 20px clamp(4px, 4vw, 34px); text-align: center; }
+.board-guide-screen h3 { margin: 0; font-size: clamp(1.35rem, 4vw, 1.8rem); font-weight: 800; color: var(--ink); }
+.board-guide-screen > p { max-width: 54ch; margin: 0; }
+.board-guide-screen > button { width: min(100%, 360px); }
+.board-guide-hero { display: grid; place-items: center; width: 84px; height: 84px; border-radius: 50%; background: #f1edff; font-size: 2.6rem; }
+.board-guide-checks { width: min(100%, 470px); display: grid; gap: 9px; padding: 0; margin: 0; list-style: none; text-align: left; }
+.board-guide-checks li { padding: 10px 12px; border-radius: 10px; background: #edf9f5; color: #075e52; font-weight: 700; }
+.board-guide-screen .usb-status { width: min(100%, 520px); }
+.board-guide-screen .usb-checks { width: min(100%, 520px); text-align: left; }
+.board-guide-screen.firmware-wifi { align-items: stretch; width: min(100%, 520px); margin: auto; text-align: left; }
+.board-guide-screen.firmware-wifi .board-guide-hero { align-self: center; }
+.board-guide-screen.firmware-wifi h3, .board-guide-screen.firmware-wifi > p { align-self: center; text-align: center; }
+.board-guide-screen.firmware-wifi > button { align-self: center; }
+.board-guide-screen details { width: min(100%, 540px); text-align: left; border-top: 1px solid var(--line); }
+.board-guide-footer { display: flex; justify-content: flex-start; gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; }
 .advanced-tools-list { display: grid; gap: 10px; }
 .advanced-tools-list button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: white; text-align: left; font-weight: 700; }
 .usb-dialog button { max-width: 100%; }

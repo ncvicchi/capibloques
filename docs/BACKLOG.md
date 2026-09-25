@@ -506,7 +506,7 @@ Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus
 ### Observaciones para posibles cambios futuros
 
 1. **Auto-conectar y borrador de escena.** Reproducir que Auto-conectar no refleja cambios hasta «Guardar cambios» y que los componentes no pueden moverse durante el borrador. Analizar una vista previa inmediata y coherente con Guardar/Cancelar, sin persistir silenciosamente, mezclar escena pendiente con confirmada ni romper Deshacer, autoguardado o simulación.
-2. **Simplificación adicional de barras y acciones superiores.** Auditar la interfaz posterior a fase 12 con chicos de 5–11 años, medir espacio vacío y cantidad de decisiones, y proponer lenguaje más cotidiano. Se relaciona con el [pedido 1](#1-redistribuir-la-interfaz), ya entregado en su alcance original; una nueva simplificación requiere alcance y pruebas propios.
+2. **Simplificación adicional de barras y acciones superiores.** Asignado a la **fase 42 — Simplificación integral de la interfaz**. Auditar la interfaz posterior a fase 12 con chicos de 5–11 años, medir espacio útil y cantidad de decisiones, y aplicar divulgación progresiva sin retirar funcionalidad. Se relaciona con el [pedido 1](#1-redistribuir-la-interfaz), ya entregado en su alcance original, pero su alcance es global y propio.
 3. **Avatar como asistente emocional.** Analizar personalidad, ubicación, frecuencia y mensajes del avatar. Coordinarlo con las [reacciones del pedido 14](#14-reacciones-animadas-del-avatar-ante-resultados), sin sustituir instrucciones, estados textuales ni accesibilidad.
 4. **Compartir proyectos mediante enlace y QR.** Definir quién puede compartir y abrir, duración y revocación del enlace, copia frente a edición, proyectos de curso y protección de datos infantiles. No convertir un UUID en autorización ni publicar proyectos privados por defecto.
 5. **Menús desplegables dentro de bloques más distinguibles.** Evaluar fondo, borde, icono y estados de foco comparándolos con los campos numéricos, con contraste suficiente en todos los colores de bloque.
@@ -521,7 +521,8 @@ Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus
 | Progreso real de compilación; proyecto sin guardar; reinicio posgrabación | 20 |
 | Bloques superpuestos | 21 |
 | Nombre editable; colores traducidos; advertencias; selector de avatar; «segundos»; pin; saludo; bloques inactivos | 21 |
-| Auto-conectar/mover en borrador; simplificación de barras; menús; operadores; emojis | 21 |
+| Auto-conectar/mover en borrador; menús; operadores; emojis | 21 |
+| Simplificación integral de barras, paneles, acciones y recorridos sin perder funciones | 42 |
 | Avatar como asistente emocional | 22 |
 | Compartir mediante enlace y QR | 25 |
 | Acceso de alumnos sin contraseña y asistencia | 26 |
@@ -578,6 +579,7 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 35. Herramientas pedagógicas revisadas y bloque `según` | 19. Amplía desafíos progresivos; plan externo completo |
 | 36. Ayuda infantil de componentes | 37. Fichas contextuales, fotos, conexión, uso y diagnóstico |
 | 37. Lista maestra de componentes a implementar | 35 y 38–41. Prioridades, perfiles y exclusiones centralizados |
+| 38. Simplificación integral de la interfaz sin perder funciones | 42. Recorridos principales, divulgación progresiva y herramientas avanzadas |
 | 23. Reducir al mínimo la latencia de compilación | 20. Medición, caché, precompilación y arquitectura del compilador |
 
 Las observaciones externas quedan asignadas así: fase 20 resolvió el recorrido cotidiano mediante firmware intérprete/reglas y conserva el compilador como modo avanzado; fase 21 cubre superposición y claridad/escena, fase 22 avatar, fase 25 enlaces/QR y fase 26 acceso de aula/asistencia. Producción es la **Fase final, postergada**, fuera de esta numeración. Las fases 10 y 20 mantienen aceptación física pendiente. La fase 23 está en curso con la matriz implementada; el resto requiere autorización propia. Los números de pedido no son fases nuevas.

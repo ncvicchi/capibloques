@@ -2,26 +2,28 @@
 
 Estado al 24 de septiembre de 2026: **terminada en software y pendiente de aceptación física**. El propietario redefinió la fase para que el recorrido cotidiano sea instalar el firmware intérprete precompilado y enviar reglas localmente. La compilación Arduino/ESP-IDF por proyecto se conserva como herramienta avanzada, pero deja de competir con la acción principal.
 
-Implementación publicada en `main`: `6dece1e`. DEV todavía permanece en `8103b14` hasta que el propietario ejecute la actualización rápida.
+La primera implementación se publicó en `main` como `6dece1e`. La corrección del 25 de septiembre reemplaza el panel acumulativo por un asistente de pantallas; su revisión se registra al cerrar esta entrega. DEV todavía permanece en `8103b14` hasta que el propietario ejecute la actualización rápida.
 
 ## Decisión de producto
 
-El recorrido infantil es:
+El recorrido infantil se presenta como **una pantalla por decisión**:
 
-1. probar el proyecto en el simulador;
-2. elegir **Usar en placa**;
-3. conectar y comprobar la placa;
-4. si está vacía, tiene otro programa o una versión incompatible, instalar el firmware CapiBloques correspondiente;
-5. enviar las reglas y ejecutarlas mediante una única acción.
+1. revisar que el proyecto esté listo; una futura aprobación docente obligatoria debe ocupar esta pantalla cuando exista una política real, no mezclarse con USB;
+2. conectar y comprobar la placa;
+3. si está vacía, tiene otro programa o una versión incompatible, preparar el firmware CapiBloques en una pantalla propia;
+4. configurar Wi-Fi sólo cuando el proyecto lo requiera;
+5. enviar las reglas y ejecutarlas mediante una única acción;
+6. controlar la ejecución; la telemetría queda plegada hasta que se solicite.
 
 Las reglas se generan en el navegador. No usan la cola de compilación, no envían el proyecto al servidor y una transferencia incompleta no reemplaza las últimas reglas válidas. Antes de transferir se comprueban placa, versión mínima, ABI, capacidades, tamaño y recursos. Un firmware incompatible no ofrece continuar de todos modos.
 
 ## Interfaz entregada
 
 - **Usar en placa** es una acción visible junto a los controles del simulador. Ya no hace falta cambiar un selector global que inutilizaba Paso, Detener y Reiniciar.
-- El diálogo presenta tres pasos: **Conectar**, **Preparar** y **Enviar y ejecutar**.
+- El diálogo es un asistente con progreso, botón Atrás seguro y una acción dominante por pantalla. No muestra conexión, instalación, Wi-Fi, envío y telemetría al mismo tiempo.
 - Una placa sin intérprete puede prepararse directamente, sin provocar primero un error obligatorio.
-- **Enviar reglas y ejecutar** sustituye la secuencia manual de dos botones. Pausar, continuar, detener, telemetría y aprovisionamiento Wi-Fi permanecen disponibles después de conectar.
+- **Enviar reglas y ejecutar** sustituye la secuencia manual de dos botones. Pausar, continuar y detener aparecen en la pantalla final; la telemetría y los datos técnicos están bajo detalles plegables.
+- Wi-Fi es una pantalla condicional y permite conservar la red existente sin obligar a volver a escribir la clave.
 - La instalación explica que reemplaza el programa actual y conserva las tres confirmaciones físicas previas. Al terminar vuelve al recorrido de conexión y reglas.
 - Exportar JSON y guardar una copia local siguen a la vista. Fuentes Arduino/ESP-IDF, compilación específica y monitor Serial viven en **Herramientas avanzadas para adultos**. No se borraron sus APIs, permisos, cola, artefactos ni pruebas.
 

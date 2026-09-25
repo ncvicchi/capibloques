@@ -134,8 +134,14 @@ test('permite elegir simulador o placa sin confundir sus controles', async ({ pa
   await expect(page.getByRole('button', { name: 'Paso' })).toBeEnabled();
   await page.getByRole('button', { name: 'Usar en placa' }).click();
   await expect(page.getByRole('heading', { name: '⚡ Usar mi placa' })).toBeVisible();
-  await expect(page.getByText(/no se compila el proyecto ni se manda al servidor/i)).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Preparar esta placa' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tu proyecto está listo para continuar' })).toBeVisible();
+  await expect(page.getByText('Paso 1 de 4 · Revisar el proyecto')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Conectar mi placa' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Continuar', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Conectá Wemos' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Conectar mi placa' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Todavía no tiene CapiBloques' })).toBeVisible();
+  await expect(page.getByText('Tu proyecto está listo para continuar')).toHaveCount(0);
 });
 
 test('el autoguardado conserva un proyecto válido durante un arrastre prolongado', async ({
