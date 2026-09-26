@@ -2,7 +2,7 @@
 
 /* oxlint-disable next/no-img-element -- User-supplied board photos are static recognition assets, not responsive content. */
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,12 +24,12 @@ const operationNames: Record<string, string> = {
   fork: 'comenzar caminos en paralelo', join: 'esperar los caminos',
 };
 function programBlocks(program: CompiledProgram) {
-  const blocks = new Map<string, { op?: string; deviceId?: string }>();
+  const blocks = new Map<string, Record<string, unknown>>();
   const visit = (value: unknown) => {
     if (!value || typeof value !== 'object') return;
     if (Array.isArray(value)) { value.forEach(visit); return; }
     const item = value as Record<string, unknown>;
-    if (typeof item.blockId === 'string') blocks.set(item.blockId, { op: typeof item.op === 'string' ? item.op : undefined, deviceId: typeof item.deviceId === 'string' ? item.deviceId : undefined });
+    if (typeof item.blockId === 'string') blocks.set(item.blockId, item);
     Object.values(item).forEach(visit);
   };
   visit(program); return blocks;
@@ -53,7 +53,7 @@ function BoardPhoto({ id }: { id: BoardProfileId }) {
   return <figure className={`board-photo-figure ${id === 'diymall-esp32-s3-devkitc-v1-n16r8' ? 'is-diymall' : ''}`}><img src={boardPhotos[id]} alt={`${boardProfile(id).name}, vista superior`} loading="lazy" /><figcaption>{boardProfile(id).shortName}</figcaption></figure>;
 }
 
-export default function InterpreterBoard({ account, store, program, scene, board, centralDisplay, onChangeBoard, onChangeCentralDisplay, onClose }: { account: Account; store: AccountDraftStore; program: CompiledProgram; scene: SceneDefinition; board: BoardProfileId; centralDisplay?: CentralDisplayTarget; onChangeBoard: (board: BoardProfileId, scene: SceneDefinition) => void; onChangeCentralDisplay: (centralDisplay?: CentralDisplayTarget) => void; onClose: () => void }) {
+export default function InterpreterBoard({ account, store, program, scene, board, centralDisplay, onChangeBoard, onChangeCentralDisplay, onMirrorCommand, onClose }: { account: Account; store: AccountDraftStore; program: CompiledProgram; scene: SceneDefinition; board: BoardProfileId; centralDisplay?: CentralDisplayTarget; onChangeBoard: (board: BoardProfileId, scene: SceneDefinition) => void; onChangeCentralDisplay: (centralDisplay?: CentralDisplayTarget) => void; onMirrorCommand: (command: 'RUN' | 'PAUSE' | 'RESUME' | 'STOP' | 'DONE') => void; onClose: () => void }) {
   const [session] = useState(() => new InterpreterSession());
   const state = useSyncExternalStore(session.subscribe, session.snapshot, session.snapshot);
   const [installer] = useState(() => new UsbSession(createEspDriver));
@@ -65,6 +65,8 @@ export default function InterpreterBoard({ account, store, program, scene, board
   const [installReturn, setInstallReturn] = useState<GuideStep>('connect');
   const [candidate, setCandidate] = useState<BoardProfileId | null>(null);
   const [actionError, setActionError] = useState('');
+  const [minimized, setMinimized] = useState(false);
+  const reportedDone = useRef<object | null>(null);
   const wifiDevice = scene.devices.find(device => device.kind === 'wifiNode');
   const [wifiSsid, setWifiSsid] = useState(wifiDevice?.kind === 'wifiNode' ? wifiDevice.config.ssid : '');
   const [wifiPassword, setWifiPassword] = useState('');
@@ -82,11 +84,25 @@ export default function InterpreterBoard({ account, store, program, scene, board
     if (item.event === 'program-done') return 'Programa terminado';
     if (item.event === 'task-done') return 'Camino terminado';
     const block = item.blockId ? telemetryNames.blocks.get(item.blockId) : undefined;
-    const deviceId = item.deviceId ?? block?.deviceId;
+    const deviceId = item.deviceId ?? (typeof block?.deviceId === 'string' ? block.deviceId : undefined);
     const deviceName = deviceId ? telemetryNames.devices.get(deviceId) : undefined;
-    const action = item.message && item.event !== 'block' ? item.message : operationNames[item.message ?? block?.op ?? ''] ?? (item.event === 'block' ? 'ejecutar un bloque' : item.event);
+    const op = typeof block?.op === 'string' ? block.op : item.message ?? '';
+    const action = item.event === 'block' && op === 'traffic' && typeof block?.color === 'string' ? `cambió a ${block.color.toLowerCase()}`
+      : item.event === 'block' && op === 'led' && typeof block?.brightness === 'number' ? `cambió el brillo a ${block.brightness}%`
+        : item.event === 'block' && op === 'servo' && typeof block?.angle === 'number' ? `se movió a ${block.angle}°`
+          : item.event === 'block' && op === 'motor' && typeof block?.power === 'number' ? `cambió a ${block.power}%${typeof block.direction === 'string' ? ` hacia ${block.direction.toLowerCase()}` : ''}`
+            : item.event === 'block' && op === 'robot' && typeof block?.action === 'string' ? `${block.action.toLowerCase()}${typeof block.speed === 'number' ? ` a ${block.speed}%` : ''}`
+              : item.event === 'block' && op === 'wait' && typeof block?.ms === 'number' ? `esperando ${block.ms >= 1000 ? `${block.ms / 1000} s` : `${block.ms} ms`}`
+              : item.message && item.event !== 'block' ? item.message
+                : operationNames[item.message ?? op] ?? (item.event === 'block' ? 'ejecutó una acción' : item.event);
     return `${deviceName ? `${deviceName}: ` : ''}${action}${showTelemetryValue(item.value)}`;
   };
+  useEffect(() => {
+    const latest = state.telemetry.at(-1);
+    if (latest?.event !== 'program-done' || reportedDone.current === latest) return;
+    reportedDone.current = latest;
+    onMirrorCommand('DONE');
+  }, [onMirrorCommand, state.telemetry]);
   const available = typeof window !== 'undefined' && window.isSecureContext && typeof navigator.serial?.requestPort === 'function';
   const needsWifi = Boolean(bundle?.requiredCapabilities.includes('wifi'));
   const needsManualWifi = needsWifi && !centralDisplay;
@@ -175,7 +191,8 @@ export default function InterpreterBoard({ account, store, program, scene, board
   const act = (operation: Promise<unknown>) => { setActionError(''); void operation.catch(cause => setActionError(cause instanceof Error ? cause.message : 'La placa rechazó la operación.')); };
   const authorized = (operation: () => Promise<unknown>) => act(verifySession().then(operation));
   const configureWifi = () => authorized(async () => { await session.provisionWifi(wifiSsid, wifiPassword); setWifiPassword(''); setStep('send'); });
-  const sendAndRun = () => bundle && authorized(async () => { await session.send(bundle); await session.command('RUN'); setStep('run'); });
+  const sendAndRun = () => bundle && authorized(async () => { await session.send(bundle); await session.command('RUN'); onMirrorCommand('RUN'); setStep('run'); setMinimized(true); });
+  const physicalCommand = (command: 'PAUSE' | 'RESUME' | 'STOP') => authorized(async () => { await session.command(command); onMirrorCommand(command); });
   const rulesLoaded = state.progress === 100 || state.stage === 'running' || state.stage === 'paused';
   const flow = useMemo(() => ['review', ...(centralDisplay ? ['pair-screen', 'pair-project'] : []), 'connect', ...(needsManualWifi ? ['wifi'] : []), 'send', 'run'] as GuideStep[], [centralDisplay, needsManualWifi]);
   const flowIndex = Math.max(0, flow.indexOf(step === 'prepare' ? 'connect' : step === 'board' ? 'review' : step));
@@ -190,7 +207,8 @@ export default function InterpreterBoard({ account, store, program, scene, board
     else if (step === 'send') setStep(needsManualWifi ? 'wifi' : 'connect');
     else if (step === 'run') setStep('send');
   };
-  return <Dialog open onOpenChange={open => { if (!open) close(); }}><DialogContent className="firmware-dialog usb-dialog" showCloseButton={state.stage !== 'sending'}>
+  const visibleTelemetry = state.telemetry.filter(item => item.event !== 'device').slice(-20);
+  return <>{minimized && <output className="board-live-dock" aria-live="polite"><span aria-hidden="true">⚡</span><div><strong>Placa y escena sincronizadas</strong><small>{state.message}</small></div><Button variant="outline" onClick={() => setMinimized(false)}>Ver controles</Button>{state.stage === 'running' && <Button variant="outline" onClick={() => physicalCommand('PAUSE')}>Pausar</Button>}{state.stage === 'paused' && <Button variant="outline" onClick={() => physicalCommand('RESUME')}>Continuar</Button>}<Button variant="outline" onClick={() => physicalCommand('STOP')}>Detener</Button></output>}<Dialog open={!minimized} onOpenChange={open => { if (!open && !minimized) close(); }}><DialogContent className="firmware-dialog usb-dialog" showCloseButton={state.stage !== 'sending'}>
     <DialogHeader><DialogTitle>⚡ Usar mi placa</DialogTitle><DialogDescription>Paso {flowIndex + 1} de {flow.length} · {step === 'review' ? 'Revisar las placas' : step === 'board' ? 'Elegir la placa del proyecto' : step === 'pair-screen' ? 'Preparar la pantalla central' : step === 'pair-project' ? 'Vincular la placa del proyecto' : step === 'connect' ? 'Conectar la placa' : step === 'prepare' ? 'Preparar la placa' : step === 'wifi' ? 'Configurar Wi-Fi' : step === 'send' ? 'Enviar el programa' : 'Programa en marcha'}</DialogDescription></DialogHeader>
     <progress className="board-guide-progress" value={flowIndex + 1} max={flow.length} aria-label={`Paso ${flowIndex + 1} de ${flow.length}`} />
     {!available && <p role="alert" className="account-error">Web Serial requiere Chrome o Edge de escritorio y una dirección HTTPS o localhost.</p>}
@@ -205,7 +223,7 @@ export default function InterpreterBoard({ account, store, program, scene, board
     {step === 'prepare' && <section className="board-guide-screen"><div className="board-guide-hero" aria-hidden="true">⚙️</div><h3>Preparar {boardProfile(installTarget).shortName}</h3><p>Instalaremos CapiBloques una sola vez. Esto reemplaza el programa que tenga ahora la placa.</p>{!installing && <Button onClick={() => void beginInstall(installTarget, installReturn)}>{state.stage === 'incompatible' ? 'Instalar la versión correcta' : 'Preparar esta placa'}</Button>}{installing && <><div className="usb-status" role={installState.stage === 'error' ? 'alert' : 'status'} aria-live="polite"><strong>{installState.message}</strong>{installState.writingStarted && <><progress value={installState.progress} max={100} /><span>{installState.progress}%</span></>}</div>{installState.stage !== 'done' && <fieldset className="usb-checks" disabled={usbBusy(installState)}><legend>Revisalo con una persona adulta</legend><label><input type="checkbox" checked={identified} onChange={event => setIdentified(event.target.checked)} /> Es la placa correcta.</label><label><input type="checkbox" checked={safe} onChange={event => setSafe(event.target.checked)} /> Motores y actuadores están desconectados.</label><label><input type="checkbox" checked={replace} onChange={event => setReplace(event.target.checked)} /> Podemos reemplazar el programa actual.</label></fieldset>}{!usbBusy(installState) && installState.stage !== 'done' && <Button disabled={!available || revoked || !identified || !safe || !replace} onClick={flash}>Instalar CapiBloques</Button>}{usbBusy(installState) && <Button variant="outline" onClick={() => installer.cancel()}>Cancelar instalación</Button>}{installState.stage === 'done' && <Button onClick={() => { setInstalling(false); setIdentified(false); setSafe(false); setReplace(false); setStep(installReturn); }}>Continuar</Button>}</>}</section>}
     {step === 'wifi' && <section className="board-guide-screen firmware-wifi"><div className="board-guide-hero" aria-hidden="true">📶</div><h3>¿Este proyecto usará Wi-Fi?</h3><p>La clave viaja directamente a la placa. No se guarda en el proyecto ni se envía al servidor.</p><label htmlFor="interpreter-wifi-ssid">Nombre de la red</label><Input id="interpreter-wifi-ssid" autoComplete="off" maxLength={32} value={wifiSsid} onChange={event => setWifiSsid(event.target.value)} /><label htmlFor="interpreter-wifi-password">Clave de la red</label><Input id="interpreter-wifi-password" type="password" autoComplete="new-password" maxLength={63} value={wifiPassword} onChange={event => setWifiPassword(event.target.value)} placeholder="Vacía sólo para una red abierta" /><Button disabled={!wifiSsid.trim() || (!!wifiPassword && wifiPassword.length < 8)} onClick={configureWifi}>Guardar y continuar</Button><Button variant="outline" onClick={() => setStep('send')}>No cambiar la red ahora</Button></section>}
     {step === 'send' && <section className="board-guide-screen"><div className="board-guide-hero" aria-hidden="true">🚀</div><h3>Enviar el programa</h3><p>La placa está lista. Enviaremos las reglas y comenzará a ejecutarlas.</p><div className="usb-status" role={state.stage === 'error' ? 'alert' : 'status'} aria-live="polite"><strong>{state.message}</strong>{state.stage === 'sending' && <><progress value={state.progress} max={100} /><span>{state.progress}%</span></>}</div><Button className="board-run-button" disabled={!bundle || state.stage === 'sending'} onClick={sendAndRun}>{rulesLoaded ? 'Volver a enviar y ejecutar' : 'Enviar y ejecutar'}</Button>{bundle && <details><summary>Ver detalles técnicos</summary><p>{bundle.instructionCount} instrucciones · {bundle.bytes.length.toLocaleString('es-AR')} bytes · control {bundle.checksum}</p><p>Una transferencia interrumpida no reemplaza las últimas reglas completas.</p>{state.hello && <p>Firmware {state.hello.firmware} · ABI {state.hello.abi}</p>}</details>}</section>}
-    {step === 'run' && <section className="board-guide-screen"><div className="board-guide-hero" aria-hidden="true">🎉</div><h3>¡El programa está en marcha!</h3><p>{state.message}</p><div className="usb-actions">{state.stage === 'running' && <><Button onClick={() => authorized(() => session.command('PAUSE'))}>Pausar</Button><Button variant="outline" onClick={() => authorized(() => session.command('STOP'))}>Detener</Button></>}{state.stage === 'paused' && <><Button onClick={() => authorized(() => session.command('RESUME'))}>Continuar</Button><Button variant="outline" onClick={() => authorized(() => session.command('STOP'))}>Detener</Button></>}</div>{!!state.telemetry.length && <details><summary>Ver qué está haciendo la placa</summary><ol className="execution-trace">{state.telemetry.slice(-20).map((item, index) => <li key={`${item.event}-${index}`}>{telemetryText(item)}</li>)}</ol></details>}<Button variant="outline" onClick={() => setStep('send')}>Enviar cambios otra vez</Button></section>}
+    {step === 'run' && <section className="board-guide-screen"><div className="board-guide-hero" aria-hidden="true">🎉</div><h3>¡El programa está en marcha!</h3><p>{state.message}</p><div className="usb-actions">{state.stage === 'running' && <><Button onClick={() => physicalCommand('PAUSE')}>Pausar</Button><Button variant="outline" onClick={() => physicalCommand('STOP')}>Detener</Button></>}{state.stage === 'paused' && <><Button onClick={() => physicalCommand('RESUME')}>Continuar</Button><Button variant="outline" onClick={() => physicalCommand('STOP')}>Detener</Button></>}</div>{!!visibleTelemetry.length && <details><summary>Ver qué está haciendo la placa</summary><ol className="execution-trace">{visibleTelemetry.map((item, index) => <li key={`${item.event}-${index}`}>{telemetryText(item)}</li>)}</ol></details>}<Button onClick={() => setMinimized(true)}>Ver la escena sincronizada</Button><Button variant="outline" onClick={() => setStep('send')}>Enviar cambios otra vez</Button></section>}
     {step !== 'review' && step !== 'run' && <div className="board-guide-footer"><Button variant="outline" disabled={state.stage === 'sending' || usbBusy(installState)} onClick={back}>Atrás</Button></div>}
-  </DialogContent></Dialog>;
+  </DialogContent></Dialog></>;
 }

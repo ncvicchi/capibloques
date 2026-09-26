@@ -31,6 +31,14 @@ Las reglas se generan en el navegador. No usan la cola de compilación, no enví
 
 - El firmware intérprete requerido es 1.5.4, ABI 1, para Wemos D1 R32, DIYmall ESP32-S3 DevKitC N16R8 y Waveshare SKU 28117. La revisión 1.5.1 corrigió el watchdog; 1.5.2 agregó CapiLink por USB Serial/JTAG, 1.5.3 reutiliza ese driver cuando la consola ya lo instaló y 1.5.4 agrega el renderer RGB local.
 - El intérprete Waveshare 1.5.4 permite identificar, preparar y levantar su AP persistente y, como placa principal, dibuja la escena virtual y sus estados principales. El touch y la escena recibida desde otra placa continúan en fases 18/34.
+- Al comenzar desde `Usar mi placa`, la simulación web carga el mismo programa a
+  velocidad real y arranca después del `RUN` confirmado. El asistente se
+  minimiza sin cerrar Web Serial; un control flotante mantiene pausa,
+  continuación, detención y regreso al detalle. Así la escena de la PC sigue
+  visible mientras la placa ejecuta. No sustituye realimentación eléctrica:
+  sensores físicos todavía requieren telemetría tipada para reflejar su medida.
+- El registro traduce cada bloque a una frase de resultado y usa el nombre de
+  escena: por ejemplo `Semáforo 1: cambió a rojo`; nunca presenta `blockId`.
 - Si un proyecto usa una capacidad que el intérprete no declara, se bloquea antes de enviar reglas y se explica la actualización necesaria.
 - Web Serial requiere Chrome o Edge de escritorio y HTTPS o localhost. USB pertenece a la PC del navegador, no al servidor.
 - Arduino/ESP-IDF específicos siguen siendo una salida válida para diagnóstico, estudio o componentes todavía no cubiertos. Ocultarlos no autoriza retirar compatibilidad.
