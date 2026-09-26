@@ -1,8 +1,8 @@
 # Nuevas fases de CapiBloques
 
-Plan elaborado el 8 de septiembre de 2026 y actualizado el 25 de septiembre de 2026. **Fases 11–17, 27–33 y 35–41 entregadas en software; fases 18, 20, 23 y 34 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`, aunque cada cierre posterior requiere su actualización explícita. La fase 19 queda ampliada por el inventario pedagógico y el bloque `según`; 21–22, 24–26 y 42–43 permanecen pendientes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
+Plan elaborado el 8 de septiembre de 2026 y actualizado el 26 de septiembre de 2026. **Fases 11–17, 27–33 y 35–41 entregadas en software; fases 18, 20, 23 y 34 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`, aunque cada cierre posterior requiere su actualización explícita. La fase 19 queda ampliada por el inventario pedagógico y el bloque `según`; 21–22, 24–26 y 42–45 permanecen pendientes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
 
-La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros consecutivos; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. Los pedidos del 23 de septiembre amplían la fase 19 y continúan hasta la fase 41 sin alterar entregas cerradas; la simplificación integral solicitada el 25 de septiembre es la fase 42.
+La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros consecutivos; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. Los pedidos del 23 de septiembre amplían la fase 19 y continúan hasta la fase 41 sin alterar entregas cerradas; la simplificación y displays solicitados el 25 de septiembre son las fases 42–43, y la experiencia Waveshare y escenas visuales solicitadas el 26 son 44–45.
 
 ## Orden y cobertura
 
@@ -18,7 +18,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 18 | En curso: base lógica entregada; falta escena remota real/simulada en el display | 3: display interactivo; pedidos 41 y 43 | Perfil de fase 17, geometría compartida y telemetría de fase 34 |
 | 19 | Desafíos progresivos, herramientas pedagógicas y bloque `según` | 12 y 35 | Plan completo versionado; primeros retos sin hardware; valores tipados de fase 29 |
 | 20 | Asistente y cambio visual Wemos/DIYmall entregados; Waveshare/físico pendientes | 15, 17, 23 y 34 | Intérprete de fase 36 publicado; panel/touch Waveshare aún fuera del intérprete |
-| 21 | Claridad y ergonomía educativa del editor | Informe externo vital 4, sutiles 1–8, futuras 1–2 y 5–7; pedido 40 | Fases 12 y 14; reproducción previa de cada observación |
+| 21 | Claridad y ergonomía educativa del editor | Informe externo vital 4, sutiles 1–8 y futuras 1–2 y 5–7 | Fases 12 y 14; reproducción previa de cada observación; fidelidad espacial trasladada a fase 45 |
 | 22 | Avatar acompañante y reacciones accesibles | 14; informe futuro 3 | Fase 19 para reacciones de desafíos y fase 20 para resultados de compilar/grabar |
 | 23 | En curso: software de matriz MAX7219 implementado; aceptación física de matriz y displays pendiente | 18 y 19 | Módulos exactos identificados; fase 10 para el recorrido físico por USB |
 | 24 | Panel web local para celular | 20 | Contrato Wi-Fi vigente, seguridad/emparejamiento y límites medidos |
@@ -41,6 +41,8 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 41 | Software entregado: actuación y medición avanzada; físico pendiente | 37 | Planificador cooperativo, privacidad GPS y hardware concreto |
 | 42 | Simplificación integral de la interfaz | Pedido del 25 de septiembre | Inventario de funciones y recorridos; fase 20 como patrón de divulgación progresiva |
 | 43 | Efectos y animaciones de pantallas | Pedidos 39 y 42 | Motor cooperativo existente, perfiles de fase 23 e intérprete versionado |
+| 44 | Laboratorio interactivo y autónomo en Waveshare | Pedido 45 | Fases 18, 20, 32, 34, 36 y escena visual de fase 45 |
+| 45 | Escenas atractivas y fidelidad visual completa | Pedidos 40 y 46 | Geometría/cámara de fase 12, renderer de fase 18 y perfiles de fase 17 |
 | Final | Producción, HTTPS, respaldos y piloto | Antigua fase 11 | Postergada hasta autorización explícita y validaciones de salida |
 
 Primero se asegura la continuidad desde otra cuenta sin depender de este chat; después se atienden los problemas cotidianos del editor y se vuelve DEV accesible desde fuera mediante un servicio controlado. TX/RX se incorpora antes de las placas nuevas para tener un contrato de comportamiento que luego se valide en cada destino. Separar DevKit, Waveshare y display interactivo permite comprobar por separado placa, pantalla y aplicación gráfica: no son el mismo soporte. Los desafíos aprovechan esas funciones como recorrido educativo propio. Las fases 20–26 separan flujos de compilación, pulido de edición, motivación, periféricos, control local, intercambio e identidad de aula para no mezclar permisos o hardware distintos en una entrega inmanejable.
@@ -297,14 +299,14 @@ Alcance:
 - Hacer reconocible la edición del nombre; traducir colores en ejecución; mejorar advertencias de cableado cerrables; ampliar acciones del selector de avatar; escribir «segundos»; evaluar el pin `📌`; saludo con privacidad; y distinguir bloques desconectados sin depender sólo del color.
 - Distinguir menús desplegables de campos numéricos, expresar operadores con palabras cuando mejore comprensión y revisar tamaño/contraste de emojis con alternativas accesibles.
 - Hacer que Auto-conectar y el movimiento de componentes tengan una vista previa coherente dentro del borrador de escena, manteniendo Guardar/Cancelar, historial y autoguardado separados.
-- Compartir geometría, anclas y cajas visuales entre Armar escena y la simulación: la escala o el encuadre responsivo no pueden cambiar distancias relativas, alineaciones ni solapamientos elegidos por el alumno.
+- Mantener la manipulación clara del borrador; la geometría compartida, rótulos y paridad visual completa pasan a la fase 45 para no dividir el mismo contrato entre dos entregas.
 - Auditar nuevamente encabezados y acciones con el público infantil objetivo, pantallas pequeñas, texto ampliado y teclado. Una simplificación nueva se mide; no elimina estados ni controles críticos.
 
 Aceptación:
 
 - Cada observación se reproduce primero o se descarta con evidencia. Los cambios pasan Chrome/Edge, móvil, teclado, zoom y movimiento reducido.
 - Importar, arrastrar, deshacer/rehacer, Guardar/Cancelar y recuperación no cambian silenciosamente el modelo ni pierden trabajo.
-- Escenas con componentes juntos, alineados o superpuestos conservan esas relaciones en editor y simulador a distintas resoluciones; la prueba compara geometría normalizada además de capturas.
+- Los controles de edición y el borrador quedan listos para consumir el modelo visual único de fase 45 sin introducir un segundo sistema de coordenadas.
 - Una revisión breve con usuarios representativos o, mientras no estén disponibles, pruebas moderadas documentadas distingue preferencias de problemas reales; no se declaran resultados infantiles inventados.
 
 ## Fase 22 — Avatar acompañante y reacciones accesibles
@@ -687,6 +689,37 @@ existieran físicamente. Simulador, Arduino, ESP-IDF e intérprete deben compart
 el mismo reloj cooperativo, límites y cuadro final. Alcance, catálogo y
 aceptación completos en [FASE_43_EFECTOS_DISPLAY.md](FASE_43_EFECTOS_DISPLAY.md).
 
+## Fase 44 — Laboratorio interactivo y autónomo en Waveshare
+
+**Estado:** pendiente. **Objetivo:** hacer que usar la placa aporte touch,
+depuración física, escenarios y autonomía, en vez de limitarse a repetir el
+simulador web.
+
+Incluye entradas táctiles tipadas para sensores virtuales, `STEP` físico y
+sincronizado, inspección de bloques/variables/temporizadores/caminos,
+manipulación directa de escena, ejecución del último proyecto sin navegador,
+escenarios grabables/reproducibles y actividades acotadas entre placas. En modo
+Pantalla central, la Placa del proyecto conserva autoridad única y la Waveshare
+publica únicamente entradas y servicios declarados sobre el canal autenticado.
+
+Contrato, límites, dependencias y aceptación física en
+[FASE_44_EXPERIENCIA_WAVESHARE.md](FASE_44_EXPERIENCIA_WAVESHARE.md).
+
+## Fase 45 — Escenas atractivas y fidelidad visual completa
+
+**Estado:** pendiente. **Objetivo:** enriquecer visualmente las plantillas y
+garantizar una composición única entre Armar escena, simulación web, revisión y
+Waveshare.
+
+Absorbe la fidelidad espacial antes asignada a fase 21 y agrega fondos con
+detalle, contrato versionado de fondo/decoración/capas, anclas y cajas comunes,
+rótulos sin colisión y renderer compacto para la placa. El jardín deja de ser
+tres franjas; dos semáforos cercanos conservan su posición y sus nombres no se
+pisan. La cámara continúa fuera del JSON.
+
+Contrato y aceptación en
+[FASE_45_ESCENAS_VISUALES.md](FASE_45_ESCENAS_VISUALES.md).
+
 ## Fase final — Producción y piloto, postergada
 
 Es la antigua fase 11, renombrada por decisión del propietario. No se ejecuta como consecuencia de terminar una fase del backlog.
@@ -702,5 +735,5 @@ El gateway sigue siendo sólo un salto SSH, con prohibición de cambios. Tampoco
 - Una fase completa autorizada por vez, con implementación, pruebas proporcionales, entrega en DEV y commit/push. Informar avances con evidencia y pendientes; no inventar porcentajes ni tiempos exactos.
 - **Fases 11–14 y 29–33 entregadas; fases 15, 16, 27, 28, 36 y 37 terminadas en software; fase 23 en curso.** Actualizar la documentación viva al cerrar cada entrega solicitada. No ejecutar las fases restantes, completar la aceptación física ni avanzar a producción sin autorización y hardware correspondientes.
 - Para fase 17 hace falta el modelo Waveshare exacto antes de fijar drivers/pines; para cerrar las aceptaciones físicas de 15, 16 y 23 hace falta autorización para reemplazar firmware y los montajes correspondientes.
-- La fase 14 fija el paralelo como un contenedor con caminos apilados de arriba hacia abajo y mantiene fork/join. Desafíos y `según` se especifican en 19; display en 18; UX en 21; displays/matriz en 23; datos en 29; temporizadores en 30; procedimientos en 31; estados en 32; red en 33; servicios remotos en 34; RGB en 35; intérprete en 36; ayuda de componentes en 37; catálogo ampliado en 38–41; simplificación en 42 y efectos de display en 43. Son decisiones dentro de esas fases, no nuevas fases con letras.
+- La fase 14 fija el paralelo como un contenedor con caminos apilados de arriba hacia abajo y mantiene fork/join. Desafíos y `según` se especifican en 19; display en 18; UX en 21; displays/matriz en 23; datos en 29; temporizadores en 30; procedimientos en 31; estados en 32; red en 33; servicios remotos en 34; RGB en 35; intérprete en 36; ayuda de componentes en 37; catálogo ampliado en 38–41; simplificación en 42; efectos de display en 43; experiencia Waveshare en 44; y escenas/fidelidad visual en 45. Son decisiones dentro de esas fases, no nuevas fases con letras.
 - No hay estimaciones horarias comprometidas: hardware, alcance de la adaptación gráfica y mediciones en la VM condicionan el esfuerzo. No retrasar ahora la planificación esperando esos datos, ni prometer implementaciones específicas de un modelo no identificado.

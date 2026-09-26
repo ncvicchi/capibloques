@@ -517,7 +517,8 @@ o superpuestos en **Armar escena** deben conservar esa misma relación visual al
 simular. Hoy una barrera y un semáforo ubicados casi pegados debajo de un display
 pueden aparecer mucho más separados en la escena ejecutada.
 
-Asignación: **fase 21 — Claridad y ergonomía educativa del editor**. Primero hay
+Asignación actualizada: **fase 45 — Escenas atractivas y fidelidad visual
+completa**. Primero hay
 que reproducir la diferencia y distinguir sus causas: sistemas de coordenadas,
 anclas distintas, dimensiones visuales que no coinciden con la caja manipulada,
 escala responsiva o un auto-layout aplicado sólo al ejecutar. Editor y simulador
@@ -530,6 +531,10 @@ zoom/desplazamiento, selección, Guardar/Cancelar, Deshacer/Rehacer y vistas
 móviles. La aceptación compara automáticamente capturas o cajas normalizadas de
 ambas vistas para escenas pequeñas, grandes, importadas y con componentes de
 tamaños distintos; no se valida únicamente «a ojo» en una resolución.
+
+La fase 21 conserva la ergonomía de edición, pero ya no comparte la propiedad
+de este contrato. Fondo, decoración, geometría y rótulos se resuelven juntos en
+fase 45 para web y Waveshare.
 
 ## 41. Escena híbrida en la Waveshare de 5 pulgadas
 
@@ -654,6 +659,35 @@ alcance considerablemente mayor por permisos, aislamiento, dependencias y
 apagado seguro, por lo que no debe mezclarse con la primera evaluación ni
 presentarse como soporte comprometido.
 
+## 45. Waveshare como laboratorio interactivo y autónomo
+
+Pedido del 26 de septiembre de 2026: hacer que la placa aporte más que el
+simulador web. Incluye touch como fuente tipada de sensores virtuales, botones,
+interruptores, valores graduales, joystick, barrera y mensajes; `STEP` físico;
+depuración de bloques, variables, contadores, temporizadores y caminos;
+inspección táctil de componentes; ejecución autónoma del último proyecto;
+escenarios de prueba grabables/reproducibles; Pantalla central para una placa
+ejecutora y actividades acotadas entre placas.
+
+Asignación: **fase 44 — Laboratorio interactivo y autónomo en Waveshare**. No
+habilita GPIO remoto ni una segunda copia divergente del programa. Contrato y
+aceptación en
+[FASE_44_EXPERIENCIA_WAVESHARE.md](FASE_44_EXPERIENCIA_WAVESHARE.md).
+
+## 46. Escenas atractivas, fondos y rótulos fieles
+
+Pedido del 26 de septiembre de 2026: mejorar las plantillas —el jardín actual no
+puede quedar reducido a tres franjas— y conservar exactamente la composición
+entre editor, simulación, revisión y Waveshare. Incluye fondos/decoración con
+detalle, geometría compartida, capas, anclas, cajas reales y rótulos sin
+colisiones. El caso observado de dos semáforos debe mantener ambos nombres
+legibles sin mover los componentes.
+
+Asignación: **fase 45 — Escenas atractivas y fidelidad visual completa**. Absorbe
+el pedido 40 que antes estaba en fase 21 y agrega paridad de fondo con Waveshare.
+Contrato y aceptación en
+[FASE_45_ESCENAS_VISUALES.md](FASE_45_ESCENAS_VISUALES.md).
+
 ## Pedidos externos a analizar
 
 Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus observaciones para reproducirlas y contrastarlas con el comportamiento vigente. **No confirma que cada problema exista y la asignación no autoriza implementarlos.** Progreso/guardado/reinicio corresponden a fase 20; superposición y los ajustes de claridad/escena corresponden a fase 21; avatar a fase 22; compartir a fase 25; acceso de aula a fase 26. Las prioridades «vital» y «sutil» pertenecen al informe de origen y cada observación debe reproducirse antes de cambiar código.
@@ -754,11 +788,13 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 37. Lista maestra de componentes a implementar | 35 y 38–41. Prioridades, perfiles y exclusiones centralizados |
 | 38. Simplificación integral de la interfaz sin perder funciones | 42. Recorridos principales, divulgación progresiva y herramientas avanzadas |
 | 39. Más efectos, animaciones y editor amplio de dibujos | 43. Editor modal y motor cooperativo por capacidad de LCD/OLED/TFT/matriz |
-| 40. Fidelidad espacial entre editor y simulación | 21. Geometría compartida sin alterar distancias relativas |
+| 40. Fidelidad espacial entre editor y simulación | 45. Geometría, fondos y rótulos compartidos en web y placa |
 | 41. Escena híbrida real/simulada en Waveshare | 18. Misma escena, destino por componente e interfaces tipadas |
 | 42. Brillo programable de matrices | 43. Control por capacidad y traducción al rango nativo |
 | 43. Waveshare como Pantalla central Wi‑Fi | 18, 20 y 34. Escena compartida, selección/provisión de la pareja y telemetría/entradas remotas |
 | 44. Raspberry Pi como Central CapiBloques | Para análisis. Primero central de escenas/telemetría/controles; GPIO Linux queda como posibilidad posterior separada |
+| 45. Waveshare como laboratorio interactivo y autónomo | 44. Touch, depuración física, escenarios, autonomía y actividades entre placas |
+| 46. Escenas atractivas, fondos y rótulos fieles | 45. Plantillas enriquecidas y composición única en editor, web y Waveshare |
 | 23. Reducir al mínimo la latencia de compilación | 20. Medición, caché, precompilación y arquitectura del compilador |
 
-Las observaciones externas quedan asignadas así: fase 20 resolvió el recorrido cotidiano mediante firmware intérprete/reglas y conserva el compilador como modo avanzado; fase 21 cubre superposición y claridad/escena, fase 22 avatar, fase 25 enlaces/QR y fase 26 acceso de aula/asistencia. Producción es la **Fase final, postergada**, fuera de esta numeración. Las fases 10 y 20 mantienen aceptación física pendiente. La fase 23 está en curso con la matriz implementada; el resto requiere autorización propia. Los números de pedido no son fases nuevas.
+Las observaciones externas quedan asignadas así: fase 20 resolvió el recorrido cotidiano mediante firmware intérprete/reglas y conserva el compilador como modo avanzado; fase 21 cubre superposición de bloques y claridad/ergonomía de edición; fase 45 concentra la fidelidad espacial y visual de escenas; fase 22 avatar, fase 25 enlaces/QR y fase 26 acceso de aula/asistencia. Producción es la **Fase final, postergada**, fuera de esta numeración. Las fases 10 y 20 mantienen aceptación física pendiente. La fase 23 está en curso con la matriz implementada; el resto requiere autorización propia. Los números de pedido no son fases nuevas.

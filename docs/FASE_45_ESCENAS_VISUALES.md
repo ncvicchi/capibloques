@@ -1,0 +1,88 @@
+# Fase 45 — Escenas atractivas y fidelidad visual completa
+
+Estado: **pendiente; planificada el 26 de septiembre de 2026**. Reúne y amplía
+la antigua asignación de fidelidad espacial de fase 21; no queda duplicada allí.
+
+## Objetivo
+
+Hacer que las escenas sean visualmente ricas y que una composición creada en
+**Armar escena** conserve fondo, posiciones, tamaños, alineaciones, capas y
+nombres en la simulación web, revisión docente y Waveshare.
+
+## Escenas más lindas
+
+- Rediseñar las plantillas existentes. El jardín deja de ser tres franjas y
+  agrega cielo, terreno, sendero, vegetación, flores, nubes y detalles suaves que
+  ayuden a contar una historia sin competir con los componentes.
+- Aplicar el mismo criterio a ciudad/semaforización, robot, aula, laboratorio y
+  demás fondos: profundidad simple, zonas reconocibles, paleta infantil y puntos
+  útiles de colocación.
+- Preferir primitivas/vectoriales, paletas y mosaicos reutilizables. Las imágenes
+  raster grandes se preparan en variantes web/placa con licencia y presupuesto
+  explícitos; no se descarga arte remoto durante la ejecución.
+- Fondos decorativos no cambian lógica, colisiones ni cableado. Ofrecer reducción
+  de detalle/contraste y respetar movimiento reducido.
+
+## Un solo modelo visual
+
+- Definir un lienzo lógico normalizado, anclas y cajas visuales compartidos por
+  editor, simulación, revisión y renderer Waveshare. El tamaño del panel puede
+  escalar o encuadrar con letterbox, nunca redistribuir automáticamente objetos.
+- Persistir fondo, decoración, `x/y`, tamaño, rotación admitida, capa y ancla en
+  un contrato JSON versionado y migrar proyectos anteriores sin moverlos.
+- Separar capas deterministas: fondo, decoración, componentes, estado/efectos,
+  nombres y selección. El orden visual guardado se conserva en todos los destinos.
+- La cámara —zoom/desplazamiento— sigue siendo transitoria y no altera la escena,
+  autoguardado, historial ni coordenadas del objeto.
+
+## Nombres y componentes cercanos
+
+- La caja manipulada en el editor coincide con el dibujo real, incluidos nombres
+  y adornos. No se permite seleccionar una caja pequeña que después ocupe mucho
+  más al ejecutarse.
+- Los rótulos usan anclas alternativas y resolución determinista de colisiones.
+  Si dos semáforos están juntos, sus nombres no se pisan: se ubican arriba,
+  abajo o al costado y, cuando haga falta, usan una línea corta hacia el objeto.
+- Resolver colisiones de rótulos no mueve los componentes ni cambia las
+  distancias elegidas. Nombres largos tienen límite visible, elipsis y detalle
+  accesible; no se achican hasta resultar ilegibles.
+- Detectar y avisar solapamientos problemáticos durante la edición, sin impedir
+  superposiciones intencionales ni aplicar un auto-layout oculto.
+
+## Paridad con Waveshare
+
+- El paquete de reglas/escena incluye una descripción compacta del fondo y la
+  decoración compatible. El renderer 800 × 480 dibuja primero el fondo y luego
+  los mismos objetos y rótulos con transformaciones compartidas.
+- Si un recurso excede memoria o no está soportado, el editor lo informa antes
+  de enviar y ofrece una degradación explícita; nunca reemplaza el fondo por
+  franjas genéricas sin avisar.
+- Web y placa comparten colores semánticos, orientación, nombres y estados. Se
+  aceptan diferencias tipográficas/antialiasing propias del hardware, no cambios
+  de composición.
+
+## Herramientas de autoría
+
+- Vista previa inmediata del borrador con Guardar/Cancelar, Deshacer/Rehacer y
+  autoguardado correctamente separados.
+- Guías de alineación, distribución y encastre opcionales, rejilla configurable,
+  orden adelante/atrás y selección múltiple. Nada de esto altera proyectos al
+  abrirlos ni obliga a usar auto-layout.
+- Permitir escoger una plantilla enriquecida, fondo simple o color accesible sin
+  crear decenas de tipos de escena incompatibles.
+
+## Aceptación
+
+- El jardín y al menos cuatro plantillas adicionales tienen fondos enriquecidos
+  coherentes en editor, simulación, revisión y Waveshare.
+- Una escena con display, barrera y semáforo casi pegados conserva distancias y
+  alineación a distintas resoluciones, zoom y orientación.
+- Una escena con dos semáforos de nombres largos no superpone rótulos en web ni
+  en Waveshare 800 × 480, y tampoco mueve los semáforos para resolverlos.
+- Pruebas comparan cajas/anclas/transformaciones normalizadas y capturas de
+  referencia; no se valida sólo a ojo en una pantalla.
+- Importar proyectos anteriores, mover, Guardar/Cancelar, Deshacer/Rehacer,
+  historial y recuperación no pierden trabajo ni cambian la composición.
+- Se miden memoria, tamaño del paquete y tiempo de dibujo en Waveshare con el
+  máximo admitido de objetos y decoración.
+
