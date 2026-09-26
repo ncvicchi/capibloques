@@ -47,7 +47,7 @@
 #ifndef CAPI_BOARD_ID
 #define CAPI_BOARD_ID "wemos-d1-r32"
 #endif
-#define CAPI_FIRMWARE_VERSION "1.5.5"
+#define CAPI_FIRMWARE_VERSION "1.5.6"
 static constexpr uint16_t ABI = 1;
 static constexpr size_t MAX_RULES = 32 * 1024;
 static constexpr uart_port_t LINK = UART_NUM_0;
@@ -333,11 +333,11 @@ static void ws_background(cJSON *canvas){
     ws_rect(70,115,660,300,grass);ws_rect(70,ws_y(180,height),660,100,road);ws_rect(ws_x(390,width),115,124,300,road);
     ws_rect(70,ws_y(266,height),190,5,yellow);ws_rect(ws_x(690,width),ws_y(266,height),190,5,yellow);ws_rect(ws_x(476,width),115,5,95,yellow);ws_rect(ws_x(476,width),ws_y(360,height),5,95,yellow);
     ws_rect(92,132,145,58,rgb565(246,239,208));ws_text(120,153,"ESCUELA",rgb565(52,68,91),2,8);
-    bool horizontal_green=false,vertical_green=false;cJSON *resources=active?cJSON_GetObjectItem(active,"resources"):nullptr,*devices=resources?cJSON_GetObjectItem(resources,"devices"):nullptr,*dev;
-    cJSON_ArrayForEach(dev,devices){if(strcmp(text(dev,"kind"),"trafficLight"))continue;cJSON *position=cJSON_GetObjectItem(dev,"position");int x=number(position,"x",480),y=number(position,"y",270);bool green=component_get(text(dev,"id"),"color").text=="GREEN";if(abs(x-480)>abs(y-270))horizontal_green=horizontal_green||green;else vertical_green=vertical_green||green;}
+    bool horizontal_go=false,vertical_go=false;cJSON *resources=active?cJSON_GetObjectItem(active,"resources"):nullptr,*devices=resources?cJSON_GetObjectItem(resources,"devices"):nullptr,*dev;
+    cJSON_ArrayForEach(dev,devices){if(strcmp(text(dev,"kind"),"trafficLight"))continue;cJSON *position=cJSON_GetObjectItem(dev,"position");int x=number(position,"x",480),y=number(position,"y",270);std::string color=component_get(text(dev,"id"),"color").text;bool go=color=="GREEN"||color=="YELLOW";if(abs(x-480)>abs(y-270))horizontal_go=horizontal_go||go;else vertical_go=vertical_go||go;}
     const uint16_t car_a=rgb565(79,132,235),car_b=rgb565(238,91,103);
-    if(horizontal_green&&vertical_green){ws_rect(383,250,34,18,car_a);ws_rect(405,237,18,34,car_b);ws_line(390,233,430,278,5,rgb565(255,215,45));ws_line(430,233,390,278,5,rgb565(255,215,45));}
-    else{for(int index=0;index<3;++index){int hx=horizontal_green?160+index*155:245-index*42;int vy=vertical_green?160+index*82:195-index*32;ws_rect(hx,253,30,16,car_a);ws_rect(400,vy,16,30,car_b);}}
+    if(horizontal_go&&vertical_go){ws_rect(383,250,34,18,car_a);ws_rect(405,237,18,34,car_b);ws_line(390,233,430,278,5,rgb565(255,215,45));ws_line(430,233,390,278,5,rgb565(255,215,45));}
+    else{for(int index=0;index<3;++index){int hx=horizontal_go?160+index*155:245-index*42;int vy=vertical_go?160+index*82:195-index*32;ws_rect(hx,253,30,16,car_a);ws_rect(400,vy,16,30,car_b);}}
   }else if(!strcmp(kind,"robotTrack")){
     ws_rect(70,115,660,300,floor);const int points[][2]={{145,405},{260,405},{300,245},{385,245},{520,390},{650,350},{710,145},{805,145}};for(int index=1;index<8;++index)ws_line(ws_x(points[index-1][0],width),ws_y(points[index-1][1],height),ws_x(points[index][0],width),ws_y(points[index][1],height),38,road);for(int index=1;index<8;++index)ws_line(ws_x(points[index-1][0],width),ws_y(points[index-1][1],height),ws_x(points[index][0],width),ws_y(points[index][1],height),2,white);
     ws_circle(ws_x(145,width),ws_y(405,height),14,rgb565(104,71,217));ws_circle(ws_x(805,width),ws_y(145,height),14,rgb565(104,71,217));

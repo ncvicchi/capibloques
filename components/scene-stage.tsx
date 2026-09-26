@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
@@ -19,6 +20,12 @@ import type {
 } from '@/lib/scene-model';
 import { closestCrossroadsTrafficSlot } from '@/lib/scene-model';
 import { educationalModuleKinds, educationalModuleSpecs } from '@/lib/educational-modules';
+import {
+  advanceTrafficWorld,
+  createTrafficWorldState,
+  trafficCarPosition,
+  type TrafficSignals,
+} from '@/lib/traffic-world';
 
 export type RuntimeVisualDevice = {
   texts?: Record<string, string[]>;
@@ -95,6 +102,74 @@ const clamp = (value: number, minimum: number, maximum: number) =>
 
 type MovableSceneItem = Pick<SceneDevice | SceneWidget, 'id' | 'position'>;
 
+function TrafficActors({ signals }: { signals: TrafficSignals }) {
+  const [world, setWorld] = useState(createTrafficWorldState);
+  const stateRef = useRef(world);
+  const lastFrameRef = useRef<number | null>(null);
+  const lastPaintRef = useRef(0);
+  const horizontalSignal = signals.horizontal;
+  const verticalSignal = signals.vertical;
+
+  useEffect(() => {
+    if (horizontalSignal !== 'OFF' || verticalSignal !== 'OFF') return;
+    stateRef.current = createTrafficWorldState();
+    lastFrameRef.current = null;
+    setWorld(stateRef.current);
+  }, [horizontalSignal, verticalSignal]);
+
+  useEffect(() => {
+    let frame = 0;
+    const animate = (now: number) => {
+      const previous = lastFrameRef.current ?? now;
+      lastFrameRef.current = now;
+      stateRef.current = advanceTrafficWorld(
+        stateRef.current,
+        { horizontal: horizontalSignal, vertical: verticalSignal },
+        now - previous,
+      );
+      if (now - lastPaintRef.current >= 40) {
+        lastPaintRef.current = now;
+        setWorld({
+          ...stateRef.current,
+          cars: stateRef.current.cars.map(car => ({ ...car })),
+        });
+      }
+      frame = window.requestAnimationFrame(animate);
+    };
+    frame = window.requestAnimationFrame(animate);
+    return () => window.cancelAnimationFrame(frame);
+  }, [horizontalSignal, verticalSignal]);
+
+  return (
+    <div className={`traffic-world${world.collision ? ' conflict' : ''}`}>
+      {world.cars.map(car => {
+        const position = trafficCarPosition(car);
+        return (
+          <i
+            key={car.id}
+            className={`traffic-car ${car.lane}${car.crashed ? ' crashed' : ''}`}
+            style={{
+              left: `${(position.x / 960) * 100}%`,
+              top: `${(position.y / 540) * 100}%`,
+            }}
+          >
+            {car.lane === 'horizontal' ? '🚗' : '🚙'}
+          </i>
+        );
+      })}
+      {world.collision && (
+        <strong className="traffic-crash">💥 Choque</strong>
+      )}
+      {signals.horizontal === 'RED' && (
+        <small className="traffic-jam horizontal">fila</small>
+      )}
+      {signals.vertical === 'RED' && (
+        <small className="traffic-jam vertical">fila</small>
+      )}
+    </div>
+  );
+}
+
 function SceneBackdrop({
   scene,
   runtimeDevices,
@@ -103,20 +178,17 @@ function SceneBackdrop({
   runtimeDevices: Record<string, RuntimeVisualDevice>;
 }) {
   const traffic = useMemo(() => {
-    const lanes: Record<'horizontal' | 'vertical', RuntimeVisualDevice['color']> = {
+    const lanes: TrafficSignals = {
       horizontal: 'OFF',
       vertical: 'OFF',
     };
     for (const device of scene.devices) {
       if (device.kind !== 'trafficLight') continue;
       const slot = closestCrossroadsTrafficSlot(device.position);
-      lanes[slot.lane] = runtimeDevices[device.id]?.color ?? 'OFF';
+      if (lanes[slot.lane] === 'OFF')
+        lanes[slot.lane] = runtimeDevices[device.id]?.color ?? 'OFF';
     }
-    return {
-      horizontal: lanes.horizontal === 'GREEN',
-      vertical: lanes.vertical === 'GREEN',
-      conflict: lanes.horizontal === 'GREEN' && lanes.vertical === 'GREEN',
-    };
+    return lanes;
   }, [scene.devices, runtimeDevices]);
 
   const background = scene.canvas.background;
@@ -175,13 +247,7 @@ function SceneBackdrop({
           <rect x="410" y="205" width="18" height="205" fill="#6c7181"/><path d="M419 220h120l-18 44H419z" fill="#f4f7fb"/><path d="M418 280h-85l15 40h70z" fill="#f4f7fb"/>
         </>}
       </svg>
-      {background === 'crossroads' && <div className={`traffic-world${traffic.conflict ? ' conflict' : ''}`}>
-        {!traffic.conflict && [0, 1, 2].map(index => <i key={`h-${index}`} className={`traffic-car horizontal ${traffic.horizontal ? 'go' : 'queue'}`} style={{ '--car-index': index } as CSSProperties}>🚗</i>)}
-        {!traffic.conflict && [0, 1, 2].map(index => <i key={`v-${index}`} className={`traffic-car vertical ${traffic.vertical ? 'go' : 'queue'}`} style={{ '--car-index': index } as CSSProperties}>🚙</i>)}
-        {traffic.conflict && <><i className="traffic-car crash horizontal">🚗</i><i className="traffic-car crash vertical">🚙</i><strong className="traffic-crash">💥 Choque: dos verdes a la vez</strong></>}
-        {!traffic.horizontal && <small className="traffic-jam horizontal">fila</small>}
-        {!traffic.vertical && <small className="traffic-jam vertical">fila</small>}
-      </div>}
+      {background === 'crossroads' && <TrafficActors signals={traffic} />}
     </div>
   );
 }

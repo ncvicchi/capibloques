@@ -8,6 +8,10 @@ import {
   sceneTemplates,
   validateScene,
 } from '../lib/scene-model.ts';
+import {
+  advanceTrafficWorld,
+  createTrafficWorldState,
+} from '../lib/traffic-world.ts';
 
 for (const id of [
   'intersection',
@@ -45,4 +49,53 @@ assert.throws(
 );
 
 assert.equal(sceneTemplates.robotCourse.canvas.background, 'robotTrack');
+
+const originalTraffic = createTrafficWorldState();
+const greenTraffic = advanceTrafficWorld(
+  originalTraffic,
+  { horizontal: 'GREEN', vertical: 'RED' },
+  50,
+);
+const yellowTraffic = advanceTrafficWorld(
+  greenTraffic,
+  { horizontal: 'YELLOW', vertical: 'RED' },
+  50,
+);
+assert.equal(greenTraffic.cars.length, 6, 'cars keep stable identities');
+assert.ok(greenTraffic.cars[0].progress > originalTraffic.cars[0].progress);
+assert.ok(yellowTraffic.cars[0].progress > greenTraffic.cars[0].progress);
+
+let redTraffic = originalTraffic;
+for (let frame = 0; frame < 400; frame += 1) {
+  redTraffic = advanceTrafficWorld(
+    redTraffic,
+    { horizontal: 'RED', vertical: 'RED' },
+    50,
+  );
+}
+assert.equal(redTraffic.cars.length, 6);
+const horizontalQueue = redTraffic.cars
+  .filter(car => car.lane === 'horizontal')
+  .map(car => car.progress)
+  .sort((left, right) => right - left);
+assert.deepEqual(horizontalQueue.map(value => Number(value.toFixed(3))), [0.37, 0.315, 0.26]);
+
+const collision = advanceTrafficWorld(
+  {
+    cars: [
+      { id: 'h', lane: 'horizontal', progress: 0.5, crashed: false },
+      { id: 'v', lane: 'vertical', progress: 0.5, crashed: false },
+    ],
+    collision: null,
+  },
+  { horizontal: 'GREEN', vertical: 'YELLOW' },
+  0,
+);
+assert.deepEqual(collision.collision, { horizontalId: 'h', verticalId: 'v' });
+assert.ok(collision.cars.every(car => car.crashed));
+assert.deepEqual(
+  advanceTrafficWorld(collision, { horizontal: 'RED', vertical: 'RED' }, 100),
+  collision,
+  'a collision stays a collision',
+);
 console.log('Mundos de escena: plantillas, carriles y límites validados.');

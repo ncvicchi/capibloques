@@ -15,12 +15,13 @@ duplicada allí.
   tienen zonas reconocibles y escalan con el mismo lienzo lógico de 960 × 540.
 - El cruce contiene cuatro lugares válidos para semáforos. Al agregar o mover
   uno se encaja en esos puntos y se impide agregar un quinto. Sus autos son
-  actores del mundo, no bloques: hacen fila ante rojo/apagado, circulan con
-  verde y muestran un choque simple si las dos calles reciben verde.
+  actores persistentes del mundo, no listas CSS recreadas: conservan identidad
+  y posición, hacen fila ante rojo, circulan con verde o amarillo y un choque
+  congela a los vehículos que efectivamente coinciden dentro del cruce.
 - La pista dibuja salida, ruta y meta sin convertir la línea en órdenes ocultas:
   el programa sigue controlando íntegramente el robot.
 - Editor y simulación usan la misma capa vectorial y coordenadas. El intérprete
-  Waveshare **1.5.5** consume el mismo identificador de fondo, conserva la
+  Waveshare **1.5.6** consume el mismo identificador de fondo, conserva la
   transformación de posiciones y dibuja versiones compactas de los cinco mundos,
   incluidos autos/atasco/choque del cruce. Los nombres largos usan tipografía
   compacta para no invadir la tarjeta vecina.
@@ -28,7 +29,7 @@ duplicada allí.
 
 Quedan dentro de esta fase las herramientas avanzadas de autoría (capas,
 selección múltiple y guías), detección general de solapamientos y comparación
-por capturas de referencia. La salida Waveshare 1.5.5 requiere compilación en
+por capturas de referencia. La salida Waveshare 1.5.6 requiere compilación en
 DEV y aceptación física; una compilación correcta no sustituye esa prueba.
 
 ## Objetivo

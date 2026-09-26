@@ -15,7 +15,7 @@ assert.match(source, /CONFIG_PAIR/);
 assert.match(source, /hardwareId/);
 assert.match(source, /PAIR_CONFIGURED/);
 assert.match(source, /MAX_RULES = 32 \* 1024/);
-assert.match(source, /#define CAPI_FIRMWARE_VERSION "1\.5\.5"/);
+assert.match(source, /#define CAPI_FIRMWARE_VERSION "1\.5\.6"/);
 assert.match(source, /waveshare_begin/);
 assert.match(source, /waveshare_render/);
 assert.match(source, /esp_lcd_new_rgb_panel/);
