@@ -459,7 +459,7 @@ Arduino y ESP-IDF nativos se mantienen como alternativas. El servidor continúa 
 
 Asignación: **fase 36 — Firmware intérprete y ejecución directa en placa**. La arquitectura, formato, flujo web, runtime, seguridad, compatibilidad, pruebas, criterios y decisiones pendientes están centralizados en [FASE_36_FIRMWARE_INTERPRETE.md](FASE_36_FIRMWARE_INTERPRETE.md).
 
-Estado del 24 de septiembre de 2026: **terminado en software; despliegue en DEV y aceptación física pendientes**. Se implementaron reglas/ABI, `CapiLink`, selector Simulador/Placa, instalación Web Serial, persistencia posterior a verificación, telemetría, controladores actuales y builds reproducibles Wemos/S3 con capacidades fail-closed. Ambos intérpretes compilan y se empaquetan con ESP-IDF 5.5.5; ver el inventario y los límites precisos al inicio del documento de fase.
+Estado del 26 de septiembre de 2026: **terminado en software; transporte básico Waveshare aceptado físicamente y restantes aceptaciones pendientes**. Se implementaron reglas/ABI, `CapiLink`, selector Simulador/Placa, instalación Web Serial, persistencia posterior a verificación, telemetría, controladores actuales y builds reproducibles Wemos/S3 con capacidades fail-closed. En la Waveshare real, firmware 1.5.3 por `COM12` completó saludo, detención del programa anterior, transferencia fragmentada, verificación, commit A/B, ejecución y telemetría final. El cliente web reintenta el saludo y detiene reglas persistidas antes de reemplazarlas; falta publicar y aceptar ese recorrido en DEV, además de emparejamiento y controladores físicos. Ver el inventario y los límites precisos al inicio del documento de fase.
 
 ## 35. Herramientas pedagógicas revisadas, autoría de desafíos y bloque `según`
 

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createCapiRules, parseCapiRules, CAPI_RULES_MAX_BYTES } from '../lib/capi-rules.ts';
 import { createEmptyScene } from '../lib/scene-model.ts';
-import { createPairCredentials, pairSsid, ProtocolLines, encodeProtocolPacket } from '../lib/interpreter-protocol.ts';
+import { createPairCredentials, pairSsid, ProtocolLines, encodeProtocolPacket, InterpreterSession } from '../lib/interpreter-protocol.ts';
 
 const scene = createEmptyScene('Prueba de reglas');
 const program = { version: 2, variables: [{ id: 'score', name: 'Puntos', type: 'number' }], threads: [{ id: 'main', startBlockId: 'start', nodes: [
@@ -34,4 +34,25 @@ const emojiAt = emojiPacket.indexOf(0xf0);
 assert.deepEqual(emojiLines.push(emojiPacket.subarray(0, emojiAt + 2)), []);
 assert.equal(emojiLines.push(emojiPacket.subarray(emojiAt + 2))[0].message, 'capibara 🐹');
 assert.throws(() => lines.push(new TextEncoder().encode('{mal}\n')), /inválido/);
+
+const physicalBundle = createCapiRules(program, scene, 'waveshare-esp32-s3-touch-lcd-5-28117');
+const commands = [];
+let serialController;
+const readable = new ReadableStream({ start(controller) { serialController = controller; } });
+const writable = new WritableStream({ write(bytes) {
+  const packet = JSON.parse(new TextDecoder().decode(bytes).trim());
+  commands.push(packet.type);
+  const reply = packet.type === 'HELLO'
+    ? { type: 'HELLO', protocol: 'CapiLink', firmware: '1.5.3', abi: 1, board: 'waveshare-esp32-s3-touch-lcd-5-28117', maxRulesBytes: 32768, capabilities: ['core', 'counter', 'serial'], resources: { pwmChannels: 8 } }
+    : { type: packet.type === 'STOP' ? 'OK' : packet.type === 'BEGIN' ? 'READY' : packet.type === 'CHUNK' ? 'ACK' : packet.type === 'VERIFY' ? 'VERIFIED' : 'COMMITTED' };
+  serialController.enqueue(encodeProtocolPacket(reply));
+} });
+const fakePort = { readable, writable, async open() {}, async close() {} };
+const session = new InterpreterSession();
+await session.connect(async () => fakePort, 'waveshare-esp32-s3-touch-lcd-5-28117');
+assert.equal(session.state.stage, 'ready');
+await session.send(physicalBundle);
+assert.ok(commands.indexOf('STOP') > commands.indexOf('HELLO'));
+assert.ok(commands.indexOf('STOP') < commands.indexOf('BEGIN'));
+await session.close();
 console.log('CapiRules y CapiLink: OK');

@@ -1,6 +1,6 @@
 # Fase 36 — Firmware intérprete y ejecución directa en placa
 
-## Estado de implementación — 24 de septiembre de 2026
+## Estado de implementación — 26 de septiembre de 2026
 
 La fase está **terminada en software**. Ya están implementados:
 
@@ -22,14 +22,16 @@ La fase está **terminada en software**. Ya están implementados:
 - la primera prueba física de Waveshare con 1.5.0 detectó que las esperas de 1, 2 y 5 ms se redondeaban a cero con el tick predeterminado de ESP-IDF y `capi-matrix` podía impedir la ejecución de `IDLE0`; **1.5.1** fija `CONFIG_FREERTOS_HZ=1000` y aplica una espera cooperativa mínima de un tick en todos esos servicios;
 - la prueba del puerto nativo de la Waveshare (USB VID 303A/PID 1001) mostró que grababa correctamente pero CapiLink 1.5.1 sólo escuchaba UART0; **1.5.2** mantiene UART0 y agrega recepción/respuesta por el periférico USB Serial/JTAG de ESP32-S3, de modo que ambos conectores admitidos pueden transportar reglas;
 - la prueba física de 1.5.2 mostró que ESP-IDF podía haber instalado antes el driver USB para la consola; **1.5.3** detecta y reutiliza esa instancia en lugar de tratar `ESP_ERR_INVALID_STATE` como USB deshabilitado;
+- la prueba directa de 1.5.3 en la Waveshare real por `COM12` completó `HELLO`, `STOP`, `BEGIN`, dos `CHUNK`, `VERIFY`, `COMMIT`, `RUN` y telemetría hasta `program-done` con un paquete de 859 bytes; confirma USB nativo, persistencia A/B y ejecución básica, pero no emparejamiento, renderer RGB, touch ni controladores externos;
+- el cliente web detiene ahora las reglas persistidas antes de reemplazarlas y reintenta `HELLO` hasta tres veces sin conservar esperas vencidas; esto cubre el arranque autónomo anterior y la pérdida de la primera línea mientras USB termina de asociarse;
 - construcción reproducible de tres artefactos estáticos, manifiestos con hash y publicación automática la primera vez que DEV recibe esta versión; los binarios generados no se guardan en Git;
 - pruebas de formato determinista, corrupción, placa cruzada, framing, empaquetado, USB simulado, UI Chrome, tipos, estilo, smoke y build estático.
 
 La fase 30 amplió el runtime a **1.1.0** con temporizadores consultables, eventos cooperativos de una vez/repetitivos, pausa/reanudación y cancelación; la capacidad negociada es `timers`. La web considera obsoleto 1.0.0, ofrece actualizarlo y no envía reglas hasta completar la actualización, incluso si el proyecto todavía no usa temporizadores.
 
-La compilación fijada en ESP-IDF 5.5.5 produjo y empaquetó correctamente los intérpretes anteriores de Wemos D1 R32 y ESP32-S3 en CI el 24 de septiembre de 2026. La versión 1.5.3 incluye el tercer perfil Waveshare y aún debe compilarse/publicarse en DEV. La prueba física de 1.5.0 reveló el watchdog; 1.5.1 lo corrigió, 1.5.2 agregó el transporte USB nativo y 1.5.3 corrige la convivencia con la consola ESP-IDF. Las anteriores quedan obsoletas y la web exigirá 1.5.3. La fase **no tiene aún aceptación física completa**: faltan confirmar 1.5.3 por USB, carga de reglas, emparejamiento y controladores con las placas reales. El firmware Waveshare sólo cubre por ahora identidad/AP; render RGB y touch pertenecen a fases 18/34. Arduino y ESP-IDF por proyecto siguen disponibles.
+La compilación fijada en ESP-IDF 5.5.5 produjo y empaquetó correctamente los intérpretes anteriores de Wemos D1 R32 y ESP32-S3 en CI el 24 de septiembre de 2026. La versión 1.5.3 incluye el tercer perfil Waveshare y fue grabada en la placa real. La prueba física de 1.5.0 reveló el watchdog; 1.5.1 lo corrigió, 1.5.2 agregó el transporte USB nativo y 1.5.3 corrigió la convivencia con la consola ESP-IDF. Las anteriores quedan obsoletas y la web exige 1.5.3. La fase **no tiene aún aceptación física completa**: la transferencia y ejecución básica por USB ya fueron confirmadas; faltan validar el recorrido web corregido en DEV, emparejamiento y controladores con las placas reales. El firmware Waveshare sólo cubre por ahora identidad/AP; render RGB y touch pertenecen a fases 18/34. Arduino y ESP-IDF por proyecto siguen disponibles.
 
-**Estado:** software terminado; despliegue en DEV y aceptación física pendientes.
+**Estado:** software terminado; transporte, persistencia y ejecución básica aceptados físicamente en Waveshare; corrección web pendiente de DEV y restantes aceptaciones físicas pendientes.
 
 Este documento concentra la planificación completa. La entrada breve vive en [BACKLOG.md](BACKLOG.md) y la asignación de fase en [PLAN_FASES_BACKLOG.md](PLAN_FASES_BACKLOG.md).
 

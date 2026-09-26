@@ -74,7 +74,18 @@ export class InterpreterSession {
     while (Date.now() < deadline) {
       const index = this.packets.findIndex(packet => packet.type === type || packet.type === 'ERROR');
       if (index >= 0) { const packet = this.packets.splice(index, 1)[0]; if (packet.type === 'ERROR') throw new InterpreterProtocolError(typeof packet.message === 'string' ? packet.message : 'La placa rechazó la operación.'); return packet; }
-      await new Promise<void>((resolve, reject) => { const timer = setTimeout(() => reject(new InterpreterProtocolError('La placa no respondió a tiempo.')), Math.max(1, deadline - Date.now())); this.waiters.push(() => { clearTimeout(timer); resolve(); }); });
+      await new Promise<void>((resolve, reject) => {
+        let settled = false;
+        const wake = () => { if (settled) return; settled = true; clearTimeout(timer); resolve(); };
+        const timer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          const waiter = this.waiters.indexOf(wake);
+          if (waiter >= 0) this.waiters.splice(waiter, 1);
+          reject(new InterpreterProtocolError('La placa no respondió a tiempo.'));
+        }, Math.max(1, deadline - Date.now()));
+        this.waiters.push(wake);
+      });
     }
     throw new InterpreterProtocolError('La placa no respondió a tiempo.');
   }
@@ -86,11 +97,17 @@ export class InterpreterSession {
       if (!port.readable || !port.writable) throw new InterpreterProtocolError('El puerto no permite enviar y recibir reglas.');
       this.port = port; this.reader = port.readable.getReader(); this.writer = port.writable.getWriter();
       this.reading = this.readLoop();
-      // Opening USB serial resets many ESP32 boards. Let the interpreter boot
-      // before the first command so HELLO is not lost in the ROM banner.
+      // Opening USB serial resets many ESP32 boards. Let the interpreter boot,
+      // then retry HELLO because native USB can discard the first line while
+      // the console/driver finishes attaching.
       await new Promise(resolve => setTimeout(resolve, 900));
-      await this.write({ type: 'HELLO', protocol: 'CapiLink', abi: CAPI_INTERPRETER_ABI });
-      const response = await this.next('HELLO', 7000);
+      let response: Packet | null = null;
+      for (let attempt = 0; attempt < 3 && !response; attempt += 1) {
+        await this.write({ type: 'HELLO', protocol: 'CapiLink', abi: CAPI_INTERPRETER_ABI });
+        try { response = await this.next('HELLO', 2500); }
+        catch (error) { if (!(error instanceof InterpreterProtocolError) || error.message !== 'La placa no respondió a tiempo.' || attempt === 2) throw error; }
+      }
+      if (!response) throw new InterpreterProtocolError('La placa no respondió a tiempo.');
       const hello = response as unknown as InterpreterHello;
       if (hello.protocol !== 'CapiLink' || typeof hello.firmware !== 'string' || !Array.isArray(hello.capabilities) || typeof hello.maxRulesBytes !== 'number' || typeof hello.resources?.pwmChannels !== 'number') throw new InterpreterProtocolError('La placa no tiene un intérprete CapiBloques reconocible.');
       if (hello.board !== expectedBoard || hello.abi !== CAPI_INTERPRETER_ABI || !versionAtLeast(hello.firmware, CAPI_INTERPRETER_VERSION)) {
@@ -125,6 +142,9 @@ export class InterpreterSession {
     if (bundle.resourceRequirements.pwmChannels > hello.resources.pwmChannels) throw new InterpreterProtocolError(`Este programa necesita ${bundle.resourceRequirements.pwmChannels} salidas de potencia y el intérprete dispone de ${hello.resources.pwmChannels}.`);
     this.update({ stage: 'sending', message: 'Enviando una copia segura de las reglas…', progress: 0 });
     try {
+      // Stored rules start automatically after reset. Stop that previous
+      // program before BEGIN so replacing it is deterministic.
+      await this.write({ type: 'STOP' }); await this.next('OK');
       await this.write({ type: 'BEGIN', bytes: bundle.bytes.length, checksum: bundle.checksum, format: 1, abi: CAPI_INTERPRETER_ABI }); await this.next('READY');
       const chunks = Math.ceil(bundle.bytes.length / CHUNK_BYTES);
       for (let sequence = 0; sequence < chunks; sequence += 1) {
