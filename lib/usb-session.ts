@@ -98,7 +98,7 @@ export class UsbSession {
             await operate();
           });
         } else await operate();
-        if (success) this.update({ stage: 'done', message: 'Firmware grabado y verificado. Se solicitó el reinicio; comprobá que el programa arrancó en la placa o en el monitor.', progress: 100 });
+        if (success) this.update({ stage: 'done', message: 'Firmware grabado y verificado. La placa se reinició; al conectarla, CapiBloques esperará automáticamente a que termine de arrancar.', progress: 100 });
       } catch (error) {
         cleanupFailed = error instanceof UsbCleanupError;
         const cancelledCleanly = aborter.signal.aborted && !cleanupFailed && !this.state.writingStarted && !(aborter.signal.reason instanceof UsbError);

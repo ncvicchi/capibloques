@@ -42,6 +42,7 @@ Las reglas se generan en el navegador. No usan la cola de compilación, no enví
   `Semáforo 1: cambió a rojo`; nunca presenta `blockId`.
 - Si un proyecto usa una capacidad que el intérprete no declara, se bloquea antes de enviar reglas y se explica la actualización necesaria.
 - Web Serial requiere Chrome o Edge de escritorio y HTTPS o localhost. USB pertenece a la PC del navegador, no al servidor.
+- Después de grabar se solicita un reinicio físico y se libera el puerto. Al conectar, CapiLink tolera el arranque más largo de la Waveshare y reintenta `HELLO` automáticamente; no se debe obligar al alumno a esperar un error y reconectar.
 - Arduino/ESP-IDF específicos siguen siendo una salida válida para diagnóstico, estudio o componentes todavía no cubiertos. Ocultarlos no autoriza retirar compatibilidad.
 
 ## Selección y cambio de placa

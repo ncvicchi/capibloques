@@ -99,13 +99,19 @@ export class InterpreterSession {
       this.reading = this.readLoop();
       // Opening USB serial resets many ESP32 boards. Let the interpreter boot,
       // then retry HELLO because native USB can discard the first line while
-      // the console/driver finishes attaching.
+      // the console/driver finishes attaching. Waveshare also initializes its
+      // RGB panel and PSRAM before CapiLink is ready, which can take longer than
+      // the old three-attempt window immediately after flashing.
       await new Promise(resolve => setTimeout(resolve, 900));
       let response: Packet | null = null;
-      for (let attempt = 0; attempt < 3 && !response; attempt += 1) {
+      const helloAttempts = expectedBoard === 'waveshare-esp32-s3-touch-lcd-5-28117' ? 6 : 4;
+      for (let attempt = 0; attempt < helloAttempts && !response; attempt += 1) {
         await this.write({ type: 'HELLO', protocol: 'CapiLink', abi: CAPI_INTERPRETER_ABI });
         try { response = await this.next('HELLO', 2500); }
-        catch (error) { if (!(error instanceof InterpreterProtocolError) || error.message !== 'La placa no respondió a tiempo.' || attempt === 2) throw error; }
+        catch (error) {
+          if (!(error instanceof InterpreterProtocolError) || error.message !== 'La placa no respondió a tiempo.' || attempt === helloAttempts - 1) throw error;
+          this.update({ message: `La placa todavía está arrancando. Reintentando automáticamente (${attempt + 2}/${helloAttempts})…` });
+        }
       }
       if (!response) throw new InterpreterProtocolError('La placa no respondió a tiempo.');
       const hello = response as unknown as InterpreterHello;
