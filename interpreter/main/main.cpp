@@ -138,7 +138,7 @@ static int analog_read(int gpio) {
   int channel=-1;
   if(!strcmp(CAPI_BOARD_ID,"wemos-d1-r32")){switch(gpio){case 36:channel=ADC1_CHANNEL_0;break;case 39:channel=ADC1_CHANNEL_3;break;case 34:channel=ADC1_CHANNEL_6;break;case 35:channel=ADC1_CHANNEL_7;break;default:return 0;}}
   else if(gpio>=1&&gpio<=10)channel=gpio-1;else return 0;
-  adc1_config_width(ADC_WIDTH_BIT_12);adc1_config_channel_atten((adc1_channel_t)channel,ADC_ATTEN_DB_11);return adc1_get_raw((adc1_channel_t)channel);
+  adc1_config_width(ADC_WIDTH_BIT_12);adc1_config_channel_atten((adc1_channel_t)channel,ADC_ATTEN_DB_12);return adc1_get_raw((adc1_channel_t)channel);
 }
 static void matrix_flush();
 static void smart_blackout();
@@ -419,11 +419,27 @@ extern "C" void app_main() {
 #ifdef CONFIG_IDF_TARGET_ESP32S3
   usb_serial_jtag_driver_config_t usb_config=USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();usb_config.rx_buffer_size=8192;usb_config.tx_buffer_size=8192;usb_link_ready=usb_serial_jtag_driver_install(&usb_config)==ESP_OK;
 #endif
-  if(!wifi_pair_role().empty())wifi_connect(); if(load_rules()&&!wifi_creates_network()) start_program();
+  if(!wifi_pair_role().empty()) wifi_connect();
+  if(load_rules()&&!wifi_creates_network()) start_program();
   std::string line; uint8_t byte;
   for(;;){int received=0;
 #ifdef CONFIG_IDF_TARGET_ESP32S3
-    if(usb_link_ready&&(received=usb_serial_jtag_read_bytes(&byte,1,0))==1)link_uses_usb=true;else
+    if(usb_link_ready&&(received=usb_serial_jtag_read_bytes(&byte,1,0))==1){
+      link_uses_usb=true;
+    } else {
 #endif
-    if((received=uart_read_bytes(LINK,&byte,1,pdMS_TO_TICKS(20)))==1)link_uses_usb=false;if(received!=1)continue;if(byte=='\n'){ if(!line.empty()&&line.size()<32768){ cJSON *request=cJSON_ParseWithLength(line.data(),line.size()); if(request){command(request);cJSON_Delete(request);} else reply("ERROR","Mensaje inválido."); } line.clear(); } else if(byte!='\r'&&line.size()<32768) line.push_back((char)byte); }
+      if((received=uart_read_bytes(LINK,&byte,1,pdMS_TO_TICKS(20)))==1) link_uses_usb=false;
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+    }
+#endif
+    if(received!=1) continue;
+    if(byte=='\n'){
+      if(!line.empty()&&line.size()<32768){
+        cJSON *request=cJSON_ParseWithLength(line.data(),line.size());
+        if(request){command(request);cJSON_Delete(request);}
+        else reply("ERROR","Mensaje inválido.");
+      }
+      line.clear();
+    } else if(byte!='\r'&&line.size()<32768) line.push_back((char)byte);
+  }
 }
