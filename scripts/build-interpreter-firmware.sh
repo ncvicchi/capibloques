@@ -2,7 +2,7 @@
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 : "${IDF_PATH:?Definí IDF_PATH o ejecutá primero export.sh de ESP-IDF}"
-VERSION=${1:-1.5.3}
+VERSION=${1:-1.5.4}
 DEST=${2:-$ROOT/public/interpreter}
 REVISION=${3:-unknown}
 profile_is_current() {
@@ -30,7 +30,9 @@ build_profile() {
     return
   fi
   if [[ $reset_build == 1 ]]; then rm -rf "$build"; fi
-  IDF_TARGET="$target" idf.py -C "$ROOT/interpreter" -B "$build" -DIDF_TARGET="$target" -DSDKCONFIG="$build/sdkconfig" -DCAPI_BOARD_ID="$board_define" build
+  local defaults="$ROOT/interpreter/sdkconfig.defaults"
+  if [[ $target == esp32s3 ]]; then defaults="$defaults;$ROOT/interpreter/sdkconfig.defaults.esp32s3"; fi
+  IDF_TARGET="$target" idf.py -C "$ROOT/interpreter" -B "$build" -DIDF_TARGET="$target" -DSDKCONFIG="$build/sdkconfig" -DSDKCONFIG_DEFAULTS="$defaults" -DCAPI_BOARD_ID="$board_define" build
   python3 "$ROOT/scripts/package-interpreter-firmware.py" --profile "$profile" --build "$build" --output "$DEST" --version "$VERSION" --revision "$REVISION"
   if [[ $cleanup_build == 1 ]]; then rm -rf "$build"; fi
 }

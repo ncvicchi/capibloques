@@ -599,8 +599,11 @@ elegida como destino principal, pero en ese caso el proyecto es una
 **simulación en pantalla**. Todos sus componentes son virtuales: no solicitan
 GPIO, resistencias ni cableado físico. Este modo no se confunde con Pantalla
 central: no existe una segunda placa ni un montaje físico asociado. La
-validación y el asistente ya reconocen esta semántica; el renderer completo de
-la escena y sus controles en el LCD físico continúa pendiente en fase 18.
+validación y el asistente ya reconocen esta semántica. El intérprete 1.5.4
+entrega la primera versión física del renderer local: panel RGB, geometría y
+nombres de escena, más estados cooperativos de los componentes principales.
+Quedan la aceptación física, mayor fidelidad del catálogo y los controles touch
+en fase 18; la escena recibida desde otra placa continúa en fase 34.
 
 El editor muestra siempre dos roles cuando se activa esta función: la Placa del
 proyecto original y la Waveshare agregada. Cada Waveshare crea al arrancar un AP

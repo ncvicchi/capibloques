@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <cstdlib>
@@ -19,6 +20,9 @@
 #include "driver/adc.h"
 #ifdef CONFIG_IDF_TARGET_ESP32S3
 #include "driver/usb_serial_jtag.h"
+#include "esp_heap_caps.h"
+#include "esp_lcd_panel_ops.h"
+#include "esp_lcd_panel_rgb.h"
 #endif
 #include "esp_timer.h"
 #include "esp_system.h"
@@ -43,7 +47,7 @@
 #ifndef CAPI_BOARD_ID
 #define CAPI_BOARD_ID "wemos-d1-r32"
 #endif
-#define CAPI_FIRMWARE_VERSION "1.5.3"
+#define CAPI_FIRMWARE_VERSION "1.5.4"
 static constexpr uint16_t ABI = 1;
 static constexpr size_t MAX_RULES = 32 * 1024;
 static constexpr uart_port_t LINK = UART_NUM_0;
@@ -72,6 +76,16 @@ static std::vector<RuntimeVariable> variables;
 struct ComponentState { std::string device_id,property;RuntimeValue value; };
 static std::vector<ComponentState> component_states;
 static SemaphoreHandle_t variables_mutex = nullptr;
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+static constexpr int WAVESHARE_WIDTH=800,WAVESHARE_HEIGHT=480;
+static esp_lcd_panel_handle_t waveshare_panel=nullptr;
+static i2c_master_bus_handle_t waveshare_bus=nullptr;
+static i2c_master_dev_handle_t waveshare_mode=nullptr,waveshare_io=nullptr;
+static uint16_t *waveshare_pixels=nullptr;
+static SemaphoreHandle_t waveshare_mutex=nullptr;
+static std::atomic<bool> waveshare_dirty{true};
+static bool waveshare_ready=false;
+#endif
 enum class RuntimeTimerStatus : uint8_t { STOPPED, RUNNING, PAUSED, EXPIRED };
 struct RuntimeTimer { std::string id;RuntimeTimerStatus status=RuntimeTimerStatus::STOPPED;uint32_t duration=0,remaining=0,last_update=0;uint64_t elapsed=0;int32_t pending=0;bool repeat=false; };
 static std::vector<RuntimeTimer> timers;
@@ -254,8 +268,75 @@ static bool validate_rules(const std::vector<uint8_t> &bytes, cJSON **document) 
 static int32_t value_number(const RuntimeValue &value){if(value.kind==RuntimeValue::NUMBER)return value.number;if(value.kind==RuntimeValue::BOOLEAN)return value.boolean?1:0;char *end=nullptr;long parsed=strtol(value.text.c_str(),&end,10);return end!=value.text.c_str()?(int32_t)std::clamp<long>(parsed,INT32_MIN,INT32_MAX):0;}
 static bool value_boolean(const RuntimeValue &value){return value.kind==RuntimeValue::BOOLEAN?value.boolean:value.kind==RuntimeValue::NUMBER?value.number!=0:!value.text.empty();}
 static std::string value_text(const RuntimeValue &value){if(value.kind==RuntimeValue::TEXT)return value.text;if(value.kind==RuntimeValue::BOOLEAN)return value.boolean?"sí":"no";return std::to_string(value.number);}
-static void component_set(const char *device_id,const char *property,const RuntimeValue &value){if(variables_mutex)xSemaphoreTake(variables_mutex,portMAX_DELAY);for(auto &state:component_states)if(state.device_id==device_id&&state.property==property){state.value=value;if(variables_mutex)xSemaphoreGive(variables_mutex);return;}component_states.push_back({device_id,property,value});if(variables_mutex)xSemaphoreGive(variables_mutex);}
+static void component_set(const char *device_id,const char *property,const RuntimeValue &value){if(variables_mutex)xSemaphoreTake(variables_mutex,portMAX_DELAY);for(auto &state:component_states)if(state.device_id==device_id&&state.property==property){state.value=value;if(variables_mutex)xSemaphoreGive(variables_mutex);
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+waveshare_dirty=true;
+#endif
+return;}component_states.push_back({device_id,property,value});if(variables_mutex)xSemaphoreGive(variables_mutex);
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+waveshare_dirty=true;
+#endif
+}
 static RuntimeValue component_get(const char *device_id,const char *property){RuntimeValue out;bool found=false;if(variables_mutex)xSemaphoreTake(variables_mutex,portMAX_DELAY);for(const auto &state:component_states)if(state.device_id==device_id&&state.property==property){out=state.value;found=true;break;}if(variables_mutex)xSemaphoreGive(variables_mutex);if(!found){cJSON *dev=device(device_id);const char *kind=dev?text(dev,"kind"):"";if((!strcmp(kind,"trafficLight")&&!strcmp(property,"color"))||(!strcmp(kind,"robot")&&!strcmp(property,"motion"))||(!strcmp(kind,"otto")&&(!strcmp(property,"motion")||!strcmp(property,"expression")))){out.kind=RuntimeValue::TEXT;out.text=!strcmp(kind,"trafficLight")?"OFF":!strcmp(kind,"robot")?"STOP":!strcmp(property,"expression")?"SMILE":"HOME";}else if(!strcmp(kind,"servo")&&!strcmp(property,"angle"))out.number=number(cJSON_GetObjectItem(dev,"config"),"angle",90);}return out;}
+
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+static bool is_waveshare(){return !strcmp(CAPI_BOARD_ID,"waveshare-esp32-s3-touch-lcd-5-28117");}
+static uint16_t rgb565(uint8_t r,uint8_t g,uint8_t b){return (uint16_t)(((r&0xf8)<<8)|((g&0xfc)<<3)|(b>>3));}
+static void ws_rect(int x,int y,int width,int height,uint16_t color){
+  if(!waveshare_pixels||width<=0||height<=0){return;}
+  int x0=std::max(0,x),y0=std::max(0,y),x1=std::min(WAVESHARE_WIDTH,x+width),y1=std::min(WAVESHARE_HEIGHT,y+height);
+  for(int row=y0;row<y1;++row)std::fill(waveshare_pixels+row*WAVESHARE_WIDTH+x0,waveshare_pixels+row*WAVESHARE_WIDTH+x1,color);
+}
+static void ws_circle(int cx,int cy,int radius,uint16_t color){for(int y=-radius;y<=radius;++y){int span=(int)std::sqrt((float)(radius*radius-y*y));ws_rect(cx-span,cy+y,span*2+1,1,color);}}
+static char ws_ascii(const char *&source){
+  uint8_t first=(uint8_t)*source++;if(first<0x80)return (char)first;
+  if(first==0xc3&&*source){uint8_t second=(uint8_t)*source++;switch(second){case 0xa1:case 0x81:return 'A';case 0xa9:case 0x89:return 'E';case 0xad:case 0x8d:return 'I';case 0xb3:case 0x93:return 'O';case 0xba:case 0x9a:case 0xbc:case 0x9c:return 'U';case 0xb1:case 0x91:return 'N';default:return '?';}}
+  while(((uint8_t)*source&0xc0)==0x80)++source;return '?';
+}
+static void ws_text(int x,int y,const char *value,uint16_t color,int scale=2,int max_chars=24){
+  if(!value){return;}
+  const char *cursor=value;for(int count=0;*cursor&&count<max_chars;++count){char character=ws_ascii(cursor);if(character<32||character>126)character='?';const uint8_t *glyph=CAPI_FONT_5X7+(character-32)*5;for(int column=0;column<5;++column)for(int row=0;row<7;++row)if((glyph[column]>>row)&1)ws_rect(x+column*scale,y+row*scale,scale,scale,color);x+=6*scale;}
+}
+static void ws_device(cJSON *dev,int x,int y){
+  const char *kind=text(dev,"kind"),*id=text(dev,"id");const uint16_t ink=rgb565(30,38,69),muted=rgb565(190,196,213),white=rgb565(255,255,255);
+  ws_rect(x-58,y-55,116,112,white);
+  if(!strcmp(kind,"trafficLight")){
+    const std::string color=component_get(id,"color").text;ws_rect(x-21,y-46,42,82,rgb565(38,42,54));
+    ws_circle(x,y-31,10,color=="RED"?rgb565(255,55,65):rgb565(83,44,48));
+    ws_circle(x,y-6,10,color=="YELLOW"?rgb565(255,201,45):rgb565(83,73,42));
+    ws_circle(x,y+19,10,color=="GREEN"?rgb565(42,210,112):rgb565(40,76,58));
+  }else if(!strcmp(kind,"led")){
+    int brightness=std::clamp((int)component_get(id,"brightness").number,0,100);cJSON *config=cJSON_GetObjectItem(dev,"config");const char *hex=text(config,"color","#ffd43b");unsigned raw=0xffd43b;if(hex[0]=='#')raw=(unsigned)strtoul(hex+1,nullptr,16);uint8_t r=(raw>>16)&255,g=(raw>>8)&255,b=raw&255;ws_circle(x,y-8,27,muted);ws_circle(x,y-8,23,rgb565(r*brightness/100,g*brightness/100,b*brightness/100));
+  }else if(!strcmp(kind,"servo")){
+    int angle=std::clamp((int)component_get(id,"angle").number,0,180);ws_circle(x,y-8,28,rgb565(92,111,230));float a=(angle-90)*3.1415926f/180.0f;for(int step=0;step<24;++step)ws_circle(x+(int)(std::cos(a)*step),y-8+(int)(std::sin(a)*step),2,white);
+  }else if(!strcmp(kind,"motor")){
+    int power=component_get(id,"power").number;ws_circle(x,y-8,29,rgb565(78,92,118));ws_circle(x,y-8,18,white);char shown[12];snprintf(shown,sizeof(shown),"%d%%",abs(power));ws_text(x-20,y-14,shown,ink,2,6);
+  }else if(!strcmp(kind,"robot")||!strcmp(kind,"otto")){
+    ws_rect(x-29,y-39,58,55,rgb565(102,89,230));ws_circle(x-12,y-22,5,white);ws_circle(x+12,y-22,5,white);ws_rect(x-38,y+17,22,9,rgb565(48,55,81));ws_rect(x+16,y+17,22,9,rgb565(48,55,81));
+  }else if(!strcmp(kind,"infraredBarrier")||!strcmp(kind,"button")){
+    bool on=component_get(id,!strcmp(kind,"button")?"pressed":"interrupted").boolean;ws_circle(x,y-8,28,on?rgb565(255,92,92):rgb565(73,190,130));
+  }else{ws_circle(x,y-8,27,rgb565(126,139,166));ws_text(x-7,y-16,"?",white,3,1);}
+  int length=std::min<int>((int)strlen(text(dev,"name","Componente")),16);ws_text(x-length*6,y+40,text(dev,"name","Componente"),ink,2,16);
+}
+static bool ws_write(i2c_master_dev_handle_t handle,uint8_t value){return i2c_master_transmit(handle,&value,1,5)==ESP_OK;}
+static bool ws_add_device(uint8_t address,i2c_master_dev_handle_t *handle){i2c_device_config_t config={};config.dev_addr_length=I2C_ADDR_BIT_LEN_7;config.device_address=address;config.scl_speed_hz=400000;return i2c_master_bus_add_device(waveshare_bus,&config,handle)==ESP_OK;}
+static bool waveshare_begin(){
+  if(!is_waveshare()){return true;}
+  i2c_master_bus_config_t bus={};bus.i2c_port=I2C_NUM_0;bus.sda_io_num=GPIO_NUM_8;bus.scl_io_num=GPIO_NUM_9;bus.clk_source=I2C_CLK_SRC_DEFAULT;bus.glitch_ignore_cnt=7;bus.flags.enable_internal_pullup=true;
+  if(i2c_new_master_bus(&bus,&waveshare_bus)!=ESP_OK||!ws_add_device(0x24,&waveshare_mode)||!ws_add_device(0x38,&waveshare_io)||!ws_write(waveshare_mode,0x01)||!ws_write(waveshare_io,0x2c))return false;
+  gpio_set_direction(GPIO_NUM_4,GPIO_MODE_OUTPUT);gpio_set_level(GPIO_NUM_4,0);vTaskDelay(pdMS_TO_TICKS(10));if(!ws_write(waveshare_io,0x2e))return false;gpio_set_direction(GPIO_NUM_4,GPIO_MODE_INPUT);vTaskDelay(pdMS_TO_TICKS(50));if(!ws_write(waveshare_io,0x1e))return false;
+  esp_lcd_rgb_panel_config_t config={};config.data_width=16;config.bits_per_pixel=16;config.num_fbs=1;config.clk_src=LCD_CLK_SRC_DEFAULT;config.bounce_buffer_size_px=800*10;config.sram_trans_align=4;config.psram_trans_align=64;config.hsync_gpio_num=46;config.vsync_gpio_num=3;config.de_gpio_num=5;config.pclk_gpio_num=7;config.disp_gpio_num=-1;const int pins[16]={14,38,18,17,10,39,0,45,48,47,21,1,2,42,41,40};for(int i=0;i<16;++i)config.data_gpio_nums[i]=pins[i];config.timings.pclk_hz=16000000;config.timings.h_res=800;config.timings.v_res=480;config.timings.hsync_pulse_width=4;config.timings.hsync_back_porch=8;config.timings.hsync_front_porch=8;config.timings.vsync_pulse_width=4;config.timings.vsync_back_porch=8;config.timings.vsync_front_porch=8;config.timings.flags.pclk_active_neg=true;config.flags.fb_in_psram=true;
+  if(esp_lcd_new_rgb_panel(&config,&waveshare_panel)!=ESP_OK||esp_lcd_panel_reset(waveshare_panel)!=ESP_OK||esp_lcd_panel_init(waveshare_panel)!=ESP_OK)return false;
+  waveshare_pixels=(uint16_t*)heap_caps_malloc(WAVESHARE_WIDTH*WAVESHARE_HEIGHT*sizeof(uint16_t),MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT);if(!waveshare_pixels)return false;waveshare_ready=true;waveshare_dirty=true;return true;
+}
+static void waveshare_render(){
+  if(!waveshare_ready||!waveshare_pixels){return;}
+  const uint16_t background=rgb565(236,241,255),bar=rgb565(91,75,219),white=rgb565(255,255,255),ink=rgb565(30,38,69);ws_rect(0,0,WAVESHARE_WIDTH,WAVESHARE_HEIGHT,background);ws_rect(0,0,WAVESHARE_WIDTH,55,bar);ws_text(22,17,"CapiBloques",white,3,20);
+  if(!active){ws_text(220,220,"Lista para recibir una escena",ink,2,30);}else{cJSON *resources=cJSON_GetObjectItem(active,"resources"),*canvas=resources?cJSON_GetObjectItem(resources,"canvas"):nullptr,*devices=resources?cJSON_GetObjectItem(resources,"devices"):nullptr,*dev;int cw=std::max(1,number(canvas,"width",960)),ch=std::max(1,number(canvas,"height",540)),shown=0;cJSON_ArrayForEach(dev,devices){const char *kind=text(dev,"kind");if(!strcmp(kind,"display")||!strcmp(kind,"messages")||!strcmp(kind,"wifiNode"))continue;cJSON *position=cJSON_GetObjectItem(dev,"position");int x=70+number(position,"x",cw/2)*660/cw,y=115+number(position,"y",ch/2)*300/ch;ws_device(dev,x,y);if(++shown>=12)break;}if(!shown)ws_text(250,220,"Escena sin componentes",ink,2,28);}
+  esp_lcd_panel_draw_bitmap(waveshare_panel,0,0,WAVESHARE_WIDTH,WAVESHARE_HEIGHT,waveshare_pixels);
+}
+static void waveshare_service(void*){for(;;){if(waveshare_dirty.exchange(false)){if(waveshare_mutex)xSemaphoreTake(waveshare_mutex,portMAX_DELAY);waveshare_render();if(waveshare_mutex)xSemaphoreGive(waveshare_mutex);}cooperative_delay_ms(50);}}
+#endif
 static RuntimeValue evaluate(cJSON *expression){
   RuntimeValue out;const char *kind=text(expression,"kind");
   if(!strcmp(kind,"number")){out.number=number(expression,"value");return out;}
@@ -288,7 +369,11 @@ static RuntimeValue evaluate(cJSON *expression){
   return out;
 }
 static void initialize_variables(){variables.clear();cJSON *items=cJSON_GetObjectItem(active,"variables"),*item;cJSON_ArrayForEach(item,items){RuntimeVariable variable;variable.id=text(item,"id");const char *type=text(item,"type");if(!strcmp(type,"text"))variable.value.kind=RuntimeValue::TEXT;else if(!strcmp(type,"boolean"))variable.value.kind=RuntimeValue::BOOLEAN;variables.push_back(std::move(variable));}}
-static void initialize_component_states(){component_states.clear();cJSON *resources=cJSON_GetObjectItem(active,"resources"),*devices=resources?cJSON_GetObjectItem(resources,"devices"):nullptr,*item;cJSON_ArrayForEach(item,devices){const char *id=text(item,"id"),*kind=text(item,"kind");RuntimeValue value;if(!strcmp(kind,"trafficLight")){value.kind=RuntimeValue::TEXT;value.text="OFF";component_states.push_back({id,"color",value});}else if(!strcmp(kind,"led")){component_states.push_back({id,"brightness",value});}else if(!strcmp(kind,"smartLights")){value.number=number(cJSON_GetObjectItem(item,"config"),"brightness",40);component_states.push_back({id,"brightness",value});}else if(!strcmp(kind,"robot")){value.kind=RuntimeValue::TEXT;value.text="STOP";component_states.push_back({id,"motion",value});}else if(!strcmp(kind,"motor")){component_states.push_back({id,"power",value});}else if(!strcmp(kind,"servo")){value.number=number(cJSON_GetObjectItem(item,"config"),"angle",90);component_states.push_back({id,"angle",value});}else if(!strcmp(kind,"otto")){value.kind=RuntimeValue::TEXT;value.text="HOME";component_states.push_back({id,"motion",value});value.text="SMILE";component_states.push_back({id,"expression",value});}}}
+static void initialize_component_states(){if(variables_mutex)xSemaphoreTake(variables_mutex,portMAX_DELAY);component_states.clear();cJSON *resources=cJSON_GetObjectItem(active,"resources"),*devices=resources?cJSON_GetObjectItem(resources,"devices"):nullptr,*item;cJSON_ArrayForEach(item,devices){const char *id=text(item,"id"),*kind=text(item,"kind");RuntimeValue value;if(!strcmp(kind,"trafficLight")){value.kind=RuntimeValue::TEXT;value.text="OFF";component_states.push_back({id,"color",value});}else if(!strcmp(kind,"led")){component_states.push_back({id,"brightness",value});}else if(!strcmp(kind,"smartLights")){value.number=number(cJSON_GetObjectItem(item,"config"),"brightness",40);component_states.push_back({id,"brightness",value});}else if(!strcmp(kind,"robot")){value.kind=RuntimeValue::TEXT;value.text="STOP";component_states.push_back({id,"motion",value});}else if(!strcmp(kind,"motor")){component_states.push_back({id,"power",value});}else if(!strcmp(kind,"servo")){value.number=number(cJSON_GetObjectItem(item,"config"),"angle",90);component_states.push_back({id,"angle",value});}else if(!strcmp(kind,"otto")){value.kind=RuntimeValue::TEXT;value.text="HOME";component_states.push_back({id,"motion",value});value.text="SMILE";component_states.push_back({id,"expression",value});}}if(variables_mutex)xSemaphoreGive(variables_mutex);
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+waveshare_dirty=true;
+#endif
+}
 static void initialize_timers(){timers.clear();cJSON *items=cJSON_GetObjectItem(active,"timers"),*item;cJSON_ArrayForEach(item,items){RuntimeTimer timer;timer.id=text(item,"id");timers.push_back(std::move(timer));}}
 static RuntimeTimer *find_timer(const char *id){for(auto &timer:timers)if(timer.id==id)return &timer;return nullptr;}
 static void update_timer(RuntimeTimer &timer,uint32_t now){if(timer.status!=RuntimeTimerStatus::RUNNING||!timer.duration)return;uint32_t delta=now-timer.last_update;timer.last_update=now;if(!delta)return;if(delta<timer.remaining){timer.elapsed+=delta;timer.remaining-=delta;return;}if(!timer.repeat){timer.elapsed=timer.duration;timer.remaining=0;timer.pending=std::min<int32_t>(65535,timer.pending+1);timer.status=RuntimeTimerStatus::EXPIRED;return;}timer.elapsed+=delta;uint32_t after=delta-timer.remaining,events=1+after/timer.duration;timer.pending=std::min<int64_t>(65535,(int64_t)timer.pending+events);uint32_t remainder=after%timer.duration;timer.remaining=remainder?timer.duration-remainder:timer.duration;}
@@ -305,7 +390,15 @@ static bool persist(const std::vector<uint8_t> &bytes) {
 static bool load_rules() {
   const esp_partition_t *partition=rules_partition(active_slot()); StoredRules header{}; if(!partition||esp_partition_read(partition,0,&header,sizeof(header))!=ESP_OK||memcmp(header.magic,"CAPISTOR",8)||!header.size||header.size>MAX_RULES||header.size+sizeof(header)>partition->size)return false;
   std::vector<uint8_t> bytes(header.size); if(esp_partition_read(partition,sizeof(header),bytes.data(),bytes.size())!=ESP_OK||crc32(bytes.data(),bytes.size())!=header.crc)return false;
-  cJSON *parsed=nullptr; if(!validate_rules(bytes,&parsed))return false; cJSON_Delete(active); active=parsed; return true;
+  cJSON *parsed=nullptr; if(!validate_rules(bytes,&parsed))return false;
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+  if(waveshare_mutex)xSemaphoreTake(waveshare_mutex,portMAX_DELAY);
+#endif
+  cJSON_Delete(active); active=parsed;
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+  waveshare_dirty=true;if(waveshare_mutex)xSemaphoreGive(waveshare_mutex);
+#endif
+  return true;
 }
 
 static bool condition(cJSON *value) {
@@ -405,7 +498,15 @@ static void command(cJSON *request) {
   else if (!strcmp(type,"BEGIN")) { if(running){reply("ERROR","Detené el programa antes de reemplazarlo.");return;} expected_bytes=number(request,"bytes"); const char *sum=text(request,"checksum"); expected_crc=strtoul(sum,nullptr,16); if(!expected_bytes||expected_bytes>MAX_RULES){reply("ERROR","Tamaño de reglas inválido.");return;} candidate.clear(); candidate.reserve(expected_bytes); reply("READY"); }
   else if (!strcmp(type,"CHUNK")) { const char *encoded=text(request,"data"); size_t capacity=strlen(encoded)*3/4+3, written=0, before=candidate.size(); candidate.resize(before+capacity); if(mbedtls_base64_decode(candidate.data()+before,capacity,&written,(const unsigned char*)encoded,strlen(encoded))!=0||before+written>expected_bytes){candidate.clear();reply("ERROR","Fragmento inválido.");return;} candidate.resize(before+written); reply("ACK"); }
   else if (!strcmp(type,"VERIFY")) { cJSON *parsed=nullptr; if(candidate.size()!=expected_bytes||candidate.size()<32||crc32(candidate.data()+32,candidate.size()-32)!=expected_crc||!validate_rules(candidate,&parsed)){reply("ERROR","Las reglas no superaron la verificación.");return;} cJSON_Delete(parsed); reply("VERIFIED"); }
-  else if (!strcmp(type,"COMMIT")) { cJSON *parsed=nullptr; if(!validate_rules(candidate,&parsed)||!persist(candidate)){cJSON_Delete(parsed);reply("ERROR","No pudimos guardar las reglas.");return;} running=false; cJSON_Delete(active); active=parsed; candidate.clear(); reply("COMMITTED"); }
+  else if (!strcmp(type,"COMMIT")) { cJSON *parsed=nullptr; if(!validate_rules(candidate,&parsed)||!persist(candidate)){cJSON_Delete(parsed);reply("ERROR","No pudimos guardar las reglas.");return;} running=false;
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+  if(waveshare_mutex)xSemaphoreTake(waveshare_mutex,portMAX_DELAY);
+#endif
+  cJSON_Delete(active); active=parsed;
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+  waveshare_dirty=true;if(waveshare_mutex)xSemaphoreGive(waveshare_mutex);
+#endif
+  candidate.clear(); reply("COMMITTED"); }
   else if (!strcmp(type,"RUN")) { if(start_program()) reply("OK"); else reply("ERROR","No hay reglas o el programa ya está ejecutándose."); }
   else if (!strcmp(type,"PAUSE")) { if(!paused){paused_at=(uint32_t)(esp_timer_get_time()/1000);if(timers_mutex)xSemaphoreTake(timers_mutex,portMAX_DELAY);for(auto &timer:timers)update_timer(timer,paused_at);if(timers_mutex)xSemaphoreGive(timers_mutex);paused=true;}reply("OK"); }
   else if (!strcmp(type,"RESUME")) { if(paused){uint32_t now=(uint32_t)(esp_timer_get_time()/1000);if(timers_mutex)xSemaphoreTake(timers_mutex,portMAX_DELAY);for(auto &timer:timers)if(timer.status==RuntimeTimerStatus::RUNNING)timer.last_update=now;if(timers_mutex)xSemaphoreGive(timers_mutex);paused=false;}reply("OK"); }
@@ -415,7 +516,11 @@ static void command(cJSON *request) {
 }
 
 extern "C" void app_main() {
-  nvs_flash_init();variables_mutex=xSemaphoreCreateMutex();timers_mutex=xSemaphoreCreateMutex();matrix_mutex=xSemaphoreCreateMutex();message_mutex=xSemaphoreCreateMutex();otto_mutex=xSemaphoreCreateMutex();display_mutex=xSemaphoreCreateMutex();smart_lights_mutex=xSemaphoreCreateMutex();xTaskCreate(matrix_service,"capi-matrix",3072,nullptr,3,nullptr);xTaskCreate(otto_service,"capi-otto",3072,nullptr,3,nullptr);xTaskCreate(display_service,"capi-display",3072,nullptr,3,nullptr);xTaskCreate(smart_service,"capi-rgb",3072,nullptr,3,nullptr);uart_driver_install(LINK,8192,0,0,nullptr,0); uart_config_t config={}; config.baud_rate=115200; config.data_bits=UART_DATA_8_BITS; config.parity=UART_PARITY_DISABLE; config.stop_bits=UART_STOP_BITS_1; config.flow_ctrl=UART_HW_FLOWCTRL_DISABLE; config.source_clk=UART_SCLK_DEFAULT; uart_param_config(LINK,&config);
+  nvs_flash_init();variables_mutex=xSemaphoreCreateMutex();timers_mutex=xSemaphoreCreateMutex();matrix_mutex=xSemaphoreCreateMutex();message_mutex=xSemaphoreCreateMutex();otto_mutex=xSemaphoreCreateMutex();display_mutex=xSemaphoreCreateMutex();smart_lights_mutex=xSemaphoreCreateMutex();
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+  waveshare_mutex=xSemaphoreCreateMutex();if(is_waveshare()){if(!waveshare_begin())printf("CapiBloques: no se pudo iniciar la pantalla Waveshare.\n");xTaskCreate(waveshare_service,"capi-screen",6144,nullptr,2,nullptr);}
+#endif
+  xTaskCreate(matrix_service,"capi-matrix",3072,nullptr,3,nullptr);xTaskCreate(otto_service,"capi-otto",3072,nullptr,3,nullptr);xTaskCreate(display_service,"capi-display",3072,nullptr,3,nullptr);xTaskCreate(smart_service,"capi-rgb",3072,nullptr,3,nullptr);uart_driver_install(LINK,8192,0,0,nullptr,0); uart_config_t config={}; config.baud_rate=115200; config.data_bits=UART_DATA_8_BITS; config.parity=UART_PARITY_DISABLE; config.stop_bits=UART_STOP_BITS_1; config.flow_ctrl=UART_HW_FLOWCTRL_DISABLE; config.source_clk=UART_SCLK_DEFAULT; uart_param_config(LINK,&config);
 #ifdef CONFIG_IDF_TARGET_ESP32S3
   usb_link_ready=usb_serial_jtag_is_driver_installed();
   if(!usb_link_ready){
