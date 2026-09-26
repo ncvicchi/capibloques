@@ -275,7 +275,7 @@ No incluye una competencia pública, chat o tutor de IA, creación libre de desa
 - Enviar y ejecutar es una sola acción; conserva comprobación de sesión, placa, versión, ABI, capacidades, tamaño, recursos, almacenamiento atómico y Wi-Fi privado.
 - Arduino, ESP-IDF, compilación específica y monitor Serial no se destruyen: quedan reunidos bajo **Herramientas avanzadas para adultos**.
 - La cola pesada deja de ser parte del camino infantil. Su administración, privacidad y compatibilidad se mantienen mientras exista el modo avanzado; una futura retirada requerirá otra decisión y migración.
-- **Extensión entregada parcialmente en la misma fase:** ya muestra la placa actual con foto y permite cambiar Wemos ↔ DIYmall dentro del asistente después de revisar compatibilidad y conexiones. Waveshare alterna fotos frontal/trasera: como destino principal representa una simulación sin GPIO; en un proyecto físico se agrega como segundo rol y puede recibir el intérprete de emparejamiento 1.5.2. El renderer LCD completo y el panel/touch de escena remota siguen pendientes. Quedan el punto de historial global del cambio y la aceptación física. Ver el contrato completo en [FASE_20_USO_GUIADO_PLACA.md](FASE_20_USO_GUIADO_PLACA.md).
+- **Extensión entregada parcialmente en la misma fase:** ya muestra la placa actual con foto y permite cambiar Wemos ↔ DIYmall dentro del asistente después de revisar compatibilidad y conexiones. Waveshare alterna fotos frontal/trasera: como destino principal representa una simulación sin GPIO; en un proyecto físico se agrega como segundo rol y puede recibir el intérprete de emparejamiento 1.5.3. El renderer LCD completo y el panel/touch de escena remota siguen pendientes. Quedan el punto de historial global del cambio y la aceptación física. Ver el contrato completo en [FASE_20_USO_GUIADO_PLACA.md](FASE_20_USO_GUIADO_PLACA.md).
 - **Extensión entregada en software para Pantalla central:** en el recorrido
   físico presenta dos lugares separados, Placa del proyecto obligatoria y
   Pantalla central Waveshare opcional. Al activar la pareja se ven y preparan
@@ -536,7 +536,7 @@ Aceptación:
 ## Fase 34 — Servicios y control remoto entre placas
 
 **Estado:** selección de pareja, `WSMMMMMM`, clave local, NVS y provisión Web
-Serial implementados en CapiLink 1.5.2; transporte autenticado, escena/touch y
+Serial implementados en CapiLink 1.5.3; transporte autenticado, escena/touch y
 aceptación física pendientes.
 
 **Objetivo:** usar la Waveshare como Pantalla central de una Wemos/NodeMCU/DevKit que ejecuta el proyecto, y permitir servicios explícitamente publicados apoyándose en la mensajería validada.

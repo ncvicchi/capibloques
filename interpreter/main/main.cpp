@@ -43,7 +43,7 @@
 #ifndef CAPI_BOARD_ID
 #define CAPI_BOARD_ID "wemos-d1-r32"
 #endif
-#define CAPI_FIRMWARE_VERSION "1.5.2"
+#define CAPI_FIRMWARE_VERSION "1.5.3"
 static constexpr uint16_t ABI = 1;
 static constexpr size_t MAX_RULES = 32 * 1024;
 static constexpr uart_port_t LINK = UART_NUM_0;
@@ -417,7 +417,13 @@ static void command(cJSON *request) {
 extern "C" void app_main() {
   nvs_flash_init();variables_mutex=xSemaphoreCreateMutex();timers_mutex=xSemaphoreCreateMutex();matrix_mutex=xSemaphoreCreateMutex();message_mutex=xSemaphoreCreateMutex();otto_mutex=xSemaphoreCreateMutex();display_mutex=xSemaphoreCreateMutex();smart_lights_mutex=xSemaphoreCreateMutex();xTaskCreate(matrix_service,"capi-matrix",3072,nullptr,3,nullptr);xTaskCreate(otto_service,"capi-otto",3072,nullptr,3,nullptr);xTaskCreate(display_service,"capi-display",3072,nullptr,3,nullptr);xTaskCreate(smart_service,"capi-rgb",3072,nullptr,3,nullptr);uart_driver_install(LINK,8192,0,0,nullptr,0); uart_config_t config={}; config.baud_rate=115200; config.data_bits=UART_DATA_8_BITS; config.parity=UART_PARITY_DISABLE; config.stop_bits=UART_STOP_BITS_1; config.flow_ctrl=UART_HW_FLOWCTRL_DISABLE; config.source_clk=UART_SCLK_DEFAULT; uart_param_config(LINK,&config);
 #ifdef CONFIG_IDF_TARGET_ESP32S3
-  usb_serial_jtag_driver_config_t usb_config=USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();usb_config.rx_buffer_size=8192;usb_config.tx_buffer_size=8192;usb_link_ready=usb_serial_jtag_driver_install(&usb_config)==ESP_OK;
+  usb_link_ready=usb_serial_jtag_is_driver_installed();
+  if(!usb_link_ready){
+    usb_serial_jtag_driver_config_t usb_config=USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
+    usb_config.rx_buffer_size=8192;
+    usb_config.tx_buffer_size=8192;
+    usb_link_ready=usb_serial_jtag_driver_install(&usb_config)==ESP_OK;
+  }
 #endif
   if(!wifi_pair_role().empty()) wifi_connect();
   if(load_rules()&&!wifi_creates_network()) start_program();
