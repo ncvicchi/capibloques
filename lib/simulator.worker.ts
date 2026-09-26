@@ -70,6 +70,7 @@ type WorkerInboundMessage =
   | { type: 'SYNC_SCENE'; scene: unknown; boardProfile?: unknown }
   | { type: 'RUN' | 'PAUSE' | 'STOP' | 'RESET' | 'STEP' }
   | { type: 'SET_SPEED'; speed: unknown }
+  | { type: 'EXTERNAL_CONSOLE'; message: unknown }
   | { type: 'SET_MODE'; mode: 'normal' | 'guided' }
   | { type: 'FRAME_SHOWN'; seq: number }
   | { type: 'SET_DASHBOARD'; deviceId: unknown; action: unknown }
@@ -2017,6 +2018,10 @@ scope.addEventListener('message', (event) => {
       }
       break;
     }
+    case 'EXTERNAL_CONSOLE':
+      if (typeof message.message === 'string' && message.message.trim()) appendConsole(message.message.slice(0, 240));
+      emit();
+      break;
     case 'SET_INPUT':
       if (typeof message.deviceId === 'string') {
         setInputById(message.deviceId, message.value);

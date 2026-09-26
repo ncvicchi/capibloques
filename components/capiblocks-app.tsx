@@ -109,7 +109,7 @@ import type { EditorCheckpoint } from '@/components/editor-access';
 import ProjectLibrary, { type ProjectLibraryHandle } from '@/components/project-library';
 import FirmwareBuilds from '@/components/firmware-builds';
 import UsbBoard from '@/components/usb-board';
-import InterpreterBoard from '@/components/interpreter-board';
+import InterpreterBoard, { type PhysicalBoardControl } from '@/components/interpreter-board';
 import ComponentHelpDialog from '@/components/component-help';
 import type { FirmwareJob } from '@/lib/usb-firmware';
 import { projectFingerprint } from '@/lib/project-library';
@@ -497,6 +497,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const [usbOpen, setUsbOpen] = useState(false);
   const [interpreterOpen, setInterpreterOpen] = useState(false);
   const [physicalMirrorActive, setPhysicalMirrorActive] = useState(false);
+  const [physicalStatus, setPhysicalStatus] = useState({ stage: 'idle', message: 'Sin placa conectada.' });
+  const physicalControlRef = useRef<PhysicalBoardControl | null>(null);
   const [advancedToolsOpen, setAdvancedToolsOpen] = useState(false);
   const [usbJob, setUsbJob] = useState<FirmwareJob | null>(null);
   const exportInFlight = useRef(false);
@@ -819,10 +821,26 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       setNoticeTone('ok');
       return;
     }
-    if (command === 'DONE') { setPhysicalMirrorActive(false); return; }
+    if (command === 'DONE') return;
     postToWorker({ type: command === 'RESUME' ? 'RUN' : command });
-    if (command === 'STOP') { setPhysicalMirrorActive(false); stopSound(); }
+    if (command === 'STOP') stopSound();
   }, [lastProgram, postToWorker, projectTarget.boardProfile, scene]);
+
+  const reportPhysicalStatus = useCallback((stage: string, message: string) => {
+    setPhysicalStatus(current => current.stage === stage && current.message === message ? current : { stage, message });
+  }, []);
+
+  const appendPhysicalLog = useCallback((message: string) => {
+    postToWorker({ type: 'EXTERNAL_CONSOLE', message: `Placa · ${message}` });
+  }, [postToWorker]);
+
+  const closeInterpreter = useCallback(() => {
+    setInterpreterOpen(false);
+    setPhysicalMirrorActive(false);
+    physicalControlRef.current = null;
+    postToWorker({ type: 'STOP' });
+    stopSound();
+  }, [postToWorker]);
 
   const step = useCallback(() => {
     if (
@@ -1364,38 +1382,40 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       {!sceneBuilderOpen && draftStore.sceneDraft && <aside className="scene-recovery-banner"><span>🧩 Hay una escena sin terminar en esta computadora. Tu escena confirmada no cambió.</span><button onClick={() => toggleSceneBuilder(true)}>Revisar escena pendiente</button></aside>}
 
       <section className="toolbar" aria-label="Controles del simulador">
-        {sim.status === 'running' ? (
+        <output className={`execution-target ${physicalMirrorActive ? 'is-board' : 'is-simulator'}`} aria-live="polite">
+          <span aria-hidden="true">{physicalMirrorActive ? '⚡' : '🖥️'}</span>
+          <span><strong>{physicalMirrorActive ? `Placa · ${boardProfile(projectTarget.boardProfile).shortName}` : 'Simulador web'}</strong><small>{physicalMirrorActive ? physicalStatus.message : 'Corre solamente en este navegador'}</small></span>
+        </output>
+        {(physicalMirrorActive ? physicalStatus.stage === 'running' : sim.status === 'running') ? (
           <button
             className="pause-button"
-            disabled={physicalMirrorActive}
-            title={physicalMirrorActive ? 'Usá el control flotante para pausar también la placa.' : undefined}
             onClick={() => {
-              postToWorker({ type: 'PAUSE' });
+              if (physicalMirrorActive) physicalControlRef.current?.('PAUSE');
+              else postToWorker({ type: 'PAUSE' });
               stopSound();
             }}
           >
             <Pause size={18} fill="currentColor" /> Pausar
           </button>
-        ) : sim.status === 'paused' ? (
+        ) : (physicalMirrorActive ? physicalStatus.stage === 'paused' : sim.status === 'paused') ? (
           <button
             className="run-button"
-            disabled={physicalMirrorActive}
-            onClick={() => postToWorker({ type: 'RUN' })}
+            onClick={() => physicalMirrorActive ? physicalControlRef.current?.('RESUME') : postToWorker({ type: 'RUN' })}
           >
             <Play size={18} fill="currentColor" /> Reanudar
           </button>
         ) : (
-          <button className="run-button" disabled={physicalMirrorActive} onClick={run}>
+          <button className="run-button" onClick={() => physicalMirrorActive ? physicalControlRef.current?.('RUN') : run()}>
             <Play size={18} fill="currentColor" /> Ejecutar
           </button>
         )}
-        <button disabled={physicalMirrorActive} onClick={step}>
+        <button disabled={physicalMirrorActive} title={physicalMirrorActive ? 'El paso a paso está disponible en el Simulador web.' : undefined} onClick={step}>
           <StepForward size={18} /> Paso
         </button>
         <button
-          disabled={physicalMirrorActive}
           onClick={() => {
-            postToWorker({ type: 'STOP' });
+            if (physicalMirrorActive) physicalControlRef.current?.('STOP');
+            else postToWorker({ type: 'STOP' });
             stopSound();
             pendingExecutionTasksRef.current = [];
             editorRef.current?.showExecution();
@@ -1403,11 +1423,11 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         >
           <CircleStop size={18} /> Detener
         </button>
-        <button disabled={physicalMirrorActive} onClick={reset}>
+        <button disabled={physicalMirrorActive} title={physicalMirrorActive ? 'Detené la placa y volvé a ejecutar para comenzar desde el inicio.' : undefined} onClick={reset}>
           <RotateCcw size={18} /> Reiniciar
         </button>
-        <button className="board-run-button" disabled={offline || sim.status === 'running' || sim.status === 'paused'} title={offline ? 'Necesitás conexión para verificar tu cuenta antes de usar USB.' : sim.status === 'running' || sim.status === 'paused' ? 'Detené el simulador antes de usar la placa.' : 'Instalá CapiBloques una vez y después enviá reglas en segundos.'} onClick={openInterpreter}>
-          <Cable size={18} /> Usar en placa
+        <button className="board-run-button" disabled={!physicalMirrorActive && (offline || sim.status === 'running' || sim.status === 'paused')} title={physicalMirrorActive ? 'Abrí el asistente para ver la conexión, la telemetría o volver a enviar las reglas.' : offline ? 'Necesitás conexión para verificar tu cuenta antes de usar USB.' : sim.status === 'running' || sim.status === 'paused' ? 'Detené el simulador antes de usar la placa.' : 'Instalá CapiBloques una vez y después enviá solamente las reglas.'} onClick={() => physicalMirrorActive ? physicalControlRef.current?.('SHOW') : openInterpreter()}>
+          <Cable size={18} /> {physicalMirrorActive ? 'Detalles de placa' : 'Usar en placa'}
         </button>
         <span className="toolbar-separator" />
         <label className="speed-control">
@@ -1512,7 +1532,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             <TabsList variant="line" className="sim-tabs-list">
               <TabsTrigger value="scene">Escena</TabsTrigger>
               <TabsTrigger value="state">Estado</TabsTrigger>
-              <TabsTrigger value="console">Consola</TabsTrigger>
+              <TabsTrigger value="console">{physicalMirrorActive ? 'Mensajes de placa' : 'Consola'}</TabsTrigger>
             </TabsList>
             <TabsContent value="scene" className="sim-content" keepMounted>
               <div className="sim-stage composed-scene">
@@ -1709,7 +1729,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
               className="sim-content console-content"
             >
               <div className="console-heading">
-                <Braces size={18} /> Monitor serial simulado
+                <Braces size={18} /> {physicalMirrorActive ? 'Mensajes de la placa y del espejo web' : 'Monitor serial simulado'}
               </div>
               <div className="console-log" aria-live="polite">
                 {sim.console.length ? (
@@ -1718,7 +1738,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                   ))
                 ) : (
                   <p className="console-empty">
-                    Los mensajes de tu programa aparecerán aquí.
+                    {physicalMirrorActive ? 'Las acciones que informe la placa aparecerán aquí.' : 'Los mensajes de tu programa aparecerán aquí.'}
                   </p>
                 )}
               </div>
@@ -1899,7 +1919,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       </Dialog>
 
       {usbOpen && !offline && <UsbBoard account={account} store={draftStore} job={usbJob} currentBoardProfile={projectTarget.boardProfile} currentFingerprint={fingerprint} onClose={() => { setUsbOpen(false); setUsbJob(null); }} onBuilds={() => { setUsbOpen(false); setUsbJob(null); setBuildsOpen(true); }} />}
-      {interpreterOpen && <InterpreterBoard account={account} store={draftStore} program={lastProgram} scene={scene} board={projectTarget.boardProfile} centralDisplay={projectTarget.centralDisplay} onChangeBoard={changeBoardFromAssistant} onChangeCentralDisplay={changeCentralDisplayFromAssistant} onMirrorCommand={mirrorPhysicalExecution} onClose={() => setInterpreterOpen(false)} />}
+      {interpreterOpen && <InterpreterBoard account={account} store={draftStore} program={lastProgram} scene={scene} board={projectTarget.boardProfile} centralDisplay={projectTarget.centralDisplay} onChangeBoard={changeBoardFromAssistant} onChangeCentralDisplay={changeCentralDisplayFromAssistant} onMirrorCommand={mirrorPhysicalExecution} onPhysicalStatus={reportPhysicalStatus} onPhysicalLog={appendPhysicalLog} controlRef={physicalControlRef} onClose={closeInterpreter} />}
       {buildsOpen && !offline && <FirmwareBuilds account={account} store={draftStore} csrfToken={csrfToken} capture={currentProject} fingerprint={fingerprint} targetBoardProfile={projectTarget.boardProfile} onClose={() => setBuildsOpen(false)} onProgram={job => { setBuildsOpen(false); setUsbJob(job); setUsbOpen(true); }} validate={framework => {
         const generated = buildCode(framework);
         if (generated.diagnostics.some(item => item.severity === 'error')) { setProblemsOpen(true); return null; }

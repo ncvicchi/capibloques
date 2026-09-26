@@ -2,7 +2,7 @@
 
 /* oxlint-disable next/no-img-element -- User-supplied board photos are static recognition assets, not responsive content. */
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +36,8 @@ function programBlocks(program: CompiledProgram) {
 }
 type GuideStep = 'review' | 'board' | 'pair-screen' | 'pair-project' | 'connect' | 'prepare' | 'wifi' | 'send' | 'run';
 const WAVESHARE = 'waveshare-esp32-s3-touch-lcd-5-28117' as const;
+export type PhysicalBoardCommand = 'RUN' | 'PAUSE' | 'RESUME' | 'STOP' | 'SHOW';
+export type PhysicalBoardControl = (command: PhysicalBoardCommand) => void;
 const boardPhotos: Record<BoardProfileId, string> = {
   'wemos-d1-r32': '/boards/wemos-d1-r32.png',
   'diymall-esp32-s3-devkitc-v1-n16r8': '/boards/diymall-esp32-s3-devkitc-v1-n16r8.png',
@@ -53,7 +55,7 @@ function BoardPhoto({ id }: { id: BoardProfileId }) {
   return <figure className={`board-photo-figure ${id === 'diymall-esp32-s3-devkitc-v1-n16r8' ? 'is-diymall' : ''}`}><img src={boardPhotos[id]} alt={`${boardProfile(id).name}, vista superior`} loading="lazy" /><figcaption>{boardProfile(id).shortName}</figcaption></figure>;
 }
 
-export default function InterpreterBoard({ account, store, program, scene, board, centralDisplay, onChangeBoard, onChangeCentralDisplay, onMirrorCommand, onClose }: { account: Account; store: AccountDraftStore; program: CompiledProgram; scene: SceneDefinition; board: BoardProfileId; centralDisplay?: CentralDisplayTarget; onChangeBoard: (board: BoardProfileId, scene: SceneDefinition) => void; onChangeCentralDisplay: (centralDisplay?: CentralDisplayTarget) => void; onMirrorCommand: (command: 'RUN' | 'PAUSE' | 'RESUME' | 'STOP' | 'DONE') => void; onClose: () => void }) {
+export default function InterpreterBoard({ account, store, program, scene, board, centralDisplay, onChangeBoard, onChangeCentralDisplay, onMirrorCommand, onPhysicalStatus, onPhysicalLog, controlRef, onClose }: { account: Account; store: AccountDraftStore; program: CompiledProgram; scene: SceneDefinition; board: BoardProfileId; centralDisplay?: CentralDisplayTarget; onChangeBoard: (board: BoardProfileId, scene: SceneDefinition) => void; onChangeCentralDisplay: (centralDisplay?: CentralDisplayTarget) => void; onMirrorCommand: (command: 'RUN' | 'PAUSE' | 'RESUME' | 'STOP' | 'DONE') => void; onPhysicalStatus: (stage: string, message: string) => void; onPhysicalLog: (message: string) => void; controlRef: RefObject<PhysicalBoardControl | null>; onClose: () => void }) {
   const [session] = useState(() => new InterpreterSession());
   const state = useSyncExternalStore(session.subscribe, session.snapshot, session.snapshot);
   const [installer] = useState(() => new UsbSession(createEspDriver));
@@ -67,6 +69,7 @@ export default function InterpreterBoard({ account, store, program, scene, board
   const [actionError, setActionError] = useState('');
   const [minimized, setMinimized] = useState(false);
   const reportedDone = useRef<object | null>(null);
+  const reportedTelemetry = useRef<object[]>([]);
   const wifiDevice = scene.devices.find(device => device.kind === 'wifiNode');
   const [wifiSsid, setWifiSsid] = useState(wifiDevice?.kind === 'wifiNode' ? wifiDevice.config.ssid : '');
   const [wifiPassword, setWifiPassword] = useState('');
@@ -80,7 +83,7 @@ export default function InterpreterBoard({ account, store, program, scene, board
     const devices = new Map(scene.devices.map(device => [device.id, device.name]));
     return { devices, blocks: programBlocks(program) };
   }, [program, scene.devices]);
-  const telemetryText = (item: (typeof state.telemetry)[number]) => {
+  const telemetryText = useCallback((item: (typeof state.telemetry)[number]) => {
     if (item.event === 'program-done') return 'Programa terminado';
     if (item.event === 'task-done') return 'Camino terminado';
     const block = item.blockId ? telemetryNames.blocks.get(item.blockId) : undefined;
@@ -96,13 +99,20 @@ export default function InterpreterBoard({ account, store, program, scene, board
               : item.message && item.event !== 'block' ? item.message
                 : operationNames[item.message ?? op] ?? (item.event === 'block' ? 'ejecutó una acción' : item.event);
     return `${deviceName ? `${deviceName}: ` : ''}${action}${showTelemetryValue(item.value)}`;
-  };
+  }, [telemetryNames]);
   useEffect(() => {
     const latest = state.telemetry.at(-1);
     if (latest?.event !== 'program-done' || reportedDone.current === latest) return;
     reportedDone.current = latest;
     onMirrorCommand('DONE');
   }, [onMirrorCommand, state.telemetry]);
+  useEffect(() => { onPhysicalStatus(state.stage, state.message); }, [onPhysicalStatus, state.message, state.stage]);
+  useEffect(() => {
+    const known = new Set(reportedTelemetry.current);
+    const fresh = state.telemetry.filter(item => item.event !== 'device' && !known.has(item));
+    fresh.forEach(item => onPhysicalLog(telemetryText(item)));
+    reportedTelemetry.current = [...reportedTelemetry.current, ...fresh].slice(-120);
+  }, [onPhysicalLog, state.telemetry, telemetryText]);
   const available = typeof window !== 'undefined' && window.isSecureContext && typeof navigator.serial?.requestPort === 'function';
   const needsWifi = Boolean(bundle?.requiredCapabilities.includes('wifi'));
   const needsManualWifi = needsWifi && !centralDisplay;
@@ -192,7 +202,11 @@ export default function InterpreterBoard({ account, store, program, scene, board
   const authorized = (operation: () => Promise<unknown>) => act(verifySession().then(operation));
   const configureWifi = () => authorized(async () => { await session.provisionWifi(wifiSsid, wifiPassword); setWifiPassword(''); setStep('send'); });
   const sendAndRun = () => bundle && authorized(async () => { await session.send(bundle); await session.command('RUN'); onMirrorCommand('RUN'); setStep('run'); setMinimized(true); });
-  const physicalCommand = (command: 'PAUSE' | 'RESUME' | 'STOP') => authorized(async () => { await session.command(command); onMirrorCommand(command); });
+  const physicalCommand = (command: 'RUN' | 'PAUSE' | 'RESUME' | 'STOP') => authorized(async () => { await session.command(command); onMirrorCommand(command); });
+  useEffect(() => {
+    controlRef.current = command => { if (command === 'SHOW') setMinimized(false); else physicalCommand(command); };
+    return () => { controlRef.current = null; };
+  });
   const rulesLoaded = state.progress === 100 || state.stage === 'running' || state.stage === 'paused';
   const flow = useMemo(() => ['review', ...(centralDisplay ? ['pair-screen', 'pair-project'] : []), 'connect', ...(needsManualWifi ? ['wifi'] : []), 'send', 'run'] as GuideStep[], [centralDisplay, needsManualWifi]);
   const flowIndex = Math.max(0, flow.indexOf(step === 'prepare' ? 'connect' : step === 'board' ? 'review' : step));
@@ -208,7 +222,7 @@ export default function InterpreterBoard({ account, store, program, scene, board
     else if (step === 'run') setStep('send');
   };
   const visibleTelemetry = state.telemetry.filter(item => item.event !== 'device').slice(-20);
-  return <>{minimized && <output className="board-live-dock" aria-live="polite"><span aria-hidden="true">⚡</span><div><strong>Placa y escena sincronizadas</strong><small>{state.message}</small></div><Button variant="outline" onClick={() => setMinimized(false)}>Ver controles</Button>{state.stage === 'running' && <Button variant="outline" onClick={() => physicalCommand('PAUSE')}>Pausar</Button>}{state.stage === 'paused' && <Button variant="outline" onClick={() => physicalCommand('RESUME')}>Continuar</Button>}<Button variant="outline" onClick={() => physicalCommand('STOP')}>Detener</Button></output>}<Dialog open={!minimized} onOpenChange={open => { if (!open && !minimized) close(); }}><DialogContent className="firmware-dialog usb-dialog" showCloseButton={state.stage !== 'sending'}>
+  return <><Dialog open={!minimized} onOpenChange={open => { if (!open && !minimized) close(); }}><DialogContent className="firmware-dialog usb-dialog" showCloseButton={state.stage !== 'sending'}>
     <DialogHeader><DialogTitle>⚡ Usar mi placa</DialogTitle><DialogDescription>Paso {flowIndex + 1} de {flow.length} · {step === 'review' ? 'Revisar las placas' : step === 'board' ? 'Elegir la placa del proyecto' : step === 'pair-screen' ? 'Preparar la pantalla central' : step === 'pair-project' ? 'Vincular la placa del proyecto' : step === 'connect' ? 'Conectar la placa' : step === 'prepare' ? 'Preparar la placa' : step === 'wifi' ? 'Configurar Wi-Fi' : step === 'send' ? 'Enviar el programa' : 'Programa en marcha'}</DialogDescription></DialogHeader>
     <progress className="board-guide-progress" value={flowIndex + 1} max={flow.length} aria-label={`Paso ${flowIndex + 1} de ${flow.length}`} />
     {!available && <p role="alert" className="account-error">Web Serial requiere Chrome o Edge de escritorio y una dirección HTTPS o localhost.</p>}

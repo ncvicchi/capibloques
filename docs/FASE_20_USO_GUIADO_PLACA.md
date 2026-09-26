@@ -22,7 +22,7 @@ Las reglas se generan en el navegador. No usan la cola de compilación, no enví
 - **Usar en placa** es una acción visible junto a los controles del simulador. Ya no hace falta cambiar un selector global que inutilizaba Paso, Detener y Reiniciar.
 - El diálogo es un asistente con progreso, botón Atrás seguro y una acción dominante por pantalla. No muestra conexión, instalación, Wi-Fi, envío y telemetría al mismo tiempo.
 - Una placa sin intérprete puede prepararse directamente, sin provocar primero un error obligatorio.
-- **Enviar reglas y ejecutar** sustituye la secuencia manual de dos botones. Pausar, continuar y detener aparecen en la pantalla final; la telemetría y los datos técnicos están bajo detalles plegables.
+- **Enviar reglas y ejecutar** sustituye la secuencia manual de dos botones. Después de iniciarlo, la barra principal cambia de **Simulador web** a **Placa**, y sus botones Pausar, Reanudar y Detener controlan a la vez la placa y el espejo web. **Detalles de placa** vuelve a abrir el asistente sin perder la conexión.
 - Wi-Fi es una pantalla condicional y permite conservar la red existente sin obligar a volver a escribir la clave.
 - La instalación explica que reemplaza el programa actual y conserva las tres confirmaciones físicas previas. Al terminar vuelve al recorrido de conexión y reglas.
 - Exportar JSON y guardar una copia local siguen a la vista. Fuentes Arduino/ESP-IDF, compilación específica y monitor Serial viven en **Herramientas avanzadas para adultos**. No se borraron sus APIs, permisos, cola, artefactos ni pruebas.
@@ -33,12 +33,13 @@ Las reglas se generan en el navegador. No usan la cola de compilación, no enví
 - El intérprete Waveshare 1.5.4 permite identificar, preparar y levantar su AP persistente y, como placa principal, dibuja la escena virtual y sus estados principales. El touch y la escena recibida desde otra placa continúan en fases 18/34.
 - Al comenzar desde `Usar mi placa`, la simulación web carga el mismo programa a
   velocidad real y arranca después del `RUN` confirmado. El asistente se
-  minimiza sin cerrar Web Serial; un control flotante mantiene pausa,
-  continuación, detención y regreso al detalle. Así la escena de la PC sigue
+  minimiza sin cerrar Web Serial; la barra principal cambia de modo y mantiene
+  pausa, continuación, detención y regreso al detalle. Así la escena de la PC sigue
   visible mientras la placa ejecuta. No sustituye realimentación eléctrica:
   sensores físicos todavía requieren telemetría tipada para reflejar su medida.
-- El registro traduce cada bloque a una frase de resultado y usa el nombre de
-  escena: por ejemplo `Semáforo 1: cambió a rojo`; nunca presenta `blockId`.
+- La pestaña **Mensajes de placa** recibe la telemetría física, traduce cada
+  bloque a una frase de resultado y usa el nombre de escena: por ejemplo
+  `Semáforo 1: cambió a rojo`; nunca presenta `blockId`.
 - Si un proyecto usa una capacidad que el intérprete no declara, se bloquea antes de enviar reglas y se explica la actualización necesaria.
 - Web Serial requiere Chrome o Edge de escritorio y HTTPS o localhost. USB pertenece a la PC del navegador, no al servidor.
 - Arduino/ESP-IDF específicos siguen siendo una salida válida para diagnóstico, estudio o componentes todavía no cubiertos. Ocultarlos no autoriza retirar compatibilidad.

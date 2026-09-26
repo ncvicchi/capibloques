@@ -153,12 +153,6 @@
 .board-guide-screen.firmware-wifi > button { align-self: center; }
 .board-guide-screen details { width: min(100%, 540px); text-align: left; border-top: 1px solid var(--line); }
 .board-guide-footer { display: flex; justify-content: flex-start; gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; }
-.board-live-dock { position: fixed; z-index: 80; right: 18px; bottom: 18px; display: flex; align-items: center; gap: 9px; max-width: min(680px, calc(100vw - 24px)); padding: 10px 12px; border: 2px solid #7767df; border-radius: 16px; background: #fff; box-shadow: 0 14px 38px rgb(31 35 62 / 24%); color: var(--ink); }
-.board-live-dock > span { font-size: 1.5rem; }
-.board-live-dock > div { display: grid; min-width: 150px; }
-.board-live-dock small { color: var(--muted); }
-.board-live-dock button { min-height: 36px; height: auto; }
-@media (max-width: 720px) { .board-live-dock { left: 12px; right: 12px; bottom: 12px; flex-wrap: wrap; } .board-live-dock > div { flex: 1 1 220px; } }
 .board-photo-figure { width: min(100%, 360px); margin: 0; display: grid; gap: 6px; justify-items: center; }
 .board-photo-figure img, .waveshare-photo { width: 100%; height: 190px; border: 1px solid var(--line); border-radius: 14px; background-color: white; }
 .board-photo-figure img { display: block; object-fit: contain; }
@@ -501,6 +495,24 @@ select:focus-visible {
   flex: 0 0 auto;
   white-space: nowrap;
 }
+.execution-target {
+  min-width: 190px;
+  min-height: 44px;
+  padding: 6px 11px;
+  border: 1px solid #aab2cd;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: #fff;
+  color: var(--ink);
+  flex: 0 0 auto;
+}
+.execution-target > span:first-child { font-size: 1.35rem; }
+.execution-target > span:last-child { display: grid; line-height: 1.15; }
+.execution-target strong { font-size: 13px; }
+.execution-target small { max-width: 245px; overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.execution-target.is-board { border-color: #7767df; background: #f1efff; }
 .toolbar .run-button,
 .toolbar .pause-button {
   color: #fff;
