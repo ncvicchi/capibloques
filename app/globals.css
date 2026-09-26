@@ -2164,9 +2164,109 @@ select:focus-visible {
     radial-gradient(ellipse at 76% 75%, #70bd67 0 9%, transparent 9.5%),
     linear-gradient(#a4e3ff 0 45%, #73c7df 45%);
 }
-.scene-grid {
+.scene-stage.scene-background-crossroads,
+.scene-stage.scene-background-robotTrack,
+.scene-stage.scene-background-garden,
+.scene-stage.scene-background-schoolGate,
+.scene-stage.scene-background-weatherYard {
+  background: #edf2fb;
+}
+.scene-world {
   position: absolute;
   z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.scene-world > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.traffic-world {
+  position: absolute;
+  inset: 0;
+}
+.traffic-car {
+  --car-index: 0;
+  position: absolute;
+  z-index: 1;
+  display: grid;
+  width: 42px;
+  height: 28px;
+  place-items: center;
+  font-size: 27px;
+  font-style: normal;
+  filter: drop-shadow(0 3px 2px rgb(20 25 40 / 28%));
+}
+.traffic-car.horizontal.go {
+  top: 49%;
+  left: -8%;
+  animation: traffic-car-horizontal 7s linear infinite;
+  animation-delay: calc(var(--car-index) * -2.1s);
+}
+.traffic-car.vertical.go {
+  top: -10%;
+  left: 51%;
+  transform: rotate(90deg);
+  animation: traffic-car-vertical 8s linear infinite;
+  animation-delay: calc(var(--car-index) * -2.35s);
+}
+.traffic-car.horizontal.queue {
+  top: 49%;
+  left: calc(27% - var(--car-index) * 6%);
+}
+.traffic-car.vertical.queue {
+  top: calc(22% - var(--car-index) * 10%);
+  left: 51%;
+  transform: rotate(90deg);
+}
+.traffic-car.crash.horizontal {
+  top: 49%;
+  left: 47%;
+  transform: rotate(18deg);
+}
+.traffic-car.crash.vertical {
+  top: 46%;
+  left: 50%;
+  transform: rotate(105deg);
+}
+.traffic-crash {
+  position: absolute;
+  top: 55%;
+  left: 50%;
+  padding: 5px 9px;
+  transform: translateX(-50%);
+  border: 2px solid #8f2230;
+  border-radius: 999px;
+  background: #fff3f3;
+  color: #8f2230;
+  font-size: 13px;
+  box-shadow: 0 4px 12px rgb(70 20 30 / 24%);
+}
+.traffic-jam {
+  position: absolute;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 86%);
+  color: #3d465d;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.traffic-jam.horizontal { top: 57%; left: 24%; }
+.traffic-jam.vertical { top: 11%; left: 57%; }
+@keyframes traffic-car-horizontal {
+  from { transform: translateX(0); }
+  to { transform: translateX(1120px); }
+}
+@keyframes traffic-car-vertical {
+  from { transform: translateY(0) rotate(90deg); }
+  to { transform: translateY(690px) rotate(90deg); }
+}
+.scene-grid {
+  position: absolute;
+  z-index: 1;
   inset: 0;
   opacity: 0;
   background-image:

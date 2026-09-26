@@ -5,6 +5,7 @@ import SceneViewport from '@/components/scene-viewport';
 
 import {
   useEffect,
+  useMemo,
   useRef,
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -16,6 +17,7 @@ import type {
   ScenePosition,
   SceneWidget,
 } from '@/lib/scene-model';
+import { closestCrossroadsTrafficSlot } from '@/lib/scene-model';
 import { educationalModuleKinds, educationalModuleSpecs } from '@/lib/educational-modules';
 
 export type RuntimeVisualDevice = {
@@ -92,6 +94,97 @@ const clamp = (value: number, minimum: number, maximum: number) =>
   Math.min(maximum, Math.max(minimum, value));
 
 type MovableSceneItem = Pick<SceneDevice | SceneWidget, 'id' | 'position'>;
+
+function SceneBackdrop({
+  scene,
+  runtimeDevices,
+}: {
+  scene: SceneDefinition;
+  runtimeDevices: Record<string, RuntimeVisualDevice>;
+}) {
+  const traffic = useMemo(() => {
+    const lanes: Record<'horizontal' | 'vertical', RuntimeVisualDevice['color']> = {
+      horizontal: 'OFF',
+      vertical: 'OFF',
+    };
+    for (const device of scene.devices) {
+      if (device.kind !== 'trafficLight') continue;
+      const slot = closestCrossroadsTrafficSlot(device.position);
+      lanes[slot.lane] = runtimeDevices[device.id]?.color ?? 'OFF';
+    }
+    return {
+      horizontal: lanes.horizontal === 'GREEN',
+      vertical: lanes.vertical === 'GREEN',
+      conflict: lanes.horizontal === 'GREEN' && lanes.vertical === 'GREEN',
+    };
+  }, [scene.devices, runtimeDevices]);
+
+  const background = scene.canvas.background;
+  return (
+    <div className={`scene-world scene-world-${background}`} aria-hidden="true">
+      <svg viewBox="0 0 960 540" preserveAspectRatio="none">
+        {background === 'park' && <>
+          <rect width="960" height="330" fill="#aee6ff"/><circle cx="790" cy="85" r="42" fill="#ffe57a"/>
+          <path d="M0 330H960V540H0z" fill="#7fc66f"/><path d="M0 445 Q240 385 480 445 T960 445 V540H0z" fill="#d9bd86"/>
+          <g fill="#3f9d58"><circle cx="105" cy="300" r="55"/><circle cx="860" cy="300" r="62"/></g>
+          <g fill="#865b3d"><rect x="96" y="300" width="18" height="90"/><rect x="850" y="300" width="20" height="90"/></g>
+          <g fill="#fff"><circle cx="120" cy="95" r="22"/><circle cx="145" cy="95" r="29"/><circle cx="175" cy="98" r="20"/></g>
+        </>}
+        {background === 'workshop' && <>
+          <rect width="960" height="540" fill="#f5e6c6"/><path d="M0 385H960V540H0z" fill="#b98258"/>
+          <g stroke="#986a48" strokeWidth="2" opacity=".35"><path d="M0 425H960M0 475H960M80 385V540M240 385V540M400 385V540M560 385V540M720 385V540M880 385V540"/></g>
+          <rect x="55" y="75" width="220" height="145" rx="12" fill="#87b6ca"/><rect x="75" y="95" width="80" height="105" fill="#d8f4ff"/><rect x="175" y="95" width="80" height="105" fill="#d8f4ff"/>
+          <path d="M690 85h190v165H690z" fill="#40546b"/><g fill="#f6c453"><circle cx="730" cy="125" r="13"/><rect x="770" y="110" width="72" height="18" rx="5"/><circle cx="730" cy="175" r="13"/><rect x="770" y="160" width="55" height="18" rx="5"/></g>
+        </>}
+        {background === 'home' && <>
+          <rect width="960" height="350" fill="#ccecff"/><rect y="350" width="960" height="190" fill="#a9cf82"/>
+          <path d="M270 235 480 75l210 160v215H270z" fill="#fff2d2"/><path d="m235 250 245-190 245 190-35 35-210-160-210 160z" fill="#e56b6f"/>
+          <rect x="430" y="315" width="100" height="135" rx="8" fill="#8f654b"/><rect x="315" y="275" width="82" height="72" fill="#a8ddf0"/><rect x="565" y="275" width="82" height="72" fill="#a8ddf0"/>
+        </>}
+        {background === 'pond' && <>
+          <rect width="960" height="260" fill="#b7eaff"/><rect y="260" width="960" height="280" fill="#72cddd"/>
+          <path d="M0 260 Q150 220 300 265T610 260T960 255V300H0z" fill="#77c86d"/>
+          <g fill="#64ad56"><ellipse cx="150" cy="435" rx="70" ry="27"/><ellipse cx="745" cy="390" rx="85" ry="31"/></g>
+          <g fill="#f7a6cf"><circle cx="150" cy="415" r="17"/><circle cx="745" cy="367" r="19"/></g>
+        </>}
+        {background === 'crossroads' && <>
+          <rect width="960" height="540" fill="#86c978"/><rect x="0" y="180" width="960" height="180" fill="#505663"/><rect x="390" y="0" width="180" height="540" fill="#505663"/>
+          <g fill="#f8dc6a"><rect x="0" y="266" width="115" height="8"/><rect x="155" y="266" width="115" height="8"/><rect x="690" y="266" width="115" height="8"/><rect x="845" y="266" width="115" height="8"/><rect x="476" y="0" width="8" height="80"/><rect x="476" y="120" width="8" height="60"/><rect x="476" y="360" width="8" height="65"/><rect x="476" y="465" width="8" height="75"/></g>
+          <g fill="#fff"><path d="M365 190h12v55h-12zm-24 0h12v55h-12zm-24 0h12v55h-12zm266 105h55v12h-55zm0 24h55v12h-55zm0 24h55v12h-55z"/></g>
+          <path d="M35 35h220v105H35z" fill="#f6efd0"/><path d="m25 45 120-35 120 35-14 28H39z" fill="#e76962"/><text x="83" y="105" fontSize="30" fontWeight="800" fill="#34445b">ESCUELA</text>
+          <g fill="#397d46"><circle cx="805" cy="75" r="42"/><circle cx="885" cy="115" r="35"/></g>
+        </>}
+        {background === 'robotTrack' && <>
+          <rect width="960" height="540" fill="#e8edf7"/><g stroke="#d1d9e8" strokeWidth="2"><path d="M0 90H960M0 180H960M0 270H960M0 360H960M0 450H960M120 0V540M240 0V540M360 0V540M480 0V540M600 0V540M720 0V540M840 0V540"/></g>
+          <path d="M145 405 C260 405 250 245 385 245 S525 420 650 350 S690 135 805 145" fill="none" stroke="#536076" strokeWidth="78" strokeLinecap="round"/>
+          <path d="M145 405 C260 405 250 245 385 245 S525 420 650 350 S690 135 805 145" fill="none" stroke="#fff" strokeWidth="5" strokeDasharray="18 15"/>
+          <g fill="#6847d9"><circle cx="145" cy="405" r="25"/><circle cx="805" cy="145" r="25"/></g><text x="107" y="465" fontSize="24" fontWeight="800" fill="#303a57">SALIDA</text><text x="770" y="95" fontSize="24" fontWeight="800" fill="#303a57">META</text>
+        </>}
+        {background === 'garden' && <>
+          <rect width="960" height="300" fill="#bce9ff"/><rect y="300" width="960" height="240" fill="#87c96f"/>
+          <g fill="#8b5f3f"><rect x="120" y="325" width="280" height="145" rx="22"/><rect x="560" y="325" width="280" height="145" rx="22"/></g>
+          <g fill="#53a84f"><circle cx="175" cy="350" r="28"/><circle cx="250" cy="390" r="30"/><circle cx="330" cy="350" r="27"/><circle cx="615" cy="385" r="29"/><circle cx="700" cy="350" r="30"/><circle cx="775" cy="405" r="28"/></g>
+          <path d="M455 330q25-75 50 0" fill="none" stroke="#55bce8" strokeWidth="9"/><circle cx="480" cy="290" r="28" fill="#d8f5ff"/>
+        </>}
+        {background === 'schoolGate' && <>
+          <rect width="960" height="330" fill="#ccecff"/><rect y="330" width="960" height="210" fill="#9cc978"/><rect x="90" y="105" width="780" height="270" fill="#f3d18a"/><rect x="380" y="205" width="200" height="170" fill="#516179"/><path d="M0 420H960V540H0z" fill="#6a707b"/><path d="M0 480H960" stroke="#f8df68" strokeWidth="8" strokeDasharray="55 35"/><text x="370" y="170" fontSize="30" fontWeight="800" fill="#405069">ENTRADA</text>
+        </>}
+        {background === 'weatherYard' && <>
+          <rect width="960" height="350" fill="#a8ddf5"/><rect y="350" width="960" height="190" fill="#87c56f"/><circle cx="130" cy="105" r="55" fill="#ffe16e"/>
+          <g fill="#fff"><circle cx="655" cy="105" r="42"/><circle cx="705" cy="90" r="55"/><circle cx="765" cy="110" r="43"/></g><g stroke="#58a9dc" strokeWidth="6"><path d="m660 165-12 30m60-30-12 30m60-30-12 30"/></g>
+          <rect x="410" y="205" width="18" height="205" fill="#6c7181"/><path d="M419 220h120l-18 44H419z" fill="#f4f7fb"/><path d="M418 280h-85l15 40h70z" fill="#f4f7fb"/>
+        </>}
+      </svg>
+      {background === 'crossroads' && <div className={`traffic-world${traffic.conflict ? ' conflict' : ''}`}>
+        {!traffic.conflict && [0, 1, 2].map(index => <i key={`h-${index}`} className={`traffic-car horizontal ${traffic.horizontal ? 'go' : 'queue'}`} style={{ '--car-index': index } as CSSProperties}>🚗</i>)}
+        {!traffic.conflict && [0, 1, 2].map(index => <i key={`v-${index}`} className={`traffic-car vertical ${traffic.vertical ? 'go' : 'queue'}`} style={{ '--car-index': index } as CSSProperties}>🚙</i>)}
+        {traffic.conflict && <><i className="traffic-car crash horizontal">🚗</i><i className="traffic-car crash vertical">🚙</i><strong className="traffic-crash">💥 Choque: dos verdes a la vez</strong></>}
+        {!traffic.horizontal && <small className="traffic-jam horizontal">fila</small>}
+        {!traffic.vertical && <small className="traffic-jam vertical">fila</small>}
+      </div>}
+    </div>
+  );
+}
 
 function DeviceVisual({
   device,
@@ -476,6 +569,7 @@ export default function SceneStage({
           contador global es único.
         </p>
       )}
+      <SceneBackdrop scene={scene} runtimeDevices={runtimeDevices} />
       <div className="scene-grid" aria-hidden="true" />
       {scene.widgets.map((widget) => {
         const style = {

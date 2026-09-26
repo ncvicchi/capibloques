@@ -538,6 +538,50 @@ const robotWorkspace = startWorkspace({
   },
 });
 
+const intersectionWorkspace = startWorkspace({
+  type: 'capi_parallel',
+  id: 'intersection-parallel',
+  extraState: { branches: 2 },
+  inputs: {
+    BRANCH0: {
+      block: {
+        type: 'capi_forever',
+        id: 'horizontal-loop',
+        inputs: {
+          DO: {
+            block: chain(
+              { type: 'capi_traffic', id: 'horizontal-green', fields: { DEVICE_ID: 'traffic-light-1', COLOR: 'GREEN' } },
+              { type: 'capi_wait', id: 'horizontal-go', fields: { SECONDS: 3 } },
+              { type: 'capi_traffic', id: 'horizontal-yellow', fields: { DEVICE_ID: 'traffic-light-1', COLOR: 'YELLOW' } },
+              { type: 'capi_wait', id: 'horizontal-careful', fields: { SECONDS: 1 } },
+              { type: 'capi_traffic', id: 'horizontal-red', fields: { DEVICE_ID: 'traffic-light-1', COLOR: 'RED' } },
+              { type: 'capi_wait', id: 'horizontal-stop', fields: { SECONDS: 4 } },
+            ),
+          },
+        },
+      },
+    },
+    BRANCH1: {
+      block: {
+        type: 'capi_forever',
+        id: 'vertical-loop',
+        inputs: {
+          DO: {
+            block: chain(
+              { type: 'capi_traffic', id: 'vertical-red', fields: { DEVICE_ID: 'traffic-light-2', COLOR: 'RED' } },
+              { type: 'capi_wait', id: 'vertical-stop', fields: { SECONDS: 4 } },
+              { type: 'capi_traffic', id: 'vertical-green', fields: { DEVICE_ID: 'traffic-light-2', COLOR: 'GREEN' } },
+              { type: 'capi_wait', id: 'vertical-go', fields: { SECONDS: 3 } },
+              { type: 'capi_traffic', id: 'vertical-yellow', fields: { DEVICE_ID: 'traffic-light-2', COLOR: 'YELLOW' } },
+              { type: 'capi_wait', id: 'vertical-careful', fields: { SECONDS: 1 } },
+            ),
+          },
+        },
+      },
+    },
+  },
+});
+
 const wifiWorkspace = startWorkspace(
   chain(
     { type: 'capi_wifi_connect', id: 'wifi-connect', fields: { TIMEOUT: 10 } },
@@ -702,6 +746,60 @@ export const examples: ExampleDefinition[] = [
     level: 'Avanzado',
     scene: createSceneFromTemplate('wifi'),
     workspace: wifiWorkspace,
+  },
+  {
+    id: 'intersection',
+    title: 'Cruce de la escuela',
+    mission: 'Coordina dos semáforos: evita choques sin dejar una calle bloqueada para siempre.',
+    description: 'Autos, filas, dos calles y procesos al mismo tiempo.',
+    icon: '🚗',
+    level: 'Intermedio',
+    scene: createSceneFromTemplate('intersection'),
+    workspace: intersectionWorkspace,
+  },
+  {
+    id: 'robotCourse',
+    title: 'Pista de reparto',
+    mission: 'Ajusta tiempos y giros para acercar el robot a la meta sin salir del camino.',
+    description: 'Una ruta visible con curvas, salida y meta.',
+    icon: '🛣️',
+    level: 'Intermedio',
+    scene: createSceneFromTemplate('robotCourse'),
+    workspace: robotWorkspace,
+  },
+  {
+    id: 'smartGarden',
+    title: 'Huerta inteligente',
+    mission: 'Lee la humedad y decide cuándo regar sin dejar la bomba encendida de más.',
+    description: 'Tierra, bomba y una luz de aviso para practicar sensores.',
+    icon: '🌱',
+    level: 'Intermedio',
+    scene: createSceneFromTemplate('smartGarden'),
+    workspace: startWorkspace({ type: 'capi_serial', id: 'garden-challenge', fields: { TEXT: '¿La tierra necesita agua?' } }),
+  },
+  {
+    id: 'securityGate',
+    title: 'Entrada segura',
+    mission: 'Detecta el paso, abre la barrera y vuelve a cerrarla con seguridad.',
+    description: 'Barrera infrarroja, servo y alarma en la entrada escolar.',
+    icon: '🚧',
+    level: 'Intermedio',
+    scene: createSceneFromTemplate('securityGate'),
+    workspace: startWorkspace(chain(
+      { type: 'capi_servo', id: 'gate-open', fields: { DEVICE_ID: 'servo-1', ANGLE: 90 } },
+      { type: 'capi_wait', id: 'gate-wait', fields: { SECONDS: 2 } },
+      { type: 'capi_servo', id: 'gate-close', fields: { DEVICE_ID: 'servo-1', ANGLE: 0 } },
+    )),
+  },
+  {
+    id: 'weatherStation',
+    title: 'Estación del clima',
+    mission: 'Compara el clima y crea una señal que todos puedan comprender.',
+    description: 'Temperatura, humedad, presión, lluvia y una luz de estado.',
+    icon: '🌦️',
+    level: 'Intermedio',
+    scene: createSceneFromTemplate('weatherStation'),
+    workspace: startWorkspace({ type: 'capi_serial', id: 'weather-challenge', fields: { TEXT: '¿Cómo está el tiempo?' } }),
   },
   {
     id: 'display', title: 'Mensajes para la plaza', icon: '📺', level: 'Inicial',

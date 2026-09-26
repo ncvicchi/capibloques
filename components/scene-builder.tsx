@@ -33,8 +33,10 @@ import {
 import {
   addDeviceToScene,
   appendTemplateToScene,
+  arrangeCrossroadsTrafficLights,
   assignSafePins,
   cloneScene,
+  constrainSceneItemPosition,
   duplicateSceneDevice,
   getPinRequirements,
   pinLabel,
@@ -89,6 +91,11 @@ const backgrounds: { value: SceneBackground; label: string; icon: string }[] = [
   { value: 'workshop', label: 'Taller', icon: '🧰' },
   { value: 'home', label: 'Casa', icon: '🏠' },
   { value: 'pond', label: 'Laguna', icon: '🪷' },
+  { value: 'crossroads', label: 'Cruce con tránsito', icon: '🚗' },
+  { value: 'robotTrack', label: 'Pista de robots', icon: '🛣️' },
+  { value: 'garden', label: 'Huerta', icon: '🌱' },
+  { value: 'schoolGate', label: 'Entrada de la escuela', icon: '🏫' },
+  { value: 'weatherYard', label: 'Patio meteorológico', icon: '🌦️' },
   { value: 'blank', label: 'En blanco', icon: '⬜' },
 ];
 
@@ -102,6 +109,11 @@ const quickTemplates: {
   { id: 'robot', name: 'Robot', icon: '🤖', detail: '2 motores' },
   { id: 'wifi', name: 'Wi-Fi', icon: '📶', detail: 'conexión' },
   { id: 'counter', name: 'Contador', icon: '🐸', detail: 'número + sonido' },
+  { id: 'intersection', name: 'Cruce', icon: '🚗', detail: '2 calles + autos' },
+  { id: 'robotCourse', name: 'Pista', icon: '🛣️', detail: 'ruta + meta' },
+  { id: 'smartGarden', name: 'Huerta', icon: '🌱', detail: 'riego inteligente' },
+  { id: 'securityGate', name: 'Entrada', icon: '🚧', detail: 'sensor + barrera' },
+  { id: 'weatherStation', name: 'Clima', icon: '🌦️', detail: 'ambiente + lluvia' },
 ];
 
 const sceneItems = (scene: SceneDefinition): SceneItem[] => [
@@ -528,10 +540,16 @@ function SceneBuilderSession({
   const moveItem = (itemId: string, position: ScenePosition) => {
     if (!requireSettledInspector('mover objetos')) return;
     let next = cloneScene(previewScene);
-    if (next.devices.some((device) => device.id === itemId)) {
+    const movingDevice = next.devices.find((device) => device.id === itemId);
+    if (movingDevice) {
+      const constrained = constrainSceneItemPosition(
+        next,
+        movingDevice,
+        position,
+      );
       next = cloneWithDevice(next, itemId, (device) => ({
         ...device,
-        position: { ...position },
+        position: { ...constrained },
       }));
     } else {
       next.widgets = next.widgets.map((widget) =>
@@ -799,13 +817,18 @@ function SceneBuilderSession({
                 value={previewScene.canvas.background}
                 onChange={(event) => {
                   if (!requireSettledInspector('cambiar el fondo')) return;
-                  commitScene({
+                  const changed = {
                     ...cloneScene(previewScene),
                     canvas: {
                       ...previewScene.canvas,
                       background: event.target.value as SceneBackground,
                     },
-                  });
+                  };
+                  commitScene(
+                    changed.canvas.background === 'crossroads'
+                      ? arrangeCrossroadsTrafficLights(changed)
+                      : changed,
+                  );
                 }}
               >
                 {backgrounds.map((background) => (
@@ -817,6 +840,18 @@ function SceneBuilderSession({
                   </NativeSelectOption>
                 ))}
               </NativeSelect>
+              {previewScene.canvas.background === 'crossroads' && (
+                <small>
+                  Los semáforos se encajan en los cuatro puntos seguros del
+                  cruce. Los autos de la escena reaccionan a sus luces.
+                </small>
+              )}
+              {previewScene.canvas.background === 'robotTrack' && (
+                <small>
+                  La línea punteada es una guía visual: tu programa sigue
+                  decidiendo cómo se mueve el robot.
+                </small>
+              )}
             </label>
             <label className="scene-snap-control">
               <input

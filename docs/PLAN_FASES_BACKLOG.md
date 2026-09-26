@@ -707,7 +707,7 @@ Contrato, límites, dependencias y aceptación física en
 
 ## Fase 45 — Escenas atractivas y fidelidad visual completa
 
-**Estado:** pendiente. **Objetivo:** enriquecer visualmente las plantillas y
+**Estado:** en curso; primera entrega funcional. **Objetivo:** enriquecer visualmente las plantillas y
 garantizar una composición única entre Armar escena, simulación web, revisión y
 Waveshare.
 
@@ -719,6 +719,11 @@ pisan. La cámara continúa fuera del JSON.
 
 Contrato y aceptación en
 [FASE_45_ESCENAS_VISUALES.md](FASE_45_ESCENAS_VISUALES.md).
+
+La primera entrega agrega cinco aventuras, fondos vectoriales compartidos,
+cruce con autos/filas/choque y pista de robot. El runtime 1.5.5 dibuja sus
+equivalentes compactos en Waveshare. Quedan autoría avanzada, detección general
+de solapamientos, capturas de referencia y aceptación física.
 
 ## Fase final — Producción y piloto, postergada
 

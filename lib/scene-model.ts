@@ -17,7 +17,17 @@ import { educationalModuleKinds, educationalModulePins, educationalModuleSpecs, 
 
 export const SCENE_SCHEMA_VERSION = 1 as const;
 
-export const legacySceneIds = ['traffic', 'robot', 'wifi', 'counter'] as const;
+export const legacySceneIds = [
+  'traffic',
+  'robot',
+  'wifi',
+  'counter',
+  'intersection',
+  'robotCourse',
+  'smartGarden',
+  'securityGate',
+  'weatherStation',
+] as const;
 
 export type LegacySceneId = (typeof legacySceneIds)[number];
 
@@ -43,7 +53,19 @@ export const sceneDeviceKinds = [
 ] as const;
 
 export type SceneDeviceKind = (typeof sceneDeviceKinds)[number];
-export type SceneBackground = 'park' | 'workshop' | 'home' | 'pond' | 'blank';
+export const sceneBackgrounds = [
+  'park',
+  'workshop',
+  'home',
+  'pond',
+  'crossroads',
+  'robotTrack',
+  'garden',
+  'schoolGate',
+  'weatherYard',
+  'blank',
+] as const;
+export type SceneBackground = (typeof sceneBackgrounds)[number];
 export type PinNumber = number | null;
 
 export type { BoardProfileId, PinCapability };
@@ -59,6 +81,60 @@ export interface SceneCanvas {
   background: SceneBackground;
   gridSize: number;
   snapToGrid: boolean;
+}
+
+export interface SceneTrafficSlot extends ScenePosition {
+  id: 'north' | 'east' | 'south' | 'west';
+  lane: 'horizontal' | 'vertical';
+  rotation: number;
+}
+
+/**
+ * The first useful scene worlds are deliberately derived from the background.
+ * Old JSON projects therefore gain richer scenery without a migration and a
+ * saved scene still has a single source of truth for editor and simulator.
+ */
+export const crossroadsTrafficSlots: readonly SceneTrafficSlot[] = [
+  { id: 'north', lane: 'vertical', x: 555, y: 170, rotation: 0 },
+  { id: 'east', lane: 'horizontal', x: 655, y: 330, rotation: 90 },
+  { id: 'south', lane: 'vertical', x: 405, y: 370, rotation: 180 },
+  { id: 'west', lane: 'horizontal', x: 305, y: 210, rotation: 270 },
+] as const;
+
+export function closestCrossroadsTrafficSlot(position: ScenePosition) {
+  return crossroadsTrafficSlots.reduce((closest, slot) => {
+    const distance = (slot.x - position.x) ** 2 + (slot.y - position.y) ** 2;
+    const closestDistance =
+      (closest.x - position.x) ** 2 + (closest.y - position.y) ** 2;
+    return distance < closestDistance ? slot : closest;
+  });
+}
+
+export function constrainSceneItemPosition(
+  scene: SceneDefinition,
+  item: Pick<SceneDevice | SceneWidget, 'kind'>,
+  position: ScenePosition,
+): ScenePosition {
+  if (
+    scene.canvas.background === 'crossroads' &&
+    item.kind === 'trafficLight'
+  ) {
+    const slot = closestCrossroadsTrafficSlot(position);
+    return { x: slot.x, y: slot.y };
+  }
+  return position;
+}
+
+export function arrangeCrossroadsTrafficLights(source: SceneDefinition) {
+  const scene = cloneScene(source);
+  let slotIndex = 0;
+  scene.devices = scene.devices.map(device => {
+    if (device.kind !== 'trafficLight') return device;
+    const slot = crossroadsTrafficSlots[slotIndex % crossroadsTrafficSlots.length];
+    slotIndex += 1;
+    return { ...device, position: { x: slot.x, y: slot.y } };
+  });
+  return scene;
 }
 
 interface SceneDeviceBase<
@@ -1082,6 +1158,16 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
   }
   if ((kind === 'display' || kind === 'ledMatrix') && scene.devices.some(device => device.kind === 'display' || device.kind === 'ledMatrix')) throw new Error('Cada proyecto admite una sola pantalla o matriz. Configurá la existente.');
   if (kind === 'messages' && scene.devices.filter(device => device.kind === 'messages').length >= 2) throw new Error('La placa admite hasta dos componentes Mensajes.');
+  if (
+    kind === 'trafficLight' &&
+    scene.canvas.background === 'crossroads' &&
+    scene.devices.filter(device => device.kind === 'trafficLight').length >=
+      crossroadsTrafficSlots.length
+  ) {
+    throw new Error(
+      'El cruce tiene cuatro lugares seguros para semáforos y ya están ocupados.',
+    );
+  }
   const reservedIds = [
     ...scene.devices.map((item) => item.id),
     ...scene.widgets.map((item) => item.id),
@@ -1092,6 +1178,19 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
     ...((kind === 'display' || kind === 'ledMatrix') && !options.position ? { position: { x: scene.canvas.width * 0.7, y: scene.canvas.height * 0.55 } } : {}),
     id: options.id ?? createStableDeviceId(kind, reservedIds),
   });
+  if (kind === 'trafficLight' && scene.canvas.background === 'crossroads') {
+    const occupied = new Set(
+      scene.devices
+        .filter(item => item.kind === 'trafficLight')
+        .map(item => closestCrossroadsTrafficSlot(item.position).id),
+    );
+    const preferred = closestCrossroadsTrafficSlot(device.position);
+    const slot = !occupied.has(preferred.id)
+      ? preferred
+      : crossroadsTrafficSlots.find(candidate => !occupied.has(candidate.id)) ??
+        preferred;
+    device.position = { x: slot.x, y: slot.y };
+  }
   device.name = createUniqueVisibleName(
     device.name,
     sceneItemNames(scene),
@@ -1282,12 +1381,148 @@ counterTemplate.devices.push(
   }),
 );
 
+const intersectionTemplate = createEmptyScene('Cruce de la escuela', {
+  id: 'scene-intersection',
+  description:
+    'Dos calles con autos que esperan, forman filas o chocan si los semáforos se contradicen.',
+  canvas: { background: 'crossroads' },
+});
+intersectionTemplate.sourceTemplate = 'intersection';
+intersectionTemplate.devices.push(
+  templateDevice('trafficLight', intersectionTemplate.devices, {
+    id: 'traffic-light-1',
+    name: 'Semáforo horizontal',
+    position: { x: 305, y: 210 },
+    pins: { red: 26, yellow: 25, green: 27 },
+  }),
+  templateDevice('trafficLight', intersectionTemplate.devices, {
+    id: 'traffic-light-2',
+    name: 'Semáforo vertical',
+    position: { x: 555, y: 170 },
+    pins: { red: 18, yellow: 19, green: 23 },
+  }),
+);
+
+const robotCourseTemplate = createEmptyScene('Pista de reparto', {
+  id: 'scene-robot-course',
+  description:
+    'Un camino con curvas y estaciones para practicar avance, giros y detenciones.',
+  canvas: { background: 'robotTrack' },
+});
+robotCourseTemplate.sourceTemplate = 'robotCourse';
+robotCourseTemplate.devices.push(
+  templateDevice('robot', robotCourseTemplate.devices, {
+    id: 'robot-1',
+    name: 'Robot repartidor',
+    position: { x: 155, y: 390 },
+    rotation: 0,
+    pins: { leftIn1: 17, leftIn2: 16, rightIn1: 23, rightIn2: 19 },
+  }),
+  templateDevice('infraredBarrier', robotCourseTemplate.devices, {
+    id: 'infrared-barrier-1',
+    name: 'Meta',
+    position: { x: 785, y: 145 },
+    pins: { signal: 4 },
+  }),
+);
+
+const smartGardenTemplate = createEmptyScene('Huerta inteligente', {
+  id: 'scene-smart-garden',
+  description:
+    'Mide la tierra y decide cuándo encender una bomba o una luz de aviso.',
+  canvas: { background: 'garden' },
+});
+smartGardenTemplate.sourceTemplate = 'smartGarden';
+smartGardenTemplate.devices.push(
+  templateDevice('soilMoisture', smartGardenTemplate.devices, {
+    id: 'soil-moisture-1',
+    name: 'Humedad de la huerta',
+    position: { x: 315, y: 330 },
+    pins: { signal: 34 },
+  }),
+  templateDevice('powerSwitch', smartGardenTemplate.devices, {
+    id: 'power-switch-1',
+    name: 'Bomba de agua',
+    position: { x: 635, y: 350 },
+    pins: { signal: 26 },
+  }),
+  templateDevice('led', smartGardenTemplate.devices, {
+    id: 'led-1',
+    name: 'Aviso de riego',
+    position: { x: 485, y: 170 },
+    pins: { signal: 27 },
+    config: { color: '#38bdf8' },
+  }),
+);
+
+const securityGateTemplate = createEmptyScene('Entrada segura', {
+  id: 'scene-security-gate',
+  description:
+    'Detecta un paso, abre la barrera y avisa con luz y sonido.',
+  canvas: { background: 'schoolGate' },
+});
+securityGateTemplate.sourceTemplate = 'securityGate';
+securityGateTemplate.devices.push(
+  templateDevice('infraredBarrier', securityGateTemplate.devices, {
+    id: 'infrared-barrier-1',
+    name: 'Sensor de entrada',
+    position: { x: 355, y: 345 },
+    pins: { signal: 4 },
+  }),
+  templateDevice('servo', securityGateTemplate.devices, {
+    id: 'servo-1',
+    name: 'Barrera',
+    position: { x: 555, y: 335 },
+    pins: { signal: 14 },
+  }),
+  templateDevice('activeBuzzer', securityGateTemplate.devices, {
+    id: 'active-buzzer-1',
+    name: 'Alarma',
+    position: { x: 700, y: 190 },
+    pins: { signal: 13 },
+  }),
+);
+
+const weatherStationTemplate = createEmptyScene('Estación del clima', {
+  id: 'scene-weather-station',
+  description:
+    'Observa temperatura, humedad y lluvia y muestra una señal fácil de entender.',
+  canvas: { background: 'weatherYard' },
+});
+weatherStationTemplate.sourceTemplate = 'weatherStation';
+weatherStationTemplate.devices.push(
+  templateDevice('environmentSensor', weatherStationTemplate.devices, {
+    id: 'environment-sensor-1',
+    name: 'Clima exterior',
+    position: { x: 350, y: 305 },
+    pins: { sda: 21, scl: 22 },
+  }),
+  templateDevice('waterSensor', weatherStationTemplate.devices, {
+    id: 'water-sensor-1',
+    name: 'Sensor de lluvia',
+    position: { x: 590, y: 350 },
+    pins: { signal: 34 },
+  }),
+  templateDevice('led', weatherStationTemplate.devices, {
+    id: 'led-1',
+    name: 'Estado del tiempo',
+    position: { x: 480, y: 170 },
+    pins: { signal: 26 },
+    config: { color: '#fbbf24' },
+  }),
+);
+
 export const sceneTemplates: Readonly<Record<LegacySceneId, SceneDefinition>> =
   {
     traffic: trafficTemplate,
     robot: robotTemplate,
     wifi: wifiTemplate,
     counter: counterTemplate,
+    intersection: intersectionTemplate,
+    robotCourse: robotCourseTemplate,
+    smartGarden: smartGardenTemplate,
+    securityGate: securityGateTemplate,
+    weatherStation: weatherStationTemplate,
   };
 
 export function createSceneFromTemplate(templateId: LegacySceneId) {
@@ -2146,9 +2381,7 @@ export function isSceneDefinition(value: unknown, incompleteDisplayLayout = fals
     Number(canvas.width) <= 4096 &&
     Number(canvas.height) > 0 &&
     Number(canvas.height) <= 4096 &&
-    ['park', 'workshop', 'home', 'pond', 'blank'].includes(
-      String(canvas.background),
-    ) &&
+    sceneBackgrounds.includes(canvas.background as SceneBackground) &&
     hasFiniteNumber(canvas, 'gridSize') &&
     Number(canvas.gridSize) > 0 &&
     Number(canvas.gridSize) <= 512 &&

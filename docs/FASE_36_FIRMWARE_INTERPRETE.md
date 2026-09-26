@@ -28,6 +28,9 @@ La fase está **terminada en software**. Ya están implementados:
   posiciones y nombres configurados y actualiza semáforo, LED, servo, motor,
   robot/Otto y entradas binarias sin bloquear el planificador. El registro web
   deja de exponer IDs internos y usa los nombres de los componentes;
+- **1.5.5** agrega fondos/mundos compactos de fase 45, conserva la transformación
+  normalizada de posiciones, dibuja tránsito reactivo del cruce y acota los
+  rótulos largos. Requiere compilación/publicación DEV y aceptación física;
 - el cliente web detiene ahora las reglas persistidas antes de reemplazarlas y reintenta `HELLO` hasta tres veces sin conservar esperas vencidas; esto cubre el arranque autónomo anterior y la pérdida de la primera línea mientras USB termina de asociarse;
 - construcción reproducible de tres artefactos estáticos, manifiestos con hash y publicación automática la primera vez que DEV recibe esta versión; los binarios generados no se guardan en Git;
 - pruebas de formato determinista, corrupción, placa cruzada, framing, empaquetado, USB simulado, UI Chrome, tipos, estilo, smoke y build estático.

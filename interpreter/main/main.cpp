@@ -47,7 +47,7 @@
 #ifndef CAPI_BOARD_ID
 #define CAPI_BOARD_ID "wemos-d1-r32"
 #endif
-#define CAPI_FIRMWARE_VERSION "1.5.4"
+#define CAPI_FIRMWARE_VERSION "1.5.5"
 static constexpr uint16_t ABI = 1;
 static constexpr size_t MAX_RULES = 32 * 1024;
 static constexpr uart_port_t LINK = UART_NUM_0;
@@ -288,6 +288,10 @@ static void ws_rect(int x,int y,int width,int height,uint16_t color){
   for(int row=y0;row<y1;++row)std::fill(waveshare_pixels+row*WAVESHARE_WIDTH+x0,waveshare_pixels+row*WAVESHARE_WIDTH+x1,color);
 }
 static void ws_circle(int cx,int cy,int radius,uint16_t color){for(int y=-radius;y<=radius;++y){int span=(int)std::sqrt((float)(radius*radius-y*y));ws_rect(cx-span,cy+y,span*2+1,1,color);}}
+static void ws_line(int x0,int y0,int x1,int y1,int thickness,uint16_t color){
+  int dx=abs(x1-x0),sx=x0<x1?1:-1,dy=-abs(y1-y0),sy=y0<y1?1:-1,error=dx+dy;
+  for(;;){ws_circle(x0,y0,std::max(1,thickness/2),color);if(x0==x1&&y0==y1)break;int twice=2*error;if(twice>=dy){error+=dy;x0+=sx;}if(twice<=dx){error+=dx;y0+=sy;}}
+}
 static char ws_ascii(const char *&source){
   uint8_t first=(uint8_t)*source++;if(first<0x80)return (char)first;
   if(first==0xc3&&*source){uint8_t second=(uint8_t)*source++;switch(second){case 0xa1:case 0x81:return 'A';case 0xa9:case 0x89:return 'E';case 0xad:case 0x8d:return 'I';case 0xb3:case 0x93:return 'O';case 0xba:case 0x9a:case 0xbc:case 0x9c:return 'U';case 0xb1:case 0x91:return 'N';default:return '?';}}
@@ -317,7 +321,37 @@ static void ws_device(cJSON *dev,int x,int y){
   }else if(!strcmp(kind,"infraredBarrier")||!strcmp(kind,"button")){
     bool on=component_get(id,!strcmp(kind,"button")?"pressed":"interrupted").boolean;ws_circle(x,y-8,28,on?rgb565(255,92,92):rgb565(73,190,130));
   }else{ws_circle(x,y-8,27,rgb565(126,139,166));ws_text(x-7,y-16,"?",white,3,1);}
-  int length=std::min<int>((int)strlen(text(dev,"name","Componente")),16);ws_text(x-length*6,y+40,text(dev,"name","Componente"),ink,2,16);
+  const char *name=text(dev,"name","Componente");int length=std::min<int>((int)strlen(name),18),scale=length>9?1:2;ws_text(x-length*3*scale,y+40,name,ink,scale,18);
+}
+static int ws_x(int value,int width){return 70+value*660/std::max(1,width);}
+static int ws_y(int value,int height){return 115+value*300/std::max(1,height);}
+static void ws_background(cJSON *canvas){
+  const char *kind=text(canvas,"background","blank");int width=std::max(1,number(canvas,"width",960)),height=std::max(1,number(canvas,"height",540));
+  const uint16_t sky=rgb565(179,226,247),grass=rgb565(126,196,108),road=rgb565(78,84,97),yellow=rgb565(248,218,106),white=rgb565(255,255,255),soil=rgb565(139,95,63),floor=rgb565(232,237,247);
+  ws_rect(70,115,660,300,rgb565(236,241,255));
+  if(!strcmp(kind,"crossroads")){
+    ws_rect(70,115,660,300,grass);ws_rect(70,ws_y(180,height),660,100,road);ws_rect(ws_x(390,width),115,124,300,road);
+    ws_rect(70,ws_y(266,height),190,5,yellow);ws_rect(ws_x(690,width),ws_y(266,height),190,5,yellow);ws_rect(ws_x(476,width),115,5,95,yellow);ws_rect(ws_x(476,width),ws_y(360,height),5,95,yellow);
+    ws_rect(92,132,145,58,rgb565(246,239,208));ws_text(120,153,"ESCUELA",rgb565(52,68,91),2,8);
+    bool horizontal_green=false,vertical_green=false;cJSON *resources=active?cJSON_GetObjectItem(active,"resources"):nullptr,*devices=resources?cJSON_GetObjectItem(resources,"devices"):nullptr,*dev;
+    cJSON_ArrayForEach(dev,devices){if(strcmp(text(dev,"kind"),"trafficLight"))continue;cJSON *position=cJSON_GetObjectItem(dev,"position");int x=number(position,"x",480),y=number(position,"y",270);bool green=component_get(text(dev,"id"),"color").text=="GREEN";if(abs(x-480)>abs(y-270))horizontal_green=horizontal_green||green;else vertical_green=vertical_green||green;}
+    const uint16_t car_a=rgb565(79,132,235),car_b=rgb565(238,91,103);
+    if(horizontal_green&&vertical_green){ws_rect(383,250,34,18,car_a);ws_rect(405,237,18,34,car_b);ws_line(390,233,430,278,5,rgb565(255,215,45));ws_line(430,233,390,278,5,rgb565(255,215,45));}
+    else{for(int index=0;index<3;++index){int hx=horizontal_green?160+index*155:245-index*42;int vy=vertical_green?160+index*82:195-index*32;ws_rect(hx,253,30,16,car_a);ws_rect(400,vy,16,30,car_b);}}
+  }else if(!strcmp(kind,"robotTrack")){
+    ws_rect(70,115,660,300,floor);const int points[][2]={{145,405},{260,405},{300,245},{385,245},{520,390},{650,350},{710,145},{805,145}};for(int index=1;index<8;++index)ws_line(ws_x(points[index-1][0],width),ws_y(points[index-1][1],height),ws_x(points[index][0],width),ws_y(points[index][1],height),38,road);for(int index=1;index<8;++index)ws_line(ws_x(points[index-1][0],width),ws_y(points[index-1][1],height),ws_x(points[index][0],width),ws_y(points[index][1],height),2,white);
+    ws_circle(ws_x(145,width),ws_y(405,height),14,rgb565(104,71,217));ws_circle(ws_x(805,width),ws_y(145,height),14,rgb565(104,71,217));
+  }else if(!strcmp(kind,"garden")){
+    ws_rect(70,115,660,170,sky);ws_rect(70,285,660,130,grass);ws_rect(150,300,190,85,soil);ws_rect(460,300,190,85,soil);for(int x=180;x<630;x+=75)ws_circle(x,330+(x%3)*10,14,rgb565(71,153,70));
+  }else if(!strcmp(kind,"schoolGate")){
+    ws_rect(70,115,660,180,sky);ws_rect(70,295,660,120,grass);ws_rect(135,170,530,150,rgb565(243,209,138));ws_rect(340,225,120,95,rgb565(81,97,121));ws_rect(70,350,660,65,road);
+  }else if(!strcmp(kind,"weatherYard")){
+    ws_rect(70,115,660,195,sky);ws_rect(70,310,660,105,grass);ws_circle(155,165,30,rgb565(255,225,110));ws_circle(555,165,35,white);ws_circle(600,158,42,white);ws_line(400,230,400,350,8,rgb565(108,113,129));
+  }else if(!strcmp(kind,"park")||!strcmp(kind,"home")||!strcmp(kind,"pond")){
+    ws_rect(70,115,660,180,sky);ws_rect(70,295,660,120,!strcmp(kind,"pond")?rgb565(105,195,218):grass);
+  }else if(!strcmp(kind,"workshop")){
+    ws_rect(70,115,660,210,rgb565(245,230,198));ws_rect(70,325,660,90,rgb565(185,130,88));
+  }
 }
 static bool ws_write(i2c_master_dev_handle_t handle,uint8_t value){return i2c_master_transmit(handle,&value,1,5)==ESP_OK;}
 static bool ws_add_device(uint8_t address,i2c_master_dev_handle_t *handle){i2c_device_config_t config={};config.dev_addr_length=I2C_ADDR_BIT_LEN_7;config.device_address=address;config.scl_speed_hz=400000;return i2c_master_bus_add_device(waveshare_bus,&config,handle)==ESP_OK;}
@@ -333,7 +367,7 @@ static bool waveshare_begin(){
 static void waveshare_render(){
   if(!waveshare_ready||!waveshare_pixels){return;}
   const uint16_t background=rgb565(236,241,255),bar=rgb565(91,75,219),white=rgb565(255,255,255),ink=rgb565(30,38,69);ws_rect(0,0,WAVESHARE_WIDTH,WAVESHARE_HEIGHT,background);ws_rect(0,0,WAVESHARE_WIDTH,55,bar);ws_text(22,17,"CapiBloques",white,3,20);
-  if(!active){ws_text(220,220,"Lista para recibir una escena",ink,2,30);}else{cJSON *resources=cJSON_GetObjectItem(active,"resources"),*canvas=resources?cJSON_GetObjectItem(resources,"canvas"):nullptr,*devices=resources?cJSON_GetObjectItem(resources,"devices"):nullptr,*dev;int cw=std::max(1,number(canvas,"width",960)),ch=std::max(1,number(canvas,"height",540)),shown=0;cJSON_ArrayForEach(dev,devices){const char *kind=text(dev,"kind");if(!strcmp(kind,"display")||!strcmp(kind,"messages")||!strcmp(kind,"wifiNode"))continue;cJSON *position=cJSON_GetObjectItem(dev,"position");int x=70+number(position,"x",cw/2)*660/cw,y=115+number(position,"y",ch/2)*300/ch;ws_device(dev,x,y);if(++shown>=12)break;}if(!shown)ws_text(250,220,"Escena sin componentes",ink,2,28);}
+  if(!active){ws_text(220,220,"Lista para recibir una escena",ink,2,30);}else{cJSON *resources=cJSON_GetObjectItem(active,"resources"),*canvas=resources?cJSON_GetObjectItem(resources,"canvas"):nullptr,*devices=resources?cJSON_GetObjectItem(resources,"devices"):nullptr,*dev;int cw=std::max(1,number(canvas,"width",960)),ch=std::max(1,number(canvas,"height",540)),shown=0;ws_background(canvas);cJSON_ArrayForEach(dev,devices){const char *kind=text(dev,"kind");if(!strcmp(kind,"display")||!strcmp(kind,"messages")||!strcmp(kind,"wifiNode"))continue;cJSON *position=cJSON_GetObjectItem(dev,"position");int x=70+number(position,"x",cw/2)*660/cw,y=115+number(position,"y",ch/2)*300/ch;ws_device(dev,x,y);if(++shown>=12)break;}if(!shown)ws_text(250,220,"Escena sin componentes",ink,2,28);}
   esp_lcd_panel_draw_bitmap(waveshare_panel,0,0,WAVESHARE_WIDTH,WAVESHARE_HEIGHT,waveshare_pixels);
 }
 static void waveshare_service(void*){for(;;){if(waveshare_dirty.exchange(false)){if(waveshare_mutex)xSemaphoreTake(waveshare_mutex,portMAX_DELAY);waveshare_render();if(waveshare_mutex)xSemaphoreGive(waveshare_mutex);}cooperative_delay_ms(50);}}
