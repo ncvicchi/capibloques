@@ -291,7 +291,8 @@ static void ws_circle(int cx,int cy,int radius,uint16_t color){for(int y=-radius
 static char ws_ascii(const char *&source){
   uint8_t first=(uint8_t)*source++;if(first<0x80)return (char)first;
   if(first==0xc3&&*source){uint8_t second=(uint8_t)*source++;switch(second){case 0xa1:case 0x81:return 'A';case 0xa9:case 0x89:return 'E';case 0xad:case 0x8d:return 'I';case 0xb3:case 0x93:return 'O';case 0xba:case 0x9a:case 0xbc:case 0x9c:return 'U';case 0xb1:case 0x91:return 'N';default:return '?';}}
-  while(((uint8_t)*source&0xc0)==0x80)++source;return '?';
+  while(((uint8_t)*source&0xc0)==0x80){++source;}
+  return '?';
 }
 static void ws_text(int x,int y,const char *value,uint16_t color,int scale=2,int max_chars=24){
   if(!value){return;}
