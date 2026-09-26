@@ -19,6 +19,8 @@ assert.match(source, /#define CAPI_FIRMWARE_VERSION "1\.5\.4"/);
 assert.match(source, /waveshare_begin/);
 assert.match(source, /waveshare_render/);
 assert.match(source, /esp_lcd_new_rgb_panel/);
+assert.match(source, /dma_burst_size=64/);
+assert.doesNotMatch(source, /psram_trans_align/);
 assert.match(source, /text\(dev,"name","Componente"\)/);
 assert.match(source, /cooperative_delay_ms\(5\)/);
 assert.doesNotMatch(source, /capi-matrix[^\n]+vTaskDelay\(pdMS_TO_TICKS\(5\)\)/);

@@ -70,7 +70,7 @@ void capiDisplayBegin() {
   if (!capiWsWrite(capiCh422Io, 0x1e)) return;
   esp_lcd_rgb_panel_config_t config = {};
   config.data_width = 16; config.bits_per_pixel = 16; config.num_fbs = 1; config.clk_src = LCD_CLK_SRC_DEFAULT;
-  config.bounce_buffer_size_px = 800 * 10; config.sram_trans_align = 4; config.psram_trans_align = 64;
+  config.bounce_buffer_size_px = 800 * 10; config.dma_burst_size = 64;
   config.hsync_gpio_num = 46; config.vsync_gpio_num = 3; config.de_gpio_num = 5; config.pclk_gpio_num = 7; config.disp_gpio_num = -1;
   const int dataPins[16] = {14,38,18,17,10,39,0,45,48,47,21,1,2,42,41,40};
   for (int i = 0; i < 16; ++i) config.data_gpio_nums[i] = dataPins[i];
