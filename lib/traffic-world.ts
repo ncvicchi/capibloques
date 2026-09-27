@@ -7,6 +7,7 @@ export interface TrafficCarState {
   progress: number;
   crashed: boolean;
   waitingForGreen: boolean;
+  clearingIntersection: boolean;
 }
 
 export interface TrafficWorldState {
@@ -27,6 +28,10 @@ const STOP_PROGRESS: Record<TrafficLane, number> = {
   horizontal: 0.37,
   vertical: 0.3,
 };
+const INTERSECTION_ENTRY: Record<TrafficLane, number> = {
+  horizontal: 475 / 1_050,
+  vertical: 260 / 620,
+};
 const QUEUE_GAP: Record<TrafficLane, number> = {
   horizontal: 0.055,
   vertical: 0.088,
@@ -35,12 +40,12 @@ const QUEUE_GAP: Record<TrafficLane, number> = {
 export function createTrafficWorldState(): TrafficWorldState {
   return {
     cars: [
-      { id: 'car-h-1', lane: 'horizontal', progress: 0.05, crashed: false, waitingForGreen: false },
-      { id: 'car-h-2', lane: 'horizontal', progress: 0.23, crashed: false, waitingForGreen: false },
-      { id: 'car-h-3', lane: 'horizontal', progress: 0.72, crashed: false, waitingForGreen: false },
-      { id: 'car-v-1', lane: 'vertical', progress: 0.03, crashed: false, waitingForGreen: false },
-      { id: 'car-v-2', lane: 'vertical', progress: 0.48, crashed: false, waitingForGreen: false },
-      { id: 'car-v-3', lane: 'vertical', progress: 0.78, crashed: false, waitingForGreen: false },
+      { id: 'car-h-1', lane: 'horizontal', progress: 0.05, crashed: false, waitingForGreen: false, clearingIntersection: false },
+      { id: 'car-h-2', lane: 'horizontal', progress: 0.23, crashed: false, waitingForGreen: false, clearingIntersection: false },
+      { id: 'car-h-3', lane: 'horizontal', progress: 0.72, crashed: false, waitingForGreen: false, clearingIntersection: false },
+      { id: 'car-v-1', lane: 'vertical', progress: 0.03, crashed: false, waitingForGreen: false, clearingIntersection: false },
+      { id: 'car-v-2', lane: 'vertical', progress: 0.48, crashed: false, waitingForGreen: false, clearingIntersection: false },
+      { id: 'car-v-3', lane: 'vertical', progress: 0.78, crashed: false, waitingForGreen: false, clearingIntersection: false },
     ],
     collision: null,
   };
@@ -59,6 +64,7 @@ function advanceLane(
   elapsedMs: number,
 ) {
   const stop = STOP_PROGRESS[lane];
+  const entry = INTERSECTION_ENTRY[lane];
   const approaching = cars
     .filter(car => car.lane === lane && !car.crashed && car.progress <= stop)
     .sort((left, right) => right.progress - left.progress);
@@ -74,13 +80,26 @@ function advanceLane(
       return {
         ...car,
         waitingForGreen: false,
+        clearingIntersection: false,
         progress: progress >= 1 ? progress - 1 : progress,
       };
     }
-    if (color === 'YELLOW') {
-      if (car.waitingForGreen) return car;
+    if (car.clearingIntersection || car.progress >= entry) {
       const progress = car.progress + distance;
-      return { ...car, progress: progress >= 1 ? progress - 1 : progress };
+      const wrapped = progress >= 1;
+      return {
+        ...car,
+        progress: wrapped ? progress - 1 : progress,
+        waitingForGreen: false,
+        clearingIntersection: !wrapped,
+      };
+    }
+    if (car.progress > stop) {
+      return {
+        ...car,
+        waitingForGreen: color === 'RED' || color === 'YELLOW',
+        clearingIntersection: false,
+      };
     }
     if (car.progress <= stop) {
       const target = queueTargets.get(car.id) ?? stop;
@@ -91,11 +110,12 @@ function advanceLane(
       return {
         ...car,
         progress,
-        waitingForGreen: color === 'RED' && progress >= target,
+        waitingForGreen:
+          (color === 'RED' || color === 'YELLOW') && progress >= target,
+        clearingIntersection: false,
       };
     }
-    const progress = car.progress + distance;
-    return { ...car, progress: progress >= 1 ? progress - 1 : progress };
+    return car;
   });
 }
 

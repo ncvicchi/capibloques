@@ -304,6 +304,8 @@ export default function ReviewSimulation({
           scene={project.scene}
           runtimeDevices={state?.devices}
           counter={state?.counter}
+          simulationSpeed={speed}
+          simulationRunning={state?.status === 'running'}
         />
         <fieldset className="review-inputs" disabled={!program}>
           <legend>Sensores simulados</legend>

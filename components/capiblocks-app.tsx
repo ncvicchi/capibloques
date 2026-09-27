@@ -1542,6 +1542,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                   scene={scene}
                   runtimeDevices={sim.devices}
                   counter={sim.counter}
+                  simulationSpeed={speed}
+                  simulationRunning={sim.status === 'running'}
                   dashboardModes={sim.dashboardModes}
                   onDashboardAction={(deviceId, action) => postToWorker({ type: 'SET_DASHBOARD', deviceId, action })}
                 />

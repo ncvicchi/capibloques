@@ -2200,13 +2200,16 @@ select:focus-visible {
   transition: left 40ms linear, top 40ms linear;
 }
 .traffic-car.vertical {
-  transform: rotate(90deg);
+  transform: rotate(-90deg);
+}
+.traffic-car.horizontal {
+  transform: scaleX(-1);
 }
 .traffic-car.crashed.horizontal {
-  transform: rotate(18deg);
+  transform: rotate(18deg) scaleX(-1);
 }
 .traffic-car.crashed.vertical {
-  transform: rotate(105deg);
+  transform: rotate(-75deg);
 }
 .traffic-car.crashed {
   z-index: 3;
@@ -2341,10 +2344,10 @@ select:focus-visible {
   font-size: 43px;
 }
 .stage-motor.active {
-  animation: motor-turn 0.5s linear infinite;
+  animation: motor-turn var(--motor-animation-duration, 0.5s) linear infinite;
 }
 .stage-buzzer.playing {
-  animation: buzzer-ring 0.28s ease-in-out infinite alternate;
+  animation: buzzer-ring var(--buzzer-animation-duration, 0.28s) ease-in-out infinite alternate;
 }
 .stage-button.pressed {
   transform: scale(0.88);
@@ -2353,7 +2356,7 @@ select:focus-visible {
   filter: drop-shadow(0 0 8px #ef4444);
 }
 .stage-wifi.connecting {
-  animation: wifi-breathe 0.8s ease-in-out infinite alternate;
+  animation: wifi-breathe var(--wifi-animation-duration, 0.8s) ease-in-out infinite alternate;
 }
 .stage-wifi.connected {
   filter: drop-shadow(0 0 8px #2ad792);
@@ -2435,8 +2438,14 @@ select:focus-visible {
 .stage-otto .otto-arm.right { right: 7px; transform: rotate(-12deg); }
 .stage-otto .otto-arm.left.raised { transform: rotate(145deg); }
 .stage-otto .otto-arm.right.raised { transform: rotate(-145deg); }
-.stage-otto.moving .otto-leg.left { animation: otto-step-left 240ms ease-in-out infinite alternate; }
-.stage-otto.moving .otto-leg.right { animation: otto-step-right 240ms ease-in-out infinite alternate; }
+.stage-otto.moving .otto-leg.left { animation: otto-step-left var(--otto-animation-duration, 240ms) ease-in-out infinite alternate; }
+.stage-otto.moving .otto-leg.right { animation: otto-step-right var(--otto-animation-duration, 240ms) ease-in-out infinite alternate; }
+.scene-stage.simulation-paused .stage-motor,
+.scene-stage.simulation-paused .stage-buzzer,
+.scene-stage.simulation-paused .stage-wifi,
+.scene-stage.simulation-paused .stage-otto * {
+  animation-play-state: paused !important;
+}
 .stage-otto small {
   position: absolute;
   top: 72px;

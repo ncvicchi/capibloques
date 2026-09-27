@@ -65,6 +65,46 @@ assert.equal(greenTraffic.cars.length, 6, 'cars keep stable identities');
 assert.ok(greenTraffic.cars[0].progress > originalTraffic.cars[0].progress);
 assert.ok(yellowTraffic.cars[0].progress > greenTraffic.cars[0].progress);
 
+let yellowTransition = {
+  cars: [
+    { id: 'before-crossing', lane: 'horizontal', progress: 0.35, crashed: false, waitingForGreen: false, clearingIntersection: false },
+    { id: 'inside-crossing', lane: 'horizontal', progress: 0.48, crashed: false, waitingForGreen: false, clearingIntersection: false },
+  ],
+  collision: null,
+};
+for (let frame = 0; frame < 20; frame += 1) {
+  yellowTransition = advanceTrafficWorld(
+    yellowTransition,
+    { horizontal: 'YELLOW', vertical: 'RED' },
+    50,
+  );
+}
+assert.equal(
+  Number(yellowTransition.cars[0].progress.toFixed(3)),
+  0.37,
+  'a car that had not entered the crossing stops on yellow',
+);
+assert.ok(
+  yellowTransition.cars[1].progress > 0.48,
+  'a car already inside the crossing clears it on yellow',
+);
+
+const normalSpeed = advanceTrafficWorld(
+  createTrafficWorldState(),
+  { horizontal: 'GREEN', vertical: 'GREEN' },
+  25,
+);
+const quadrupleSpeed = advanceTrafficWorld(
+  createTrafficWorldState(),
+  { horizontal: 'GREEN', vertical: 'GREEN' },
+  100,
+);
+assert.equal(
+  Number((quadrupleSpeed.cars[0].progress - originalTraffic.cars[0].progress).toFixed(6)),
+  Number(((normalSpeed.cars[0].progress - originalTraffic.cars[0].progress) * 4).toFixed(6)),
+  'world movement scales with simulator time',
+);
+
 let redTraffic = originalTraffic;
 for (let frame = 0; frame < 400; frame += 1) {
   redTraffic = advanceTrafficWorld(
@@ -114,8 +154,8 @@ assert.ok(
 const collision = advanceTrafficWorld(
   {
     cars: [
-      { id: 'h', lane: 'horizontal', progress: 0.5, crashed: false, waitingForGreen: false },
-      { id: 'v', lane: 'vertical', progress: 0.5, crashed: false, waitingForGreen: false },
+      { id: 'h', lane: 'horizontal', progress: 0.5, crashed: false, waitingForGreen: false, clearingIntersection: false },
+      { id: 'v', lane: 'vertical', progress: 0.5, crashed: false, waitingForGreen: false, clearingIntersection: false },
     ],
     collision: null,
   },

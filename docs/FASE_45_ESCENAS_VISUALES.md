@@ -16,9 +16,11 @@ duplicada allí.
 - El cruce contiene cuatro lugares válidos para semáforos. Al agregar o mover
   uno se encaja en esos puntos y se impide agregar un quinto. Sus autos son
   actores persistentes del mundo, no listas CSS recreadas: conservan identidad
-  y posición. Ante rojo forman fila; al pasar a amarillo, los que ya circulaban
-  continúan pero los detenidos esperan el verde. Un choque congela a los
-  vehículos que efectivamente coinciden dentro del cruce.
+  y posición. Ante rojo forman fila; al pasar de verde a amarillo sólo terminan
+  de cruzar quienes ya habían entrado en la intersección, mientras el resto
+  frena antes de entrar y espera el próximo verde. Su orientación coincide con
+  el sentido de circulación y su avance usa la velocidad del simulador. Un
+  choque congela a los vehículos que efectivamente coinciden dentro del cruce.
 - La pista dibuja salida, ruta y meta sin convertir la línea en órdenes ocultas:
   el programa sigue controlando íntegramente el robot.
 - Editor y simulación usan la misma capa vectorial y coordenadas. El intérprete

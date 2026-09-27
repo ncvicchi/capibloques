@@ -64,6 +64,8 @@ interface SceneStageProps {
   scene: SceneDefinition;
   runtimeDevices?: Record<string, RuntimeVisualDevice>;
   counter?: number;
+  simulationSpeed?: number;
+  simulationRunning?: boolean;
   selectedId?: string;
   editing?: boolean;
   onSelect?: (deviceId: string) => boolean | void;
@@ -102,7 +104,15 @@ const clamp = (value: number, minimum: number, maximum: number) =>
 
 type MovableSceneItem = Pick<SceneDevice | SceneWidget, 'id' | 'position'>;
 
-function TrafficActors({ signals }: { signals: TrafficSignals }) {
+function TrafficActors({
+  signals,
+  speed,
+  running,
+}: {
+  signals: TrafficSignals;
+  speed: number;
+  running: boolean;
+}) {
   const [world, setWorld] = useState(createTrafficWorldState);
   const stateRef = useRef(world);
   const lastFrameRef = useRef<number | null>(null);
@@ -118,6 +128,10 @@ function TrafficActors({ signals }: { signals: TrafficSignals }) {
   }, [horizontalSignal, verticalSignal]);
 
   useEffect(() => {
+    if (!running) {
+      lastFrameRef.current = null;
+      return;
+    }
     let frame = 0;
     const animate = (now: number) => {
       const previous = lastFrameRef.current ?? now;
@@ -125,7 +139,7 @@ function TrafficActors({ signals }: { signals: TrafficSignals }) {
       stateRef.current = advanceTrafficWorld(
         stateRef.current,
         { horizontal: horizontalSignal, vertical: verticalSignal },
-        now - previous,
+        (now - previous) * speed,
       );
       if (now - lastPaintRef.current >= 40) {
         lastPaintRef.current = now;
@@ -138,7 +152,7 @@ function TrafficActors({ signals }: { signals: TrafficSignals }) {
     };
     frame = window.requestAnimationFrame(animate);
     return () => window.cancelAnimationFrame(frame);
-  }, [horizontalSignal, verticalSignal]);
+  }, [horizontalSignal, verticalSignal, running, speed]);
 
   return (
     <div className={`traffic-world${world.collision ? ' conflict' : ''}`}>
@@ -173,9 +187,13 @@ function TrafficActors({ signals }: { signals: TrafficSignals }) {
 function SceneBackdrop({
   scene,
   runtimeDevices,
+  simulationSpeed,
+  simulationRunning,
 }: {
   scene: SceneDefinition;
   runtimeDevices: Record<string, RuntimeVisualDevice>;
+  simulationSpeed: number;
+  simulationRunning: boolean;
 }) {
   const traffic = useMemo(() => {
     const lanes: TrafficSignals = {
@@ -247,7 +265,13 @@ function SceneBackdrop({
           <rect x="410" y="205" width="18" height="205" fill="#6c7181"/><path d="M419 220h120l-18 44H419z" fill="#f4f7fb"/><path d="M418 280h-85l15 40h70z" fill="#f4f7fb"/>
         </>}
       </svg>
-      {background === 'crossroads' && <TrafficActors signals={traffic} />}
+      {background === 'crossroads' && (
+        <TrafficActors
+          signals={traffic}
+          speed={simulationSpeed}
+          running={simulationRunning}
+        />
+      )}
     </div>
   );
 }
@@ -430,6 +454,8 @@ export default function SceneStage({
   scene,
   runtimeDevices = {},
   counter = 0,
+  simulationSpeed = 1,
+  simulationRunning = false,
   selectedId,
   editing = false,
   onSelect,
@@ -454,6 +480,7 @@ export default function SceneStage({
   } | null>(null);
   const moveFrameRef = useRef<number | null>(null);
   const keyboardMoveRef = useRef<string | null>(null);
+  const safeSimulationSpeed = Math.max(0.25, Math.min(4, simulationSpeed));
 
   useEffect(
     () => () => {
@@ -614,13 +641,17 @@ export default function SceneStage({
     aspectRatio: `${scene.canvas.width} / ${scene.canvas.height}`,
     '--scene-grid-x': `${(scene.canvas.gridSize / scene.canvas.width) * 100}%`,
     '--scene-grid-y': `${(scene.canvas.gridSize / scene.canvas.height) * 100}%`,
+    '--motor-animation-duration': `${500 / safeSimulationSpeed}ms`,
+    '--buzzer-animation-duration': `${280 / safeSimulationSpeed}ms`,
+    '--wifi-animation-duration': `${800 / safeSimulationSpeed}ms`,
+    '--otto-animation-duration': `${240 / safeSimulationSpeed}ms`,
   } as CSSProperties;
 
   return (
     <SceneViewport key={`${scene.id}:${scene.canvas.width}:${scene.canvas.height}`} width={scene.canvas.width} height={scene.canvas.height}>
     <section
       ref={stageRef}
-      className={`scene-stage scene-background-${scene.canvas.background}${editing ? ' editing' : ''}`}
+      className={`scene-stage scene-background-${scene.canvas.background}${editing ? ' editing' : ''}${simulationRunning ? '' : ' simulation-paused'}`}
       style={gridStyle}
       data-testid="scene-stage"
       aria-label={
@@ -635,7 +666,12 @@ export default function SceneStage({
           contador global es único.
         </p>
       )}
-      <SceneBackdrop scene={scene} runtimeDevices={runtimeDevices} />
+      <SceneBackdrop
+        scene={scene}
+        runtimeDevices={runtimeDevices}
+        simulationSpeed={safeSimulationSpeed}
+        simulationRunning={simulationRunning}
+      />
       <div className="scene-grid" aria-hidden="true" />
       {scene.widgets.map((widget) => {
         const style = {
