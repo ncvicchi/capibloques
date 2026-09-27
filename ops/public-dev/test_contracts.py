@@ -149,10 +149,12 @@ class PublicRuntimeContracts(unittest.TestCase):
     def test_deploy_cleans_only_regenerable_docker_storage(self):
         deployer = (ROOT / "scripts/deploy-dev-remote.sh").read_text(encoding="utf-8")
         cleanup = (ROOT / "scripts/cleanup-dev-docker.sh").read_text(encoding="utf-8")
-        self.assertIn("bash scripts/cleanup-dev-docker.sh", deployer)
+        self.assertIn("if ! bash scripts/cleanup-dev-docker.sh", deployer)
+        self.assertIn("DEV quedó actualizado y saludable", deployer)
         self.assertIn("[[ $(hostname) == capi-dev ]]", cleanup)
         self.assertIn("docker ps -q", cleanup)
         self.assertIn("capibloques-compiler-dev:phase9", cleanup)
+        self.assertIn("return 0", cleanup)
         self.assertIn("docker builder prune --all --force", cleanup)
         self.assertNotIn("docker system prune", cleanup)
         self.assertNotIn("docker volume", cleanup)

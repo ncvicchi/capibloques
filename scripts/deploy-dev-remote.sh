@@ -401,4 +401,7 @@ printf 'Validación final correcta: commit=%s pausa=%s cola=%s activos=%s concur
 
 # Cada build del editor crea una etiqueta por commit. Retirar las anteriores y
 # acotar la caché evita que el disco pequeño de DEV vuelva a quedar en 100 %.
-bash scripts/cleanup-dev-docker.sh
+if ! bash scripts/cleanup-dev-docker.sh; then
+  echo "ADVERTENCIA: DEV quedó actualizado y saludable, pero no se pudo completar la limpieza Docker." >&2
+  echo "La actualización se considera correcta; revisá el aviso de limpieza por separado." >&2
+fi

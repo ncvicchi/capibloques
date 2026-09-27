@@ -10,7 +10,13 @@ declare -A keep=()
 remember_image() {
   local reference=$1 image_id
   image_id=$(docker image inspect "$reference" --format '{{.Id}}' 2>/dev/null || true)
-  [[ $image_id =~ ^sha256:[0-9a-f]{64}$ ]] && keep["$image_id"]=1
+  if [[ $image_id =~ ^sha256:[0-9a-f]{64}$ ]]; then
+    keep["$image_id"]=1
+  fi
+
+  # Las imágenes base son una optimización opcional. Si alguna todavía no fue
+  # descargada, no debe convertir una limpieza correcta en un despliegue fallido.
+  return 0
 }
 
 # Los contenedores activos definen las imágenes que mantienen DEV funcionando.
