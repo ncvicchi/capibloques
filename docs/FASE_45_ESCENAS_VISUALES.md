@@ -17,8 +17,10 @@ duplicada allí.
   uno se encaja en esos puntos y se impide agregar un quinto. Sus autos son
   actores persistentes del mundo, no listas CSS recreadas: conservan identidad
   y posición. Ante rojo forman fila; al pasar de verde a amarillo sólo terminan
-  de cruzar quienes ya habían entrado en la intersección, mientras el resto
-  frena antes de entrar y espera el próximo verde. Su orientación coincide con
+  de cruzar quienes ya superaron la línea donde se detienen en rojo, mientras
+  quienes todavía no la pasaron forman fila y esperan el próximo verde. La misma
+  frontera se aplica si cambia directamente a rojo: nunca se detiene dentro del
+  cruce a un auto que ya superó la línea. Su orientación coincide con
   el sentido de circulación y su avance usa la velocidad del simulador. Un
   choque congela a los vehículos que efectivamente coinciden dentro del cruce.
 - La pista dibuja salida, ruta y meta sin convertir la línea en órdenes ocultas:

@@ -32,9 +32,9 @@ La fase está **terminada en software**. Ya están implementados:
   normalizada de posiciones, dibuja tránsito reactivo del cruce y acota los
   rótulos largos. Requiere compilación/publicación DEV y aceptación física;
 - **1.5.6** corrige el tránsito del cruce: los autos tienen identidad y posición
-  persistentes, rojo forma una cola sin recrearlos y amarillo sólo deja terminar
-  el cruce a quienes ya habían entrado; la fila espera el verde y un choque
-  inmoviliza a los participantes;
+  persistentes, rojo forma una cola sin recrearlos y amarillo/rojo dejan terminar
+  el cruce a todo auto que ya superó la línea de detención; la fila espera el
+  verde y un choque inmoviliza a los participantes;
 - el cliente web detiene ahora las reglas persistidas antes de reemplazarlas y reintenta `HELLO` hasta tres veces sin conservar esperas vencidas; esto cubre el arranque autónomo anterior y la pérdida de la primera línea mientras USB termina de asociarse;
 - construcción reproducible de tres artefactos estáticos, manifiestos con hash y publicación automática la primera vez que DEV recibe esta versión; los binarios generados no se guardan en Git;
 - pruebas de formato determinista, corrupción, placa cruzada, framing, empaquetado, USB simulado, UI Chrome, tipos, estilo, smoke y build estático.

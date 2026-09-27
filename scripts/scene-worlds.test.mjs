@@ -68,7 +68,7 @@ assert.ok(yellowTraffic.cars[0].progress > greenTraffic.cars[0].progress);
 let yellowTransition = {
   cars: [
     { id: 'before-crossing', lane: 'horizontal', progress: 0.35, crashed: false, waitingForGreen: false, clearingIntersection: false },
-    { id: 'inside-crossing', lane: 'horizontal', progress: 0.48, crashed: false, waitingForGreen: false, clearingIntersection: false },
+    { id: 'past-stop-line', lane: 'horizontal', progress: 0.371, crashed: false, waitingForGreen: false, clearingIntersection: false },
   ],
   collision: null,
 };
@@ -85,8 +85,25 @@ assert.equal(
   'a car that had not entered the crossing stops on yellow',
 );
 assert.ok(
-  yellowTransition.cars[1].progress > 0.48,
-  'a car already inside the crossing clears it on yellow',
+  yellowTransition.cars[1].progress > 0.371,
+  'a car that passed the red stop line clears the crossing on yellow',
+);
+
+const redAfterStopLine = advanceTrafficWorld(
+  {
+    cars: [
+      { id: 'at-line', lane: 'horizontal', progress: 0.37, crashed: false, waitingForGreen: false, clearingIntersection: false },
+      { id: 'past-line', lane: 'horizontal', progress: 0.371, crashed: false, waitingForGreen: false, clearingIntersection: false },
+    ],
+    collision: null,
+  },
+  { horizontal: 'RED', vertical: 'RED' },
+  50,
+);
+assert.equal(redAfterStopLine.cars[0].progress, 0.37);
+assert.ok(
+  redAfterStopLine.cars[1].progress > 0.371,
+  'red cannot stop a car after it passed the stop line',
 );
 
 const normalSpeed = advanceTrafficWorld(

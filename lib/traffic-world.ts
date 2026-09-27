@@ -28,10 +28,6 @@ const STOP_PROGRESS: Record<TrafficLane, number> = {
   horizontal: 0.37,
   vertical: 0.3,
 };
-const INTERSECTION_ENTRY: Record<TrafficLane, number> = {
-  horizontal: 475 / 1_050,
-  vertical: 260 / 620,
-};
 const QUEUE_GAP: Record<TrafficLane, number> = {
   horizontal: 0.055,
   vertical: 0.088,
@@ -64,7 +60,6 @@ function advanceLane(
   elapsedMs: number,
 ) {
   const stop = STOP_PROGRESS[lane];
-  const entry = INTERSECTION_ENTRY[lane];
   const approaching = cars
     .filter(car => car.lane === lane && !car.crashed && car.progress <= stop)
     .sort((left, right) => right.progress - left.progress);
@@ -84,7 +79,7 @@ function advanceLane(
         progress: progress >= 1 ? progress - 1 : progress,
       };
     }
-    if (car.clearingIntersection || car.progress >= entry) {
+    if (car.clearingIntersection || car.progress > stop) {
       const progress = car.progress + distance;
       const wrapped = progress >= 1;
       return {
@@ -92,13 +87,6 @@ function advanceLane(
         progress: wrapped ? progress - 1 : progress,
         waitingForGreen: false,
         clearingIntersection: !wrapped,
-      };
-    }
-    if (car.progress > stop) {
-      return {
-        ...car,
-        waitingForGreen: color === 'RED' || color === 'YELLOW',
-        clearingIntersection: false,
       };
     }
     if (car.progress <= stop) {
