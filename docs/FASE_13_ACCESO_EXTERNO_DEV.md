@@ -45,6 +45,13 @@ cd /home/capi/capibloques
 ./scripts/update-dev.sh
 ```
 
+Después de validar una actualización, el runtime ejecuta
+`scripts/cleanup-dev-docker.sh`: conserva las imágenes de los contenedores
+activos, la toolchain vigente del compilador y las imágenes base reutilizables;
+retira todas las versiones anteriores del editor y vacía la caché regenerable
+de build. Nunca usa `docker system prune`, nunca incluye `--volumes` y falla si
+el destino no es `capi-dev` o si quedan menos de 2 GiB libres.
+
 También puede iniciarse desde la PC de trabajo con `powershell -File .\scripts\deploy-dev.ps1`; `-DirectLan` evita el salto cuando la PC está en la LAN y `-CheckOnly` sólo audita. Ninguna variante guarda la contraseña: SSH y sudo la solicitan en la terminal. El modo normal/`--fast` hace `fetch` y actualiza DEV inmediatamente para probar el cambio allí; GitHub Actions puede continuar en paralelo, pero no es una barrera de entrada a DEV. Sólo `--full` crea una ejecución completa y espera mediante la API pública que `backend`, `verify`, `firmware` y `esp-idf` estén verdes para el commit exacto. En ese modo distingue controles pendientes, en proceso, aprobados o fallidos y consulta cada minuto. Opcionalmente `CAPIBLOQUES_CI_TIMEOUT_SECONDS` fija un límite; por defecto no vence.
 
 Cuando el checkout de DEV todavía contiene un actualizador antiguo, la primera ejecución debe cargar el actualizador nuevo directamente desde `origin/main`:

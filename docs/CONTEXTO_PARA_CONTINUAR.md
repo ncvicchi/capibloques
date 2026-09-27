@@ -265,6 +265,8 @@ El checkout de la VM está en `/home/capi/capibloques`. El propietario configura
 
 La entrada normal de DEV es `https://capibloques.dev.nvicchi.com/`; salud pública: `/api/health/live/` y `/api/health/ready/`. El túnel dedicado a `http://localhost:3000/` se conserva sólo para recuperación y tareas acotadas: reutilizar el existente y no arrancar duplicados. `localhost` es una entrada local al servidor remoto, no evidencia de un servidor en la PC. Ambos son orígenes distintos y no comparten IndexedDB, borradores ni preferencias del navegador.
 
+El 27 de septiembre DEV agotó sus 31 GB por 24 imágenes históricas del editor y caché de build: `live` continuó en 200, `ready` pasó a 503 y la UI lo presentó como imposibilidad de verificar la sesión. No fueron proyectos ni PostgreSQL. `scripts/cleanup-dev-docker.sh` conserva contenedores activos, compilador y bases, elimina imágenes viejas, vacía la caché regenerable y se ejecuta al final de cada actualización exitosa; jamás limpia volúmenes.
+
 No hay autenticación SSH desatendida garantizada: durante el traspaso la conexión sin contraseña fue rechazada y se ingresó interactivamente. Que GitHub funcione por SSH en la VM no significa que el acceso a la VM use la misma autenticación. Si faltan credenciales, pedir al propietario que las configure por canal privado; no rotarlas ni crear una cuenta del asistente.
 
 ### Consultas seguras en DEV, después de autenticar

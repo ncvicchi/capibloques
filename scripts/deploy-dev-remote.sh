@@ -398,3 +398,7 @@ rm -f "$STATE_FILE"
 read -r paused revision queued building concurrency ceiling <<<"$(compiler_state)"
 printf 'Validación final correcta: commit=%s pausa=%s cola=%s activos=%s concurrencia=%s/%s\n' \
   "$TARGET_COMMIT" "$paused" "$queued" "$building" "$concurrency" "$ceiling"
+
+# Cada build del editor crea una etiqueta por commit. Retirar las anteriores y
+# acotar la caché evita que el disco pequeño de DEV vuelva a quedar en 100 %.
+bash scripts/cleanup-dev-docker.sh
