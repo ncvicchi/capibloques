@@ -211,6 +211,23 @@ assert.ok(
   'a car that passed the red stop line clears the crossing on yellow',
 );
 
+let offTransition = fixedWorld([
+  car('off-before-crossing', 'eastbound', 0.35),
+  car('off-past-stop-line', 'eastbound', 0.371),
+]);
+for (let frame = 0; frame < 20; frame += 1) {
+  offTransition = advanceTrafficWorld(offTransition, signals('OFF'), 50);
+}
+assert.equal(
+  Number(offTransition.cars[0].progress.toFixed(3)),
+  0.37,
+  'an off traffic light stops cars that have not crossed, like yellow',
+);
+assert.ok(
+  offTransition.cars[1].progress > 0.371,
+  'an off traffic light lets cars already past the stop line clear the crossing',
+);
+
 const redAfterStopLine = advanceTrafficWorld(
   fixedWorld([
     car('at-line', 'eastbound', 0.37),

@@ -140,6 +140,9 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
       return ['led', 'motor', 'servo', 'lightSensor', 'potentiometer', 'otto'];
     case 'capi_component_text':
       return ['trafficLight', 'robot', 'otto', 'wifiNode', 'messages'];
+    case 'capi_traffic_color':
+    case 'capi_traffic_is':
+      return ['trafficLight'];
     case 'capi_component_boolean':
       return ['button', 'infraredBarrier', 'wifiNode'];
     case 'capi_wifi_message_send':
@@ -517,6 +520,8 @@ const toolbox = {
         { kind: 'block', type: 'capi_if' },
         { kind: 'block', type: 'capi_compare' },
         { kind: 'block', type: 'capi_value_compare' },
+        { kind: 'block', type: 'capi_traffic_is' },
+        { kind: 'block', type: 'capi_timer_compare' },
         { kind: 'block', type: 'capi_counter_compare' },
         { kind: 'block', type: 'capi_button_pressed' },
         { kind: 'block', type: 'capi_barrier_state' },
@@ -546,8 +551,10 @@ const toolbox = {
         { kind: 'block', type: 'capi_timer_resume' },
         { kind: 'block', type: 'capi_timer_stop' },
         { kind: 'block', type: 'capi_timer_wait' },
+        { kind: 'label', text: 'Leer y comparar' },
         { kind: 'block', type: 'capi_timer_elapsed' },
         { kind: 'block', type: 'capi_timer_remaining' },
+        { kind: 'block', type: 'capi_timer_compare' },
       ],
     },
     {
@@ -576,6 +583,7 @@ const toolbox = {
         { kind: 'button', text: 'Crear número', callbackKey: 'CAPI_CREATE_NUMBER' },
         { kind: 'button', text: 'Crear texto', callbackKey: 'CAPI_CREATE_TEXT' },
         { kind: 'button', text: 'Crear sí/no', callbackKey: 'CAPI_CREATE_BOOLEAN' },
+        { kind: 'label', text: 'Guardar y leer variables' },
         { kind: 'block', type: 'capi_variable_set_number', inputs: { VALUE: { shadow: { type: 'capi_value_number', fields: { VALUE: 0 } } } } },
         { kind: 'block', type: 'capi_variable_change', inputs: { DELTA: { shadow: { type: 'capi_value_number', fields: { VALUE: 1 } } } } },
         { kind: 'block', type: 'capi_variable_set_text', inputs: { VALUE: { shadow: { type: 'capi_value_text', fields: { VALUE: 'hola' } } } } },
@@ -586,7 +594,12 @@ const toolbox = {
         { kind: 'block', type: 'capi_value_number' },
         { kind: 'block', type: 'capi_value_text' },
         { kind: 'block', type: 'capi_value_boolean' },
+        { kind: 'label', text: 'Leer valores del programa' },
         { kind: 'block', type: 'capi_counter_value' },
+        { kind: 'block', type: 'capi_timer_elapsed' },
+        { kind: 'block', type: 'capi_timer_remaining' },
+        { kind: 'label', text: 'Leer estados de componentes' },
+        { kind: 'block', type: 'capi_traffic_color' },
         { kind: 'block', type: 'capi_sensor_value' },
         { kind: 'block', type: 'capi_component_number' },
         { kind: 'block', type: 'capi_component_text' },
@@ -604,6 +617,8 @@ const toolbox = {
       colour: '#12AA8C',
       contents: [
         { kind: 'block', type: 'capi_traffic' },
+        { kind: 'block', type: 'capi_traffic_color' },
+        { kind: 'block', type: 'capi_traffic_is' },
         { kind: 'block', type: 'capi_traffic_vehicle_display' },
         { kind: 'block', type: 'capi_traffic_pedestrian_display' },
         { kind: 'block', type: 'capi_led' },
@@ -860,6 +875,17 @@ function registerBlocks(Blockly: BlocklyApi) {
       output: 'Number', colour: '#D46B32', tooltip: 'Lee los segundos que faltan para el próximo evento.',
     },
     {
+      type: 'capi_timer_compare', message0: '%1 de %2 %3 %4 segundos',
+      args0: [
+        { type: 'field_dropdown', name: 'TIMER_VALUE', options: [['tiempo transcurrido', 'ELAPSED'], ['tiempo restante', 'REMAINING']] },
+        { type: 'field_variable', name: 'TIMER', variable: 'mi temporizador', variableTypes: ['Timer'], defaultType: 'Timer' },
+        { type: 'field_dropdown', name: 'OPERATOR', options: [['es igual a', 'EQ'], ['es distinto de', 'NEQ'], ['es menor que', 'LT'], ['es menor o igual que', 'LTE'], ['es mayor que', 'GT'], ['es mayor o igual que', 'GTE']] },
+        { type: 'field_number', name: 'VALUE', value: 5, min: 0, max: 86400, precision: 1 },
+      ],
+      inputsInline: true, output: 'Boolean', colour: '#D46B32',
+      tooltip: 'Compara el valor actual del temporizador. También podés encastrar sus bloques de tiempo en «comparar datos».',
+    },
+    {
       type: 'capi_procedure_def', message0: '🧩 tarea %1',
       args0: [{ type: 'field_variable', name: 'ROUTINE', variable: 'mi tarea', variableTypes: ['Procedure'], defaultType: 'Procedure' }],
       message1: 'recibe 1 %1 %2  2 %3 %4  3 %5 %6',
@@ -1086,6 +1112,20 @@ function registerBlocks(Blockly: BlocklyApi) {
       output: 'Boolean', colour: '#7A58C1', tooltip: 'Una respuesta sí o no.',
     },
     { type: 'capi_counter_value', message0: 'valor del contador', output: 'Number', colour: '#6759DF', tooltip: 'Lee el contador actual.' },
+    {
+      type: 'capi_traffic_color', message0: 'color actual de %1',
+      args0: [deviceField('⚠️ agrega un semáforo')], output: 'String', colour: '#12AA8C',
+      extensions: [DEVICE_EXTENSION], tooltip: 'Lee el último color ordenado al semáforo: apagado, rojo, amarillo o verde.',
+    },
+    {
+      type: 'capi_traffic_is', message0: '¿%1 está %2?',
+      args0: [
+        deviceField('⚠️ agrega un semáforo'),
+        { type: 'field_dropdown', name: 'COLOR', options: [['apagado', 'OFF'], ['en rojo', 'RED'], ['en amarillo', 'YELLOW'], ['en verde', 'GREEN']] },
+      ],
+      output: 'Boolean', colour: '#12AA8C', extensions: [DEVICE_EXTENSION],
+      tooltip: 'Responde sí cuando el último color ordenado al semáforo coincide.',
+    },
     {
       type: 'capi_sensor_value', message0: 'valor de %1',
       args0: [deviceField('⚠️ agrega un sensor')], output: 'Number', colour: '#12AA8C',
@@ -1841,6 +1881,7 @@ function compileValue(block: BlocklyBlock | null, fallback: VariableType = 'numb
     case 'capi_counter_value': return { kind: 'counterValue' };
     case 'capi_timer_elapsed': return { kind: 'timerElapsed', timerId: String(block.getFieldValue('TIMER') ?? '') };
     case 'capi_timer_remaining': return { kind: 'timerRemaining', timerId: String(block.getFieldValue('TIMER') ?? '') };
+    case 'capi_traffic_color': return { kind: 'componentValue', deviceId: selectedDeviceId(block), property: 'color', valueType: 'text', source: 'ordered' };
     case 'capi_parameter_number': return { kind: 'parameter', parameterId: String(block.getFieldValue('PARAM') ?? '1'), valueType: 'number' };
     case 'capi_parameter_text': return { kind: 'parameter', parameterId: String(block.getFieldValue('PARAM') ?? '1'), valueType: 'text' };
     case 'capi_parameter_boolean': return { kind: 'parameter', parameterId: String(block.getFieldValue('PARAM') ?? '1'), valueType: 'boolean' };
@@ -1921,6 +1962,22 @@ function compileCondition(block: BlocklyBlock | null): Condition {
         operator: block.getFieldValue('OPERATOR'),
         left: compileValue(block.getInputTargetBlock('LEFT')),
         right: compileValue(block.getInputTargetBlock('RIGHT')),
+      };
+    case 'capi_timer_compare':
+      return {
+        kind: 'valueCompare',
+        operator: block.getFieldValue('OPERATOR'),
+        left: block.getFieldValue('TIMER_VALUE') === 'REMAINING'
+          ? { kind: 'timerRemaining', timerId: String(block.getFieldValue('TIMER') ?? '') }
+          : { kind: 'timerElapsed', timerId: String(block.getFieldValue('TIMER') ?? '') },
+        right: { kind: 'number', value: numberField(block, 'VALUE', 5) },
+      };
+    case 'capi_traffic_is':
+      return {
+        kind: 'valueCompare',
+        operator: 'EQ',
+        left: { kind: 'componentValue', deviceId: selectedDeviceId(block), property: 'color', valueType: 'text', source: 'ordered' },
+        right: { kind: 'text', value: String(block.getFieldValue('COLOR') ?? 'OFF') },
       };
     case 'capi_wifi_connected':
       return { kind: 'wifiConnected' };

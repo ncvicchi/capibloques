@@ -1,6 +1,6 @@
 # Fase 32 — Estados y valores consultables de componentes
 
-**Estado:** implementada en software el 24 de septiembre de 2026. Falta desplegar DEV y hacer aceptación física.
+**Estado:** implementada en software y ampliada el 27 de septiembre de 2026. Falta desplegar DEV y hacer aceptación física.
 
 ## Resultado
 
@@ -12,6 +12,8 @@ La categoría **Datos** ofrece tres bloques comunes —número, texto y sí/no�
 
 El registro tipado inicial cubre semáforo, LED, robot de dos motores, motor, servo, botón, barrera infrarroja, sensores analógicos, Wi‑Fi, Mensajes y todos los perfiles Otto compatibles. Los perfiles Otto sólo publican distancia o cara cuando realmente incluyen esos elementos.
 
+Para que la capacidad no quede escondida detrás del bloque genérico, **Luces**, **Datos** y **Condiciones** ofrecen accesos directos al semáforo: `color actual de [semáforo]` y `¿[semáforo] está apagado/rojo/amarillo/verde?`. El primero es un texto encastrable; el segundo es una condición lista para usar. Ambos leen el mismo estado ordenado y conservan el bloque genérico para programas avanzados.
+
 ## Contrato y comportamiento
 
 `componentValue` conserva en JSON la instancia, propiedad, tipo y origen. La validación detecta una instancia borrada, una propiedad retirada o un perfil/tipo modificado y bloquea la ejecución con un mensaje accionable; no repara silenciosamente una referencia. Renombrar conserva el identificador y por eso no rompe el programa.
@@ -22,4 +24,4 @@ Los valores ordenados iniciales son apagado/detenido/cero, salvo el ángulo conf
 
 ## Verificación
 
-La prueba `scripts/component-values.test.mjs` cubre registro, tipos/origen, referencias retiradas o desactualizadas, generación Arduino/ESP-IDF y negociación del intérprete. La batería smoke incluye además serialización, simulador y contrato fuente del firmware. La verificación física debe confirmar al menos semáforo, potencia de motor, una entrada digital y una analógica; hasta entonces no se declara hardware ensayado.
+Las pruebas `scripts/component-values.test.mjs` y `scripts/readable-values.test.mjs` cubren registro, tipos/origen, referencias retiradas o desactualizadas, accesos directos, compilación de condiciones, generación Arduino/ESP-IDF y negociación del intérprete. La batería smoke incluye además serialización, simulador y contrato fuente del firmware. La verificación física debe confirmar al menos semáforo, potencia de motor, una entrada digital y una analógica; hasta entonces no se declara hardware ensayado.

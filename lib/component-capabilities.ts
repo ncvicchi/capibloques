@@ -7,7 +7,7 @@ export type ComponentValueSource = 'measured' | 'ordered' | 'service';
 export interface ComponentValueCapability { key: string; label: string; type: VariableType; source: ComponentValueSource; help: string }
 
 const common: Partial<Record<SceneDeviceKind, ComponentValueCapability[]>> = {
-  trafficLight: [{ key:'color', label:'color ordenado', type:'text', source:'ordered', help:'Es el color que pidió el programa; no mide las lámparas.' }],
+  trafficLight: [{ key:'color', label:'color actual ordenado', type:'text', source:'ordered', help:'Indica apagado, rojo, amarillo o verde según la última orden del programa; no mide las lámparas.' }],
   led: [{ key:'brightness', label:'brillo ordenado', type:'number', source:'ordered', help:'Es el porcentaje pedido al LED.' }],
   smartLights: [{ key:'brightness', label:'brillo ordenado', type:'number', source:'ordered', help:'Es el último límite de brillo pedido a las luces RGB.' }],
   robot: [{ key:'motion', label:'movimiento ordenado', type:'text', source:'ordered', help:'Es el último movimiento pedido; no confirma desplazamiento físico.' }],

@@ -132,19 +132,6 @@ function TrafficActors({
   const northboundSignal = signals.northbound;
 
   useEffect(() => {
-    if (
-      eastboundSignal !== 'OFF' ||
-      westboundSignal !== 'OFF' ||
-      southboundSignal !== 'OFF' ||
-      northboundSignal !== 'OFF'
-    )
-      return;
-    stateRef.current = createTrafficWorldState();
-    lastFrameRef.current = null;
-    setWorld(stateRef.current);
-  }, [eastboundSignal, northboundSignal, southboundSignal, westboundSignal]);
-
-  useEffect(() => {
     if (!running) {
       lastFrameRef.current = null;
       return;

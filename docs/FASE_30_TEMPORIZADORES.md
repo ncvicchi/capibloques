@@ -1,6 +1,6 @@
 # Fase 30 — Temporizadores y eventos cooperativos
 
-## Estado — 24 de septiembre de 2026
+## Estado — 27 de septiembre de 2026
 
 **Implementada en software. Despliegue DEV y aceptación física pendientes.**
 
@@ -14,8 +14,9 @@ La entrega incorpora temporizadores con nombre al proyecto, bloques infantiles, 
 - `detener` vuelve a cero y cancela una espera pendiente.
 - `esperar próximo evento` suspende únicamente ese camino. Sensores, mensajes, animaciones y otros caminos de `Al mismo tiempo` siguen ejecutándose.
 - `segundos transcurridos` entrega segundos completos; `segundos restantes` redondea hacia arriba para no mostrar cero antes del vencimiento. Ambos son valores numéricos utilizables en cuentas, comparadores, variables y textos.
+- `tiempo transcurrido/restante de [temporizador] es igual/distinto/menor/mayor...` ofrece la comparación directa en las categorías **Temporizadores** y **Condiciones**. Los dos valores numéricos también aparecen en **Datos** para poder encastrarlos en `comparar datos`, asignarlos a una variable o incluirlos en un mensaje.
 
-Los temporizadores se crean con nombres únicos de hasta 32 caracteres y quedan en `program.timers`. Hay como máximo 16 por proyecto. La categoría **Temporizadores** y sus ocho bloques pueden agregarse a Favoritos.
+Los temporizadores se crean con nombres únicos de hasta 32 caracteres y quedan en `program.timers`. Hay como máximo 16 por proyecto. La categoría **Temporizadores** separa visualmente control de lectura/comparación y sus bloques pueden agregarse a Favoritos.
 
 ## Semántica cooperativa
 

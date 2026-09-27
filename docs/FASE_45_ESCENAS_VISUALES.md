@@ -33,7 +33,9 @@ duplicada allí.
   de cruzar quienes ya superaron la línea donde se detienen en rojo, mientras
   quienes todavía no la pasaron forman fila y esperan el próximo verde. La misma
   frontera se aplica si cambia directamente a rojo: nunca se detiene dentro del
-  cruce a un auto que ya superó la línea. Su orientación coincide con
+  cruce a un auto que ya superó la línea. **Apagado equivale a amarillo para el
+  tránsito**: no reinicia ni borra autos, deja salir a quienes ya cruzaron la
+  línea y detiene a quienes todavía no llegaron. Su orientación coincide con
   el sentido de circulación y su avance usa la velocidad del simulador. No hay
   una cantidad fija ni autos que den vueltas: cada entrada genera vehículos en
   momentos independientes y ampliamente variables; cada auto se destruye al

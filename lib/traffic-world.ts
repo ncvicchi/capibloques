@@ -97,6 +97,10 @@ function advanceLane(
   color: TrafficSignalColor,
   elapsedMs: number,
 ) {
+  // Un semáforo apagado no da permiso para arrancar. Para el tránsito se
+  // comporta como amarillo: quien ya cruzó libera la intersección y quien
+  // todavía no llegó a la línea se detiene.
+  const effectiveColor = color === 'OFF' ? 'YELLOW' : color;
   const stop = STOP_PROGRESS[lane];
   const approaching = cars
     .filter(
@@ -113,7 +117,7 @@ function advanceLane(
   return cars.map(car => {
     if (car.lane !== lane || car.crashed) return car;
     const distance = SPEED_PER_MS[lane] * Math.min(100, Math.max(0, elapsedMs));
-    if (color === 'GREEN') {
+    if (effectiveColor === 'GREEN') {
       return advanceProgress(
         { ...car, waitingForGreen: false, clearingIntersection: false },
         distance,
@@ -137,7 +141,7 @@ function advanceLane(
         ...car,
         progress,
         waitingForGreen:
-          (color === 'RED' || color === 'YELLOW') && progress >= target,
+          (effectiveColor === 'RED' || effectiveColor === 'YELLOW') && progress >= target,
         clearingIntersection: false,
       };
     }
