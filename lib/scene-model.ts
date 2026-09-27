@@ -127,7 +127,7 @@ export function closestCrossroadsTrafficSlot(position: ScenePosition) {
 
 export function constrainSceneItemPosition(
   scene: SceneDefinition,
-  item: Pick<SceneDevice | SceneWidget, 'kind'>,
+  item: Pick<SceneDevice | SceneWidget, 'id' | 'kind'>,
   position: ScenePosition,
 ): ScenePosition {
   if (
@@ -135,6 +135,18 @@ export function constrainSceneItemPosition(
     item.kind === 'trafficLight'
   ) {
     const slot = closestCrossroadsTrafficSlot(position);
+    const occupied = scene.devices.some(device =>
+      device.kind === 'trafficLight' &&
+      device.id !== item.id &&
+      closestCrossroadsTrafficSlot(device.position).id === slot.id,
+    );
+    if (occupied) {
+      const current = scene.devices.find(device => device.id === item.id);
+      const currentSlot = closestCrossroadsTrafficSlot(
+        current?.position ?? position,
+      );
+      return { x: currentSlot.x, y: currentSlot.y };
+    }
     return { x: slot.x, y: slot.y };
   }
   return position;
@@ -169,11 +181,21 @@ interface SceneDeviceBase<
 
 export type TrafficLightDevice = SceneDeviceBase<
   'trafficLight',
-  { red: PinNumber; yellow: PinNumber; green: PinNumber },
+  {
+    red: PinNumber;
+    yellow: PinNumber;
+    green: PinNumber;
+    matrixDin: PinNumber;
+    matrixClk: PinNumber;
+    matrixCs: PinNumber;
+  },
   {
     redBrightness: number;
     yellowBrightness: number;
     greenBrightness: number;
+    vehicleDisplay: boolean;
+    pedestrianDisplay: boolean;
+    matrixBrightness: number;
   }
 >;
 
@@ -416,6 +438,9 @@ const requirementsByKind: Record<SceneDeviceKind, readonly PinRequirement[]> = {
     { key: 'red', label: 'LED rojo', capability: 'pwmOutput' },
     { key: 'yellow', label: 'LED amarillo', capability: 'pwmOutput' },
     { key: 'green', label: 'LED verde', capability: 'pwmOutput' },
+    { key: 'matrixDin', label: 'Matrices · datos (DIN)', capability: 'pwmOutput' },
+    { key: 'matrixClk', label: 'Matrices · reloj (CLK)', capability: 'pwmOutput' },
+    { key: 'matrixCs', label: 'Matrices · selección (CS/LOAD)', capability: 'pwmOutput' },
   ],
   robot: [
     { key: 'leftIn1', label: 'Motor izquierdo IN1', capability: 'pwmOutput' },
@@ -491,8 +516,8 @@ export const sceneComponentCatalog: readonly SceneComponentCatalogEntry[] = [
     icon: '🚦',
     name: 'Semáforo',
     description:
-      'Tres luces que cambian entre rojo, amarillo, verde y apagado.',
-    childFriendlyControl: 'Rojo, amarillo, verde o apagado',
+      'Tres luces y, si querés, matrices para autos y peatones.',
+    childFriendlyControl: 'Luces, número, alto, avance, caminar o esperar',
     pinRequirements: requirementsByKind.trafficLight,
   },
   {
@@ -855,11 +880,21 @@ function unassignedDevice<K extends SceneDeviceKind>(
       device = {
         ...base,
         kind,
-        pins: { red: null, yellow: null, green: null },
+        pins: {
+          red: null,
+          yellow: null,
+          green: null,
+          matrixDin: null,
+          matrixClk: null,
+          matrixCs: null,
+        },
         config: {
           redBrightness: 0,
           yellowBrightness: 0,
           greenBrightness: 0,
+          vehicleDisplay: false,
+          pedestrianDisplay: false,
+          matrixBrightness: 5,
         },
       };
       break;
@@ -2278,13 +2313,21 @@ function validDeviceConfig(
           'redBrightness',
           'yellowBrightness',
           'greenBrightness',
+          'vehicleDisplay',
+          'pedestrianDisplay',
+          'matrixBrightness',
         ]) &&
         ['redBrightness', 'yellowBrightness', 'greenBrightness'].every(
           (key) =>
             hasFiniteNumber(config, key) &&
             Number(config[key]) >= 0 &&
             Number(config[key]) <= 100,
-        )
+        ) &&
+        typeof config.vehicleDisplay === 'boolean' &&
+        typeof config.pedestrianDisplay === 'boolean' &&
+        hasFiniteNumber(config, 'matrixBrightness') &&
+        Number(config.matrixBrightness) >= 0 &&
+        Number(config.matrixBrightness) <= 15
       );
     case 'robot':
       return (
@@ -2623,6 +2666,14 @@ export function migrateSceneDefinition(
       let changed = false;
       for (const item of expanded.devices) {
         if (!isRecord(item) || !isRecord(item.pins)) continue;
+        if (item.kind === 'trafficLight' && isRecord(item.config)) {
+          for (const key of ['matrixDin', 'matrixClk', 'matrixCs']) if (!Object.hasOwn(item.pins, key)) {
+            item.pins[key] = null; changed = true;
+          }
+          if (!Object.hasOwn(item.config, 'vehicleDisplay')) { item.config.vehicleDisplay = false; changed = true; }
+          if (!Object.hasOwn(item.config, 'pedestrianDisplay')) { item.config.pedestrianDisplay = false; changed = true; }
+          if (!Object.hasOwn(item.config, 'matrixBrightness')) { item.config.matrixBrightness = 5; changed = true; }
+        }
         if (item.kind === 'display') for (const key of displayPinKeys) if (!Object.hasOwn(item.pins, key)) {
           item.pins[key] = null; changed = true;
         }
@@ -2682,6 +2733,13 @@ export function migrateSceneDefinition(
 
 export function getPinRequirements(device: SceneDeviceKind | SceneDevice) {
   if (typeof device === 'string') return requirementsByKind[device];
+  if (device.kind === 'trafficLight') {
+    const matricesEnabled =
+      device.config.vehicleDisplay || device.config.pedestrianDisplay;
+    return requirementsByKind.trafficLight.filter(requirement =>
+      matricesEnabled || !requirement.key.startsWith('matrix'),
+    );
+  }
   if (device.kind === 'messages') {
     return requirementsByKind.messages.filter(requirement =>
       device.config.mode === 'both' ||

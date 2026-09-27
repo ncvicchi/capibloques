@@ -90,6 +90,8 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
     case 'capi_message_receive':
     case 'capi_message_value': return ['messages'];
     case 'capi_traffic':
+    case 'capi_traffic_vehicle_display':
+    case 'capi_traffic_pedestrian_display':
       return ['trafficLight'];
     case 'capi_led':
       return ['led'];
@@ -602,6 +604,8 @@ const toolbox = {
       colour: '#12AA8C',
       contents: [
         { kind: 'block', type: 'capi_traffic' },
+        { kind: 'block', type: 'capi_traffic_vehicle_display' },
+        { kind: 'block', type: 'capi_traffic_pedestrian_display' },
         { kind: 'block', type: 'capi_led' },
         { kind: 'block', type: 'capi_power_switch' },
         { kind: 'block', type: 'capi_stepper' },
@@ -1138,6 +1142,35 @@ function registerBlocks(Blockly: BlocklyApi) {
       nextStatement: null,
       colour: '#12AA8C',
       tooltip: 'Controla los tres LED del semáforo.',
+      extensions: [DEVICE_EXTENSION],
+    },
+    {
+      type: 'capi_traffic_vehicle_display',
+      message0: '🚘 cartel de %1 mostrar %2',
+      args0: [
+        deviceField('⚠️ agrega un semáforo'),
+        {
+          type: 'field_dropdown', name: 'VALUE',
+          options: [
+            ['apagado', 'OFF'], ['0', '0'], ['1', '1'], ['2', '2'], ['3', '3'],
+            ['4', '4'], ['5', '5'], ['6', '6'], ['7', '7'], ['8', '8'], ['9', '9'],
+            ['✋ alto', 'STOP'], ['→ avanzar', 'GO'],
+          ],
+        },
+      ],
+      previousStatement: null, nextStatement: null, colour: '#12AA8C',
+      tooltip: 'Controla la matriz 8×8 que mira hacia los autos.',
+      extensions: [DEVICE_EXTENSION],
+    },
+    {
+      type: 'capi_traffic_pedestrian_display',
+      message0: '🚶 cartel peatonal de %1 mostrar %2',
+      args0: [
+        deviceField('⚠️ agrega un semáforo'),
+        { type: 'field_dropdown', name: 'VALUE', options: [['apagado', 'OFF'], ['🚶 caminar', 'WALK'], ['🚷 no caminar', 'DONT_WALK']] },
+      ],
+      previousStatement: null, nextStatement: null, colour: '#12AA8C',
+      tooltip: 'Controla la matriz 8×8 que mira hacia los peatones.',
       extensions: [DEVICE_EXTENSION],
     },
     {
@@ -2007,6 +2040,12 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           color: block.getFieldValue('COLOR'),
           blockId,
         });
+        break;
+      case 'capi_traffic_vehicle_display':
+        result.push({ op: 'trafficVehicleDisplay', deviceId: selectedDeviceId(block), value: block.getFieldValue('VALUE'), blockId });
+        break;
+      case 'capi_traffic_pedestrian_display':
+        result.push({ op: 'trafficPedestrianDisplay', deviceId: selectedDeviceId(block), value: block.getFieldValue('VALUE'), blockId });
         break;
       case 'capi_led':
         result.push({

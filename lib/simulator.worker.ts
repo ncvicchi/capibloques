@@ -195,7 +195,7 @@ function runtimeForDevice(device: SceneDevice): RuntimeDeviceState {
     case 'ledMatrix': return { kind: 'ledMatrix', rows: Array.from({ length: 8 }, () => 0), scrolling: false };
     case 'messages': return { kind: 'messages', received: [], transmitted: [], damaged: 0 };
     case 'trafficLight':
-      return { kind: 'trafficLight', color: 'OFF' };
+      return { kind: 'trafficLight', color: 'OFF', vehicleDisplay: 'OFF', pedestrianDisplay: 'OFF' };
     case 'led':
       return {
         kind: 'led',
@@ -1246,6 +1246,22 @@ function executeInstruction(
         appendConsole(
           `${deviceName(node.deviceId)}: ${node.color.toLowerCase()}`,
         );
+      }
+      break;
+    }
+    case 'trafficVehicleDisplay': {
+      const device = programDevice(node.deviceId);
+      if (device?.kind === 'trafficLight') {
+        device.vehicleDisplay = node.value;
+        appendConsole(`${deviceName(node.deviceId)}: cartel de autos ${node.value === 'STOP' ? 'alto' : node.value === 'GO' ? 'avanzar' : node.value === 'OFF' ? 'apagado' : node.value}`);
+      }
+      break;
+    }
+    case 'trafficPedestrianDisplay': {
+      const device = programDevice(node.deviceId);
+      if (device?.kind === 'trafficLight') {
+        device.pedestrianDisplay = node.value;
+        appendConsole(`${deviceName(node.deviceId)}: peatones ${node.value === 'WALK' ? 'caminar' : node.value === 'DONT_WALK' ? 'no caminar' : 'apagado'}`);
       }
       break;
     }

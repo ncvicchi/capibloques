@@ -220,7 +220,7 @@ function runtimeFromDevice(
     case 'ledMatrix': return { kind: 'ledMatrix', rows: Array.from({ length: 8 }, () => 0), scrolling: false };
     case 'messages': return { kind: 'messages', received: [], transmitted: [], damaged: 0 };
     case 'trafficLight':
-      return { kind: device.kind, color: 'OFF' };
+      return { kind: device.kind, color: 'OFF', vehicleDisplay: 'OFF', pedestrianDisplay: 'OFF' };
     case 'led':
       return { kind: device.kind, brightness: device.config.brightness };
     case 'smartLights':

@@ -20,6 +20,8 @@ duplicada allí.
   Flechas sobre los carriles y una vista superior junto a las tres luces muestran
   la orientación; la cara del semáforo mira al tránsito que se aproxima. Los
   nombres automáticos son **Semáforo 1–4**, siempre usando el primer número libre.
+  Sólo se mueven entre esquinas libres: soltarlos sobre una ocupada conserva su
+  lugar anterior. La flecha superior rota una sola vez y coincide con el carril.
   Un semáforo no puede agregarse ni copiarse a otro fondo, y un cruce que ya
   contiene semáforos no puede cambiar de fondo hasta quitarlos. Las calles son de doble mano y el editor
   permite habilitar por separado autos hacia derecha, izquierda, abajo y arriba;
@@ -39,10 +41,15 @@ duplicada allí.
   doce para conservar claridad y rendimiento. El azar es determinista y
   comprobable. Un choque congela a los vehículos que efectivamente coinciden
   dentro del cruce.
+- Cada semáforo admite dos carteles opcionales de un único módulo MAX7219 8×8.
+  El vehicular muestra 0–9, mano de alto, flecha de avance o apagado; el peatonal
+  muestra caminar, no caminar o apagado. Al usar ambos se encadenan y comparten
+  DIN, CLK y CS. Hay bloques, simulación, Arduino, ESP-IDF y CapiRules/intérprete
+  1.5.7 para ambos estados.
 - La pista dibuja salida, ruta y meta sin convertir la línea en órdenes ocultas:
   el programa sigue controlando íntegramente el robot.
 - Editor y simulación usan la misma capa vectorial y coordenadas. El intérprete
-  Waveshare **1.5.6** consume el mismo identificador de fondo, conserva la
+  Waveshare **1.5.7** consume el mismo identificador de fondo, conserva la
   transformación de posiciones y dibuja versiones compactas de los cinco mundos,
   incluidos autos/atasco/choque del cruce. Los nombres largos usan tipografía
   compacta para no invadir la tarjeta vecina.
@@ -50,7 +57,7 @@ duplicada allí.
 
 Quedan dentro de esta fase las herramientas avanzadas de autoría (capas,
 selección múltiple y guías), detección general de solapamientos y comparación
-por capturas de referencia. La salida Waveshare 1.5.6 requiere compilación en
+por capturas de referencia. La salida Waveshare 1.5.7 requiere compilación en
 DEV y aceptación física; una compilación correcta no sustituye esa prueba.
 
 ## Objetivo

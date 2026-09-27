@@ -1171,6 +1171,32 @@ function SceneBuilderSession({
                   {selected.kind === 'display' && <DisplayProperties key={selected.id} device={selected} boardProfile={draftBoardProfile} sceneDevices={draftScene.devices} onChange={next => updateSelectedDraft(() => next)} />}
                   {selected.kind === 'ledMatrix' && <LedMatrixProperties key={selected.id} device={selected} onChange={next => updateSelectedDraft(() => next)} />}
                   {/* oxlint-disable jsx-a11y/label-has-associated-control -- compound design-system controls are wrapped by their visible labels */}
+                  {selected.kind === 'trafficLight' && (
+                    <div className="messages-properties">
+                      <strong>Carteles opcionales · matrices 8×8</strong>
+                      <small>Son módulos de un solo cuadro MAX7219. Si activás ambos, se conectan en cadena y comparten tres pines.</small>
+                      <label>
+                        <input type="checkbox" checked={selected.config.vehicleDisplay} onChange={event => updateSelectedDraft(device => {
+                          if (device.kind !== 'trafficLight') return device;
+                          const vehicleDisplay = event.target.checked;
+                          const keepPins = vehicleDisplay || device.config.pedestrianDisplay;
+                          return { ...device, config: { ...device.config, vehicleDisplay }, pins: keepPins ? device.pins : { ...device.pins, matrixDin: null, matrixClk: null, matrixCs: null } };
+                        })} /> Cartel para autos: número, alto o avanzar
+                      </label>
+                      <label>
+                        <input type="checkbox" checked={selected.config.pedestrianDisplay} onChange={event => updateSelectedDraft(device => {
+                          if (device.kind !== 'trafficLight') return device;
+                          const pedestrianDisplay = event.target.checked;
+                          const keepPins = pedestrianDisplay || device.config.vehicleDisplay;
+                          return { ...device, config: { ...device.config, pedestrianDisplay }, pins: keepPins ? device.pins : { ...device.pins, matrixDin: null, matrixClk: null, matrixCs: null } };
+                        })} /> Cartel para peatones: caminar o no caminar
+                      </label>
+                      {(selected.config.vehicleDisplay || selected.config.pedestrianDisplay) && <label>
+                        <span>Brillo de las matrices: {selected.config.matrixBrightness}</span>
+                        <input type="range" min="0" max="15" value={selected.config.matrixBrightness} onChange={event => updateSelectedDraft(device => device.kind === 'trafficLight' ? { ...device, config: { ...device.config, matrixBrightness: Number(event.target.value) } } : device)} />
+                      </label>}
+                    </div>
+                  )}
                   {isEducationalModuleKind(selected.kind) && (() => {
                     const spec = educationalModuleSpecs[selected.kind];
                     const moduleDevice = selected as EducationalModuleDevice;

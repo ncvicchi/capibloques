@@ -40,7 +40,7 @@ interface WiringGuideProps {
 const deviceAdvice: Record<SceneDevice['kind'], string> = {
   display: 'GPIO sólo a 3,3 V. LCD con backpack de 5 V: revisar pull-ups y usar adaptador de nivel I2C si corresponde. TFT: alimentación y retroiluminación según el módulo, nunca desde un GPIO. No se usa MISO ni el touch.',
   ledMatrix: 'MAX7219 suele alimentarse a 5 V y puede consumir bastante corriente: fuente externa adecuada, masa común y desacoplo. Nunca alimentes la matriz desde un GPIO; si 3,3 V no se reconoce de forma confiable, usá adaptación de nivel en DIN, CLK y CS.',
-  trafficLight: 'Una resistencia de 220–330 Ω en serie con cada LED.',
+  trafficLight: 'Una resistencia de 220–330 Ω en serie con cada LED. Los carteles opcionales son módulos MAX7219 8×8 encadenados y comparten DIN, CLK y CS.',
   robot: 'DRV8833, fuente para motores y GND compartido con la Wemos.',
   otto: 'Usa cuatro señales PWM para piernas/pies y, según el perfil, dos más para brazos. Alimentá los servos con una fuente externa de 5 V y GND común. En sensores ultrasónicos HC-SR04 de 5 V, reducí ECHO a 3,3 V antes del ESP32.',
   motor: 'DRV8833 y fuente para el motor; nunca lo conectes directo al GPIO.',

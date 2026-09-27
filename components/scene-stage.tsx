@@ -30,6 +30,7 @@ import {
   type TrafficSignals,
   type TrafficLane,
 } from '@/lib/traffic-world';
+import { trafficDisplayRows, type PedestrianDisplayValue, type VehicleDisplayValue } from '@/lib/traffic-displays';
 
 export type RuntimeVisualDevice = {
   texts?: Record<string, string[]>;
@@ -37,6 +38,8 @@ export type RuntimeVisualDevice = {
   rows?: number[];
   kind: string;
   color?: 'RED' | 'YELLOW' | 'GREEN' | 'OFF';
+  vehicleDisplay?: VehicleDisplayValue;
+  pedestrianDisplay?: PedestrianDisplayValue;
   brightness?: number;
   pixels?: string[];
   animation?: string | null;
@@ -310,6 +313,14 @@ function SceneBackdrop({
   );
 }
 
+function TrafficMatrix({ value, audience }: { value: VehicleDisplayValue | PedestrianDisplayValue; audience: 'vehicle' | 'pedestrian' }) {
+  const rows = trafficDisplayRows(value);
+  return <span className={`stage-traffic-matrix ${audience}`} title={audience === 'vehicle' ? 'Cartel para autos' : 'Cartel para peatones'}>
+    <span>{rows.flatMap((row, y) => Array.from({ length: 8 }, (_, x) => <i key={`${x}-${y}`} className={(row & (1 << (7 - x))) ? 'on' : ''} />))}</span>
+    <small>{audience === 'vehicle' ? '🚘' : '🚶'}</small>
+  </span>;
+}
+
 function DeviceVisual({
   device,
   runtime,
@@ -366,8 +377,10 @@ function DeviceVisual({
             <b className={color === 'YELLOW' ? 'yellow on' : 'yellow'} />
             <b className={color === 'GREEN' ? 'green on' : 'green'} />
           </i>
-          <strong>{directionDetails.arrow}</strong>
+          <strong>→</strong>
         </span>
+        {device.config.vehicleDisplay && <TrafficMatrix value={runtime?.vehicleDisplay ?? 'OFF'} audience="vehicle" />}
+        {device.config.pedestrianDisplay && <TrafficMatrix value={runtime?.pedestrianDisplay ?? 'OFF'} audience="pedestrian" />}
       </span>
     );
   }

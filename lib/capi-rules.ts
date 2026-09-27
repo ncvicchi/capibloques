@@ -6,7 +6,7 @@ import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 
 export const CAPI_RULES_FORMAT = 1;
 export const CAPI_INTERPRETER_ABI = 1;
-export const CAPI_INTERPRETER_VERSION = '1.5.6';
+export const CAPI_INTERPRETER_VERSION = '1.5.7';
 export const CAPI_RULES_MAX_BYTES = 32 * 1024;
 export const CAPI_RULES_MAX_INSTRUCTIONS = 2048;
 const HEADER_BYTES = 32;
@@ -37,7 +37,7 @@ export interface CapiRulesBundle {
 export class CapiRulesError extends Error {}
 
 const capabilityForOperation = (operation: string) => ({
-  pin: 'gpio', led: 'led', traffic: 'traffic', motor: 'motor', robot: 'robot',
+  pin: 'gpio', led: 'led', traffic: 'traffic', trafficVehicleDisplay: 'traffic-display', trafficPedestrianDisplay: 'traffic-display', motor: 'motor', robot: 'robot',
   rgbFill: 'smart-lights', rgbPixel: 'smart-lights', rgbSegment: 'smart-lights', rgbCoordinate: 'smart-lights', rgbGradient: 'smart-lights', rgbPattern: 'smart-lights', rgbAnimation: 'smart-lights',
   servo: 'servo', buzzer: 'buzzer', tone: 'buzzer', otto: 'otto', ottoSound: 'otto', ottoExpression: 'otto', ottoArms: 'otto',
   displayWrite: 'display', displayClear: 'display', displayAnimateText: 'display', displayArtwork: 'display', visualWait: 'visual-wait',
@@ -82,7 +82,7 @@ function instructionCapabilities(instruction: ExecutableTask['output'][number]) 
 }
 
 function resourceRequirements(document: CapiRulesDocument) {
-  const deviceIds = new Set(document.tasks.flatMap(task => task.output.flatMap(instruction => ['led', 'traffic', 'motor', 'robot', 'otto', 'ottoSound', 'ottoExpression', 'ottoArms', 'servo', 'buzzer', 'tone'].includes(instruction.op) && 'deviceId' in instruction ? [instruction.deviceId] : [])));
+  const deviceIds = new Set(document.tasks.flatMap(task => task.output.flatMap(instruction => ['led', 'traffic', 'trafficVehicleDisplay', 'trafficPedestrianDisplay', 'motor', 'robot', 'otto', 'ottoSound', 'ottoExpression', 'ottoArms', 'servo', 'buzzer', 'tone'].includes(instruction.op) && 'deviceId' in instruction ? [instruction.deviceId] : [])));
   const pwmPins = new Set<number>();
   for (const device of document.resources.devices) {
     if (!deviceIds.has(device.id)) continue;

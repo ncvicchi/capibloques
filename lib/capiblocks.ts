@@ -41,6 +41,8 @@ import { componentValueCapability, type ComponentValueSource } from './component
 import { boardProfile, isProjectTarget, portableProjectTarget, projectTargetForBoard, type BoardProfileId, type ProjectTarget } from './board-profiles.ts';
 // @ts-expect-error Node strip-types runner.
 import { educationalModuleSpecs, isEducationalModuleKind } from './educational-modules.ts';
+// @ts-expect-error Node strip-types runner.
+import { pedestrianDisplayValues, trafficDisplayRows, vehicleDisplayValues, type PedestrianDisplayValue, type VehicleDisplayValue } from './traffic-displays.ts';
 
 export type FirmwareFramework = 'arduino' | 'esp-idf';
 
@@ -125,6 +127,8 @@ export type ProgramNode =
       color: 'RED' | 'YELLOW' | 'GREEN' | 'OFF';
       blockId: string;
     }
+  | { op: 'trafficVehicleDisplay'; deviceId: string; value: VehicleDisplayValue; blockId: string }
+  | { op: 'trafficPedestrianDisplay'; deviceId: string; value: PedestrianDisplayValue; blockId: string }
   | { op: 'led'; deviceId: string; brightness: number; blockId: string }
   | { op: 'stepper'; deviceId: string; steps: number; speed: number; blockId: string }
   | { op: 'rgbFill'; deviceId: string; color: string; brightness: number; blockId: string }
@@ -331,6 +335,8 @@ export type RuntimeDeviceState =
   | {
       kind: 'trafficLight';
       color: 'RED' | 'YELLOW' | 'GREEN' | 'OFF';
+      vehicleDisplay: VehicleDisplayValue;
+      pedestrianDisplay: PedestrianDisplayValue;
     }
   | { kind: 'led'; brightness: number }
   | { kind: 'smartLights'; pixels: string[]; brightness: number; animation: string | null }
@@ -997,6 +1003,8 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_number_math',
   'capi_text_join',
   'capi_traffic',
+  'capi_traffic_vehicle_display',
+  'capi_traffic_pedestrian_display',
   'capi_led',
   'capi_rgb_fill',
   'capi_rgb_pixel',
@@ -1485,6 +1493,8 @@ const blockKind = (block: Record<string, unknown>): SceneDeviceKind | null => {
     case 'capi_message_send':
     case 'capi_message_receive': return 'messages';
     case 'capi_traffic':
+    case 'capi_traffic_vehicle_display':
+    case 'capi_traffic_pedestrian_display':
       return 'trafficLight';
     case 'capi_led':
       return 'led';
@@ -1871,6 +1881,8 @@ const compatibleKindsForNode = (
     case 'wifiMessageSend':
     case 'wifiMessageReceive': return ['wifiNode'];
     case 'traffic':
+    case 'trafficVehicleDisplay':
+    case 'trafficPedestrianDisplay':
       return ['trafficLight'];
     case 'led':
       return ['led', 'powerSwitch'];
@@ -2091,6 +2103,20 @@ function normalizeNodes(
           color: ['RED', 'YELLOW', 'GREEN', 'OFF'].includes(String(node.color))
             ? (node.color as 'RED' | 'YELLOW' | 'GREEN' | 'OFF')
             : 'OFF',
+          blockId,
+        });
+        break;
+      case 'trafficVehicleDisplay':
+        result.push({
+          op: 'trafficVehicleDisplay', deviceId,
+          value: vehicleDisplayValues.includes(node.value as VehicleDisplayValue) ? node.value as VehicleDisplayValue : 'OFF',
+          blockId,
+        });
+        break;
+      case 'trafficPedestrianDisplay':
+        result.push({
+          op: 'trafficPedestrianDisplay', deviceId,
+          value: pedestrianDisplayValues.includes(node.value as PedestrianDisplayValue) ? node.value as PedestrianDisplayValue : 'OFF',
           blockId,
         });
         break;
@@ -2809,6 +2835,16 @@ export function validateProgramForScene(
       const device = deviceMap.get(node.deviceId);
       if (device?.kind === 'otto' && device.config.profile !== 'humanoid6-expressive') diagnostics.push({ severity: 'error', code: 'otto-capability-missing', message: `${device.name} no tiene brazos en esta configuración.`, blockId: node.blockId, deviceId: node.deviceId });
     }
+    if (node.op === 'trafficVehicleDisplay' || node.op === 'trafficPedestrianDisplay') {
+      const device = deviceMap.get(node.deviceId);
+      const enabled = device?.kind === 'trafficLight' &&
+        (node.op === 'trafficVehicleDisplay' ? device.config.vehicleDisplay : device.config.pedestrianDisplay);
+      if (!enabled) diagnostics.push({
+        severity: 'error', code: 'traffic-display-missing',
+        message: `${device?.name ?? 'El semáforo'} no tiene activado el cartel ${node.op === 'trafficVehicleDisplay' ? 'para autos' : 'peatonal'} en la escena.`,
+        blockId: node.blockId, deviceId: node.deviceId,
+      });
+    }
     if (node.op === 'variableChange') {
       const variable = variables.get(node.variableId);
       if (!variable || variable.type !== 'number' || valueExpressionType(node.delta) !== 'number') diagnostics.push({ severity: 'error', code: 'variable-type', message: 'Cambiar una variable necesita una variable numérica y un número.', blockId: node.blockId });
@@ -3374,6 +3410,10 @@ function instructionToCpp(
       return `${comment}\n        if (${instruction.children.map(child => `active_T${child}`).join(' || ') || 'false'}) return;\n        ${pc} = ${nextPc};\n        break;`;
     case 'traffic':
       return `${comment}\n        ${logical ? '// Objeto lógico del tablero: sin salida GPIO.' : `setTraffic(DEV_${deviceSymbol(context, instruction.deviceId)}, TrafficColor::${instruction.color});`}\n        capiAssignText(${componentStateSymbol(instruction.deviceId, 'color')}, ${cppString(instruction.color)});\n        ${pc} = ${nextPc};\n        break;`;
+    case 'trafficVehicleDisplay':
+      return `${comment}\n        capiTrafficMatrix(DEV_${deviceSymbol(context, instruction.deviceId)}, true, TRAFFIC_GLYPH_${instruction.value});\n        ${pc} = ${nextPc};\n        break;`;
+    case 'trafficPedestrianDisplay':
+      return `${comment}\n        capiTrafficMatrix(DEV_${deviceSymbol(context, instruction.deviceId)}, false, TRAFFIC_GLYPH_${instruction.value});\n        ${pc} = ${nextPc};\n        break;`;
     case 'led': {
       const duty = Math.round(
         (Math.max(0, Math.min(100, instruction.brightness)) / 100) * 255,
@@ -3619,7 +3659,7 @@ function deviceDeclarations(
       if (isEducationalModuleKind(device.kind)) return Object.entries(device.pins).map(([key, pin]) => `constexpr uint8_t PIN_${symbol}_${cppIdentifier(key)} = ${label(pin)}`).join('\n');
       switch (device.kind) {
         case 'trafficLight':
-          return `constexpr TrafficDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.red)}, ${gpioOrPlaceholder(device.pins.yellow)}, ${gpioOrPlaceholder(device.pins.green)}}; // ${cppLineComment(device.name)}`;
+          return `constexpr TrafficDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.red)}, ${gpioOrPlaceholder(device.pins.yellow)}, ${gpioOrPlaceholder(device.pins.green)}, ${gpioOrPlaceholder(device.pins.matrixDin)}, ${gpioOrPlaceholder(device.pins.matrixClk)}, ${gpioOrPlaceholder(device.pins.matrixCs)}, ${device.config.vehicleDisplay ? 'true' : 'false'}, ${device.config.pedestrianDisplay ? 'true' : 'false'}, ${Math.max(0, Math.min(15, Math.round(device.config.matrixBrightness)))}}; // ${cppLineComment(device.name)}`;
         case 'robot':
           return `constexpr RobotDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.leftIn1)}, ${gpioOrPlaceholder(device.pins.leftIn2)}, ${gpioOrPlaceholder(device.pins.rightIn1)}, ${gpioOrPlaceholder(device.pins.rightIn2)}}; // ${cppLineComment(device.name)}`;
         case 'otto':
@@ -3948,6 +3988,14 @@ function setupLines(scene: SceneDefinition, symbols: Map<string, string>, servoR
           `  pinMode(DEV_${symbol}.green, OUTPUT);`,
           `  setTraffic(DEV_${symbol}, TrafficColor::OFF);`,
         );
+        if (device.config.vehicleDisplay || device.config.pedestrianDisplay) {
+          lines.push(
+            `  pinMode(DEV_${symbol}.matrixDin, OUTPUT);`,
+            `  pinMode(DEV_${symbol}.matrixClk, OUTPUT);`,
+            `  pinMode(DEV_${symbol}.matrixCs, OUTPUT);`,
+            `  capiTrafficMatrixBegin(DEV_${symbol});`,
+          );
+        }
         break;
       case 'robot':
         lines.push(
@@ -4253,6 +4301,9 @@ ${(program.timers?.length ?? 0) === 0 ? '  (void)now;' : `  for (uint8_t id = 0;
 
   const servoResolutionBits = profile.family === 'esp32-s3' ? 14 : 16;
   const servoMaxDuty = (1 << servoResolutionBits) - 1;
+  const trafficGlyphDeclarations = [...new Set([...vehicleDisplayValues, ...pedestrianDisplayValues])]
+    .map(value => `constexpr uint8_t TRAFFIC_GLYPH_${value}[8] = { ${trafficDisplayRows(value).map(row => `0x${row.toString(16).padStart(2, '0')}`).join(', ')} };`)
+    .join('\n');
   const code = `// ${cppLineComment(projectTitle(title))}
 // Generado por CapiBloques para ${profile.name}
 // ${native ? `ESP-IDF ${IDF_VERSION} | Target: ${profile.idfTarget} | CapiBloques generator 8.1` : `Arduino-ESP32 3.3.11 | FQBN: ${profile.fqbn}`}
@@ -4260,12 +4311,13 @@ ${(program.timers?.length ?? 0) === 0 ? '  (void)now;' : `  for (uint8_t id = 0;
 
 ${native ? idfRuntimeSupport(scene, usesWifi, profileId) : '#include <Arduino.h>'}
 ${wifiHeader}${diagnosticHeader}
-struct TrafficDevice { uint8_t red; uint8_t yellow; uint8_t green; };
+struct TrafficDevice { uint8_t red; uint8_t yellow; uint8_t green; uint8_t matrixDin; uint8_t matrixClk; uint8_t matrixCs; bool vehicleDisplay; bool pedestrianDisplay; uint8_t matrixBrightness; };
 struct RobotDevice { uint8_t leftIn1; uint8_t leftIn2; uint8_t rightIn1; uint8_t rightIn2; };
 struct OttoDevice { uint8_t pins[6]; uint8_t centers[6]; bool reversed[6]; uint8_t buzzer; uint8_t trigger; uint8_t echo; uint8_t matrixDin; uint8_t matrixClk; uint8_t matrixCs; uint8_t matrixBrightness; int8_t owner; uint8_t soundPreset; uint8_t soundStep; uint32_t soundAt; uint8_t sonarState; uint64_t sonarAt; uint64_t echoStarted; uint16_t distanceCm; };
 struct MotorDevice { uint8_t in1; uint8_t in2; };
 struct MessageDevice { uint8_t port; uint8_t tx; uint8_t rx; uint32_t baud; };
 enum class TrafficColor { RED, YELLOW, GREEN, OFF };
+${trafficGlyphDeclarations}
 
 ${displaySupport}
 
@@ -4295,6 +4347,40 @@ void setTraffic(const TrafficDevice& device, TrafficColor color) {
   ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.red, color == TrafficColor::RED ? ${native ? '1 : 0' : 'HIGH : LOW'});
   ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.yellow, color == TrafficColor::YELLOW ? ${native ? '1 : 0' : 'HIGH : LOW'});
   ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.green, color == TrafficColor::GREEN ? ${native ? '1 : 0' : 'HIGH : LOW'});
+}
+
+void capiTrafficShiftByte(const TrafficDevice& device, uint8_t value) {
+  for (int bit = 7; bit >= 0; --bit) {
+    ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.matrixClk, ${native ? '0' : 'LOW'});
+    ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.matrixDin, (value >> bit) & 1);
+    ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.matrixClk, ${native ? '1' : 'HIGH'});
+  }
+}
+void capiTrafficMatrixRegister(const TrafficDevice& device, uint8_t target, uint8_t address, uint8_t value) {
+  const uint8_t count = (device.vehicleDisplay ? 1 : 0) + (device.pedestrianDisplay ? 1 : 0);
+  if (!count || target >= count) return;
+  ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.matrixCs, ${native ? '0' : 'LOW'});
+  for (int module = count - 1; module >= 0; --module) {
+    capiTrafficShiftByte(device, module == target ? address : 0);
+    capiTrafficShiftByte(device, module == target ? value : 0);
+  }
+  ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.matrixCs, ${native ? '1' : 'HIGH'});
+}
+void capiTrafficMatrix(const TrafficDevice& device, bool vehicle, const uint8_t rows[8]) {
+  if ((vehicle && !device.vehicleDisplay) || (!vehicle && !device.pedestrianDisplay)) return;
+  const uint8_t target = vehicle ? 0 : (device.vehicleDisplay ? 1 : 0);
+  for (uint8_t row = 0; row < 8; ++row) capiTrafficMatrixRegister(device, target, row + 1, rows[row]);
+}
+void capiTrafficMatrixBegin(const TrafficDevice& device) {
+  const uint8_t count = (device.vehicleDisplay ? 1 : 0) + (device.pedestrianDisplay ? 1 : 0);
+  for (uint8_t module = 0; module < count; ++module) {
+    capiTrafficMatrixRegister(device, module, 0x0f, 0);
+    capiTrafficMatrixRegister(device, module, 0x09, 0);
+    capiTrafficMatrixRegister(device, module, 0x0b, 7);
+    capiTrafficMatrixRegister(device, module, 0x0a, device.matrixBrightness & 0x0f);
+    capiTrafficMatrixRegister(device, module, 0x0c, 1);
+    for (uint8_t row = 1; row <= 8; ++row) capiTrafficMatrixRegister(device, module, row, 0);
+  }
 }
 
 int32_t addCounter(int32_t current, int32_t delta) {
@@ -4414,6 +4500,10 @@ ${threadFunctions}
 ${native ? `extern "C" void app_main() {
   capiHardwareBegin();
 ${messageSetupLines(scene, symbols, true)}
+${scene.devices.filter(device => device.kind === 'trafficLight' && (device.config.vehicleDisplay || device.config.pedestrianDisplay)).map(device => {
+  const symbol = symbols.get(device.id) ?? cppIdentifier(device.id);
+  return `  capiOutput(DEV_${symbol}.matrixDin); capiOutput(DEV_${symbol}.matrixClk); capiOutput(DEV_${symbol}.matrixCs); capiTrafficMatrixBegin(DEV_${symbol});`;
+}).join('\n')}
 ${scene.devices.filter((device): device is Extract<SceneDevice, { kind: 'servo' }> => device.kind === 'servo' && !dashboardDeviceIds(scene).has(device.id)).map(device => `  setServoAngle(PIN_${symbols.get(device.id)}, ${Math.max(0, Math.min(180, Math.round(device.config.angle)))});`).join('\n')}
 ${scene.devices.filter(device => device.kind === 'otto').map(device => {
   const symbol = symbols.get(device.id);

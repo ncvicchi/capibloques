@@ -2392,6 +2392,30 @@ select:focus-visible {
 .traffic-overhead-face .red.on { background: #ff405e; }
 .traffic-overhead-face .yellow.on { background: #ffd23f; }
 .traffic-overhead-face .green.on { background: #28dd82; }
+.stage-traffic-matrix {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+.stage-traffic-matrix > span {
+  display: grid;
+  grid-template-columns: repeat(8, 4px);
+  gap: 1px;
+  padding: 4px;
+  border: 2px solid #4a5368;
+  border-radius: 5px;
+  background: #11151f;
+  box-shadow: 0 2px 4px #14213d55;
+}
+.stage-traffic-matrix i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #2d2518;
+}
+.stage-traffic-matrix.vehicle i.on { background: #ffb21c; box-shadow: 0 0 3px #ffb21c; }
+.stage-traffic-matrix.pedestrian i.on { background: #f8fafc; box-shadow: 0 0 3px #f8fafc; }
+.stage-traffic-matrix small { font-size: 10px; line-height: 1; }
 .stage-traffic i {
   width: 23px;
   height: 23px;

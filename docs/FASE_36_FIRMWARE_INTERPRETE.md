@@ -35,13 +35,16 @@ La fase está **terminada en software**. Ya están implementados:
   persistentes, rojo forma una cola sin recrearlos y amarillo/rojo dejan terminar
   el cruce a todo auto que ya superó la línea de detención; la fila espera el
   verde y un choque inmoviliza a los participantes;
+- **1.5.7** agrega los carteles MAX7219 8×8 opcionales de cada semáforo:
+  vehículo y peatón, encadenados con DIN/CLK/CS compartidos y operaciones
+  CapiRules independientes;
 - el cliente web detiene ahora las reglas persistidas antes de reemplazarlas y reintenta `HELLO` hasta tres veces sin conservar esperas vencidas; esto cubre el arranque autónomo anterior y la pérdida de la primera línea mientras USB termina de asociarse;
 - construcción reproducible de tres artefactos estáticos, manifiestos con hash y publicación automática la primera vez que DEV recibe esta versión; los binarios generados no se guardan en Git;
 - pruebas de formato determinista, corrupción, placa cruzada, framing, empaquetado, USB simulado, UI Chrome, tipos, estilo, smoke y build estático.
 
 La fase 30 amplió el runtime a **1.1.0** con temporizadores consultables, eventos cooperativos de una vez/repetitivos, pausa/reanudación y cancelación; la capacidad negociada es `timers`. La web considera obsoleto 1.0.0, ofrece actualizarlo y no envía reglas hasta completar la actualización, incluso si el proyecto todavía no usa temporizadores.
 
-La compilación fijada en ESP-IDF 5.5.5 produjo y empaquetó correctamente los intérpretes anteriores de Wemos D1 R32 y ESP32-S3 en CI el 24 de septiembre de 2026. La versión 1.5.3 fue grabada en la Waveshare real y confirmó el transporte; 1.5.4 agregó el renderer físico. La web exige ahora 1.5.6 para incluir los mundos compactos y el tránsito estable. La fase **no tiene aún aceptación física completa**: falta compilar/publicar 1.5.6 en DEV, grabarlo y confirmar imagen, orientación, colores, estabilidad y actualización de estados en la unidad real. Touch y escena remota continúan en fases 18/34. Arduino y ESP-IDF por proyecto siguen disponibles.
+La compilación fijada en ESP-IDF 5.5.5 produjo y empaquetó correctamente los intérpretes anteriores de Wemos D1 R32 y ESP32-S3 en CI el 24 de septiembre de 2026. La versión 1.5.3 fue grabada en la Waveshare real y confirmó el transporte; 1.5.4 agregó el renderer físico. La web exige ahora 1.5.7 para incluir los mundos compactos, el tránsito estable y los carteles de semáforo. La fase **no tiene aún aceptación física completa**: falta compilar/publicar 1.5.7 en DEV, grabarlo y confirmar imagen, orientación, colores, estabilidad y actualización de estados en la unidad real. Touch y escena remota continúan en fases 18/34. Arduino y ESP-IDF por proyecto siguen disponibles.
 
 **Estado:** software terminado; transporte, persistencia y ejecución básica aceptados físicamente en Waveshare; corrección web pendiente de DEV y restantes aceptaciones físicas pendientes.
 

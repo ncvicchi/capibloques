@@ -721,7 +721,7 @@ Contrato y aceptación en
 [FASE_45_ESCENAS_VISUALES.md](FASE_45_ESCENAS_VISUALES.md).
 
 La primera entrega agrega cinco aventuras, fondos vectoriales compartidos,
-cruce con autos/filas/choque y pista de robot. El runtime 1.5.6 dibuja sus
+cruce con autos/filas/choque y pista de robot. El runtime 1.5.7 dibuja sus
 equivalentes compactos en Waveshare. Quedan autoría avanzada, detección general
 de solapamientos, capturas de referencia y aceptación física.
 
