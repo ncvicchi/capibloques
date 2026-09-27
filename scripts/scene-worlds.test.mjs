@@ -8,6 +8,7 @@ import {
   enabledTrafficDirections,
   isSceneDefinition,
   migrateSceneDefinition,
+  removeDeviceFromScene,
   sceneTemplates,
   validateScene,
 } from '../lib/scene-model.ts';
@@ -41,6 +42,16 @@ for (const slot of crossroadsTrafficSlots) {
     `${slot.id} traffic light must stand on the garden, outside both roads`,
   );
 }
+assert.deepEqual(
+  Object.fromEntries(crossroadsTrafficSlots.map(slot => [slot.id, slot.direction])),
+  {
+    north: 'northbound',
+    east: 'eastbound',
+    south: 'southbound',
+    west: 'westbound',
+  },
+  'cada esquina debe gobernar el carril que avanza hacia ella',
+);
 const selectedDirections = structuredClone(intersection);
 selectedDirections.canvas.trafficDirections = ['eastbound', 'northbound'];
 assert.ok(isSceneDefinition(selectedDirections));
@@ -72,9 +83,33 @@ assert.deepEqual(
 let full = intersection;
 full = addDeviceToScene(full, 'trafficLight').scene;
 full = addDeviceToScene(full, 'trafficLight').scene;
+assert.deepEqual(
+  full.devices
+    .filter(device => device.kind === 'trafficLight')
+    .map(device => device.name),
+  ['Semáforo 1', 'Semáforo 2', 'Semáforo 3', 'Semáforo 4'],
+);
 assert.throws(
   () => addDeviceToScene(full, 'trafficLight'),
   /cuatro lugares seguros/,
+);
+const withoutSecondLight = removeDeviceFromScene(full, 'traffic-light-2');
+const reusedTrafficNumber = addDeviceToScene(
+  withoutSecondLight,
+  'trafficLight',
+);
+assert.equal(reusedTrafficNumber.device.name, 'Semáforo 2');
+assert.equal(
+  new Set(
+    reusedTrafficNumber.scene.devices
+      .filter(device => device.kind === 'trafficLight')
+      .map(device => closestCrossroadsTrafficSlot(device.position).id),
+  ).size,
+  4,
+);
+assert.throws(
+  () => addDeviceToScene(createSceneFromTemplate('robotCourse'), 'trafficLight'),
+  /sólo se pueden agregar en la escena Cruce/,
 );
 
 assert.equal(sceneTemplates.robotCourse.canvas.background, 'robotTrack');

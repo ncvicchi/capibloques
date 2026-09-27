@@ -176,7 +176,7 @@ for (const profile of Object.keys(displayProfiles)) {
 
 {
   const boardProfile = 'waveshare-esp32-s3-touch-lcd-5-28117';
-  const withDisplay = addDeviceToScene(createEmptyScene('Tablero local'), 'display', { config: displayConfig('waveshare5'), boardProfile });
+  const withDisplay = addDeviceToScene(createEmptyScene('Tablero local', { canvas: { background: 'crossroads' } }), 'display', { config: displayConfig('waveshare5'), boardProfile });
   const withTraffic = addDeviceToScene(withDisplay.scene, 'trafficLight', { boardProfile });
   const display = withTraffic.scene.devices.find(item => item.kind === 'display');
   display.config.retiredAreaIds.push(...display.config.areas.map(area => area.id));
@@ -422,7 +422,7 @@ assert.deepEqual(
 );
 assert.equal(state().devices[animated.device.id].animation, null);
 const dashboardBoard = 'waveshare-esp32-s3-touch-lcd-5-28117';
-const dashboardScreen = addDeviceToScene(createEmptyScene('Control táctil'), 'display', { config: displayConfig('waveshare5'), boardProfile: dashboardBoard });
+const dashboardScreen = addDeviceToScene(createEmptyScene('Control táctil', { canvas: { background: 'crossroads' } }), 'display', { config: displayConfig('waveshare5'), boardProfile: dashboardBoard });
 const dashboardTraffic = addDeviceToScene(dashboardScreen.scene, 'trafficLight', { boardProfile: dashboardBoard });
 const dashboardDisplay = dashboardTraffic.scene.devices.find(item => item.kind === 'display');
 dashboardDisplay.config.retiredAreaIds.push(...dashboardDisplay.config.areas.map(area => area.id));

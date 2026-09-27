@@ -21,7 +21,12 @@ for (const profile of Object.keys(displayProfiles)) assert(ids.has(`component.di
 for (const profile of ottoHelpProfiles) assert(ids.has(`component.otto.${profile}`), `falta ayuda Otto ${profile}`);
 
 for (const item of sceneComponentCatalog) {
-  const added = addDeviceToScene(createEmptyScene('Ayuda'), item.kind);
+  const added = addDeviceToScene(
+    createEmptyScene('Ayuda', {
+      canvas: { background: item.kind === 'trafficLight' ? 'crossroads' : 'blank' },
+    }),
+    item.kind,
+  );
   const help = componentHelp(item.kind, added.device);
   assert(help.friendlyName && help.technicalName && help.behavior && help.capiblocks && help.simulator && help.limits && help.teacher);
 }

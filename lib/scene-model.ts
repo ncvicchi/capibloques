@@ -104,10 +104,10 @@ export interface SceneTrafficSlot extends ScenePosition {
  * saved scene still has a single source of truth for editor and simulator.
  */
 export const crossroadsTrafficSlots: readonly SceneTrafficSlot[] = [
-  { id: 'north', lane: 'vertical', direction: 'southbound', x: 620, y: 135, rotation: 0 },
-  { id: 'east', lane: 'horizontal', direction: 'westbound', x: 620, y: 405, rotation: 90 },
-  { id: 'south', lane: 'vertical', direction: 'northbound', x: 340, y: 405, rotation: 180 },
-  { id: 'west', lane: 'horizontal', direction: 'eastbound', x: 340, y: 135, rotation: 270 },
+  { id: 'north', lane: 'vertical', direction: 'northbound', x: 620, y: 135, rotation: 270 },
+  { id: 'east', lane: 'horizontal', direction: 'eastbound', x: 620, y: 405, rotation: 0 },
+  { id: 'south', lane: 'vertical', direction: 'southbound', x: 340, y: 405, rotation: 90 },
+  { id: 'west', lane: 'horizontal', direction: 'westbound', x: 340, y: 135, rotation: 180 },
 ] as const;
 
 export function enabledTrafficDirections(scene: SceneDefinition) {
@@ -721,7 +721,7 @@ function visibleNameKey(name: string) {
 /**
  * Keeps an item's preferred visible name when possible and only numbers the new
  * item when it would be confused with one already in the scene. Numeric suffixes
- * continue naturally: "Semáforo principal 2" becomes "Semáforo principal 3".
+ * continue naturally: "Sensor 2" becomes "Sensor 3".
  */
 function createUniqueVisibleName(
   preferredName: string,
@@ -763,6 +763,18 @@ function createUniqueVisibleName(
   throw new Error(
     'No se pudo crear un nombre único. Cambia el nombre de algún componente.',
   );
+}
+
+function nextAvailableNumberedName(
+  label: string,
+  existingNames: Iterable<string>,
+) {
+  const used = new Set(Array.from(existingNames, visibleNameKey));
+  for (let sequence = 1; sequence <= MAX_SCENE_ITEMS + 1; sequence += 1) {
+    const candidate = `${label} ${sequence}`;
+    if (!used.has(visibleNameKey(candidate))) return candidate;
+  }
+  throw new Error(`No se pudo crear un nombre libre para ${label}.`);
 }
 
 function sceneItemNames(scene: SceneDefinition) {
@@ -812,7 +824,13 @@ function unassignedDevice<K extends SceneDeviceKind>(
         existingDevices.map((device) => device.id),
       ),
     name: createUniqueVisibleName(
-      options.name ?? `${kindLabels[kind]} ${sameKindCount + 1}`,
+      options.name ??
+        (kind === 'trafficLight'
+          ? nextAvailableNumberedName(
+              'Semáforo',
+              existingDevices.map(device => device.name),
+            )
+          : `${kindLabels[kind]} ${sameKindCount + 1}`),
       existingDevices.map((device) => device.name),
       kindLabels[kind],
     ),
@@ -1178,15 +1196,20 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
   }
   if ((kind === 'display' || kind === 'ledMatrix') && scene.devices.some(device => device.kind === 'display' || device.kind === 'ledMatrix')) throw new Error('Cada proyecto admite una sola pantalla o matriz. Configurá la existente.');
   if (kind === 'messages' && scene.devices.filter(device => device.kind === 'messages').length >= 2) throw new Error('La placa admite hasta dos componentes Mensajes.');
-  if (
-    kind === 'trafficLight' &&
-    scene.canvas.background === 'crossroads' &&
-    scene.devices.filter(device => device.kind === 'trafficLight').length >=
+  if (kind === 'trafficLight') {
+    if (scene.canvas.background !== 'crossroads') {
+      throw new Error(
+        'Los semáforos sólo se pueden agregar en la escena Cruce con tránsito.',
+      );
+    }
+    if (
+      scene.devices.filter(device => device.kind === 'trafficLight').length >=
       crossroadsTrafficSlots.length
-  ) {
-    throw new Error(
-      'El cruce tiene cuatro lugares seguros para semáforos y ya están ocupados.',
-    );
+    ) {
+      throw new Error(
+        'El cruce tiene cuatro lugares seguros para semáforos y ya están ocupados.',
+      );
+    }
   }
   const reservedIds = [
     ...scene.devices.map((item) => item.id),
@@ -1237,7 +1260,7 @@ export function duplicateSceneDevice(
     Object.keys(original.pins).map((key) => [key, null]),
   );
   return addDeviceToScene(source, original.kind, {
-    name: original.name,
+    name: original.kind === 'trafficLight' ? undefined : original.name,
     position: {
       x: clamp(original.position.x + offset.x, 0, source.canvas.width),
       y: clamp(original.position.y + offset.y, 0, source.canvas.height),
@@ -1323,14 +1346,14 @@ function templateDevice<K extends SceneDeviceKind>(
 const trafficTemplate = createEmptyScene('Semáforo de la plaza', {
   id: 'scene-traffic',
   description: 'Una calle con un semáforo programable.',
-  canvas: { background: 'park' },
+  canvas: { background: 'crossroads', trafficDirections: ['eastbound'] },
 });
 trafficTemplate.sourceTemplate = 'traffic';
 trafficTemplate.devices.push(
   templateDevice('trafficLight', trafficTemplate.devices, {
     id: 'traffic-light-1',
-    name: 'Semáforo principal',
-    position: { x: 300, y: 220 },
+    name: 'Semáforo 1',
+    position: { x: 620, y: 405 },
     pins: { red: 26, yellow: 25, green: 27 },
   }),
 );
@@ -1411,13 +1434,13 @@ intersectionTemplate.sourceTemplate = 'intersection';
 intersectionTemplate.devices.push(
   templateDevice('trafficLight', intersectionTemplate.devices, {
     id: 'traffic-light-1',
-    name: 'Semáforo horizontal',
+    name: 'Semáforo 1',
     position: { x: 340, y: 135 },
     pins: { red: 26, yellow: 25, green: 27 },
   }),
   templateDevice('trafficLight', intersectionTemplate.devices, {
     id: 'traffic-light-2',
-    name: 'Semáforo vertical',
+    name: 'Semáforo 2',
     position: { x: 620, y: 135 },
     pins: { red: 18, yellow: 19, green: 23 },
   }),
@@ -1573,6 +1596,25 @@ export function appendTemplateToScene(
   const offset = options.offset ?? { x: 40, y: 40 };
   const addedDeviceIds: string[] = [];
   const warnings: string[] = [];
+  const templateHasTrafficLights = template.devices.some(
+    device => device.kind === 'trafficLight',
+  );
+
+  if (templateHasTrafficLights && scene.canvas.background !== 'crossroads') {
+    if (scene.devices.length === 0 && scene.widgets.length === 0) {
+      scene.canvas.background = 'crossroads';
+      scene.canvas.trafficDirections =
+        template.canvas.trafficDirections ?? [...trafficDirections];
+    } else {
+      return {
+        scene,
+        warnings: [
+          'Los semáforos sólo se pueden agregar en una escena Cruce con tránsito.',
+        ],
+        addedDeviceIds,
+      };
+    }
+  }
 
   if (
     template.widgets.some((widget) => widget.kind === 'counter') &&
@@ -1596,6 +1638,14 @@ export function appendTemplateToScene(
       );
       break;
     }
+    if (
+      templateItem.kind === 'trafficLight' &&
+      scene.devices.filter(device => device.kind === 'trafficLight').length >=
+        crossroadsTrafficSlots.length
+    ) {
+      warnings.push('El cruce ya tiene sus cuatro semáforos.');
+      continue;
+    }
     const pins = Object.fromEntries(
       Object.keys(templateItem.pins).map((key) => [key, null]),
     );
@@ -1606,11 +1656,17 @@ export function appendTemplateToScene(
     ];
     const device = createSceneDevice(templateItem.kind, scene.devices, {
       id: createStableDeviceId(templateItem.kind, reservedIds),
-      name: createUniqueVisibleName(
-        templateItem.name,
-        sceneItemNames(scene),
-        kindLabels[templateItem.kind],
-      ),
+      name:
+        templateItem.kind === 'trafficLight'
+          ? nextAvailableNumberedName(
+              'Semáforo',
+              scene.devices.map(device => device.name),
+            )
+          : createUniqueVisibleName(
+              templateItem.name,
+              sceneItemNames(scene),
+              kindLabels[templateItem.kind],
+            ),
       position: {
         x: clamp(templateItem.position.x + offset.x, 0, scene.canvas.width),
         y: clamp(templateItem.position.y + offset.y, 0, scene.canvas.height),
@@ -1621,6 +1677,17 @@ export function appendTemplateToScene(
       autoAssignPins: false,
       boardProfile: options.boardProfile,
     });
+    if (device.kind === 'trafficLight') {
+      const occupied = new Set(
+        scene.devices
+          .filter(item => item.kind === 'trafficLight')
+          .map(item => closestCrossroadsTrafficSlot(item.position).id),
+      );
+      const slot =
+        crossroadsTrafficSlots.find(candidate => !occupied.has(candidate.id)) ??
+        crossroadsTrafficSlots[0];
+      device.position = { x: slot.x, y: slot.y };
+    }
     scene.devices.push(device);
     addedDeviceIds.push(device.id);
   }
@@ -1704,6 +1771,9 @@ export type SceneValidationIssueCode =
   | 'active-id-is-retired'
   | 'invalid-position'
   | 'invalid-rotation'
+  | 'traffic-light-scene'
+  | 'traffic-light-limit'
+  | 'traffic-light-slot'
   | 'missing-pin'
   | 'unsupported-pin'
   | 'pin-conflict'
@@ -1831,6 +1901,35 @@ export function validateScene(
   const displays = scene.devices.filter((device): device is DisplayDevice => device.kind === 'display');
   const visualOutputs = scene.devices.filter(device => device.kind === 'display' || device.kind === 'ledMatrix' || (device.kind === 'otto' && ['biped4-expressive', 'humanoid6-expressive'].includes(device.config.profile)));
   if (visualOutputs.length > 1) issues.push({ code: 'display-limit', severity: 'error', message: 'Cada proyecto admite una sola pantalla o matriz LED.' });
+  const trafficLights = scene.devices.filter(
+    device => device.kind === 'trafficLight',
+  );
+  if (trafficLights.length && scene.canvas.background !== 'crossroads') {
+    issues.push({
+      code: 'traffic-light-scene',
+      severity: 'error',
+      message: 'Los semáforos sólo pueden usarse en la escena Cruce con tránsito.',
+    });
+  }
+  if (trafficLights.length > crossroadsTrafficSlots.length) {
+    issues.push({
+      code: 'traffic-light-limit',
+      severity: 'error',
+      message: 'La escena admite como máximo cuatro semáforos.',
+    });
+  }
+  if (scene.canvas.background === 'crossroads') {
+    const occupiedTrafficSlots = trafficLights.map(device =>
+      closestCrossroadsTrafficSlot(device.position),
+    );
+    if (new Set(occupiedTrafficSlots.map(slot => slot.id)).size !== trafficLights.length) {
+      issues.push({
+        code: 'traffic-light-slot',
+        severity: 'error',
+        message: 'Cada semáforo debe ocupar una esquina diferente del cruce.',
+      });
+    }
+  }
   for (const device of displays) {
     if (!validDisplayConfig(device.config)) {
       issues.push({ code: 'invalid-display', severity: 'error', deviceId: device.id, message: `${device.name}: revisá el modelo, los nombres y las zonas de texto. Deben caber en pantalla, sin superponerse.` });
@@ -2472,23 +2571,50 @@ export function migrateSceneDefinition(
 ): SceneMigrationResult {
   if (isSceneDefinition(value)) {
     const scene = cloneScene(value);
+    const trafficLights = scene.devices.filter(
+      device => device.kind === 'trafficLight',
+    );
     let movedTrafficLights = false;
-    if (scene.canvas.background === 'crossroads') {
+    let changedTrafficScene = false;
+    let renamedTrafficLights = false;
+    if (trafficLights.length && scene.canvas.background !== 'crossroads') {
+      scene.canvas.background = 'crossroads';
+      scene.canvas.trafficDirections ??= [...trafficDirections];
+      changedTrafficScene = true;
+    }
+    if (trafficLights.length) {
+      const occupied = new Set<SceneTrafficSlot['id']>();
+      let trafficSequence = 0;
       scene.devices = scene.devices.map(device => {
         if (device.kind !== 'trafficLight') return device;
-        const slot = closestCrossroadsTrafficSlot(device.position);
-        if (device.position.x === slot.x && device.position.y === slot.y)
-          return device;
-        movedTrafficLights = true;
-        return { ...device, position: { x: slot.x, y: slot.y } };
+        trafficSequence += 1;
+        const preferred = closestCrossroadsTrafficSlot(device.position);
+        const slot = !occupied.has(preferred.id)
+          ? preferred
+          : crossroadsTrafficSlots.find(candidate => !occupied.has(candidate.id)) ??
+            preferred;
+        occupied.add(slot.id);
+        const name = `Semáforo ${trafficSequence}`;
+        if (device.position.x !== slot.x || device.position.y !== slot.y)
+          movedTrafficLights = true;
+        if (device.name !== name) renamedTrafficLights = true;
+        return {
+          ...device,
+          name,
+          position: { x: slot.x, y: slot.y },
+        };
       });
     }
     return {
       scene,
-      migrated: movedTrafficLights,
-      warnings: movedTrafficLights
-        ? ['Los semáforos del cruce se acomodaron sobre el jardín, junto a la calle.']
-        : [],
+      migrated:
+        movedTrafficLights || changedTrafficScene || renamedTrafficLights,
+      warnings:
+        movedTrafficLights || changedTrafficScene || renamedTrafficLights
+          ? [
+              'Los semáforos se numeraron y acomodaron en las esquinas correctas del cruce.',
+            ]
+          : [],
     };
   }
   if (value && typeof value === 'object') {

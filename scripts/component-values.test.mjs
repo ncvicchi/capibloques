@@ -4,7 +4,7 @@ import { createCapiRules } from '../lib/capi-rules.ts';
 import { componentValueCapabilities } from '../lib/component-capabilities.ts';
 import { addDeviceToScene, createEmptyScene } from '../lib/scene-model.ts';
 
-const trafficAdded = addDeviceToScene(createEmptyScene('Estados'), 'trafficLight');
+const trafficAdded = addDeviceToScene(createEmptyScene('Estados', { canvas: { background: 'crossroads' } }), 'trafficLight');
 const motorAdded = addDeviceToScene(trafficAdded.scene, 'motor');
 const traffic = trafficAdded.device;
 const motor = motorAdded.device;

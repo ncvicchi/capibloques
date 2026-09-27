@@ -848,6 +848,12 @@ function SceneBuilderSession({
                   <NativeSelectOption
                     key={background.value}
                     value={background.value}
+                    disabled={
+                      background.value !== 'crossroads' &&
+                      previewScene.devices.some(
+                        device => device.kind === 'trafficLight',
+                      )
+                    }
                   >
                     {background.icon} {background.label}
                   </NativeSelectOption>
@@ -973,8 +979,20 @@ function SceneBuilderSession({
                     <button
                       type="button"
                       key={template.id}
+                      disabled={
+                        (template.id === 'traffic' || template.id === 'intersection') &&
+                        previewScene.canvas.background !== 'crossroads' &&
+                        objectCount > 0
+                      }
                       onClick={() => addTemplate(template.id)}
                       aria-label={`Agregar aventura ${template.name}: ${template.detail}`}
+                      title={
+                        (template.id === 'traffic' || template.id === 'intersection') &&
+                        previewScene.canvas.background !== 'crossroads' &&
+                        objectCount > 0
+                          ? 'Elegí primero el fondo Cruce con tránsito.'
+                          : undefined
+                      }
                     >
                       <span aria-hidden="true">{template.icon}</span>
                       <strong>{template.name}</strong>
@@ -1002,14 +1020,25 @@ function SceneBuilderSession({
                       (component.kind === 'display' || component.kind === 'ledMatrix'),
                     );
                     const messagesBlocked = component.kind === 'messages' && previewScene.devices.filter(device => device.kind === 'messages').length >= 2;
+                    const trafficSceneBlocked =
+                      component.kind === 'trafficLight' &&
+                      previewScene.canvas.background !== 'crossroads';
+                    const trafficLimitBlocked =
+                      component.kind === 'trafficLight' &&
+                      previewScene.devices.filter(device => device.kind === 'trafficLight').length >= 4;
                     const reason = visualBlocked
                       ? `No disponible: ya usás ${visualOutput?.name}`
                       : messagesBlocked
                         ? 'No disponible: máximo dos por proyecto'
+                        : trafficSceneBlocked
+                          ? 'Disponible sólo en Cruce con tránsito'
+                          : trafficLimitBlocked
+                            ? 'No disponible: los cuatro lugares están ocupados'
                         : component.childFriendlyControl;
+                    const componentBlocked = visualBlocked || messagesBlocked || trafficSceneBlocked || trafficLimitBlocked;
                     return <div className="component-palette-card" key={component.kind}>
-                      <button type="button" className="component-add-button" disabled={visualBlocked || messagesBlocked} onClick={() => addComponent(component.kind)} title={visualBlocked ? `${reason}. Para cambiar, quitá primero la salida visual actual.` : component.description} aria-label={`Agregar ${component.name}. ${reason}`}>
-                        <span aria-hidden="true">{component.icon}</span><span><strong>{component.name}</strong><small>{reason}</small></span><b aria-hidden="true">{visualBlocked || messagesBlocked ? '🔒' : '＋'}</b>
+                      <button type="button" className="component-add-button" disabled={componentBlocked} onClick={() => addComponent(component.kind)} title={componentBlocked ? reason : component.description} aria-label={`Agregar ${component.name}. ${reason}`}>
+                        <span aria-hidden="true">{component.icon}</span><span><strong>{component.name}</strong><small>{reason}</small></span><b aria-hidden="true">{componentBlocked ? '🔒' : '＋'}</b>
                       </button>
                       <button type="button" className="component-help-button" onClick={() => setHelpTarget({ kind: component.kind })} aria-label={`Ayuda sobre ${component.name}`} title={`Qué es y cómo usar ${component.name}`}>?</button>
                     </div>;

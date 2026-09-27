@@ -11,7 +11,9 @@ import { generateEsp32CodeResult } from '../lib/capiblocks.ts';
 for (const profile of Object.keys(displayProfiles)) {
   const boardProfile = profile === 'waveshare5' ? 'waveshare-esp32-s3-touch-lcd-5-28117' : 'wemos-d1-r32';
   const { scene, device } = addDeviceToScene(
-    createEmptyScene(`Pantalla ${profile}`),
+    createEmptyScene(`Pantalla ${profile}`, {
+      canvas: { background: profile === 'waveshare5' ? 'crossroads' : 'blank' },
+    }),
     'display',
     { config: displayConfig(profile), boardProfile },
   );

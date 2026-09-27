@@ -43,7 +43,7 @@ assert.equal(addCounterValues(2_147_483_647, 1), 2_147_483_647);
 assert.equal(addCounterValues(-2_147_483_648, -1), -2_147_483_648);
 assert.deepEqual(
   trafficLights.map((device) => device.name),
-  ['Semáforo principal', 'Semáforo principal 2'],
+  ['Semáforo 1', 'Semáforo 2'],
 );
 
 const repeatedComposition = composeSceneTemplates(
@@ -54,7 +54,7 @@ assert.deepEqual(
   repeatedComposition.devices
     .filter((device) => device.kind === 'trafficLight')
     .map((device) => device.name),
-  ['Semáforo principal', 'Semáforo principal 2'],
+  ['Semáforo 1', 'Semáforo 2'],
 );
 assert.deepEqual(
   repeatedComposition.devices
@@ -79,7 +79,7 @@ const duplicatedTraffic = duplicateSceneDevice(
   repeatedComposition.devices.find((device) => device.kind === 'trafficLight')
     .id,
 );
-assert.equal(duplicatedTraffic?.device.name, 'Semáforo principal 3');
+assert.equal(duplicatedTraffic?.device.name, 'Semáforo 3');
 const duplicatedCounter = duplicateSceneWidget(
   duplicatedTraffic.scene,
   duplicatedTraffic.scene.widgets[0].id,

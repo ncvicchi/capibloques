@@ -273,6 +273,7 @@ function SceneBackdrop({
           <rect width="960" height="540" fill="#86c978"/><rect x="0" y="180" width="960" height="180" fill="#505663"/><rect x="390" y="0" width="180" height="540" fill="#505663"/>
           <g fill="#f8dc6a"><rect x="0" y="266" width="115" height="8"/><rect x="155" y="266" width="115" height="8"/><rect x="690" y="266" width="115" height="8"/><rect x="845" y="266" width="115" height="8"/><rect x="476" y="0" width="8" height="80"/><rect x="476" y="120" width="8" height="60"/><rect x="476" y="360" width="8" height="65"/><rect x="476" y="465" width="8" height="75"/></g>
           <g fill="#fff"><path d="M365 190h12v55h-12zm-24 0h12v55h-12zm-24 0h12v55h-12zm266 105h55v12h-55zm0 24h55v12h-55zm0 24h55v12h-55z"/></g>
+          <g fill="#fff" fontSize="38" fontWeight="900" opacity=".86"><text x="185" y="338">→</text><text x="745" y="228">←</text><text x="405" y="105">↓</text><text x="525" y="470">↑</text></g>
           <path d="M35 35h220v105H35z" fill="#f6efd0"/><path d="m25 45 120-35 120 35-14 28H39z" fill="#e76962"/><text x="83" y="105" fontSize="30" fontWeight="800" fill="#34445b">ESCUELA</text>
           <g fill="#397d46"><circle cx="805" cy="75" r="42"/><circle cx="885" cy="115" r="35"/></g>
         </>}
@@ -341,11 +342,32 @@ function DeviceVisual({
   if (device.kind === 'messages') return <span className="stage-messages" aria-hidden="true">↔️<small>{device.config.mode === 'send' ? 'enviar' : device.config.mode === 'receive' ? 'recibir' : 'ambos'}</small></span>;
   if (device.kind === 'trafficLight') {
     const color = runtime?.color ?? 'OFF';
+    const direction = closestCrossroadsTrafficSlot(device.position).direction;
+    const directionDetails = {
+      eastbound: { arrow: '→', angle: 0 },
+      westbound: { arrow: '←', angle: 180 },
+      southbound: { arrow: '↓', angle: 90 },
+      northbound: { arrow: '↑', angle: -90 },
+    }[direction];
     return (
-      <span className="stage-traffic" aria-hidden="true">
-        <i className={color === 'RED' ? 'red on' : 'red'} />
-        <i className={color === 'YELLOW' ? 'yellow on' : 'yellow'} />
-        <i className={color === 'GREEN' ? 'green on' : 'green'} />
+      <span className="stage-traffic-composite" aria-hidden="true">
+        <span className="stage-traffic">
+          <i className={color === 'RED' ? 'red on' : 'red'} />
+          <i className={color === 'YELLOW' ? 'yellow on' : 'yellow'} />
+          <i className={color === 'GREEN' ? 'green on' : 'green'} />
+        </span>
+        <span
+          className="stage-traffic-overhead"
+          style={{ '--traffic-angle': `${directionDetails.angle}deg` } as CSSProperties}
+          title={`Controla autos ${directionDetails.arrow}`}
+        >
+          <i className="traffic-overhead-face">
+            <b className={color === 'RED' ? 'red on' : 'red'} />
+            <b className={color === 'YELLOW' ? 'yellow on' : 'yellow'} />
+            <b className={color === 'GREEN' ? 'green on' : 'green'} />
+          </i>
+          <strong>{directionDetails.arrow}</strong>
+        </span>
       </span>
     );
   }

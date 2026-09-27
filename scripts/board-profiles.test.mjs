@@ -11,7 +11,7 @@ assert.equal(s3.flashBytes, 16 * 1024 * 1024);
 assert.equal(s3.psramBytes, 8 * 1024 * 1024);
 assert.equal(s3.pins.some(pin => [35, 36, 37].includes(pin.gpio)), false);
 
-let scene = createEmptyScene('Perfil S3');
+let scene = createEmptyScene('Perfil S3', { canvas: { background: 'crossroads' } });
 for (const kind of ['trafficLight', 'servo', 'passiveBuzzer', 'button', 'lightSensor', 'messages']) {
   scene = addDeviceToScene(scene, kind, { boardProfile: s3Id }).scene;
 }
@@ -57,7 +57,7 @@ assert.equal(validateScene(integrated.scene, waveshareId).hardwareReady, true);
 assert.ok(validateScene(integrated.scene, s3Id).issues.some(issue => issue.code === 'display-board-mismatch'));
 const waveshareProject = makeProject('Waveshare guardada', integrated.scene, {}, 1, projectTargetForBoard(waveshareId));
 assert.deepEqual(decodeProject(waveshareProject).project?.target, projectTargetForBoard(waveshareId));
-const virtualTraffic = addDeviceToScene(createEmptyScene('Simulación Waveshare'), 'trafficLight', { boardProfile: waveshareId });
+const virtualTraffic = addDeviceToScene(createEmptyScene('Simulación Waveshare', { canvas: { background: 'crossroads' } }), 'trafficLight', { boardProfile: waveshareId });
 const virtualValidation = validateScene(virtualTraffic.scene, waveshareId);
 assert.equal(virtualValidation.hardwareReady, true);
 assert.equal(virtualValidation.issues.some(issue => ['missing-pin', 'unsupported-pin', 'pin-conflict', 'led-resistor-required'].includes(issue.code)), false);
