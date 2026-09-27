@@ -17,6 +17,7 @@ import {
   MAX_WORKSPACE_TABS,
   cleanWorkspaceTabName,
   isRoutineDefinitionType,
+  moveWorkspaceRootToTab,
   nextWorkspaceTabId,
   nextWorkspaceTabName,
   normalizeWorkspaceTabs,
@@ -255,6 +256,8 @@ function createBlockDraggingConfigurator(
   Blockly: BlocklyApi,
   workspace: BlocklyWorkspaceSvg,
   onHelpDevice: (deviceId: string) => void,
+  getTabs: () => WorkspaceTabsState,
+  moveRootToTab: (rootBlockId: string, tabId: string) => void,
 ) {
   class CapiBlockDragStrategy extends Blockly.dragging.BlockDragStrategy {
     protected override shouldHealStack(event: PointerEvent | undefined) {
@@ -267,9 +270,9 @@ function createBlockDraggingConfigurator(
       const renderedBlock = block as BlocklyBlockSvg;
       if (configured.has(renderedBlock)) continue;
       renderedBlock.setDragStrategy(new CapiBlockDragStrategy(renderedBlock));
-      const deviceId = String(block.getFieldValue(DEVICE_FIELD) ?? '');
-      if (deviceId)
-        block.customContextMenu = (options) =>
+      block.customContextMenu = (options) => {
+        const deviceId = String(block.getFieldValue(DEVICE_FIELD) ?? '');
+        if (deviceId)
           options.push({
             text: '❓ Ayuda de este componente',
             enabled: true,
@@ -278,6 +281,23 @@ function createBlockDraggingConfigurator(
               if (current) onHelpDevice(current);
             },
           });
+        const root = block.getRootBlock();
+        const state = getTabs();
+        const owner = tabForRoot(state, root.id);
+        const destinations = state.tabs.filter((tab) => tab.id !== owner);
+        if (!destinations.length) return;
+        options.push({
+          text: 'Enviar a…',
+          enabled: false,
+          callback: () => {},
+        });
+        for (const tab of destinations)
+          options.push({
+            text: `↗ Enviar a «${tab.name}»`,
+            enabled: true,
+            callback: () => moveRootToTab(root.id, tab.id),
+          });
+      };
       configured.add(renderedBlock);
     }
   };
@@ -672,6 +692,15 @@ const BlocklyWorkspace = forwardRef<
           Blockly,
           workspace,
           (deviceId) => onHelpDeviceRef.current?.(deviceId),
+          () => tabsRef.current,
+          (rootBlockId, tabId) => {
+            applyTabsRef.current(
+              moveWorkspaceRootToTab(tabsRef.current, rootBlockId, tabId),
+              true,
+              false,
+            );
+            showTabRef.current(tabId, true);
+          },
         );
         const configureBlockDraggingWhenIdle = () => {
           dragConfigurationFrame = undefined;
@@ -1226,7 +1255,7 @@ const BlocklyWorkspace = forwardRef<
           routineIds.has(String(block.getFieldValue('ROUTINE') ?? '')),
       ).length;
     const detail = tab.rootBlockIds.length
-      ? ` También se borrarán ${tab.rootBlockIds.length} definición${tab.rootBlockIds.length === 1 ? '' : 'es'}${used ? `, usadas en ${used} llamada${used === 1 ? '' : 's'}` : ''}.`
+      ? ` También se borrarán ${tab.rootBlockIds.length} grupo${tab.rootBlockIds.length === 1 ? '' : 's'} de bloques${used ? `, con ${used} llamada${used === 1 ? '' : 's'} a sus procedimientos` : ''}.`
       : '';
     if (!window.confirm(`¿Borrar la pestaña «${tab.name}»?${detail}`)) return;
     const next = {

@@ -5,6 +5,7 @@ import {
   nextWorkspaceTabId,
   nextWorkspaceTabName,
   normalizeWorkspaceTabs,
+  moveWorkspaceRootToTab,
   reconcileWorkspaceTabs,
   saveWorkspaceTabs,
   tabForRoot,
@@ -65,11 +66,25 @@ const reconciled = reconcileWorkspaceTabs(
   ],
   'tab-mover',
 );
-assert.deepEqual(reconciled.tabs[0].rootBlockIds, ['start-1', 'loose-action']);
+assert.deepEqual(reconciled.tabs[0].rootBlockIds, ['start-1']);
 assert.deepEqual(reconciled.tabs[1].rootBlockIds, [
   'definition-1',
   'definition-3',
+  'loose-action',
 ]);
-console.log(
-  'Pestañas del programa: migración, nombres y asignación de definiciones OK',
+const moved = moveWorkspaceRootToTab(reconciled, 'start-1', 'tab-mover');
+assert.deepEqual(moved.tabs[0].rootBlockIds, []);
+assert.deepEqual(moved.tabs[1].rootBlockIds, [
+  'definition-1',
+  'definition-3',
+  'loose-action',
+  'start-1',
+]);
+assert.equal(
+  tabForRoot(
+    normalizeWorkspaceTabs(saveWorkspaceTabs(legacy, moved)),
+    'start-1',
+  ),
+  'tab-mover',
 );
+console.log('Pestañas del programa: migración, nombres y envío de grupos OK');
