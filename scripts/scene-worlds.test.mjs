@@ -79,12 +79,43 @@ const horizontalQueue = redTraffic.cars
   .map(car => car.progress)
   .sort((left, right) => right - left);
 assert.deepEqual(horizontalQueue.map(value => Number(value.toFixed(3))), [0.37, 0.315, 0.26]);
+assert.ok(
+  redTraffic.cars
+    .filter(car => car.lane === 'horizontal')
+    .every(car => car.waitingForGreen),
+  'cars stopped by red remember that they are waiting for green',
+);
+const yellowAfterRed = advanceTrafficWorld(
+  redTraffic,
+  { horizontal: 'YELLOW', vertical: 'RED' },
+  100,
+);
+assert.deepEqual(
+  yellowAfterRed.cars
+    .filter(car => car.lane === 'horizontal')
+    .map(car => car.progress),
+  redTraffic.cars
+    .filter(car => car.lane === 'horizontal')
+    .map(car => car.progress),
+  'a queue stopped by red must not start on yellow',
+);
+const greenAfterRed = advanceTrafficWorld(
+  yellowAfterRed,
+  { horizontal: 'GREEN', vertical: 'RED' },
+  100,
+);
+assert.ok(
+  greenAfterRed.cars
+    .filter(car => car.lane === 'horizontal')
+    .every((car, index) => car.progress > yellowAfterRed.cars.filter(candidate => candidate.lane === 'horizontal')[index].progress),
+  'the stopped queue starts on green',
+);
 
 const collision = advanceTrafficWorld(
   {
     cars: [
-      { id: 'h', lane: 'horizontal', progress: 0.5, crashed: false },
-      { id: 'v', lane: 'vertical', progress: 0.5, crashed: false },
+      { id: 'h', lane: 'horizontal', progress: 0.5, crashed: false, waitingForGreen: false },
+      { id: 'v', lane: 'vertical', progress: 0.5, crashed: false, waitingForGreen: false },
     ],
     collision: null,
   },

@@ -6,6 +6,7 @@ export interface TrafficCarState {
   lane: TrafficLane;
   progress: number;
   crashed: boolean;
+  waitingForGreen: boolean;
 }
 
 export interface TrafficWorldState {
@@ -34,12 +35,12 @@ const QUEUE_GAP: Record<TrafficLane, number> = {
 export function createTrafficWorldState(): TrafficWorldState {
   return {
     cars: [
-      { id: 'car-h-1', lane: 'horizontal', progress: 0.05, crashed: false },
-      { id: 'car-h-2', lane: 'horizontal', progress: 0.23, crashed: false },
-      { id: 'car-h-3', lane: 'horizontal', progress: 0.72, crashed: false },
-      { id: 'car-v-1', lane: 'vertical', progress: 0.03, crashed: false },
-      { id: 'car-v-2', lane: 'vertical', progress: 0.48, crashed: false },
-      { id: 'car-v-3', lane: 'vertical', progress: 0.78, crashed: false },
+      { id: 'car-h-1', lane: 'horizontal', progress: 0.05, crashed: false, waitingForGreen: false },
+      { id: 'car-h-2', lane: 'horizontal', progress: 0.23, crashed: false, waitingForGreen: false },
+      { id: 'car-h-3', lane: 'horizontal', progress: 0.72, crashed: false, waitingForGreen: false },
+      { id: 'car-v-1', lane: 'vertical', progress: 0.03, crashed: false, waitingForGreen: false },
+      { id: 'car-v-2', lane: 'vertical', progress: 0.48, crashed: false, waitingForGreen: false },
+      { id: 'car-v-3', lane: 'vertical', progress: 0.78, crashed: false, waitingForGreen: false },
     ],
     collision: null,
   };
@@ -51,17 +52,12 @@ export function trafficCarPosition(car: TrafficCarState) {
     : { x: 505, y: -40 + car.progress * 620 };
 }
 
-function laneCanAdvance(color: TrafficSignalColor) {
-  return color === 'GREEN' || color === 'YELLOW';
-}
-
 function advanceLane(
   cars: readonly TrafficCarState[],
   lane: TrafficLane,
   color: TrafficSignalColor,
   elapsedMs: number,
 ) {
-  const canAdvance = laneCanAdvance(color);
   const stop = STOP_PROGRESS[lane];
   const approaching = cars
     .filter(car => car.lane === lane && !car.crashed && car.progress <= stop)
@@ -73,14 +69,29 @@ function advanceLane(
   return cars.map(car => {
     if (car.lane !== lane || car.crashed) return car;
     const distance = SPEED_PER_MS[lane] * Math.min(100, Math.max(0, elapsedMs));
-    if (!canAdvance && car.progress <= stop) {
-      const target = queueTargets.get(car.id) ?? stop;
+    if (color === 'GREEN') {
+      const progress = car.progress + distance;
       return {
         ...car,
-        progress:
-          car.progress >= target
-            ? car.progress
-            : Math.min(target, car.progress + distance),
+        waitingForGreen: false,
+        progress: progress >= 1 ? progress - 1 : progress,
+      };
+    }
+    if (color === 'YELLOW') {
+      if (car.waitingForGreen) return car;
+      const progress = car.progress + distance;
+      return { ...car, progress: progress >= 1 ? progress - 1 : progress };
+    }
+    if (car.progress <= stop) {
+      const target = queueTargets.get(car.id) ?? stop;
+      const progress =
+        car.progress >= target
+          ? car.progress
+          : Math.min(target, car.progress + distance);
+      return {
+        ...car,
+        progress,
+        waitingForGreen: color === 'RED' && progress >= target,
       };
     }
     const progress = car.progress + distance;
