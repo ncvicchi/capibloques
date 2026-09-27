@@ -391,6 +391,8 @@ Pedido del 23 de septiembre de 2026: permitir agrupar bloques reutilizables como
 
 La interfaz distinguirá **hacer una tarea** —procedimiento que ejecuta acciones— de **calcular un valor** —función que devuelve número, texto o sí/no—. Ambos podrán recibir parámetros tipados con nombres comprensibles. La primera entrega debe priorizar llamadas visibles, validación antes de ejecutar y límites aptos para chicos y ESP32: sin recursión, sin creación dinámica de funciones y sin llamadas ocultas que vuelvan incomprensible el recorrido visual.
 
+Entregado el 27 de septiembre: Principal más pestañas creadas con `+`, nombre editable, orden/baja y Deshacer/Rehacer; las pestañas secundarias alojan definiciones, variables/temporizadores siguen globales y doble clic sobre una llamada navega a su definición. Ver [FASE_31_PROCEDIMIENTOS_FUNCIONES.md](FASE_31_PROCEDIMIENTOS_FUNCIONES.md).
+
 Definiciones, parámetros, llamadas y valores devueltos formarán parte de JSON, historial, copiar/pegar, deshacer/rehacer, simulación y generadores Arduino/ESP-IDF. Se deben detectar nombres repetidos, ciclos de llamadas, parámetros faltantes y tipos incompatibles con mensajes accionables.
 
 Estado: **implementada en software en fase 31 el 24 de septiembre de 2026; despliegue DEV y aceptación de uso pendientes**. Se entregaron tareas, funciones número/texto/sí-no, hasta tres parámetros locales tipados, expansión acotada sin recursión, validación y los cuatro destinos de ejecución. Ver [FASE_31_PROCEDIMIENTOS_FUNCIONES.md](FASE_31_PROCEDIMIENTOS_FUNCIONES.md).

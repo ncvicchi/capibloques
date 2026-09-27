@@ -47,8 +47,9 @@ duplicada allí.
   devuelve todos los componentes a su estado inicial. Detener o apagar un
   semáforo no dispara ese borrado.
 - Cada semáforo admite dos carteles opcionales de un único módulo MAX7219 8×8.
-  El vehicular muestra 0–9, mano de alto, flecha de avance o apagado; el peatonal
-  muestra caminar, no caminar o apagado. Al usar ambos se encadenan y comparten
+  El vehicular es un segundero y muestra únicamente 0–9 o apagado. El peatonal
+  muestra una persona caminando, una persona quieta o apagado. Al usar ambos se
+  encadenan y comparten
   DIN, CLK y CS. Hay bloques, simulación, Arduino, ESP-IDF y CapiRules/intérprete
   1.5.7 para ambos estados.
 - La pista dibuja salida, ruta y meta sin convertir la línea en órdenes ocultas:

@@ -5,7 +5,13 @@ import { displayArtworks, displayProfiles, displayTargets } from './display-mode
 import { BUILTIN_DISPLAY_ARTWORKS } from './display-graphics.ts';
 // @ts-expect-error Node strip-types runner.
 import { MAX_MATRIX_TEXT } from './led-matrix.ts';
-import type { CompiledProgram, Condition, ProgramNode, ValueExpression, VariableType } from './capiblocks.ts';
+import type {
+  CompiledProgram,
+  Condition,
+  ProgramNode,
+  ValueExpression,
+  VariableType,
+} from './capiblocks.ts';
 import type { SceneDevice, SceneDeviceKind } from './scene-model.ts';
 // @ts-expect-error Node strip-types runner.
 import { boardProfile, type BoardProfileId } from './board-profiles.ts';
@@ -13,6 +19,8 @@ import { boardProfile, type BoardProfileId } from './board-profiles.ts';
 import { componentValueCapabilities, type ComponentValueSource } from './component-capabilities.ts';
 // @ts-expect-error Node strip-types runner.
 import { educationalModuleSpecs } from './educational-modules.ts';
+// @ts-expect-error Node strip-types runner.
+import { pedestrianDisplayValues, vehicleDisplayValues } from './traffic-displays.ts';
 type BlocklyApi = typeof import('blockly');
 type BlocklyWorkspaceSvg = import('blockly').WorkspaceSvg;
 type BlocklyBlock = import('blockly').Block;
@@ -28,7 +36,10 @@ const DISPLAY_ARTWORK_FIELD = 'ARTWORK_ID';
 const COMPONENT_PROPERTY_FIELD = 'PROPERTY';
 const WIFI_MESSAGE_FIELD = 'WIFI_MESSAGE';
 const WIFI_PEER_FIELD = 'WIFI_PEER';
-const serializedAreaIds = new WeakMap<BlocklyWorkspaceSvg, Map<string, string>>();
+const serializedAreaIds = new WeakMap<
+  BlocklyWorkspaceSvg,
+  Map<string, string>
+>();
 const EMPTY_FAVORITES: readonly string[] = [];
 const DEVICE_EXTENSION = 'capi_device_target_v2';
 const ANIMATION_REPEAT_EXTENSION = 'capi_animation_repeat_v1';
@@ -42,7 +53,10 @@ const workspaceDevices = new WeakMap<
   BlocklyWorkspaceSvg,
   readonly SceneDevice[]
 >();
-const workspaceBoardProfiles = new WeakMap<BlocklyWorkspaceSvg, BoardProfileId>();
+const workspaceBoardProfiles = new WeakMap<
+  BlocklyWorkspaceSvg,
+  BoardProfileId
+>();
 const serializedDeviceIds = new WeakMap<
   BlocklyWorkspaceSvg,
   Map<string, string>
@@ -67,7 +81,12 @@ const deviceLabels: Record<SceneDeviceKind, string> = {
   display: 'una pantalla',
   ledMatrix: 'una matriz LED',
   messages: 'un componente Mensajes',
-  ...Object.fromEntries(Object.entries(educationalModuleSpecs).map(([kind, spec]) => [kind, spec.name.toLocaleLowerCase('es')])),
+  ...Object.fromEntries(
+    Object.entries(educationalModuleSpecs).map(([kind, spec]) => [
+      kind,
+      spec.name.toLocaleLowerCase('es'),
+    ]),
+  ),
 } as Record<SceneDeviceKind, string>;
 
 function targetWorkspaceForBlock(block: BlocklyBlock) {
@@ -80,15 +99,19 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
     case 'capi_display_write':
     case 'capi_display_clear':
     case 'capi_display_animate_text':
-    case 'capi_display_artwork': return ['display'];
-    case 'capi_visual_wait': return ['display', 'ledMatrix', 'smartLights'];
+    case 'capi_display_artwork':
+      return ['display'];
+    case 'capi_visual_wait':
+      return ['display', 'ledMatrix', 'smartLights'];
     case 'capi_matrix_clear':
     case 'capi_matrix_pixel':
     case 'capi_matrix_pattern':
-    case 'capi_matrix_scroll': return ['ledMatrix'];
+    case 'capi_matrix_scroll':
+      return ['ledMatrix'];
     case 'capi_message_send':
     case 'capi_message_receive':
-    case 'capi_message_value': return ['messages'];
+    case 'capi_message_value':
+      return ['messages'];
     case 'capi_traffic':
     case 'capi_traffic_vehicle_display':
     case 'capi_traffic_pedestrian_display':
@@ -97,7 +120,8 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
       return ['led'];
     case 'capi_power_switch':
       return ['powerSwitch'];
-    case 'capi_stepper': return ['stepper'];
+    case 'capi_stepper':
+      return ['stepper'];
     case 'capi_rgb_fill':
     case 'capi_rgb_pixel':
     case 'capi_rgb_segment':
@@ -167,17 +191,31 @@ function devicesForBlock(block: BlocklyBlock) {
   return (workspaceDevices.get(workspace) ?? []).filter((device) => {
     if (!kinds.includes(device.kind)) return false;
     if (block.type === 'capi_display_button_pressed')
-      return device.kind === 'display' && device.config.profile === 'lcd1602keypad';
+      return (
+        device.kind === 'display' && device.config.profile === 'lcd1602keypad'
+      );
     if (device.kind === 'otto') {
-      if (block.type === 'capi_otto_sound') return device.config.profile !== 'biped4';
-      if (block.type === 'capi_otto_expression') return ['biped4-expressive', 'humanoid6-expressive'].includes(device.config.profile);
-      if (block.type === 'capi_otto_arms') return device.config.profile === 'humanoid6-expressive';
-      if (block.type === 'capi_otto_distance') return ['biped4-explorer', 'biped4-expressive', 'humanoid6-expressive'].includes(device.config.profile);
+      if (block.type === 'capi_otto_sound')
+        return device.config.profile !== 'biped4';
+      if (block.type === 'capi_otto_expression')
+        return ['biped4-expressive', 'humanoid6-expressive'].includes(
+          device.config.profile,
+        );
+      if (block.type === 'capi_otto_arms')
+        return device.config.profile === 'humanoid6-expressive';
+      if (block.type === 'capi_otto_distance')
+        return [
+          'biped4-explorer',
+          'biped4-expressive',
+          'humanoid6-expressive',
+        ].includes(device.config.profile);
       return true;
     }
     if (device.kind !== 'messages') return true;
-    if (block.type === 'capi_message_send') return device.config.mode !== 'receive';
-    if (block.type === 'capi_message_receive') return device.config.mode !== 'send';
+    if (block.type === 'capi_message_send')
+      return device.config.mode !== 'receive';
+    if (block.type === 'capi_message_receive')
+      return device.config.mode !== 'send';
     return true;
   });
 }
@@ -240,17 +278,29 @@ function updateDeviceWarning(block: BlocklyBlock) {
     DEVICE_WARNING,
   );
   if (block.getField(AREA_FIELD)) {
-    const device = devicesForBlock(block).find(device => device.id === value);
+    const device = devicesForBlock(block).find((device) => device.id === value);
     const areaId = block.getFieldValue(AREA_FIELD);
-    block.setWarningText(device?.kind === 'display' && displayTargets(device.config).some(area => area.id === areaId) ? null : 'Elegí una zona de texto existente en esta pantalla.', 'display-area');
+    block.setWarningText(
+      device?.kind === 'display' &&
+        displayTargets(device.config).some((area) => area.id === areaId)
+        ? null
+        : 'Elegí una zona de texto existente en esta pantalla.',
+      'display-area',
+    );
   }
   if (block.getField(PATTERN_FIELD)) {
-    const device = devicesForBlock(block).find(device => device.id === value);
+    const device = devicesForBlock(block).find((device) => device.id === value);
     const patternId = block.getFieldValue(PATTERN_FIELD);
-    block.setWarningText(device?.kind === 'ledMatrix' && device.config.patterns.some(pattern => pattern.id === patternId) ? null : 'Elegí un dibujo guardado en esta matriz.', 'matrix-pattern');
+    block.setWarningText(
+      device?.kind === 'ledMatrix' &&
+        device.config.patterns.some((pattern) => pattern.id === patternId)
+        ? null
+        : 'Elegí un dibujo guardado en esta matriz.',
+      'matrix-pattern',
+    );
   }
   if (block.getField(DISPLAY_ARTWORK_FIELD)) {
-    const device = devicesForBlock(block).find(device => device.id === value);
+    const device = devicesForBlock(block).find((device) => device.id === value);
     const artworkId = block.getFieldValue(DISPLAY_ARTWORK_FIELD);
     const available =
       device?.kind === 'display' &&
@@ -259,9 +309,7 @@ function updateDeviceWarning(block: BlocklyBlock) {
         (item) => item.id === artworkId,
       );
     block.setWarningText(
-      available
-        ? null
-        : 'Elegí un dibujo disponible en una pantalla gráfica.',
+      available ? null : 'Elegí un dibujo disponible en una pantalla gráfica.',
       'display-artwork',
     );
   }
@@ -271,53 +319,110 @@ function areaMenuGenerator(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
   const block = this.getSourceBlock();
   if (!block) return [['Elegí una pantalla', '__missing_area__']];
   const workspace = targetWorkspaceForBlock(block);
-  const deviceId = serializedDeviceIds.get(workspace)?.get(block.id) ?? block.getFieldValue(DEVICE_FIELD);
-  const device = devicesForBlock(block).find(device => device.id === deviceId);
-  const options: BlocklyMenuOption[] = device?.kind === 'display' ? displayTargets(device.config).map(area => [area.name, area.id]) : [];
-  const current = serializedAreaIds.get(workspace)?.get(block.id) ?? this.getValue();
-  if (current && current !== '__missing_area__' && !options.some(option => option[1] === current)) options.push([`⚠️ Zona retirada (${current})`, current]);
-  return options.length ? options : [['Agregá una zona de texto', '__missing_area__']];
+  const deviceId =
+    serializedDeviceIds.get(workspace)?.get(block.id) ??
+    block.getFieldValue(DEVICE_FIELD);
+  const device = devicesForBlock(block).find(
+    (device) => device.id === deviceId,
+  );
+  const options: BlocklyMenuOption[] =
+    device?.kind === 'display'
+      ? displayTargets(device.config).map((area) => [area.name, area.id])
+      : [];
+  const current =
+    serializedAreaIds.get(workspace)?.get(block.id) ?? this.getValue();
+  if (
+    current &&
+    current !== '__missing_area__' &&
+    !options.some((option) => option[1] === current)
+  )
+    options.push([`⚠️ Zona retirada (${current})`, current]);
+  return options.length
+    ? options
+    : [['Agregá una zona de texto', '__missing_area__']];
 }
 
 function messageMenuGenerator(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
   const block = this.getSourceBlock();
   if (!block) return [['Configurá un mensaje', '__missing_message__']];
   const deviceId = block.getFieldValue(DEVICE_FIELD);
-  const device = devicesForBlock(block).find(item => item.id === deviceId);
-  const options: BlocklyMenuOption[] = device?.kind === 'messages'
-    ? device.config.messages.map(message => [message, message])
-    : [];
+  const device = devicesForBlock(block).find((item) => item.id === deviceId);
+  const options: BlocklyMenuOption[] =
+    device?.kind === 'messages'
+      ? device.config.messages.map((message) => [message, message])
+      : [];
   const current = this.getValue();
-  if (current && current !== '__missing_message__' && !options.some(option => option[1] === current))
+  if (
+    current &&
+    current !== '__missing_message__' &&
+    !options.some((option) => option[1] === current)
+  )
     options.push([`⚠️ ${current}`, current]);
-  return options.length ? options : [['Configurá un mensaje', '__missing_message__']];
+  return options.length
+    ? options
+    : [['Configurá un mensaje', '__missing_message__']];
 }
 
-function wifiMessageMenuGenerator(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
+function wifiMessageMenuGenerator(
+  this: BlocklyFieldDropdown,
+): BlocklyMenuOption[] {
   const block = this.getSourceBlock();
   if (!block) return [['Configurá un mensaje', '__missing_wifi_message__']];
-  const device = devicesForBlock(block).find(item => item.id === block.getFieldValue(DEVICE_FIELD));
-  const options: BlocklyMenuOption[] = device?.kind === 'wifiNode' ? device.config.messages.map(message => [message, message]) : [];
+  const device = devicesForBlock(block).find(
+    (item) => item.id === block.getFieldValue(DEVICE_FIELD),
+  );
+  const options: BlocklyMenuOption[] =
+    device?.kind === 'wifiNode'
+      ? device.config.messages.map((message) => [message, message])
+      : [];
   const current = this.getValue();
-  if (current && current !== '__missing_wifi_message__' && !options.some(option => option[1] === current)) options.push([`⚠️ ${current}`, current]);
-  return options.length ? options : [['Configurá un mensaje', '__missing_wifi_message__']];
+  if (
+    current &&
+    current !== '__missing_wifi_message__' &&
+    !options.some((option) => option[1] === current)
+  )
+    options.push([`⚠️ ${current}`, current]);
+  return options.length
+    ? options
+    : [['Configurá un mensaje', '__missing_wifi_message__']];
 }
 
-function wifiPeerMenuGenerator(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
+function wifiPeerMenuGenerator(
+  this: BlocklyFieldDropdown,
+): BlocklyMenuOption[] {
   const block = this.getSourceBlock();
   if (!block) return [['Todas / cualquiera', '*']];
-  const device = devicesForBlock(block).find(item => item.id === block.getFieldValue(DEVICE_FIELD));
-  return [['Todas / cualquiera', '*'], ...(device?.kind === 'wifiNode' ? device.config.peers.map(peer => [peer, peer] as BlocklyMenuOption) : [])];
+  const device = devicesForBlock(block).find(
+    (item) => item.id === block.getFieldValue(DEVICE_FIELD),
+  );
+  return [
+    ['Todas / cualquiera', '*'],
+    ...(device?.kind === 'wifiNode'
+      ? device.config.peers.map((peer) => [peer, peer] as BlocklyMenuOption)
+      : []),
+  ];
 }
 
 function patternMenuGenerator(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
   const block = this.getSourceBlock();
   if (!block) return [['Configurá un dibujo', '__missing_pattern__']];
-  const device = devicesForBlock(block).find(item => item.id === block.getFieldValue(DEVICE_FIELD));
-  const options: BlocklyMenuOption[] = device?.kind === 'ledMatrix' ? device.config.patterns.map(pattern => [pattern.name, pattern.id]) : [];
+  const device = devicesForBlock(block).find(
+    (item) => item.id === block.getFieldValue(DEVICE_FIELD),
+  );
+  const options: BlocklyMenuOption[] =
+    device?.kind === 'ledMatrix'
+      ? device.config.patterns.map((pattern) => [pattern.name, pattern.id])
+      : [];
   const current = this.getValue();
-  if (current && current !== '__missing_pattern__' && !options.some(option => option[1] === current)) options.push([`⚠️ Dibujo retirado (${current})`, current]);
-  return options.length ? options : [['Configurá un dibujo', '__missing_pattern__']];
+  if (
+    current &&
+    current !== '__missing_pattern__' &&
+    !options.some((option) => option[1] === current)
+  )
+    options.push([`⚠️ Dibujo retirado (${current})`, current]);
+  return options.length
+    ? options
+    : [['Configurá un dibujo', '__missing_pattern__']];
 }
 
 function displayArtworkMenuGenerator(
@@ -346,25 +451,51 @@ function displayArtworkMenuGenerator(
     : [['Usá OLED o TFT para dibujos', '__missing_artwork__']];
 }
 
-function componentPropertyMenuGenerator(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
+function componentPropertyMenuGenerator(
+  this: BlocklyFieldDropdown,
+): BlocklyMenuOption[] {
   const block = this.getSourceBlock();
   if (!block) return [['Elegí un componente', '__missing_property__']];
   const workspace = targetWorkspaceForBlock(block);
-  const device = (workspaceDevices.get(workspace) ?? []).find(item => item.id === block.getFieldValue(DEVICE_FIELD));
-  const type: VariableType = block.type.endsWith('_text') ? 'text' : block.type.endsWith('_boolean') ? 'boolean' : 'number';
-  const options: BlocklyMenuOption[] = device ? componentValueCapabilities(device).filter(item => item.type === type).map(item => [`${item.label} · ${item.source === 'measured' ? 'medido' : item.source === 'ordered' ? 'ordenado' : 'servicio'}`, item.key]) : [];
+  const device = (workspaceDevices.get(workspace) ?? []).find(
+    (item) => item.id === block.getFieldValue(DEVICE_FIELD),
+  );
+  const type: VariableType = block.type.endsWith('_text')
+    ? 'text'
+    : block.type.endsWith('_boolean')
+      ? 'boolean'
+      : 'number';
+  const options: BlocklyMenuOption[] = device
+    ? componentValueCapabilities(device)
+        .filter((item) => item.type === type)
+        .map((item) => [
+          `${item.label} · ${item.source === 'measured' ? 'medido' : item.source === 'ordered' ? 'ordenado' : 'servicio'}`,
+          item.key,
+        ])
+    : [];
   const current = this.getValue();
-  if (current && current !== '__missing_property__' && !options.some(option => option[1] === current)) options.push([`⚠️ Dato retirado (${current})`, current]);
-  return options.length ? options : [['Elegí un dato disponible', '__missing_property__']];
+  if (
+    current &&
+    current !== '__missing_property__' &&
+    !options.some((option) => option[1] === current)
+  )
+    options.push([`⚠️ Dato retirado (${current})`, current]);
+  return options.length
+    ? options
+    : [['Elegí un dato disponible', '__missing_property__']];
 }
 
 function refreshComponentPropertyField(block: BlocklyBlock) {
-  const field = block.getField(COMPONENT_PROPERTY_FIELD) as BlocklyFieldDropdown | null;
+  const field = block.getField(
+    COMPONENT_PROPERTY_FIELD,
+  ) as BlocklyFieldDropdown | null;
   if (!field) return;
   const previous = field.getValue();
   field.setOptions(componentPropertyMenuGenerator);
   const options = field.getOptions(false);
-  field.setValue(options.some(option => option[1] === previous) ? previous : options[0][1]);
+  field.setValue(
+    options.some((option) => option[1] === previous) ? previous : options[0][1],
+  );
   field.forceRerender();
 }
 
@@ -373,7 +504,8 @@ function refreshAreaField(block: BlocklyBlock) {
   if (!field) return;
   const previous = field.getValue();
   field.setOptions(areaMenuGenerator);
-  if (field.getOptions(false).some(option => option[1] === previous)) field.setValue(previous);
+  if (field.getOptions(false).some((option) => option[1] === previous))
+    field.setValue(previous);
   field.forceRerender();
   updateDeviceWarning(block);
 }
@@ -383,7 +515,8 @@ function refreshMessageField(block: BlocklyBlock) {
   if (!field) return;
   const previous = field.getValue();
   field.setOptions(messageMenuGenerator);
-  if (field.getOptions(false).some(option => option[1] === previous)) field.setValue(previous);
+  if (field.getOptions(false).some((option) => option[1] === previous))
+    field.setValue(previous);
   field.forceRerender();
 }
 
@@ -392,7 +525,8 @@ function refreshPatternField(block: BlocklyBlock) {
   if (!field) return;
   const previous = field.getValue();
   field.setOptions(patternMenuGenerator);
-  if (field.getOptions(false).some(option => option[1] === previous)) field.setValue(previous);
+  if (field.getOptions(false).some((option) => option[1] === previous))
+    field.setValue(previous);
   field.forceRerender();
   updateDeviceWarning(block);
 }
@@ -437,9 +571,13 @@ function refreshDeviceField(block: BlocklyBlock) {
   refreshPatternField(block);
   refreshDisplayArtworkField(block);
   refreshComponentPropertyField(block);
-  const wifiMessage = block.getField(WIFI_MESSAGE_FIELD) as BlocklyFieldDropdown | null;
+  const wifiMessage = block.getField(
+    WIFI_MESSAGE_FIELD,
+  ) as BlocklyFieldDropdown | null;
   if (wifiMessage) wifiMessage.setOptions(wifiMessageMenuGenerator);
-  const wifiPeer = block.getField(WIFI_PEER_FIELD) as BlocklyFieldDropdown | null;
+  const wifiPeer = block.getField(
+    WIFI_PEER_FIELD,
+  ) as BlocklyFieldDropdown | null;
   if (wifiPeer) wifiPeer.setOptions(wifiPeerMenuGenerator);
   updateDeviceWarning(block);
   return previous !== nextValue;
@@ -495,7 +633,12 @@ function selectedDeviceId(block: BlocklyBlock) {
 const toolbox = {
   kind: 'categoryToolbox',
   contents: [
-    { kind: 'category', name: '★ Favoritos', colour: '#b88412', custom: 'CAPI_FAVORITES' },
+    {
+      kind: 'category',
+      name: '★ Favoritos',
+      colour: '#b88412',
+      custom: 'CAPI_FAVORITES',
+    },
     {
       kind: 'category',
       name: 'En paralelo',
@@ -544,7 +687,11 @@ const toolbox = {
       name: 'Temporizadores',
       colour: '#D46B32',
       contents: [
-        { kind: 'button', text: 'Crear temporizador', callbackKey: 'CAPI_CREATE_TIMER' },
+        {
+          kind: 'button',
+          text: 'Crear temporizador',
+          callbackKey: 'CAPI_CREATE_TIMER',
+        },
         { kind: 'block', type: 'capi_timer_start' },
         { kind: 'block', type: 'capi_timer_restart' },
         { kind: 'block', type: 'capi_timer_pause' },
@@ -558,7 +705,10 @@ const toolbox = {
       ],
     },
     {
-      kind: 'category', name: 'Mis bloques', colour: '#8E5BB7', contents: [
+      kind: 'category',
+      name: 'Mis bloques',
+      colour: '#8E5BB7',
+      contents: [
         { kind: 'label', text: 'Definiciones (quedan fuera de Al comenzar)' },
         { kind: 'block', type: 'capi_procedure_def' },
         { kind: 'block', type: 'capi_function_def_number' },
@@ -580,14 +730,58 @@ const toolbox = {
       name: 'Datos',
       colour: '#7A58C1',
       contents: [
-        { kind: 'button', text: 'Crear número', callbackKey: 'CAPI_CREATE_NUMBER' },
-        { kind: 'button', text: 'Crear texto', callbackKey: 'CAPI_CREATE_TEXT' },
-        { kind: 'button', text: 'Crear sí/no', callbackKey: 'CAPI_CREATE_BOOLEAN' },
+        {
+          kind: 'button',
+          text: 'Crear número',
+          callbackKey: 'CAPI_CREATE_NUMBER',
+        },
+        {
+          kind: 'button',
+          text: 'Crear texto',
+          callbackKey: 'CAPI_CREATE_TEXT',
+        },
+        {
+          kind: 'button',
+          text: 'Crear sí/no',
+          callbackKey: 'CAPI_CREATE_BOOLEAN',
+        },
         { kind: 'label', text: 'Guardar y leer variables' },
-        { kind: 'block', type: 'capi_variable_set_number', inputs: { VALUE: { shadow: { type: 'capi_value_number', fields: { VALUE: 0 } } } } },
-        { kind: 'block', type: 'capi_variable_change', inputs: { DELTA: { shadow: { type: 'capi_value_number', fields: { VALUE: 1 } } } } },
-        { kind: 'block', type: 'capi_variable_set_text', inputs: { VALUE: { shadow: { type: 'capi_value_text', fields: { VALUE: 'hola' } } } } },
-        { kind: 'block', type: 'capi_variable_set_boolean', inputs: { VALUE: { shadow: { type: 'capi_value_boolean', fields: { VALUE: 'TRUE' } } } } },
+        {
+          kind: 'block',
+          type: 'capi_variable_set_number',
+          inputs: {
+            VALUE: {
+              shadow: { type: 'capi_value_number', fields: { VALUE: 0 } },
+            },
+          },
+        },
+        {
+          kind: 'block',
+          type: 'capi_variable_change',
+          inputs: {
+            DELTA: {
+              shadow: { type: 'capi_value_number', fields: { VALUE: 1 } },
+            },
+          },
+        },
+        {
+          kind: 'block',
+          type: 'capi_variable_set_text',
+          inputs: {
+            VALUE: {
+              shadow: { type: 'capi_value_text', fields: { VALUE: 'hola' } },
+            },
+          },
+        },
+        {
+          kind: 'block',
+          type: 'capi_variable_set_boolean',
+          inputs: {
+            VALUE: {
+              shadow: { type: 'capi_value_boolean', fields: { VALUE: 'TRUE' } },
+            },
+          },
+        },
         { kind: 'block', type: 'capi_variable_get_number' },
         { kind: 'block', type: 'capi_variable_get_text' },
         { kind: 'block', type: 'capi_variable_get_boolean' },
@@ -672,10 +866,21 @@ const toolbox = {
       kind: 'category',
       name: 'Mensajes',
       colour: '#59627D',
-      contents: [{ kind: 'block', type: 'capi_serial' }, { kind: 'block', type: 'capi_message_send' }, { kind: 'block', type: 'capi_message_receive' }, { kind: 'block', type: 'capi_display_write' }, { kind: 'block', type: 'capi_display_animate_text' }, { kind: 'block', type: 'capi_display_artwork' }, { kind: 'block', type: 'capi_display_clear' }, { kind: 'block', type: 'capi_visual_wait' }],
+      contents: [
+        { kind: 'block', type: 'capi_serial' },
+        { kind: 'block', type: 'capi_message_send' },
+        { kind: 'block', type: 'capi_message_receive' },
+        { kind: 'block', type: 'capi_display_write' },
+        { kind: 'block', type: 'capi_display_animate_text' },
+        { kind: 'block', type: 'capi_display_artwork' },
+        { kind: 'block', type: 'capi_display_clear' },
+        { kind: 'block', type: 'capi_visual_wait' },
+      ],
     },
     {
-      kind: 'category', name: 'Matriz LED', colour: '#B47B00',
+      kind: 'category',
+      name: 'Matriz LED',
+      colour: '#B47B00',
       contents: [
         { kind: 'block', type: 'capi_matrix_clear' },
         { kind: 'block', type: 'capi_matrix_pixel' },
@@ -696,71 +901,109 @@ function registerBlocks(Blockly: BlocklyApi) {
           DEVICE_FIELD,
         ) as BlocklyFieldDropdown | null;
         field?.setOptions(deviceMenuGenerator);
-        (this.getField(AREA_FIELD) as BlocklyFieldDropdown | null)?.setOptions(areaMenuGenerator);
-        (this.getField(MESSAGE_FIELD) as BlocklyFieldDropdown | null)?.setOptions(messageMenuGenerator);
-        (this.getField(PATTERN_FIELD) as BlocklyFieldDropdown | null)?.setOptions(patternMenuGenerator);
-        (this.getField(DISPLAY_ARTWORK_FIELD) as BlocklyFieldDropdown | null)?.setOptions(displayArtworkMenuGenerator);
-        (this.getField(WIFI_MESSAGE_FIELD) as BlocklyFieldDropdown | null)?.setOptions(wifiMessageMenuGenerator);
-        (this.getField(WIFI_PEER_FIELD) as BlocklyFieldDropdown | null)?.setOptions(wifiPeerMenuGenerator);
+        (this.getField(AREA_FIELD) as BlocklyFieldDropdown | null)?.setOptions(
+          areaMenuGenerator,
+        );
+        (
+          this.getField(MESSAGE_FIELD) as BlocklyFieldDropdown | null
+        )?.setOptions(messageMenuGenerator);
+        (
+          this.getField(PATTERN_FIELD) as BlocklyFieldDropdown | null
+        )?.setOptions(patternMenuGenerator);
+        (
+          this.getField(DISPLAY_ARTWORK_FIELD) as BlocklyFieldDropdown | null
+        )?.setOptions(displayArtworkMenuGenerator);
+        (
+          this.getField(WIFI_MESSAGE_FIELD) as BlocklyFieldDropdown | null
+        )?.setOptions(wifiMessageMenuGenerator);
+        (
+          this.getField(WIFI_PEER_FIELD) as BlocklyFieldDropdown | null
+        )?.setOptions(wifiPeerMenuGenerator);
         updateDeviceWarning(this);
       },
     );
   }
   if (!Blockly.Extensions.isRegistered(ANIMATION_REPEAT_EXTENSION)) {
-    Blockly.Extensions.register(ANIMATION_REPEAT_EXTENSION, function (this: BlocklyBlock) {
-      const mode = this.getField('REPEAT_MODE') as BlocklyFieldDropdown | null;
-      const count = this.getField('REPEAT_COUNT');
-      const showCount = (value: string | null | undefined) => {
-        count?.setVisible(value === 'COUNT');
-        if (this.rendered) (this as BlocklyBlock & { render(): void }).render();
-      };
-      mode?.setValidator((value) => {
-        showCount(String(value));
-        return value;
-      });
-      showCount(String(mode?.getValue() ?? 'ONCE'));
-    });
+    Blockly.Extensions.register(
+      ANIMATION_REPEAT_EXTENSION,
+      function (this: BlocklyBlock) {
+        const mode = this.getField(
+          'REPEAT_MODE',
+        ) as BlocklyFieldDropdown | null;
+        const count = this.getField('REPEAT_COUNT');
+        const showCount = (value: string | null | undefined) => {
+          count?.setVisible(value === 'COUNT');
+          if (this.rendered)
+            (this as BlocklyBlock & { render(): void }).render();
+        };
+        mode?.setValidator((value) => {
+          showCount(String(value));
+          return value;
+        });
+        showCount(String(mode?.getValue() ?? 'ONCE'));
+      },
+    );
   }
   if (!Blockly.Extensions.isRegistered(COMPONENT_VALUE_EXTENSION)) {
-    Blockly.Extensions.register(COMPONENT_VALUE_EXTENSION, function (this: BlocklyBlock) {
-      refreshComponentPropertyField(this);
-    });
+    Blockly.Extensions.register(
+      COMPONENT_VALUE_EXTENSION,
+      function (this: BlocklyBlock) {
+        refreshComponentPropertyField(this);
+      },
+    );
   }
   if (!Blockly.Extensions.isRegistered(MATRIX_TEXT_EXTENSION)) {
-    Blockly.Extensions.register(MATRIX_TEXT_EXTENSION, function (this: BlocklyBlock) {
-      const text = this.getField('TEXT') as BlocklyFieldTextInput | null;
-      const count = this.getField('TEXT_COUNT');
-      const updateCount = (value: string) => {
-        const length = value.length;
-        count?.setValue(
-          length === MAX_MATRIX_TEXT
-            ? `${length}/${MAX_MATRIX_TEXT} · límite`
-            : `${length}/${MAX_MATRIX_TEXT}`,
-        );
-      };
-      text?.setValidator((value) => {
-        const limited = String(value ?? '').slice(0, MAX_MATRIX_TEXT);
-        updateCount(limited);
-        return limited;
-      });
-      updateCount(String(text?.getValue() ?? '').slice(0, MAX_MATRIX_TEXT));
-    });
+    Blockly.Extensions.register(
+      MATRIX_TEXT_EXTENSION,
+      function (this: BlocklyBlock) {
+        const text = this.getField('TEXT') as BlocklyFieldTextInput | null;
+        const count = this.getField('TEXT_COUNT');
+        const updateCount = (value: string) => {
+          const length = value.length;
+          count?.setValue(
+            length === MAX_MATRIX_TEXT
+              ? `${length}/${MAX_MATRIX_TEXT} · límite`
+              : `${length}/${MAX_MATRIX_TEXT}`,
+          );
+        };
+        text?.setValidator((value) => {
+          const limited = String(value ?? '').slice(0, MAX_MATRIX_TEXT);
+          updateCount(limited);
+          return limited;
+        });
+        updateCount(String(text?.getValue() ?? '').slice(0, MAX_MATRIX_TEXT));
+      },
+    );
   }
   if (!Blockly.Extensions.isRegistered(BOARD_PIN_EXTENSION)) {
-    Blockly.Extensions.register(BOARD_PIN_EXTENSION, function (this: BlocklyBlock) {
-      const field = this.getField('PIN') as BlocklyFieldDropdown | null;
-      field?.setOptions(function (this: BlocklyFieldDropdown) {
-        const block = this.getSourceBlock();
-        const workspace = block ? targetWorkspaceForBlock(block) : null;
-        const profile = boardProfile(workspace ? workspaceBoardProfiles.get(workspace) ?? 'wemos-d1-r32' : 'wemos-d1-r32');
-        const options: BlocklyMenuOption[] = profile.pins
-          .filter(pin => pin.capabilities.includes('pwmOutput'))
-          .map(pin => [`${pin.label} / GPIO ${pin.gpio}`, String(pin.gpio)] as BlocklyMenuOption);
-        const current = this.getValue();
-        if (current && !options.some(option => option[1] === current)) options.unshift([`GPIO ${current} · no compatible`, current]);
-        return options;
-      });
-    });
+    Blockly.Extensions.register(
+      BOARD_PIN_EXTENSION,
+      function (this: BlocklyBlock) {
+        const field = this.getField('PIN') as BlocklyFieldDropdown | null;
+        field?.setOptions(function (this: BlocklyFieldDropdown) {
+          const block = this.getSourceBlock();
+          const workspace = block ? targetWorkspaceForBlock(block) : null;
+          const profile = boardProfile(
+            workspace
+              ? (workspaceBoardProfiles.get(workspace) ?? 'wemos-d1-r32')
+              : 'wemos-d1-r32',
+          );
+          const options: BlocklyMenuOption[] = profile.pins
+            .filter((pin) => pin.capabilities.includes('pwmOutput'))
+            .map(
+              (pin) =>
+                [
+                  `${pin.label} / GPIO ${pin.gpio}`,
+                  String(pin.gpio),
+                ] as BlocklyMenuOption,
+            );
+          const current = this.getValue();
+          if (current && !options.some((option) => option[1] === current))
+            options.unshift([`GPIO ${current} · no compatible`, current]);
+          return options;
+        });
+      },
+    );
   }
   if (registeredBlocklies.has(Blockly)) return;
 
@@ -829,96 +1072,388 @@ function registerBlocks(Blockly: BlocklyApi) {
       tooltip: 'Espera sin bloquear otros programas.',
     },
     {
-      type: 'capi_timer_start', message0: '⏱ iniciar %1 por %2 segundos %3',
+      type: 'capi_timer_start',
+      message0: '⏱ iniciar %1 por %2 segundos %3',
       args0: [
-        { type: 'field_variable', name: 'TIMER', variable: 'mi temporizador', variableTypes: ['Timer'], defaultType: 'Timer' },
-        { type: 'field_number', name: 'SECONDS', value: 5, min: 0.1, max: 86400, precision: 0.1 },
-        { type: 'field_dropdown', name: 'MODE', options: [['una vez', 'ONCE'], ['repetir', 'REPEAT']] },
+        {
+          type: 'field_variable',
+          name: 'TIMER',
+          variable: 'mi temporizador',
+          variableTypes: ['Timer'],
+          defaultType: 'Timer',
+        },
+        {
+          type: 'field_number',
+          name: 'SECONDS',
+          value: 5,
+          min: 0.1,
+          max: 86400,
+          precision: 0.1,
+        },
+        {
+          type: 'field_dropdown',
+          name: 'MODE',
+          options: [
+            ['una vez', 'ONCE'],
+            ['repetir', 'REPEAT'],
+          ],
+        },
       ],
-      previousStatement: null, nextStatement: null, colour: '#D46B32',
-      tooltip: 'Inicia desde cero. En repetir, produce un nuevo evento en cada vuelta.',
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#D46B32',
+      tooltip:
+        'Inicia desde cero. En repetir, produce un nuevo evento en cada vuelta.',
     },
     {
-      type: 'capi_timer_restart', message0: '↻ reiniciar %1',
-      args0: [{ type: 'field_variable', name: 'TIMER', variable: 'mi temporizador', variableTypes: ['Timer'], defaultType: 'Timer' }],
-      previousStatement: null, nextStatement: null, colour: '#D46B32', tooltip: 'Vuelve a empezar con la última duración y modo elegidos.',
-    },
-    {
-      type: 'capi_timer_pause', message0: '⏸ pausar %1',
-      args0: [{ type: 'field_variable', name: 'TIMER', variable: 'mi temporizador', variableTypes: ['Timer'], defaultType: 'Timer' }],
-      previousStatement: null, nextStatement: null, colour: '#D46B32', tooltip: 'Congela el tiempo que queda.',
-    },
-    {
-      type: 'capi_timer_resume', message0: '▶ continuar %1',
-      args0: [{ type: 'field_variable', name: 'TIMER', variable: 'mi temporizador', variableTypes: ['Timer'], defaultType: 'Timer' }],
-      previousStatement: null, nextStatement: null, colour: '#D46B32', tooltip: 'Continúa un temporizador pausado.',
-    },
-    {
-      type: 'capi_timer_stop', message0: '⏹ detener %1',
-      args0: [{ type: 'field_variable', name: 'TIMER', variable: 'mi temporizador', variableTypes: ['Timer'], defaultType: 'Timer' }],
-      previousStatement: null, nextStatement: null, colour: '#D46B32', tooltip: 'Detiene y vuelve a cero.',
-    },
-    {
-      type: 'capi_timer_wait', message0: '🔔 esperar próximo evento de %1',
-      args0: [{ type: 'field_variable', name: 'TIMER', variable: 'mi temporizador', variableTypes: ['Timer'], defaultType: 'Timer' }],
-      previousStatement: null, nextStatement: null, colour: '#D46B32',
-      tooltip: 'Espera el próximo vencimiento sin frenar los otros caminos. Usalo en Al mismo tiempo.',
-    },
-    {
-      type: 'capi_timer_elapsed', message0: 'segundos transcurridos de %1',
-      args0: [{ type: 'field_variable', name: 'TIMER', variable: 'mi temporizador', variableTypes: ['Timer'], defaultType: 'Timer' }],
-      output: 'Number', colour: '#D46B32', tooltip: 'Lee segundos completos desde que se inició o reinició.',
-    },
-    {
-      type: 'capi_timer_remaining', message0: 'segundos restantes de %1',
-      args0: [{ type: 'field_variable', name: 'TIMER', variable: 'mi temporizador', variableTypes: ['Timer'], defaultType: 'Timer' }],
-      output: 'Number', colour: '#D46B32', tooltip: 'Lee los segundos que faltan para el próximo evento.',
-    },
-    {
-      type: 'capi_timer_compare', message0: '%1 de %2 %3 %4 segundos',
+      type: 'capi_timer_restart',
+      message0: '↻ reiniciar %1',
       args0: [
-        { type: 'field_dropdown', name: 'TIMER_VALUE', options: [['tiempo transcurrido', 'ELAPSED'], ['tiempo restante', 'REMAINING']] },
-        { type: 'field_variable', name: 'TIMER', variable: 'mi temporizador', variableTypes: ['Timer'], defaultType: 'Timer' },
-        { type: 'field_dropdown', name: 'OPERATOR', options: [['es igual a', 'EQ'], ['es distinto de', 'NEQ'], ['es menor que', 'LT'], ['es menor o igual que', 'LTE'], ['es mayor que', 'GT'], ['es mayor o igual que', 'GTE']] },
-        { type: 'field_number', name: 'VALUE', value: 5, min: 0, max: 86400, precision: 1 },
+        {
+          type: 'field_variable',
+          name: 'TIMER',
+          variable: 'mi temporizador',
+          variableTypes: ['Timer'],
+          defaultType: 'Timer',
+        },
       ],
-      inputsInline: true, output: 'Boolean', colour: '#D46B32',
-      tooltip: 'Compara el valor actual del temporizador. También podés encastrar sus bloques de tiempo en «comparar datos».',
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#D46B32',
+      tooltip: 'Vuelve a empezar con la última duración y modo elegidos.',
     },
     {
-      type: 'capi_procedure_def', message0: '🧩 tarea %1',
-      args0: [{ type: 'field_variable', name: 'ROUTINE', variable: 'mi tarea', variableTypes: ['Procedure'], defaultType: 'Procedure' }],
+      type: 'capi_timer_pause',
+      message0: '⏸ pausar %1',
+      args0: [
+        {
+          type: 'field_variable',
+          name: 'TIMER',
+          variable: 'mi temporizador',
+          variableTypes: ['Timer'],
+          defaultType: 'Timer',
+        },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#D46B32',
+      tooltip: 'Congela el tiempo que queda.',
+    },
+    {
+      type: 'capi_timer_resume',
+      message0: '▶ continuar %1',
+      args0: [
+        {
+          type: 'field_variable',
+          name: 'TIMER',
+          variable: 'mi temporizador',
+          variableTypes: ['Timer'],
+          defaultType: 'Timer',
+        },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#D46B32',
+      tooltip: 'Continúa un temporizador pausado.',
+    },
+    {
+      type: 'capi_timer_stop',
+      message0: '⏹ detener %1',
+      args0: [
+        {
+          type: 'field_variable',
+          name: 'TIMER',
+          variable: 'mi temporizador',
+          variableTypes: ['Timer'],
+          defaultType: 'Timer',
+        },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#D46B32',
+      tooltip: 'Detiene y vuelve a cero.',
+    },
+    {
+      type: 'capi_timer_wait',
+      message0: '🔔 esperar próximo evento de %1',
+      args0: [
+        {
+          type: 'field_variable',
+          name: 'TIMER',
+          variable: 'mi temporizador',
+          variableTypes: ['Timer'],
+          defaultType: 'Timer',
+        },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#D46B32',
+      tooltip:
+        'Espera el próximo vencimiento sin frenar los otros caminos. Usalo en Al mismo tiempo.',
+    },
+    {
+      type: 'capi_timer_elapsed',
+      message0: 'segundos transcurridos de %1',
+      args0: [
+        {
+          type: 'field_variable',
+          name: 'TIMER',
+          variable: 'mi temporizador',
+          variableTypes: ['Timer'],
+          defaultType: 'Timer',
+        },
+      ],
+      output: 'Number',
+      colour: '#D46B32',
+      tooltip: 'Lee segundos completos desde que se inició o reinició.',
+    },
+    {
+      type: 'capi_timer_remaining',
+      message0: 'segundos restantes de %1',
+      args0: [
+        {
+          type: 'field_variable',
+          name: 'TIMER',
+          variable: 'mi temporizador',
+          variableTypes: ['Timer'],
+          defaultType: 'Timer',
+        },
+      ],
+      output: 'Number',
+      colour: '#D46B32',
+      tooltip: 'Lee los segundos que faltan para el próximo evento.',
+    },
+    {
+      type: 'capi_timer_compare',
+      message0: '%1 de %2 %3 %4 segundos',
+      args0: [
+        {
+          type: 'field_dropdown',
+          name: 'TIMER_VALUE',
+          options: [
+            ['tiempo transcurrido', 'ELAPSED'],
+            ['tiempo restante', 'REMAINING'],
+          ],
+        },
+        {
+          type: 'field_variable',
+          name: 'TIMER',
+          variable: 'mi temporizador',
+          variableTypes: ['Timer'],
+          defaultType: 'Timer',
+        },
+        {
+          type: 'field_dropdown',
+          name: 'OPERATOR',
+          options: [
+            ['es igual a', 'EQ'],
+            ['es distinto de', 'NEQ'],
+            ['es menor que', 'LT'],
+            ['es menor o igual que', 'LTE'],
+            ['es mayor que', 'GT'],
+            ['es mayor o igual que', 'GTE'],
+          ],
+        },
+        {
+          type: 'field_number',
+          name: 'VALUE',
+          value: 5,
+          min: 0,
+          max: 86400,
+          precision: 1,
+        },
+      ],
+      inputsInline: true,
+      output: 'Boolean',
+      colour: '#D46B32',
+      tooltip:
+        'Compara el valor actual del temporizador. También podés encastrar sus bloques de tiempo en «comparar datos».',
+    },
+    {
+      type: 'capi_procedure_def',
+      message0: '🧩 tarea %1',
+      args0: [
+        {
+          type: 'field_variable',
+          name: 'ROUTINE',
+          variable: 'mi tarea',
+          variableTypes: ['Procedure'],
+          defaultType: 'Procedure',
+        },
+      ],
       message1: 'recibe 1 %1 %2  2 %3 %4  3 %5 %6',
       args1: [
-        { type: 'field_input', name: 'P1_NAME', text: 'dato 1' }, { type: 'field_dropdown', name: 'P1_TYPE', options: [['número','number'],['texto','text'],['sí/no','boolean'],['no usar','none']] },
-        { type: 'field_input', name: 'P2_NAME', text: 'dato 2' }, { type: 'field_dropdown', name: 'P2_TYPE', options: [['no usar','none'],['número','number'],['texto','text'],['sí/no','boolean']] },
-        { type: 'field_input', name: 'P3_NAME', text: 'dato 3' }, { type: 'field_dropdown', name: 'P3_TYPE', options: [['no usar','none'],['número','number'],['texto','text'],['sí/no','boolean']] },
+        { type: 'field_input', name: 'P1_NAME', text: 'dato 1' },
+        {
+          type: 'field_dropdown',
+          name: 'P1_TYPE',
+          options: [
+            ['número', 'number'],
+            ['texto', 'text'],
+            ['sí/no', 'boolean'],
+            ['no usar', 'none'],
+          ],
+        },
+        { type: 'field_input', name: 'P2_NAME', text: 'dato 2' },
+        {
+          type: 'field_dropdown',
+          name: 'P2_TYPE',
+          options: [
+            ['no usar', 'none'],
+            ['número', 'number'],
+            ['texto', 'text'],
+            ['sí/no', 'boolean'],
+          ],
+        },
+        { type: 'field_input', name: 'P3_NAME', text: 'dato 3' },
+        {
+          type: 'field_dropdown',
+          name: 'P3_TYPE',
+          options: [
+            ['no usar', 'none'],
+            ['número', 'number'],
+            ['texto', 'text'],
+            ['sí/no', 'boolean'],
+          ],
+        },
       ],
-      message2: 'hacer %1', args2: [{ type: 'input_statement', name: 'BODY' }], colour: '#8E5BB7', tooltip: 'Define una tarea reutilizable. Usá solamente los datos recibidos que marcaste.',
+      message2: 'hacer %1',
+      args2: [{ type: 'input_statement', name: 'BODY' }],
+      colour: '#8E5BB7',
+      tooltip:
+        'Define una tarea reutilizable. Usá solamente los datos recibidos que marcaste.',
     },
-    ...(['number','text','boolean'] as const).map(type => ({
-      type: `capi_function_def_${type}`, message0: `🧮 función ${type === 'number' ? 'número' : type === 'text' ? 'texto' : 'sí/no'} %1`,
-      args0: [{ type: 'field_variable', name: 'ROUTINE', variable: 'mi función', variableTypes: [`Function${type === 'number' ? 'Number' : type === 'text' ? 'Text' : 'Boolean'}`], defaultType: `Function${type === 'number' ? 'Number' : type === 'text' ? 'Text' : 'Boolean'}` }],
-      message1: 'recibe 1 %1 %2  2 %3 %4  3 %5 %6', args1: [
-        { type: 'field_input', name: 'P1_NAME', text: 'dato 1' }, { type: 'field_dropdown', name: 'P1_TYPE', options: [['número','number'],['texto','text'],['sí/no','boolean'],['no usar','none']] },
-        { type: 'field_input', name: 'P2_NAME', text: 'dato 2' }, { type: 'field_dropdown', name: 'P2_TYPE', options: [['no usar','none'],['número','number'],['texto','text'],['sí/no','boolean']] },
-        { type: 'field_input', name: 'P3_NAME', text: 'dato 3' }, { type: 'field_dropdown', name: 'P3_TYPE', options: [['no usar','none'],['número','number'],['texto','text'],['sí/no','boolean']] },
+    ...(['number', 'text', 'boolean'] as const).map((type) => ({
+      type: `capi_function_def_${type}`,
+      message0: `🧮 función ${type === 'number' ? 'número' : type === 'text' ? 'texto' : 'sí/no'} %1`,
+      args0: [
+        {
+          type: 'field_variable',
+          name: 'ROUTINE',
+          variable: 'mi función',
+          variableTypes: [
+            `Function${type === 'number' ? 'Number' : type === 'text' ? 'Text' : 'Boolean'}`,
+          ],
+          defaultType: `Function${type === 'number' ? 'Number' : type === 'text' ? 'Text' : 'Boolean'}`,
+        },
       ],
-      message2: 'resultado %1', args2: [{ type: 'input_value', name: 'RETURN', check: type === 'number' ? 'Number' : type === 'text' ? 'String' : 'Boolean' }], colour: '#8E5BB7', tooltip: 'Define un cálculo reutilizable que devuelve un dato.',
+      message1: 'recibe 1 %1 %2  2 %3 %4  3 %5 %6',
+      args1: [
+        { type: 'field_input', name: 'P1_NAME', text: 'dato 1' },
+        {
+          type: 'field_dropdown',
+          name: 'P1_TYPE',
+          options: [
+            ['número', 'number'],
+            ['texto', 'text'],
+            ['sí/no', 'boolean'],
+            ['no usar', 'none'],
+          ],
+        },
+        { type: 'field_input', name: 'P2_NAME', text: 'dato 2' },
+        {
+          type: 'field_dropdown',
+          name: 'P2_TYPE',
+          options: [
+            ['no usar', 'none'],
+            ['número', 'number'],
+            ['texto', 'text'],
+            ['sí/no', 'boolean'],
+          ],
+        },
+        { type: 'field_input', name: 'P3_NAME', text: 'dato 3' },
+        {
+          type: 'field_dropdown',
+          name: 'P3_TYPE',
+          options: [
+            ['no usar', 'none'],
+            ['número', 'number'],
+            ['texto', 'text'],
+            ['sí/no', 'boolean'],
+          ],
+        },
+      ],
+      message2: 'resultado %1',
+      args2: [
+        {
+          type: 'input_value',
+          name: 'RETURN',
+          check:
+            type === 'number'
+              ? 'Number'
+              : type === 'text'
+                ? 'String'
+                : 'Boolean',
+        },
+      ],
+      colour: '#8E5BB7',
+      tooltip: 'Define un cálculo reutilizable que devuelve un dato.',
     })),
     {
-      type: 'capi_procedure_call', message0: '🧩 hacer %1', args0: [{ type: 'field_variable', name: 'ROUTINE', variable: 'mi tarea', variableTypes: ['Procedure'], defaultType: 'Procedure' }],
-      message1: 'con %1 %2 %3', args1: [{ type: 'input_value', name: 'ARG1' }, { type: 'input_value', name: 'ARG2' }, { type: 'input_value', name: 'ARG3' }],
-      previousStatement: null, nextStatement: null, inputsInline: true, colour: '#8E5BB7', tooltip: 'Ejecuta una tarea creada por vos.',
+      type: 'capi_procedure_call',
+      message0: '🧩 hacer %1',
+      args0: [
+        {
+          type: 'field_variable',
+          name: 'ROUTINE',
+          variable: 'mi tarea',
+          variableTypes: ['Procedure'],
+          defaultType: 'Procedure',
+        },
+      ],
+      message1: 'con %1 %2 %3',
+      args1: [
+        { type: 'input_value', name: 'ARG1' },
+        { type: 'input_value', name: 'ARG2' },
+        { type: 'input_value', name: 'ARG3' },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      inputsInline: true,
+      colour: '#8E5BB7',
+      tooltip: 'Ejecuta una tarea creada por vos.',
     },
-    ...(['number','text','boolean'] as const).map(type => ({
-      type: `capi_function_call_${type}`, message0: `resultado de %1 con %2 %3 %4`,
-      args0: [{ type: 'field_variable', name: 'ROUTINE', variable: 'mi función', variableTypes: [`Function${type === 'number' ? 'Number' : type === 'text' ? 'Text' : 'Boolean'}`], defaultType: `Function${type === 'number' ? 'Number' : type === 'text' ? 'Text' : 'Boolean'}` }, { type: 'input_value', name: 'ARG1' }, { type: 'input_value', name: 'ARG2' }, { type: 'input_value', name: 'ARG3' }],
-      output: type === 'number' ? 'Number' : type === 'text' ? 'String' : 'Boolean', inputsInline: true, colour: '#8E5BB7', tooltip: 'Usa el resultado de una función creada por vos.',
+    ...(['number', 'text', 'boolean'] as const).map((type) => ({
+      type: `capi_function_call_${type}`,
+      message0: `resultado de %1 con %2 %3 %4`,
+      args0: [
+        {
+          type: 'field_variable',
+          name: 'ROUTINE',
+          variable: 'mi función',
+          variableTypes: [
+            `Function${type === 'number' ? 'Number' : type === 'text' ? 'Text' : 'Boolean'}`,
+          ],
+          defaultType: `Function${type === 'number' ? 'Number' : type === 'text' ? 'Text' : 'Boolean'}`,
+        },
+        { type: 'input_value', name: 'ARG1' },
+        { type: 'input_value', name: 'ARG2' },
+        { type: 'input_value', name: 'ARG3' },
+      ],
+      output:
+        type === 'number' ? 'Number' : type === 'text' ? 'String' : 'Boolean',
+      inputsInline: true,
+      colour: '#8E5BB7',
+      tooltip: 'Usa el resultado de una función creada por vos.',
     })),
-    ...(['number','text','boolean'] as const).map(type => ({
-      type: `capi_parameter_${type}`, message0: `dato recibido %1 (${type === 'number' ? 'número' : type === 'text' ? 'texto' : 'sí/no'})`, args0: [{ type: 'field_dropdown', name: 'PARAM', options: [['1','1'],['2','2'],['3','3']] }],
-      output: type === 'number' ? 'Number' : type === 'text' ? 'String' : 'Boolean', colour: '#8E5BB7', tooltip: 'Lee uno de los datos recibidos por la tarea o función.',
+    ...(['number', 'text', 'boolean'] as const).map((type) => ({
+      type: `capi_parameter_${type}`,
+      message0: `dato recibido %1 (${type === 'number' ? 'número' : type === 'text' ? 'texto' : 'sí/no'})`,
+      args0: [
+        {
+          type: 'field_dropdown',
+          name: 'PARAM',
+          options: [
+            ['1', '1'],
+            ['2', '2'],
+            ['3', '3'],
+          ],
+        },
+      ],
+      output:
+        type === 'number' ? 'Number' : type === 'text' ? 'String' : 'Boolean',
+      colour: '#8E5BB7',
+      tooltip: 'Lee uno de los datos recibidos por la tarea o función.',
     })),
     {
       type: 'capi_if',
@@ -978,7 +1513,8 @@ function registerBlocks(Blockly: BlocklyApi) {
       inputsInline: true,
       output: 'Boolean',
       colour: '#CF4EB9',
-      tooltip: 'Compara variables, sensores, contador, números, textos o respuestas sí/no.',
+      tooltip:
+        'Compara variables, sensores, contador, números, textos o respuestas sí/no.',
     },
     {
       type: 'capi_counter_compare',
@@ -1046,121 +1582,278 @@ function registerBlocks(Blockly: BlocklyApi) {
       tooltip: 'Suma o resta al contador.',
     },
     {
-      type: 'capi_variable_set_number', message0: '📦 poner número %1 en %2',
+      type: 'capi_variable_set_number',
+      message0: '📦 poner número %1 en %2',
       args0: [
-        { type: 'field_variable', name: 'VAR', variable: 'mi número', variableTypes: ['Number'], defaultType: 'Number' },
+        {
+          type: 'field_variable',
+          name: 'VAR',
+          variable: 'mi número',
+          variableTypes: ['Number'],
+          defaultType: 'Number',
+        },
         { type: 'input_value', name: 'VALUE', check: 'Number' },
       ],
-      previousStatement: null, nextStatement: null, colour: '#7A58C1',
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#7A58C1',
       tooltip: 'Guarda un número para volver a usarlo.',
     },
     {
-      type: 'capi_variable_change', message0: '➕ cambiar número %1 en %2',
+      type: 'capi_variable_change',
+      message0: '➕ cambiar número %1 en %2',
       args0: [
-        { type: 'field_variable', name: 'VAR', variable: 'mi número', variableTypes: ['Number'], defaultType: 'Number' },
+        {
+          type: 'field_variable',
+          name: 'VAR',
+          variable: 'mi número',
+          variableTypes: ['Number'],
+          defaultType: 'Number',
+        },
         { type: 'input_value', name: 'DELTA', check: 'Number' },
       ],
-      previousStatement: null, nextStatement: null, colour: '#7A58C1',
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#7A58C1',
       tooltip: 'Suma o resta un valor a una variable numérica.',
     },
     {
-      type: 'capi_variable_set_text', message0: '📦 poner texto %1 en %2',
+      type: 'capi_variable_set_text',
+      message0: '📦 poner texto %1 en %2',
       args0: [
-        { type: 'field_variable', name: 'VAR', variable: 'mi texto', variableTypes: ['String'], defaultType: 'String' },
+        {
+          type: 'field_variable',
+          name: 'VAR',
+          variable: 'mi texto',
+          variableTypes: ['String'],
+          defaultType: 'String',
+        },
         { type: 'input_value', name: 'VALUE', check: 'String' },
       ],
-      previousStatement: null, nextStatement: null, colour: '#7A58C1',
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#7A58C1',
       tooltip: 'Guarda un texto de hasta 120 caracteres.',
     },
     {
-      type: 'capi_variable_set_boolean', message0: '📦 poner sí/no %1 en %2',
+      type: 'capi_variable_set_boolean',
+      message0: '📦 poner sí/no %1 en %2',
       args0: [
-        { type: 'field_variable', name: 'VAR', variable: 'mi decisión', variableTypes: ['Boolean'], defaultType: 'Boolean' },
+        {
+          type: 'field_variable',
+          name: 'VAR',
+          variable: 'mi decisión',
+          variableTypes: ['Boolean'],
+          defaultType: 'Boolean',
+        },
         { type: 'input_value', name: 'VALUE', check: 'Boolean' },
       ],
-      previousStatement: null, nextStatement: null, colour: '#7A58C1',
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#7A58C1',
       tooltip: 'Guarda una respuesta sí o no.',
     },
     {
-      type: 'capi_variable_get_number', message0: 'número %1',
-      args0: [{ type: 'field_variable', name: 'VAR', variable: 'mi número', variableTypes: ['Number'], defaultType: 'Number' }],
-      output: 'Number', colour: '#7A58C1', tooltip: 'Lee un número guardado.',
+      type: 'capi_variable_get_number',
+      message0: 'número %1',
+      args0: [
+        {
+          type: 'field_variable',
+          name: 'VAR',
+          variable: 'mi número',
+          variableTypes: ['Number'],
+          defaultType: 'Number',
+        },
+      ],
+      output: 'Number',
+      colour: '#7A58C1',
+      tooltip: 'Lee un número guardado.',
     },
     {
-      type: 'capi_variable_get_text', message0: 'texto %1',
-      args0: [{ type: 'field_variable', name: 'VAR', variable: 'mi texto', variableTypes: ['String'], defaultType: 'String' }],
-      output: 'String', colour: '#7A58C1', tooltip: 'Lee un texto guardado.',
+      type: 'capi_variable_get_text',
+      message0: 'texto %1',
+      args0: [
+        {
+          type: 'field_variable',
+          name: 'VAR',
+          variable: 'mi texto',
+          variableTypes: ['String'],
+          defaultType: 'String',
+        },
+      ],
+      output: 'String',
+      colour: '#7A58C1',
+      tooltip: 'Lee un texto guardado.',
     },
     {
-      type: 'capi_variable_get_boolean', message0: 'sí/no %1',
-      args0: [{ type: 'field_variable', name: 'VAR', variable: 'mi decisión', variableTypes: ['Boolean'], defaultType: 'Boolean' }],
-      output: 'Boolean', colour: '#7A58C1', tooltip: 'Lee una respuesta guardada.',
+      type: 'capi_variable_get_boolean',
+      message0: 'sí/no %1',
+      args0: [
+        {
+          type: 'field_variable',
+          name: 'VAR',
+          variable: 'mi decisión',
+          variableTypes: ['Boolean'],
+          defaultType: 'Boolean',
+        },
+      ],
+      output: 'Boolean',
+      colour: '#7A58C1',
+      tooltip: 'Lee una respuesta guardada.',
     },
     {
-      type: 'capi_value_number', message0: 'número %1',
-      args0: [{ type: 'field_number', name: 'VALUE', value: 0, min: -2147483648, max: 2147483647, precision: 1 }],
-      output: 'Number', colour: '#7A58C1', tooltip: 'Un número.',
+      type: 'capi_value_number',
+      message0: 'número %1',
+      args0: [
+        {
+          type: 'field_number',
+          name: 'VALUE',
+          value: 0,
+          min: -2147483648,
+          max: 2147483647,
+          precision: 1,
+        },
+      ],
+      output: 'Number',
+      colour: '#7A58C1',
+      tooltip: 'Un número.',
     },
     {
-      type: 'capi_value_text', message0: 'texto %1',
+      type: 'capi_value_text',
+      message0: 'texto %1',
       args0: [{ type: 'field_input', name: 'VALUE', text: 'hola' }],
-      output: 'String', colour: '#7A58C1', tooltip: 'Un texto de hasta 120 caracteres.',
+      output: 'String',
+      colour: '#7A58C1',
+      tooltip: 'Un texto de hasta 120 caracteres.',
     },
     {
-      type: 'capi_value_boolean', message0: '%1',
-      args0: [{ type: 'field_dropdown', name: 'VALUE', options: [['sí', 'TRUE'], ['no', 'FALSE']] }],
-      output: 'Boolean', colour: '#7A58C1', tooltip: 'Una respuesta sí o no.',
+      type: 'capi_value_boolean',
+      message0: '%1',
+      args0: [
+        {
+          type: 'field_dropdown',
+          name: 'VALUE',
+          options: [
+            ['sí', 'TRUE'],
+            ['no', 'FALSE'],
+          ],
+        },
+      ],
+      output: 'Boolean',
+      colour: '#7A58C1',
+      tooltip: 'Una respuesta sí o no.',
     },
-    { type: 'capi_counter_value', message0: 'valor del contador', output: 'Number', colour: '#6759DF', tooltip: 'Lee el contador actual.' },
     {
-      type: 'capi_traffic_color', message0: 'color actual de %1',
-      args0: [deviceField('⚠️ agrega un semáforo')], output: 'String', colour: '#12AA8C',
-      extensions: [DEVICE_EXTENSION], tooltip: 'Lee el último color ordenado al semáforo: apagado, rojo, amarillo o verde.',
+      type: 'capi_counter_value',
+      message0: 'valor del contador',
+      output: 'Number',
+      colour: '#6759DF',
+      tooltip: 'Lee el contador actual.',
     },
     {
-      type: 'capi_traffic_is', message0: '¿%1 está %2?',
+      type: 'capi_traffic_color',
+      message0: 'color actual de %1',
+      args0: [deviceField('⚠️ agrega un semáforo')],
+      output: 'String',
+      colour: '#12AA8C',
+      extensions: [DEVICE_EXTENSION],
+      tooltip:
+        'Lee el último color ordenado al semáforo: apagado, rojo, amarillo o verde.',
+    },
+    {
+      type: 'capi_traffic_is',
+      message0: '¿%1 está %2?',
       args0: [
         deviceField('⚠️ agrega un semáforo'),
-        { type: 'field_dropdown', name: 'COLOR', options: [['apagado', 'OFF'], ['en rojo', 'RED'], ['en amarillo', 'YELLOW'], ['en verde', 'GREEN']] },
+        {
+          type: 'field_dropdown',
+          name: 'COLOR',
+          options: [
+            ['apagado', 'OFF'],
+            ['en rojo', 'RED'],
+            ['en amarillo', 'YELLOW'],
+            ['en verde', 'GREEN'],
+          ],
+        },
       ],
-      output: 'Boolean', colour: '#12AA8C', extensions: [DEVICE_EXTENSION],
-      tooltip: 'Responde sí cuando el último color ordenado al semáforo coincide.',
+      output: 'Boolean',
+      colour: '#12AA8C',
+      extensions: [DEVICE_EXTENSION],
+      tooltip:
+        'Responde sí cuando el último color ordenado al semáforo coincide.',
     },
     {
-      type: 'capi_sensor_value', message0: 'valor de %1',
-      args0: [deviceField('⚠️ agrega un sensor')], output: 'Number', colour: '#12AA8C',
-      extensions: [DEVICE_EXTENSION], tooltip: 'Lee el valor actual de un sensor, entre 0 y 4095.',
+      type: 'capi_sensor_value',
+      message0: 'valor de %1',
+      args0: [deviceField('⚠️ agrega un sensor')],
+      output: 'Number',
+      colour: '#12AA8C',
+      extensions: [DEVICE_EXTENSION],
+      tooltip: 'Lee el valor actual de un sensor, entre 0 y 4095.',
     },
-    ...(['number', 'text', 'boolean'] as const).map(type => ({
+    ...(['number', 'text', 'boolean'] as const).map((type) => ({
       type: `capi_component_${type}`,
       message0: `dato ${type === 'number' ? 'numérico' : type === 'text' ? 'de texto' : 'sí/no'} de %1 %2`,
-      args0: [deviceField('⚠️ agrega un componente'), { type: 'field_dropdown', name: COMPONENT_PROPERTY_FIELD, options: [['Elegí un dato', '__missing_property__']] }],
-      output: type === 'number' ? 'Number' : type === 'text' ? 'String' : 'Boolean', colour: '#2A8C75',
+      args0: [
+        deviceField('⚠️ agrega un componente'),
+        {
+          type: 'field_dropdown',
+          name: COMPONENT_PROPERTY_FIELD,
+          options: [['Elegí un dato', '__missing_property__']],
+        },
+      ],
+      output:
+        type === 'number' ? 'Number' : type === 'text' ? 'String' : 'Boolean',
+      colour: '#2A8C75',
       extensions: [DEVICE_EXTENSION, COMPONENT_VALUE_EXTENSION],
-      tooltip: 'Lee un dato del componente. La etiqueta aclara si es medido, ordenado por el programa o de un servicio.',
+      tooltip:
+        'Lee un dato del componente. La etiqueta aclara si es medido, ordenado por el programa o de un servicio.',
     })),
     {
-      type: 'capi_message_value', message0: 'último mensaje recibido en %1',
-      args0: [deviceField('⚠️ agrega Mensajes')], output: 'String', colour: '#59627D',
-      extensions: [DEVICE_EXTENSION], tooltip: 'Lee el último texto recibido. Antes de recibir uno, está vacío.',
+      type: 'capi_message_value',
+      message0: 'último mensaje recibido en %1',
+      args0: [deviceField('⚠️ agrega Mensajes')],
+      output: 'String',
+      colour: '#59627D',
+      extensions: [DEVICE_EXTENSION],
+      tooltip:
+        'Lee el último texto recibido. Antes de recibir uno, está vacío.',
     },
     {
-      type: 'capi_number_math', message0: '%1 %2 %3',
+      type: 'capi_number_math',
+      message0: '%1 %2 %3',
       args0: [
         { type: 'input_value', name: 'LEFT', check: 'Number' },
-        { type: 'field_dropdown', name: 'OPERATOR', options: [['+', 'ADD'], ['−', 'SUBTRACT'], ['×', 'MULTIPLY'], ['÷', 'DIVIDE']] },
+        {
+          type: 'field_dropdown',
+          name: 'OPERATOR',
+          options: [
+            ['+', 'ADD'],
+            ['−', 'SUBTRACT'],
+            ['×', 'MULTIPLY'],
+            ['÷', 'DIVIDE'],
+          ],
+        },
         { type: 'input_value', name: 'RIGHT', check: 'Number' },
       ],
-      inputsInline: true, output: 'Number', colour: '#7A58C1', tooltip: 'Hace una cuenta con dos números. Dividir por cero da 0.',
+      inputsInline: true,
+      output: 'Number',
+      colour: '#7A58C1',
+      tooltip: 'Hace una cuenta con dos números. Dividir por cero da 0.',
     },
     {
-      type: 'capi_text_join', message0: 'armar texto %1 %2 %3',
+      type: 'capi_text_join',
+      message0: 'armar texto %1 %2 %3',
       args0: [
         { type: 'input_value', name: 'FIRST' },
         { type: 'input_value', name: 'SECOND' },
         { type: 'input_value', name: 'THIRD' },
       ],
-      inputsInline: true, output: 'String', colour: '#7A58C1', tooltip: 'Une hasta tres textos o valores. Podés encastrar otro para agregar más.',
+      inputsInline: true,
+      output: 'String',
+      colour: '#7A58C1',
+      tooltip:
+        'Une hasta tres textos o valores. Podés encastrar otro para agregar más.',
     },
     {
       type: 'capi_traffic',
@@ -1190,16 +1883,27 @@ function registerBlocks(Blockly: BlocklyApi) {
       args0: [
         deviceField('⚠️ agrega un semáforo'),
         {
-          type: 'field_dropdown', name: 'VALUE',
+          type: 'field_dropdown',
+          name: 'VALUE',
           options: [
-            ['apagado', 'OFF'], ['0', '0'], ['1', '1'], ['2', '2'], ['3', '3'],
-            ['4', '4'], ['5', '5'], ['6', '6'], ['7', '7'], ['8', '8'], ['9', '9'],
-            ['✋ alto', 'STOP'], ['→ avanzar', 'GO'],
+            ['apagado', 'OFF'],
+            ['0', '0'],
+            ['1', '1'],
+            ['2', '2'],
+            ['3', '3'],
+            ['4', '4'],
+            ['5', '5'],
+            ['6', '6'],
+            ['7', '7'],
+            ['8', '8'],
+            ['9', '9'],
           ],
         },
       ],
-      previousStatement: null, nextStatement: null, colour: '#12AA8C',
-      tooltip: 'Controla la matriz 8×8 que mira hacia los autos.',
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#12AA8C',
+      tooltip: 'Muestra solamente la cuenta regresiva para los vehículos.',
       extensions: [DEVICE_EXTENSION],
     },
     {
@@ -1207,10 +1911,21 @@ function registerBlocks(Blockly: BlocklyApi) {
       message0: '🚶 cartel peatonal de %1 mostrar %2',
       args0: [
         deviceField('⚠️ agrega un semáforo'),
-        { type: 'field_dropdown', name: 'VALUE', options: [['apagado', 'OFF'], ['🚶 caminar', 'WALK'], ['🚷 no caminar', 'DONT_WALK']] },
+        {
+          type: 'field_dropdown',
+          name: 'VALUE',
+          options: [
+            ['apagado', 'OFF'],
+            ['🚶 persona caminando', 'WALK'],
+            ['🧍 persona quieta', 'DONT_WALK'],
+          ],
+        },
       ],
-      previousStatement: null, nextStatement: null, colour: '#12AA8C',
-      tooltip: 'Controla la matriz 8×8 que mira hacia los peatones.',
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#12AA8C',
+      tooltip:
+        'Indica a los peatones si pueden caminar o deben quedarse quietos.',
       extensions: [DEVICE_EXTENSION],
     },
     {
@@ -1234,45 +1949,237 @@ function registerBlocks(Blockly: BlocklyApi) {
       extensions: [DEVICE_EXTENSION],
     },
     {
-      type: 'capi_power_switch', message0: '🔌 %1 con potencia %2 %%', args0: [deviceField('⚠️ agrega un interruptor de potencia'), { type:'field_number', name:'POWER', value:75, min:0, max:100, precision:1 }], previousStatement:null, nextStatement:null, colour:'#12AA8C', tooltip:'Controla una carga de baja tensión con MOSFET o relé.', extensions:[DEVICE_EXTENSION],
+      type: 'capi_power_switch',
+      message0: '🔌 %1 con potencia %2 %%',
+      args0: [
+        deviceField('⚠️ agrega un interruptor de potencia'),
+        {
+          type: 'field_number',
+          name: 'POWER',
+          value: 75,
+          min: 0,
+          max: 100,
+          precision: 1,
+        },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#12AA8C',
+      tooltip: 'Controla una carga de baja tensión con MOSFET o relé.',
+      extensions: [DEVICE_EXTENSION],
     },
     {
-      type:'capi_stepper', message0:'⚙️ %1 mover %2 pasos a velocidad %3', args0:[deviceField('⚠️ agrega un motor paso a paso'),{type:'field_number',name:'STEPS',value:100,min:-100000,max:100000,precision:1},{type:'field_number',name:'SPEED',value:300,min:1,max:1000,precision:1}], previousStatement:null,nextStatement:null,colour:'#328BDD',tooltip:'Inicia un movimiento cooperativo; otros caminos siguen funcionando.',extensions:[DEVICE_EXTENSION],
+      type: 'capi_stepper',
+      message0: '⚙️ %1 mover %2 pasos a velocidad %3',
+      args0: [
+        deviceField('⚠️ agrega un motor paso a paso'),
+        {
+          type: 'field_number',
+          name: 'STEPS',
+          value: 100,
+          min: -100000,
+          max: 100000,
+          precision: 1,
+        },
+        {
+          type: 'field_number',
+          name: 'SPEED',
+          value: 300,
+          min: 1,
+          max: 1000,
+          precision: 1,
+        },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#328BDD',
+      tooltip:
+        'Inicia un movimiento cooperativo; otros caminos siguen funcionando.',
+      extensions: [DEVICE_EXTENSION],
     },
     {
-      type: 'capi_rgb_fill', message0: '🌈 %1 todas color %2 con brillo %3 %%',
-      args0: [deviceField('⚠️ agrega Luces RGB inteligentes'), { type: 'field_input', name: 'COLOR', text: '#00ff88' }, { type: 'field_number', name: 'BRIGHTNESS', value: 40, min: 0, max: 100, precision: 1 }],
-      previousStatement: null, nextStatement: null, colour: '#12AA8C', tooltip: 'Pone el mismo color en todas las luces.', extensions: [DEVICE_EXTENSION],
+      type: 'capi_rgb_fill',
+      message0: '🌈 %1 todas color %2 con brillo %3 %%',
+      args0: [
+        deviceField('⚠️ agrega Luces RGB inteligentes'),
+        { type: 'field_input', name: 'COLOR', text: '#00ff88' },
+        {
+          type: 'field_number',
+          name: 'BRIGHTNESS',
+          value: 40,
+          min: 0,
+          max: 100,
+          precision: 1,
+        },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#12AA8C',
+      tooltip: 'Pone el mismo color en todas las luces.',
+      extensions: [DEVICE_EXTENSION],
     },
     {
-      type: 'capi_rgb_pixel', message0: '✨ %1 luz número %2 color %3',
-      args0: [deviceField('⚠️ agrega Luces RGB inteligentes'), { type: 'field_number', name: 'PIXEL', value: 1, min: 1, max: 256, precision: 1 }, { type: 'field_input', name: 'COLOR', text: '#ff0066' }],
-      previousStatement: null, nextStatement: null, colour: '#12AA8C', tooltip: 'Cambia una luz; la primera es la número 1.', extensions: [DEVICE_EXTENSION],
+      type: 'capi_rgb_pixel',
+      message0: '✨ %1 luz número %2 color %3',
+      args0: [
+        deviceField('⚠️ agrega Luces RGB inteligentes'),
+        {
+          type: 'field_number',
+          name: 'PIXEL',
+          value: 1,
+          min: 1,
+          max: 256,
+          precision: 1,
+        },
+        { type: 'field_input', name: 'COLOR', text: '#ff0066' },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#12AA8C',
+      tooltip: 'Cambia una luz; la primera es la número 1.',
+      extensions: [DEVICE_EXTENSION],
     },
     {
-      type: 'capi_rgb_segment', message0: '🟰 %1 luces desde %2 hasta %3 color %4',
-      args0: [deviceField('⚠️ agrega Luces RGB inteligentes'), { type: 'field_number', name: 'FROM', value: 1, min: 1, max: 256, precision: 1 }, { type: 'field_number', name: 'TO', value: 4, min: 1, max: 256, precision: 1 }, { type: 'field_input', name: 'COLOR', text: '#22aaff' }],
-      previousStatement: null, nextStatement: null, colour: '#12AA8C', tooltip: 'Colorea un tramo inclusivo de luces.', extensions: [DEVICE_EXTENSION],
+      type: 'capi_rgb_segment',
+      message0: '🟰 %1 luces desde %2 hasta %3 color %4',
+      args0: [
+        deviceField('⚠️ agrega Luces RGB inteligentes'),
+        {
+          type: 'field_number',
+          name: 'FROM',
+          value: 1,
+          min: 1,
+          max: 256,
+          precision: 1,
+        },
+        {
+          type: 'field_number',
+          name: 'TO',
+          value: 4,
+          min: 1,
+          max: 256,
+          precision: 1,
+        },
+        { type: 'field_input', name: 'COLOR', text: '#22aaff' },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#12AA8C',
+      tooltip: 'Colorea un tramo inclusivo de luces.',
+      extensions: [DEVICE_EXTENSION],
     },
     {
-      type: 'capi_rgb_coordinate', message0: '🔳 %1 punto x %2 y %3 color %4',
-      args0: [deviceField('⚠️ agrega una matriz RGB'), { type: 'field_number', name: 'X', value: 1, min: 1, max: 256, precision: 1 }, { type: 'field_number', name: 'Y', value: 1, min: 1, max: 32, precision: 1 }, { type: 'field_input', name: 'COLOR', text: '#ffffff' }],
-      previousStatement: null, nextStatement: null, colour: '#12AA8C', tooltip: 'Colorea un punto usando coordenadas de la matriz.', extensions: [DEVICE_EXTENSION],
+      type: 'capi_rgb_coordinate',
+      message0: '🔳 %1 punto x %2 y %3 color %4',
+      args0: [
+        deviceField('⚠️ agrega una matriz RGB'),
+        {
+          type: 'field_number',
+          name: 'X',
+          value: 1,
+          min: 1,
+          max: 256,
+          precision: 1,
+        },
+        {
+          type: 'field_number',
+          name: 'Y',
+          value: 1,
+          min: 1,
+          max: 32,
+          precision: 1,
+        },
+        { type: 'field_input', name: 'COLOR', text: '#ffffff' },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#12AA8C',
+      tooltip: 'Colorea un punto usando coordenadas de la matriz.',
+      extensions: [DEVICE_EXTENSION],
     },
     {
-      type: 'capi_rgb_gradient', message0: '🌅 %1 degradado de %2 a %3 desde %4 hasta %5',
-      args0: [deviceField('⚠️ agrega Luces RGB inteligentes'), { type: 'field_number', name: 'FROM', value: 1, min: 1, max: 256, precision: 1 }, { type: 'field_number', name: 'TO', value: 8, min: 1, max: 256, precision: 1 }, { type: 'field_input', name: 'START_COLOR', text: '#ff0000' }, { type: 'field_input', name: 'END_COLOR', text: '#0000ff' }],
-      previousStatement: null, nextStatement: null, colour: '#12AA8C', tooltip: 'Mezcla suavemente dos colores a lo largo de un tramo.', extensions: [DEVICE_EXTENSION],
+      type: 'capi_rgb_gradient',
+      message0: '🌅 %1 degradado de %2 a %3 desde %4 hasta %5',
+      args0: [
+        deviceField('⚠️ agrega Luces RGB inteligentes'),
+        {
+          type: 'field_number',
+          name: 'FROM',
+          value: 1,
+          min: 1,
+          max: 256,
+          precision: 1,
+        },
+        {
+          type: 'field_number',
+          name: 'TO',
+          value: 8,
+          min: 1,
+          max: 256,
+          precision: 1,
+        },
+        { type: 'field_input', name: 'START_COLOR', text: '#ff0000' },
+        { type: 'field_input', name: 'END_COLOR', text: '#0000ff' },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#12AA8C',
+      tooltip: 'Mezcla suavemente dos colores a lo largo de un tramo.',
+      extensions: [DEVICE_EXTENSION],
     },
     {
-      type: 'capi_rgb_pattern', message0: '🖼️ %1 dibujo %2 color %3',
-      args0: [deviceField('⚠️ agrega una matriz RGB'), { type: 'field_dropdown', name: 'PATTERN', options: [['corazón', 'HEART'], ['sonrisa', 'SMILE'], ['damero', 'CHECKER']] }, { type: 'field_input', name: 'COLOR', text: '#ff2266' }],
-      previousStatement: null, nextStatement: null, colour: '#12AA8C', tooltip: 'Muestra un dibujo predefinido adaptado al tamaño de la matriz.', extensions: [DEVICE_EXTENSION],
+      type: 'capi_rgb_pattern',
+      message0: '🖼️ %1 dibujo %2 color %3',
+      args0: [
+        deviceField('⚠️ agrega una matriz RGB'),
+        {
+          type: 'field_dropdown',
+          name: 'PATTERN',
+          options: [
+            ['corazón', 'HEART'],
+            ['sonrisa', 'SMILE'],
+            ['damero', 'CHECKER'],
+          ],
+        },
+        { type: 'field_input', name: 'COLOR', text: '#ff2266' },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#12AA8C',
+      tooltip: 'Muestra un dibujo predefinido adaptado al tamaño de la matriz.',
+      extensions: [DEVICE_EXTENSION],
     },
     {
-      type: 'capi_rgb_animation', message0: '🎨 %1 animación %2 color %3 repetir %4 veces',
-      args0: [deviceField('⚠️ agrega Luces RGB inteligentes'), { type: 'field_dropdown', name: 'EFFECT', options: [['arcoíris', 'RAINBOW'], ['persecución', 'CHASE'], ['parpadeo', 'BLINK'], ['pulso', 'PULSE']] }, { type: 'field_input', name: 'COLOR', text: '#22aaff' }, { type: 'field_number', name: 'REPEAT', value: 1, min: 0, max: 100, precision: 1 }],
-      previousStatement: null, nextStatement: null, colour: '#12AA8C', tooltip: 'Inicia una animación sin detener el programa. Cero significa sin parar.', extensions: [DEVICE_EXTENSION],
+      type: 'capi_rgb_animation',
+      message0: '🎨 %1 animación %2 color %3 repetir %4 veces',
+      args0: [
+        deviceField('⚠️ agrega Luces RGB inteligentes'),
+        {
+          type: 'field_dropdown',
+          name: 'EFFECT',
+          options: [
+            ['arcoíris', 'RAINBOW'],
+            ['persecución', 'CHASE'],
+            ['parpadeo', 'BLINK'],
+            ['pulso', 'PULSE'],
+          ],
+        },
+        { type: 'field_input', name: 'COLOR', text: '#22aaff' },
+        {
+          type: 'field_number',
+          name: 'REPEAT',
+          value: 1,
+          min: 0,
+          max: 100,
+          precision: 1,
+        },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#12AA8C',
+      tooltip:
+        'Inicia una animación sin detener el programa. Cero significa sin parar.',
+      extensions: [DEVICE_EXTENSION],
     },
     {
       type: 'capi_pin_write',
@@ -1346,7 +2253,9 @@ function registerBlocks(Blockly: BlocklyApi) {
       args0: [
         deviceField('⚠️ agrega un robot Otto'),
         {
-          type: 'field_dropdown', name: 'ACTION', options: [
+          type: 'field_dropdown',
+          name: 'ACTION',
+          options: [
             ['volver al centro', 'HOME'],
             ['caminar adelante', 'WALK_FORWARD'],
             ['caminar atrás', 'WALK_BACKWARD'],
@@ -1367,29 +2276,110 @@ function registerBlocks(Blockly: BlocklyApi) {
             ['aleteo atrás', 'FLAP_BACKWARD'],
           ],
         },
-        { type: 'field_number', name: 'SPEED', value: 60, min: 0, max: 100, precision: 1 },
-        { type: 'field_number', name: 'REPETITIONS', value: 1, min: 1, max: 20, precision: 1 },
+        {
+          type: 'field_number',
+          name: 'SPEED',
+          value: 60,
+          min: 0,
+          max: 100,
+          precision: 1,
+        },
+        {
+          type: 'field_number',
+          name: 'REPETITIONS',
+          value: 1,
+          min: 1,
+          max: 20,
+          precision: 1,
+        },
       ],
       previousStatement: null,
       nextStatement: null,
       colour: '#7C5CE7',
-      tooltip: 'Mueve un robot Otto. Espera sólo este camino; los caminos paralelos siguen.',
+      tooltip:
+        'Mueve un robot Otto. Espera sólo este camino; los caminos paralelos siguen.',
       extensions: [DEVICE_EXTENSION],
     },
     {
-      type: 'capi_otto_sound', message0: '🎵 %1 hacer sonido %2', args0: [deviceField('⚠️ agrega un Otto con sonido'), { type: 'field_dropdown', name: 'SOUND', options: [['feliz', 'HAPPY'], ['triste', 'SAD'], ['sorpresa', 'SURPRISE'], ['confundido', 'CONFUSED'], ['durmiendo', 'SLEEPING'], ['botón', 'BUTTON'], ['cambio de modo', 'MODE'], ['gracioso', 'FART']] }],
-      previousStatement: null, nextStatement: null, colour: '#7C5CE7', tooltip: 'Inicia un sonido sin detener los otros caminos.', extensions: [DEVICE_EXTENSION],
+      type: 'capi_otto_sound',
+      message0: '🎵 %1 hacer sonido %2',
+      args0: [
+        deviceField('⚠️ agrega un Otto con sonido'),
+        {
+          type: 'field_dropdown',
+          name: 'SOUND',
+          options: [
+            ['feliz', 'HAPPY'],
+            ['triste', 'SAD'],
+            ['sorpresa', 'SURPRISE'],
+            ['confundido', 'CONFUSED'],
+            ['durmiendo', 'SLEEPING'],
+            ['botón', 'BUTTON'],
+            ['cambio de modo', 'MODE'],
+            ['gracioso', 'FART'],
+          ],
+        },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#7C5CE7',
+      tooltip: 'Inicia un sonido sin detener los otros caminos.',
+      extensions: [DEVICE_EXTENSION],
     },
     {
-      type: 'capi_otto_expression', message0: '😄 %1 mostrar cara %2', args0: [deviceField('⚠️ agrega un Otto expresivo'), { type: 'field_dropdown', name: 'EXPRESSION', options: [['sonrisa', 'SMILE'], ['triste', 'SAD'], ['enojado', 'ANGRY'], ['sorprendido', 'SURPRISED'], ['dormido', 'SLEEPY'], ['amor', 'LOVE'], ['apagar', 'CLEAR']] }],
-      previousStatement: null, nextStatement: null, colour: '#7C5CE7', extensions: [DEVICE_EXTENSION],
+      type: 'capi_otto_expression',
+      message0: '😄 %1 mostrar cara %2',
+      args0: [
+        deviceField('⚠️ agrega un Otto expresivo'),
+        {
+          type: 'field_dropdown',
+          name: 'EXPRESSION',
+          options: [
+            ['sonrisa', 'SMILE'],
+            ['triste', 'SAD'],
+            ['enojado', 'ANGRY'],
+            ['sorprendido', 'SURPRISED'],
+            ['dormido', 'SLEEPY'],
+            ['amor', 'LOVE'],
+            ['apagar', 'CLEAR'],
+          ],
+        },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#7C5CE7',
+      extensions: [DEVICE_EXTENSION],
     },
     {
-      type: 'capi_otto_arms', message0: '🙌 %1 poner brazos %2', args0: [deviceField('⚠️ agrega un Otto humanoide'), { type: 'field_dropdown', name: 'POSE', options: [['abajo', 'DOWN'], ['arriba', 'UP'], ['izquierdo arriba', 'LEFT_UP'], ['derecho arriba', 'RIGHT_UP'], ['abiertos', 'OPEN']] }],
-      previousStatement: null, nextStatement: null, colour: '#7C5CE7', extensions: [DEVICE_EXTENSION],
+      type: 'capi_otto_arms',
+      message0: '🙌 %1 poner brazos %2',
+      args0: [
+        deviceField('⚠️ agrega un Otto humanoide'),
+        {
+          type: 'field_dropdown',
+          name: 'POSE',
+          options: [
+            ['abajo', 'DOWN'],
+            ['arriba', 'UP'],
+            ['izquierdo arriba', 'LEFT_UP'],
+            ['derecho arriba', 'RIGHT_UP'],
+            ['abiertos', 'OPEN'],
+          ],
+        },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#7C5CE7',
+      extensions: [DEVICE_EXTENSION],
     },
     {
-      type: 'capi_otto_distance', message0: '📏 distancia de %1 en cm', args0: [deviceField('⚠️ agrega un Otto explorador')], output: 'Number', colour: '#7A58C1', tooltip: 'Última distancia medida sin bloquear el programa.', extensions: [DEVICE_EXTENSION],
+      type: 'capi_otto_distance',
+      message0: '📏 distancia de %1 en cm',
+      args0: [deviceField('⚠️ agrega un Otto explorador')],
+      output: 'Number',
+      colour: '#7A58C1',
+      tooltip: 'Última distancia medida sin bloquear el programa.',
+      extensions: [DEVICE_EXTENSION],
     },
     {
       type: 'capi_motor',
@@ -1521,7 +2511,14 @@ function registerBlocks(Blockly: BlocklyApi) {
       message0: '🚧 %1 está %2',
       args0: [
         deviceField('⚠️ agrega una barrera'),
-        { type: 'field_dropdown', name: 'STATE', options: [['interrumpida', 'INTERRUPTED'], ['libre', 'CLEAR']] },
+        {
+          type: 'field_dropdown',
+          name: 'STATE',
+          options: [
+            ['interrumpida', 'INTERRUPTED'],
+            ['libre', 'CLEAR'],
+          ],
+        },
       ],
       output: 'Boolean',
       colour: '#CF4EB9',
@@ -1547,7 +2544,8 @@ function registerBlocks(Blockly: BlocklyApi) {
       ],
       output: 'Boolean',
       colour: '#CF4EB9',
-      tooltip: 'Responde sí cuando ese botón de la pantalla 16 × 2 está presionado.',
+      tooltip:
+        'Responde sí cuando ese botón de la pantalla 16 × 2 está presionado.',
       extensions: [DEVICE_EXTENSION],
     },
     {
@@ -1618,27 +2616,62 @@ function registerBlocks(Blockly: BlocklyApi) {
       message0: '📡 en %1 enviar %2 a %3',
       args0: [
         deviceField('Elegí Wi-Fi'),
-        { type: 'field_dropdown', name: WIFI_MESSAGE_FIELD, options: [['HOLA', 'HOLA']] },
-        { type: 'field_dropdown', name: WIFI_PEER_FIELD, options: [['Todas', '*']] },
+        {
+          type: 'field_dropdown',
+          name: WIFI_MESSAGE_FIELD,
+          options: [['HOLA', 'HOLA']],
+        },
+        {
+          type: 'field_dropdown',
+          name: WIFI_PEER_FIELD,
+          options: [['Todas', '*']],
+        },
       ],
-      message1: 'o enviar dato %1', args1: [{ type: 'input_value', name: 'DYNAMIC' }],
-      previousStatement: null, nextStatement: null, colour: '#4472CC', extensions: [DEVICE_EXTENSION],
-      tooltip: 'Envía un mensaje identificado. Todas usa difusión; una placa concreta recibe sólo lo dirigido a ella.',
+      message1: 'o enviar dato %1',
+      args1: [{ type: 'input_value', name: 'DYNAMIC' }],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#4472CC',
+      extensions: [DEVICE_EXTENSION],
+      tooltip:
+        'Envía un mensaje identificado. Todas usa difusión; una placa concreta recibe sólo lo dirigido a ella.',
     },
     {
       type: 'capi_wifi_message_receive',
       message0: '📡 esperar en %1 de %2 el mensaje %3 durante %4 s',
       args0: [
         deviceField('Elegí Wi-Fi'),
-        { type: 'field_dropdown', name: WIFI_PEER_FIELD, options: [['Cualquier placa', '*']] },
-        { type: 'field_dropdown', name: WIFI_MESSAGE_FIELD, options: [['HOLA', 'HOLA']] },
-        { type: 'field_number', name: 'TIMEOUT', value: 5, min: 0.1, max: 300, precision: 0.1 },
+        {
+          type: 'field_dropdown',
+          name: WIFI_PEER_FIELD,
+          options: [['Cualquier placa', '*']],
+        },
+        {
+          type: 'field_dropdown',
+          name: WIFI_MESSAGE_FIELD,
+          options: [['HOLA', 'HOLA']],
+        },
+        {
+          type: 'field_number',
+          name: 'TIMEOUT',
+          value: 5,
+          min: 0.1,
+          max: 300,
+          precision: 0.1,
+        },
       ],
-      message1: 'si es igual %1', args1: [{ type: 'input_statement', name: 'EQUAL' }],
-      message2: 'si es distinto %1', args2: [{ type: 'input_statement', name: 'DIFFERENT' }],
-      message3: 'si no llegó %1', args3: [{ type: 'input_statement', name: 'TIMEOUT_DO' }],
-      previousStatement: null, nextStatement: null, colour: '#4472CC', extensions: [DEVICE_EXTENSION],
-      tooltip: 'Espera sin bloquear. Comprueba identidad, orden, integridad y elige una rama.',
+      message1: 'si es igual %1',
+      args1: [{ type: 'input_statement', name: 'EQUAL' }],
+      message2: 'si es distinto %1',
+      args2: [{ type: 'input_statement', name: 'DIFFERENT' }],
+      message3: 'si no llegó %1',
+      args3: [{ type: 'input_statement', name: 'TIMEOUT_DO' }],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#4472CC',
+      extensions: [DEVICE_EXTENSION],
+      tooltip:
+        'Espera sin bloquear. Comprueba identidad, orden, integridad y elige una rama.',
     },
     {
       type: 'capi_serial',
@@ -1656,7 +2689,11 @@ function registerBlocks(Blockly: BlocklyApi) {
       type: 'capi_message_send',
       message0: '📤 enviar %1 usando %2',
       args0: [
-        { type: 'field_dropdown', name: MESSAGE_FIELD, options: [['AVANZAR', 'AVANZAR']] },
+        {
+          type: 'field_dropdown',
+          name: MESSAGE_FIELD,
+          options: [['AVANZAR', 'AVANZAR']],
+        },
         deviceField('Elegí Mensajes'),
       ],
       message1: 'o enviar dato %1',
@@ -1672,8 +2709,19 @@ function registerBlocks(Blockly: BlocklyApi) {
       message0: '📥 esperar en %1 el mensaje %2 durante %3 s',
       args0: [
         deviceField('Elegí Mensajes'),
-        { type: 'field_dropdown', name: MESSAGE_FIELD, options: [['AVANZAR', 'AVANZAR']] },
-        { type: 'field_number', name: 'TIMEOUT', value: 5, min: 0.1, max: 300, precision: 0.1 },
+        {
+          type: 'field_dropdown',
+          name: MESSAGE_FIELD,
+          options: [['AVANZAR', 'AVANZAR']],
+        },
+        {
+          type: 'field_number',
+          name: 'TIMEOUT',
+          value: 5,
+          min: 0.1,
+          max: 300,
+          precision: 0.1,
+        },
       ],
       message1: 'si es igual %1',
       args1: [{ type: 'input_statement', name: 'EQUAL' }],
@@ -1685,126 +2733,321 @@ function registerBlocks(Blockly: BlocklyApi) {
       nextStatement: null,
       colour: '#59627D',
       extensions: [DEVICE_EXTENSION],
-      tooltip: 'Espera sin detener los otros caminos y elige una de tres ramas.',
+      tooltip:
+        'Espera sin detener los otros caminos y elige una de tres ramas.',
     },
     {
-      type: 'capi_display_write', message0: '📺 en %1 zona %2 escribir %3',
-      args0: [deviceField('Elegí una pantalla'), { type: 'field_dropdown', name: AREA_FIELD, options: [['Elegí una zona', '__missing_area__']] }, { type: 'field_input', name: 'TEXT', text: 'Hola, mundo!' }],
-      message1: 'agregar dato %1', args1: [{ type: 'input_value', name: 'DYNAMIC' }],
-      previousStatement: null, nextStatement: null, colour: '#59627D', extensions: [DEVICE_EXTENSION],
-      tooltip: 'Reemplaza el texto de este destino, ajustándolo a sus filas y columnas. No lo envía a consola.',
+      type: 'capi_display_write',
+      message0: '📺 en %1 zona %2 escribir %3',
+      args0: [
+        deviceField('Elegí una pantalla'),
+        {
+          type: 'field_dropdown',
+          name: AREA_FIELD,
+          options: [['Elegí una zona', '__missing_area__']],
+        },
+        { type: 'field_input', name: 'TEXT', text: 'Hola, mundo!' },
+      ],
+      message1: 'agregar dato %1',
+      args1: [{ type: 'input_value', name: 'DYNAMIC' }],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#59627D',
+      extensions: [DEVICE_EXTENSION],
+      tooltip:
+        'Reemplaza el texto de este destino, ajustándolo a sus filas y columnas. No lo envía a consola.',
     },
     {
-      type: 'capi_display_clear', message0: '🧽 en %1 borrar zona %2',
-      args0: [deviceField('Elegí una pantalla'), { type: 'field_dropdown', name: AREA_FIELD, options: [['Elegí una zona', '__missing_area__']] }],
-      previousStatement: null, nextStatement: null, colour: '#59627D', extensions: [DEVICE_EXTENSION],
-      tooltip: 'Borra solamente el destino elegido. Las otras zonas conservan sus mensajes.',
+      type: 'capi_display_clear',
+      message0: '🧽 en %1 borrar zona %2',
+      args0: [
+        deviceField('Elegí una pantalla'),
+        {
+          type: 'field_dropdown',
+          name: AREA_FIELD,
+          options: [['Elegí una zona', '__missing_area__']],
+        },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#59627D',
+      extensions: [DEVICE_EXTENSION],
+      tooltip:
+        'Borra solamente el destino elegido. Las otras zonas conservan sus mensajes.',
     },
     {
       type: 'capi_display_animate_text',
       message0: '🎬 en %1 zona %2 animar %3 como %4',
       args0: [
         deviceField('Elegí una pantalla'),
-        { type: 'field_dropdown', name: AREA_FIELD, options: [['Elegí una zona', '__missing_area__']] },
+        {
+          type: 'field_dropdown',
+          name: AREA_FIELD,
+          options: [['Elegí una zona', '__missing_area__']],
+        },
         { type: 'field_input', name: 'TEXT', text: 'Hola!' },
-        { type: 'field_dropdown', name: 'EFFECT', options: [['aparecer', 'TYPE'], ['desplazarse', 'SCROLL'], ['parpadear', 'BLINK']] },
+        {
+          type: 'field_dropdown',
+          name: 'EFFECT',
+          options: [
+            ['aparecer', 'TYPE'],
+            ['desplazarse', 'SCROLL'],
+            ['parpadear', 'BLINK'],
+          ],
+        },
       ],
       message1: 'repetir %1 %2',
       args1: [
-        { type: 'field_dropdown', name: 'REPEAT_MODE', options: [['una vez', 'ONCE'], ['varias veces', 'COUNT'], ['sin parar', 'FOREVER']] },
-        { type: 'field_number', name: 'REPEAT_COUNT', value: 2, min: 2, max: 100, precision: 1 },
+        {
+          type: 'field_dropdown',
+          name: 'REPEAT_MODE',
+          options: [
+            ['una vez', 'ONCE'],
+            ['varias veces', 'COUNT'],
+            ['sin parar', 'FOREVER'],
+          ],
+        },
+        {
+          type: 'field_number',
+          name: 'REPEAT_COUNT',
+          value: 2,
+          min: 2,
+          max: 100,
+          precision: 1,
+        },
       ],
       previousStatement: null,
       nextStatement: null,
       colour: '#59627D',
       extensions: [DEVICE_EXTENSION, ANIMATION_REPEAT_EXTENSION],
-      tooltip: 'Inicia la animación y continúa inmediatamente. Puede ejecutarse una vez, varias veces o sin parar.',
+      tooltip:
+        'Inicia la animación y continúa inmediatamente. Puede ejecutarse una vez, varias veces o sin parar.',
     },
     {
       type: 'capi_display_artwork',
       message0: '🖼️ en %1 mostrar %2 como %3',
       args0: [
         deviceField('Elegí una pantalla gráfica'),
-        { type: 'field_dropdown', name: DISPLAY_ARTWORK_FIELD, options: [['Corazón', 'builtin-heart']] },
-        { type: 'field_dropdown', name: 'EFFECT', options: [['quieto', 'STILL'], ['deslizar', 'SLIDE'], ['parpadear', 'BLINK']] },
+        {
+          type: 'field_dropdown',
+          name: DISPLAY_ARTWORK_FIELD,
+          options: [['Corazón', 'builtin-heart']],
+        },
+        {
+          type: 'field_dropdown',
+          name: 'EFFECT',
+          options: [
+            ['quieto', 'STILL'],
+            ['deslizar', 'SLIDE'],
+            ['parpadear', 'BLINK'],
+          ],
+        },
       ],
       message1: 'repetir %1 %2',
       args1: [
-        { type: 'field_dropdown', name: 'REPEAT_MODE', options: [['una vez', 'ONCE'], ['varias veces', 'COUNT'], ['sin parar', 'FOREVER']] },
-        { type: 'field_number', name: 'REPEAT_COUNT', value: 2, min: 2, max: 100, precision: 1 },
+        {
+          type: 'field_dropdown',
+          name: 'REPEAT_MODE',
+          options: [
+            ['una vez', 'ONCE'],
+            ['varias veces', 'COUNT'],
+            ['sin parar', 'FOREVER'],
+          ],
+        },
+        {
+          type: 'field_number',
+          name: 'REPEAT_COUNT',
+          value: 2,
+          min: 2,
+          max: 100,
+          precision: 1,
+        },
       ],
       previousStatement: null,
       nextStatement: null,
       colour: '#59627D',
       extensions: [DEVICE_EXTENSION, ANIMATION_REPEAT_EXTENSION],
-      tooltip: 'Muestra un dibujo y, si tiene efecto, lo anima en segundo plano.',
+      tooltip:
+        'Muestra un dibujo y, si tiene efecto, lo anima en segundo plano.',
     },
     {
-      type: 'capi_visual_wait', message0: '⏳ esperar a que termine %1',
+      type: 'capi_visual_wait',
+      message0: '⏳ esperar a que termine %1',
       args0: [deviceField('Elegí una pantalla')],
-      previousStatement: null, nextStatement: null, colour: '#59627D', extensions: [DEVICE_EXTENSION],
-      tooltip: 'Espera solamente en este camino hasta que termine la animación actual. Los otros caminos siguen.',
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#59627D',
+      extensions: [DEVICE_EXTENSION],
+      tooltip:
+        'Espera solamente en este camino hasta que termine la animación actual. Los otros caminos siguen.',
     },
     {
-      type: 'capi_matrix_clear', message0: '⬛ limpiar %1', args0: [deviceField('Elegí una matriz')],
-      previousStatement: null, nextStatement: null, colour: '#B47B00', extensions: [DEVICE_EXTENSION],
+      type: 'capi_matrix_clear',
+      message0: '⬛ limpiar %1',
+      args0: [deviceField('Elegí una matriz')],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#B47B00',
+      extensions: [DEVICE_EXTENSION],
       tooltip: 'Apaga todos los puntos de la matriz.',
     },
     {
-      type: 'capi_matrix_pixel', message0: '✨ en %1 punto x %2 y %3 %4', args0: [
+      type: 'capi_matrix_pixel',
+      message0: '✨ en %1 punto x %2 y %3 %4',
+      args0: [
         deviceField('Elegí una matriz'),
-        { type: 'field_number', name: 'X', value: 0, min: 0, max: 31, precision: 1 },
-        { type: 'field_number', name: 'Y', value: 0, min: 0, max: 7, precision: 1 },
-        { type: 'field_dropdown', name: 'ENABLED', options: [['encender', 'ON'], ['apagar', 'OFF']] },
-      ], previousStatement: null, nextStatement: null, colour: '#B47B00', extensions: [DEVICE_EXTENSION],
-      tooltip: 'Enciende o apaga un punto. La esquina superior izquierda es x 0, y 0.',
+        {
+          type: 'field_number',
+          name: 'X',
+          value: 0,
+          min: 0,
+          max: 31,
+          precision: 1,
+        },
+        {
+          type: 'field_number',
+          name: 'Y',
+          value: 0,
+          min: 0,
+          max: 7,
+          precision: 1,
+        },
+        {
+          type: 'field_dropdown',
+          name: 'ENABLED',
+          options: [
+            ['encender', 'ON'],
+            ['apagar', 'OFF'],
+          ],
+        },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#B47B00',
+      extensions: [DEVICE_EXTENSION],
+      tooltip:
+        'Enciende o apaga un punto. La esquina superior izquierda es x 0, y 0.',
     },
     {
-      type: 'capi_matrix_pattern', message0: '🎨 en %1 mostrar dibujo %2', args0: [
+      type: 'capi_matrix_pattern',
+      message0: '🎨 en %1 mostrar dibujo %2',
+      args0: [
         deviceField('Elegí una matriz'),
-        { type: 'field_dropdown', name: PATTERN_FIELD, options: [['Corazón', 'heart']] },
-      ], previousStatement: null, nextStatement: null, colour: '#B47B00', extensions: [DEVICE_EXTENSION],
+        {
+          type: 'field_dropdown',
+          name: PATTERN_FIELD,
+          options: [['Corazón', 'heart']],
+        },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#B47B00',
+      extensions: [DEVICE_EXTENSION],
       tooltip: 'Muestra uno de los dibujos creados en la escena.',
     },
     {
-      type: 'capi_matrix_scroll', message0: '📰 en %1 desplazar texto %2 cada %3 ms', args0: [
+      type: 'capi_matrix_scroll',
+      message0: '📰 en %1 desplazar texto %2 cada %3 ms',
+      args0: [
         deviceField('Elegí una matriz'),
         { type: 'field_input', name: 'TEXT', text: 'HOLA' },
-        { type: 'field_number', name: 'SPEED', value: 120, min: 40, max: 1000, precision: 10 },
-      ], message1: 'caracteres %1 · repetir %2 %3', args1: [
-        { type: 'field_label', name: 'TEXT_COUNT', text: `4/${MAX_MATRIX_TEXT}` },
-        { type: 'field_dropdown', name: 'REPEAT_MODE', options: [['una vez', 'ONCE'], ['varias veces', 'COUNT'], ['sin parar', 'FOREVER']] },
-        { type: 'field_number', name: 'REPEAT_COUNT', value: 2, min: 2, max: 100, precision: 1 },
-      ], previousStatement: null, nextStatement: null, colour: '#B47B00', extensions: [DEVICE_EXTENSION, ANIMATION_REPEAT_EXTENSION, MATRIX_TEXT_EXTENSION],
+        {
+          type: 'field_number',
+          name: 'SPEED',
+          value: 120,
+          min: 40,
+          max: 1000,
+          precision: 10,
+        },
+      ],
+      message1: 'caracteres %1 · repetir %2 %3',
+      args1: [
+        {
+          type: 'field_label',
+          name: 'TEXT_COUNT',
+          text: `4/${MAX_MATRIX_TEXT}`,
+        },
+        {
+          type: 'field_dropdown',
+          name: 'REPEAT_MODE',
+          options: [
+            ['una vez', 'ONCE'],
+            ['varias veces', 'COUNT'],
+            ['sin parar', 'FOREVER'],
+          ],
+        },
+        {
+          type: 'field_number',
+          name: 'REPEAT_COUNT',
+          value: 2,
+          min: 2,
+          max: 100,
+          precision: 1,
+        },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#B47B00',
+      extensions: [
+        DEVICE_EXTENSION,
+        ANIMATION_REPEAT_EXTENSION,
+        MATRIX_TEXT_EXTENSION,
+      ],
       tooltip: `Inicia el desplazamiento y continúa inmediatamente. Admite hasta ${MAX_MATRIX_TEXT} caracteres y puede repetirse o quedar ciclando.`,
     },
   ]);
   Blockly.Blocks['capi_parallel'] = {
     init(this: BlocklyBlock) {
-      this.appendDummyInput().appendField('🛤 al mismo tiempo:').appendField(new Blockly.FieldDropdown(
-        Array.from({ length: 15 }, (_, index) => [`${index + 2} caminos`, String(index + 2)] as [string, string]),
-        (value) => {
-          const count = Number(value);
-          const occupied = this.inputList.some(input => input.name.startsWith('BRANCH') && Number(input.name.slice(6)) >= count && input.connection?.targetBlock());
-          if (occupied) {
-            this.setWarningText('Primero mové los bloques del camino que querés quitar.', 'parallel-shape');
-            return null;
-          }
-          this.setWarningText(null, 'parallel-shape');
-          resizeParallel(this, count);
-          return value;
-        },
-      ), 'BRANCHES');
+      this.appendDummyInput()
+        .appendField('🛤 al mismo tiempo:')
+        .appendField(
+          new Blockly.FieldDropdown(
+            Array.from(
+              { length: 15 },
+              (_, index) =>
+                [`${index + 2} caminos`, String(index + 2)] as [string, string],
+            ),
+            (value) => {
+              const count = Number(value);
+              const occupied = this.inputList.some(
+                (input) =>
+                  input.name.startsWith('BRANCH') &&
+                  Number(input.name.slice(6)) >= count &&
+                  input.connection?.targetBlock(),
+              );
+              if (occupied) {
+                this.setWarningText(
+                  'Primero mové los bloques del camino que querés quitar.',
+                  'parallel-shape',
+                );
+                return null;
+              }
+              this.setWarningText(null, 'parallel-shape');
+              resizeParallel(this, count);
+              return value;
+            },
+          ),
+          'BRANCHES',
+        );
       resizeParallel(this, 2);
       this.setInputsInline(false);
       this.setPreviousStatement(true);
       this.setNextStatement(true);
       this.setColour('#F1A51F');
-      this.setTooltip('Todos los caminos empiezan juntos. Lo que sigue debajo espera a que todos terminen. Si un camino repite por siempre, no se sigue debajo.');
+      this.setTooltip(
+        'Todos los caminos empiezan juntos. Lo que sigue debajo espera a que todos terminen. Si un camino repite por siempre, no se sigue debajo.',
+      );
     },
-    saveExtraState(this: BlocklyBlock) { return { branches: Number(this.getFieldValue('BRANCHES')) || 2 }; },
+    saveExtraState(this: BlocklyBlock) {
+      return { branches: Number(this.getFieldValue('BRANCHES')) || 2 };
+    },
     loadExtraState(this: BlocklyBlock, state: { branches?: unknown }) {
-      if (!Number.isInteger(state.branches) || Number(state.branches) < 2 || Number(state.branches) > 16) throw new Error('Cantidad de caminos no válida.');
+      if (
+        !Number.isInteger(state.branches) ||
+        Number(state.branches) < 2 ||
+        Number(state.branches) > 16
+      )
+        throw new Error('Cantidad de caminos no válida.');
       resizeParallel(this, Number(state.branches));
       this.setFieldValue(String(state.branches), 'BRANCHES');
     },
@@ -1813,8 +3056,12 @@ function registerBlocks(Blockly: BlocklyApi) {
 }
 
 function resizeParallel(block: BlocklyBlock, count: number) {
-  for (const input of block.inputList.filter(input => input.name.startsWith('BRANCH') && Number(input.name.slice(6)) >= count)) {
-    if (input.name.startsWith('BRANCH') && Number(input.name.slice(6)) >= count) block.removeInput(input.name);
+  for (const input of block.inputList.filter(
+    (input) =>
+      input.name.startsWith('BRANCH') && Number(input.name.slice(6)) >= count,
+  )) {
+    if (input.name.startsWith('BRANCH') && Number(input.name.slice(6)) >= count)
+      block.removeInput(input.name);
   }
   for (let index = 0; index < count; index++) {
     if (!block.getInput(`BRANCH${index}`)) {
@@ -1827,9 +3074,17 @@ function resizeParallel(block: BlocklyBlock, count: number) {
 }
 
 /** Repair creation/import/undo in one event group, without clearing history. */
-function ensureSingleStart(Blockly: BlocklyApi, workspace: BlocklyWorkspaceSvg) {
-  const starts = workspace.getTopBlocks(true).filter(block => block.type === 'capi_start');
-  if (starts.length > 16) throw new Error('Este proyecto tiene más de 16 inicios; no se puede convertir sin perder caminos.');
+function ensureSingleStart(
+  Blockly: BlocklyApi,
+  workspace: BlocklyWorkspaceSvg,
+) {
+  const starts = workspace
+    .getTopBlocks(true)
+    .filter((block) => block.type === 'capi_start');
+  if (starts.length > 16)
+    throw new Error(
+      'Este proyecto tiene más de 16 inicios; no se puede convertir sin perder caminos.',
+    );
   let start = starts[0];
   if (!start) {
     start = workspace.newBlock('capi_start');
@@ -1838,15 +3093,23 @@ function ensureSingleStart(Blockly: BlocklyApi, workspace: BlocklyWorkspaceSvg) 
     start.moveBy(50, 40);
   }
   if (starts.length > 1) {
-    const bodies = starts.map(root => root.getInputTargetBlock('DO'));
-    bodies.forEach(body => body?.unplug(false));
+    const bodies = starts.map((root) => root.getInputTargetBlock('DO'));
+    bodies.forEach((body) => body?.unplug(false));
     const parallel = workspace.newBlock('capi_parallel');
     parallel.setFieldValue(String(starts.length), 'BRANCHES');
     parallel.initSvg?.();
     parallel.render?.();
     start.getInput('DO')!.connection!.connect(parallel.previousConnection!);
-    bodies.forEach((body, index) => { if (body) parallel.getInput(`BRANCH${index}`)!.connection!.connect(body.previousConnection!); });
-    starts.slice(1).forEach(root => { root.setDeletable(true); root.dispose(false); });
+    bodies.forEach((body, index) => {
+      if (body)
+        parallel
+          .getInput(`BRANCH${index}`)!
+          .connection!.connect(body.previousConnection!);
+    });
+    starts.slice(1).forEach((root) => {
+      root.setDeletable(true);
+      root.dispose(false);
+    });
   }
   start.setDeletable(false);
   start.isDuplicatable = () => false;
@@ -1861,83 +3124,204 @@ const numberField = (block: BlocklyBlock, name: string, fallback = 0) => {
 const animationRepeatCount = (block: BlocklyBlock) => {
   const mode = block.getFieldValue('REPEAT_MODE');
   if (mode === 'FOREVER') return 0;
-  if (mode === 'COUNT') return Math.max(2, Math.min(100, Math.floor(numberField(block, 'REPEAT_COUNT', 2))));
+  if (mode === 'COUNT')
+    return Math.max(
+      2,
+      Math.min(100, Math.floor(numberField(block, 'REPEAT_COUNT', 2))),
+    );
   return 1;
 };
 
-function compileValue(block: BlocklyBlock | null, fallback: VariableType = 'number'): ValueExpression {
+function compileValue(
+  block: BlocklyBlock | null,
+  fallback: VariableType = 'number',
+): ValueExpression {
   if (!block) {
     if (fallback === 'text') return { kind: 'text', value: '' };
     if (fallback === 'boolean') return { kind: 'boolean', value: false };
     return { kind: 'number', value: 0 };
   }
   switch (block.type) {
-    case 'capi_value_number': return { kind: 'number', value: numberField(block, 'VALUE') };
-    case 'capi_value_text': return { kind: 'text', value: String(block.getFieldValue('VALUE') ?? '').slice(0, 120) };
-    case 'capi_value_boolean': return { kind: 'boolean', value: block.getFieldValue('VALUE') === 'TRUE' };
-    case 'capi_variable_get_number': return { kind: 'variable', variableId: String(block.getFieldValue('VAR') ?? ''), valueType: 'number' };
-    case 'capi_variable_get_text': return { kind: 'variable', variableId: String(block.getFieldValue('VAR') ?? ''), valueType: 'text' };
-    case 'capi_variable_get_boolean': return { kind: 'variable', variableId: String(block.getFieldValue('VAR') ?? ''), valueType: 'boolean' };
-    case 'capi_counter_value': return { kind: 'counterValue' };
-    case 'capi_timer_elapsed': return { kind: 'timerElapsed', timerId: String(block.getFieldValue('TIMER') ?? '') };
-    case 'capi_timer_remaining': return { kind: 'timerRemaining', timerId: String(block.getFieldValue('TIMER') ?? '') };
-    case 'capi_traffic_color': return { kind: 'componentValue', deviceId: selectedDeviceId(block), property: 'color', valueType: 'text', source: 'ordered' };
-    case 'capi_parameter_number': return { kind: 'parameter', parameterId: String(block.getFieldValue('PARAM') ?? '1'), valueType: 'number' };
-    case 'capi_parameter_text': return { kind: 'parameter', parameterId: String(block.getFieldValue('PARAM') ?? '1'), valueType: 'text' };
-    case 'capi_parameter_boolean': return { kind: 'parameter', parameterId: String(block.getFieldValue('PARAM') ?? '1'), valueType: 'boolean' };
+    case 'capi_value_number':
+      return { kind: 'number', value: numberField(block, 'VALUE') };
+    case 'capi_value_text':
+      return {
+        kind: 'text',
+        value: String(block.getFieldValue('VALUE') ?? '').slice(0, 120),
+      };
+    case 'capi_value_boolean':
+      return {
+        kind: 'boolean',
+        value: block.getFieldValue('VALUE') === 'TRUE',
+      };
+    case 'capi_variable_get_number':
+      return {
+        kind: 'variable',
+        variableId: String(block.getFieldValue('VAR') ?? ''),
+        valueType: 'number',
+      };
+    case 'capi_variable_get_text':
+      return {
+        kind: 'variable',
+        variableId: String(block.getFieldValue('VAR') ?? ''),
+        valueType: 'text',
+      };
+    case 'capi_variable_get_boolean':
+      return {
+        kind: 'variable',
+        variableId: String(block.getFieldValue('VAR') ?? ''),
+        valueType: 'boolean',
+      };
+    case 'capi_counter_value':
+      return { kind: 'counterValue' };
+    case 'capi_timer_elapsed':
+      return {
+        kind: 'timerElapsed',
+        timerId: String(block.getFieldValue('TIMER') ?? ''),
+      };
+    case 'capi_timer_remaining':
+      return {
+        kind: 'timerRemaining',
+        timerId: String(block.getFieldValue('TIMER') ?? ''),
+      };
+    case 'capi_traffic_color':
+      return {
+        kind: 'componentValue',
+        deviceId: selectedDeviceId(block),
+        property: 'color',
+        valueType: 'text',
+        source: 'ordered',
+      };
+    case 'capi_parameter_number':
+      return {
+        kind: 'parameter',
+        parameterId: String(block.getFieldValue('PARAM') ?? '1'),
+        valueType: 'number',
+      };
+    case 'capi_parameter_text':
+      return {
+        kind: 'parameter',
+        parameterId: String(block.getFieldValue('PARAM') ?? '1'),
+        valueType: 'text',
+      };
+    case 'capi_parameter_boolean':
+      return {
+        kind: 'parameter',
+        parameterId: String(block.getFieldValue('PARAM') ?? '1'),
+        valueType: 'boolean',
+      };
     case 'capi_function_call_number':
     case 'capi_function_call_text':
     case 'capi_function_call_boolean': {
-      const valueType = block.type.endsWith('_text') ? 'text' : block.type.endsWith('_boolean') ? 'boolean' : 'number';
+      const valueType = block.type.endsWith('_text')
+        ? 'text'
+        : block.type.endsWith('_boolean')
+          ? 'boolean'
+          : 'number';
       const args: ValueExpression[] = [];
-      for (const name of ['ARG1','ARG2','ARG3']) { const child = block.getInputTargetBlock(name); if (!child) break; args.push(compileValue(child)); }
-      return { kind: 'functionCall', routineId: String(block.getFieldValue('ROUTINE') ?? ''), arguments: args, valueType };
+      for (const name of ['ARG1', 'ARG2', 'ARG3']) {
+        const child = block.getInputTargetBlock(name);
+        if (!child) break;
+        args.push(compileValue(child));
+      }
+      return {
+        kind: 'functionCall',
+        routineId: String(block.getFieldValue('ROUTINE') ?? ''),
+        arguments: args,
+        valueType,
+      };
     }
     case 'capi_component_number':
     case 'capi_component_text':
     case 'capi_component_boolean': {
-      const valueType: VariableType = block.type.endsWith('_text') ? 'text' : block.type.endsWith('_boolean') ? 'boolean' : 'number';
+      const valueType: VariableType = block.type.endsWith('_text')
+        ? 'text'
+        : block.type.endsWith('_boolean')
+          ? 'boolean'
+          : 'number';
       const deviceId = selectedDeviceId(block);
-      const device = (workspaceDevices.get(targetWorkspaceForBlock(block)) ?? []).find(item => item.id === deviceId);
-      const property = String(block.getFieldValue(COMPONENT_PROPERTY_FIELD) ?? '');
-      const capability = device ? componentValueCapabilities(device).find(item => item.key === property && item.type === valueType) : undefined;
-      return { kind: 'componentValue', deviceId, property, valueType, source: (capability?.source ?? 'ordered') as ComponentValueSource };
+      const device = (
+        workspaceDevices.get(targetWorkspaceForBlock(block)) ?? []
+      ).find((item) => item.id === deviceId);
+      const property = String(
+        block.getFieldValue(COMPONENT_PROPERTY_FIELD) ?? '',
+      );
+      const capability = device
+        ? componentValueCapabilities(device).find(
+            (item) => item.key === property && item.type === valueType,
+          )
+        : undefined;
+      return {
+        kind: 'componentValue',
+        deviceId,
+        property,
+        valueType,
+        source: (capability?.source ?? 'ordered') as ComponentValueSource,
+      };
     }
-    case 'capi_sensor_value': return { kind: 'sensorValue', deviceId: selectedDeviceId(block) };
-    case 'capi_otto_distance': return { kind: 'ottoDistance', deviceId: selectedDeviceId(block) };
-    case 'capi_message_value': return { kind: 'messageValue', deviceId: selectedDeviceId(block) };
-    case 'capi_button_pressed': return { kind: 'buttonValue', deviceId: selectedDeviceId(block) };
-    case 'capi_barrier_state': return {
-      kind: 'barrierValue',
-      deviceId: selectedDeviceId(block),
-      expected: block.getFieldValue('STATE') === 'CLEAR' ? 'CLEAR' : 'INTERRUPTED',
-    };
-    case 'capi_display_button_pressed': return {
-      kind: 'displayButtonValue', deviceId: selectedDeviceId(block),
-      button: String(block.getFieldValue('BUTTON') ?? 'SELECT') as Extract<ValueExpression, { kind: 'displayButtonValue' }>['button'],
-    };
-    case 'capi_number_math': return {
-      kind: 'math',
-      operator: block.getFieldValue('OPERATOR'),
-      left: compileValue(block.getInputTargetBlock('LEFT'), 'number'),
-      right: compileValue(block.getInputTargetBlock('RIGHT'), 'number'),
-    };
-    case 'capi_text_join': return {
-      kind: 'join',
-      parts: ['FIRST', 'SECOND', 'THIRD'].map(name => compileValue(block.getInputTargetBlock(name), 'text')),
-    };
-    case 'capi_wifi_connected': return { kind: 'wifiValue' };
-    default: return fallback === 'text' ? { kind: 'text', value: '' } : fallback === 'boolean' ? { kind: 'boolean', value: false } : { kind: 'number', value: 0 };
+    case 'capi_sensor_value':
+      return { kind: 'sensorValue', deviceId: selectedDeviceId(block) };
+    case 'capi_otto_distance':
+      return { kind: 'ottoDistance', deviceId: selectedDeviceId(block) };
+    case 'capi_message_value':
+      return { kind: 'messageValue', deviceId: selectedDeviceId(block) };
+    case 'capi_button_pressed':
+      return { kind: 'buttonValue', deviceId: selectedDeviceId(block) };
+    case 'capi_barrier_state':
+      return {
+        kind: 'barrierValue',
+        deviceId: selectedDeviceId(block),
+        expected:
+          block.getFieldValue('STATE') === 'CLEAR' ? 'CLEAR' : 'INTERRUPTED',
+      };
+    case 'capi_display_button_pressed':
+      return {
+        kind: 'displayButtonValue',
+        deviceId: selectedDeviceId(block),
+        button: String(block.getFieldValue('BUTTON') ?? 'SELECT') as Extract<
+          ValueExpression,
+          { kind: 'displayButtonValue' }
+        >['button'],
+      };
+    case 'capi_number_math':
+      return {
+        kind: 'math',
+        operator: block.getFieldValue('OPERATOR'),
+        left: compileValue(block.getInputTargetBlock('LEFT'), 'number'),
+        right: compileValue(block.getInputTargetBlock('RIGHT'), 'number'),
+      };
+    case 'capi_text_join':
+      return {
+        kind: 'join',
+        parts: ['FIRST', 'SECOND', 'THIRD'].map((name) =>
+          compileValue(block.getInputTargetBlock(name), 'text'),
+        ),
+      };
+    case 'capi_wifi_connected':
+      return { kind: 'wifiValue' };
+    default:
+      return fallback === 'text'
+        ? { kind: 'text', value: '' }
+        : fallback === 'boolean'
+          ? { kind: 'boolean', value: false }
+          : { kind: 'number', value: 0 };
   }
 }
 
-function textExpression(block: BlocklyBlock, field: string, dynamicInput = 'DYNAMIC', dynamicOnly = false): ValueExpression | undefined {
+function textExpression(
+  block: BlocklyBlock,
+  field: string,
+  dynamicInput = 'DYNAMIC',
+  dynamicOnly = false,
+): ValueExpression | undefined {
   const dynamic = block.getInputTargetBlock(dynamicInput);
   if (!dynamic) return undefined;
   const value = compileValue(dynamic, 'text');
   if (dynamicOnly) return value;
   const prefix = String(block.getFieldValue(field) ?? '');
-  return prefix ? { kind: 'join', parts: [{ kind: 'text', value: prefix }, value] } : value;
+  return prefix
+    ? { kind: 'join', parts: [{ kind: 'text', value: prefix }, value] }
+    : value;
 }
 
 function compileCondition(block: BlocklyBlock | null): Condition {
@@ -1967,17 +3351,33 @@ function compileCondition(block: BlocklyBlock | null): Condition {
       return {
         kind: 'valueCompare',
         operator: block.getFieldValue('OPERATOR'),
-        left: block.getFieldValue('TIMER_VALUE') === 'REMAINING'
-          ? { kind: 'timerRemaining', timerId: String(block.getFieldValue('TIMER') ?? '') }
-          : { kind: 'timerElapsed', timerId: String(block.getFieldValue('TIMER') ?? '') },
+        left:
+          block.getFieldValue('TIMER_VALUE') === 'REMAINING'
+            ? {
+                kind: 'timerRemaining',
+                timerId: String(block.getFieldValue('TIMER') ?? ''),
+              }
+            : {
+                kind: 'timerElapsed',
+                timerId: String(block.getFieldValue('TIMER') ?? ''),
+              },
         right: { kind: 'number', value: numberField(block, 'VALUE', 5) },
       };
     case 'capi_traffic_is':
       return {
         kind: 'valueCompare',
         operator: 'EQ',
-        left: { kind: 'componentValue', deviceId: selectedDeviceId(block), property: 'color', valueType: 'text', source: 'ordered' },
-        right: { kind: 'text', value: String(block.getFieldValue('COLOR') ?? 'OFF') },
+        left: {
+          kind: 'componentValue',
+          deviceId: selectedDeviceId(block),
+          property: 'color',
+          valueType: 'text',
+          source: 'ordered',
+        },
+        right: {
+          kind: 'text',
+          value: String(block.getFieldValue('COLOR') ?? 'OFF'),
+        },
       };
     case 'capi_wifi_connected':
       return { kind: 'wifiConnected' };
@@ -1987,7 +3387,10 @@ function compileCondition(block: BlocklyBlock | null): Condition {
       return {
         kind: 'displayButtonPressed',
         deviceId: selectedDeviceId(block),
-        button: String(block.getFieldValue('BUTTON') ?? 'SELECT') as Extract<Condition, { kind: 'displayButtonPressed' }>['button'],
+        button: String(block.getFieldValue('BUTTON') ?? 'SELECT') as Extract<
+          Condition,
+          { kind: 'displayButtonPressed' }
+        >['button'],
       };
     case 'capi_sensor_compare':
       return {
@@ -2012,7 +3415,15 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
         result.push(...compileStack(block.getInputTargetBlock('DO')));
         break;
       case 'capi_parallel':
-        result.push({ op: 'parallel', branches: Array.from({ length: numberField(block, 'BRANCHES', 2) }, (_, index) => compileStack(block!.getInputTargetBlock(`BRANCH${index}`))), blockId });
+        result.push({
+          op: 'parallel',
+          branches: Array.from(
+            { length: numberField(block, 'BRANCHES', 2) },
+            (_, index) =>
+              compileStack(block!.getInputTargetBlock(`BRANCH${index}`)),
+          ),
+          blockId,
+        });
         break;
       case 'capi_forever':
         result.push({
@@ -2061,34 +3472,79 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
         });
         break;
       case 'capi_timer_start':
-        result.push({ op: 'timerStart', timerId: String(block.getFieldValue('TIMER') ?? ''), durationMs: numberField(block, 'SECONDS', 5) * 1000, repeat: block.getFieldValue('MODE') === 'REPEAT', blockId });
+        result.push({
+          op: 'timerStart',
+          timerId: String(block.getFieldValue('TIMER') ?? ''),
+          durationMs: numberField(block, 'SECONDS', 5) * 1000,
+          repeat: block.getFieldValue('MODE') === 'REPEAT',
+          blockId,
+        });
         break;
       case 'capi_timer_restart':
       case 'capi_timer_pause':
       case 'capi_timer_resume':
       case 'capi_timer_stop':
       case 'capi_timer_wait': {
-        const operations = { capi_timer_restart: 'timerRestart', capi_timer_pause: 'timerPause', capi_timer_resume: 'timerResume', capi_timer_stop: 'timerStop', capi_timer_wait: 'timerWait' } as const;
-        result.push({ op: operations[block.type as keyof typeof operations], timerId: String(block.getFieldValue('TIMER') ?? ''), blockId });
+        const operations = {
+          capi_timer_restart: 'timerRestart',
+          capi_timer_pause: 'timerPause',
+          capi_timer_resume: 'timerResume',
+          capi_timer_stop: 'timerStop',
+          capi_timer_wait: 'timerWait',
+        } as const;
+        result.push({
+          op: operations[block.type as keyof typeof operations],
+          timerId: String(block.getFieldValue('TIMER') ?? ''),
+          blockId,
+        });
         break;
       }
       case 'capi_procedure_call': {
         const args: ValueExpression[] = [];
-        for (const name of ['ARG1','ARG2','ARG3']) { const child = block.getInputTargetBlock(name); if (!child) break; args.push(compileValue(child)); }
-        result.push({ op: 'procedureCall', routineId: String(block.getFieldValue('ROUTINE') ?? ''), arguments: args, blockId });
+        for (const name of ['ARG1', 'ARG2', 'ARG3']) {
+          const child = block.getInputTargetBlock(name);
+          if (!child) break;
+          args.push(compileValue(child));
+        }
+        result.push({
+          op: 'procedureCall',
+          routineId: String(block.getFieldValue('ROUTINE') ?? ''),
+          arguments: args,
+          blockId,
+        });
         break;
       }
       case 'capi_variable_set_number':
-        result.push({ op: 'variableSet', variableId: String(block.getFieldValue('VAR') ?? ''), value: compileValue(block.getInputTargetBlock('VALUE'), 'number'), blockId });
+        result.push({
+          op: 'variableSet',
+          variableId: String(block.getFieldValue('VAR') ?? ''),
+          value: compileValue(block.getInputTargetBlock('VALUE'), 'number'),
+          blockId,
+        });
         break;
       case 'capi_variable_set_text':
-        result.push({ op: 'variableSet', variableId: String(block.getFieldValue('VAR') ?? ''), value: compileValue(block.getInputTargetBlock('VALUE'), 'text'), blockId });
+        result.push({
+          op: 'variableSet',
+          variableId: String(block.getFieldValue('VAR') ?? ''),
+          value: compileValue(block.getInputTargetBlock('VALUE'), 'text'),
+          blockId,
+        });
         break;
       case 'capi_variable_set_boolean':
-        result.push({ op: 'variableSet', variableId: String(block.getFieldValue('VAR') ?? ''), value: compileValue(block.getInputTargetBlock('VALUE'), 'boolean'), blockId });
+        result.push({
+          op: 'variableSet',
+          variableId: String(block.getFieldValue('VAR') ?? ''),
+          value: compileValue(block.getInputTargetBlock('VALUE'), 'boolean'),
+          blockId,
+        });
         break;
       case 'capi_variable_change':
-        result.push({ op: 'variableChange', variableId: String(block.getFieldValue('VAR') ?? ''), delta: compileValue(block.getInputTargetBlock('DELTA'), 'number'), blockId });
+        result.push({
+          op: 'variableChange',
+          variableId: String(block.getFieldValue('VAR') ?? ''),
+          delta: compileValue(block.getInputTargetBlock('DELTA'), 'number'),
+          blockId,
+        });
         break;
       case 'capi_traffic':
         result.push({
@@ -2099,10 +3555,24 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
         });
         break;
       case 'capi_traffic_vehicle_display':
-        result.push({ op: 'trafficVehicleDisplay', deviceId: selectedDeviceId(block), value: block.getFieldValue('VALUE'), blockId });
+        result.push({
+          op: 'trafficVehicleDisplay',
+          deviceId: selectedDeviceId(block),
+          value: vehicleDisplayValues.includes(block.getFieldValue('VALUE'))
+            ? block.getFieldValue('VALUE')
+            : 'OFF',
+          blockId,
+        });
         break;
       case 'capi_traffic_pedestrian_display':
-        result.push({ op: 'trafficPedestrianDisplay', deviceId: selectedDeviceId(block), value: block.getFieldValue('VALUE'), blockId });
+        result.push({
+          op: 'trafficPedestrianDisplay',
+          deviceId: selectedDeviceId(block),
+          value: pedestrianDisplayValues.includes(block.getFieldValue('VALUE'))
+            ? block.getFieldValue('VALUE')
+            : 'OFF',
+          blockId,
+        });
         break;
       case 'capi_led':
         result.push({
@@ -2113,31 +3583,89 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
         });
         break;
       case 'capi_power_switch':
-        result.push({ op:'led', deviceId:selectedDeviceId(block), brightness:numberField(block, 'POWER', 75), blockId });
+        result.push({
+          op: 'led',
+          deviceId: selectedDeviceId(block),
+          brightness: numberField(block, 'POWER', 75),
+          blockId,
+        });
         break;
       case 'capi_stepper':
-        result.push({ op:'stepper', deviceId:selectedDeviceId(block), steps:numberField(block,'STEPS',100), speed:numberField(block,'SPEED',300), blockId });
+        result.push({
+          op: 'stepper',
+          deviceId: selectedDeviceId(block),
+          steps: numberField(block, 'STEPS', 100),
+          speed: numberField(block, 'SPEED', 300),
+          blockId,
+        });
         break;
       case 'capi_rgb_fill':
-        result.push({ op: 'rgbFill', deviceId: selectedDeviceId(block), color: String(block.getFieldValue('COLOR') ?? '#000000'), brightness: numberField(block, 'BRIGHTNESS', 40), blockId });
+        result.push({
+          op: 'rgbFill',
+          deviceId: selectedDeviceId(block),
+          color: String(block.getFieldValue('COLOR') ?? '#000000'),
+          brightness: numberField(block, 'BRIGHTNESS', 40),
+          blockId,
+        });
         break;
       case 'capi_rgb_pixel':
-        result.push({ op: 'rgbPixel', deviceId: selectedDeviceId(block), pixel: numberField(block, 'PIXEL', 1), color: String(block.getFieldValue('COLOR') ?? '#000000'), blockId });
+        result.push({
+          op: 'rgbPixel',
+          deviceId: selectedDeviceId(block),
+          pixel: numberField(block, 'PIXEL', 1),
+          color: String(block.getFieldValue('COLOR') ?? '#000000'),
+          blockId,
+        });
         break;
       case 'capi_rgb_segment':
-        result.push({ op: 'rgbSegment', deviceId: selectedDeviceId(block), from: numberField(block, 'FROM', 1), to: numberField(block, 'TO', 1), color: String(block.getFieldValue('COLOR') ?? '#000000'), blockId });
+        result.push({
+          op: 'rgbSegment',
+          deviceId: selectedDeviceId(block),
+          from: numberField(block, 'FROM', 1),
+          to: numberField(block, 'TO', 1),
+          color: String(block.getFieldValue('COLOR') ?? '#000000'),
+          blockId,
+        });
         break;
       case 'capi_rgb_coordinate':
-        result.push({ op: 'rgbCoordinate', deviceId: selectedDeviceId(block), x: numberField(block, 'X', 1), y: numberField(block, 'Y', 1), color: String(block.getFieldValue('COLOR') ?? '#000000'), blockId });
+        result.push({
+          op: 'rgbCoordinate',
+          deviceId: selectedDeviceId(block),
+          x: numberField(block, 'X', 1),
+          y: numberField(block, 'Y', 1),
+          color: String(block.getFieldValue('COLOR') ?? '#000000'),
+          blockId,
+        });
         break;
       case 'capi_rgb_gradient':
-        result.push({ op: 'rgbGradient', deviceId: selectedDeviceId(block), from: numberField(block, 'FROM', 1), to: numberField(block, 'TO', 1), startColor: String(block.getFieldValue('START_COLOR') ?? '#000000'), endColor: String(block.getFieldValue('END_COLOR') ?? '#ffffff'), blockId });
+        result.push({
+          op: 'rgbGradient',
+          deviceId: selectedDeviceId(block),
+          from: numberField(block, 'FROM', 1),
+          to: numberField(block, 'TO', 1),
+          startColor: String(block.getFieldValue('START_COLOR') ?? '#000000'),
+          endColor: String(block.getFieldValue('END_COLOR') ?? '#ffffff'),
+          blockId,
+        });
         break;
       case 'capi_rgb_pattern':
-        result.push({ op: 'rgbPattern', deviceId: selectedDeviceId(block), pattern: block.getFieldValue('PATTERN'), color: String(block.getFieldValue('COLOR') ?? '#ff2266'), blockId });
+        result.push({
+          op: 'rgbPattern',
+          deviceId: selectedDeviceId(block),
+          pattern: block.getFieldValue('PATTERN'),
+          color: String(block.getFieldValue('COLOR') ?? '#ff2266'),
+          blockId,
+        });
         break;
       case 'capi_rgb_animation':
-        result.push({ op: 'rgbAnimation', deviceId: selectedDeviceId(block), effect: block.getFieldValue('EFFECT'), color: String(block.getFieldValue('COLOR') ?? '#000000'), repeat: numberField(block, 'REPEAT', 1), blockId });
+        result.push({
+          op: 'rgbAnimation',
+          deviceId: selectedDeviceId(block),
+          effect: block.getFieldValue('EFFECT'),
+          color: String(block.getFieldValue('COLOR') ?? '#000000'),
+          repeat: numberField(block, 'REPEAT', 1),
+          blockId,
+        });
         break;
       case 'capi_pin_write':
         result.push({
@@ -2167,13 +3695,28 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
         });
         break;
       case 'capi_otto_sound':
-        result.push({ op: 'ottoSound', deviceId: selectedDeviceId(block), sound: block.getFieldValue('SOUND'), blockId });
+        result.push({
+          op: 'ottoSound',
+          deviceId: selectedDeviceId(block),
+          sound: block.getFieldValue('SOUND'),
+          blockId,
+        });
         break;
       case 'capi_otto_expression':
-        result.push({ op: 'ottoExpression', deviceId: selectedDeviceId(block), expression: block.getFieldValue('EXPRESSION'), blockId });
+        result.push({
+          op: 'ottoExpression',
+          deviceId: selectedDeviceId(block),
+          expression: block.getFieldValue('EXPRESSION'),
+          blockId,
+        });
         break;
       case 'capi_otto_arms':
-        result.push({ op: 'ottoArms', deviceId: selectedDeviceId(block), pose: block.getFieldValue('POSE'), blockId });
+        result.push({
+          op: 'ottoArms',
+          deviceId: selectedDeviceId(block),
+          pose: block.getFieldValue('POSE'),
+          blockId,
+        });
         break;
       case 'capi_motor':
         result.push({
@@ -2219,37 +3762,61 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
         });
         break;
       case 'capi_wifi_message_send': {
-        const expression = textExpression(block, WIFI_MESSAGE_FIELD, 'DYNAMIC', true);
-        result.push({ op: 'wifiMessageSend', deviceId: selectedDeviceId(block), target: String(block.getFieldValue(WIFI_PEER_FIELD) ?? '*'), text: String(block.getFieldValue(WIFI_MESSAGE_FIELD) ?? ''), ...(expression ? { expression } : {}), blockId });
+        const expression = textExpression(
+          block,
+          WIFI_MESSAGE_FIELD,
+          'DYNAMIC',
+          true,
+        );
+        result.push({
+          op: 'wifiMessageSend',
+          deviceId: selectedDeviceId(block),
+          target: String(block.getFieldValue(WIFI_PEER_FIELD) ?? '*'),
+          text: String(block.getFieldValue(WIFI_MESSAGE_FIELD) ?? ''),
+          ...(expression ? { expression } : {}),
+          blockId,
+        });
         break;
       }
       case 'capi_wifi_message_receive':
         result.push({
-          op: 'wifiMessageReceive', deviceId: selectedDeviceId(block), sender: String(block.getFieldValue(WIFI_PEER_FIELD) ?? '*'), expected: String(block.getFieldValue(WIFI_MESSAGE_FIELD) ?? ''), timeoutMs: numberField(block, 'TIMEOUT', 5) * 1000,
-          equal: compileStack(block.getInputTargetBlock('EQUAL')), different: compileStack(block.getInputTargetBlock('DIFFERENT')), timeout: compileStack(block.getInputTargetBlock('TIMEOUT_DO')), blockId,
+          op: 'wifiMessageReceive',
+          deviceId: selectedDeviceId(block),
+          sender: String(block.getFieldValue(WIFI_PEER_FIELD) ?? '*'),
+          expected: String(block.getFieldValue(WIFI_MESSAGE_FIELD) ?? ''),
+          timeoutMs: numberField(block, 'TIMEOUT', 5) * 1000,
+          equal: compileStack(block.getInputTargetBlock('EQUAL')),
+          different: compileStack(block.getInputTargetBlock('DIFFERENT')),
+          timeout: compileStack(block.getInputTargetBlock('TIMEOUT_DO')),
+          blockId,
         });
         break;
       case 'capi_serial':
         {
           const expression = textExpression(block, 'TEXT');
-        result.push({
-          op: 'serial',
-          text: String(block.getFieldValue('TEXT') ?? ''),
-          ...(expression ? { expression } : {}),
-          blockId,
-        });
+          result.push({
+            op: 'serial',
+            text: String(block.getFieldValue('TEXT') ?? ''),
+            ...(expression ? { expression } : {}),
+            blockId,
+          });
         }
         break;
       case 'capi_message_send':
         {
-          const expression = textExpression(block, MESSAGE_FIELD, 'DYNAMIC', true);
-        result.push({
-          op: 'messageSend',
-          deviceId: selectedDeviceId(block),
-          text: String(block.getFieldValue(MESSAGE_FIELD) ?? ''),
-          ...(expression ? { expression } : {}),
-          blockId,
-        });
+          const expression = textExpression(
+            block,
+            MESSAGE_FIELD,
+            'DYNAMIC',
+            true,
+          );
+          result.push({
+            op: 'messageSend',
+            deviceId: selectedDeviceId(block),
+            text: String(block.getFieldValue(MESSAGE_FIELD) ?? ''),
+            ...(expression ? { expression } : {}),
+            blockId,
+          });
         }
         break;
       case 'capi_message_receive':
@@ -2267,11 +3834,23 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
       case 'capi_display_write':
         {
           const expression = textExpression(block, 'TEXT');
-          result.push({ op: 'displayWrite', deviceId: selectedDeviceId(block), areaId: String(block.getFieldValue(AREA_FIELD) ?? ''), text: String(block.getFieldValue('TEXT') ?? ''), ...(expression ? { expression } : {}), blockId });
+          result.push({
+            op: 'displayWrite',
+            deviceId: selectedDeviceId(block),
+            areaId: String(block.getFieldValue(AREA_FIELD) ?? ''),
+            text: String(block.getFieldValue('TEXT') ?? ''),
+            ...(expression ? { expression } : {}),
+            blockId,
+          });
         }
         break;
       case 'capi_display_clear':
-        result.push({ op: 'displayClear', deviceId: selectedDeviceId(block), areaId: String(block.getFieldValue(AREA_FIELD) ?? ''), blockId });
+        result.push({
+          op: 'displayClear',
+          deviceId: selectedDeviceId(block),
+          areaId: String(block.getFieldValue(AREA_FIELD) ?? ''),
+          blockId,
+        });
         break;
       case 'capi_display_animate_text':
         result.push({
@@ -2279,7 +3858,12 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           deviceId: selectedDeviceId(block),
           areaId: String(block.getFieldValue(AREA_FIELD) ?? ''),
           text: String(block.getFieldValue('TEXT') ?? ''),
-          effect: block.getFieldValue('EFFECT') === 'SCROLL' ? 'scroll' : block.getFieldValue('EFFECT') === 'BLINK' ? 'blink' : 'type',
+          effect:
+            block.getFieldValue('EFFECT') === 'SCROLL'
+              ? 'scroll'
+              : block.getFieldValue('EFFECT') === 'BLINK'
+                ? 'blink'
+                : 'type',
           repeatCount: animationRepeatCount(block),
           blockId,
         });
@@ -2289,25 +3873,60 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           op: 'displayArtwork',
           deviceId: selectedDeviceId(block),
           artworkId: String(block.getFieldValue(DISPLAY_ARTWORK_FIELD) ?? ''),
-          effect: block.getFieldValue('EFFECT') === 'SLIDE' ? 'slide' : block.getFieldValue('EFFECT') === 'BLINK' ? 'blink' : 'still',
+          effect:
+            block.getFieldValue('EFFECT') === 'SLIDE'
+              ? 'slide'
+              : block.getFieldValue('EFFECT') === 'BLINK'
+                ? 'blink'
+                : 'still',
           repeatCount: animationRepeatCount(block),
           blockId,
         });
         break;
       case 'capi_visual_wait':
-        result.push({ op: 'visualWait', deviceId: selectedDeviceId(block), blockId });
+        result.push({
+          op: 'visualWait',
+          deviceId: selectedDeviceId(block),
+          blockId,
+        });
         break;
       case 'capi_matrix_clear':
-        result.push({ op: 'matrixClear', deviceId: selectedDeviceId(block), blockId });
+        result.push({
+          op: 'matrixClear',
+          deviceId: selectedDeviceId(block),
+          blockId,
+        });
         break;
       case 'capi_matrix_pixel':
-        result.push({ op: 'matrixPixel', deviceId: selectedDeviceId(block), x: numberField(block, 'X', 0), y: numberField(block, 'Y', 0), enabled: block.getFieldValue('ENABLED') === 'ON', blockId });
+        result.push({
+          op: 'matrixPixel',
+          deviceId: selectedDeviceId(block),
+          x: numberField(block, 'X', 0),
+          y: numberField(block, 'Y', 0),
+          enabled: block.getFieldValue('ENABLED') === 'ON',
+          blockId,
+        });
         break;
       case 'capi_matrix_pattern':
-        result.push({ op: 'matrixPattern', deviceId: selectedDeviceId(block), patternId: String(block.getFieldValue(PATTERN_FIELD) ?? ''), blockId });
+        result.push({
+          op: 'matrixPattern',
+          deviceId: selectedDeviceId(block),
+          patternId: String(block.getFieldValue(PATTERN_FIELD) ?? ''),
+          blockId,
+        });
         break;
       case 'capi_matrix_scroll':
-        result.push({ op: 'matrixScroll', deviceId: selectedDeviceId(block), text: String(block.getFieldValue('TEXT') ?? '').slice(0, MAX_MATRIX_TEXT), speedMs: numberField(block, 'SPEED', 120), repeatCount: animationRepeatCount(block), blockId });
+        result.push({
+          op: 'matrixScroll',
+          deviceId: selectedDeviceId(block),
+          text: String(block.getFieldValue('TEXT') ?? '').slice(
+            0,
+            MAX_MATRIX_TEXT,
+          ),
+          speedMs: numberField(block, 'SPEED', 120),
+          repeatCount: animationRepeatCount(block),
+          blockId,
+        });
         break;
     }
     block = block.getNextBlock();
@@ -2319,30 +3938,78 @@ function compileWorkspace(workspace: BlocklyWorkspaceSvg): CompiledProgram {
   const starts = workspace
     .getTopBlocks(true)
     .filter((block) => block.type === 'capi_start');
-  const routineDefinitions = workspace.getTopBlocks(true).filter(block => block.type === 'capi_procedure_def' || block.type.startsWith('capi_function_def_'));
-  const variableName = (id: string) => workspace.getVariableMap().getVariableById(id)?.getName() ?? 'sin nombre';
+  const routineDefinitions = workspace
+    .getTopBlocks(true)
+    .filter(
+      (block) =>
+        block.type === 'capi_procedure_def' ||
+        block.type.startsWith('capi_function_def_'),
+    );
+  const variableName = (id: string) =>
+    workspace.getVariableMap().getVariableById(id)?.getName() ?? 'sin nombre';
   const parameters = (block: BlocklyBlock) => {
-    const result: Array<{id:string;name:string;type:VariableType}> = [];
+    const result: Array<{ id: string; name: string; type: VariableType }> = [];
     for (let index = 1; index <= 3; index += 1) {
       const type = String(block.getFieldValue(`P${index}_TYPE`) ?? 'none');
       if (type === 'none') break;
-      result.push({ id: String(index), name: String(block.getFieldValue(`P${index}_NAME`) ?? `dato ${index}`).slice(0, 24), type: type as VariableType });
+      result.push({
+        id: String(index),
+        name: String(
+          block.getFieldValue(`P${index}_NAME`) ?? `dato ${index}`,
+        ).slice(0, 24),
+        type: type as VariableType,
+      });
     }
     return result;
   };
   return {
     version: 2,
-    variables: workspace.getVariableMap().getAllVariables().flatMap(variable => {
-      const blocklyType = variable.getType();
-      const type = blocklyType === 'String' ? 'text' : blocklyType === 'Boolean' ? 'boolean' : blocklyType === 'Number' ? 'number' : null;
-      return type ? [{ id: variable.getId(), name: variable.getName(), type } as const] : [];
-    }),
-    timers: workspace.getVariableMap().getVariablesOfType('Timer').map(timer => ({ id: timer.getId(), name: timer.getName() })),
-    routines: routineDefinitions.map(block => {
+    variables: workspace
+      .getVariableMap()
+      .getAllVariables()
+      .flatMap((variable) => {
+        const blocklyType = variable.getType();
+        const type =
+          blocklyType === 'String'
+            ? 'text'
+            : blocklyType === 'Boolean'
+              ? 'boolean'
+              : blocklyType === 'Number'
+                ? 'number'
+                : null;
+        return type
+          ? [{ id: variable.getId(), name: variable.getName(), type } as const]
+          : [];
+      }),
+    timers: workspace
+      .getVariableMap()
+      .getVariablesOfType('Timer')
+      .map((timer) => ({ id: timer.getId(), name: timer.getName() })),
+    routines: routineDefinitions.map((block) => {
       const id = String(block.getFieldValue('ROUTINE') ?? '');
-      const functionType = block.type.endsWith('_text') ? 'text' : block.type.endsWith('_boolean') ? 'boolean' : 'number';
+      const functionType = block.type.endsWith('_text')
+        ? 'text'
+        : block.type.endsWith('_boolean')
+          ? 'boolean'
+          : 'number';
       const isFunction = block.type.startsWith('capi_function_def_');
-      return { id, name: variableName(id), kind: isFunction ? 'function' as const : 'procedure' as const, ...(isFunction ? { returnType: functionType as VariableType, returnValue: compileValue(block.getInputTargetBlock('RETURN'), functionType as VariableType) } : {}), parameters: parameters(block), body: isFunction ? [] : compileStack(block.getInputTargetBlock('BODY')), blockId: block.id };
+      return {
+        id,
+        name: variableName(id),
+        kind: isFunction ? ('function' as const) : ('procedure' as const),
+        ...(isFunction
+          ? {
+              returnType: functionType as VariableType,
+              returnValue: compileValue(
+                block.getInputTargetBlock('RETURN'),
+                functionType as VariableType,
+              ),
+            }
+          : {}),
+        parameters: parameters(block),
+        body: isFunction ? [] : compileStack(block.getInputTargetBlock('BODY')),
+        blockId: block.id,
+      };
     }),
     threads: starts.map((start) => ({
       id: start.id,
@@ -2352,4 +4019,22 @@ function compileWorkspace(workspace: BlocklyWorkspaceSvg): CompiledProgram {
   };
 }
 
-export { DEVICE_FIELD, AREA_FIELD, EMPTY_FAVORITES, serializedAreaIds, workspaceDevices, workspaceBoardProfiles, serializedDeviceIds, toolbox, collectSerializedDeviceIds, registerBlocks, refreshAreaField, refreshMessageField, refreshPatternField, refreshDeviceFields, updateDeviceWarning, ensureSingleStart, compileWorkspace };
+export {
+  DEVICE_FIELD,
+  AREA_FIELD,
+  EMPTY_FAVORITES,
+  serializedAreaIds,
+  workspaceDevices,
+  workspaceBoardProfiles,
+  serializedDeviceIds,
+  toolbox,
+  collectSerializedDeviceIds,
+  registerBlocks,
+  refreshAreaField,
+  refreshMessageField,
+  refreshPatternField,
+  refreshDeviceFields,
+  updateDeviceWarning,
+  ensureSingleStart,
+  compileWorkspace,
+};

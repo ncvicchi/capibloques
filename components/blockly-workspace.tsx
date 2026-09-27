@@ -12,6 +12,19 @@ import type { CompiledProgram, ExecutionTaskState } from '@/lib/capiblocks';
 import type { SceneDevice } from '@/lib/scene-model';
 import type { BoardProfileId } from '@/lib/board-profiles';
 import { validFavorite } from '@/lib/user-preferences';
+import {
+  MAIN_WORKSPACE_TAB_ID,
+  MAX_WORKSPACE_TABS,
+  cleanWorkspaceTabName,
+  isRoutineDefinitionType,
+  nextWorkspaceTabId,
+  nextWorkspaceTabName,
+  normalizeWorkspaceTabs,
+  reconcileWorkspaceTabs,
+  saveWorkspaceTabs,
+  tabForRoot,
+  type WorkspaceTabsState,
+} from '@/lib/workspace-tabs';
 
 type BlocklyApi = typeof import('blockly');
 type BlocklyWorkspaceSvg = import('blockly').WorkspaceSvg;
@@ -50,15 +63,125 @@ interface BlocklyWorkspaceProps {
   onHistoryChange?: (state: BlocklyHistoryState) => void;
 }
 
-import { DEVICE_FIELD, AREA_FIELD, EMPTY_FAVORITES, serializedAreaIds, workspaceDevices, workspaceBoardProfiles, serializedDeviceIds, toolbox, collectSerializedDeviceIds, registerBlocks, refreshAreaField, refreshMessageField, refreshDeviceFields, updateDeviceWarning, ensureSingleStart, compileWorkspace } from '@/lib/blockly-engine';
+import {
+  DEVICE_FIELD,
+  AREA_FIELD,
+  EMPTY_FAVORITES,
+  serializedAreaIds,
+  workspaceDevices,
+  workspaceBoardProfiles,
+  serializedDeviceIds,
+  toolbox,
+  collectSerializedDeviceIds,
+  registerBlocks,
+  refreshAreaField,
+  refreshMessageField,
+  refreshDeviceFields,
+  updateDeviceWarning,
+  ensureSingleStart,
+  compileWorkspace,
+} from '@/lib/blockly-engine';
 
-function saveWorkspace(Blockly: BlocklyApi, workspace: BlocklyWorkspaceSvg) {
+function saveWorkspace(
+  Blockly: BlocklyApi,
+  workspace: BlocklyWorkspaceSvg,
+  tabs?: WorkspaceTabsState,
+) {
   const snapshot = Blockly.serialization.workspaces.save(workspace);
-  const roots = (snapshot.blocks as { blocks?: { type: string; deletable?: boolean }[] } | undefined)?.blocks ?? [];
+  const roots =
+    (
+      snapshot.blocks as
+        | { blocks?: { type: string; deletable?: boolean }[] }
+        | undefined
+    )?.blocks ?? [];
   // Root protection is an editor invariant, not a document edit. Persisting
   // its UI flag would falsely dirty every old project merely by opening it.
-  roots.filter(root => root.type === 'capi_start').forEach(root => { delete root.deletable; });
-  return snapshot;
+  roots
+    .filter((root) => root.type === 'capi_start')
+    .forEach((root) => {
+      delete root.deletable;
+    });
+  return tabs ? saveWorkspaceTabs(snapshot, tabs) : snapshot;
+}
+
+function sameTabs(left: WorkspaceTabsState, right: WorkspaceTabsState) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function workspaceToolbox(activeTabId: string) {
+  if (activeTabId !== MAIN_WORKSPACE_TAB_ID) return toolbox;
+  const copy = structuredClone(toolbox) as typeof toolbox;
+  for (const category of copy.contents ?? []) {
+    if (
+      category.kind !== 'category' ||
+      category.name !== 'Mis bloques' ||
+      !Array.isArray(category.contents)
+    )
+      continue;
+    category.contents = category.contents.filter(
+      (item) =>
+        item.kind !== 'block' ||
+        !('type' in item) ||
+        !isRoutineDefinitionType(String(item.type)),
+    );
+    category.contents.unshift({
+      kind: 'label',
+      text: 'Creá definiciones en una pestaña con +',
+    });
+  }
+  return copy;
+}
+
+function createWorkspaceTabsChangeEvent(
+  Blockly: BlocklyApi,
+  workspaceId: string,
+  oldState: WorkspaceTabsState,
+  newState: WorkspaceTabsState,
+  apply: (state: WorkspaceTabsState) => void,
+) {
+  return new (class extends Blockly.Events.Abstract {
+    isBlank = false;
+    type = 'capi_workspace_tabs_change';
+    oldState = structuredClone(oldState);
+    newState = structuredClone(newState);
+    constructor() {
+      super();
+      this.workspaceId = workspaceId;
+    }
+    override run(forward: boolean) {
+      apply(forward ? this.newState : this.oldState);
+    }
+  })();
+}
+
+function EditableTabName({
+  name,
+  onDone,
+  onCancel,
+}: {
+  name: string;
+  onDone: (name: string) => void;
+  onCancel: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, []);
+  return (
+    <input
+      ref={inputRef}
+      className="program-tab-name"
+      defaultValue={name}
+      maxLength={24}
+      aria-label="Nombre de la pestaña"
+      onBlur={(event) => onDone(event.currentTarget.value)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') event.currentTarget.blur();
+        if (event.key === 'Escape') onCancel();
+      }}
+    />
+  );
 }
 
 function loadWorkspaceData(
@@ -66,13 +189,13 @@ function loadWorkspaceData(
   workspace: BlocklyWorkspaceSvg,
   data: Record<string, unknown>,
 ) {
-  const previous = saveWorkspace(Blockly, workspace) as Record<
-    string,
-    unknown
-  >;
+  const previous = saveWorkspace(Blockly, workspace) as Record<string, unknown>;
   const previousDeviceIds = serializedDeviceIds.get(workspace) ?? new Map();
   const previousAreaIds = serializedAreaIds.get(workspace) ?? new Map();
-  serializedAreaIds.set(workspace, collectSerializedDeviceIds(data, AREA_FIELD));
+  serializedAreaIds.set(
+    workspace,
+    collectSerializedDeviceIds(data, AREA_FIELD),
+  );
   serializedDeviceIds.set(workspace, collectSerializedDeviceIds(data));
   Blockly.Events.disable();
   workspace.setResizesEnabled(false);
@@ -145,7 +268,16 @@ function createBlockDraggingConfigurator(
       if (configured.has(renderedBlock)) continue;
       renderedBlock.setDragStrategy(new CapiBlockDragStrategy(renderedBlock));
       const deviceId = String(block.getFieldValue(DEVICE_FIELD) ?? '');
-      if (deviceId) block.customContextMenu = options => options.push({ text: '❓ Ayuda de este componente', enabled: true, callback: () => { const current = String(block.getFieldValue(DEVICE_FIELD) ?? ''); if (current) onHelpDevice(current); } });
+      if (deviceId)
+        block.customContextMenu = (options) =>
+          options.push({
+            text: '❓ Ayuda de este componente',
+            enabled: true,
+            callback: () => {
+              const current = String(block.getFieldValue(DEVICE_FIELD) ?? '');
+              if (current) onHelpDevice(current);
+            },
+          });
       configured.add(renderedBlock);
     }
   };
@@ -162,7 +294,8 @@ const executionColours = [
 
 function executionColour(taskId: string) {
   let hash = 0;
-  for (const character of taskId) hash = (hash * 31 + character.charCodeAt(0)) | 0;
+  for (const character of taskId)
+    hash = (hash * 31 + character.charCodeAt(0)) | 0;
   return executionColours[Math.abs(hash) % executionColours.length];
 }
 
@@ -171,7 +304,8 @@ function shortExecutionText(task: ExecutionTaskState) {
     task.iteration !== undefined && task.totalIterations !== undefined
       ? `Vuelta ${task.iteration}/${task.totalIterations}`
       : '';
-  const detail = task.detail ??
+  const detail =
+    task.detail ??
     (task.status === 'joining'
       ? 'Espera a los otros caminos'
       : task.status === 'waiting'
@@ -188,8 +322,10 @@ function badgeExecutionText(task: ExecutionTaskState) {
   const detail =
     task.remainingMs !== undefined
       ? `${(task.remainingMs / 1000).toFixed(2)} s restantes`
-      : task.detail ??
-        (task.status === 'joining' ? 'Espera a los otros caminos' : 'Ejecutando');
+      : (task.detail ??
+        (task.status === 'joining'
+          ? 'Espera a los otros caminos'
+          : 'Ejecutando'));
   return [iteration, detail].filter(Boolean).join(' · ');
 }
 
@@ -206,7 +342,9 @@ function clearExecutionProgress(
     if (!root) continue;
     root.classList.remove('capi-block-active');
     root.style.removeProperty('--capi-thread-colour');
-    root.querySelectorAll('.capi-execution-badge').forEach(badge => badge.remove());
+    root
+      .querySelectorAll('.capi-execution-badge')
+      .forEach((badge) => badge.remove());
     const path = root.querySelector<SVGElement>('.blocklyPath');
     const baseLabel = path?.getAttribute('data-capi-base-label');
     if (path && baseLabel) {
@@ -224,7 +362,9 @@ function drawExecutionProgress(
   clearExecutionProgress(workspace, previousBlockIds);
   const visible = tasks.filter(
     (task): task is ExecutionTaskState & { blockId: string } =>
-      Boolean(task.blockId) && task.status !== 'done' && task.status !== 'inactive',
+      Boolean(task.blockId) &&
+      task.status !== 'done' &&
+      task.status !== 'inactive',
   );
   const byBlock = new Map<string, typeof visible>();
   for (const task of visible) {
@@ -254,7 +394,10 @@ function drawExecutionProgress(
         ? -43
         : 0;
     root.classList.add('capi-block-active');
-    root.style.setProperty('--capi-thread-colour', executionColour(blockTasks[0].id));
+    root.style.setProperty(
+      '--capi-thread-colour',
+      executionColour(blockTasks[0].id),
+    );
     const descriptions: string[] = [];
     blockTasks.forEach((task, index) => {
       const colour = executionColour(task.id);
@@ -283,13 +426,15 @@ function drawExecutionProgress(
       heading.classList.add('capi-execution-badge-title');
       heading.setAttribute('x', '8');
       heading.setAttribute('y', '14');
-      heading.textContent = task.label.length > 22 ? `${task.label.slice(0, 21)}…` : task.label;
+      heading.textContent =
+        task.label.length > 22 ? `${task.label.slice(0, 21)}…` : task.label;
       badge.appendChild(heading);
       const status = svgElement('text');
       status.classList.add('capi-execution-badge-detail');
       status.setAttribute('x', '8');
       status.setAttribute('y', task.durationMs ? '27' : '30');
-      status.textContent = badgeDetail.length > 28 ? `${badgeDetail.slice(0, 27)}…` : badgeDetail;
+      status.textContent =
+        badgeDetail.length > 28 ? `${badgeDetail.slice(0, 27)}…` : badgeDetail;
       badge.appendChild(status);
       if (
         task.durationMs !== undefined &&
@@ -312,10 +457,7 @@ function drawExecutionProgress(
           'width',
           String(
             138 *
-              Math.max(
-                0,
-                Math.min(1, 1 - task.remainingMs / task.durationMs),
-              ),
+              Math.max(0, Math.min(1, 1 - task.remainingMs / task.durationMs)),
           ),
         );
         fill.setAttribute('height', '4');
@@ -326,9 +468,13 @@ function drawExecutionProgress(
     });
     const path = root.querySelector<SVGElement>('.blocklyPath');
     if (path) {
-      const baseLabel = path.getAttribute('aria-label') ?? blockAccessibilityLabel(block);
+      const baseLabel =
+        path.getAttribute('aria-label') ?? blockAccessibilityLabel(block);
       path.setAttribute('data-capi-base-label', baseLabel);
-      path.setAttribute('aria-label', `${baseLabel}. ${descriptions.join('. ')}`);
+      path.setAttribute(
+        'aria-label',
+        `${baseLabel}. ${descriptions.join('. ')}`,
+      );
     }
   }
   return new Set(byBlock.keys());
@@ -364,7 +510,22 @@ const BlocklyWorkspace = forwardRef<
   const hostRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<BlocklyWorkspaceSvg | null>(null);
   const blocklyRef = useRef<BlocklyApi | null>(null);
-  const stableWorkspaceRef = useRef<Record<string, unknown>>(initialWorkspace);
+  const initialTabs = normalizeWorkspaceTabs(initialWorkspace);
+  const tabsRef = useRef<WorkspaceTabsState>(initialTabs);
+  const activeTabIdRef = useRef(MAIN_WORKSPACE_TAB_ID);
+  const applyTabsRef = useRef<
+    (
+      next: WorkspaceTabsState,
+      recordUndo?: boolean,
+      reconcile?: boolean,
+    ) => void
+  >(() => {});
+  const showTabRef = useRef<(tabId: string, center?: boolean) => void>(
+    () => {},
+  );
+  const stableWorkspaceRef = useRef<Record<string, unknown>>(
+    saveWorkspaceTabs(initialWorkspace, initialTabs),
+  );
   const configureBlockDraggingRef = useRef<() => void>(() => {});
   const changeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialWorkspaceRef = useRef(initialWorkspace);
@@ -381,13 +542,25 @@ const BlocklyWorkspace = forwardRef<
   const favoritesRef = useRef(favorites);
   const onChooseFavoritesRef = useRef(onChooseFavorites);
   const onHelpDeviceRef = useRef(onHelpDevice);
-  useEffect(() => { favoritesRef.current = favorites; onChooseFavoritesRef.current = onChooseFavorites; onHelpDeviceRef.current = onHelpDevice; }, [favorites, onChooseFavorites, onHelpDevice]);
+  useEffect(() => {
+    favoritesRef.current = favorites;
+    onChooseFavoritesRef.current = onChooseFavorites;
+    onHelpDeviceRef.current = onHelpDevice;
+  }, [favorites, onChooseFavorites, onHelpDevice]);
   const highlightedBlockIdsRef = useRef(new Set<string>());
   const keyboardStatusRef = useRef<HTMLOutputElement>(null);
   const [ready, setReady] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [tabs, setTabs] = useState(initialTabs.tabs);
+  const [activeTabId, setActiveTabId] = useState(MAIN_WORKSPACE_TAB_ID);
+  const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const deviceSignature = JSON.stringify(
-    devices.map(device => [device.id, device.kind, device.name, device.kind === 'display' ? device.config : null]),
+    devices.map((device) => [
+      device.id,
+      device.kind,
+      device.name,
+      device.kind === 'display' ? device.config : null,
+    ]),
   );
 
   const captureStableWorkspace = () => {
@@ -398,7 +571,21 @@ const BlocklyWorkspace = forwardRef<
     // Its serializer represents that temporary connection as `block: null`,
     // which is deliberately not a valid CapiBloques document.
     if (workspace.isDragging()) return stableWorkspaceRef.current;
-    const snapshot = saveWorkspace(Blockly, workspace) as Record<string, unknown>;
+    const reconciled = reconcileWorkspaceTabs(
+      tabsRef.current,
+      workspace
+        .getTopBlocks(false)
+        .map((block) => ({ id: block.id, type: block.type })),
+      activeTabIdRef.current,
+    );
+    if (!sameTabs(reconciled, tabsRef.current)) {
+      tabsRef.current = reconciled;
+      setTabs(reconciled.tabs);
+    }
+    const snapshot = saveWorkspace(Blockly, workspace, reconciled) as Record<
+      string,
+      unknown
+    >;
     stableWorkspaceRef.current = snapshot;
     return snapshot;
   };
@@ -432,6 +619,7 @@ const BlocklyWorkspace = forwardRef<
       null;
     let deactivateKeyboardNavigation: (() => void) | null = null;
     let announceBlocklyFocus: ((event?: FocusEvent) => void) | null = null;
+    let openCalledDefinition: ((event: MouseEvent) => void) | null = null;
     void Promise.all([import('blockly'), import('blockly/msg/es')]).then(
       ([Blockly, spanish]) => {
         if (disposed || !hostRef.current) return;
@@ -483,7 +671,7 @@ const BlocklyWorkspace = forwardRef<
         const configureBlockDragging = createBlockDraggingConfigurator(
           Blockly,
           workspace,
-          deviceId => onHelpDeviceRef.current?.(deviceId),
+          (deviceId) => onHelpDeviceRef.current?.(deviceId),
         );
         const configureBlockDraggingWhenIdle = () => {
           dragConfigurationFrame = undefined;
@@ -496,24 +684,123 @@ const BlocklyWorkspace = forwardRef<
         };
         configureBlockDraggingRef.current = configureBlockDragging;
         workspaceRef.current = workspace;
-        workspace.registerButtonCallback('CAPI_CHOOSE_FAVORITES', () => onChooseFavoritesRef.current?.());
-        workspace.registerButtonCallback('CAPI_CREATE_NUMBER', button => Blockly.Variables.createVariableButtonHandler(button.getTargetWorkspace(), undefined, 'Number'));
-        workspace.registerButtonCallback('CAPI_CREATE_TEXT', button => Blockly.Variables.createVariableButtonHandler(button.getTargetWorkspace(), undefined, 'String'));
-        workspace.registerButtonCallback('CAPI_CREATE_BOOLEAN', button => Blockly.Variables.createVariableButtonHandler(button.getTargetWorkspace(), undefined, 'Boolean'));
-        workspace.registerButtonCallback('CAPI_CREATE_TIMER', button => Blockly.Variables.createVariableButtonHandler(button.getTargetWorkspace(), undefined, 'Timer'));
+        const refreshTabView = (tabId: string, center = false) => {
+          const validId = tabsRef.current.tabs.some((tab) => tab.id === tabId)
+            ? tabId
+            : MAIN_WORKSPACE_TAB_ID;
+          activeTabIdRef.current = validId;
+          setActiveTabId(validId);
+          workspace.getToolbox()?.clearSelection();
+          setPaletteOpen(false);
+          if (!readOnlyRef.current)
+            workspace.updateToolbox(workspaceToolbox(validId));
+          for (const block of workspace.getAllBlocks(false)) {
+            const owner = tabForRoot(tabsRef.current, block.getRootBlock().id);
+            block
+              .getSvgRoot()
+              ?.classList.toggle('capi-tab-hidden', owner !== validId);
+          }
+          if (center) window.requestAnimationFrame(() => workspace.zoomToFit());
+          Blockly.svgResize(workspace);
+        };
+        showTabRef.current = refreshTabView;
+        applyTabsRef.current = (
+          candidate,
+          recordUndo = true,
+          reconcile = true,
+        ) => {
+          const next = reconcile
+            ? reconcileWorkspaceTabs(
+                candidate,
+                workspace
+                  .getTopBlocks(false)
+                  .map((block) => ({ id: block.id, type: block.type })),
+                activeTabIdRef.current,
+              )
+            : structuredClone(candidate);
+          const previous = tabsRef.current;
+          if (sameTabs(previous, next)) return;
+          tabsRef.current = next;
+          setTabs(next.tabs);
+          const destination = next.tabs.some(
+            (tab) => tab.id === activeTabIdRef.current,
+          )
+            ? activeTabIdRef.current
+            : MAIN_WORKSPACE_TAB_ID;
+          refreshTabView(destination, true);
+          if (recordUndo)
+            Blockly.Events.fire(
+              createWorkspaceTabsChangeEvent(
+                Blockly,
+                workspace.id,
+                previous,
+                next,
+                (state) => applyTabsRef.current(state, false, false),
+              ),
+            );
+        };
+        workspace.registerButtonCallback('CAPI_CHOOSE_FAVORITES', () =>
+          onChooseFavoritesRef.current?.(),
+        );
+        workspace.registerButtonCallback('CAPI_CREATE_NUMBER', (button) =>
+          Blockly.Variables.createVariableButtonHandler(
+            button.getTargetWorkspace(),
+            undefined,
+            'Number',
+          ),
+        );
+        workspace.registerButtonCallback('CAPI_CREATE_TEXT', (button) =>
+          Blockly.Variables.createVariableButtonHandler(
+            button.getTargetWorkspace(),
+            undefined,
+            'String',
+          ),
+        );
+        workspace.registerButtonCallback('CAPI_CREATE_BOOLEAN', (button) =>
+          Blockly.Variables.createVariableButtonHandler(
+            button.getTargetWorkspace(),
+            undefined,
+            'Boolean',
+          ),
+        );
+        workspace.registerButtonCallback('CAPI_CREATE_TIMER', (button) =>
+          Blockly.Variables.createVariableButtonHandler(
+            button.getTargetWorkspace(),
+            undefined,
+            'Timer',
+          ),
+        );
         workspace.registerToolboxCategoryCallback('CAPI_FAVORITES', () => [
-          {kind:'button',text:'☆ Elegir favoritos',callbackKey:'CAPI_CHOOSE_FAVORITES'},
-          ...(!favoritesRef.current.length ? [{kind:'label',text:'Marcá estrellas para agregar tus bloques.'}] : []),
-          ...favoritesRef.current.filter(type=>validFavorite(type) && Boolean(Blockly.Blocks[type])).map(type=>({kind:'block',type})),
+          {
+            kind: 'button',
+            text: '☆ Elegir favoritos',
+            callbackKey: 'CAPI_CHOOSE_FAVORITES',
+          },
+          ...(!favoritesRef.current.length
+            ? [
+                {
+                  kind: 'label',
+                  text: 'Marcá estrellas para agregar tus bloques.',
+                },
+              ]
+            : []),
+          ...favoritesRef.current
+            .filter(
+              (type) => validFavorite(type) && Boolean(Blockly.Blocks[type]),
+            )
+            .map((type) => ({ kind: 'block', type })),
         ]);
         workspaceDevices.set(workspace, devicesRef.current);
         workspaceBoardProfiles.set(workspace, boardProfileRef.current);
         try {
           loadWorkspaceData(Blockly, workspace, initialWorkspaceRef.current);
+          tabsRef.current = normalizeWorkspaceTabs(initialWorkspaceRef.current);
+          setTabs(tabsRef.current.tabs);
         } catch (error) {
           onErrorRef.current?.(readableLoadError(error));
         }
         configureBlockDragging();
+        refreshTabView(MAIN_WORKSPACE_TAB_ID);
         refreshBlockAccessibility(workspace);
         appliedRevisionRef.current = revisionRef.current;
         onChangeRef.current(captureStableWorkspace());
@@ -535,7 +822,8 @@ const BlocklyWorkspace = forwardRef<
         };
         workspace.addChangeListener((event) => {
           if (readOnlyRef.current) return;
-          if (event.type === Blockly.Events.TOOLBOX_ITEM_SELECT) setPaletteOpen(Boolean(workspace.getFlyout()?.isVisible()));
+          if (event.type === Blockly.Events.TOOLBOX_ITEM_SELECT)
+            setPaletteOpen(Boolean(workspace.getFlyout()?.isVisible()));
           if (event.type === Blockly.Events.BLOCK_DRAG) {
             if (!(event as import('blockly').Events.BlockDrag).isStart) {
               workspace.getToolbox()?.clearSelection();
@@ -547,20 +835,44 @@ const BlocklyWorkspace = forwardRef<
             setPaletteOpen(Boolean(workspace.getFlyout()?.isVisible()));
           }
           if (event.isUiEvent) return;
-          if (event.type === Blockly.Events.BLOCK_CREATE || event.type === Blockly.Events.BLOCK_DELETE) {
+          if (
+            event.type === Blockly.Events.BLOCK_CREATE ||
+            event.type === Blockly.Events.BLOCK_DELETE
+          ) {
             const group = Blockly.Events.getGroup();
             Blockly.Events.setGroup(event.group || true);
-            try { ensureSingleStart(Blockly, workspace); } catch (error) { onErrorRef.current?.(readableLoadError(error)); }
-            finally { Blockly.Events.setGroup(group); }
+            try {
+              ensureSingleStart(Blockly, workspace);
+            } catch (error) {
+              onErrorRef.current?.(readableLoadError(error));
+            } finally {
+              Blockly.Events.setGroup(group);
+            }
             if (dragConfigurationFrame !== undefined) {
               cancelAnimationFrame(dragConfigurationFrame);
             }
-            dragConfigurationFrame = requestAnimationFrame(
-              configureBlockDraggingWhenIdle,
+            dragConfigurationFrame = requestAnimationFrame(() => {
+              configureBlockDraggingWhenIdle();
+              const reconciled = reconcileWorkspaceTabs(
+                tabsRef.current,
+                workspace
+                  .getTopBlocks(false)
+                  .map((block) => ({ id: block.id, type: block.type })),
+                activeTabIdRef.current,
+              );
+              if (!sameTabs(reconciled, tabsRef.current)) {
+                tabsRef.current = reconciled;
+                setTabs(reconciled.tabs);
+              }
+              refreshTabView(activeTabIdRef.current);
+            });
+          }
+          if (event.type === Blockly.Events.BLOCK_MOVE && event.recordUndo) {
+            onBlockSnapRef.current?.();
+            window.requestAnimationFrame(() =>
+              refreshTabView(activeTabIdRef.current),
             );
           }
-          if (event.type === Blockly.Events.BLOCK_MOVE && event.recordUndo)
-            onBlockSnapRef.current?.();
           if (event.type === Blockly.Events.BLOCK_CHANGE) {
             const change = event as typeof event & {
               blockId?: string;
@@ -574,9 +886,17 @@ const BlocklyWorkspace = forwardRef<
             ) {
               serializedDeviceIds.get(workspace)?.delete(change.blockId);
               const block = workspace.getBlockById(change.blockId);
-              if (block) { refreshAreaField(block); refreshMessageField(block); updateDeviceWarning(block); }
+              if (block) {
+                refreshAreaField(block);
+                refreshMessageField(block);
+                updateDeviceWarning(block);
+              }
             }
-            if (change.element === 'field' && change.name === AREA_FIELD && change.blockId) {
+            if (
+              change.element === 'field' &&
+              change.name === AREA_FIELD &&
+              change.blockId
+            ) {
               serializedAreaIds.get(workspace)?.delete(change.blockId);
               const block = workspace.getBlockById(change.blockId);
               if (block) updateDeviceWarning(block);
@@ -591,7 +911,10 @@ const BlocklyWorkspace = forwardRef<
           scheduleWorkspaceChange();
         });
         activateKeyboardNavigation = (event: KeyboardEvent) => {
-          if (event.key === 'Escape' && workspace.getFlyout()?.isVisible()) { workspace.getToolbox()?.clearSelection(); setPaletteOpen(false); }
+          if (event.key === 'Escape' && workspace.getFlyout()?.isVisible()) {
+            workspace.getToolbox()?.clearSelection();
+            setPaletteOpen(false);
+          }
           if (
             event.key.startsWith('Arrow') ||
             event.key === 'Enter' ||
@@ -629,6 +952,40 @@ const BlocklyWorkspace = forwardRef<
           'pointerdown',
           deactivateKeyboardNavigation,
         );
+        openCalledDefinition = (event: MouseEvent) => {
+          const target =
+            event.target instanceof Element
+              ? event.target.closest<SVGElement>('[data-id]')
+              : null;
+          const block = target?.dataset.id
+            ? workspace.getBlockById(target.dataset.id)
+            : null;
+          if (
+            !block ||
+            (block.type !== 'capi_procedure_call' &&
+              !block.type.startsWith('capi_function_call_'))
+          )
+            return;
+          const routineId = String(block.getFieldValue('ROUTINE') ?? '');
+          const definition = workspace
+            .getTopBlocks(false)
+            .find(
+              (candidate) =>
+                isRoutineDefinitionType(candidate.type) &&
+                String(candidate.getFieldValue('ROUTINE') ?? '') === routineId,
+            );
+          if (!definition) {
+            onErrorRef.current?.(
+              'Ese bloque llama a una definición que todavía no existe.',
+            );
+            return;
+          }
+          refreshTabView(tabForRoot(tabsRef.current, definition.id));
+          window.requestAnimationFrame(() =>
+            workspace.centerOnBlock(definition.id),
+          );
+        };
+        keyboardHost.addEventListener('dblclick', openCalledDefinition);
         resizeObserver = new ResizeObserver(() => {
           if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
           resizeFrame = requestAnimationFrame(() => {
@@ -655,6 +1012,8 @@ const BlocklyWorkspace = forwardRef<
       if (keyboardHost && announceBlocklyFocus) {
         keyboardHost.removeEventListener('focusin', announceBlocklyFocus);
       }
+      if (keyboardHost && openCalledDefinition)
+        keyboardHost.removeEventListener('dblclick', openCalledDefinition);
       resizeObserver?.disconnect();
       if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
       if (dragConfigurationFrame !== undefined) {
@@ -662,6 +1021,8 @@ const BlocklyWorkspace = forwardRef<
       }
       if (changeTimerRef.current) clearTimeout(changeTimerRef.current);
       configureBlockDraggingRef.current = () => {};
+      applyTabsRef.current = () => {};
+      showTabRef.current = () => {};
       workspaceRef.current?.dispose();
       workspaceRef.current = null;
     };
@@ -684,6 +1045,9 @@ const BlocklyWorkspace = forwardRef<
         workspaceRef.current,
         initialWorkspaceRef.current,
       );
+      tabsRef.current = normalizeWorkspaceTabs(initialWorkspaceRef.current);
+      setTabs(tabsRef.current.tabs);
+      showTabRef.current(MAIN_WORKSPACE_TAB_ID, true);
     } catch (error) {
       onErrorRef.current?.(readableLoadError(error));
       return;
@@ -717,6 +1081,9 @@ const BlocklyWorkspace = forwardRef<
         if (!workspaceRef.current || !blocklyRef.current) return;
         try {
           loadWorkspaceData(blocklyRef.current, workspaceRef.current, data);
+          tabsRef.current = normalizeWorkspaceTabs(data);
+          setTabs(tabsRef.current.tabs);
+          showTabRef.current(MAIN_WORKSPACE_TAB_ID, true);
         } catch (error) {
           onErrorRef.current?.(readableLoadError(error));
           return;
@@ -781,23 +1148,204 @@ const BlocklyWorkspace = forwardRef<
       },
       focusBlock(blockId) {
         const workspace = workspaceRef.current;
-        if (workspace?.getBlockById(blockId) && !workspace.isDragging()) workspace.centerOnBlock(blockId);
+        const block = workspace?.getBlockById(blockId);
+        if (workspace && block && !workspace.isDragging()) {
+          showTabRef.current(
+            tabForRoot(tabsRef.current, block.getRootBlock().id),
+          );
+          window.requestAnimationFrame(() => workspace.centerOnBlock(blockId));
+        }
       },
     }),
     [],
   );
 
   useEffect(() => {
-    if (ready && !readOnlyRef.current) workspaceRef.current?.refreshToolboxSelection();
+    if (ready && !readOnlyRef.current)
+      workspaceRef.current?.refreshToolboxSelection();
   }, [favorites, ready]);
+
+  const createTab = () => {
+    if (tabsRef.current.tabs.length >= MAX_WORKSPACE_TABS) {
+      onErrorRef.current?.(
+        `Podés usar hasta ${MAX_WORKSPACE_TABS - 1} pestañas además de Principal.`,
+      );
+      return;
+    }
+    const tab = {
+      id: nextWorkspaceTabId(tabsRef.current.tabs),
+      name: nextWorkspaceTabName(tabsRef.current.tabs),
+      rootBlockIds: [] as string[],
+    };
+    applyTabsRef.current({ version: 1, tabs: [...tabsRef.current.tabs, tab] });
+    showTabRef.current(tab.id, true);
+    setEditingTabId(tab.id);
+  };
+
+  const renameTab = (tabId: string, name: string) => {
+    const current = tabsRef.current.tabs.find((tab) => tab.id === tabId);
+    if (!current) return;
+    const nextName = cleanWorkspaceTabName(name, current.name);
+    applyTabsRef.current({
+      version: 1,
+      tabs: tabsRef.current.tabs.map((tab) =>
+        tab.id === tabId ? { ...tab, name: nextName } : tab,
+      ),
+    });
+    setEditingTabId(null);
+  };
+
+  const moveTab = (tabId: string, direction: -1 | 1) => {
+    const next = [...tabsRef.current.tabs];
+    const index = next.findIndex((tab) => tab.id === tabId);
+    const destination = index + direction;
+    if (index < 1 || destination < 1 || destination >= next.length) return;
+    [next[index], next[destination]] = [next[destination], next[index]];
+    applyTabsRef.current({ version: 1, tabs: next });
+  };
+
+  const deleteTab = (tabId: string) => {
+    const workspace = workspaceRef.current;
+    const Blockly = blocklyRef.current;
+    const tab = tabsRef.current.tabs.find((item) => item.id === tabId);
+    if (!workspace || !Blockly || !tab || tab.id === MAIN_WORKSPACE_TAB_ID)
+      return;
+    const routineIds = new Set(
+      tab.rootBlockIds.flatMap((id) => {
+        const block = workspace.getBlockById(id);
+        const value = block ? String(block.getFieldValue('ROUTINE') ?? '') : '';
+        return value ? [value] : [];
+      }),
+    );
+    const used = workspace
+      .getAllBlocks(false)
+      .filter(
+        (block) =>
+          (block.type === 'capi_procedure_call' ||
+            block.type.startsWith('capi_function_call_')) &&
+          routineIds.has(String(block.getFieldValue('ROUTINE') ?? '')),
+      ).length;
+    const detail = tab.rootBlockIds.length
+      ? ` También se borrarán ${tab.rootBlockIds.length} definición${tab.rootBlockIds.length === 1 ? '' : 'es'}${used ? `, usadas en ${used} llamada${used === 1 ? '' : 's'}` : ''}.`
+      : '';
+    if (!window.confirm(`¿Borrar la pestaña «${tab.name}»?${detail}`)) return;
+    const next = {
+      version: 1 as const,
+      tabs: tabsRef.current.tabs.filter((item) => item.id !== tabId),
+    };
+    Blockly.Events.setGroup(true);
+    try {
+      applyTabsRef.current(next, true, false);
+      for (const id of tab.rootBlockIds)
+        workspace.getBlockById(id)?.dispose(false);
+    } finally {
+      Blockly.Events.setGroup(false);
+    }
+    showTabRef.current(MAIN_WORKSPACE_TAB_ID, true);
+  };
+  const displayedActiveTabId = tabs.some((tab) => tab.id === activeTabId)
+    ? activeTabId
+    : MAIN_WORKSPACE_TAB_ID;
 
   return (
     <div className="blockly-shell" data-palette-open={paletteOpen}>
-      {paletteOpen && <button className="palette-close" type="button" onClick={() => { workspaceRef.current?.getToolbox()?.clearSelection(); setPaletteOpen(false); }} aria-label="Cerrar catálogo de bloques">Catálogo abierto · Cerrar ×</button>}
+      <div
+        className="program-tabs"
+        role="tablist"
+        aria-label="Secciones del programa"
+      >
+        {tabs.map((tab, index) => (
+          <div className="program-tab-wrap" key={tab.id}>
+            {editingTabId === tab.id && tab.id !== MAIN_WORKSPACE_TAB_ID ? (
+              <EditableTabName
+                name={tab.name}
+                onDone={(name) => renameTab(tab.id, name)}
+                onCancel={() => setEditingTabId(null)}
+              />
+            ) : (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={displayedActiveTabId === tab.id}
+                className="program-tab"
+                onClick={() => showTabRef.current(tab.id, true)}
+                onDoubleClick={() => {
+                  if (tab.id !== MAIN_WORKSPACE_TAB_ID && !readOnly)
+                    setEditingTabId(tab.id);
+                }}
+              >
+                {tab.name}
+              </button>
+            )}
+            {!readOnly &&
+              displayedActiveTabId === tab.id &&
+              tab.id !== MAIN_WORKSPACE_TAB_ID && (
+                <span className="program-tab-actions">
+                  <button
+                    type="button"
+                    onClick={() => moveTab(tab.id, -1)}
+                    disabled={index <= 1}
+                    aria-label={`Mover ${tab.name} a la izquierda`}
+                  >
+                    ←
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveTab(tab.id, 1)}
+                    disabled={index >= tabs.length - 1}
+                    aria-label={`Mover ${tab.name} a la derecha`}
+                  >
+                    →
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingTabId(tab.id)}
+                    aria-label={`Cambiar nombre de ${tab.name}`}
+                  >
+                    ✎
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteTab(tab.id)}
+                    aria-label={`Borrar ${tab.name}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+          </div>
+        ))}
+        {!readOnly && (
+          <button
+            className="program-tab-add"
+            type="button"
+            onClick={createTab}
+            aria-label="Agregar pestaña"
+          >
+            +
+          </button>
+        )}
+      </div>
+      {paletteOpen && (
+        <button
+          className="palette-close"
+          type="button"
+          onClick={() => {
+            workspaceRef.current?.getToolbox()?.clearSelection();
+            setPaletteOpen(false);
+          }}
+          aria-label="Cerrar catálogo de bloques"
+        >
+          Catálogo abierto · Cerrar ×
+        </button>
+      )}
       {!ready && <div className="editor-loading">Preparando los bloques…</div>}
       <p id="blockly-keyboard-help" className="visually-hidden">
         Usa Tab para recorrer el editor. Las flechas permiten navegar por los
-        controles de Blockly. {readOnly ? 'Sólo lectura: no se pueden modificar los bloques.' : 'Al arrastrar se mueve sólo el bloque elegido; mantén Control, o Comando en Mac, para moverlo con los bloques siguientes. Control Z deshace y Control Y rehace.'}
+        controles de Blockly.{' '}
+        {readOnly
+          ? 'Sólo lectura: no se pueden modificar los bloques.'
+          : 'Al arrastrar se mueve sólo el bloque elegido; mantén Control, o Comando en Mac, para moverlo con los bloques siguientes. Control Z deshace y Control Y rehace.'}
       </p>
       <output
         ref={keyboardStatusRef}
@@ -810,7 +1358,11 @@ const BlocklyWorkspace = forwardRef<
         ref={hostRef}
         className="blockly-host"
         role="application"
-        aria-label={readOnly ? 'Bloques de la versión, sólo lectura' : 'Editor visual de bloques'}
+        aria-label={
+          readOnly
+            ? 'Bloques de la versión, sólo lectura'
+            : 'Editor visual de bloques'
+        }
         aria-describedby="blockly-keyboard-help blockly-keyboard-status"
       />
     </div>

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import './workspace-tabs.test.mjs';
 import { fittedCamera, zoomScene, constrainCamera } from '../lib/scene-camera.ts';
 import { wemosContacts, physicalWemosLabel } from '../lib/wemos-board.ts';
 import { wemosD1R32Pins } from '../lib/scene-model.ts';
