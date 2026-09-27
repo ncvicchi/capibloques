@@ -73,6 +73,7 @@ interface SceneStageProps {
   counter?: number;
   simulationSpeed?: number;
   simulationRunning?: boolean;
+  simulationEpoch?: number;
   selectedId?: string;
   editing?: boolean;
   onSelect?: (deviceId: string) => boolean | void;
@@ -511,6 +512,7 @@ export default function SceneStage({
   counter = 0,
   simulationSpeed = 1,
   simulationRunning = false,
+  simulationEpoch = 0,
   selectedId,
   editing = false,
   onSelect,
@@ -722,6 +724,7 @@ export default function SceneStage({
         </p>
       )}
       <SceneBackdrop
+        key={`scene-world:${scene.id}:${simulationEpoch}`}
         scene={scene}
         runtimeDevices={runtimeDevices}
         simulationSpeed={safeSimulationSpeed}

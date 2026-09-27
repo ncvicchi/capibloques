@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   addDeviceToScene,
   closestCrossroadsTrafficSlot,
@@ -323,4 +324,11 @@ assert.deepEqual(
   collision,
   'a collision stays a collision',
 );
+
+const stageSource = readFileSync(new URL('../components/scene-stage.tsx', import.meta.url), 'utf8');
+const appSource = readFileSync(new URL('../components/capiblocks-app.tsx', import.meta.url), 'utf8');
+const reviewSource = readFileSync(new URL('../components/review-simulation.tsx', import.meta.url), 'utf8');
+assert.match(stageSource, /key={`scene-world:\$\{scene\.id}:\$\{simulationEpoch}`}/);
+assert.match(appSource, /setSimulationEpoch\(\(current\) => current \+ 1\)/);
+assert.match(reviewSource, /type === 'RESET'.*setSimulationEpoch/);
 console.log('Mundos de escena: plantillas, carriles y límites validados.');

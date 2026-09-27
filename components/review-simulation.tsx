@@ -49,6 +49,7 @@ export default function ReviewSimulation({
   const [blocked, setBlocked] = useState(false);
   const [error, setError] = useState('');
   const [speed, setSpeed] = useState(1);
+  const [simulationEpoch, setSimulationEpoch] = useState(0);
   const [wiringOpen, setWiringOpen] = useState(false);
   const [wiringChecked, setWiringChecked] = useState(false);
   const generated = useMemo(
@@ -167,6 +168,7 @@ export default function ReviewSimulation({
   }, []);
   function command(type: string) {
     if (type !== 'RUN') stopSounds();
+    if (type === 'RESET') setSimulationEpoch((current) => current + 1);
     worker.current?.postMessage({ type });
   }
   const status = {
@@ -306,6 +308,7 @@ export default function ReviewSimulation({
           counter={state?.counter}
           simulationSpeed={speed}
           simulationRunning={state?.status === 'running'}
+          simulationEpoch={simulationEpoch}
         />
         <fieldset className="review-inputs" disabled={!program}>
           <legend>Sensores simulados</legend>

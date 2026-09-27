@@ -42,7 +42,10 @@ duplicada allí.
   salir de la escena. La población cambia durante la ejecución y está acotada a
   doce para conservar claridad y rendimiento. El azar es determinista y
   comprobable. Un choque congela a los vehículos que efectivamente coinciden
-  dentro del cruce.
+  dentro del cruce. **Reiniciar** restablece el mundo completo además del
+  programa: retira autos, filas y choques, reinicia la secuencia aleatoria y
+  devuelve todos los componentes a su estado inicial. Detener o apagar un
+  semáforo no dispara ese borrado.
 - Cada semáforo admite dos carteles opcionales de un único módulo MAX7219 8×8.
   El vehicular muestra 0–9, mano de alto, flecha de avance o apagado; el peatonal
   muestra caminar, no caminar o apagado. Al usar ambos se encadenan y comparten

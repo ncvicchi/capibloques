@@ -475,6 +475,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const [sim, setSim] = useState<SimulatorState>(() =>
     makeInitialState(initialScene),
   );
+  const [simulationEpoch, setSimulationEpoch] = useState(0);
   const [speed, setSpeed] = useState(1);
   const [muted, setMuted] = useState(false);
   const [examplesOpen, setExamplesOpen] = useState(false);
@@ -869,6 +870,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     pendingExecutionTasksRef.current = [];
     editorRef.current?.showExecution();
     setSim(makeInitialState(scene));
+    setSimulationEpoch((current) => current + 1);
     setNotice('Escena reiniciada');
     setNoticeTone('ok');
   }, [postToWorker, scene]);
@@ -1544,6 +1546,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                   counter={sim.counter}
                   simulationSpeed={speed}
                   simulationRunning={sim.status === 'running'}
+                  simulationEpoch={simulationEpoch}
                   dashboardModes={sim.dashboardModes}
                   onDashboardAction={(deviceId, action) => postToWorker({ type: 'SET_DASHBOARD', deviceId, action })}
                 />
