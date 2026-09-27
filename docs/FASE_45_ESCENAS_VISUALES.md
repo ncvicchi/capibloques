@@ -13,8 +13,13 @@ duplicada allí.
 - Diez fondos vectoriales locales en total. Parque, taller, casa y laguna ya no
   dependen sólo de franjas; cruce, pista, huerta, entrada y patio meteorológico
   tienen zonas reconocibles y escalan con el mismo lienzo lógico de 960 × 540.
-- El cruce contiene cuatro lugares válidos para semáforos. Al agregar o mover
-  uno se encaja en esos puntos y se impide agregar un quinto. Sus autos son
+- El cruce contiene cuatro lugares válidos para semáforos, todos sobre el jardín
+  junto al cordón y fuera del asfalto. Al agregar o mover uno se encaja en esos
+  puntos y se impide agregar un quinto. Las calles son de doble mano y el editor
+  permite habilitar por separado autos hacia derecha, izquierda, abajo y arriba;
+  también admite una escena sin tránsito. Con dos semáforos, cada uno controla
+  ambos sentidos de su eje para conservar las escenas anteriores; al agregar los
+  cuatro, cada sentido responde al semáforo de su acceso. Sus autos son
   actores persistentes del mundo, no listas CSS recreadas: conservan identidad
   y posición. Ante rojo forman fila; al pasar de verde a amarillo sólo terminan
   de cruzar quienes ya superaron la línea donde se detienen en rojo, mientras

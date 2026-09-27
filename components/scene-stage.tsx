@@ -18,13 +18,17 @@ import type {
   ScenePosition,
   SceneWidget,
 } from '@/lib/scene-model';
-import { closestCrossroadsTrafficSlot } from '@/lib/scene-model';
+import {
+  closestCrossroadsTrafficSlot,
+  enabledTrafficDirections,
+} from '@/lib/scene-model';
 import { educationalModuleKinds, educationalModuleSpecs } from '@/lib/educational-modules';
 import {
   advanceTrafficWorld,
   createTrafficWorldState,
   trafficCarPosition,
   type TrafficSignals,
+  type TrafficLane,
 } from '@/lib/traffic-world';
 
 export type RuntimeVisualDevice = {
@@ -108,24 +112,34 @@ function TrafficActors({
   signals,
   speed,
   running,
+  enabledLanes,
 }: {
   signals: TrafficSignals;
   speed: number;
   running: boolean;
+  enabledLanes: readonly TrafficLane[];
 }) {
   const [world, setWorld] = useState(createTrafficWorldState);
   const stateRef = useRef(world);
   const lastFrameRef = useRef<number | null>(null);
   const lastPaintRef = useRef(0);
-  const horizontalSignal = signals.horizontal;
-  const verticalSignal = signals.vertical;
+  const eastboundSignal = signals.eastbound;
+  const westboundSignal = signals.westbound;
+  const southboundSignal = signals.southbound;
+  const northboundSignal = signals.northbound;
 
   useEffect(() => {
-    if (horizontalSignal !== 'OFF' || verticalSignal !== 'OFF') return;
+    if (
+      eastboundSignal !== 'OFF' ||
+      westboundSignal !== 'OFF' ||
+      southboundSignal !== 'OFF' ||
+      northboundSignal !== 'OFF'
+    )
+      return;
     stateRef.current = createTrafficWorldState();
     lastFrameRef.current = null;
     setWorld(stateRef.current);
-  }, [horizontalSignal, verticalSignal]);
+  }, [eastboundSignal, northboundSignal, southboundSignal, westboundSignal]);
 
   useEffect(() => {
     if (!running) {
@@ -138,8 +152,14 @@ function TrafficActors({
       lastFrameRef.current = now;
       stateRef.current = advanceTrafficWorld(
         stateRef.current,
-        { horizontal: horizontalSignal, vertical: verticalSignal },
+        {
+          eastbound: eastboundSignal,
+          westbound: westboundSignal,
+          southbound: southboundSignal,
+          northbound: northboundSignal,
+        },
         (now - previous) * speed,
+        enabledLanes,
       );
       if (now - lastPaintRef.current >= 40) {
         lastPaintRef.current = now;
@@ -152,7 +172,15 @@ function TrafficActors({
     };
     frame = window.requestAnimationFrame(animate);
     return () => window.cancelAnimationFrame(frame);
-  }, [horizontalSignal, verticalSignal, running, speed]);
+  }, [
+    eastboundSignal,
+    enabledLanes,
+    northboundSignal,
+    running,
+    southboundSignal,
+    speed,
+    westboundSignal,
+  ]);
 
   return (
     <div className={`traffic-world${world.collision ? ' conflict' : ''}`}>
@@ -167,18 +195,17 @@ function TrafficActors({
               top: `${(position.y / 540) * 100}%`,
             }}
           >
-            {car.lane === 'horizontal' ? '🚗' : '🚙'}
+            {car.lane === 'eastbound' || car.lane === 'westbound' ? '🚗' : '🚙'}
           </i>
         );
       })}
       {world.collision && (
         <strong className="traffic-crash">💥 Choque</strong>
       )}
-      {signals.horizontal === 'RED' && (
-        <small className="traffic-jam horizontal">fila</small>
-      )}
-      {signals.vertical === 'RED' && (
-        <small className="traffic-jam vertical">fila</small>
+      {Object.entries(signals).map(([lane, color]) =>
+        color === 'RED' && enabledLanes.includes(lane as TrafficLane) ? (
+          <small key={lane} className={`traffic-jam ${lane}`}>fila</small>
+        ) : null,
       )}
     </div>
   );
@@ -196,18 +223,23 @@ function SceneBackdrop({
   simulationRunning: boolean;
 }) {
   const traffic = useMemo(() => {
-    const lanes: TrafficSignals = {
-      horizontal: 'OFF',
-      vertical: 'OFF',
-    };
+    const exact: Partial<TrafficSignals> = {};
     for (const device of scene.devices) {
       if (device.kind !== 'trafficLight') continue;
       const slot = closestCrossroadsTrafficSlot(device.position);
-      if (lanes[slot.lane] === 'OFF')
-        lanes[slot.lane] = runtimeDevices[device.id]?.color ?? 'OFF';
+      exact[slot.direction] = runtimeDevices[device.id]?.color ?? 'OFF';
     }
-    return lanes;
+    return {
+      eastbound: exact.eastbound ?? exact.westbound ?? 'OFF',
+      westbound: exact.westbound ?? exact.eastbound ?? 'OFF',
+      southbound: exact.southbound ?? exact.northbound ?? 'OFF',
+      northbound: exact.northbound ?? exact.southbound ?? 'OFF',
+    };
   }, [scene.devices, runtimeDevices]);
+  const activeTrafficDirections = useMemo(
+    () => enabledTrafficDirections(scene),
+    [scene],
+  );
 
   const background = scene.canvas.background;
   return (
@@ -270,6 +302,7 @@ function SceneBackdrop({
           signals={traffic}
           speed={simulationSpeed}
           running={simulationRunning}
+          enabledLanes={activeTrafficDirections}
         />
       )}
     </div>

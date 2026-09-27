@@ -67,6 +67,13 @@ export const sceneBackgrounds = [
 ] as const;
 export type SceneBackground = (typeof sceneBackgrounds)[number];
 export type PinNumber = number | null;
+export const trafficDirections = [
+  'eastbound',
+  'westbound',
+  'southbound',
+  'northbound',
+] as const;
+export type TrafficDirection = (typeof trafficDirections)[number];
 
 export type { BoardProfileId, PinCapability };
 
@@ -81,11 +88,13 @@ export interface SceneCanvas {
   background: SceneBackground;
   gridSize: number;
   snapToGrid: boolean;
+  trafficDirections?: TrafficDirection[];
 }
 
 export interface SceneTrafficSlot extends ScenePosition {
   id: 'north' | 'east' | 'south' | 'west';
   lane: 'horizontal' | 'vertical';
+  direction: TrafficDirection;
   rotation: number;
 }
 
@@ -95,11 +104,17 @@ export interface SceneTrafficSlot extends ScenePosition {
  * saved scene still has a single source of truth for editor and simulator.
  */
 export const crossroadsTrafficSlots: readonly SceneTrafficSlot[] = [
-  { id: 'north', lane: 'vertical', x: 555, y: 170, rotation: 0 },
-  { id: 'east', lane: 'horizontal', x: 655, y: 330, rotation: 90 },
-  { id: 'south', lane: 'vertical', x: 405, y: 370, rotation: 180 },
-  { id: 'west', lane: 'horizontal', x: 305, y: 210, rotation: 270 },
+  { id: 'north', lane: 'vertical', direction: 'southbound', x: 620, y: 135, rotation: 0 },
+  { id: 'east', lane: 'horizontal', direction: 'westbound', x: 620, y: 405, rotation: 90 },
+  { id: 'south', lane: 'vertical', direction: 'northbound', x: 340, y: 405, rotation: 180 },
+  { id: 'west', lane: 'horizontal', direction: 'eastbound', x: 340, y: 135, rotation: 270 },
 ] as const;
+
+export function enabledTrafficDirections(scene: SceneDefinition) {
+  return scene.canvas.background === 'crossroads'
+    ? scene.canvas.trafficDirections ?? [...trafficDirections]
+    : [];
+}
 
 export function closestCrossroadsTrafficSlot(position: ScenePosition) {
   return crossroadsTrafficSlots.reduce((closest, slot) => {
@@ -654,7 +669,12 @@ export function cloneScene(
   return {
     ...scene,
     ...overrides,
-    canvas: { ...scene.canvas },
+    canvas: {
+      ...scene.canvas,
+      trafficDirections: scene.canvas.trafficDirections
+        ? [...scene.canvas.trafficDirections]
+        : undefined,
+    },
     devices: scene.devices.map(cloneDevice),
     widgets: scene.widgets.map(cloneWidget),
     retiredDeviceIds: [...(scene.retiredDeviceIds ?? [])],
@@ -1392,13 +1412,13 @@ intersectionTemplate.devices.push(
   templateDevice('trafficLight', intersectionTemplate.devices, {
     id: 'traffic-light-1',
     name: 'Semáforo horizontal',
-    position: { x: 305, y: 210 },
+    position: { x: 340, y: 135 },
     pins: { red: 26, yellow: 25, green: 27 },
   }),
   templateDevice('trafficLight', intersectionTemplate.devices, {
     id: 'traffic-light-2',
     name: 'Semáforo vertical',
-    position: { x: 555, y: 170 },
+    position: { x: 620, y: 135 },
     pins: { red: 18, yellow: 19, green: 23 },
   }),
 );
@@ -2374,6 +2394,7 @@ export function isSceneDefinition(value: unknown, incompleteDisplayLayout = fals
       'background',
       'gridSize',
       'snapToGrid',
+      'trafficDirections',
     ]) &&
     hasFiniteNumber(canvas, 'width') &&
     hasFiniteNumber(canvas, 'height') &&
@@ -2386,6 +2407,14 @@ export function isSceneDefinition(value: unknown, incompleteDisplayLayout = fals
     Number(canvas.gridSize) > 0 &&
     Number(canvas.gridSize) <= 512 &&
     typeof canvas.snapToGrid === 'boolean' &&
+    (canvas.trafficDirections === undefined ||
+      (Array.isArray(canvas.trafficDirections) &&
+        canvas.trafficDirections.length <= trafficDirections.length &&
+        canvas.trafficDirections.every(direction =>
+          trafficDirections.includes(direction as TrafficDirection),
+        ) &&
+        new Set(canvas.trafficDirections).size ===
+          canvas.trafficDirections.length)) &&
     Array.isArray(devices) &&
     devices.length <= MAX_SCENE_ITEMS &&
     devices.every(device => isSceneDevice(device, incompleteDisplayLayout)) &&
@@ -2442,7 +2471,25 @@ export function migrateSceneDefinition(
   fallback: LegacySceneId = 'traffic',
 ): SceneMigrationResult {
   if (isSceneDefinition(value)) {
-    return { scene: cloneScene(value), migrated: false, warnings: [] };
+    const scene = cloneScene(value);
+    let movedTrafficLights = false;
+    if (scene.canvas.background === 'crossroads') {
+      scene.devices = scene.devices.map(device => {
+        if (device.kind !== 'trafficLight') return device;
+        const slot = closestCrossroadsTrafficSlot(device.position);
+        if (device.position.x === slot.x && device.position.y === slot.y)
+          return device;
+        movedTrafficLights = true;
+        return { ...device, position: { x: slot.x, y: slot.y } };
+      });
+    }
+    return {
+      scene,
+      migrated: movedTrafficLights,
+      warnings: movedTrafficLights
+        ? ['Los semáforos del cruce se acomodaron sobre el jardín, junto a la calle.']
+        : [],
+    };
   }
   if (value && typeof value === 'object') {
     const expanded = structuredClone(value) as { devices?: unknown[] };

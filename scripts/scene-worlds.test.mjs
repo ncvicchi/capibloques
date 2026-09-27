@@ -3,8 +3,11 @@ import {
   addDeviceToScene,
   closestCrossroadsTrafficSlot,
   constrainSceneItemPosition,
+  crossroadsTrafficSlots,
   createSceneFromTemplate,
+  enabledTrafficDirections,
   isSceneDefinition,
+  migrateSceneDefinition,
   sceneTemplates,
   validateScene,
 } from '../lib/scene-model.ts';
@@ -32,13 +35,39 @@ for (const light of intersection.devices.filter(device => device.kind === 'traff
   const slot = closestCrossroadsTrafficSlot(light.position);
   assert.deepEqual(light.position, { x: slot.x, y: slot.y });
 }
+for (const slot of crossroadsTrafficSlots) {
+  assert.ok(
+    (slot.x < 390 || slot.x > 570) && (slot.y < 180 || slot.y > 360),
+    `${slot.id} traffic light must stand on the garden, outside both roads`,
+  );
+}
+const selectedDirections = structuredClone(intersection);
+selectedDirections.canvas.trafficDirections = ['eastbound', 'northbound'];
+assert.ok(isSceneDefinition(selectedDirections));
+assert.deepEqual(enabledTrafficDirections(selectedDirections), [
+  'eastbound',
+  'northbound',
+]);
 
 const moved = constrainSceneItemPosition(
   intersection,
   intersection.devices[0],
   { x: 940, y: 520 },
 );
-assert.deepEqual(moved, { x: 655, y: 330 });
+assert.deepEqual(moved, { x: 620, y: 405 });
+const oldIntersection = structuredClone(intersection);
+oldIntersection.devices.find(device => device.id === 'traffic-light-1').position = {
+  x: 305,
+  y: 210,
+};
+const migratedIntersection = migrateSceneDefinition(oldIntersection);
+assert.equal(migratedIntersection.migrated, true);
+assert.deepEqual(
+  migratedIntersection.scene.devices.find(
+    device => device.id === 'traffic-light-1',
+  ).position,
+  { x: 340, y: 135 },
+);
 
 let full = intersection;
 full = addDeviceToScene(full, 'trafficLight').scene;
@@ -61,12 +90,28 @@ const car = (id, lane, progress) => ({
 const fixedWorld = cars => ({
   ...createTrafficWorldState(),
   cars,
-  spawnInMs: { horizontal: 1_000_000, vertical: 1_000_000 },
+  spawnInMs: {
+    eastbound: 1_000_000,
+    westbound: 1_000_000,
+    southbound: 1_000_000,
+    northbound: 1_000_000,
+  },
 });
+const signals = (
+  eastbound = 'RED',
+  westbound = 'RED',
+  southbound = 'RED',
+  northbound = 'RED',
+) => ({ eastbound, westbound, southbound, northbound });
 
 let generatedTraffic = {
   ...createTrafficWorldState(),
-  spawnInMs: { horizontal: 0, vertical: 1_000_000 },
+  spawnInMs: {
+    eastbound: 0,
+    westbound: 1_000_000,
+    southbound: 1_000_000,
+    northbound: 1_000_000,
+  },
 };
 const generatedIds = new Set();
 const populationSizes = new Set();
@@ -75,8 +120,9 @@ let destroyedCar = false;
 for (let frame = 0; frame < 1_500; frame += 1) {
   generatedTraffic = advanceTrafficWorld(
     generatedTraffic,
-    { horizontal: 'GREEN', vertical: 'RED' },
+    signals('GREEN'),
     50,
+    ['eastbound'],
   );
   const currentIds = new Set(generatedTraffic.cars.map(item => item.id));
   if ([...previousIds].some(id => !currentIds.has(id))) destroyedCar = true;
@@ -89,14 +135,34 @@ assert.ok(destroyedCar, 'cars are destroyed after leaving the scene');
 assert.ok(populationSizes.size >= 3, 'traffic population changes over time');
 assert.ok(Math.max(...populationSizes) <= 12, 'traffic population stays bounded');
 
+let fourWayTraffic = createTrafficWorldState();
+for (let frame = 0; frame < 80; frame += 1) {
+  fourWayTraffic = advanceTrafficWorld(
+    fourWayTraffic,
+    signals(),
+    50,
+  );
+}
+assert.deepEqual(
+  [...new Set(fourWayTraffic.cars.map(item => item.lane))].sort(),
+  ['eastbound', 'northbound', 'southbound', 'westbound'],
+  'double-way streets can generate traffic in all four directions',
+);
+
+let noTraffic = createTrafficWorldState();
+for (let frame = 0; frame < 100; frame += 1) {
+  noTraffic = advanceTrafficWorld(noTraffic, signals('GREEN'), 50, []);
+}
+assert.equal(noTraffic.cars.length, 0, 'the scene can disable every traffic direction');
+
 let yellowTransition = fixedWorld([
-  car('before-crossing', 'horizontal', 0.35),
-  car('past-stop-line', 'horizontal', 0.371),
+  car('before-crossing', 'eastbound', 0.35),
+  car('past-stop-line', 'eastbound', 0.371),
 ]);
 for (let frame = 0; frame < 20; frame += 1) {
   yellowTransition = advanceTrafficWorld(
     yellowTransition,
-    { horizontal: 'YELLOW', vertical: 'RED' },
+    signals('YELLOW'),
     50,
   );
 }
@@ -112,10 +178,10 @@ assert.ok(
 
 const redAfterStopLine = advanceTrafficWorld(
   fixedWorld([
-    car('at-line', 'horizontal', 0.37),
-    car('past-line', 'horizontal', 0.371),
+    car('at-line', 'eastbound', 0.37),
+    car('past-line', 'eastbound', 0.371),
   ]),
-  { horizontal: 'RED', vertical: 'RED' },
+  signals(),
   50,
 );
 assert.equal(redAfterStopLine.cars[0].progress, 0.37);
@@ -125,13 +191,13 @@ assert.ok(
 );
 
 const normalSpeed = advanceTrafficWorld(
-  fixedWorld([car('speed', 'horizontal', 0.05)]),
-  { horizontal: 'GREEN', vertical: 'RED' },
+  fixedWorld([car('speed', 'eastbound', 0.05)]),
+  signals('GREEN'),
   25,
 );
 const quadrupleSpeed = advanceTrafficWorld(
-  fixedWorld([car('speed', 'horizontal', 0.05)]),
-  { horizontal: 'GREEN', vertical: 'RED' },
+  fixedWorld([car('speed', 'eastbound', 0.05)]),
+  signals('GREEN'),
   100,
 );
 assert.equal(
@@ -141,67 +207,67 @@ assert.equal(
 );
 
 let redTraffic = fixedWorld([
-  car('queue-1', 'horizontal', 0.05),
-  car('queue-2', 'horizontal', 0.15),
-  car('queue-3', 'horizontal', 0.25),
+  car('queue-1', 'eastbound', 0.05),
+  car('queue-2', 'eastbound', 0.15),
+  car('queue-3', 'eastbound', 0.25),
 ]);
 for (let frame = 0; frame < 400; frame += 1) {
   redTraffic = advanceTrafficWorld(
     redTraffic,
-    { horizontal: 'RED', vertical: 'RED' },
+    signals(),
     50,
   );
 }
 assert.equal(redTraffic.cars.length, 3);
 const horizontalQueue = redTraffic.cars
-  .filter(car => car.lane === 'horizontal')
+  .filter(car => car.lane === 'eastbound')
   .map(car => car.progress)
   .sort((left, right) => right - left);
 assert.deepEqual(horizontalQueue.map(value => Number(value.toFixed(3))), [0.37, 0.315, 0.26]);
 assert.ok(
   redTraffic.cars
-    .filter(car => car.lane === 'horizontal')
+    .filter(car => car.lane === 'eastbound')
     .every(car => car.waitingForGreen),
   'cars stopped by red remember that they are waiting for green',
 );
 const yellowAfterRed = advanceTrafficWorld(
   redTraffic,
-  { horizontal: 'YELLOW', vertical: 'RED' },
+  signals('YELLOW'),
   100,
 );
 assert.deepEqual(
   yellowAfterRed.cars
-    .filter(car => car.lane === 'horizontal')
+    .filter(car => car.lane === 'eastbound')
     .map(car => car.progress),
   redTraffic.cars
-    .filter(car => car.lane === 'horizontal')
+    .filter(car => car.lane === 'eastbound')
     .map(car => car.progress),
   'a queue stopped by red must not start on yellow',
 );
 const greenAfterRed = advanceTrafficWorld(
   yellowAfterRed,
-  { horizontal: 'GREEN', vertical: 'RED' },
+  signals('GREEN'),
   100,
 );
 assert.ok(
   greenAfterRed.cars
-    .filter(car => car.lane === 'horizontal')
-    .every((car, index) => car.progress > yellowAfterRed.cars.filter(candidate => candidate.lane === 'horizontal')[index].progress),
+    .filter(car => car.lane === 'eastbound')
+    .every((car, index) => car.progress > yellowAfterRed.cars.filter(candidate => candidate.lane === 'eastbound')[index].progress),
   'the stopped queue starts on green',
 );
 
 const collision = advanceTrafficWorld(
   fixedWorld([
-    car('h', 'horizontal', 0.5),
-    car('v', 'vertical', 0.5),
+    car('h', 'eastbound', 480 / 1_050),
+    car('v', 'southbound', 355 / 620),
   ]),
-  { horizontal: 'GREEN', vertical: 'YELLOW' },
+  signals('GREEN', 'RED', 'YELLOW'),
   0,
 );
 assert.deepEqual(collision.collision, { horizontalId: 'h', verticalId: 'v' });
 assert.ok(collision.cars.every(car => car.crashed));
 assert.deepEqual(
-  advanceTrafficWorld(collision, { horizontal: 'RED', vertical: 'RED' }, 100),
+  advanceTrafficWorld(collision, signals(), 100),
   collision,
   'a collision stays a collision',
 );

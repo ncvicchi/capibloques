@@ -42,6 +42,7 @@ import {
   pinLabel,
   removeDeviceFromScene,
   sceneComponentCatalog,
+  trafficDirections,
   validateScene,
   type LegacySceneId,
   type PinNumber,
@@ -52,6 +53,7 @@ import {
   type SceneDeviceKind,
   type ScenePosition,
   type SceneWidget,
+  type TrafficDirection,
   type BoardProfileId,
 } from '@/lib/scene-model';
 import { boardProfile, boardProfiles, WAVESHARE_TOUCH_LCD_5_PROFILE_ID } from '@/lib/board-profiles';
@@ -97,6 +99,17 @@ const backgrounds: { value: SceneBackground; label: string; icon: string }[] = [
   { value: 'schoolGate', label: 'Entrada de la escuela', icon: '🏫' },
   { value: 'weatherYard', label: 'Patio meteorológico', icon: '🌦️' },
   { value: 'blank', label: 'En blanco', icon: '⬜' },
+];
+
+const trafficDirectionOptions: {
+  value: TrafficDirection;
+  label: string;
+  icon: string;
+}[] = [
+  { value: 'eastbound', label: 'hacia la derecha', icon: '→' },
+  { value: 'westbound', label: 'hacia la izquierda', icon: '←' },
+  { value: 'southbound', label: 'hacia abajo', icon: '↓' },
+  { value: 'northbound', label: 'hacia arriba', icon: '↑' },
 ];
 
 const quickTemplates: {
@@ -853,6 +866,40 @@ function SceneBuilderSession({
                 </small>
               )}
             </label>
+            {previewScene.canvas.background === 'crossroads' && (
+              <fieldset className="traffic-directions-control">
+                <legend>Autos en la escena</legend>
+                {trafficDirectionOptions.map(option => {
+                  const selected =
+                    previewScene.canvas.trafficDirections ?? trafficDirections;
+                  return (
+                    <label key={option.value} title={option.label}>
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(option.value)}
+                        onChange={(event) => {
+                          if (!requireSettledInspector('cambiar el tránsito'))
+                            return;
+                          const current = new Set(selected);
+                          if (event.target.checked) current.add(option.value);
+                          else current.delete(option.value);
+                          commitScene({
+                            ...cloneScene(previewScene),
+                            canvas: {
+                              ...previewScene.canvas,
+                              trafficDirections: trafficDirections.filter(
+                                direction => current.has(direction),
+                              ),
+                            },
+                          });
+                        }}
+                      />
+                      <b aria-hidden="true">{option.icon}</b>
+                    </label>
+                  );
+                })}
+              </fieldset>
+            )}
             <label className="scene-snap-control">
               <input
                 type="checkbox"

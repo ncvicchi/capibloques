@@ -1898,6 +1898,34 @@ select:focus-visible {
   height: 17px;
   accent-color: var(--purple);
 }
+.traffic-directions-control {
+  display: grid;
+  grid-template-columns: repeat(4, 30px);
+  gap: 4px;
+  margin: 0;
+  padding: 3px 6px 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.traffic-directions-control legend {
+  padding-inline: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+.traffic-directions-control label {
+  display: grid;
+  place-items: center;
+  gap: 1px;
+  color: #33406c;
+  font-size: 15px;
+  cursor: pointer;
+}
+.traffic-directions-control input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--purple);
+}
 .scene-builder-toolbar > button {
   margin-left: auto;
 }
@@ -2199,17 +2227,29 @@ select:focus-visible {
   filter: drop-shadow(0 3px 2px rgb(20 25 40 / 28%));
   transition: left 40ms linear, top 40ms linear;
 }
-.traffic-car.vertical {
+.traffic-car.southbound {
   transform: rotate(-90deg);
 }
-.traffic-car.horizontal {
+.traffic-car.eastbound {
   transform: scaleX(-1);
 }
-.traffic-car.crashed.horizontal {
+.traffic-car.northbound {
+  transform: rotate(90deg);
+}
+.traffic-car.westbound {
+  transform: none;
+}
+.traffic-car.crashed.eastbound {
   transform: rotate(18deg) scaleX(-1);
 }
-.traffic-car.crashed.vertical {
+.traffic-car.crashed.westbound {
+  transform: rotate(-18deg);
+}
+.traffic-car.crashed.southbound {
   transform: rotate(-75deg);
+}
+.traffic-car.crashed.northbound {
+  transform: rotate(105deg);
 }
 .traffic-car.crashed {
   z-index: 3;
@@ -2238,8 +2278,10 @@ select:focus-visible {
   font-weight: 900;
   text-transform: uppercase;
 }
-.traffic-jam.horizontal { top: 57%; left: 24%; }
-.traffic-jam.vertical { top: 11%; left: 57%; }
+.traffic-jam.eastbound { top: 63%; left: 28%; }
+.traffic-jam.westbound { top: 35%; right: 28%; }
+.traffic-jam.southbound { top: 19%; left: 42%; }
+.traffic-jam.northbound { bottom: 18%; left: 55%; }
 .scene-grid {
   position: absolute;
   z-index: 1;

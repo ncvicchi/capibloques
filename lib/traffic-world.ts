@@ -1,5 +1,13 @@
-export type TrafficLane = 'horizontal' | 'vertical';
+import type { TrafficDirection } from './scene-model.ts';
+
+export type TrafficLane = TrafficDirection;
 export type TrafficSignalColor = 'RED' | 'YELLOW' | 'GREEN' | 'OFF';
+export const allTrafficLanes: readonly TrafficLane[] = [
+  'eastbound',
+  'westbound',
+  'southbound',
+  'northbound',
+];
 
 export interface TrafficCarState {
   id: string;
@@ -18,26 +26,31 @@ export interface TrafficWorldState {
   randomState: number;
 }
 
-export interface TrafficSignals {
-  horizontal: TrafficSignalColor;
-  vertical: TrafficSignalColor;
-}
+export type TrafficSignals = Record<TrafficLane, TrafficSignalColor>;
 
 const SPEED_PER_MS: Record<TrafficLane, number> = {
-  horizontal: 1 / 12_000,
-  vertical: 1 / 10_500,
+  eastbound: 1 / 12_000,
+  westbound: 1 / 12_000,
+  southbound: 1 / 10_500,
+  northbound: 1 / 10_500,
 };
 const STOP_PROGRESS: Record<TrafficLane, number> = {
-  horizontal: 0.37,
-  vertical: 0.3,
+  eastbound: 0.37,
+  westbound: 0.37,
+  southbound: 0.3,
+  northbound: 0.3,
 };
 const QUEUE_GAP: Record<TrafficLane, number> = {
-  horizontal: 0.055,
-  vertical: 0.088,
+  eastbound: 0.055,
+  westbound: 0.055,
+  southbound: 0.088,
+  northbound: 0.088,
 };
 const ENTRY_GAP: Record<TrafficLane, number> = {
-  horizontal: 0.07,
-  vertical: 0.11,
+  eastbound: 0.07,
+  westbound: 0.07,
+  southbound: 0.11,
+  northbound: 0.11,
 };
 const MAX_TRAFFIC_CARS = 12;
 
@@ -45,7 +58,12 @@ export function createTrafficWorldState(): TrafficWorldState {
   return {
     cars: [],
     collision: null,
-    spawnInMs: { horizontal: 0, vertical: 650 },
+    spawnInMs: {
+      eastbound: 0,
+      westbound: 1_100,
+      southbound: 650,
+      northbound: 1_700,
+    },
     nextCarId: 1,
     randomState: 0xc4a1b10c,
   };
@@ -61,9 +79,16 @@ function advanceProgress(car: TrafficCarState, distance: number) {
 }
 
 export function trafficCarPosition(car: TrafficCarState) {
-  return car.lane === 'horizontal'
-    ? { x: -45 + car.progress * 1_050, y: 282 }
-    : { x: 505, y: -40 + car.progress * 620 };
+  switch (car.lane) {
+    case 'eastbound':
+      return { x: -45 + car.progress * 1_050, y: 315 };
+    case 'westbound':
+      return { x: 1_005 - car.progress * 1_050, y: 225 };
+    case 'southbound':
+      return { x: 435, y: -40 + car.progress * 620 };
+    case 'northbound':
+      return { x: 525, y: 580 - car.progress * 620 };
+  }
 }
 
 function advanceLane(
@@ -124,12 +149,14 @@ function spawnCars(
   previous: TrafficWorldState,
   cars: TrafficCarState[],
   elapsedMs: number,
+  enabled: ReadonlySet<TrafficLane>,
 ) {
   const spawnInMs = { ...previous.spawnInMs };
   let nextCarId = previous.nextCarId;
   let randomState = previous.randomState;
 
-  for (const lane of ['horizontal', 'vertical'] as const) {
+  for (const lane of allTrafficLanes) {
+    if (!enabled.has(lane)) continue;
     spawnInMs[lane] = Math.max(0, spawnInMs[lane] - elapsedMs);
     if (spawnInMs[lane] > 0 || cars.length >= MAX_TRAFFIC_CARS) continue;
     const entryBusy = cars.some(
@@ -167,28 +194,45 @@ export function advanceTrafficWorld(
   previous: TrafficWorldState,
   signals: TrafficSignals,
   elapsedMs: number,
+  enabledLanes: readonly TrafficLane[] = allTrafficLanes,
 ): TrafficWorldState {
   if (previous.collision) return previous;
   const frameMs = Math.min(100, Math.max(0, elapsedMs));
-  let cars = advanceLane(
-    previous.cars,
-    'horizontal',
-    signals.horizontal,
-    frameMs,
-  );
-  cars = advanceLane(cars, 'vertical', signals.vertical, frameMs).filter(
-    car => car.progress < 1,
-  );
-  const spawned = spawnCars(previous, cars, frameMs);
+  const enabled = new Set(enabledLanes);
+  let cars = previous.cars.filter(car => enabled.has(car.lane));
+  for (const lane of allTrafficLanes) {
+    if (!enabled.has(lane)) continue;
+    cars = advanceLane(cars, lane, signals[lane], frameMs);
+  }
+  cars = cars.filter(car => car.progress < 1);
+  const spawned = spawnCars(previous, cars, frameMs, enabled);
   cars = spawned.cars;
 
-  const horizontal = cars.find(
-    car => car.lane === 'horizontal' && !car.crashed && inIntersection(car),
+  const horizontalCars = cars.filter(
+    car =>
+      (car.lane === 'eastbound' || car.lane === 'westbound') &&
+      !car.crashed &&
+      inIntersection(car),
   );
-  const vertical = cars.find(
-    car => car.lane === 'vertical' && !car.crashed && inIntersection(car),
+  const verticalCars = cars.filter(
+    car =>
+      (car.lane === 'southbound' || car.lane === 'northbound') &&
+      !car.crashed &&
+      inIntersection(car),
   );
-  if (!horizontal || !vertical)
+  const collidingPair = horizontalCars
+    .flatMap(horizontal =>
+      verticalCars.map(vertical => ({ horizontal, vertical })),
+    )
+    .find(({ horizontal, vertical }) => {
+      const horizontalPosition = trafficCarPosition(horizontal);
+      const verticalPosition = trafficCarPosition(vertical);
+      return (
+        Math.abs(horizontalPosition.x - verticalPosition.x) < 34 &&
+        Math.abs(horizontalPosition.y - verticalPosition.y) < 34
+      );
+    });
+  if (!collidingPair)
     return {
       cars,
       collision: null,
@@ -198,8 +242,8 @@ export function advanceTrafficWorld(
     };
 
   const collision = {
-    horizontalId: horizontal.id,
-    verticalId: vertical.id,
+    horizontalId: collidingPair.horizontal.id,
+    verticalId: collidingPair.vertical.id,
   };
   cars = cars.map(car =>
     car.id === collision.horizontalId || car.id === collision.verticalId
