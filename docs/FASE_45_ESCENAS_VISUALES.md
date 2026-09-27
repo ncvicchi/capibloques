@@ -21,11 +21,13 @@ duplicada allí.
   quienes todavía no la pasaron forman fila y esperan el próximo verde. La misma
   frontera se aplica si cambia directamente a rojo: nunca se detiene dentro del
   cruce a un auto que ya superó la línea. Su orientación coincide con
-  el sentido de circulación y su avance usa la velocidad del simulador. Al
-  completar una vuelta, cada auto espera una demora breve y diferente antes de
-  reaparecer para que una fila liberada no permanezca como un pelotón artificial.
-  La variación es determinista y comprobable. Un choque congela a los vehículos
-  que efectivamente coinciden dentro del cruce.
+  el sentido de circulación y su avance usa la velocidad del simulador. No hay
+  una cantidad fija ni autos que den vueltas: cada entrada genera vehículos en
+  momentos independientes y ampliamente variables; cada auto se destruye al
+  salir de la escena. La población cambia durante la ejecución y está acotada a
+  doce para conservar claridad y rendimiento. El azar es determinista y
+  comprobable. Un choque congela a los vehículos que efectivamente coinciden
+  dentro del cruce.
 - La pista dibuja salida, ruta y meta sin convertir la línea en órdenes ocultas:
   el programa sigue controlando íntegramente el robot.
 - Editor y simulación usan la misma capa vectorial y coordenadas. El intérprete

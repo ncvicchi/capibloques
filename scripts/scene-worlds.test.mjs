@@ -50,28 +50,49 @@ assert.throws(
 
 assert.equal(sceneTemplates.robotCourse.canvas.background, 'robotTrack');
 
-const originalTraffic = createTrafficWorldState();
-const greenTraffic = advanceTrafficWorld(
-  originalTraffic,
-  { horizontal: 'GREEN', vertical: 'RED' },
-  50,
-);
-const yellowTraffic = advanceTrafficWorld(
-  greenTraffic,
-  { horizontal: 'YELLOW', vertical: 'RED' },
-  50,
-);
-assert.equal(greenTraffic.cars.length, 6, 'cars keep stable identities');
-assert.ok(greenTraffic.cars[0].progress > originalTraffic.cars[0].progress);
-assert.ok(yellowTraffic.cars[0].progress > greenTraffic.cars[0].progress);
+const car = (id, lane, progress) => ({
+  id,
+  lane,
+  progress,
+  crashed: false,
+  waitingForGreen: false,
+  clearingIntersection: false,
+});
+const fixedWorld = cars => ({
+  ...createTrafficWorldState(),
+  cars,
+  spawnInMs: { horizontal: 1_000_000, vertical: 1_000_000 },
+});
 
-let yellowTransition = {
-  cars: [
-    { id: 'before-crossing', lane: 'horizontal', progress: 0.35, crashed: false, waitingForGreen: false, clearingIntersection: false, respawnDelayMs: 0, cycle: 0 },
-    { id: 'past-stop-line', lane: 'horizontal', progress: 0.371, crashed: false, waitingForGreen: false, clearingIntersection: false, respawnDelayMs: 0, cycle: 0 },
-  ],
-  collision: null,
+let generatedTraffic = {
+  ...createTrafficWorldState(),
+  spawnInMs: { horizontal: 0, vertical: 1_000_000 },
 };
+const generatedIds = new Set();
+const populationSizes = new Set();
+let previousIds = new Set();
+let destroyedCar = false;
+for (let frame = 0; frame < 1_500; frame += 1) {
+  generatedTraffic = advanceTrafficWorld(
+    generatedTraffic,
+    { horizontal: 'GREEN', vertical: 'RED' },
+    50,
+  );
+  const currentIds = new Set(generatedTraffic.cars.map(item => item.id));
+  if ([...previousIds].some(id => !currentIds.has(id))) destroyedCar = true;
+  for (const id of currentIds) generatedIds.add(id);
+  populationSizes.add(generatedTraffic.cars.length);
+  previousIds = currentIds;
+}
+assert.ok(generatedIds.size > 10, 'traffic creates independent cars over time');
+assert.ok(destroyedCar, 'cars are destroyed after leaving the scene');
+assert.ok(populationSizes.size >= 3, 'traffic population changes over time');
+assert.ok(Math.max(...populationSizes) <= 12, 'traffic population stays bounded');
+
+let yellowTransition = fixedWorld([
+  car('before-crossing', 'horizontal', 0.35),
+  car('past-stop-line', 'horizontal', 0.371),
+]);
 for (let frame = 0; frame < 20; frame += 1) {
   yellowTransition = advanceTrafficWorld(
     yellowTransition,
@@ -90,13 +111,10 @@ assert.ok(
 );
 
 const redAfterStopLine = advanceTrafficWorld(
-  {
-    cars: [
-      { id: 'at-line', lane: 'horizontal', progress: 0.37, crashed: false, waitingForGreen: false, clearingIntersection: false, respawnDelayMs: 0, cycle: 0 },
-      { id: 'past-line', lane: 'horizontal', progress: 0.371, crashed: false, waitingForGreen: false, clearingIntersection: false, respawnDelayMs: 0, cycle: 0 },
-    ],
-    collision: null,
-  },
+  fixedWorld([
+    car('at-line', 'horizontal', 0.37),
+    car('past-line', 'horizontal', 0.371),
+  ]),
   { horizontal: 'RED', vertical: 'RED' },
   50,
 );
@@ -106,41 +124,27 @@ assert.ok(
   'red cannot stop a car after it passed the stop line',
 );
 
-const staggeredRespawn = advanceTrafficWorld(
-  {
-    cars: [
-      { id: 'stagger-a', lane: 'horizontal', progress: 0.999, crashed: false, waitingForGreen: false, clearingIntersection: false, respawnDelayMs: 0, cycle: 0 },
-      { id: 'stagger-b', lane: 'horizontal', progress: 0.999, crashed: false, waitingForGreen: false, clearingIntersection: false, respawnDelayMs: 0, cycle: 0 },
-    ],
-    collision: null,
-  },
-  { horizontal: 'GREEN', vertical: 'RED' },
-  100,
-);
-assert.ok(staggeredRespawn.cars.every(car => car.respawnDelayMs >= 450));
-assert.notEqual(
-  staggeredRespawn.cars[0].respawnDelayMs,
-  staggeredRespawn.cars[1].respawnDelayMs,
-  'cars reappear with different deterministic delays',
-);
-
 const normalSpeed = advanceTrafficWorld(
-  createTrafficWorldState(),
-  { horizontal: 'GREEN', vertical: 'GREEN' },
+  fixedWorld([car('speed', 'horizontal', 0.05)]),
+  { horizontal: 'GREEN', vertical: 'RED' },
   25,
 );
 const quadrupleSpeed = advanceTrafficWorld(
-  createTrafficWorldState(),
-  { horizontal: 'GREEN', vertical: 'GREEN' },
+  fixedWorld([car('speed', 'horizontal', 0.05)]),
+  { horizontal: 'GREEN', vertical: 'RED' },
   100,
 );
 assert.equal(
-  Number((quadrupleSpeed.cars[0].progress - originalTraffic.cars[0].progress).toFixed(6)),
-  Number(((normalSpeed.cars[0].progress - originalTraffic.cars[0].progress) * 4).toFixed(6)),
+  Number((quadrupleSpeed.cars[0].progress - 0.05).toFixed(6)),
+  Number(((normalSpeed.cars[0].progress - 0.05) * 4).toFixed(6)),
   'world movement scales with simulator time',
 );
 
-let redTraffic = originalTraffic;
+let redTraffic = fixedWorld([
+  car('queue-1', 'horizontal', 0.05),
+  car('queue-2', 'horizontal', 0.15),
+  car('queue-3', 'horizontal', 0.25),
+]);
 for (let frame = 0; frame < 400; frame += 1) {
   redTraffic = advanceTrafficWorld(
     redTraffic,
@@ -148,7 +152,7 @@ for (let frame = 0; frame < 400; frame += 1) {
     50,
   );
 }
-assert.equal(redTraffic.cars.length, 6);
+assert.equal(redTraffic.cars.length, 3);
 const horizontalQueue = redTraffic.cars
   .filter(car => car.lane === 'horizontal')
   .map(car => car.progress)
@@ -187,13 +191,10 @@ assert.ok(
 );
 
 const collision = advanceTrafficWorld(
-  {
-    cars: [
-      { id: 'h', lane: 'horizontal', progress: 0.5, crashed: false, waitingForGreen: false, clearingIntersection: false, respawnDelayMs: 0, cycle: 0 },
-      { id: 'v', lane: 'vertical', progress: 0.5, crashed: false, waitingForGreen: false, clearingIntersection: false, respawnDelayMs: 0, cycle: 0 },
-    ],
-    collision: null,
-  },
+  fixedWorld([
+    car('h', 'horizontal', 0.5),
+    car('v', 'vertical', 0.5),
+  ]),
   { horizontal: 'GREEN', vertical: 'YELLOW' },
   0,
 );

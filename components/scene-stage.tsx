@@ -165,7 +165,6 @@ function TrafficActors({
             style={{
               left: `${(position.x / 960) * 100}%`,
               top: `${(position.y / 540) * 100}%`,
-              opacity: car.respawnDelayMs > 0 ? 0 : 1,
             }}
           >
             {car.lane === 'horizontal' ? '🚗' : '🚙'}
