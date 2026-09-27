@@ -67,8 +67,8 @@ assert.ok(yellowTraffic.cars[0].progress > greenTraffic.cars[0].progress);
 
 let yellowTransition = {
   cars: [
-    { id: 'before-crossing', lane: 'horizontal', progress: 0.35, crashed: false, waitingForGreen: false, clearingIntersection: false },
-    { id: 'past-stop-line', lane: 'horizontal', progress: 0.371, crashed: false, waitingForGreen: false, clearingIntersection: false },
+    { id: 'before-crossing', lane: 'horizontal', progress: 0.35, crashed: false, waitingForGreen: false, clearingIntersection: false, respawnDelayMs: 0, cycle: 0 },
+    { id: 'past-stop-line', lane: 'horizontal', progress: 0.371, crashed: false, waitingForGreen: false, clearingIntersection: false, respawnDelayMs: 0, cycle: 0 },
   ],
   collision: null,
 };
@@ -92,8 +92,8 @@ assert.ok(
 const redAfterStopLine = advanceTrafficWorld(
   {
     cars: [
-      { id: 'at-line', lane: 'horizontal', progress: 0.37, crashed: false, waitingForGreen: false, clearingIntersection: false },
-      { id: 'past-line', lane: 'horizontal', progress: 0.371, crashed: false, waitingForGreen: false, clearingIntersection: false },
+      { id: 'at-line', lane: 'horizontal', progress: 0.37, crashed: false, waitingForGreen: false, clearingIntersection: false, respawnDelayMs: 0, cycle: 0 },
+      { id: 'past-line', lane: 'horizontal', progress: 0.371, crashed: false, waitingForGreen: false, clearingIntersection: false, respawnDelayMs: 0, cycle: 0 },
     ],
     collision: null,
   },
@@ -104,6 +104,24 @@ assert.equal(redAfterStopLine.cars[0].progress, 0.37);
 assert.ok(
   redAfterStopLine.cars[1].progress > 0.371,
   'red cannot stop a car after it passed the stop line',
+);
+
+const staggeredRespawn = advanceTrafficWorld(
+  {
+    cars: [
+      { id: 'stagger-a', lane: 'horizontal', progress: 0.999, crashed: false, waitingForGreen: false, clearingIntersection: false, respawnDelayMs: 0, cycle: 0 },
+      { id: 'stagger-b', lane: 'horizontal', progress: 0.999, crashed: false, waitingForGreen: false, clearingIntersection: false, respawnDelayMs: 0, cycle: 0 },
+    ],
+    collision: null,
+  },
+  { horizontal: 'GREEN', vertical: 'RED' },
+  100,
+);
+assert.ok(staggeredRespawn.cars.every(car => car.respawnDelayMs >= 450));
+assert.notEqual(
+  staggeredRespawn.cars[0].respawnDelayMs,
+  staggeredRespawn.cars[1].respawnDelayMs,
+  'cars reappear with different deterministic delays',
 );
 
 const normalSpeed = advanceTrafficWorld(
@@ -171,8 +189,8 @@ assert.ok(
 const collision = advanceTrafficWorld(
   {
     cars: [
-      { id: 'h', lane: 'horizontal', progress: 0.5, crashed: false, waitingForGreen: false, clearingIntersection: false },
-      { id: 'v', lane: 'vertical', progress: 0.5, crashed: false, waitingForGreen: false, clearingIntersection: false },
+      { id: 'h', lane: 'horizontal', progress: 0.5, crashed: false, waitingForGreen: false, clearingIntersection: false, respawnDelayMs: 0, cycle: 0 },
+      { id: 'v', lane: 'vertical', progress: 0.5, crashed: false, waitingForGreen: false, clearingIntersection: false, respawnDelayMs: 0, cycle: 0 },
     ],
     collision: null,
   },

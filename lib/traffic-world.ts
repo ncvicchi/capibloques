@@ -8,6 +8,8 @@ export interface TrafficCarState {
   crashed: boolean;
   waitingForGreen: boolean;
   clearingIntersection: boolean;
+  respawnDelayMs: number;
+  cycle: number;
 }
 
 export interface TrafficWorldState {
@@ -36,14 +38,35 @@ const QUEUE_GAP: Record<TrafficLane, number> = {
 export function createTrafficWorldState(): TrafficWorldState {
   return {
     cars: [
-      { id: 'car-h-1', lane: 'horizontal', progress: 0.05, crashed: false, waitingForGreen: false, clearingIntersection: false },
-      { id: 'car-h-2', lane: 'horizontal', progress: 0.23, crashed: false, waitingForGreen: false, clearingIntersection: false },
-      { id: 'car-h-3', lane: 'horizontal', progress: 0.72, crashed: false, waitingForGreen: false, clearingIntersection: false },
-      { id: 'car-v-1', lane: 'vertical', progress: 0.03, crashed: false, waitingForGreen: false, clearingIntersection: false },
-      { id: 'car-v-2', lane: 'vertical', progress: 0.48, crashed: false, waitingForGreen: false, clearingIntersection: false },
-      { id: 'car-v-3', lane: 'vertical', progress: 0.78, crashed: false, waitingForGreen: false, clearingIntersection: false },
+      { id: 'car-h-1', lane: 'horizontal', progress: 0.05, crashed: false, waitingForGreen: false, clearingIntersection: false, respawnDelayMs: 0, cycle: 0 },
+      { id: 'car-h-2', lane: 'horizontal', progress: 0.23, crashed: false, waitingForGreen: false, clearingIntersection: false, respawnDelayMs: 0, cycle: 0 },
+      { id: 'car-h-3', lane: 'horizontal', progress: 0.72, crashed: false, waitingForGreen: false, clearingIntersection: false, respawnDelayMs: 0, cycle: 0 },
+      { id: 'car-v-1', lane: 'vertical', progress: 0.03, crashed: false, waitingForGreen: false, clearingIntersection: false, respawnDelayMs: 0, cycle: 0 },
+      { id: 'car-v-2', lane: 'vertical', progress: 0.48, crashed: false, waitingForGreen: false, clearingIntersection: false, respawnDelayMs: 0, cycle: 0 },
+      { id: 'car-v-3', lane: 'vertical', progress: 0.78, crashed: false, waitingForGreen: false, clearingIntersection: false, respawnDelayMs: 0, cycle: 0 },
     ],
     collision: null,
+  };
+}
+
+function respawnDelay(car: TrafficCarState) {
+  let hash = 2_166_136_261;
+  for (const character of `${car.id}:${car.cycle + 1}`) {
+    hash = Math.imul(hash ^ character.charCodeAt(0), 16_777_619);
+  }
+  return 450 + ((hash >>> 0) % 1_351);
+}
+
+function advanceProgress(car: TrafficCarState, distance: number) {
+  const progress = car.progress + distance;
+  if (progress < 1) return { ...car, progress };
+  return {
+    ...car,
+    progress: 0,
+    cycle: car.cycle + 1,
+    respawnDelayMs: respawnDelay(car),
+    waitingForGreen: false,
+    clearingIntersection: false,
   };
 }
 
@@ -61,7 +84,13 @@ function advanceLane(
 ) {
   const stop = STOP_PROGRESS[lane];
   const approaching = cars
-    .filter(car => car.lane === lane && !car.crashed && car.progress <= stop)
+    .filter(
+      car =>
+        car.lane === lane &&
+        !car.crashed &&
+        car.respawnDelayMs <= 0 &&
+        car.progress <= stop,
+    )
     .sort((left, right) => right.progress - left.progress);
   const queueTargets = new Map(
     approaching.map((car, index) => [car.id, stop - index * QUEUE_GAP[lane]]),
@@ -69,25 +98,28 @@ function advanceLane(
 
   return cars.map(car => {
     if (car.lane !== lane || car.crashed) return car;
-    const distance = SPEED_PER_MS[lane] * Math.min(100, Math.max(0, elapsedMs));
-    if (color === 'GREEN') {
-      const progress = car.progress + distance;
+    if (car.respawnDelayMs > 0) {
       return {
         ...car,
-        waitingForGreen: false,
-        clearingIntersection: false,
-        progress: progress >= 1 ? progress - 1 : progress,
+        respawnDelayMs: Math.max(0, car.respawnDelayMs - elapsedMs),
       };
     }
+    const distance = SPEED_PER_MS[lane] * Math.min(100, Math.max(0, elapsedMs));
+    if (color === 'GREEN') {
+      return advanceProgress(
+        { ...car, waitingForGreen: false, clearingIntersection: false },
+        distance,
+      );
+    }
     if (car.clearingIntersection || car.progress > stop) {
-      const progress = car.progress + distance;
-      const wrapped = progress >= 1;
-      return {
-        ...car,
-        progress: wrapped ? progress - 1 : progress,
-        waitingForGreen: false,
-        clearingIntersection: !wrapped,
-      };
+      const advanced = advanceProgress(car, distance);
+      return advanced.respawnDelayMs > 0
+        ? advanced
+        : {
+            ...advanced,
+            waitingForGreen: false,
+            clearingIntersection: true,
+          };
     }
     if (car.progress <= stop) {
       const target = queueTargets.get(car.id) ?? stop;
