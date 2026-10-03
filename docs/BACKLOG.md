@@ -698,7 +698,7 @@ Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus
 
 1. **Progreso de compilación paso a paso.** Informar qué está sucediendo con cada pedido y, cuando exista una medida real, su avance. Se analiza dentro del [pedido 17](#17-comprender-medir-y-mejorar-la-compilación-de-binarios); no mostrar porcentajes inventados.
 2. **Proyecto sin guardar al abrir Compilar y descargar firmware.** Dar mayor jerarquía al aviso «Hay cambios sin guardar o el proyecto todavía es local…», con color de advertencia, icono y una acción para Guardar desde ese recorrido. Analizar cómo reutilizar el guardado vigente, sus conflictos, su estado pendiente y la reanudación del flujo sin duplicar operaciones. Coordinarlo con el [asistente del pedido 15](#15-asistente-grande-para-compilar-y-grabar-la-placa).
-3. **Reinicio automático después de grabar.** Verificar con hardware por qué la Wemos necesita actualmente pulsar RESET después del flasheo y si Web Serial/esptool puede controlar de forma confiable DTR/RTS o ejecutar el reinicio correspondiente. Conservar mensajes y recuperación cuando la placa o el adaptador no lo permitan; una grabación correcta no demuestra que el circuito funcione.
+3. **Reinicio y reconexión automática después de grabar.** Verificar con hardware por qué la Wemos necesita actualmente pulsar RESET después del flasheo y si Web Serial/esptool puede controlar de forma confiable DTR/RTS o ejecutar el reinicio correspondiente. Se informó además el estado intermedio concreto en el que la grabación termina, pero el asistente no permite continuar directamente a conectar: hay que volver a cargar ese apartado y desenchufar/enchufar la placa. El recorrido normal debe conservar el paso y el puerto autorizado, esperar la reenumeración USB, reabrir CapiLink y continuar a enviar reglas sin recargar la página ni reconectar físicamente; **Reintentar conexión** queda como recuperación visible y desenchufar sólo como último recurso explicado. Conservar mensajes y recuperación cuando la placa o el adaptador no permitan reset/reapertura automática; una grabación correcta no demuestra que el firmware ya responda.
 4. **Evitar bloques superpuestos.** Reproducir la superposición entre bloques sueltos y debajo del programa principal. Diseñar una separación automática que encuentre una posición libre sin alterar conexiones, orden, coordenadas portables o una cadena que el usuario esté intentando encastrar; cubrir zoom, desplazamiento, Deshacer y proyectos importados.
 
 ### Señalados como cambios sutiles
@@ -723,11 +723,18 @@ Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus
 7. **Mayor visibilidad de los emojis de bloques.** Revisar tamaño, contraste, posición, consistencia y alternativas textuales antes de aumentar todos de forma global; comprobar plataformas y fuentes distintas.
 8. **Acceso de alumnos sin contraseña.** Investigar un ingreso de aula autorizado por el docente que también pueda registrar asistencia. Requiere un modelo explícito de identidad, sesión, caducidad, revocación, suplantación y equipos compartidos; no quitar contraseñas ni debilitar el acceso actual como ajuste de interfaz.
 
+### Observación adicional recibida el 3 de octubre de 2026
+
+1. **Saber qué proyecto está cargado y quién lo creó.** El protocolo ya contempla un hash de programa activo, útil para decidir si hay que retransmitir reglas, pero ese valor no identifica el trabajo para una persona. Extender las reglas persistidas con metadatos informativos acotados —título del proyecto y nombre visible de la cuenta propietaria/autora en el momento de enviarlo— y hacer que la placa los devuelva al conectarse. Para un proyecto local o importado sin propietario remoto, se usa el nombre visible de la cuenta que lo envía. El asistente ofrecerá una acción clara como **Qué tiene esta placa** y mostrará también perfil, versión del firmware y si el programa está ejecutándose. Una placa antigua o vacía debe responder «Sin información de proyecto» sin presentarlo como error.
+
+   Estos datos son una etiqueta reemplazable, no propiedad ni seguridad: no llevan contraseña, alias de acceso, UUID, curso ni otros datos del alumno; cualquiera con acceso físico/USB puede leerlos; grabar otras reglas los reemplaza y borrar reglas los elimina. Nunca deben impedir reutilizar, actualizar o programar la placa. El título y el nombre visible tendrán límites de bytes/caracteres, UTF-8 validado y representación segura en web, logs y display. Asignación: ampliación conjunta de **fase 20** (experiencia y botón informativo) y **fase 36** (formato persistente y respuesta CapiLink), sin crear una fase nueva.
+
 ### Asignación completa del informe externo
 
 | Observación | Fase |
 | --- | --- |
-| Progreso real de compilación; proyecto sin guardar; reinicio posgrabación | 20 |
+| Progreso real de compilación; proyecto sin guardar; reinicio/reconexión posgrabación | 20 |
+| Título y autor informativos del programa activo en la placa | 20 y 36 |
 | Bloques superpuestos | 21 |
 | Nombre editable; colores traducidos; advertencias; selector de avatar; «segundos»; pin; saludo; bloques inactivos | 21 |
 | Auto-conectar/mover en borrador; menús; operadores; emojis | 21 |

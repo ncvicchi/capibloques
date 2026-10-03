@@ -1,8 +1,8 @@
 # Fase 36 — Firmware intérprete y ejecución directa en placa
 
-## Estado de implementación — 26 de septiembre de 2026
+## Estado de implementación — actualizado el 3 de octubre de 2026
 
-La fase está **terminada en software**. Ya están implementados:
+La base de la fase está **terminada en software**. La ampliación posterior de título/autor legibles en las reglas y `HELLO` está documentada pero pendiente de implementación. Ya están implementados:
 
 - `CapiRules` v1 / ABI 1: sobre binario acotado inicialmente a 32 KiB para no prometer RAM inexistente en Wemos, carga útil canónica, placa, recursos, grafo cooperativo compartido, tabla de depuración, conteos y CRC32;
 - `CapiLink`: `HELLO`, negociación placa/versión/ABI/capacidades, carga fragmentada `BEGIN/CHUNK/VERIFY/COMMIT`, ejecución, pausa, continuación, detención y telemetría acotada;
@@ -46,7 +46,7 @@ La fase 30 amplió el runtime a **1.1.0** con temporizadores consultables, event
 
 La compilación fijada en ESP-IDF 5.5.5 produjo y empaquetó correctamente los intérpretes anteriores de Wemos D1 R32 y ESP32-S3 en CI el 24 de septiembre de 2026. La versión 1.5.3 fue grabada en la Waveshare real y confirmó el transporte; 1.5.4 agregó el renderer físico. La web exige ahora 1.5.7 para incluir los mundos compactos, el tránsito estable y los carteles de semáforo. La fase **no tiene aún aceptación física completa**: falta compilar/publicar 1.5.7 en DEV, grabarlo y confirmar imagen, orientación, colores, estabilidad y actualización de estados en la unidad real. Touch y escena remota continúan en fases 18/34. Arduino y ESP-IDF por proyecto siguen disponibles.
 
-**Estado:** software terminado; transporte, persistencia y ejecución básica aceptados físicamente en Waveshare; corrección web pendiente de DEV y restantes aceptaciones físicas pendientes.
+**Estado:** base de software terminada; transporte, persistencia y ejecución básica aceptados físicamente en Waveshare. Quedan pendientes la recuperación automática completa después de grabar, los metadatos humanos del programa activo, la publicación de la corrección web en DEV y las restantes aceptaciones físicas.
 
 Este documento concentra la planificación completa. La entrada breve vive en [BACKLOG.md](BACKLOG.md) y la asignación de fase en [PLAN_FASES_BACKLOG.md](PLAN_FASES_BACKLOG.md).
 
@@ -122,7 +122,7 @@ El formato será binario, acotado y versionado. Debe admitir inspección mediant
 
 Contenido lógico:
 
-1. **Cabecera:** magia, versión, tamaño total, placa objetivo, ABI, identificador/hash del proyecto y checksum.
+1. **Cabecera:** magia, versión, tamaño total, placa objetivo, ABI, identificador/hash del proyecto, título y autor visible informativos, y checksum. Los dos textos tienen longitud acotada, UTF-8 validado y no incluyen alias de acceso, UUID, curso ni secretos. Esta ampliación no puede reinterpretar silenciosamente paquetes ABI 1 ya publicados: debe usar una sección opcional versionada que los lectores antiguos puedan rechazar correctamente o incrementar la ABI/capacidad negociada.
 2. **Recursos:** componentes, pines, perfiles, límites, cadenas, dibujos y constantes.
 3. **Programa:** caminos, instrucciones, saltos validados, eventos, procedimientos y expresiones.
 4. **Estado inicial:** variables, contadores y configuración que forma parte del proyecto.
@@ -156,7 +156,7 @@ No habrá asignación sin límites ni bucles internos que impidan servir watchdo
 
 Protocolo mínimo:
 
-1. `HELLO`: placa, firmware, ABI, capacidades y programa activo.
+1. `HELLO`: placa, firmware, ABI, capacidades y programa activo; cuando existen, devuelve también el título y autor visible persistidos con las reglas.
 2. `BEGIN`: metadatos y tamaño; la placa reserva una ranura candidata.
 3. `CHUNK`: fragmentos numerados con integridad y reintento idempotente.
 4. `VERIFY`: validación completa sin activar.
@@ -185,6 +185,8 @@ Flujo de placa:
 7. Generar reglas localmente y comparar su hash con el programa activo.
 8. Si no cambió, ejecutar/reiniciar sin retransmitir; si cambió, transferir y confirmar.
 9. Mostrar bloques y estados reales enviados por la placa.
+
+La transición del punto 4 al 5 conserva el asistente abierto: espera la reenumeración USB, reabre el puerto autorizado y reintenta el saludo. No requiere recargar la página ni desenchufar/enchufar salvo que el sistema o adaptador no permita la recuperación automática. En cualquier conexión, **Qué tiene esta placa** presenta los metadatos humanos del programa activo; si el firmware/reglas son antiguos o no hay programa, lo indica sin inventar identidad.
 
 No se mezclan los conceptos **instalar firmware**, **enviar programa** y **ejecutar**. Los errores dicen en cuál falló y qué permanece grabado.
 
@@ -216,6 +218,7 @@ Reglas:
 - La web puede generar únicamente una ABI declarada por la placa.
 - La política publicada por el manifiesto define la versión mínima vigente por perfil. Una versión inferior bloquea toda carga de reglas aunque entienda una ABI antigua; actualizar o cancelar son las únicas salidas.
 - Un firmware puede admitir un rango acotado de ABI, no conversiones ilimitadas.
+- La identidad humana del programa requiere una capacidad negociada/versionada; una placa anterior sigue siendo utilizable y responde sin esos datos, nunca con campos inventados.
 - Cambios incompatibles exigen actualización visible del firmware o uso del modo nativo.
 - Proyectos JSON siguen siendo la fuente portable; el bytecode es derivado y regenerable.
 - El caché de reglas se identifica por proyecto normalizado, placa, ABI, capacidades y configuración sin secretos.
@@ -223,6 +226,7 @@ Reglas:
 ## 12. Seguridad y permisos
 
 - Web Serial requiere selección explícita del puerto; reconectar no concede permisos de cuenta o proyecto.
+- El título y autor guardados en reglas son legibles por cualquier persona con acceso físico/USB. Son una etiqueta informativa y reemplazable, no autenticación, propiedad, autorización ni DRM; jamás bloquean actualizar, borrar o reutilizar la placa.
 - Antes de enviar, se revalidan sesión, propiedad/curso y estado guardado según el flujo vigente.
 - La placa acepta sólo instrucciones conocidas, referencias válidas y recursos dentro del manifiesto.
 - No hay escritura arbitraria de memoria, GPIO no declarado, particiones o registros.
@@ -268,8 +272,10 @@ Pruebas obligatorias:
 - conformidad: el mismo programa produce el mismo orden observable en simulador, VM de referencia y placa;
 - validación negativa: bytecode truncado, checksum erróneo, ABI desconocida, referencias/pines inválidos y exceso de recursos;
 - transferencia: corte en cada etapa, duplicados, reintento, puerto retirado y recuperación del programa anterior;
+- posgrabación: reset, reenumeración y reapertura automática sin recargar la interfaz; recuperación visible en adaptadores que exijan RESET o reconexión física;
 - scheduler: bucle intensivo, paralelo, timers, mensajes, animaciones y watchdog sin inanición;
 - persistencia: reinicio, pérdida de energía durante carga/commit y selección inequívoca de versión;
+- identificación: título/autor sobreviven a reinicio y desconexión, se reemplazan atómicamente con nuevas reglas, desaparecen al borrarlas y una placa antigua/vacía responde sin datos;
 - capacidades: proyecto válido para una placa e inválido para otra con explicación;
 - actualización obligatoria: firmware vigente, antiguo, desconocido, grabación cancelada/fallida y nueva consulta posterior; ninguna variante obsoleta recibe reglas;
 - telemetría: backpressure, desconexión y reconexión sin detener el programa;

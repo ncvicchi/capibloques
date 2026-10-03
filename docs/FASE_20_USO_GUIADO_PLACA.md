@@ -1,6 +1,6 @@
 # Fase 20 — Uso guiado de la placa
 
-Estado al 25 de septiembre de 2026: **asistente, selección visual y modelo de dos placas implementados en software; aceptación física y escena remota Waveshare pendientes**. El propietario redefinió la fase para que el recorrido cotidiano sea instalar el firmware intérprete precompilado y enviar reglas localmente. La compilación Arduino/ESP-IDF por proyecto se conserva como herramienta avanzada, pero deja de competir con la acción principal.
+Estado al 3 de octubre de 2026: **asistente, selección visual y modelo de dos placas implementados en software; reconexión posgrabación sin recarga, consulta del proyecto activo, aceptación física y escena remota Waveshare pendientes**. El propietario redefinió la fase para que el recorrido cotidiano sea instalar el firmware intérprete precompilado y enviar reglas localmente. La compilación Arduino/ESP-IDF por proyecto se conserva como herramienta avanzada, pero deja de competir con la acción principal.
 
 La primera implementación se publicó en `main` como `6dece1e`. La corrección `9914ae8` del 25 de septiembre reemplaza el panel acumulativo por un asistente de pantallas. DEV todavía permanece en `8103b14` hasta que el propietario ejecute la actualización rápida.
 
@@ -25,6 +25,8 @@ Las reglas se generan en el navegador. No usan la cola de compilación, no enví
 - **Enviar reglas y ejecutar** sustituye la secuencia manual de dos botones. Después de iniciarlo, la barra principal cambia de **Simulador web** a **Placa**, y sus botones Pausar, Reanudar y Detener controlan a la vez la placa y el espejo web. **Detalles de placa** vuelve a abrir el asistente sin perder la conexión.
 - Wi-Fi es una pantalla condicional y permite conservar la red existente sin obligar a volver a escribir la clave.
 - La instalación explica que reemplaza el programa actual y conserva las tres confirmaciones físicas previas. Al terminar vuelve al recorrido de conexión y reglas.
+- Al terminar de grabar, el asistente debe permanecer en el mismo recorrido, esperar que el puerto USB reaparezca, reabrir la conexión ya autorizada y continuar con `HELLO` y envío de reglas. No debe exigir recargar el apartado ni desenchufar/enchufar en el caso normal. Si el sistema operativo o adaptador no permite recuperarlo automáticamente, ofrece **Reintentar conexión** y recién después explica la reconexión física.
+- Una vez conectada, la acción **Qué tiene esta placa** consulta y muestra el título y autor visible de las reglas persistidas, junto con placa, firmware y estado de ejecución. Es información para reconocer trabajos, no una verificación de propiedad ni un bloqueo para volver a grabar.
 - Exportar JSON y guardar una copia local siguen a la vista. Fuentes Arduino/ESP-IDF, compilación específica y monitor Serial viven en **Herramientas avanzadas para adultos**. No se borraron sus APIs, permisos, cola, artefactos ni pruebas.
 
 ## Compatibilidad y límites
@@ -42,7 +44,7 @@ Las reglas se generan en el navegador. No usan la cola de compilación, no enví
   `Semáforo 1: cambió a rojo`; nunca presenta `blockId`.
 - Si un proyecto usa una capacidad que el intérprete no declara, se bloquea antes de enviar reglas y se explica la actualización necesaria.
 - Web Serial requiere Chrome o Edge de escritorio y HTTPS o localhost. USB pertenece a la PC del navegador, no al servidor.
-- Después de grabar se solicita un reinicio físico y se libera el puerto. Al conectar, CapiLink tolera el arranque más largo de la Waveshare y reintenta `HELLO` automáticamente; no se debe obligar al alumno a esperar un error y reconectar.
+- Después de grabar, la web intenta resetear/reabrir el puerto, tolera la reenumeración USB y el arranque más largo de la Waveshare, y reintenta `HELLO` automáticamente. Solicitar RESET o reconexión física es recuperación para adaptadores incompatibles, no el recorrido normal; nunca se debe obligar al alumno a recargar el menú para continuar.
 - Arduino/ESP-IDF específicos siguen siendo una salida válida para diagnóstico, estudio o componentes todavía no cubiertos. Ocultarlos no autoriza retirar compatibilidad.
 
 ## Selección y cambio de placa
@@ -102,4 +104,4 @@ lugares con nombres funcionales, no a un selector único ambiguo:
 
 ## Aceptación física pendiente
 
-Para cerrar hardware hace falta, en cada placa autorizada: instalar el intérprete desde una placa con otro programa, reconectar, enviar reglas, ejecutar, pausar/detener, reiniciar sin PC, actualizar desde una versión anterior y provocar una transferencia interrumpida. Compilar y empaquetar los artefactos no sustituye esa prueba.
+Para cerrar hardware hace falta, en cada placa autorizada: instalar el intérprete desde una placa con otro programa y continuar sin recargar la página ni desenchufar en el caso normal; ensayar también la recuperación manual cuando el adaptador la requiera; enviar reglas con título/autor, desconectar y consultar **Qué tiene esta placa**; ejecutar, pausar/detener, reiniciar sin PC, actualizar desde una versión anterior y provocar una transferencia interrumpida. Compilar y empaquetar los artefactos no sustituye esa prueba.
