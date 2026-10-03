@@ -99,7 +99,8 @@ test('escena ampliada: mover componentes y deshacer/rehacer; cámara no ensucia'
   await expect(undo).toBeDisabled();
   await dialog.getByRole('button', { name: 'Acercar escena' }).click();
   await expect(undo).toBeDisabled();
-  const object = dialog.getByRole('button', { name: 'Mover Semáforo principal', exact: true });
+  await dialog.getByRole('button', { name: /^Agregar LED\./ }).click();
+  const object = dialog.getByRole('button', { name: 'Mover LED 1', exact: true });
   const before = await object.getAttribute('style');
   const box = (await object.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -117,9 +118,31 @@ test('escena ampliada: mover componentes y deshacer/rehacer; cámara no ensucia'
   await dialog.getByRole('button', { name: 'Guardar escena', exact: true }).click();
   await expect(dialog).toBeHidden();
   const saved = await exported(page);
-  expect(saved.scene.devices[0].position.x).toBeGreaterThan(project.scene.devices[0].position.x);
+  expect(saved.scene.devices.find((device: { kind: string }) => device.kind === 'led').position.x).toBeGreaterThan(320);
   expect(saved.scene.devices[0].pins).toEqual(project.scene.devices[0].pins);
   expect(JSON.stringify(saved)).not.toContain('camera');
+});
+
+test('escena avanzada: selección múltiple, grilla, alineación y capas se guardan', async ({ page }) => {
+  await open(page);
+  await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  await dialog.getByRole('button', { name: /^Agregar LED\./ }).click();
+  const light = dialog.getByRole('button', { name: /^Mover LED 1$/ });
+  const traffic = dialog.getByRole('button', { name: /^Mover Semáforo 1$/ });
+  await expect(light).toHaveAttribute('aria-pressed', 'true');
+  await traffic.click({ modifiers: ['Control'] });
+  await expect(dialog.getByText('2 seleccionados', { exact: true })).toBeVisible();
+  await dialog.getByTitle('Alinear a la izquierda').click();
+  await dialog.getByTitle('Traer adelante').click();
+  await dialog.getByLabel('Grilla').selectOption('10');
+  await dialog.getByRole('button', { name: 'Guardar escena', exact: true }).click();
+  const saved = await exported(page);
+  expect(saved.scene.canvas.gridSize).toBe(10);
+  expect(saved.scene.canvas.itemOrder).toEqual(expect.arrayContaining([
+    saved.scene.devices.find((device: { kind: string }) => device.kind === 'trafficLight').id,
+    saved.scene.devices.find((device: { kind: string }) => device.kind === 'led').id,
+  ]));
 });
 
 test('cámara: teclado, zoom táctil con Mano y revisión docente de sólo lectura', async ({ page, context }) => {

@@ -59,6 +59,13 @@ import {
 import { boardProfile, boardProfiles, WAVESHARE_TOUCH_LCD_5_PROFILE_ID } from '@/lib/board-profiles';
 import { educationalModuleSpecs, isEducationalModuleKind } from '@/lib/educational-modules';
 import {
+  alignSceneItems,
+  findSceneOverlaps,
+  moveSceneItemsLayer,
+  sceneItemBounds,
+  type SceneAlignment,
+} from '@/lib/scene-layout';
+import {
   commitSnapshot,
   createSnapshotHistory,
   finishSnapshotGroup,
@@ -259,6 +266,9 @@ function SceneBuilderSession({
       selectedId: initialSelectedId,
     }),
   );
+  const [selectedIds, setSelectedIds] = useState<string[]>(() =>
+    initialSelectedId ? [initialSelectedId] : [],
+  );
   const [inspectorDraft, setInspectorDraft] = useState<InspectorDraft | null>(
     () => recoveryDraft ? structuredClone(recoveryDraft.inspector) : createInspectorDraft(initialScene, initialSelectedId),
   );
@@ -295,6 +305,11 @@ function SceneBuilderSession({
   const selectedWidget =
     selectedItem && !('pins' in selectedItem) ? selectedItem : undefined;
   const validation = useMemo(() => validateScene(previewScene, draftBoardProfile), [previewScene, draftBoardProfile]);
+  const overlaps = useMemo(() => findSceneOverlaps(previewScene), [previewScene]);
+  const overlappingIds = useMemo(
+    () => [...new Set(overlaps.flatMap(overlap => [overlap.firstId, overlap.secondId]))],
+    [overlaps],
+  );
   const sceneNameIssue = validation.issues.find(
     (issue) => issue.code === 'invalid-scene-name',
   );
@@ -316,7 +331,7 @@ function SceneBuilderSession({
   const commitScene = (
     nextScene: SceneDefinition,
     notice = '',
-    options: { group?: string; select?: string | null } = {},
+    options: { group?: string; select?: string | null; preserveMulti?: boolean } = {},
   ) => {
     const preferredSelection =
       options.select === null ? undefined : (options.select ?? selectedId);
@@ -329,6 +344,7 @@ function SceneBuilderSession({
       ),
     );
     setInspectorDraft(createInspectorDraft(nextScene, nextSelection));
+    if (!options.preserveMulti) setSelectedIds(nextSelection ? [nextSelection] : []);
     setMessage(notice);
   };
 
@@ -344,10 +360,32 @@ function SceneBuilderSession({
       }),
     );
     setInspectorDraft(createInspectorDraft(sourceScene, itemId));
+    setSelectedIds([itemId]);
   };
 
-  const requestSelection = (itemId: string) => {
-    if (itemId === selectedId) return true;
+  const requestSelection = (itemId: string, additive = false) => {
+    if (additive) {
+      if (inspectorDirty) {
+        setMessage('Primero guarda o cancela los cambios del objeto antes de seleccionar varios.');
+        return false;
+      }
+      const alreadySelected = selectedIds.includes(itemId);
+      const nextIds = alreadySelected
+        ? selectedIds.filter(id => id !== itemId)
+        : [...selectedIds, itemId];
+      const nextPrimary = alreadySelected && itemId === selectedId
+        ? nextIds.at(-1)
+        : itemId;
+      setSelectedIds(nextIds);
+      setHistory(current => replacePresentSnapshot(current, {
+        ...current.present,
+        selectedId: nextPrimary,
+      }));
+      setInspectorDraft(createInspectorDraft(draftScene, nextPrimary));
+      setMessage(nextIds.length > 1 ? `${nextIds.length} objetos seleccionados.` : '');
+      return true;
+    }
+    if (itemId === selectedId && selectedIds.length === 1) return true;
     if (inspectorDirty) {
       setPendingSelectionId(itemId);
       return false;
@@ -381,6 +419,7 @@ function SceneBuilderSession({
     if (!history.past.length) return;
     const nextHistory = undoSnapshot(history);
     setHistory(nextHistory);
+    setSelectedIds(nextHistory.present.selectedId ? [nextHistory.present.selectedId] : []);
     setInspectorDraft(
       createInspectorDraft(
         nextHistory.present.scene,
@@ -394,6 +433,7 @@ function SceneBuilderSession({
     if (inspectorDirty || !history.future.length) return;
     const nextHistory = redoSnapshot(history);
     setHistory(nextHistory);
+    setSelectedIds(nextHistory.present.selectedId ? [nextHistory.present.selectedId] : []);
     setInspectorDraft(
       createInspectorDraft(
         nextHistory.present.scene,
@@ -553,6 +593,32 @@ function SceneBuilderSession({
   const moveItem = (itemId: string, position: ScenePosition) => {
     if (!requireSettledInspector('mover objetos')) return;
     let next = cloneScene(previewScene);
+    const movingItem = findSceneItem(next, itemId);
+    const groupIds = selectedIds.includes(itemId) && selectedIds.length > 1 &&
+      selectedIds.every(id => findSceneItem(next, id)?.kind !== 'trafficLight')
+      ? selectedIds
+      : [itemId];
+    let delta = movingItem
+      ? { x: position.x - movingItem.position.x, y: position.y - movingItem.position.y }
+      : { x: 0, y: 0 };
+    if (groupIds.length > 1) {
+      const groupBounds = groupIds
+        .map(id => findSceneItem(next, id))
+        .filter((item): item is SceneItem => Boolean(item))
+        .map(sceneItemBounds);
+      delta = {
+        x: Math.max(-Math.min(...groupBounds.map(box => box.left)), Math.min(delta.x, next.canvas.width - Math.max(...groupBounds.map(box => box.right)))),
+        y: Math.max(-Math.min(...groupBounds.map(box => box.top)), Math.min(delta.y, next.canvas.height - Math.max(...groupBounds.map(box => box.bottom)))),
+      };
+      next.devices = next.devices.map(device => groupIds.includes(device.id)
+        ? { ...device, position: { x: device.position.x + delta.x, y: device.position.y + delta.y } }
+        : device);
+      next.widgets = next.widgets.map(widget => groupIds.includes(widget.id)
+        ? { ...widget, position: { x: widget.position.x + delta.x, y: widget.position.y + delta.y } }
+        : widget);
+      commitScene(next, '', { group: `move:${[...groupIds].sort().join(',')}`, select: itemId, preserveMulti: true });
+      return;
+    }
     const movingDevice = next.devices.find((device) => device.id === itemId);
     if (movingDevice) {
       const constrained = constrainSceneItemPosition(
@@ -571,7 +637,27 @@ function SceneBuilderSession({
           : widget,
       );
     }
-    commitScene(next, '', { group: `move:${itemId}`, select: itemId });
+    commitScene(next, '', { group: `move:${itemId}`, select: itemId, preserveMulti: true });
+  };
+
+  const arrangeSelection = (alignment: SceneAlignment) => {
+    if (!requireSettledInspector('ordenar objetos')) return;
+    if (selectedIds.length < 2) {
+      setMessage('Selecciona dos o más objetos con Ctrl/Cmd o Mayús + clic.');
+      return;
+    }
+    const next = alignSceneItems(previewScene, selectedIds, alignment);
+    commitScene(next, 'Objetos alineados. Puedes deshacer el cambio.', { preserveMulti: true });
+  };
+
+  const changeSelectionLayer = (direction: 'front' | 'back') => {
+    if (!requireSettledInspector('cambiar el orden visual')) return;
+    if (!selectedIds.length) return;
+    commitScene(
+      moveSceneItemsLayer(previewScene, selectedIds, direction),
+      direction === 'front' ? 'Selección enviada adelante.' : 'Selección enviada atrás.',
+      { preserveMulti: true },
+    );
   };
 
   const updateSelectedDraft = (
@@ -623,6 +709,7 @@ function SceneBuilderSession({
           empty = removeDeviceFromScene(empty, device.id);
         }
         empty.widgets = [];
+        empty.canvas.itemOrder = [];
         commitScene(
           empty,
           'La escena quedó vacía. Puedes deshacer si cambias de idea.',
@@ -662,6 +749,9 @@ function SceneBuilderSession({
       next.widgets = next.widgets.filter(
         (widget) => widget.id !== deleteTarget.id,
       );
+      if (next.canvas.itemOrder) {
+        next.canvas.itemOrder = next.canvas.itemOrder.filter(id => id !== deleteTarget.id);
+      }
       const nextSelection = selectionAfterRemoval(
         draftScene,
         next,
@@ -923,6 +1013,24 @@ function SceneBuilderSession({
               />
               Encajar en la cuadrícula
             </label>
+            <label htmlFor="scene-grid-size" className="scene-grid-size-control">
+              <span>Grilla</span>
+              <NativeSelect
+                id="scene-grid-size"
+                value={String(previewScene.canvas.gridSize)}
+                onChange={(event) => {
+                  if (!requireSettledInspector('cambiar la cuadrícula')) return;
+                  commitScene({
+                    ...cloneScene(previewScene),
+                    canvas: { ...previewScene.canvas, gridSize: Number(event.target.value) },
+                  }, `Grilla configurada cada ${event.target.value} puntos.`);
+                }}
+              >
+                <NativeSelectOption value="10">Fina · 10</NativeSelectOption>
+                <NativeSelectOption value="20">Normal · 20</NativeSelectOption>
+                <NativeSelectOption value="40">Grande · 40</NativeSelectOption>
+              </NativeSelect>
+            </label>
             <div
               className="flex items-center gap-1"
               role="toolbar"
@@ -1074,9 +1182,27 @@ function SceneBuilderSession({
                   </Button>
                 )}
               </div>
+              <div className="scene-arrange-toolbar" role="toolbar" aria-label="Alinear y ordenar objetos">
+                <span>{selectedIds.length > 1 ? `${selectedIds.length} seleccionados` : 'Ctrl/Cmd o Mayús + clic para seleccionar varios'}</span>
+                <Button type="button" variant="outline" size="sm" disabled={selectedIds.length < 2 || inspectorDirty} onClick={() => arrangeSelection('left')} title="Alinear a la izquierda">⇤</Button>
+                <Button type="button" variant="outline" size="sm" disabled={selectedIds.length < 2 || inspectorDirty} onClick={() => arrangeSelection('horizontal-center')} title="Centrar horizontalmente">↔</Button>
+                <Button type="button" variant="outline" size="sm" disabled={selectedIds.length < 2 || inspectorDirty} onClick={() => arrangeSelection('top')} title="Alinear arriba">↥</Button>
+                <Button type="button" variant="outline" size="sm" disabled={selectedIds.length < 2 || inspectorDirty} onClick={() => arrangeSelection('vertical-center')} title="Centrar verticalmente">↕</Button>
+                <Button type="button" variant="outline" size="sm" disabled={selectedIds.length < 3 || inspectorDirty} onClick={() => arrangeSelection('distribute-horizontal')} title="Distribuir horizontalmente">⇥</Button>
+                <Button type="button" variant="outline" size="sm" disabled={selectedIds.length < 3 || inspectorDirty} onClick={() => arrangeSelection('distribute-vertical')} title="Distribuir verticalmente">⇳</Button>
+                <Button type="button" variant="outline" size="sm" disabled={!selectedIds.length || inspectorDirty} onClick={() => changeSelectionLayer('front')} title="Traer adelante">Adelante</Button>
+                <Button type="button" variant="outline" size="sm" disabled={!selectedIds.length || inspectorDirty} onClick={() => changeSelectionLayer('back')} title="Enviar atrás">Atrás</Button>
+              </div>
+              {overlaps.length > 0 && (
+                <output className="scene-overlap-warning">
+                  ⚠ {overlaps.length === 1 ? 'Hay 1 superposición marcada' : `Hay ${overlaps.length} superposiciones marcadas`}. Es sólo un aviso: puedes dejarlas así si es intencional.
+                </output>
+              )}
               <SceneStage
                 scene={previewScene}
                 selectedId={selectedId}
+                selectedIds={selectedIds}
+                overlappingIds={overlappingIds}
                 editing
                 onSelect={requestSelection}
                 onMove={moveItem}

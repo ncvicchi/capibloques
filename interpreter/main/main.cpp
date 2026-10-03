@@ -318,7 +318,16 @@ static void ws_text(int x,int y,const char *value,uint16_t color,int scale=2,int
   const char *cursor=value;for(int count=0;*cursor&&count<max_chars;++count){char character=ws_ascii(cursor);if(character<32||character>126)character='?';const uint8_t *glyph=CAPI_FONT_5X7+(character-32)*5;for(int column=0;column<5;++column)for(int row=0;row<7;++row)if((glyph[column]>>row)&1)ws_rect(x+column*scale,y+row*scale,scale,scale,color);x+=6*scale;}
 }
 static void ws_matrix8(int x,int y,const uint8_t rows[8],uint16_t color){ws_rect(x-2,y-2,28,28,rgb565(24,28,38));for(int row=0;row<8;++row)for(int column=0;column<8;++column)if(rows[row]&(1U<<(7-column)))ws_rect(x+column*3,y+row*3,2,2,color);}
-static void ws_device(cJSON *dev,int x,int y){
+static int ws_label_side(cJSON *devices,cJSON *target){
+  cJSON *target_position=cJSON_GetObjectItem(target,"position"),*candidate;
+  int target_x=number(target_position,"x"),target_y=number(target_position,"y"),nearby=0,index=0;
+  cJSON_ArrayForEach(candidate,devices){
+    cJSON *position=cJSON_GetObjectItem(candidate,"position");
+    if(abs(number(position,"x")-target_x)<150&&abs(number(position,"y")-target_y)<105){if(candidate==target){index=nearby;}++nearby;}
+  }
+  return nearby<2?0:index%4;
+}
+static void ws_device(cJSON *dev,int x,int y,int label_side=0){
   const char *kind=text(dev,"kind"),*id=text(dev,"id");const uint16_t ink=rgb565(30,38,69),muted=rgb565(190,196,213),white=rgb565(255,255,255);
   ws_rect(x-58,y-55,116,112,white);
   if(!strcmp(kind,"trafficLight")){
@@ -340,7 +349,11 @@ static void ws_device(cJSON *dev,int x,int y){
   }else if(!strcmp(kind,"infraredBarrier")||!strcmp(kind,"button")){
     bool on=component_get(id,!strcmp(kind,"button")?"pressed":"interrupted").boolean;ws_circle(x,y-8,28,on?rgb565(255,92,92):rgb565(73,190,130));
   }else{ws_circle(x,y-8,27,rgb565(126,139,166));ws_text(x-7,y-16,"?",white,3,1);}
-  const char *name=text(dev,"name","Componente");int length=std::min<int>((int)strlen(name),18),scale=length>9?1:2;ws_text(x-length*3*scale,y+40,name,ink,scale,18);
+  const char *name=text(dev,"name","Componente");int length=std::min<int>((int)strlen(name),18),scale=length>9?1:2,label_x=x-length*3*scale,label_y=y+40;
+  if(label_side==1){label_y=y-68;}
+  else if(label_side==2){label_x=x+62;label_y=y-7;}
+  else if(label_side==3){label_x=x-62-length*6*scale;label_y=y-7;}
+  ws_text(label_x,label_y,name,ink,scale,18);
 }
 static int ws_x(int value,int width){return 70+value*660/std::max(1,width);}
 static int ws_y(int value,int height){return 115+value*300/std::max(1,height);}
@@ -386,7 +399,21 @@ static bool waveshare_begin(){
 static void waveshare_render(){
   if(!waveshare_ready||!waveshare_pixels){return;}
   const uint16_t background=rgb565(236,241,255),bar=rgb565(91,75,219),white=rgb565(255,255,255),ink=rgb565(30,38,69);ws_rect(0,0,WAVESHARE_WIDTH,WAVESHARE_HEIGHT,background);ws_rect(0,0,WAVESHARE_WIDTH,55,bar);ws_text(22,17,"CapiBloques",white,3,20);
-  if(!active){ws_text(220,220,"Lista para recibir una escena",ink,2,30);}else{cJSON *resources=cJSON_GetObjectItem(active,"resources"),*canvas=resources?cJSON_GetObjectItem(resources,"canvas"):nullptr,*devices=resources?cJSON_GetObjectItem(resources,"devices"):nullptr,*dev;int cw=std::max(1,number(canvas,"width",960)),ch=std::max(1,number(canvas,"height",540)),shown=0;ws_background(canvas);cJSON_ArrayForEach(dev,devices){const char *kind=text(dev,"kind");if(!strcmp(kind,"display")||!strcmp(kind,"messages")||!strcmp(kind,"wifiNode"))continue;cJSON *position=cJSON_GetObjectItem(dev,"position");int x=70+number(position,"x",cw/2)*660/cw,y=115+number(position,"y",ch/2)*300/ch;ws_device(dev,x,y);if(++shown>=12)break;}if(!shown)ws_text(250,220,"Escena sin componentes",ink,2,28);}
+  if(!active){ws_text(220,220,"Lista para recibir una escena",ink,2,30);}else{
+    cJSON *resources=cJSON_GetObjectItem(active,"resources"),*canvas=resources?cJSON_GetObjectItem(resources,"canvas"):nullptr,*devices=resources?cJSON_GetObjectItem(resources,"devices"):nullptr,*dev,*order_item;
+    int cw=std::max(1,number(canvas,"width",960)),ch=std::max(1,number(canvas,"height",540)),shown=0;std::vector<std::string> rendered;ws_background(canvas);
+    auto draw=[&](cJSON *candidate){
+      if(!candidate||shown>=12){return;}
+      const char *kind=text(candidate,"kind"),*id=text(candidate,"id");
+      if(!strcmp(kind,"display")||!strcmp(kind,"messages")||!strcmp(kind,"wifiNode")||std::find(rendered.begin(),rendered.end(),id)!=rendered.end()){return;}
+      cJSON *position=cJSON_GetObjectItem(candidate,"position");int x=70+number(position,"x",cw/2)*660/cw,y=115+number(position,"y",ch/2)*300/ch;
+      ws_device(candidate,x,y,ws_label_side(devices,candidate));rendered.emplace_back(id);++shown;
+    };
+    cJSON *order=canvas?cJSON_GetObjectItem(canvas,"itemOrder"):nullptr;
+    cJSON_ArrayForEach(order_item,order){const char *wanted=cJSON_IsString(order_item)?order_item->valuestring:"";cJSON_ArrayForEach(dev,devices){if(!strcmp(text(dev,"id"),wanted)){draw(dev);break;}}}
+    cJSON_ArrayForEach(dev,devices){draw(dev);}
+    if(!shown){ws_text(250,220,"Escena sin componentes",ink,2,28);}
+  }
   esp_lcd_panel_draw_bitmap(waveshare_panel,0,0,WAVESHARE_WIDTH,WAVESHARE_HEIGHT,waveshare_pixels);
 }
 static void waveshare_service(void*){for(;;){if(waveshare_dirty.exchange(false)){if(waveshare_mutex)xSemaphoreTake(waveshare_mutex,portMAX_DELAY);waveshare_render();if(waveshare_mutex)xSemaphoreGive(waveshare_mutex);}cooperative_delay_ms(50);}}

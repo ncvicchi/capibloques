@@ -52,6 +52,20 @@ class ProjectTests(TestCase):
         self.assertNotIn("document", listing["projects"][0])
         self.assertEqual(ProjectEvent.objects.count(), 4)
 
+    def test_scene_visual_order_is_persisted_and_rejects_unknown_objects(self):
+        data = self.payload()
+        scene = data["document"]["scene"]
+        scene["canvas"]["itemOrder"] = [scene["devices"][0]["id"]]
+        project = self.create(data)
+        self.assertEqual(
+            self.client.get(self.url(project)).json()["document"]["scene"]["canvas"]["itemOrder"],
+            scene["canvas"]["itemOrder"],
+        )
+        invalid = self.payload()
+        invalid["document"]["scene"]["canvas"]["itemOrder"] = ["objeto-retirado"]
+        with self.assertRaises(ValidationError):
+            document(invalid["document"])
+
     def test_other_students_teachers_and_admin_cannot_access_or_mutate_private_projects(self):
         project = self.create()
         for actor in [self.other, self.teacher, self.admin]:

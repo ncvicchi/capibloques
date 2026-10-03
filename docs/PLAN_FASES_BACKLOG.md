@@ -709,7 +709,7 @@ Contrato, límites, dependencias y aceptación física en
 
 ## Fase 45 — Escenas atractivas y fidelidad visual completa
 
-**Estado:** en curso; primera entrega funcional. **Objetivo:** enriquecer visualmente las plantillas y
+**Estado:** en curso; segunda entrega funcional. **Objetivo:** enriquecer visualmente las plantillas y
 garantizar una composición única entre Armar escena, simulación web, revisión y
 Waveshare.
 
@@ -724,8 +724,11 @@ Contrato y aceptación en
 
 La primera entrega agrega cinco aventuras, fondos vectoriales compartidos,
 cruce con autos/filas/choque y pista de robot. El runtime 1.5.7 dibuja sus
-equivalentes compactos en Waveshare. Quedan autoría avanzada, detección general
-de solapamientos, capturas de referencia y aceptación física.
+equivalentes compactos en Waveshare. La segunda agrega selección múltiple,
+movimiento grupal, alineación/distribución, grilla configurable, orden visual
+persistente, guías magnéticas, cajas compartidas, anclas de rótulo y avisos de
+solapamiento; Waveshare consume el mismo orden y criterio de anclas. Quedan
+capturas de referencia, mediciones y aceptación física.
 
 ## Fase final — Producción y piloto, postergada
 

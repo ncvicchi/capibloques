@@ -1,6 +1,6 @@
 # Fase 45 — Escenas atractivas y fidelidad visual completa
 
-Estado: **en curso; primera entrega funcional el 26 de septiembre de 2026**.
+Estado: **en curso; segunda entrega funcional el 3 de octubre de 2026**.
 Reúne y amplía la antigua asignación de fidelidad espacial de fase 21; no queda
 duplicada allí.
 
@@ -61,10 +61,43 @@ duplicada allí.
   compacta para no invadir la tarjeta vecina.
 - Hay prueba automática de validez JSON, plantillas, encaje y límite de carriles.
 
-Quedan dentro de esta fase las herramientas avanzadas de autoría (capas,
-selección múltiple y guías), detección general de solapamientos y comparación
-por capturas de referencia. La salida Waveshare 1.5.7 requiere compilación en
-DEV y aceptación física; una compilación correcta no sustituye esa prueba.
+## Entregado en la segunda implementación
+
+- El editor permite seleccionar varios objetos con **Ctrl/Cmd o Mayús + clic**,
+  arrastrarlos juntos y alinearlos a izquierda, centro horizontal, arriba o
+  centro vertical. Con tres o más también puede distribuirlos horizontal o
+  verticalmente. El movimiento grupal respeta los límites del lienzo.
+- La grilla puede configurarse en 10, 20 o 40 puntos y el encastre sigue siendo
+  opcional. Grilla, alineaciones, distribución y movimiento forman parte del
+  historial normal de Deshacer/Rehacer; la cámara continúa fuera del proyecto.
+- Al arrastrar, guías magenta detectan el centro del lienzo y los centros de
+  otros objetos; dentro de una tolerancia pequeña el objeto se encastra en esa
+  coordenada. Las guías son transitorias y no entran en el JSON.
+- **Adelante/Atrás** conserva un orden transversal entre componentes y widgets
+  mediante `canvas.itemOrder`. Es una extensión opcional del JSON de escena v1:
+  los proyectos anteriores sin ese campo mantienen su orden y posición. El
+  backend acepta, valida y persiste únicamente ids vivos y sin duplicados.
+- Un catálogo único de cajas lógicas define el área de semáforo, robot, Otto,
+  displays, mensajes, contador y componentes comunes. Editor y simulador usan
+  esas dimensiones y el mismo orden visual.
+- El editor detecta superposiciones relevantes, marca los objetos y explica que
+  el aviso no impide composiciones intencionales ni ejecuta auto-layout oculto.
+- Los nombres cercanos reciben anclas deterministas arriba, abajo o a los
+  costados; los objetos no se mueven para resolver el rótulo. Los nombres largos
+  conservan elipsis y texto completo accesible.
+- El renderer Waveshare consume `itemOrder`, pinta de atrás hacia adelante y
+  aplica la misma elección determinista de anclas laterales/superiores/inferiores
+  para componentes cercanos. Los proyectos sin orden explícito conservan el
+  recorrido histórico del arreglo de dispositivos.
+- Pruebas puras cubren cajas, solapamientos, anclas, alineación, capas y
+  compatibilidad con escenas anteriores. Un recorrido Chromium cubre selección
+  múltiple, grilla, alineación, capas, Guardar y el recorrido previo de
+  mover/Deshacer/Rehacer/cámara.
+
+Quedan dentro de esta fase la comparación estable por capturas de referencia.
+La salida Waveshare 1.5.7 requiere compilación en DEV y
+aceptación física; una compilación correcta no sustituye esa prueba. También
+faltan las mediciones máximas de memoria, paquete y tiempo de dibujo.
 
 ## Objetivo
 

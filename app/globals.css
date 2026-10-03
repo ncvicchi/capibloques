@@ -1910,6 +1910,8 @@ select:focus-visible {
   height: 17px;
   accent-color: var(--purple);
 }
+.scene-grid-size-control { min-width: 108px; }
+.scene-grid-size-control [data-slot='native-select-wrapper'] { width: 108px; }
 .traffic-directions-control {
   display: grid;
   grid-template-columns: repeat(4, 30px);
@@ -2164,6 +2166,35 @@ select:focus-visible {
   font-size: 12px;
 }
 .canvas-label > button { flex: 0 0 auto; }
+.scene-arrange-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 34px;
+  padding: 4px 6px;
+  overflow-x: auto;
+  border: 1px solid #d8ddef;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 82%);
+}
+.scene-arrange-toolbar > span {
+  min-width: 205px;
+  margin-right: auto;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.scene-arrange-toolbar button { min-width: 34px; white-space: nowrap; }
+.scene-overlap-warning {
+  padding: 7px 10px;
+  border: 1px solid #e5bd48;
+  border-radius: 10px;
+  background: #fff8d9;
+  color: #705407;
+  font-size: 11px;
+  font-weight: 760;
+}
 .scene-stage {
   isolation: isolate;
   position: relative;
@@ -2308,6 +2339,15 @@ select:focus-visible {
 .scene-stage.editing .scene-grid {
   opacity: 1;
 }
+.scene-alignment-guide {
+  position: absolute;
+  z-index: 999;
+  pointer-events: none;
+  background: #e33c99;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 75%);
+}
+.scene-alignment-guide.vertical { top: 0; bottom: 0; width: 2px; }
+.scene-alignment-guide.horizontal { right: 0; left: 0; height: 2px; }
 .scene-device {
   position: absolute;
   z-index: 2;
@@ -2332,11 +2372,14 @@ select:focus-visible {
   cursor: grabbing;
 }
 .scene-device.selected {
-  z-index: 4;
   border-color: var(--purple);
   box-shadow:
     0 0 0 4px rgb(98 87 232 / 17%),
     0 8px 20px rgb(38 48 79 / 20%);
+}
+.scene-item-overlap:not(.selected) {
+  outline: 3px dashed #e58a22;
+  outline-offset: 3px;
 }
 .scene-device-name {
   position: absolute;
@@ -2351,6 +2394,15 @@ select:focus-visible {
   font-weight: 850;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.scene-device-name.label-top { top: -17px; bottom: auto; }
+.scene-device-name.label-left {
+  top: 50%; right: calc(100% + 6px); bottom: auto; left: auto;
+  transform: translateY(-50%);
+}
+.scene-device-name.label-right {
+  top: 50%; left: calc(100% + 6px); bottom: auto;
+  transform: translateY(-50%);
 }
 .stage-traffic {
   width: 31px;

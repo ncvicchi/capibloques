@@ -89,6 +89,8 @@ export interface SceneCanvas {
   gridSize: number;
   snapToGrid: boolean;
   trafficDirections?: TrafficDirection[];
+  /** Identificadores de atrás hacia adelante; ausente en proyectos anteriores. */
+  itemOrder?: string[];
 }
 
 export interface SceneTrafficSlot extends ScenePosition {
@@ -699,6 +701,7 @@ export function cloneScene(
       trafficDirections: scene.canvas.trafficDirections
         ? [...scene.canvas.trafficDirections]
         : undefined,
+      itemOrder: scene.canvas.itemOrder ? [...scene.canvas.itemOrder] : undefined,
     },
     devices: scene.devices.map(cloneDevice),
     widgets: scene.widgets.map(cloneWidget),
@@ -1332,6 +1335,9 @@ export function removeDeviceFromScene(
   const scene = cloneScene(source);
   const removed = scene.devices.find((device) => device.id === deviceId);
   scene.devices = scene.devices.filter((device) => device.id !== deviceId);
+  if (scene.canvas.itemOrder) {
+    scene.canvas.itemOrder = scene.canvas.itemOrder.filter(id => id !== deviceId);
+  }
   if (removed && !(scene.retiredDeviceIds ?? []).includes(removed.id)) {
     scene.retiredDeviceIds = [...(scene.retiredDeviceIds ?? []), removed.id];
     if (scene.retiredDeviceIds.length > MAX_RETIRED_DEVICE_IDS) {
@@ -2537,6 +2543,7 @@ export function isSceneDefinition(value: unknown, incompleteDisplayLayout = fals
       'gridSize',
       'snapToGrid',
       'trafficDirections',
+      'itemOrder',
     ]) &&
     hasFiniteNumber(canvas, 'width') &&
     hasFiniteNumber(canvas, 'height') &&
@@ -2557,6 +2564,11 @@ export function isSceneDefinition(value: unknown, incompleteDisplayLayout = fals
         ) &&
         new Set(canvas.trafficDirections).size ===
           canvas.trafficDirections.length)) &&
+    (canvas.itemOrder === undefined ||
+      (Array.isArray(canvas.itemOrder) &&
+        canvas.itemOrder.length <= MAX_SCENE_ITEMS * 2 &&
+        canvas.itemOrder.every(id => typeof id === 'string' && id.length <= 128) &&
+        new Set(canvas.itemOrder).size === canvas.itemOrder.length)) &&
     Array.isArray(devices) &&
     devices.length <= MAX_SCENE_ITEMS &&
     devices.every(device => isSceneDevice(device, incompleteDisplayLayout)) &&
@@ -2587,6 +2599,12 @@ export function isSceneDefinition(value: unknown, incompleteDisplayLayout = fals
         typeof widget.config.mascot === 'string' &&
         widget.config.mascot.length <= 32,
     ) &&
+    (canvas.itemOrder === undefined ||
+      canvas.itemOrder.every(itemId =>
+        [...devices, ...widgets].some(item =>
+          isRecord(item) && item.id === itemId,
+        ),
+      )) &&
     (candidate.retiredDeviceIds === undefined ||
       (Array.isArray(candidate.retiredDeviceIds) &&
         candidate.retiredDeviceIds.length <= MAX_RETIRED_DEVICE_IDS &&

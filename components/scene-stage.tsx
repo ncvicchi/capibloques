@@ -22,6 +22,7 @@ import {
   closestCrossroadsTrafficSlot,
   enabledTrafficDirections,
 } from '@/lib/scene-model';
+import { sceneItemLabelSide, sceneItemLayer, sceneItemSize } from '@/lib/scene-layout';
 import { educationalModuleKinds, educationalModuleSpecs } from '@/lib/educational-modules';
 import {
   advanceTrafficWorld,
@@ -75,8 +76,10 @@ interface SceneStageProps {
   simulationRunning?: boolean;
   simulationEpoch?: number;
   selectedId?: string;
+  selectedIds?: readonly string[];
+  overlappingIds?: readonly string[];
   editing?: boolean;
-  onSelect?: (deviceId: string) => boolean | void;
+  onSelect?: (deviceId: string, additive?: boolean) => boolean | void;
   onMove?: (deviceId: string, position: ScenePosition) => void;
   onMoveStart?: (deviceId: string) => void;
   onMoveEnd?: (deviceId: string) => void;
@@ -514,6 +517,8 @@ export default function SceneStage({
   simulationRunning = false,
   simulationEpoch = 0,
   selectedId,
+  selectedIds,
+  overlappingIds,
   editing = false,
   onSelect,
   onMove,
@@ -537,6 +542,7 @@ export default function SceneStage({
   } | null>(null);
   const moveFrameRef = useRef<number | null>(null);
   const keyboardMoveRef = useRef<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
   const safeSimulationSpeed = Math.max(0.25, Math.min(4, simulationSpeed));
 
   useEffect(
@@ -561,7 +567,7 @@ export default function SceneStage({
     event: ReactPointerEvent<HTMLButtonElement>,
     item: MovableSceneItem,
   ) => {
-    if (onSelect?.(item.id) === false) return;
+    if (onSelect?.(item.id, event.ctrlKey || event.metaKey || event.shiftKey) === false) return;
     if (!editing || !onMove || !stageRef.current) return;
     const rect = stageRef.current.getBoundingClientRect();
     const currentX = (item.position.x / scene.canvas.width) * rect.width;
@@ -572,6 +578,7 @@ export default function SceneStage({
       offsetX: event.clientX - rect.left - currentX,
       offsetY: event.clientY - rect.top - currentY,
     };
+    setDraggingId(item.id);
     onMoveStart?.(item.id);
     event.currentTarget.setPointerCapture(event.pointerId);
     event.preventDefault();
@@ -593,6 +600,14 @@ export default function SceneStage({
       x = Math.round(x / scene.canvas.gridSize) * scene.canvas.gridSize;
       y = Math.round(y / scene.canvas.gridSize) * scene.canvas.gridSize;
     }
+    const guideThreshold = 8;
+    const otherItems = [...scene.devices, ...scene.widgets].filter(item => item.id !== drag.deviceId);
+    const guideX = [scene.canvas.width / 2, ...otherItems.map(item => item.position.x)]
+      .find(candidate => Math.abs(candidate - x) <= guideThreshold);
+    const guideY = [scene.canvas.height / 2, ...otherItems.map(item => item.position.y)]
+      .find(candidate => Math.abs(candidate - y) <= guideThreshold);
+    if (guideX !== undefined) x = guideX;
+    if (guideY !== undefined) y = guideY;
     pendingMoveRef.current = {
       deviceId: drag.deviceId,
       position: {
@@ -616,6 +631,7 @@ export default function SceneStage({
     if (drag?.pointerId !== event.pointerId) return;
     flushPendingMove();
     dragRef.current = null;
+    setDraggingId(null);
     if (event.currentTarget.hasPointerCapture(event.pointerId))
       event.currentTarget.releasePointerCapture(event.pointerId);
     onMoveEnd?.(drag.deviceId);
@@ -703,6 +719,22 @@ export default function SceneStage({
     '--wifi-animation-duration': `${800 / safeSimulationSpeed}ms`,
     '--otto-animation-duration': `${240 / safeSimulationSpeed}ms`,
   } as CSSProperties;
+  const selectedSet = new Set(selectedIds ?? (selectedId ? [selectedId] : []));
+  const overlapSet = new Set(overlappingIds ?? []);
+  const draggingItem = draggingId
+    ? [...scene.devices, ...scene.widgets].find(item => item.id === draggingId)
+    : undefined;
+  const guidePeers = draggingItem
+    ? [...scene.devices, ...scene.widgets].filter(item => item.id !== draggingItem.id)
+    : [];
+  const verticalGuide = draggingItem
+    ? [scene.canvas.width / 2, ...guidePeers.map(item => item.position.x)]
+      .find(value => Math.abs(value - draggingItem.position.x) < 0.5)
+    : undefined;
+  const horizontalGuide = draggingItem
+    ? [scene.canvas.height / 2, ...guidePeers.map(item => item.position.y)]
+      .find(value => Math.abs(value - draggingItem.position.y) < 0.5)
+    : undefined;
 
   return (
     <SceneViewport key={`${scene.id}:${scene.canvas.width}:${scene.canvas.height}`} width={scene.canvas.width} height={scene.canvas.height}>
@@ -731,10 +763,16 @@ export default function SceneStage({
         simulationRunning={simulationRunning}
       />
       <div className="scene-grid" aria-hidden="true" />
+      {verticalGuide !== undefined && <div className="scene-alignment-guide vertical" style={{ left: `${(verticalGuide / scene.canvas.width) * 100}%` }} aria-hidden="true" />}
+      {horizontalGuide !== undefined && <div className="scene-alignment-guide horizontal" style={{ top: `${(horizontalGuide / scene.canvas.height) * 100}%` }} aria-hidden="true" />}
       {scene.widgets.map((widget) => {
+        const size = sceneItemSize(widget);
         const style = {
           left: `${(widget.position.x / scene.canvas.width) * 100}%`,
           top: `${(widget.position.y / scene.canvas.height) * 100}%`,
+          width: `${(size.width / scene.canvas.width) * 100}%`,
+          minHeight: `${(size.height / scene.canvas.height) * 100}%`,
+          zIndex: sceneItemLayer(scene, widget.id),
         };
         const contents = (
           <>
@@ -758,18 +796,18 @@ export default function SceneStage({
         return (
           <button
             type="button"
-            className={`scene-widget${selectedId === widget.id ? ' selected' : ''}`}
+            className={`scene-widget${selectedSet.has(widget.id) ? ' selected' : ''}${overlapSet.has(widget.id) ? ' scene-item-overlap' : ''}`}
             key={widget.id}
             style={style}
             aria-label={`Mover ${widget.name}`}
-            aria-pressed={selectedId === widget.id}
+            aria-pressed={selectedSet.has(widget.id)}
             aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Delete Control+D Meta+D"
             onPointerDown={(event) => pointerDown(event, widget)}
             onPointerMove={pointerMove}
             onPointerUp={pointerUp}
             onPointerCancel={pointerUp}
             onLostPointerCapture={pointerUp}
-            onClick={() => onSelect?.(widget.id)}
+            onClick={(event) => { if (event.detail === 0) onSelect?.(widget.id, event.ctrlKey || event.metaKey || event.shiftKey); }}
             onKeyDown={(event) => moveWithKeyboard(event, widget)}
             onKeyUp={(event) => finishKeyboardMove(event, widget)}
             onBlur={() => finishKeyboardMoveOnBlur(widget)}
@@ -798,15 +836,20 @@ export default function SceneStage({
               ? runtime.angle
               : device.rotation + device.config.heading
             : device.rotation;
+        const size = sceneItemSize(device);
+        const labelSide = sceneItemLabelSide(scene, device.id);
         const style = {
           left: `${(position.x / scene.canvas.width) * 100}%`,
           top: `${(position.y / scene.canvas.height) * 100}%`,
+          width: `${(size.width / scene.canvas.width) * 100}%`,
+          minHeight: `${(size.height / scene.canvas.height) * 100}%`,
+          zIndex: sceneItemLayer(scene, device.id),
           transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
         };
         const contents = (
           <>
             <DeviceVisual device={device} runtime={runtime} sceneDevices={scene.devices} runtimeDevices={runtimeDevices} dashboardModes={dashboardModes} onDashboardAction={onDashboardAction} />
-            <span className="scene-device-name">{device.name}</span>
+            <span className={`scene-device-name label-${labelSide}`} title={device.name}>{device.name}</span>
           </>
         );
         if (!editing) {
@@ -836,12 +879,12 @@ export default function SceneStage({
             type="button"
             key={device.id}
             data-device-id={device.id}
-            className={`scene-device scene-device-${device.kind}${selectedId === device.id ? ' selected' : ''}`}
+            className={`scene-device scene-device-${device.kind}${selectedSet.has(device.id) ? ' selected' : ''}${overlapSet.has(device.id) ? ' scene-item-overlap' : ''}`}
             style={style}
             aria-label={`Mover ${device.name}`}
-            aria-pressed={selectedId === device.id}
+            aria-pressed={selectedSet.has(device.id)}
             aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Delete Control+D Meta+D"
-            onClick={() => onSelect?.(device.id)}
+            onClick={(event) => { if (event.detail === 0) onSelect?.(device.id, event.ctrlKey || event.metaKey || event.shiftKey); }}
             onPointerDown={(event) => pointerDown(event, device)}
             onPointerMove={pointerMove}
             onPointerUp={pointerUp}

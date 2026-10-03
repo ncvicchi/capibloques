@@ -256,11 +256,17 @@ def scene(value, board_profile="wemos-d1-r32"):
     exact(value, ("schemaVersion", "id", "name", "description", "canvas", "devices", "widgets"), ("retiredDeviceIds", "sourceTemplate"))
     require(type(value["schemaVersion"]) is int and value["schemaVersion"] == 1 and identifier(value["id"]))
     require(text(value["name"], 60, 1) and value["name"].strip() and isinstance(value["description"], str))
-    require("sourceTemplate" not in value or value["sourceTemplate"] in ("traffic", "robot", "wifi", "counter"))
+    require("sourceTemplate" not in value or value["sourceTemplate"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation"))
     canvas = value["canvas"]
-    exact(canvas, ("width", "height", "background", "gridSize", "snapToGrid"))
+    exact(canvas, ("width", "height", "background", "gridSize", "snapToGrid"), ("trafficDirections", "itemOrder"))
     require(number(canvas["width"], 0.01, 4096) and number(canvas["height"], 0.01, 4096) and number(canvas["gridSize"], 0.01, 512))
-    require(canvas["background"] in ("park", "workshop", "home", "pond", "blank") and type(canvas["snapToGrid"]) is bool)
+    require(canvas["background"] in ("park", "workshop", "home", "pond", "crossroads", "robotTrack", "garden", "schoolGate", "weatherYard", "blank") and type(canvas["snapToGrid"]) is bool)
+    traffic_directions = canvas.get("trafficDirections", [])
+    require(isinstance(traffic_directions, list) and len(traffic_directions) <= 4 and len(set(traffic_directions)) == len(traffic_directions))
+    require(all(direction in ("eastbound", "westbound", "southbound", "northbound") for direction in traffic_directions))
+    item_order = canvas.get("itemOrder", [])
+    require(isinstance(item_order, list) and len(item_order) <= 512 and len(set(item_order)) == len(item_order))
+    require(all(identifier(item_id) for item_id in item_order))
     require(isinstance(value["devices"], list) and isinstance(value["widgets"], list) and len(value["devices"]) + len(value["widgets"]) <= 256 and len(value["widgets"]) <= 1)
     ids, names = set(), set()
     display_count = 0
@@ -345,6 +351,7 @@ def scene(value, board_profile="wemos-d1-r32"):
     dashboard_items = {item["id"]: item for item in value["devices"]}
     require(all(device_id in dashboard_items and dashboard_items[device_id]["kind"] in dashboard_kinds for device_id in dashboard_ids), "El tablero contiene un control retirado o incompatible.")
     retired = value.get("retiredDeviceIds", [])
+    require(all(item_id in ids for item_id in item_order), "El orden visual contiene un objeto retirado.")
     require(isinstance(retired, list) and len(retired) <= 4096)
     retired_ids = set()
     for key in retired:

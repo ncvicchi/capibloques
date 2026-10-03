@@ -17,6 +17,13 @@ import {
   advanceTrafficWorld,
   createTrafficWorldState,
 } from '../lib/traffic-world.ts';
+import {
+  alignSceneItems,
+  findSceneOverlaps,
+  moveSceneItemsLayer,
+  orderedSceneItemIds,
+  sceneItemLabelSide,
+} from '../lib/scene-layout.ts';
 
 for (const id of [
   'intersection',
@@ -30,6 +37,40 @@ for (const id of [
   assert.equal(validateScene(scene, 'wemos-d1-r32').valid, true);
   assert.notEqual(scene.canvas.background, 'blank');
 }
+
+const layoutScene = createSceneFromTemplate('intersection');
+layoutScene.devices[0].position = { x: 200, y: 200 };
+layoutScene.devices[1].position = { x: 215, y: 205 };
+assert.equal(findSceneOverlaps(layoutScene).length, 1, 'nearby components should report an overlap');
+assert.notEqual(
+  sceneItemLabelSide(layoutScene, layoutScene.devices[0].id),
+  sceneItemLabelSide(layoutScene, layoutScene.devices[1].id),
+  'nearby labels should receive different deterministic anchors',
+);
+const alignedLayout = alignSceneItems(
+  layoutScene,
+  layoutScene.devices.map(device => device.id),
+  'left',
+);
+assert.equal(
+  alignedLayout.devices[0].position.x,
+  alignedLayout.devices[1].position.x,
+  'left alignment must account for the real logical box width',
+);
+const layeredLayout = moveSceneItemsLayer(
+  layoutScene,
+  [layoutScene.devices[0].id],
+  'front',
+);
+assert.equal(orderedSceneItemIds(layeredLayout).at(-1), layoutScene.devices[0].id);
+assert.ok(isSceneDefinition(layeredLayout), 'stored layer order must remain valid scene JSON');
+assert.ok(
+  isSceneDefinition(removeDeviceFromScene(layeredLayout, layoutScene.devices[0].id)),
+  'removing an item must also prune its stored visual order',
+);
+const legacyLayout = structuredClone(layoutScene);
+delete legacyLayout.canvas.itemOrder;
+assert.ok(isSceneDefinition(legacyLayout), 'old schema-v1 scenes need no layout migration');
 
 const intersection = createSceneFromTemplate('intersection');
 assert.equal(intersection.devices.filter(device => device.kind === 'trafficLight').length, 2);
