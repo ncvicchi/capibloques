@@ -87,6 +87,7 @@ static uint16_t *waveshare_pixels=nullptr;
 static SemaphoreHandle_t waveshare_mutex=nullptr;
 static std::atomic<bool> waveshare_dirty{true};
 static std::atomic<int> waveshare_action{0}; // 1 run/pause, 2 step, 3 stop, 4 reset
+static std::atomic<int> waveshare_page{0}; // 0 escena, 1 datos
 static bool waveshare_ready=false;
 #endif
 enum class RuntimeTimerStatus : uint8_t { STOPPED, RUNNING, PAUSED, EXPIRED };
@@ -407,10 +408,28 @@ static bool waveshare_begin(){
   if(esp_lcd_new_rgb_panel(&config,&waveshare_panel)!=ESP_OK||esp_lcd_panel_reset(waveshare_panel)!=ESP_OK||esp_lcd_panel_init(waveshare_panel)!=ESP_OK)return false;
   waveshare_pixels=(uint16_t*)heap_caps_malloc(WAVESHARE_WIDTH*WAVESHARE_HEIGHT*sizeof(uint16_t),MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT);if(!waveshare_pixels)return false;waveshare_ready=true;waveshare_dirty=true;return true;
 }
+static const char *ws_resource_name(cJSON *items,const std::string &id,const char *fallback){cJSON *item;cJSON_ArrayForEach(item,items)if(id==text(item,"id"))return text(item,"name",fallback);return fallback;}
+static void waveshare_inspector(){
+  const uint16_t ink=rgb565(30,38,69),muted=rgb565(102,113,140),card=rgb565(255,255,255),accent=rgb565(91,75,219);
+  ws_rect(70,75,660,340,rgb565(236,241,255));ws_text(88,88,"DATOS DEL PROGRAMA",ink,3,22);
+  char counter[32];snprintf(counter,sizeof(counter),"CONTADOR: %ld",(long)counter_value.load());ws_text(88,125,counter,accent,2,28);
+  int y=157,shown=0;cJSON *definitions=active?cJSON_GetObjectItem(active,"variables"):nullptr;
+  if(variables_mutex)xSemaphoreTake(variables_mutex,portMAX_DELAY);
+  for(const auto &variable:variables){if(shown++>=6)break;std::string line=std::string(ws_resource_name(definitions,variable.id,"Variable"))+": "+value_text(variable.value);ws_rect(84,y-5,300,27,card);ws_text(96,y,line.c_str(),ink,2,23);y+=34;}
+  if(variables_mutex)xSemaphoreGive(variables_mutex);
+  y=157;shown=0;definitions=active?cJSON_GetObjectItem(active,"timers"):nullptr;
+  if(timers_mutex)xSemaphoreTake(timers_mutex,portMAX_DELAY);
+  for(const auto &timer:timers){if(shown++>=4)break;const char *status=timer.status==RuntimeTimerStatus::RUNNING?"corriendo":timer.status==RuntimeTimerStatus::PAUSED?"pausado":timer.status==RuntimeTimerStatus::EXPIRED?"termino":"detenido";uint32_t remaining=timer.remaining;if(timer.status==RuntimeTimerStatus::RUNNING){uint32_t now=(uint32_t)(esp_timer_get_time()/1000),delta=now-timer.last_update;remaining=delta>=remaining?0:remaining-delta;}char line[48];snprintf(line,sizeof(line),"%s: %lu s %s",ws_resource_name(definitions,timer.id,"Temporizador"),(unsigned long)((remaining+999)/1000),status);ws_rect(405,y-5,310,27,card);ws_text(417,y,line,ink,2,24);y+=34;}
+  if(timers_mutex)xSemaphoreGive(timers_mutex);
+  char paths[48];snprintf(paths,sizeof(paths),"CAMINOS ACTIVOS: %d",active_tasks.load());ws_text(405,310,paths,muted,2,24);
+  ws_text(405,342,running?(paused?"PROGRAMA PAUSADO":"PROGRAMA EN MARCHA"):"PROGRAMA DETENIDO",running&&!paused?rgb565(34,160,95):muted,2,24);
+}
 static void waveshare_render(){
   if(!waveshare_ready||!waveshare_pixels){return;}
   const uint16_t background=rgb565(236,241,255),bar=rgb565(91,75,219),white=rgb565(255,255,255),ink=rgb565(30,38,69);ws_rect(0,0,WAVESHARE_WIDTH,WAVESHARE_HEIGHT,background);ws_rect(0,0,WAVESHARE_WIDTH,55,bar);ws_text(22,17,"CapiBloques",white,3,20);
-  if(!active){ws_text(220,220,"Lista para recibir una escena",ink,2,30);}else{
+  ws_rect(650,7,140,41,rgb565(73,82,112));ws_text(671,20,waveshare_page?"ESCENA":"DATOS",white,2,8);
+  if(waveshare_page&&active){waveshare_inspector();}
+  else if(!active){ws_text(220,220,"Lista para recibir una escena",ink,2,30);}else{
     cJSON *resources=cJSON_GetObjectItem(active,"resources"),*canvas=resources?cJSON_GetObjectItem(resources,"canvas"):nullptr,*devices=resources?cJSON_GetObjectItem(resources,"devices"):nullptr,*dev,*order_item;
     int cw=std::max(1,number(canvas,"width",960)),ch=std::max(1,number(canvas,"height",540)),shown=0;std::vector<std::string> rendered;ws_background(canvas);
     auto draw=[&](cJSON *candidate){
@@ -455,12 +474,12 @@ static void waveshare_touch_service(){
   uint8_t status=0;
   if(!ws_touch_read(0x814e,&status,1)||!(status&0x80)){return;}
   static bool was_down=false;uint8_t points=status&0x0f;bool down=points>0;
-  if(down){uint8_t point[4]={};if(ws_touch_read(0x8150,point,sizeof(point))){uint16_t x=std::min<uint16_t>(799,point[0]|((uint16_t)point[1]<<8)),y=std::min<uint16_t>(479,point[2]|((uint16_t)point[3]<<8));bool first=!was_down;if(y>=425&&first)waveshare_action=std::clamp<int>(x/200+1,1,4);else ws_virtual_input(x,y,first);}}
-  else if(was_down){ws_release_buttons();}
+  if(down){uint8_t point[4]={};if(ws_touch_read(0x8150,point,sizeof(point))){uint16_t x=std::min<uint16_t>(799,point[0]|((uint16_t)point[1]<<8)),y=std::min<uint16_t>(479,point[2]|((uint16_t)point[3]<<8));bool first=!was_down;if(y<55&&x>=650&&first){waveshare_page=waveshare_page?0:1;waveshare_dirty=true;}else if(y>=425&&first){waveshare_action=std::clamp<int>(x/200+1,1,4);}else if(!waveshare_page){if(waveshare_mutex)xSemaphoreTake(waveshare_mutex,portMAX_DELAY);ws_virtual_input(x,y,first);if(waveshare_mutex)xSemaphoreGive(waveshare_mutex);}}}
+  else if(was_down){if(waveshare_mutex)xSemaphoreTake(waveshare_mutex,portMAX_DELAY);ws_release_buttons();if(waveshare_mutex)xSemaphoreGive(waveshare_mutex);}
   was_down=down;
   ws_touch_write(0x814e,0);
 }
-static void waveshare_service(void*){for(;;){waveshare_touch_service();if(waveshare_dirty.exchange(false)){if(waveshare_mutex)xSemaphoreTake(waveshare_mutex,portMAX_DELAY);waveshare_render();if(waveshare_mutex)xSemaphoreGive(waveshare_mutex);}cooperative_delay_ms(16);}}
+static void waveshare_service(void*){TickType_t inspector_refresh=0;for(;;){waveshare_touch_service();TickType_t now=xTaskGetTickCount();if(waveshare_page&&now-inspector_refresh>=pdMS_TO_TICKS(200)){waveshare_dirty=true;inspector_refresh=now;}if(waveshare_dirty.exchange(false)){if(waveshare_mutex)xSemaphoreTake(waveshare_mutex,portMAX_DELAY);waveshare_render();if(waveshare_mutex)xSemaphoreGive(waveshare_mutex);}cooperative_delay_ms(16);}}
 #endif
 static RuntimeValue evaluate(cJSON *expression){
   RuntimeValue out;const char *kind=text(expression,"kind");

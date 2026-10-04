@@ -19,6 +19,8 @@ assert.match(source, /#define CAPI_FIRMWARE_VERSION "1\.6\.0"/);
 assert.match(source, /else if \(!strcmp\(type,"STEP"\)\)/);
 assert.match(source, /waveshare_touch_service/);
 assert.match(source, /ws_virtual_input/);
+assert.match(source, /waveshare_inspector/);
+assert.match(source, /DATOS DEL PROGRAMA/);
 assert.match(source, /0x814e/);
 assert.match(source, /waveshare_begin/);
 assert.match(source, /waveshare_render/);

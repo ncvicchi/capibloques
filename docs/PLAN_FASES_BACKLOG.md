@@ -704,10 +704,11 @@ escenarios grabables/reproducibles y actividades acotadas entre placas. En modo
 Pantalla central, la Placa del proyecto conserva autoridad única y la Waveshare
 publica únicamente entradas y servicios declarados sobre el canal autenticado.
 
-El runtime 1.6.0 agrega `STEP`, controles táctiles autónomos y GT911 para botón,
-barrera/PIR, valor gradual y joystick, con espejo web de las órdenes. Faltan la
-compilación/aceptación física, inspector completo, escenarios y el tramo remoto
-dependiente de fase 34.
+El runtime 1.6.0 agrega `STEP`, controles táctiles autónomos, inspector local de
+contador/variables/temporizadores/caminos y GT911 para botón, barrera/PIR, valor
+gradual y joystick, con espejo web de las órdenes. Faltan la
+compilación/aceptación física, escenarios, bloque actual por camino y el tramo
+remoto dependiente de fase 34.
 
 Contrato, límites, dependencias y aceptación física en
 [FASE_44_EXPERIENCIA_WAVESHARE.md](FASE_44_EXPERIENCIA_WAVESHARE.md).

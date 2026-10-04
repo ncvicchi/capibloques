@@ -16,6 +16,9 @@ software, pendiente de compilación/aceptación física y del canal de fase 34**
 - La Waveshare muestra una franja táctil permanente con Ejecutar/Pausa,
   Paso, Detener y Reiniciar. Las últimas reglas válidas ya podían arrancar sin
   navegador; ahora también pueden gobernarse desde la propia pantalla.
+- El botón **Datos/Escena** alterna un inspector local con contador, variables
+  por su nombre, temporizadores con tiempo restante, cantidad de caminos activos
+  y estado general. Se refresca a 5 Hz y no expone identificadores internos.
 - El GT911 integrado se lee cada 16 ms usando el mismo I2C inicializado con la
   secuencia de reset de la placa. En una escena virtual, tocar un botón lo
   mantiene presionado hasta soltar; tocar una barrera o PIR alterna su estado;
@@ -33,11 +36,11 @@ Pasaron contrato de CapiRules/CapiLink, contrato de fuente, TypeScript y lint.
 El equipo local no tiene Docker/ESP-IDF: la compilación de los tres firmwares se
 ejecutará en la actualización DEV antes de probar el touch real.
 
-Continúan pendientes dentro de esta fase: inspector completo de
-variables/temporizadores/caminos en la pantalla, editor/grabador de escenarios,
-controles táctiles especializados para el resto del catálogo y las actividades
-entre placas. Esto último necesita primero el transporte autenticado y la
-instantánea remota de la fase 34; no se implementa como un segundo ejecutor.
+Continúan pendientes dentro de esta fase: detalle del bloque actual por camino,
+editor/grabador de escenarios, controles táctiles especializados para el resto
+del catálogo y las actividades entre placas. Esto último necesita primero el
+transporte autenticado y la instantánea remota de la fase 34; no se implementa
+como un segundo ejecutor.
 
 ## Objetivo
 
