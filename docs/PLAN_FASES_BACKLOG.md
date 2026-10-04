@@ -693,9 +693,9 @@ aceptación completos en [FASE_43_EFECTOS_DISPLAY.md](FASE_43_EFECTOS_DISPLAY.md
 
 ## Fase 44 — Laboratorio interactivo y autónomo en Waveshare
 
-**Estado:** pendiente. **Objetivo:** hacer que usar la placa aporte touch,
-depuración física, escenarios y autonomía, en vez de limitarse a repetir el
-simulador web.
+**Estado:** en curso; primera entrega del núcleo local implementada en software.
+**Objetivo:** hacer que usar la placa aporte touch, depuración física, escenarios
+y autonomía, en vez de limitarse a repetir el simulador web.
 
 Incluye entradas táctiles tipadas para sensores virtuales, `STEP` físico y
 sincronizado, inspección de bloques/variables/temporizadores/caminos,
@@ -703,6 +703,11 @@ manipulación directa de escena, ejecución del último proyecto sin navegador,
 escenarios grabables/reproducibles y actividades acotadas entre placas. En modo
 Pantalla central, la Placa del proyecto conserva autoridad única y la Waveshare
 publica únicamente entradas y servicios declarados sobre el canal autenticado.
+
+El runtime 1.6.0 agrega `STEP`, controles táctiles autónomos y GT911 para botón,
+barrera/PIR, valor gradual y joystick, con espejo web de las órdenes. Faltan la
+compilación/aceptación física, inspector completo, escenarios y el tramo remoto
+dependiente de fase 34.
 
 Contrato, límites, dependencias y aceptación física en
 [FASE_44_EXPERIENCIA_WAVESHARE.md](FASE_44_EXPERIENCIA_WAVESHARE.md).
@@ -723,7 +728,7 @@ Contrato y aceptación en
 [FASE_45_ESCENAS_VISUALES.md](FASE_45_ESCENAS_VISUALES.md).
 
 La primera entrega agrega cinco aventuras, fondos vectoriales compartidos,
-cruce con autos/filas/choque y pista de robot. El runtime 1.5.7 dibuja sus
+cruce con autos/filas/choque y pista de robot. El runtime 1.6.0 dibuja sus
 equivalentes compactos en Waveshare. La segunda agrega selección múltiple,
 movimiento grupal, alineación/distribución, grilla configurable, orden visual
 persistente, guías magnéticas, cajas compartidas, anclas de rótulo y avisos de

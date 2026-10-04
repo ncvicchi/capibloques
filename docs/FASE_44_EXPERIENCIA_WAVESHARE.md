@@ -1,7 +1,43 @@
 # Fase 44 — Laboratorio interactivo y autónomo en Waveshare
 
-Estado: **pendiente; planificada el 26 de septiembre de 2026**. Esta fase no
-está autorizada por quedar documentada.
+Estado al 4 de octubre de 2026: **en curso; núcleo local implementado en
+software, pendiente de compilación/aceptación física y del canal de fase 34**.
+
+## Entrega de software 1 — runtime 1.6.0
+
+- CapiLink y el intérprete incorporan `STEP`. Puede iniciar desde reposo o
+  avanzar desde pausa y concede una sola instrucción pedagógica a un solo
+  camino; los demás caminos permanecen detenidos. Las operaciones cooperativas
+  largas terminan su unidad antes de devolver el permiso.
+- La barra principal y el asistente conservan **Paso** y **Reiniciar** en modo
+  Placa. El espejo web recibe las mismas órdenes. Los controles hechos sobre la
+  pantalla se publican como telemetría amigable y actualizan el estado web si el
+  navegador sigue conectado.
+- La Waveshare muestra una franja táctil permanente con Ejecutar/Pausa,
+  Paso, Detener y Reiniciar. Las últimas reglas válidas ya podían arrancar sin
+  navegador; ahora también pueden gobernarse desde la propia pantalla.
+- El GT911 integrado se lee cada 16 ms usando el mismo I2C inicializado con la
+  secuencia de reset de la placa. En una escena virtual, tocar un botón lo
+  mantiene presionado hasta soltar; tocar una barrera o PIR alterna su estado;
+  arrastrar sobre luz/potenciómetro entrega 0–4095 y sobre joystick entrega X/Y
+  0–4095. Estas lecturas alimentan `sensorValue`, `buttonValue`,
+  `barrierValue` y `componentValue` en vez de intentar leer GPIO de la placa.
+- La escena indica visualmente esos controles. `HELLO` negocia las capacidades
+  `step`, `touch-inputs` y `autonomous-controls`; la web exige firmware 1.6.0 y
+  ofrece actualizar una versión anterior.
+- Reiniciar detiene caminos, animaciones y salidas, restablece contador,
+  variables, temporizadores y entradas virtuales a la configuración guardada,
+  sin borrar las reglas A/B.
+
+Pasaron contrato de CapiRules/CapiLink, contrato de fuente, TypeScript y lint.
+El equipo local no tiene Docker/ESP-IDF: la compilación de los tres firmwares se
+ejecutará en la actualización DEV antes de probar el touch real.
+
+Continúan pendientes dentro de esta fase: inspector completo de
+variables/temporizadores/caminos en la pantalla, editor/grabador de escenarios,
+controles táctiles especializados para el resto del catálogo y las actividades
+entre placas. Esto último necesita primero el transporte autenticado y la
+instantánea remota de la fase 34; no se implementa como un segundo ejecutor.
 
 ## Objetivo
 
@@ -98,4 +134,3 @@ web. La experiencia conserva dos modos inequívocos: **Simulador web** y
   conviven; pérdida/reconexión Wi‑Fi conserva ejecución y recupera instantánea.
 - Reiniciar sin navegador ejecuta las últimas reglas válidas y nunca un envío
   incompleto. Chrome/Edge y firmware pasan pruebas de contrato y ensayo físico.
-

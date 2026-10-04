@@ -1,6 +1,6 @@
 # Fase 18 — Tablero y controles locales en Waveshare
 
-Estado al 26 de septiembre de 2026: **renderer físico del modo Waveshare principal iniciado en el intérprete 1.5.4 y actualizado a 1.5.7; escena remota/touch, despliegue DEV de 1.5.7 y aceptación física pendientes**.
+Estado al 4 de octubre de 2026: **renderer físico del modo Waveshare principal iniciado en el intérprete 1.5.4 y actualizado a 1.6.0; touch local base implementado, escena remota, despliegue DEV de 1.6.0 y aceptación física pendientes**.
 
 ## Ampliación de alcance — escena híbrida
 
@@ -24,7 +24,7 @@ También existe un modo separado de **Waveshare principal**: toda la escena se
 ejecuta como simulación en su pantalla y ningún componente requiere GPIO,
 resistencias o cableado. No se debe mostrar como un montaje físico ni mezclar
 sus estados con los de una placa remota. La validación web y el asistente ya
-reconocen esta elección. El intérprete 1.5.7 inicializa el panel RGB 800 × 480,
+reconocen esta elección. El intérprete 1.6.0 inicializa el panel RGB 800 × 480,
 dibuja los componentes según las coordenadas de la escena, conserva sus nombres
 configurados y refresca sus estados desde una tarea cooperativa. La primera
 cobertura visual incluye semáforo, LED, servo, motor, robot/Otto y entradas
@@ -66,7 +66,7 @@ El tablero ocupa la pantalla completa. Por eso, al seleccionar el primer objeto 
 - Generadores: Arduino y ESP-IDF contienen tablero/touch y no generan llamadas físicas para el objeto lógico.
 - Fixtures de display: fuentes Arduino/ESP-IDF generadas y verificadas para el tablero Waveshare.
 - Contrato del intérprete: controlador RGB/PSRAM, renderer, nombres de escena,
-  refresco cooperativo y versión mínima 1.5.7; typecheck, lint y smoke completos.
+  refresco cooperativo y versión mínima 1.6.0; typecheck, lint y smoke completos.
 
 La compilación real en toolchains remotos, el despliegue DEV y la prueba táctil sobre la unidad física no se confunden con estas pruebas locales.
 

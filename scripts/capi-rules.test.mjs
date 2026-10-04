@@ -27,7 +27,7 @@ assert.deepEqual(lines.push(packet.subarray(0, 4)), []);
 assert.deepEqual(lines.push(packet.subarray(4)), [{ type: 'HELLO', abi: 1 }]);
 assert.equal(pairSsid('A1B2C33FA21C'), 'WS3FA21C');
 assert.throws(() => pairSsid('123'));
-const pair = createPairCredentials({ protocol: 'CapiLink', firmware: '1.5.7', abi: 1, board: 'waveshare-esp32-s3-touch-lcd-5-28117', hardwareId: 'A1B2C33FA21C', maxRulesBytes: 32768, capabilities: ['pairing'], resources: { pwmChannels: 8 } });
+const pair = createPairCredentials({ protocol: 'CapiLink', firmware: '1.6.0', abi: 1, board: 'waveshare-esp32-s3-touch-lcd-5-28117', hardwareId: 'A1B2C33FA21C', maxRulesBytes: 32768, capabilities: ['pairing'], resources: { pwmChannels: 8 } });
 assert.equal(pair.ssid, 'WS3FA21C'); assert.equal(pair.password.length, 20); assert.match(pair.pairingKey, /^[a-f0-9]{32}$/); assert.equal(pair.screenHardwareId, 'A1B2C33FA21C');
 const emojiLines = new ProtocolLines(), emojiPacket = encodeProtocolPacket({ type: 'TELEMETRY', message: 'capibara 🐹' });
 const emojiAt = emojiPacket.indexOf(0xf0);
@@ -43,8 +43,8 @@ const writable = new WritableStream({ write(bytes) {
   const packet = JSON.parse(new TextDecoder().decode(bytes).trim());
   commands.push(packet.type);
   const reply = packet.type === 'HELLO'
-    ? { type: 'HELLO', protocol: 'CapiLink', firmware: '1.5.7', abi: 1, board: 'waveshare-esp32-s3-touch-lcd-5-28117', maxRulesBytes: 32768, capabilities: ['core', 'counter', 'serial'], resources: { pwmChannels: 8 } }
-    : { type: packet.type === 'STOP' ? 'OK' : packet.type === 'BEGIN' ? 'READY' : packet.type === 'CHUNK' ? 'ACK' : packet.type === 'VERIFY' ? 'VERIFIED' : 'COMMITTED' };
+    ? { type: 'HELLO', protocol: 'CapiLink', firmware: '1.6.0', abi: 1, board: 'waveshare-esp32-s3-touch-lcd-5-28117', maxRulesBytes: 32768, capabilities: ['core', 'counter', 'serial', 'step', 'touch-inputs', 'autonomous-controls'], resources: { pwmChannels: 8 } }
+    : { type: ['STOP','STEP','RUN','PAUSE','RESUME','RESET_PROGRAM'].includes(packet.type) ? 'OK' : packet.type === 'BEGIN' ? 'READY' : packet.type === 'CHUNK' ? 'ACK' : packet.type === 'VERIFY' ? 'VERIFIED' : 'COMMITTED' };
   serialController.enqueue(encodeProtocolPacket(reply));
 } });
 const fakePort = { readable, writable, async open() {}, async close() {} };
@@ -54,5 +54,11 @@ assert.equal(session.state.stage, 'ready');
 await session.send(physicalBundle);
 assert.ok(commands.indexOf('STOP') > commands.indexOf('HELLO'));
 assert.ok(commands.indexOf('STOP') < commands.indexOf('BEGIN'));
+await session.command('STEP');
+assert.equal(session.state.stage, 'paused');
+assert.equal(commands.at(-1), 'STEP');
+serialController.enqueue(encodeProtocolPacket({ type: 'TELEMETRY', event: 'control', value: 'RUN' }));
+await new Promise(resolve => setTimeout(resolve, 0));
+assert.equal(session.state.stage, 'running');
 await session.close();
 console.log('CapiRules y CapiLink: OK');

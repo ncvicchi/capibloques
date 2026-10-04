@@ -809,7 +809,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     setNoticeTone('ok');
   }, []);
 
-  const mirrorPhysicalExecution = useCallback((command: 'RUN' | 'PAUSE' | 'RESUME' | 'STOP' | 'DONE') => {
+  const mirrorPhysicalExecution = useCallback((command: 'RUN' | 'PAUSE' | 'RESUME' | 'STEP' | 'STOP' | 'RESET_PROGRAM' | 'DONE') => {
     if (command === 'RUN') {
       setPhysicalMirrorActive(true);
       playbackSourceRef.current = JSON.stringify(editorRef.current?.save());
@@ -823,7 +823,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       return;
     }
     if (command === 'DONE') return;
-    postToWorker({ type: command === 'RESUME' ? 'RUN' : command });
+    postToWorker({ type: command === 'RESUME' ? 'RUN' : command === 'RESET_PROGRAM' ? 'RESET' : command });
     if (command === 'STOP') stopSound();
   }, [lastProgram, postToWorker, projectTarget.boardProfile, scene]);
 
@@ -1411,7 +1411,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             <Play size={18} fill="currentColor" /> Ejecutar
           </button>
         )}
-        <button disabled={physicalMirrorActive} title={physicalMirrorActive ? 'El paso a paso está disponible en el Simulador web.' : undefined} onClick={step}>
+        <button onClick={() => physicalMirrorActive ? physicalControlRef.current?.('STEP') : step()}>
           <StepForward size={18} /> Paso
         </button>
         <button
@@ -1425,7 +1425,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         >
           <CircleStop size={18} /> Detener
         </button>
-        <button disabled={physicalMirrorActive} title={physicalMirrorActive ? 'Detené la placa y volvé a ejecutar para comenzar desde el inicio.' : undefined} onClick={reset}>
+        <button onClick={() => physicalMirrorActive ? physicalControlRef.current?.('RESET_PROGRAM') : reset()}>
           <RotateCcw size={18} /> Reiniciar
         </button>
         <button className="board-run-button" disabled={!physicalMirrorActive && (offline || sim.status === 'running' || sim.status === 'paused')} title={physicalMirrorActive ? 'Abrí el asistente para ver la conexión, la telemetría o volver a enviar las reglas.' : offline ? 'Necesitás conexión para verificar tu cuenta antes de usar USB.' : sim.status === 'running' || sim.status === 'paused' ? 'Detené el simulador antes de usar la placa.' : 'Instalá CapiBloques una vez y después enviá solamente las reglas.'} onClick={() => physicalMirrorActive ? physicalControlRef.current?.('SHOW') : openInterpreter()}>

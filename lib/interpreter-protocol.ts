@@ -131,7 +131,17 @@ export class InterpreterSession {
         for (const packet of lines.push(value ?? new Uint8Array())) {
           if (packet.type === 'TELEMETRY') {
             const telemetry = packet as unknown as InterpreterTelemetry;
-            this.update({ telemetry: [...this.state.telemetry, telemetry].slice(-60), ...(telemetry.event === 'program-done' ? { stage: 'ready' as const, message: 'El programa terminó en la placa.' } : {}) });
+            const control = telemetry.event === 'control' && typeof telemetry.value === 'string' ? telemetry.value : '';
+            const controlState = control === 'RUN' || control === 'RESUME'
+              ? { stage: 'running' as const, message: 'El programa se está ejecutando en la placa.' }
+              : control === 'PAUSE' || control === 'STEP'
+                ? { stage: 'paused' as const, message: control === 'STEP' ? 'La placa avanzó un paso y quedó pausada.' : 'Programa pausado en la placa.' }
+                : control === 'STOP'
+                  ? { stage: 'stopped' as const, message: 'Programa detenido en la placa.' }
+                  : control === 'RESET_PROGRAM'
+                    ? { stage: 'ready' as const, message: 'Programa reiniciado.' }
+                    : {};
+            this.update({ telemetry: [...this.state.telemetry, telemetry].slice(-60), ...controlState, ...(telemetry.event === 'program-done' ? { stage: 'ready' as const, message: 'El programa terminó en la placa.' } : {}) });
           }
           else this.packets.push(packet);
           for (const wake of this.waiters.splice(0)) wake();
@@ -182,11 +192,11 @@ export class InterpreterSession {
     await this.next('PAIR_CONFIGURED');
     this.update({ message: role === 'screen' ? `Pantalla lista con la red ${credentials.ssid}.` : `Placa vinculada automáticamente con ${credentials.ssid}.` });
   }
-  async command(type: 'RUN' | 'PAUSE' | 'RESUME' | 'STOP' | 'RESET_PROGRAM') {
+  async command(type: 'RUN' | 'PAUSE' | 'RESUME' | 'STEP' | 'STOP' | 'RESET_PROGRAM') {
     try {
       await this.write({ type }); await this.next('OK');
-      const stage = type === 'RUN' || type === 'RESUME' ? 'running' : type === 'PAUSE' ? 'paused' : type === 'STOP' ? 'stopped' : 'ready';
-      this.update({ stage, message: stage === 'running' ? 'El programa se está ejecutando en la placa.' : stage === 'paused' ? 'Programa pausado en la placa.' : stage === 'stopped' ? 'Programa detenido en la placa.' : 'Programa reiniciado.' });
+      const stage = type === 'RUN' || type === 'RESUME' ? 'running' : type === 'PAUSE' || type === 'STEP' ? 'paused' : type === 'STOP' ? 'stopped' : 'ready';
+      this.update({ stage, message: type === 'STEP' ? 'La placa avanzó un paso y quedó pausada.' : stage === 'running' ? 'El programa se está ejecutando en la placa.' : stage === 'paused' ? 'Programa pausado en la placa.' : stage === 'stopped' ? 'Programa detenido en la placa.' : 'Programa reiniciado.' });
     } catch (error) {
       await this.close(); this.update({ stage: 'error', message: error instanceof Error ? error.message : 'La placa rechazó el comando.' }); throw error;
     }

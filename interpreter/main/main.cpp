@@ -47,7 +47,7 @@
 #ifndef CAPI_BOARD_ID
 #define CAPI_BOARD_ID "wemos-d1-r32"
 #endif
-#define CAPI_FIRMWARE_VERSION "1.5.7"
+#define CAPI_FIRMWARE_VERSION "1.6.0"
 static constexpr uint16_t ABI = 1;
 static constexpr size_t MAX_RULES = 32 * 1024;
 static constexpr uart_port_t LINK = UART_NUM_0;
@@ -66,6 +66,8 @@ static size_t expected_bytes = 0;
 static uint32_t expected_crc = 0;
 static cJSON *active = nullptr;
 static volatile bool running = false, paused = false;
+static std::atomic<bool> step_requested{false};
+static std::atomic<int> step_owner{-1};
 static uint32_t paused_at = 0;
 static std::atomic<int> active_tasks{0};
 static std::atomic<int> task_states[32]; // 0 inactive, 1 running, 2 done
@@ -80,10 +82,11 @@ static SemaphoreHandle_t variables_mutex = nullptr;
 static constexpr int WAVESHARE_WIDTH=800,WAVESHARE_HEIGHT=480;
 static esp_lcd_panel_handle_t waveshare_panel=nullptr;
 static i2c_master_bus_handle_t waveshare_bus=nullptr;
-static i2c_master_dev_handle_t waveshare_mode=nullptr,waveshare_io=nullptr;
+static i2c_master_dev_handle_t waveshare_mode=nullptr,waveshare_io=nullptr,waveshare_touch=nullptr;
 static uint16_t *waveshare_pixels=nullptr;
 static SemaphoreHandle_t waveshare_mutex=nullptr;
 static std::atomic<bool> waveshare_dirty{true};
+static std::atomic<int> waveshare_action{0}; // 1 run/pause, 2 step, 3 stop, 4 reset
 static bool waveshare_ready=false;
 #endif
 enum class RuntimeTimerStatus : uint8_t { STOPPED, RUNNING, PAUSED, EXPIRED };
@@ -348,6 +351,12 @@ static void ws_device(cJSON *dev,int x,int y,int label_side=0){
     ws_rect(x-29,y-39,58,55,rgb565(102,89,230));ws_circle(x-12,y-22,5,white);ws_circle(x+12,y-22,5,white);ws_rect(x-38,y+17,22,9,rgb565(48,55,81));ws_rect(x+16,y+17,22,9,rgb565(48,55,81));
   }else if(!strcmp(kind,"infraredBarrier")||!strcmp(kind,"button")){
     bool on=component_get(id,!strcmp(kind,"button")?"pressed":"interrupted").boolean;ws_circle(x,y-8,28,on?rgb565(255,92,92):rgb565(73,190,130));
+  }else if(!strcmp(kind,"lightSensor")||!strcmp(kind,"potentiometer")){
+    int value=std::clamp((int)component_get(id,"value").number,0,4095);ws_rect(x-48,y-17,96,18,rgb565(211,217,232));ws_rect(x-48,y-17,value*96/4095,18,rgb565(255,190,64));char shown[8];snprintf(shown,sizeof(shown),"%d",value);ws_text(x-24,y+8,shown,ink,2,5);
+  }else if(!strcmp(kind,"joystick")){
+    int horizontal=std::clamp((int)component_get(id,"x").number,0,4095),vertical=std::clamp((int)component_get(id,"y").number,0,4095);ws_rect(x-42,y-50,84,84,rgb565(211,217,232));ws_circle(x-35+horizontal*70/4095,y-43+vertical*70/4095,9,rgb565(91,75,219));
+  }else if(!strcmp(kind,"pirSensor")){
+    bool on=component_get(id,"motion").boolean;ws_circle(x,y-8,28,on?rgb565(255,154,78):rgb565(126,139,166));ws_text(x-17,y-14,on?"SI":"NO",white,2,2);
   }else{ws_circle(x,y-8,27,rgb565(126,139,166));ws_text(x-7,y-16,"?",white,3,1);}
   const char *name=text(dev,"name","Componente");int length=std::min<int>((int)strlen(name),18),scale=length>9?1:2,label_x=x-length*3*scale,label_y=y+40;
   if(label_side==1){label_y=y-68;}
@@ -387,11 +396,13 @@ static void ws_background(cJSON *canvas){
 }
 static bool ws_write(i2c_master_dev_handle_t handle,uint8_t value){return i2c_master_transmit(handle,&value,1,5)==ESP_OK;}
 static bool ws_add_device(uint8_t address,i2c_master_dev_handle_t *handle){i2c_device_config_t config={};config.dev_addr_length=I2C_ADDR_BIT_LEN_7;config.device_address=address;config.scl_speed_hz=400000;return i2c_master_bus_add_device(waveshare_bus,&config,handle)==ESP_OK;}
+static bool ws_touch_read(uint16_t reg,uint8_t *data,size_t count){uint8_t address[2]={(uint8_t)(reg>>8),(uint8_t)reg};return waveshare_touch&&i2c_master_transmit_receive(waveshare_touch,address,sizeof(address),data,count,5)==ESP_OK;}
+static bool ws_touch_write(uint16_t reg,uint8_t value){uint8_t data[3]={(uint8_t)(reg>>8),(uint8_t)reg,value};return waveshare_touch&&i2c_master_transmit(waveshare_touch,data,sizeof(data),5)==ESP_OK;}
 static bool waveshare_begin(){
   if(!is_waveshare()){return true;}
   i2c_master_bus_config_t bus={};bus.i2c_port=I2C_NUM_0;bus.sda_io_num=GPIO_NUM_8;bus.scl_io_num=GPIO_NUM_9;bus.clk_source=I2C_CLK_SRC_DEFAULT;bus.glitch_ignore_cnt=7;bus.flags.enable_internal_pullup=true;
   if(i2c_new_master_bus(&bus,&waveshare_bus)!=ESP_OK||!ws_add_device(0x24,&waveshare_mode)||!ws_add_device(0x38,&waveshare_io)||!ws_write(waveshare_mode,0x01)||!ws_write(waveshare_io,0x2c))return false;
-  gpio_set_direction(GPIO_NUM_4,GPIO_MODE_OUTPUT);gpio_set_level(GPIO_NUM_4,0);vTaskDelay(pdMS_TO_TICKS(10));if(!ws_write(waveshare_io,0x2e))return false;gpio_set_direction(GPIO_NUM_4,GPIO_MODE_INPUT);vTaskDelay(pdMS_TO_TICKS(50));if(!ws_write(waveshare_io,0x1e))return false;
+  gpio_set_direction(GPIO_NUM_4,GPIO_MODE_OUTPUT);gpio_set_level(GPIO_NUM_4,0);vTaskDelay(pdMS_TO_TICKS(10));if(!ws_write(waveshare_io,0x2e))return false;gpio_set_direction(GPIO_NUM_4,GPIO_MODE_INPUT);vTaskDelay(pdMS_TO_TICKS(50));if(!ws_write(waveshare_io,0x1e)||!ws_add_device(0x5d,&waveshare_touch))return false;
   esp_lcd_rgb_panel_config_t config={};config.data_width=16;config.bits_per_pixel=16;config.num_fbs=1;config.clk_src=LCD_CLK_SRC_DEFAULT;config.bounce_buffer_size_px=800*10;config.dma_burst_size=64;config.hsync_gpio_num=46;config.vsync_gpio_num=3;config.de_gpio_num=5;config.pclk_gpio_num=7;config.disp_gpio_num=-1;const int pins[16]={14,38,18,17,10,39,0,45,48,47,21,1,2,42,41,40};for(int i=0;i<16;++i)config.data_gpio_nums[i]=pins[i];config.timings.pclk_hz=16000000;config.timings.h_res=800;config.timings.v_res=480;config.timings.hsync_pulse_width=4;config.timings.hsync_back_porch=8;config.timings.hsync_front_porch=8;config.timings.vsync_pulse_width=4;config.timings.vsync_back_porch=8;config.timings.vsync_front_porch=8;config.timings.flags.pclk_active_neg=true;config.flags.fb_in_psram=true;
   if(esp_lcd_new_rgb_panel(&config,&waveshare_panel)!=ESP_OK||esp_lcd_panel_reset(waveshare_panel)!=ESP_OK||esp_lcd_panel_init(waveshare_panel)!=ESP_OK)return false;
   waveshare_pixels=(uint16_t*)heap_caps_malloc(WAVESHARE_WIDTH*WAVESHARE_HEIGHT*sizeof(uint16_t),MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT);if(!waveshare_pixels)return false;waveshare_ready=true;waveshare_dirty=true;return true;
@@ -414,9 +425,42 @@ static void waveshare_render(){
     cJSON_ArrayForEach(dev,devices){draw(dev);}
     if(!shown){ws_text(250,220,"Escena sin componentes",ink,2,28);}
   }
+  ws_rect(0,425,800,55,rgb565(35,42,65));
+  const char *run_label=running?(paused?"SEGUIR":"PAUSA"):"EJECUTAR";
+  const char *labels[4]={run_label,"PASO","DETENER","REINICIAR"};
+  for(int index=0;index<4;++index){int left=index*200;ws_rect(left+4,431,192,43,index==0?rgb565(73,190,130):rgb565(73,82,112));int length=(int)strlen(labels[index]);ws_text(left+100-length*6,445,labels[index],white,2,12);}
   esp_lcd_panel_draw_bitmap(waveshare_panel,0,0,WAVESHARE_WIDTH,WAVESHARE_HEIGHT,waveshare_pixels);
 }
-static void waveshare_service(void*){for(;;){if(waveshare_dirty.exchange(false)){if(waveshare_mutex)xSemaphoreTake(waveshare_mutex,portMAX_DELAY);waveshare_render();if(waveshare_mutex)xSemaphoreGive(waveshare_mutex);}cooperative_delay_ms(50);}}
+static void ws_virtual_input(uint16_t x,uint16_t y,bool first){
+  if(!active||y<55||y>=425){return;}
+  cJSON *resources=cJSON_GetObjectItem(active,"resources"),*canvas=resources?cJSON_GetObjectItem(resources,"canvas"):nullptr,*devices=resources?cJSON_GetObjectItem(resources,"devices"):nullptr,*dev;
+  int width=std::max(1,number(canvas,"width",960)),height=std::max(1,number(canvas,"height",540));
+  cJSON_ArrayForEach(dev,devices){
+    cJSON *position=cJSON_GetObjectItem(dev,"position");int cx=ws_x(number(position,"x",width/2),width),cy=ws_y(number(position,"y",height/2),height);
+    if(abs((int)x-cx)>58||abs((int)y-cy)>55){continue;}
+    const char *id=text(dev,"id"),*kind=text(dev,"kind");RuntimeValue value;
+    if(!strcmp(kind,"button")){value.kind=RuntimeValue::BOOLEAN;value.boolean=true;component_set(id,"pressed",value);}
+    else if(!strcmp(kind,"infraredBarrier")&&first){value=component_get(id,"interrupted");value.kind=RuntimeValue::BOOLEAN;value.boolean=!value.boolean;component_set(id,"interrupted",value);}
+    else if(!strcmp(kind,"lightSensor")||!strcmp(kind,"potentiometer")){value.number=std::clamp(((int)x-(cx-50))*4095/100,0,4095);component_set(id,"value",value);}
+    else if(!strcmp(kind,"joystick")){value.number=std::clamp(((int)x-(cx-50))*4095/100,0,4095);component_set(id,"x",value);value.number=std::clamp(((int)y-(cy-50))*4095/100,0,4095);component_set(id,"y",value);}
+    else if(first&&(!strcmp(kind,"pirSensor"))){value=component_get(id,"motion");value.kind=RuntimeValue::BOOLEAN;value.boolean=!value.boolean;component_set(id,"motion",value);}
+    else{return;}
+    if(first){telemetry_state("touch-input",nullptr,id,!strcmp(kind,"button")?"presionado":!strcmp(kind,"infraredBarrier")?(component_get(id,"interrupted").boolean?"interrumpida":"libre"):"valor cambiado");}
+    waveshare_dirty=true;
+    return;
+  }
+}
+static void ws_release_buttons(){if(!active)return;cJSON *resources=cJSON_GetObjectItem(active,"resources"),*devices=resources?cJSON_GetObjectItem(resources,"devices"):nullptr,*dev;cJSON_ArrayForEach(dev,devices)if(!strcmp(text(dev,"kind"),"button")){RuntimeValue value;value.kind=RuntimeValue::BOOLEAN;value.boolean=false;component_set(text(dev,"id"),"pressed",value);}waveshare_dirty=true;}
+static void waveshare_touch_service(){
+  uint8_t status=0;
+  if(!ws_touch_read(0x814e,&status,1)||!(status&0x80)){return;}
+  static bool was_down=false;uint8_t points=status&0x0f;bool down=points>0;
+  if(down){uint8_t point[4]={};if(ws_touch_read(0x8150,point,sizeof(point))){uint16_t x=std::min<uint16_t>(799,point[0]|((uint16_t)point[1]<<8)),y=std::min<uint16_t>(479,point[2]|((uint16_t)point[3]<<8));bool first=!was_down;if(y>=425&&first)waveshare_action=std::clamp<int>(x/200+1,1,4);else ws_virtual_input(x,y,first);}}
+  else if(was_down){ws_release_buttons();}
+  was_down=down;
+  ws_touch_write(0x814e,0);
+}
+static void waveshare_service(void*){for(;;){waveshare_touch_service();if(waveshare_dirty.exchange(false)){if(waveshare_mutex)xSemaphoreTake(waveshare_mutex,portMAX_DELAY);waveshare_render();if(waveshare_mutex)xSemaphoreGive(waveshare_mutex);}cooperative_delay_ms(16);}}
 #endif
 static RuntimeValue evaluate(cJSON *expression){
   RuntimeValue out;const char *kind=text(expression,"kind");
@@ -425,17 +469,17 @@ static RuntimeValue evaluate(cJSON *expression){
   if(!strcmp(kind,"boolean")){out.kind=RuntimeValue::BOOLEAN;out.boolean=cJSON_IsTrue(cJSON_GetObjectItem(expression,"value"));return out;}
   if(!strcmp(kind,"counterValue")){out.number=counter_value;return out;}
   if(!strcmp(kind,"timerElapsed")||!strcmp(kind,"timerRemaining")){const char *id=text(expression,"timerId");if(timers_mutex)xSemaphoreTake(timers_mutex,portMAX_DELAY);for(auto &timer:timers)if(timer.id==id){uint32_t now=(uint32_t)(esp_timer_get_time()/1000);if(timer.status==RuntimeTimerStatus::RUNNING&&timer.duration){uint32_t delta=now-timer.last_update;timer.last_update=now;if(delta>=timer.remaining){if(timer.repeat){uint32_t after=delta-timer.remaining,events=1+after/timer.duration;timer.pending=std::min<int64_t>(65535,(int64_t)timer.pending+events);timer.elapsed+=delta;uint32_t remainder=after%timer.duration;timer.remaining=remainder?timer.duration-remainder:timer.duration;}else{timer.elapsed=timer.duration;timer.remaining=0;timer.pending=std::min<int32_t>(65535,timer.pending+1);timer.status=RuntimeTimerStatus::EXPIRED;}}else{timer.elapsed+=delta;timer.remaining-=delta;}}out.number=!strcmp(kind,"timerElapsed")?(int32_t)std::min<uint64_t>(INT32_MAX,timer.elapsed/1000):(int32_t)((timer.remaining+999)/1000);break;}if(timers_mutex)xSemaphoreGive(timers_mutex);return out;}
-  if(!strcmp(kind,"sensorValue")){cJSON *dev=device(text(expression,"deviceId"));out.number=analog_read(pin(dev,"signal"));return out;}
-  if(!strcmp(kind,"buttonValue")){cJSON *dev=device(text(expression,"deviceId"));int gpio=pin(dev,"signal");if(gpio>=0){gpio_set_direction((gpio_num_t)gpio,GPIO_MODE_INPUT);out.kind=RuntimeValue::BOOLEAN;out.boolean=gpio_get_level((gpio_num_t)gpio)==0;}return out;}
-  if(!strcmp(kind,"barrierValue")){cJSON *dev=device(text(expression,"deviceId"));int gpio=pin(dev,"signal");if(gpio>=0){gpio_set_direction((gpio_num_t)gpio,GPIO_MODE_INPUT);cJSON *config=cJSON_GetObjectItem(dev,"config");bool interrupted=gpio_get_level((gpio_num_t)gpio)==(!strcmp(text(config,"interruptedLevel","LOW"),"HIGH")?1:0);out.kind=RuntimeValue::BOOLEAN;out.boolean=!strcmp(text(expression,"expected"),"CLEAR")?!interrupted:interrupted;}return out;}
+  if(!strcmp(kind,"sensorValue")){cJSON *dev=device(text(expression,"deviceId"));if(is_waveshare())return component_get(text(expression,"deviceId"),"value");out.number=analog_read(pin(dev,"signal"));return out;}
+  if(!strcmp(kind,"buttonValue")){if(is_waveshare())return component_get(text(expression,"deviceId"),"pressed");cJSON *dev=device(text(expression,"deviceId"));int gpio=pin(dev,"signal");if(gpio>=0){gpio_set_direction((gpio_num_t)gpio,GPIO_MODE_INPUT);out.kind=RuntimeValue::BOOLEAN;out.boolean=gpio_get_level((gpio_num_t)gpio)==0;}return out;}
+  if(!strcmp(kind,"barrierValue")){if(is_waveshare()){RuntimeValue state=component_get(text(expression,"deviceId"),"interrupted");state.boolean=!strcmp(text(expression,"expected"),"CLEAR")?!state.boolean:state.boolean;return state;}cJSON *dev=device(text(expression,"deviceId"));int gpio=pin(dev,"signal");if(gpio>=0){gpio_set_direction((gpio_num_t)gpio,GPIO_MODE_INPUT);cJSON *config=cJSON_GetObjectItem(dev,"config");bool interrupted=gpio_get_level((gpio_num_t)gpio)==(!strcmp(text(config,"interruptedLevel","LOW"),"HIGH")?1:0);out.kind=RuntimeValue::BOOLEAN;out.boolean=!strcmp(text(expression,"expected"),"CLEAR")?!interrupted:interrupted;}return out;}
   if(!strcmp(kind,"displayButtonValue")){static const char *buttons[]={"RIGHT","UP","DOWN","LEFT","SELECT"};int expected=-1;for(int i=0;i<5;++i)if(!strcmp(text(expression,"button"),buttons[i]))expected=i;if(display_mutex)xSemaphoreTake(display_mutex,portMAX_DELAY);out.kind=RuntimeValue::BOOLEAN;out.boolean=display_button()==expected;if(display_mutex)xSemaphoreGive(display_mutex);return out;}
   if(!strcmp(kind,"messageValue")){out.kind=RuntimeValue::TEXT;if(message_mutex)xSemaphoreTake(message_mutex,portMAX_DELAY);out.text=message_last;if(message_mutex)xSemaphoreGive(message_mutex);return out;}
   if(!strcmp(kind,"ottoDistance")){out.number=otto.distance.load();return out;}
   if(!strcmp(kind,"wifiValue")){out.kind=RuntimeValue::BOOLEAN;out.boolean=wifi_connected.load();return out;}
   if(!strcmp(kind,"componentValue")){const char *id=text(expression,"deviceId"),*property=text(expression,"property");cJSON *dev=device(id);const char *device_kind=dev?text(dev,"kind"):"";
-    if((!strcmp(device_kind,"lightSensor")||!strcmp(device_kind,"potentiometer"))&&!strcmp(property,"value")){out.number=analog_read(pin(dev,"signal"));return out;}
-    if(!strcmp(device_kind,"button")&&!strcmp(property,"pressed")){int gpio=pin(dev,"signal");out.kind=RuntimeValue::BOOLEAN;if(gpio>=0){gpio_set_direction((gpio_num_t)gpio,GPIO_MODE_INPUT);out.boolean=gpio_get_level((gpio_num_t)gpio)==0;}return out;}
-    if(!strcmp(device_kind,"infraredBarrier")&&!strcmp(property,"interrupted")){int gpio=pin(dev,"signal");out.kind=RuntimeValue::BOOLEAN;if(gpio>=0){gpio_set_direction((gpio_num_t)gpio,GPIO_MODE_INPUT);cJSON *config=cJSON_GetObjectItem(dev,"config");out.boolean=gpio_get_level((gpio_num_t)gpio)==(!strcmp(text(config,"interruptedLevel","LOW"),"HIGH")?1:0);}return out;}
+    if((!strcmp(device_kind,"lightSensor")||!strcmp(device_kind,"potentiometer"))&&!strcmp(property,"value")){if(is_waveshare())return component_get(id,property);out.number=analog_read(pin(dev,"signal"));return out;}
+    if(!strcmp(device_kind,"button")&&!strcmp(property,"pressed")){if(is_waveshare())return component_get(id,property);int gpio=pin(dev,"signal");out.kind=RuntimeValue::BOOLEAN;if(gpio>=0){gpio_set_direction((gpio_num_t)gpio,GPIO_MODE_INPUT);out.boolean=gpio_get_level((gpio_num_t)gpio)==0;}return out;}
+    if(!strcmp(device_kind,"infraredBarrier")&&!strcmp(property,"interrupted")){if(is_waveshare())return component_get(id,property);int gpio=pin(dev,"signal");out.kind=RuntimeValue::BOOLEAN;if(gpio>=0){gpio_set_direction((gpio_num_t)gpio,GPIO_MODE_INPUT);cJSON *config=cJSON_GetObjectItem(dev,"config");out.boolean=gpio_get_level((gpio_num_t)gpio)==(!strcmp(text(config,"interruptedLevel","LOW"),"HIGH")?1:0);}return out;}
     if(!strcmp(device_kind,"otto")&&!strcmp(property,"distance")){out.number=otto.distance.load();return out;}
     if(!strcmp(device_kind,"wifiNode")&&!strcmp(property,"connected")){out.kind=RuntimeValue::BOOLEAN;out.boolean=wifi_connected.load();return out;}
     if(!strcmp(device_kind,"wifiNode")&&!strcmp(property,"status")){out.kind=RuntimeValue::TEXT;out.text=wifi_connected.load()?"conectado":wifi_started?"conectando":"desconectado";return out;}
@@ -450,7 +494,7 @@ static RuntimeValue evaluate(cJSON *expression){
   return out;
 }
 static void initialize_variables(){variables.clear();cJSON *items=cJSON_GetObjectItem(active,"variables"),*item;cJSON_ArrayForEach(item,items){RuntimeVariable variable;variable.id=text(item,"id");const char *type=text(item,"type");if(!strcmp(type,"text"))variable.value.kind=RuntimeValue::TEXT;else if(!strcmp(type,"boolean"))variable.value.kind=RuntimeValue::BOOLEAN;variables.push_back(std::move(variable));}}
-static void initialize_component_states(){if(variables_mutex)xSemaphoreTake(variables_mutex,portMAX_DELAY);component_states.clear();cJSON *resources=cJSON_GetObjectItem(active,"resources"),*devices=resources?cJSON_GetObjectItem(resources,"devices"):nullptr,*item;cJSON_ArrayForEach(item,devices){const char *id=text(item,"id"),*kind=text(item,"kind");RuntimeValue value;if(!strcmp(kind,"trafficLight")){value.kind=RuntimeValue::TEXT;value.text="OFF";component_states.push_back({id,"color",value});component_states.push_back({id,"vehicleDisplay",value});component_states.push_back({id,"pedestrianDisplay",value});}else if(!strcmp(kind,"led")){component_states.push_back({id,"brightness",value});}else if(!strcmp(kind,"smartLights")){value.number=number(cJSON_GetObjectItem(item,"config"),"brightness",40);component_states.push_back({id,"brightness",value});}else if(!strcmp(kind,"robot")){value.kind=RuntimeValue::TEXT;value.text="STOP";component_states.push_back({id,"motion",value});}else if(!strcmp(kind,"motor")){component_states.push_back({id,"power",value});}else if(!strcmp(kind,"servo")){value.number=number(cJSON_GetObjectItem(item,"config"),"angle",90);component_states.push_back({id,"angle",value});}else if(!strcmp(kind,"otto")){value.kind=RuntimeValue::TEXT;value.text="HOME";component_states.push_back({id,"motion",value});value.text="SMILE";component_states.push_back({id,"expression",value});}}if(variables_mutex)xSemaphoreGive(variables_mutex);
+static void initialize_component_states(){if(variables_mutex)xSemaphoreTake(variables_mutex,portMAX_DELAY);component_states.clear();cJSON *resources=cJSON_GetObjectItem(active,"resources"),*devices=resources?cJSON_GetObjectItem(resources,"devices"):nullptr,*item;cJSON_ArrayForEach(item,devices){const char *id=text(item,"id"),*kind=text(item,"kind");cJSON *config=cJSON_GetObjectItem(item,"config");RuntimeValue value;if(!strcmp(kind,"trafficLight")){value.kind=RuntimeValue::TEXT;value.text="OFF";component_states.push_back({id,"color",value});component_states.push_back({id,"vehicleDisplay",value});component_states.push_back({id,"pedestrianDisplay",value});}else if(!strcmp(kind,"led")){component_states.push_back({id,"brightness",value});}else if(!strcmp(kind,"smartLights")){value.number=number(config,"brightness",40);component_states.push_back({id,"brightness",value});}else if(!strcmp(kind,"robot")){value.kind=RuntimeValue::TEXT;value.text="STOP";component_states.push_back({id,"motion",value});}else if(!strcmp(kind,"motor")){component_states.push_back({id,"power",value});}else if(!strcmp(kind,"servo")){value.number=number(config,"angle",90);component_states.push_back({id,"angle",value});}else if(!strcmp(kind,"otto")){value.kind=RuntimeValue::TEXT;value.text="HOME";component_states.push_back({id,"motion",value});value.text="SMILE";component_states.push_back({id,"expression",value});}else if(!strcmp(kind,"button")){value.kind=RuntimeValue::BOOLEAN;value.boolean=cJSON_IsTrue(cJSON_GetObjectItem(config,"pressed"));component_states.push_back({id,"pressed",value});}else if(!strcmp(kind,"infraredBarrier")){value.kind=RuntimeValue::BOOLEAN;value.boolean=cJSON_IsTrue(cJSON_GetObjectItem(config,"interrupted"));component_states.push_back({id,"interrupted",value});}else if(!strcmp(kind,"lightSensor")||!strcmp(kind,"potentiometer")){value.number=number(config,"value",2048);component_states.push_back({id,"value",value});}else{cJSON *values=config?cJSON_GetObjectItem(config,"values"):nullptr,*entry;cJSON_ArrayForEach(entry,values){RuntimeValue initial;if(cJSON_IsBool(entry)){initial.kind=RuntimeValue::BOOLEAN;initial.boolean=cJSON_IsTrue(entry);}else if(cJSON_IsString(entry)){initial.kind=RuntimeValue::TEXT;initial.text=entry->valuestring;}else if(cJSON_IsNumber(entry)){initial.number=entry->valueint;}else{continue;}component_states.push_back({id,entry->string,initial});}}}if(variables_mutex)xSemaphoreGive(variables_mutex);
 #ifdef CONFIG_IDF_TARGET_ESP32S3
 waveshare_dirty=true;
 #endif
@@ -487,8 +531,8 @@ static bool condition(cJSON *value) {
   if (!strcmp(kind, "boolean")) return cJSON_IsTrue(cJSON_GetObjectItem(value, "value"));
   if (!strcmp(kind, "counter")) { int right = number(value, "value"), left = counter_value; const char *op = text(value, "operator"); return !strcmp(op,"EQ") ? left==right : !strcmp(op,"NEQ") ? left!=right : !strcmp(op,"LT") ? left<right : !strcmp(op,"LTE") ? left<=right : !strcmp(op,"GT") ? left>right : left>=right; }
   if (!strcmp(kind, "compare")) { int right=number(value,"right"),left=number(value,"left");const char *op=text(value,"operator");return !strcmp(op,"EQ")?left==right:!strcmp(op,"NEQ")?left!=right:!strcmp(op,"LT")?left<right:!strcmp(op,"LTE")?left<=right:!strcmp(op,"GT")?left>right:left>=right; }
-  if (!strcmp(kind, "sensor")) { cJSON *dev=device(text(value,"deviceId"));int left=analog_read(pin(dev,"signal")),right=number(value,"value");const char *op=text(value,"operator");return !strcmp(op,"LT")?left<right:!strcmp(op,"LTE")?left<=right:!strcmp(op,"GT")?left>right:left>=right; }
-  if (!strcmp(kind, "buttonPressed")) { cJSON *dev = device(text(value,"deviceId")); int gpio = pin(dev,"signal"); if (gpio < 0) return false; gpio_set_direction((gpio_num_t)gpio, GPIO_MODE_INPUT); cJSON *config=cJSON_GetObjectItem(dev,"config"); gpio_set_pull_mode((gpio_num_t)gpio,cJSON_IsTrue(config?cJSON_GetObjectItem(config,"pullup"):nullptr)?GPIO_PULLUP_ONLY:GPIO_FLOATING); return gpio_get_level((gpio_num_t)gpio) == 0; }
+  if (!strcmp(kind, "sensor")) { cJSON *dev=device(text(value,"deviceId"));int left=is_waveshare()?component_get(text(value,"deviceId"),"value").number:analog_read(pin(dev,"signal")),right=number(value,"value");const char *op=text(value,"operator");return !strcmp(op,"LT")?left<right:!strcmp(op,"LTE")?left<=right:!strcmp(op,"GT")?left>right:left>=right; }
+  if (!strcmp(kind, "buttonPressed")) { if(is_waveshare())return component_get(text(value,"deviceId"),"pressed").boolean;cJSON *dev = device(text(value,"deviceId")); int gpio = pin(dev,"signal"); if (gpio < 0) return false; gpio_set_direction((gpio_num_t)gpio, GPIO_MODE_INPUT); cJSON *config=cJSON_GetObjectItem(dev,"config"); gpio_set_pull_mode((gpio_num_t)gpio,cJSON_IsTrue(config?cJSON_GetObjectItem(config,"pullup"):nullptr)?GPIO_PULLUP_ONLY:GPIO_FLOATING); return gpio_get_level((gpio_num_t)gpio) == 0; }
   if (!strcmp(kind,"displayButtonPressed")){static const char *buttons[]={"RIGHT","UP","DOWN","LEFT","SELECT"};int expected=-1;for(int i=0;i<5;++i)if(!strcmp(text(value,"button"),buttons[i]))expected=i;if(display_mutex)xSemaphoreTake(display_mutex,portMAX_DELAY);bool pressed=display_button()==expected;if(display_mutex)xSemaphoreGive(display_mutex);return pressed;}
   if (!strcmp(kind,"wifiConnected")) return wifi_connected.load();
   if (!strcmp(kind,"value")) return value_boolean(evaluate(cJSON_GetObjectItem(value,"expression")));
@@ -506,9 +550,19 @@ static bool start_task(int index) {
   char name[16];snprintf(name,sizeof(name),"capi-%d",index);if(xTaskCreate(execute_task,name,6144,context,5,nullptr)!=pdPASS){--active_tasks;task_states[index]=0;delete context;return false;}return true;
 }
 static void execute_task(void *parameter) {
-  TaskContext *context=(TaskContext*)parameter;cJSON *task=context->task,*instructions=cJSON_GetObjectItem(task,"output");int task_index=context->index;delete context;int pc=0,reported=-1;std::vector<int> loops(32,0);bool message_waiting=false,wifi_message_waiting=false,otto_waiting=false,wifi_waiting=false;TickType_t message_started=0,wifi_message_started=0,otto_started=0,wifi_started_at=0;
+  TaskContext *context=(TaskContext*)parameter;cJSON *task=context->task,*instructions=cJSON_GetObjectItem(task,"output");int task_index=context->index;delete context;int pc=0,reported=-1,stepped_pc=-1;std::vector<int> loops(32,0);bool message_waiting=false,wifi_message_waiting=false,otto_waiting=false,wifi_waiting=false;TickType_t message_started=0,wifi_message_started=0,otto_started=0,wifi_started_at=0;
   while (running && pc < cJSON_GetArraySize(instructions)) {
-    while (paused && running) vTaskDelay(pdMS_TO_TICKS(20));
+    if(step_owner==task_index&&stepped_pc>=0&&pc!=stepped_pc){step_owner=-1;step_requested=false;paused=true;telemetry("step-done",text(task,"id"),"Paso terminado");
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+      waveshare_dirty=true;
+#endif
+      stepped_pc=-1;
+    }
+    while (paused && running) {
+      int available=-1;
+      if(step_requested&&step_owner.compare_exchange_strong(available,task_index)){stepped_pc=pc;break;}
+      vTaskDelay(pdMS_TO_TICKS(20));
+    }
     if (!running) break;
     cJSON *instruction = cJSON_GetArrayItem(instructions, pc), *dev = device(text(instruction,"deviceId")); const char *op = text(instruction,"op"), *block = text(instruction,"blockId",nullptr);
     if(reported!=pc){telemetry("block",block,op);reported=pc;}
@@ -568,13 +622,43 @@ static void execute_task(void *parameter) {
     else if (!strcmp(op,"jumpIfFalse") && !condition(cJSON_GetObjectItem(instruction,"condition"))) { pc=number(instruction,"target"); continue; }
     ++pc; taskYIELD();
   }
-  task_states[task_index]=2;telemetry("task-done",text(task,"id"),"Camino terminado");if(--active_tasks==0){running=false;telemetry("program-done",nullptr,"Programa terminado");}vTaskDelete(nullptr);
+  if(step_owner==task_index){step_owner=-1;step_requested=false;paused=true;telemetry("step-done",text(task,"id"),"Paso terminado");}task_states[task_index]=2;telemetry("task-done",text(task,"id"),"Camino terminado");if(--active_tasks==0){running=false;paused=false;telemetry("program-done",nullptr,"Programa terminado");}
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+  waveshare_dirty=true;
+#endif
+  vTaskDelete(nullptr);
 }
-static bool start_program() { if(!active||running||active_tasks>0)return false;for(auto &state:task_states)state=0;counter_value=0;wifi_messages_reset();initialize_variables();initialize_component_states();if(timers_mutex)xSemaphoreTake(timers_mutex,portMAX_DELAY);initialize_timers();if(timers_mutex)xSemaphoreGive(timers_mutex);if(message_mutex)xSemaphoreTake(message_mutex,portMAX_DELAY);message_last.clear();bool messages_ready=message_begin();if(message_mutex)xSemaphoreGive(message_mutex);if(!messages_ready){telemetry("error",nullptr,"No se pudo iniciar el puerto de Mensajes.");return false;}traffic_matrix_begin();if(matrix_mutex)xSemaphoreTake(matrix_mutex,portMAX_DELAY);matrix_begin();if(matrix_mutex)xSemaphoreGive(matrix_mutex);if(otto_mutex)xSemaphoreTake(otto_mutex,portMAX_DELAY);otto_begin();if(otto_mutex)xSemaphoreGive(otto_mutex);if(display_mutex)xSemaphoreTake(display_mutex,portMAX_DELAY);bool display_ready=display_begin();if(display_mutex)xSemaphoreGive(display_mutex);if(!display_ready){telemetry("error",nullptr,"No se pudo iniciar la pantalla de texto.");return false;}if(smart_lights_mutex)xSemaphoreTake(smart_lights_mutex,portMAX_DELAY);bool smart_ready=smart_begin();if(smart_lights_mutex)xSemaphoreGive(smart_lights_mutex);if(!smart_ready){telemetry("error",nullptr,"No se pudieron iniciar las luces RGB inteligentes.");return false;}running=true;paused=false;cJSON *tasks=cJSON_GetObjectItem(active,"tasks"),*task;int index=0,started=0;cJSON_ArrayForEach(task,tasks){if(cJSON_IsTrue(cJSON_GetObjectItem(task,"initial"))&&start_task(index))++started;++index;}if(!started){running=false;return false;}return true; }
+static bool start_program(bool start_paused=false) { if(!active||running||active_tasks>0)return false;for(auto &state:task_states)state=0;step_requested=false;step_owner=-1;counter_value=0;wifi_messages_reset();initialize_variables();initialize_component_states();if(timers_mutex)xSemaphoreTake(timers_mutex,portMAX_DELAY);initialize_timers();if(timers_mutex)xSemaphoreGive(timers_mutex);if(message_mutex)xSemaphoreTake(message_mutex,portMAX_DELAY);message_last.clear();bool messages_ready=message_begin();if(message_mutex)xSemaphoreGive(message_mutex);if(!messages_ready){telemetry("error",nullptr,"No se pudo iniciar el puerto de Mensajes.");return false;}traffic_matrix_begin();if(matrix_mutex)xSemaphoreTake(matrix_mutex,portMAX_DELAY);matrix_begin();if(matrix_mutex)xSemaphoreGive(matrix_mutex);if(otto_mutex)xSemaphoreTake(otto_mutex,portMAX_DELAY);otto_begin();if(otto_mutex)xSemaphoreGive(otto_mutex);if(display_mutex)xSemaphoreTake(display_mutex,portMAX_DELAY);bool display_ready=display_begin();if(display_mutex)xSemaphoreGive(display_mutex);if(!display_ready){telemetry("error",nullptr,"No se pudo iniciar la pantalla de texto.");return false;}if(smart_lights_mutex)xSemaphoreTake(smart_lights_mutex,portMAX_DELAY);bool smart_ready=smart_begin();if(smart_lights_mutex)xSemaphoreGive(smart_lights_mutex);if(!smart_ready){telemetry("error",nullptr,"No se pudieron iniciar las luces RGB inteligentes.");return false;}running=true;paused=start_paused;cJSON *tasks=cJSON_GetObjectItem(active,"tasks"),*task;int index=0,started=0;cJSON_ArrayForEach(task,tasks){if(cJSON_IsTrue(cJSON_GetObjectItem(task,"initial"))&&start_task(index))++started;++index;}if(!started){running=false;paused=false;return false;}
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+waveshare_dirty=true;
+#endif
+return true; }
+
+static void pause_program(){if(!paused){paused_at=(uint32_t)(esp_timer_get_time()/1000);if(timers_mutex)xSemaphoreTake(timers_mutex,portMAX_DELAY);for(auto &timer:timers)update_timer(timer,paused_at);if(timers_mutex)xSemaphoreGive(timers_mutex);}step_requested=false;step_owner=-1;paused=true;
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+waveshare_dirty=true;
+#endif
+}
+static void resume_program(){if(paused){uint32_t now=(uint32_t)(esp_timer_get_time()/1000);if(timers_mutex)xSemaphoreTake(timers_mutex,portMAX_DELAY);for(auto &timer:timers)if(timer.status==RuntimeTimerStatus::RUNNING)timer.last_update=now;if(timers_mutex)xSemaphoreGive(timers_mutex);}step_requested=false;step_owner=-1;paused=false;
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+waveshare_dirty=true;
+#endif
+}
+static bool stop_program(){running=false;paused=false;step_requested=false;step_owner=-1;for(int attempt=0;active_tasks>0&&attempt<100;++attempt)vTaskDelay(pdMS_TO_TICKS(10));safe_outputs();
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+waveshare_dirty=true;
+#endif
+return active_tasks==0;}
+static bool step_program(){if(step_requested||step_owner>=0)return false;if(!running&&!start_program(true))return false;if(!paused)pause_program();step_owner=-1;step_requested=true;
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+waveshare_dirty=true;
+#endif
+return true;}
+static void reset_program(){stop_program();counter_value=0;if(active){initialize_variables();initialize_component_states();if(timers_mutex)xSemaphoreTake(timers_mutex,portMAX_DELAY);initialize_timers();if(timers_mutex)xSemaphoreGive(timers_mutex);}safe_outputs();}
 
 static void command(cJSON *request) {
   const char *type = text(request,"type");
-  if (!strcmp(type,"HELLO")) { cJSON *out=cJSON_CreateObject(); cJSON_AddStringToObject(out,"type","HELLO"); cJSON_AddStringToObject(out,"protocol","CapiLink"); cJSON_AddStringToObject(out,"firmware",CAPI_FIRMWARE_VERSION); cJSON_AddNumberToObject(out,"abi",ABI); cJSON_AddStringToObject(out,"board",CAPI_BOARD_ID);std::string identity=hardware_id();cJSON_AddStringToObject(out,"hardwareId",identity.c_str());char shown_mac[18]={};if(identity.size()==12)snprintf(shown_mac,sizeof(shown_mac),"%.2s:%.2s:%.2s:%.2s:%.2s:%.2s",identity.c_str(),identity.c_str()+2,identity.c_str()+4,identity.c_str()+6,identity.c_str()+8,identity.c_str()+10);cJSON_AddStringToObject(out,"wifiMac",shown_mac); cJSON_AddNumberToObject(out,"maxRulesBytes",MAX_RULES); cJSON *caps=cJSON_AddArrayToObject(out,"capabilities"); for(const char *cap:{"core","parallel","expressions","variables","timers","component-state","gpio","led","smart-lights","traffic","traffic-display","motor","robot","otto","servo","buzzer","matrix","display","display-lcd","display-lcd1602","display-lcd2004","display-lcd1602keypad","display-graphic","display-ssd1306","display-ili9341","display-ili9488","display-keypad","visual-wait","messages","wifi","wifi-messages","pairing","counter","serial","digital-input","analog-input"}) cJSON_AddItemToArray(caps,cJSON_CreateString(cap)); cJSON *resources=cJSON_AddObjectToObject(out,"resources");cJSON_AddNumberToObject(resources,"pwmChannels",8); send_json(out); }
+  if (!strcmp(type,"HELLO")) { cJSON *out=cJSON_CreateObject(); cJSON_AddStringToObject(out,"type","HELLO"); cJSON_AddStringToObject(out,"protocol","CapiLink"); cJSON_AddStringToObject(out,"firmware",CAPI_FIRMWARE_VERSION); cJSON_AddNumberToObject(out,"abi",ABI); cJSON_AddStringToObject(out,"board",CAPI_BOARD_ID);std::string identity=hardware_id();cJSON_AddStringToObject(out,"hardwareId",identity.c_str());char shown_mac[18]={};if(identity.size()==12)snprintf(shown_mac,sizeof(shown_mac),"%.2s:%.2s:%.2s:%.2s:%.2s:%.2s",identity.c_str(),identity.c_str()+2,identity.c_str()+4,identity.c_str()+6,identity.c_str()+8,identity.c_str()+10);cJSON_AddStringToObject(out,"wifiMac",shown_mac); cJSON_AddNumberToObject(out,"maxRulesBytes",MAX_RULES); cJSON *caps=cJSON_AddArrayToObject(out,"capabilities"); for(const char *cap:{"core","parallel","expressions","variables","timers","component-state","gpio","led","smart-lights","traffic","traffic-display","motor","robot","otto","servo","buzzer","matrix","display","display-lcd","display-lcd1602","display-lcd2004","display-lcd1602keypad","display-graphic","display-ssd1306","display-ili9341","display-ili9488","display-keypad","visual-wait","messages","wifi","wifi-messages","pairing","counter","serial","digital-input","analog-input","step"}) cJSON_AddItemToArray(caps,cJSON_CreateString(cap));if(is_waveshare()){cJSON_AddItemToArray(caps,cJSON_CreateString("touch-inputs"));cJSON_AddItemToArray(caps,cJSON_CreateString("autonomous-controls"));} cJSON *resources=cJSON_AddObjectToObject(out,"resources");cJSON_AddNumberToObject(resources,"pwmChannels",8); send_json(out); }
   else if (!strcmp(type,"CONFIG_WIFI")) { if(running){reply("ERROR","Detené el programa antes de cambiar la red Wi-Fi.");return;}if(wifi_provision(text(request,"ssid"),text(request,"password")))reply("WIFI_CONFIGURED");else reply("ERROR","La red o la clave Wi-Fi no tienen un formato válido."); }
   else if (!strcmp(type,"CONFIG_PAIR")) {if(running){reply("ERROR","Detené el programa antes de emparejar las placas.");return;}if(wifi_provision_pair(text(request,"role"),text(request,"ssid"),text(request,"password"),text(request,"pairingKey"),text(request,"screenHardwareId"))){reply("PAIR_CONFIGURED");wifi_connect();}else reply("ERROR","No pudimos guardar un perfil de pareja válido para esta placa.");}
   else if (!strcmp(type,"BEGIN")) { if(running){reply("ERROR","Detené el programa antes de reemplazarlo.");return;} expected_bytes=number(request,"bytes"); const char *sum=text(request,"checksum"); expected_crc=strtoul(sum,nullptr,16); if(!expected_bytes||expected_bytes>MAX_RULES){reply("ERROR","Tamaño de reglas inválido.");return;} candidate.clear(); candidate.reserve(expected_bytes); reply("READY"); }
@@ -590,10 +674,11 @@ static void command(cJSON *request) {
 #endif
   candidate.clear(); reply("COMMITTED"); }
   else if (!strcmp(type,"RUN")) { if(start_program()) reply("OK"); else reply("ERROR","No hay reglas o el programa ya está ejecutándose."); }
-  else if (!strcmp(type,"PAUSE")) { if(!paused){paused_at=(uint32_t)(esp_timer_get_time()/1000);if(timers_mutex)xSemaphoreTake(timers_mutex,portMAX_DELAY);for(auto &timer:timers)update_timer(timer,paused_at);if(timers_mutex)xSemaphoreGive(timers_mutex);paused=true;}reply("OK"); }
-  else if (!strcmp(type,"RESUME")) { if(paused){uint32_t now=(uint32_t)(esp_timer_get_time()/1000);if(timers_mutex)xSemaphoreTake(timers_mutex,portMAX_DELAY);for(auto &timer:timers)if(timer.status==RuntimeTimerStatus::RUNNING)timer.last_update=now;if(timers_mutex)xSemaphoreGive(timers_mutex);paused=false;}reply("OK"); }
-  else if (!strcmp(type,"STOP")) { running=false; paused=false; for(int attempt=0;active_tasks>0&&attempt<100;++attempt)vTaskDelay(pdMS_TO_TICKS(10)); safe_outputs(); reply(active_tasks==0?"OK":"ERROR",active_tasks==0?nullptr:"No pudimos detener todos los caminos."); }
-  else if (!strcmp(type,"RESET_PROGRAM")) { running=false; paused=false; counter_value=0; safe_outputs(); reply("OK"); }
+  else if (!strcmp(type,"PAUSE")) { pause_program();reply("OK"); }
+  else if (!strcmp(type,"RESUME")) { resume_program();reply("OK"); }
+  else if (!strcmp(type,"STEP")) { if(step_program())reply("OK");else reply("ERROR","Esperá a que termine el paso actual o enviá reglas válidas."); }
+  else if (!strcmp(type,"STOP")) { bool stopped=stop_program();reply(stopped?"OK":"ERROR",stopped?nullptr:"No pudimos detener todos los caminos."); }
+  else if (!strcmp(type,"RESET_PROGRAM")) { reset_program();reply("OK"); }
   else reply("ERROR","Comando desconocido.");
 }
 
@@ -615,7 +700,11 @@ extern "C" void app_main() {
   if(!wifi_pair_role().empty()) wifi_connect();
   if(load_rules()&&!wifi_creates_network()) start_program();
   std::string line; uint8_t byte;
-  for(;;){int received=0;
+  for(;;){
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+    int action=waveshare_action.exchange(0);if(action==1){const char *value=!running?"RUN":paused?"RESUME":"PAUSE";if(!running)start_program();else if(paused)resume_program();else pause_program();telemetry_state("control",nullptr,nullptr,value);}else if(action==2){if(step_program())telemetry_state("control",nullptr,nullptr,"STEP");}else if(action==3){stop_program();telemetry_state("control",nullptr,nullptr,"STOP");}else if(action==4){reset_program();telemetry_state("control",nullptr,nullptr,"RESET_PROGRAM");}
+#endif
+    int received=0;
 #ifdef CONFIG_IDF_TARGET_ESP32S3
     if(usb_link_ready&&(received=usb_serial_jtag_read_bytes(&byte,1,0))==1){
       link_uses_usb=true;
