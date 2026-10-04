@@ -35,8 +35,9 @@ async function open(page: Page) {
   await expect(page.locator('.blocklySvg')).toBeVisible({ timeout: process.env.PLAYWRIGHT_BASE_URL ? 120000 : 10000 });
 }
 async function menu(page: Page, framework = 'ESP-IDF') {
-  await page.getByRole('button', { name: 'Exportar', exact: true }).click();
-  await page.getByRole('menuitem', { name: framework === 'ESP-IDF' ? 'Proyecto ESP-IDF .zip' : 'Código Arduino .ino', exact: true }).click();
+  await page.getByRole('button', { name: 'Opciones del proyecto' }).click();
+  await page.getByRole('menuitem', { name: 'Herramientas avanzadas para adultos', exact: true }).click();
+  await page.getByRole('button', { name: framework === 'ESP-IDF' ? 'Exportar proyecto ESP-IDF .zip' : 'Exportar código Arduino .ino', exact: true }).click();
 }
 async function acknowledge(page: Page) {
   const guide = page.getByRole('dialog', { name: /Conectar .+ sin adivinar/ });
@@ -57,7 +58,8 @@ test('ESP-IDF: descarga ZIP completo con cableado confirmado, conserva Arduino y
   expect(files['capibloques/README.md']).toContain('fuentes, no un binario');
   const arduino = page.waitForEvent('download'); await menu(page, 'Arduino');
   expect(readFileSync((await (await arduino).path())!, 'utf8')).toContain('#include <Arduino.h>');
-  await page.getByRole('button', { name: 'Ver código ESP32', exact: true }).click();
+  await page.getByRole('button', { name: 'Más herramientas' }).click();
+  await page.getByRole('menuitem', { name: 'Ver código ESP32', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: /Código para .+/ });
   await dialog.getByRole('combobox', { name: 'Formato de código' }).selectOption('esp-idf');
   await expect(dialog.locator('pre')).toContainText('extern "C" void app_main');

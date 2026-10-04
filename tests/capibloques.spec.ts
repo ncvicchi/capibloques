@@ -31,29 +31,21 @@ test.describe('CapiBloques', () => {
     const projectActions = page.getByRole('navigation', {
       name: 'Acciones del proyecto',
     });
-    for (const name of [
-      'Guardar',
-      'Abrir ejemplos',
-      'Exportar',
-    ]) {
+    for (const name of ['Guardar', 'Mis proyectos', 'Opciones del proyecto']) {
       await expect(projectActions.getByRole('button', { name })).toBeVisible();
     }
 
     const simulator = page.getByRole('region', {
-      name: 'Controles del simulador',
+      name: 'Crear, probar y usar en placa',
     });
-    for (const name of [
-      'Ejecutar',
-      'Paso',
-      'Detener',
-      'Reiniciar',
-      'Ver código ESP32',
-    ]) {
+    for (const name of ['Crear', 'Probar', 'Ejecutar', 'Usar en placa', 'Más herramientas']) {
       await expect(simulator.getByRole('button', { name })).toBeVisible();
     }
-    await expect(simulator.getByRole('combobox')).toHaveValue('1');
     await expect(page.getByRole('button', { name: 'Armar escena' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Conectar', exact: true })).toBeVisible();
+    await simulator.getByRole('button', { name: 'Más herramientas' }).click();
+    await expect(page.getByRole('menuitem', { name: 'Ver conexiones' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Ver código ESP32' })).toBeVisible();
+    await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Opciones de mi cuenta' }).click();
     await expect(page.getByRole('menuitem', { name: 'Silenciar sonidos' })).toBeVisible();
     await page.keyboard.press('Escape');
@@ -70,28 +62,22 @@ test.describe('CapiBloques', () => {
     const projectActions = page.getByRole('navigation', {
       name: 'Acciones del proyecto',
     });
-    for (const name of [
-      'Guardar',
-      'Abrir ejemplos',
-      'Exportar',
-    ]) {
+    for (const name of ['Guardar', 'Mis proyectos', 'Opciones del proyecto']) {
       await expect(projectActions.getByRole('button', { name })).toBeVisible();
     }
 
     const simulator = page.getByRole('region', {
-      name: 'Controles del simulador',
+      name: 'Crear, probar y usar en placa',
     });
-    for (const name of ['Ejecutar', 'Paso', 'Detener', 'Reiniciar']) {
+    for (const name of ['Crear', 'Probar', 'Ejecutar', 'Usar en placa', 'Más herramientas']) {
       await expect(simulator.getByRole('button', { name })).toBeVisible();
     }
-    await expect(simulator.getByRole('combobox')).toBeVisible();
     await expect(
       page.getByRole('button', { name: 'Armar escena' }),
     ).toBeVisible();
 
-    await projectActions
-      .getByRole('button', { name: 'Abrir ejemplos' })
-      .click();
+    await projectActions.getByRole('button', { name: 'Opciones del proyecto' }).click();
+    await page.getByRole('menuitem', { name: 'Abrir un ejemplo' }).click();
     await expect(
       page.getByRole('dialog', { name: 'Elige una misión' }),
     ).toBeVisible();
@@ -335,12 +321,13 @@ test.describe('CapiBloques', () => {
       buffer: Buffer.from(JSON.stringify(project)),
     });
     await expect(page.locator('output.notice')).toContainText(
-      'Proyecto importado correctamente',
+      'La simulación puede continuar',
     );
     await expect(
       page.locator('.blocklyBlockCanvas > [data-id="raw-start"]'),
     ).toBeVisible();
-    await page.getByRole('button', { name: 'Ver código ESP32' }).click();
+    await page.getByRole('button', { name: 'Más herramientas' }).click();
+    await page.getByRole('menuitem', { name: 'Ver código ESP32' }).click();
     await page.getByRole('button', { name: 'Descargar .ino' }).click();
     const wiring = page.getByRole('dialog', {
       name: /Conectar .+ sin adivinar/,
@@ -357,7 +344,8 @@ test.describe('CapiBloques', () => {
     for (const checkbox of await wiring.getByRole('checkbox').all())
       await checkbox.check();
     await confirm.click();
-    await page.getByRole('button', { name: 'Ver código ESP32' }).click();
+    await page.getByRole('button', { name: 'Más herramientas' }).click();
+    await page.getByRole('menuitem', { name: 'Ver código ESP32' }).click();
     const download = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Descargar .ino' }).click();
     expect((await download).suggestedFilename()).toMatch(/\.ino$/);
@@ -372,7 +360,7 @@ test.describe('CapiBloques', () => {
     await page
       .getByRole('textbox', { name: 'Nombre del proyecto' })
       .fill('Mi semáforo exportado');
-    await page.getByRole('button', { name: 'Exportar', exact: true }).click();
+    await page.getByRole('button', { name: 'Opciones del proyecto' }).click();
     const downloadPromise = page.waitForEvent('download');
     await page
       .getByRole('menuitem', { name: 'Proyecto editable JSON' })
@@ -409,11 +397,14 @@ test.describe('CapiBloques', () => {
     const pageErrors = collectPageErrors(page);
     await openApp(page);
 
-    await page.getByRole('button', { name: 'Abrir ejemplos' }).click();
+    await page.getByRole('button', { name: 'Opciones del proyecto' }).click();
+    await page.getByRole('menuitem', { name: 'Abrir un ejemplo' }).click();
     const examples = page.getByRole('dialog', { name: 'Elige una misión' });
     await examples
       .getByRole('button', { name: /Semáforo de la plaza/ })
       .click();
+    const replace = page.getByRole('alertdialog', { name: 'Antes de reemplazar el editor' });
+    if (await replace.isVisible()) await replace.getByRole('button', { name: 'Descartar cambios y abrir' }).click();
     await expect(examples).toBeHidden();
 
     await page.getByRole('button', { name: 'Ejecutar' }).click();

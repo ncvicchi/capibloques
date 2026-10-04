@@ -33,7 +33,7 @@ async function builds(page: Page) {
   return control;
 }
 async function open(page: Page) {
-  await page.getByRole('button', { name: 'Exportar', exact: true }).click();
+  await page.getByRole('button', { name: 'Opciones del proyecto' }).click();
   await page.getByRole('menuitem', { name: 'Herramientas avanzadas para adultos', exact: true }).click();
   await page.getByRole('button', { name: 'Compilar un firmware específico', exact: true }).click();
   return page.getByRole('dialog', { name: 'Compilar y descargar firmware' });
@@ -43,7 +43,8 @@ async function save(page: Page) {
   await expect(page.locator('.cloud-state')).toContainText('Guardado en tu cuenta');
 }
 async function acknowledge(page: Page) {
-  await page.getByRole('button', { name: 'Conectar', exact: true }).click();
+  await page.getByRole('button', { name: 'Más herramientas' }).click();
+  await page.getByRole('menuitem', { name: 'Ver conexiones' }).click();
   const guide = page.getByRole('dialog', { name: /Conectar .+ sin adivinar/ });
   await expect(guide.getByRole('checkbox').first()).toBeVisible();
   for (const checkbox of await guide.getByRole('checkbox').all()) await checkbox.check();

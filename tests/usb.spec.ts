@@ -47,7 +47,7 @@ async function setup(page: Page, options: { unsupported?: boolean; denied?: bool
   return { counts: () => ({ downloads, authorizations }), job };
 }
 async function openUsb(page: Page, compiled = false) {
-  await page.getByRole('button', { name: 'Exportar', exact: true }).click();
+  await page.getByRole('button', { name: 'Opciones del proyecto' }).click();
   await page.getByRole('menuitem', { name: 'Herramientas avanzadas para adultos', exact: true }).click();
   await page.getByRole('button', { name: compiled ? 'Compilar un firmware específico' : 'Firmware específico y monitor Serial', exact: true }).click();
   if (compiled) await page.getByRole('button', { name: /^Programar Wemos$/ }).click();

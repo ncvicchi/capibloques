@@ -3493,8 +3493,20 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .workbench .project-save-errors .cloud-error { position: static; max-width: none; margin: 0; }
 .workbench .toolbar { min-height: 54px; padding: 5px 16px; margin: 0; gap: 8px; flex-wrap: nowrap; border-bottom: 1px solid var(--line); }
 .workbench .toolbar button { min-height: 40px; padding: 8px 12px; white-space: nowrap; }
-.workbench .toolbar .wiring-button { margin-left: auto; }
+.workbench .taskbar { overflow: visible; box-shadow: none; }
+.work-mode-switch { display: inline-flex; align-items: center; min-width: 0; margin: 0; padding: 3px; gap: 2px; border: 1px solid #cbd0e2; border-radius: 13px; background: #eef0f8; flex: 0 0 auto; }
+.workbench .toolbar .work-mode-switch button { min-height: 34px; padding: 5px 11px; border: 0; border-radius: 9px; background: transparent; color: #555e7c; box-shadow: none; }
+.workbench .toolbar .work-mode-switch button[aria-pressed='true'] { color: #fff; background: #5942b4; box-shadow: 0 2px 0 #352078; }
+.workbench .taskbar .execution-target { min-width: 156px; max-width: 230px; min-height: 40px; padding: 4px 9px; }
+.workbench .taskbar .execution-target small { max-width: 160px; }
+.workbench .taskbar .more-tools-button { margin-left: auto; }
+.project-menu, .task-tools-menu { min-width: 245px !important; }
+.project-menu [data-slot='dropdown-menu-item'], .task-tools-menu [data-slot='dropdown-menu-item'] { min-height: 38px; padding: 8px 10px; }
 .workbench .workspace-grid.functional { padding: 12px 16px 0; gap: 12px; grid-template-columns: minmax(450px, 1fr) minmax(350px, 39%); }
+.workbench .workspace-grid.functional.focus-create { grid-template-columns: minmax(500px, 1fr) minmax(330px, 35%); }
+.workbench .workspace-grid.functional.focus-try { grid-template-columns: minmax(410px, 44%) minmax(390px, 1fr); }
+.workbench .workspace-grid.focus-create .canvas-panel,
+.workbench .workspace-grid.focus-try .simulator-panel { box-shadow: 0 0 0 2px rgb(89 66 180 / 18%); }
 .workbench .canvas-header { padding: 8px 12px; min-height: 48px; }
 .workbench .canvas-header > div > strong { display: none; }
 .workbench .canvas-header > div > span { font-size: 14px; font-weight: 750; color: var(--ink); }
@@ -3583,6 +3595,10 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
   .workbench .workspace-grid.functional { grid-template-columns: minmax(390px, 1fr) minmax(330px, 38%); padding: 8px 10px 0; gap: 8px; }
   .workbench .toolbar { padding: 5px 10px; gap: 4px; }
   .workbench .toolbar button { padding: 7px 9px; font-size: 12px; }
+  .workbench .taskbar .execution-target { min-width: 130px; }
+  .workbench .taskbar .execution-target small { display: none; }
+  .workbench .workspace-grid.functional.focus-create { grid-template-columns: minmax(390px, 1fr) minmax(310px, 36%); }
+  .workbench .workspace-grid.functional.focus-try { grid-template-columns: minmax(360px, 43%) minmax(340px, 1fr); }
 }
 @media (max-width: 800px) {
   .workbench { height: auto; min-height: 100dvh; overflow: visible; }
@@ -3590,7 +3606,10 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
   .workbench .header-actions { grid-column: 1 / -1; flex-wrap: wrap; justify-content: flex-start; max-width: none; }
   .workbench .header-actions > button { width: auto; padding: 8px; white-space: nowrap; }
   .workbench .cloud-state { max-width: none; min-width: 90px; }
-  .workbench .toolbar { top: 0; flex-wrap: wrap; }
+  .workbench .toolbar { top: 0; flex-wrap: wrap; overflow-x: visible; }
+  .workbench .taskbar .execution-target { order: 3; width: 100%; max-width: none; }
+  .workbench .taskbar .execution-target small { display: block; max-width: none; }
+  .workbench .taskbar .more-tools-button { margin-left: 0; }
   .workbench .workspace-grid.functional { display: flex; flex-direction: column; padding: 8px; }
   .workbench .canvas-panel { height: 65dvh; min-height: 420px; }
   .workbench .simulator-panel { height: 620px; }

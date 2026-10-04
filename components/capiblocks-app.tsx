@@ -25,6 +25,7 @@ import {
   FolderOpen,
   Gauge,
   Maximize2,
+  MoreHorizontal,
   LogOut,
   Pause,
   Play,
@@ -516,6 +517,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     canRedo: false,
   });
   const [activeTab, setActiveTab] = useState('scene');
+  const [workspaceMode, setWorkspaceMode] = useState<'create' | 'try'>('create');
   const [lastProgram, setLastProgram] = useState<CompiledProgram>(emptyProgram);
 
   const sourceExample = useMemo(
@@ -812,6 +814,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const mirrorPhysicalExecution = useCallback((command: 'RUN' | 'PAUSE' | 'RESUME' | 'STEP' | 'STOP' | 'RESET_PROGRAM' | 'DONE') => {
     if (command === 'RUN') {
       setPhysicalMirrorActive(true);
+      setWorkspaceMode('try');
       playbackSourceRef.current = JSON.stringify(editorRef.current?.save());
       postToWorker({ type: 'LOAD', program: lastProgram, scene, boardProfile: projectTarget.boardProfile });
       postToWorker({ type: 'SET_SPEED', speed: 1 });
@@ -1295,6 +1298,10 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const currentWiringSignature = wiringReviewSignature(scene, lastProgram, projectTarget.boardProfile);
   const wiringAcknowledged =
     wiringAcknowledgedSignature === currentWiringSignature;
+  const executionStage = physicalMirrorActive ? physicalStatus.stage : sim.status;
+  const executionRunning = executionStage === 'running';
+  const executionPaused = executionStage === 'paused';
+  const executionActive = executionRunning || executionPaused;
 
   if (!hydrated) return <main className="account-page" aria-busy="true"><section className="account-card"><output>Recuperando tu proyecto de esta computadora…</output></section></main>;
 
@@ -1321,23 +1328,16 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         </label>
         <nav className="header-actions" aria-label="Acciones del proyecto">
           <ProjectLibrary ref={libraryRef} account={account} store={draftStore} csrfToken={csrfToken} hydrated={hydrated} sceneEditing={sceneBuilderOpen} offline={offline} fingerprint={fingerprint} capture={currentProject} apply={applyLibraryProject} onNew={newLibraryProject} onImport={() => fileInputRef.current?.click()} notice={message => { setNotice(message); setNoticeTone('ok'); }} />
-          <button
-            className="icon-button"
-            onClick={() => setExamplesOpen(true)}
-            aria-label="Abrir ejemplos"
-            title="Ejemplos"
-          >
-            <FolderOpen size={20} />
-          </button>
           <DropdownMenu>
-            <DropdownMenuTrigger className="export-button">
-              <Download size={18} /> Exportar
+            <DropdownMenuTrigger className="export-button" aria-label="Opciones del proyecto">
+              <FolderOpen size={18} /> Proyecto
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="export-menu">
+            <DropdownMenuContent align="end" className="project-menu">
               <DropdownMenuGroup>
-                <DropdownMenuLabel>
-                  Guarda o lleva tu proyecto
-                </DropdownMenuLabel>
+                <DropdownMenuLabel>Empezar y compartir</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => setExamplesOpen(true)}>
+                  <Blocks /> Abrir un ejemplo
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={exportJson}>
                   <FileJson /> Proyecto editable JSON
                 </DropdownMenuItem>
@@ -1383,12 +1383,21 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
 
       {!sceneBuilderOpen && draftStore.sceneDraft && <aside className="scene-recovery-banner"><span>🧩 Hay una escena sin terminar en esta computadora. Tu escena confirmada no cambió.</span><button onClick={() => toggleSceneBuilder(true)}>Revisar escena pendiente</button></aside>}
 
-      <section className="toolbar" aria-label="Controles del simulador">
+      <section className="toolbar taskbar" aria-label="Crear, probar y usar en placa">
+        <fieldset className="work-mode-switch">
+          <legend className="visually-hidden">Modo de trabajo</legend>
+          <button type="button" aria-pressed={workspaceMode === 'create'} onClick={() => setWorkspaceMode('create')}>
+            <Blocks size={18} /> Crear
+          </button>
+          <button type="button" aria-pressed={workspaceMode === 'try'} onClick={() => { setWorkspaceMode('try'); setActiveTab('scene'); }}>
+            <Play size={18} /> Probar
+          </button>
+        </fieldset>
         <output className={`execution-target ${physicalMirrorActive ? 'is-board' : 'is-simulator'}`} aria-live="polite">
           <span aria-hidden="true">{physicalMirrorActive ? '⚡' : '🖥️'}</span>
           <span><strong>{physicalMirrorActive ? `Placa · ${boardProfile(projectTarget.boardProfile).shortName}` : 'Simulador web'}</strong><small>{physicalMirrorActive ? physicalStatus.message : 'Corre solamente en este navegador'}</small></span>
         </output>
-        {(physicalMirrorActive ? physicalStatus.stage === 'running' : sim.status === 'running') ? (
+        {executionRunning ? (
           <button
             className="pause-button"
             onClick={() => {
@@ -1399,7 +1408,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           >
             <Pause size={18} fill="currentColor" /> Pausar
           </button>
-        ) : (physicalMirrorActive ? physicalStatus.stage === 'paused' : sim.status === 'paused') ? (
+        ) : executionPaused ? (
           <button
             className="run-button"
             onClick={() => physicalMirrorActive ? physicalControlRef.current?.('RESUME') : postToWorker({ type: 'RUN' })}
@@ -1407,56 +1416,45 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             <Play size={18} fill="currentColor" /> Reanudar
           </button>
         ) : (
-          <button className="run-button" onClick={() => physicalMirrorActive ? physicalControlRef.current?.('RUN') : run()}>
+          <button className="run-button" onClick={() => { setWorkspaceMode('try'); setActiveTab('scene'); if (physicalMirrorActive) physicalControlRef.current?.('RUN'); else run(); }}>
             <Play size={18} fill="currentColor" /> Ejecutar
           </button>
         )}
-        <button onClick={() => physicalMirrorActive ? physicalControlRef.current?.('STEP') : step()}>
-          <StepForward size={18} /> Paso
-        </button>
-        <button
-          onClick={() => {
-            if (physicalMirrorActive) physicalControlRef.current?.('STOP');
-            else postToWorker({ type: 'STOP' });
-            stopSound();
-            pendingExecutionTasksRef.current = [];
-            editorRef.current?.showExecution();
-          }}
-        >
-          <CircleStop size={18} /> Detener
-        </button>
-        <button onClick={() => physicalMirrorActive ? physicalControlRef.current?.('RESET_PROGRAM') : reset()}>
-          <RotateCcw size={18} /> Reiniciar
-        </button>
+        <button onClick={() => { setWorkspaceMode('try'); if (physicalMirrorActive) physicalControlRef.current?.('STEP'); else step(); }}><StepForward size={18} /> Paso</button>
+        {executionActive && <button onClick={() => {
+          if (physicalMirrorActive) physicalControlRef.current?.('STOP');
+          else postToWorker({ type: 'STOP' });
+          stopSound(); pendingExecutionTasksRef.current = []; editorRef.current?.showExecution();
+        }}><CircleStop size={18} /> Detener</button>}
         <button className="board-run-button" disabled={!physicalMirrorActive && (offline || sim.status === 'running' || sim.status === 'paused')} title={physicalMirrorActive ? 'Abrí el asistente para ver la conexión, la telemetría o volver a enviar las reglas.' : offline ? 'Necesitás conexión para verificar tu cuenta antes de usar USB.' : sim.status === 'running' || sim.status === 'paused' ? 'Detené el simulador antes de usar la placa.' : 'Instalá CapiBloques una vez y después enviá solamente las reglas.'} onClick={() => physicalMirrorActive ? physicalControlRef.current?.('SHOW') : openInterpreter()}>
           <Cable size={18} /> {physicalMirrorActive ? 'Detalles de placa' : 'Usar en placa'}
         </button>
-        <span className="toolbar-separator" />
-        <label className="speed-control">
-          <Gauge size={18} /> Velocidad
-          <select
-            value={speed}
-            disabled={physicalMirrorActive || sim.execution?.mode === 'guided'}
-            title={physicalMirrorActive ? 'La placa trabaja en tiempo real; el espejo queda fijo en 1×.' : sim.execution?.mode === 'guided' ? 'En modo guiado miramos un paso por vez. Esta velocidad se aplica al modo normal.' : 'Velocidad del reloj en modo normal'}
-            onChange={(event) => {
-              const value = Number(event.target.value);
-              setSpeed(value);
-              postToWorker({ type: 'SET_SPEED', speed: value });
-            }}
-          >
-            <option value={0.5}>0,5×</option>
-            <option value={1}>1×</option>
-            <option value={2}>2×</option>
-            <option value={4}>4×</option>
-          </select>
-        </label>
-        <button onClick={openCode}>
-          <Code2 size={18} /> Ver código ESP32
-        </button>
-        <button type="button" className="wiring-button" onClick={openWiring} title="Conexiones de la Wemos D1 R32"><Cable size={18} /> Conectar</button>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="more-tools-button" aria-label="Más herramientas">
+            <MoreHorizontal size={20} /> Más
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="task-tools-menu">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Control de la ejecución</DropdownMenuLabel>
+              {!executionActive && <DropdownMenuItem onClick={() => physicalMirrorActive ? physicalControlRef.current?.('STOP') : postToWorker({ type: 'STOP' })}><CircleStop /> Detener</DropdownMenuItem>}
+              <DropdownMenuItem onClick={() => physicalMirrorActive ? physicalControlRef.current?.('RESET_PROGRAM') : reset()}><RotateCcw /> Reiniciar programa y escena</DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Velocidad del simulador · {speed.toLocaleString('es-AR')}×</DropdownMenuLabel>
+              {[0.5, 1, 2, 4].map(value => <DropdownMenuItem key={value} disabled={physicalMirrorActive || sim.execution?.mode === 'guided'} onClick={() => { setSpeed(value); postToWorker({ type: 'SET_SPEED', speed: value }); }}>{speed === value ? <Check /> : <Gauge />} {value.toLocaleString('es-AR')}×</DropdownMenuItem>)}
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Revisar y conectar</DropdownMenuLabel>
+              <DropdownMenuItem onClick={openCode}><Code2 /> Ver código ESP32</DropdownMenuItem>
+              <DropdownMenuItem onClick={openWiring}><Cable /> Ver conexiones</DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </section>
 
-      <div className="workspace-grid functional">
+      <div className={`workspace-grid functional focus-${workspaceMode}`}>
         <section className="canvas-panel" aria-label="Programa visual">
           <div className="canvas-header">
             <div>

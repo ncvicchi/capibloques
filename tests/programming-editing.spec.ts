@@ -4,7 +4,7 @@ import { makeProject } from '../lib/capiblocks';
 import { createEmptyScene } from '../lib/scene-model';
 
 async function exportProject(page: Page) {
-  await page.getByRole('button', { name: 'Exportar', exact: true }).click();
+  await page.getByRole('button', { name: 'Opciones del proyecto' }).click();
   const pending = page.waitForEvent('download');
   await page.getByRole('menuitem', { name: 'Proyecto editable JSON' }).click();
   const stream = await (await pending).createReadStream();

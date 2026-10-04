@@ -41,7 +41,7 @@ async function importBlocks(page: Page, blocks: unknown[]) {
   ).toHaveValue('Caminos de prueba');
 }
 async function exportWorkspace(page: Page) {
-  await page.getByRole('button', { name: 'Exportar', exact: true }).click();
+  await page.getByRole('button', { name: 'Opciones del proyecto' }).click();
   const pending = page.waitForEvent('download');
   await page.getByRole('menuitem', { name: 'Proyecto editable JSON' }).click();
   const stream = await (await pending).createReadStream();
@@ -125,7 +125,7 @@ test('arrastre normal mueve sólo el bloque y Control mueve los siguientes', asy
 test('permite elegir simulador o placa sin confundir sus controles', async ({ page }) => {
   await open(page);
   await importBlocks(page, [start('board-start', block('wait', 'board-wait', { SECONDS: 1 }))]);
-  await page.getByRole('button', { name: 'Exportar', exact: true }).click();
+  await page.getByRole('button', { name: 'Opciones del proyecto' }).click();
   await expect(page.getByRole('menuitem', { name: 'Compilar y descargar firmware', exact: true })).toHaveCount(0);
   await page.getByRole('menuitem', { name: 'Herramientas avanzadas para adultos', exact: true }).click();
   const advanced = page.getByRole('dialog', { name: 'Herramientas avanzadas para adultos' });

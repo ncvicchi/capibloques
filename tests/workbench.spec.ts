@@ -8,7 +8,7 @@ async function open(page: Page) {
   await expect(page.locator('.blocklySvg')).toBeVisible();
 }
 async function exported(page: Page) {
-  await page.getByRole('button', { name: 'Exportar', exact: true }).click();
+  await page.getByRole('button', { name: 'Opciones del proyecto' }).click();
   const download = page.waitForEvent('download');
   await page.getByRole('menuitem', { name: 'Proyecto editable JSON' }).click();
   const stream = await (await download).createReadStream(), chunks = [];
@@ -24,7 +24,7 @@ test('mesa de trabajo: dos filas globales, área útil y cámara sin cambiar el 
   expect(area!.y).toBeLessThan(150);
   const dimensions = await page.evaluate(() => ({ width: innerWidth, scroll: document.documentElement.scrollWidth }));
   expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width);
-  for (const name of ['Guardar', 'Mis proyectos', 'Ejecutar', 'Paso', 'Detener', 'Deshacer', 'Rehacer', 'Armar escena', 'Conectar']) await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
+  for (const name of ['Guardar', 'Mis proyectos', 'Crear', 'Probar', 'Ejecutar', 'Usar en placa', 'Deshacer', 'Rehacer', 'Armar escena', 'Más herramientas']) await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
   const before = await exported(page);
   const viewport = page.getByRole('application', { name: 'Lienzo de la escena' });
   await page.getByRole('button', { name: 'Acercar escena', exact: true }).click();
@@ -51,6 +51,33 @@ test('mesa de trabajo: dos filas globales, área útil y cámara sin cambiar el 
   await page.screenshot({ path: info.outputPath('workbench-1366.png') });
 });
 
+test('interfaz simple: Crear y Probar priorizan su zona y lo avanzado aparece bajo demanda', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await open(page);
+  const canvas = page.getByRole('region', { name: 'Programa visual' });
+  const simulator = page.getByRole('complementary', { name: 'Simulador de comportamiento' });
+  const createWidth = (await canvas.boundingBox())!.width;
+  const initialSimulatorWidth = (await simulator.boundingBox())!.width;
+  expect(createWidth).toBeGreaterThan(initialSimulatorWidth);
+  await expect(page.getByRole('button', { name: 'Crear', exact: true })).toHaveAttribute('aria-pressed', 'true');
+
+  await page.getByRole('button', { name: 'Probar', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Probar', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  expect((await simulator.boundingBox())!.width).toBeGreaterThan((await canvas.boundingBox())!.width);
+
+  await expect(page.getByRole('button', { name: 'Ver código ESP32' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Más herramientas' }).click();
+  for (const name of ['Reiniciar programa y escena', 'Ver código ESP32', 'Ver conexiones']) {
+    await expect(page.getByRole('menuitem', { name })).toBeVisible();
+  }
+  await page.keyboard.press('Escape');
+
+  await page.getByRole('button', { name: 'Opciones del proyecto' }).click();
+  for (const name of ['Abrir un ejemplo', 'Proyecto editable JSON', 'Guardar sólo en este navegador', 'Importar proyecto JSON', 'Herramientas avanzadas para adultos']) {
+    await expect(page.getByRole('menuitem', { name })).toBeVisible();
+  }
+});
+
 test('sesión: foco no consulta ni bloquea, reloj sí revalida y revocación sí cierra', async ({ page }) => {
   await mockEditorSession(page);
   let calls = 0, denied = false;
@@ -70,12 +97,13 @@ test('sesión: foco no consulta ni bloquea, reloj sí revalida y revocación sí
 
 test('Wemos: pines y listado sincronizados, sin dar por aprobado el circuito', async ({ page }, info) => {
   await open(page);
-  await page.getByRole('button', { name: 'Conectar', exact: true }).click();
+  await page.getByRole('button', { name: 'Más herramientas' }).click();
+  await page.getByRole('menuitem', { name: 'Ver conexiones' }).click();
   const dialog = page.getByRole('dialog', { name: /Conectar .+ sin adivinar/ });
   await expect(dialog.locator('.wemos-image')).toBeVisible();
   const rows = dialog.locator('.wiring-table tbody tr');
   expect(await rows.count()).toBeGreaterThan(0);
-  await dialog.getByRole('combobox', { name: 'Resaltar conexiones de' }).selectOption({ label: 'Semáforo principal' });
+  await dialog.getByRole('combobox', { name: 'Resaltar conexiones de' }).selectOption({ label: 'Semáforo 1' });
   await expect(dialog.locator('.board-contact[aria-pressed="true"]')).toHaveCount(3);
   await expect(dialog.locator('.wiring-table tr[data-selected="true"]')).toHaveCount(3);
   const first = rows.first().getByRole('button');
@@ -241,7 +269,7 @@ test('mesa de trabajo móvil: texto ampliado y fuentes del sistema sin desborde'
     }));
     await info.attach(`mobile-${family}.json`, { body: JSON.stringify(bounds), contentType: 'application/json' });
     expect(bounds.width, JSON.stringify(bounds.overflowing)).toBeLessThanOrEqual(391);
-    for (const name of ['Guardar', 'Mis proyectos', 'Exportar', 'Conectar', 'Armar escena']) {
+    for (const name of ['Guardar', 'Mis proyectos', 'Opciones del proyecto', 'Crear', 'Probar', 'Armar escena']) {
       const button = page.getByRole('button', { name, exact: true });
       expect(await button.evaluate(element => element.scrollWidth <= element.clientWidth + 1), `${name}: el texto debe caber en su botón`).toBe(true);
     }

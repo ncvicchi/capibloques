@@ -23,7 +23,7 @@ test('desconexión: continúa sólo local, exporta y revalida antes de enviar', 
   await expect(page.getByRole('button', { name: 'Mis proyectos', exact: true })).toBeDisabled();
   expect(api.writes).toBe(1);
   expect((await recoveryRows(page, student.id))[0].title).toBe('Trabajé durante el corte');
-  await page.getByRole('button', { name: 'Exportar', exact: true }).click();
+  await page.getByRole('button', { name: 'Opciones del proyecto' }).click();
   const download = page.waitForEvent('download');
   await page.getByRole('menuitem', { name: 'Proyecto editable JSON' }).click();
   expect((await download).suggestedFilename()).toContain('.json');

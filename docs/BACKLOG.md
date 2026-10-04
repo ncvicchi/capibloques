@@ -496,6 +496,12 @@ asistentes para decisiones secuenciales, accesibilidad y comprobación de que
 ninguna función quede inaccesible. El alcance completo está en
 [PLAN_FASES_BACKLOG.md#fase-42--simplificación-integral-de-la-interfaz](PLAN_FASES_BACKLOG.md#fase-42--simplificación-integral-de-la-interfaz).
 
+**Entregada en software el 4 de octubre de 2026; DEV/aceptación visual
+pendientes.** Crear/Probar redistribuyen el ancho, la ejecución muestra sólo los
+controles correspondientes al estado y Proyecto/Más aplican divulgación
+progresiva sin retirar funciones. Inventario y evidencia en
+[FASE_42_SIMPLIFICACION_UI.md](FASE_42_SIMPLIFICACION_UI.md).
+
 ## 39. Más efectos y animaciones para displays
 
 Pedido del 25 de septiembre de 2026: ampliar las pantallas más allá del

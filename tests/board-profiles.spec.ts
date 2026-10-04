@@ -3,7 +3,7 @@ import { DIYMALL_S3_PROFILE_ID, WEMOS_PROFILE_ID } from '../lib/board-profiles';
 import { mockEditorSession } from './editor-fixture';
 
 async function readDownload(page: Page) {
-  await page.getByRole('button', { name: 'Exportar', exact: true }).click();
+  await page.getByRole('button', { name: 'Opciones del proyecto' }).click();
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('menuitem', { name: 'Proyecto editable JSON' }).click();
   const stream = await (await downloadPromise).createReadStream();
@@ -51,7 +51,8 @@ test.describe('perfiles de placa', () => {
       fqbn: 'esp32:esp32:esp32s3',
     });
 
-    await page.getByRole('button', { name: 'Conectar', exact: true }).click();
+    await page.getByRole('button', { name: 'Más herramientas' }).click();
+    await page.getByRole('menuitem', { name: 'Ver conexiones' }).click();
     const guide = page.getByRole('dialog', { name: 'Conectar DIYmall S3 sin adivinar' });
     await expect(guide).toBeVisible();
     await expect(guide.getByText('16 MB flash · 8 MB PSRAM', { exact: true })).toBeVisible();

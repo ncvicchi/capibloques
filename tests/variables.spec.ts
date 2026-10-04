@@ -58,7 +58,7 @@ test('variables: conserva tipos, calcula valores y los usa dentro de mensajes', 
   await page.getByRole('tab', { name: 'Consola', exact: true }).click();
   await expect(page.getByRole('tabpanel', { name: 'Consola', exact: true })).toContainText('El contador está en 12');
 
-  await page.getByRole('button', { name: 'Exportar', exact: true }).click();
+  await page.getByRole('button', { name: 'Opciones del proyecto' }).click();
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('menuitem', { name: 'Proyecto editable JSON' }).click();
   const stream = await (await downloadPromise).createReadStream();
@@ -77,7 +77,7 @@ test('variables: la categoría Datos permite crear cada tipo con un nombre amiga
   page.once('dialog', dialog => dialog.accept('vidas'));
   await page.getByText('Crear número', { exact: true }).click();
 
-  await page.getByRole('button', { name: 'Exportar', exact: true }).click();
+  await page.getByRole('button', { name: 'Opciones del proyecto' }).click();
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('menuitem', { name: 'Proyecto editable JSON' }).click();
   const stream = await (await downloadPromise).createReadStream();
