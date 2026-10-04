@@ -1,7 +1,11 @@
 # Fase 44 — Laboratorio interactivo y autónomo en Waveshare
 
 Estado al 4 de octubre de 2026: **en curso; núcleo local implementado en
-software, pendiente de compilación/aceptación física y del canal de fase 34**.
+software**. Por decisión del propietario, la compilación y las pruebas físicas
+del runtime 1.6.0 quedan **postergadas y registradas como pendientes**, sin
+bloquear el inicio de otra fase. También continúan pendientes los escenarios,
+el detalle del bloque actual por camino, controles táctiles especializados y el
+tramo remoto dependiente del canal de fase 34.
 
 ## Entrega de software 1 — runtime 1.6.0
 

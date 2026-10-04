@@ -694,6 +694,10 @@ aceptación completos en [FASE_43_EFECTOS_DISPLAY.md](FASE_43_EFECTOS_DISPLAY.md
 ## Fase 44 — Laboratorio interactivo y autónomo en Waveshare
 
 **Estado:** en curso; primera entrega del núcleo local implementada en software.
+La compilación y las pruebas físicas del runtime 1.6.0 fueron postergadas por
+decisión del propietario el 4 de octubre de 2026 y quedan como pendientes, sin
+bloquear el trabajo sobre otra fase. Esto no cierra los restantes de software
+enumerados debajo.
 **Objetivo:** hacer que usar la placa aporte touch, depuración física, escenarios
 y autonomía, en vez de limitarse a repetir el simulador web.
 
