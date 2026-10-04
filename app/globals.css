@@ -3477,6 +3477,22 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .preferences-conflict { border-left: 4px solid #b37516; padding: 12px; background: #fff3d9; }
 .preferences-dialog .account-actions { position: sticky; bottom: -8px; background: white; padding: 12px 0 4px; flex-wrap: wrap; }
 @media (max-width: 540px) { .preferences-dialog { padding: 16px; } .avatar-grid, .favorite-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .favorite-choice { padding: 8px; gap: 5px; } .preferences-dialog button { white-space: normal; height: auto; min-height: 40px; } }
+
+/* Editor de dibujos compartido por pantallas gráficas y matrices LED. */
+.pixel-editor-dialog { width: min(1100px, calc(100vw - 24px)); max-width: 1100px !important; max-height: calc(100dvh - 24px); overflow-y: auto; }
+.pixel-editor-tools, .pixel-editor-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.pixel-editor-tools button, .pixel-editor-actions button { min-height: 40px; height: auto; }
+.pixel-editor-body { display: grid; grid-template-columns: minmax(0, 1fr) 170px; gap: 20px; align-items: start; }
+.pixel-editor-grid { display: grid; width: 100%; max-height: 58dvh; margin: auto; border: 3px solid #263055; background: #d9dcec; touch-action: none; user-select: none; }
+.pixel-editor-grid button { min-width: 0; min-height: 0; aspect-ratio: 1; padding: 0; border: 1px solid rgba(38,48,85,.22); border-radius: 0; background: #fff; }
+.pixel-editor-grid button.on { background: #252d50; box-shadow: inset 0 0 0 1px #151a31; }
+.pixel-editor-grid button:focus-visible { position: relative; z-index: 1; outline: 3px solid #ef7b45; outline-offset: -2px; }
+.pixel-editor-body aside { display: grid; justify-items: center; gap: 12px; padding: 14px; border-radius: 14px; background: #f4f1ff; text-align: center; }
+.pixel-editor-preview { display: grid; gap: 0; padding: 8px; background: #11172b; border-radius: 8px; overflow: hidden; }
+.pixel-editor-preview i { display: block; width: 3px; height: 3px; background: #202943; }
+.pixel-editor-preview i.on { background: #ffca3a; box-shadow: 0 0 3px #ffca3a; }
+.led-matrix-preview i.on { opacity: var(--matrix-brightness, 1); }
+@media (max-width: 720px) { .pixel-editor-body { grid-template-columns: 1fr; } .pixel-editor-body aside { display: none; } .pixel-editor-dialog { padding: 14px; } }
 @media (max-width: 950px) { .review-lab { grid-template-columns: minmax(0, 1fr); } .review-blocks .blockly-shell { height: 400px; } .review-header { flex-direction: column; } }
 @media (max-width: 540px) { .review-page { padding: 16px 10px; } .review-blocks, .review-stage, .review-feedback, .feedback-card { padding: 12px; } .review-toolbar label { width: 100%; } .review-page .account-actions > * { max-width: 100%; } .feedback-composer { padding: 12px; } }
 

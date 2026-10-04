@@ -40,7 +40,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 40 | Software entregado: movimiento e identificación; físico pendiente | 37 | Eventos cooperativos, privacidad y buses validados |
 | 41 | Software entregado: actuación y medición avanzada; físico pendiente | 37 | Planificador cooperativo, privacidad GPS y hardware concreto |
 | 42 | Simplificación integral de la interfaz | Pedido del 25 de septiembre | Inventario de funciones y recorridos; fase 20 como patrón de divulgación progresiva |
-| 43 | Efectos y animaciones de pantallas | Pedidos 39 y 42 | Motor cooperativo existente, perfiles de fase 23 e intérprete versionado |
+| 43 | Software entregado; DEV/físico pendientes | Pedidos 39 y 42 | Motor cooperativo, perfiles de fase 23 e intérprete 1.7.0 |
 | 44 | Laboratorio interactivo y autónomo en Waveshare | Pedido 45 | Fases 18, 20, 32, 34, 36 y escena visual de fase 45 |
 | 45 | Escenas atractivas y fidelidad visual completa | Pedidos 40 y 46 | Geometría/cámara de fase 12, renderer de fase 18 y perfiles de fase 17 |
 | Final | Producción, HTTPS, respaldos y piloto | Antigua fase 11 | Postergada hasta autorización explícita y validaciones de salida |
@@ -674,17 +674,16 @@ Aceptación: los recorridos principales deben poder completarse sin conocer la a
 
 ## Fase 43 — Efectos y animaciones de pantallas
 
-**Estado:** pendiente. **Objetivo:** ampliar de forma coherente, infantil y no
-bloqueante los efectos de Pantalla de texto y Matriz LED.
+**Estado:** terminada en software; DEV y aceptación física pendientes.
+**Objetivo:** ampliar de forma coherente, infantil y no bloqueante los efectos
+de Pantalla de texto y Matriz LED.
 
-Incluye un editor modal amplio para dibujos personalizados, con zoom, lápiz,
-borrador, línea, curva, formas, relleno, selección, historial y vista previa al
-tamaño real. También incluye desplazamiento horizontal y vertical cuando la geometría lo permite,
-parpadeo, máquina de escribir, encendido secuencial de letras, rebote, cartel
-continuo, persianas, apertura desde el centro y alternancia. OLED/TFT agregan
-transiciones, dibujos y reacciones de avatar; las matrices agregan patrones de
-puntos, onda, pulso y transiciones entre dibujos. Cada bloque conserva una vez,
-N veces o sin parar, cancelación/reemplazo y espera explícita.
+La entrega incorpora editor modal amplio, lápiz, borrador, línea, curva,
+rectángulos, elipse, relleno, transformaciones, historial y vista previa real;
+efectos horizontales/verticales, secuencia, rebote, persiana, centro, inversión
+y parpadeo; una/N/sin parar, cancelación/reemplazo y espera explícita. Matriz
+MAX7219 suma brillo programable 0–100%. Selección rectangular, importación,
+color y patrones generativos permanecen como ampliaciones del catálogo.
 
 No se ofrecen efectos imposibles para el perfil elegido ni se simulan como si
 existieran físicamente. Simulador, Arduino, ESP-IDF e intérprete deben compartir
@@ -753,7 +752,7 @@ El gateway sigue siendo sólo un salto SSH, con prohibición de cambios. Tampoco
 ## Cómo se trabaja y qué falta decidir
 
 - Una fase completa autorizada por vez, con implementación, pruebas proporcionales, entrega en DEV y commit/push. Informar avances con evidencia y pendientes; no inventar porcentajes ni tiempos exactos.
-- **Fases 11–14 y 29–33 entregadas; fases 15, 16, 27, 28 y 35–42 terminadas en software; fases 18, 20, 23, 34, 44 y 45 en curso.** Actualizar la documentación viva al cerrar cada entrega solicitada. No ejecutar las fases restantes, completar la aceptación física ni avanzar a producción sin autorización y hardware correspondientes.
+- **Fases 11–14 y 29–33 entregadas; fases 15, 16, 27, 28 y 35–43 terminadas en software; fases 18, 20, 23, 34, 44 y 45 en curso.** Actualizar la documentación viva al cerrar cada entrega solicitada. No ejecutar las fases restantes, completar la aceptación física ni avanzar a producción sin autorización y hardware correspondientes.
 - Para fase 17 hace falta el modelo Waveshare exacto antes de fijar drivers/pines; para cerrar las aceptaciones físicas de 15, 16 y 23 hace falta autorización para reemplazar firmware y los montajes correspondientes.
 - La fase 14 fija el paralelo como un contenedor con caminos apilados de arriba hacia abajo y mantiene fork/join. Desafíos y `según` se especifican en 19; display en 18; UX en 21; displays/matriz en 23; datos en 29; temporizadores en 30; procedimientos en 31; estados en 32; red en 33; servicios remotos en 34; RGB en 35; intérprete en 36; ayuda de componentes en 37; catálogo ampliado en 38–41; simplificación en 42; efectos de display en 43; experiencia Waveshare en 44; y escenas/fidelidad visual en 45. Son decisiones dentro de esas fases, no nuevas fases con letras.
 - No hay estimaciones horarias comprometidas: hardware, alcance de la adaptación gráfica y mediciones en la VM condicionan el esfuerzo. No retrasar ahora la planificación esperando esos datos, ni prometer implementaciones específicas de un modelo no identificado.

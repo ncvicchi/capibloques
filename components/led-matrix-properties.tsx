@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { PixelArtEditor } from '@/components/pixel-art-editor';
 import { Input } from '@/components/ui/input';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
-import { MAX_MATRIX_PATTERNS, MATRIX_HEIGHT, MATRIX_WIDTH, matrixPixel, type MatrixPattern } from '@/lib/led-matrix';
+import { MAX_MATRIX_PATTERNS, MATRIX_HEIGHT, MATRIX_WIDTH, type MatrixPattern } from '@/lib/led-matrix';
 import type { LedMatrixDevice } from '@/lib/scene-model';
 
 export function LedMatrixProperties({ device, onChange }: { device: LedMatrixDevice; onChange: (device: LedMatrixDevice) => void }) {
@@ -12,6 +13,7 @@ export function LedMatrixProperties({ device, onChange }: { device: LedMatrixDev
   const orientationId = `${device.id}-matrix-orientation`;
   const nameId = `${device.id}-matrix-pattern-name`;
   const [selectedId, setSelectedId] = useState(device.config.patterns[0]?.id ?? '');
+  const [editingPattern, setEditingPattern] = useState(false);
   const selected = device.config.patterns.find(pattern => pattern.id === selectedId) ?? device.config.patterns[0];
   const updatePatterns = (patterns: MatrixPattern[]) => onChange({ ...device, config: { ...device.config, patterns } });
   const updatePattern = (change: (pattern: MatrixPattern) => MatrixPattern) => {
@@ -58,14 +60,8 @@ export function LedMatrixProperties({ device, onChange }: { device: LedMatrixDev
         </div>
         {selected && <>
           <label htmlFor={nameId}>Nombre del dibujo</label><Input id={nameId} maxLength={30} value={selected.name} onChange={event => updatePattern(pattern => ({ ...pattern, name: event.target.value }))} />
-          <div className="matrix-pattern-editor" aria-label={`Editar ${selected.name}`}>
-            {Array.from({ length: MATRIX_HEIGHT }, (_, y) => Array.from({ length: MATRIX_WIDTH }, (_, x) => {
-              const bit = 2 ** (MATRIX_WIDTH - 1 - x);
-              const on = (selected.rows[y] ?? 0) % (bit * 2) >= bit;
-              return <button type="button" aria-label={`Columna ${x + 1}, fila ${y + 1}`} aria-pressed={on} key={`${x}-${y}`} className={on ? 'on' : ''} onClick={() => updatePattern(pattern => ({ ...pattern, rows: matrixPixel(pattern.rows, x, y, !on) }))} />;
-            }))}
-          </div>
-          <Button type="button" variant="outline" onClick={() => updatePattern(pattern => ({ ...pattern, rows: Array.from({ length: MATRIX_HEIGHT }, () => 0) }))}>Borrar dibujo</Button>
+          <Button type="button" onClick={() => setEditingPattern(true)}>🎨 Editar dibujo en grande</Button>
+          <PixelArtEditor open={editingPattern} name={selected.name} width={MATRIX_WIDTH} height={MATRIX_HEIGHT} rows={selected.rows} onCancel={() => setEditingPattern(false)} onSave={rows => { updatePattern(pattern => ({ ...pattern, rows })); setEditingPattern(false); }} />
         </>}
       </fieldset>
       <p className="display-portable-note">Mirá la matriz de frente y elegí de qué lado está DIN. Si los cuatro módulos aparecen 4‑3‑2‑1, elegí el otro lado. Esto no cambia el dibujo lógico.</p>

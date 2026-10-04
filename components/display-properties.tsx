@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { PixelArtEditor } from '@/components/pixel-art-editor';
 import {
   displayConfig,
   displayArtworks,
@@ -18,7 +19,6 @@ import {
   BUILTIN_DISPLAY_ARTWORKS,
   DISPLAY_ART_HEIGHT,
   DISPLAY_ART_WIDTH,
-  displayArtworkPixel,
   MAX_DISPLAY_ARTWORKS,
   type DisplayArtwork,
 } from '@/lib/display-graphics';
@@ -47,6 +47,7 @@ export function DisplayProperties({
   const [selectedArtworkId, setSelectedArtworkId] = useState(
     artworks[0]?.id ?? '',
   );
+  const [editingArtwork, setEditingArtwork] = useState(false);
   const selectedArtwork =
     artworks.find((item) => item.id === selectedArtworkId) ?? artworks[0];
   const completeGraphicConfig = (
@@ -431,47 +432,13 @@ export function DisplayProperties({
                     }
                   />
                 </label>
-                <div
-                  className="display-artwork-editor"
-                  aria-label={`Editar ${selectedArtwork.name}`}
-                >
-                  {Array.from({ length: DISPLAY_ART_HEIGHT }, (_, y) =>
-                    Array.from({ length: DISPLAY_ART_WIDTH }, (_, x) => {
-                      const bit = 2 ** (DISPLAY_ART_WIDTH - 1 - x);
-                      const on = (selectedArtwork.rows[y] ?? 0) % (bit * 2) >= bit;
-                      return (
-                        <button
-                          type="button"
-                          key={`${x}-${y}`}
-                          aria-label={`Columna ${x + 1}, fila ${y + 1}`}
-                          aria-pressed={on}
-                          className={on ? 'on' : ''}
-                          onClick={() =>
-                            updateArtwork((item) => ({
-                              ...item,
-                              rows: displayArtworkPixel(item.rows, x, y, !on),
-                            }))
-                          }
-                        />
-                      );
-                    }),
-                  )}
-                </div>
                 <Button
                   type="button"
-                  variant="outline"
-                  onClick={() =>
-                    updateArtwork((item) => ({
-                      ...item,
-                      rows: Array.from(
-                        { length: DISPLAY_ART_HEIGHT },
-                        () => 0,
-                      ),
-                    }))
-                  }
+                  onClick={() => setEditingArtwork(true)}
                 >
-                  Borrar dibujo
+                  🎨 Editar dibujo en grande
                 </Button>
+                <PixelArtEditor open={editingArtwork} name={selectedArtwork.name} width={DISPLAY_ART_WIDTH} height={DISPLAY_ART_HEIGHT} rows={selectedArtwork.rows} onCancel={() => setEditingArtwork(false)} onSave={rows => { updateArtwork(item => ({ ...item, rows })); setEditingArtwork(false); }} />
               </>
             )}
           </fieldset>

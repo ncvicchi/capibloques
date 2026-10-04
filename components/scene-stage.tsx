@@ -340,7 +340,7 @@ function DeviceVisual({
         onDashboardAction={onDashboardAction}
       />
     );
-  if (device.kind === 'ledMatrix') return <LedMatrixPreview device={device} rows={runtime?.rows} />;
+  if (device.kind === 'ledMatrix') return <LedMatrixPreview device={device} rows={runtime?.rows} brightness={runtime?.brightness} />;
   if (device.kind === 'messages') return <span className="stage-messages" aria-hidden="true">↔️<small>{device.config.mode === 'send' ? 'enviar' : device.config.mode === 'receive' ? 'recibir' : 'ambos'}</small></span>;
   if (device.kind === 'trafficLight') {
     const color = runtime?.color ?? 'OFF';

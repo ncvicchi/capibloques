@@ -101,11 +101,13 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
     case 'capi_display_animate_text':
     case 'capi_display_artwork':
       return ['display'];
+    case 'capi_visual_stop':
     case 'capi_visual_wait':
       return ['display', 'ledMatrix', 'smartLights'];
     case 'capi_matrix_clear':
     case 'capi_matrix_pixel':
     case 'capi_matrix_pattern':
+    case 'capi_matrix_brightness':
     case 'capi_matrix_scroll':
       return ['ledMatrix'];
     case 'capi_message_send':
@@ -874,6 +876,7 @@ const toolbox = {
         { kind: 'block', type: 'capi_display_animate_text' },
         { kind: 'block', type: 'capi_display_artwork' },
         { kind: 'block', type: 'capi_display_clear' },
+        { kind: 'block', type: 'capi_visual_stop' },
         { kind: 'block', type: 'capi_visual_wait' },
       ],
     },
@@ -885,7 +888,9 @@ const toolbox = {
         { kind: 'block', type: 'capi_matrix_clear' },
         { kind: 'block', type: 'capi_matrix_pixel' },
         { kind: 'block', type: 'capi_matrix_pattern' },
+        { kind: 'block', type: 'capi_matrix_brightness' },
         { kind: 'block', type: 'capi_matrix_scroll' },
+        { kind: 'block', type: 'capi_visual_stop' },
         { kind: 'block', type: 'capi_visual_wait' },
       ],
     },
@@ -2790,8 +2795,15 @@ function registerBlocks(Blockly: BlocklyApi) {
           type: 'field_dropdown',
           name: 'EFFECT',
           options: [
-            ['aparecer', 'TYPE'],
-            ['desplazarse', 'SCROLL'],
+            ['máquina de escribir', 'TYPE'],
+            ['letras en secuencia', 'SEQUENCE'],
+            ['entrar desde la derecha', 'SCROLL'],
+            ['entrar desde la izquierda', 'SCROLL_RIGHT'],
+            ['subir por filas', 'SCROLL_UP'],
+            ['bajar por filas', 'SCROLL_DOWN'],
+            ['rebotar', 'BOUNCE'],
+            ['persiana', 'BLINDS'],
+            ['abrir desde el centro', 'CENTER'],
             ['parpadear', 'BLINK'],
           ],
         },
@@ -2838,7 +2850,11 @@ function registerBlocks(Blockly: BlocklyApi) {
           name: 'EFFECT',
           options: [
             ['quieto', 'STILL'],
-            ['deslizar', 'SLIDE'],
+            ['entrar desde la derecha', 'SLIDE'],
+            ['entrar desde la izquierda', 'SLIDE_RIGHT'],
+            ['persiana', 'BLINDS'],
+            ['abrir desde el centro', 'CENTER'],
+            ['invertir', 'INVERT'],
             ['parpadear', 'BLINK'],
           ],
         },
@@ -2869,6 +2885,16 @@ function registerBlocks(Blockly: BlocklyApi) {
       extensions: [DEVICE_EXTENSION, ANIMATION_REPEAT_EXTENSION],
       tooltip:
         'Muestra un dibujo y, si tiene efecto, lo anima en segundo plano.',
+    },
+    {
+      type: 'capi_visual_stop',
+      message0: '⏹️ detener efecto de %1',
+      args0: [deviceField('Elegí una pantalla o luces')],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#59627D',
+      extensions: [DEVICE_EXTENSION],
+      tooltip: 'Detiene el efecto actual y conserva el último cuadro visible.',
     },
     {
       type: 'capi_visual_wait',
@@ -2944,6 +2970,19 @@ function registerBlocks(Blockly: BlocklyApi) {
       colour: '#B47B00',
       extensions: [DEVICE_EXTENSION],
       tooltip: 'Muestra uno de los dibujos creados en la escena.',
+    },
+    {
+      type: 'capi_matrix_brightness',
+      message0: '☀️ brillo de %1 al %2 %%',
+      args0: [
+        deviceField('Elegí una matriz'),
+        { type: 'field_number', name: 'BRIGHTNESS', value: 50, min: 0, max: 100, precision: 1 },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: '#B47B00',
+      extensions: [DEVICE_EXTENSION],
+      tooltip: 'Cambia el brillo de 0 a 100%. La matriz lo convierte a sus 16 niveles reales.',
     },
     {
       type: 'capi_matrix_scroll',
@@ -3853,39 +3892,47 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
         });
         break;
       case 'capi_display_animate_text':
+        {
+          const effects: Record<string, import('./display-graphics.ts').DisplayTextEffect> = {
+            SCROLL: 'scroll', SCROLL_RIGHT: 'scroll-right', SCROLL_UP: 'scroll-up', SCROLL_DOWN: 'scroll-down',
+            BLINK: 'blink', SEQUENCE: 'sequence', BOUNCE: 'bounce', BLINDS: 'blinds', CENTER: 'center', TYPE: 'type',
+          };
         result.push({
           op: 'displayAnimateText',
           deviceId: selectedDeviceId(block),
           areaId: String(block.getFieldValue(AREA_FIELD) ?? ''),
           text: String(block.getFieldValue('TEXT') ?? ''),
-          effect:
-            block.getFieldValue('EFFECT') === 'SCROLL'
-              ? 'scroll'
-              : block.getFieldValue('EFFECT') === 'BLINK'
-                ? 'blink'
-                : 'type',
+          effect: effects[String(block.getFieldValue('EFFECT'))] ?? 'type',
           repeatCount: animationRepeatCount(block),
           blockId,
         });
+        }
         break;
       case 'capi_display_artwork':
+        {
+          const effects: Record<string, import('./display-graphics.ts').DisplayArtworkEffect> = {
+            SLIDE: 'slide', SLIDE_RIGHT: 'slide-right', BLINK: 'blink', BLINDS: 'blinds', CENTER: 'center', INVERT: 'invert', STILL: 'still',
+          };
         result.push({
           op: 'displayArtwork',
           deviceId: selectedDeviceId(block),
           artworkId: String(block.getFieldValue(DISPLAY_ARTWORK_FIELD) ?? ''),
-          effect:
-            block.getFieldValue('EFFECT') === 'SLIDE'
-              ? 'slide'
-              : block.getFieldValue('EFFECT') === 'BLINK'
-                ? 'blink'
-                : 'still',
+          effect: effects[String(block.getFieldValue('EFFECT'))] ?? 'still',
           repeatCount: animationRepeatCount(block),
           blockId,
         });
+        }
         break;
       case 'capi_visual_wait':
         result.push({
           op: 'visualWait',
+          deviceId: selectedDeviceId(block),
+          blockId,
+        });
+        break;
+      case 'capi_visual_stop':
+        result.push({
+          op: 'visualStop',
           deviceId: selectedDeviceId(block),
           blockId,
         });
@@ -3912,6 +3959,14 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           op: 'matrixPattern',
           deviceId: selectedDeviceId(block),
           patternId: String(block.getFieldValue(PATTERN_FIELD) ?? ''),
+          blockId,
+        });
+        break;
+      case 'capi_matrix_brightness':
+        result.push({
+          op: 'matrixBrightness',
+          deviceId: selectedDeviceId(block),
+          brightness: numberField(block, 'BRIGHTNESS', 50),
           blockId,
         });
         break;

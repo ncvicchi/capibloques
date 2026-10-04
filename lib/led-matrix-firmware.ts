@@ -24,6 +24,7 @@ CapiMatrixAnimation capiMatrixAnimation;
 void capiMatrixFlush();
 void capiMatrixClear();
 void capiMatrixPattern(const uint32_t* rows);
+void capiMatrixBrightness(uint8_t percent);
 void capiMatrixPixel(uint8_t x, uint8_t y, bool enabled);
 void capiMatrixStartScroll(const char* text, uint16_t speedMs, uint16_t repeatCount, uint32_t now);
 void capiMatrixService(uint32_t now);
@@ -62,6 +63,7 @@ void capiMatrixFlush() {
 void capiMatrixCancel() { capiMatrixAnimation.active = false; }
 void capiMatrixClear() { capiMatrixCancel(); memset(capiMatrixRows, 0, sizeof(capiMatrixRows)); capiMatrixFlush(); }
 void capiMatrixPattern(const uint32_t* rows) { capiMatrixCancel(); memcpy(capiMatrixRows, rows, sizeof(capiMatrixRows)); capiMatrixFlush(); }
+void capiMatrixBrightness(uint8_t percent) { capiMatrixRegister(0x0A, (uint8_t)((percent > 100 ? 100 : percent) * 15U / 100U)); }
 void capiMatrixPixel(uint8_t x, uint8_t y, bool enabled) {
   capiMatrixCancel(); if (x > 31 || y > 7) return; const uint32_t mask = 1UL << (31 - x);
   if (enabled) capiMatrixRows[y] |= mask; else capiMatrixRows[y] &= ~mask; capiMatrixFlush();

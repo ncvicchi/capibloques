@@ -1,6 +1,38 @@
 # Fase 43 — Efectos y animaciones de pantallas
 
-**Estado:** pendiente de autorización e implementación.
+**Estado al 4 de octubre de 2026:** **entregada en software; DEV y aceptación física pendientes**.
+
+## Entrega implementada
+
+- Pantalla de texto conserva un solo bloque de animación y ahora permite máquina
+  de escribir, letras en secuencia, entrada horizontal desde ambos lados,
+  desplazamiento vertical, rebote, persiana, apertura desde el centro y
+  parpadeo. Dibujo gráfico ofrece quieto, entrada desde ambos lados, persiana,
+  apertura central, invertir y parpadear.
+- Una vez, N veces y sin parar comparten el planificador cooperativo existente.
+  `detener efecto` cancela explícitamente y conserva el cuadro actual;
+  `esperar a que termine` sólo espera en su camino. Escribir, borrar o iniciar
+  otro efecto reemplaza al anterior.
+- Pantalla gráfica y Matriz LED comparten un editor modal grande 16 × 8 o
+  32 × 8. Incluye lápiz, borrador, línea, curva rasterizada, rectángulo vacío o
+  lleno, elipse, balde, desplazamientos, volteos, invertir, limpiar,
+  Deshacer/Rehacer y vista previa real. Mouse, táctil y activación de píxeles
+  por teclado trabajan sobre un borrador local: Cancelar no toca la escena y
+  Guardar produce un solo cambio reversible desde el editor de escena.
+- Matriz LED incorpora `poner brillo ... al ... %`; simulador, Arduino,
+  ESP-IDF e intérprete convierten 0–100% a los 16 niveles MAX7219. El brillo
+  inicial 0–15 sigue en la escena y los proyectos anteriores siguen siendo
+  válidos.
+- CapiRules conserva formato 1/ABI 1 y exige intérprete **1.7.0**. El firmware
+  anterior se detecta antes de enviar reglas y la interfaz ofrece actualizarlo.
+- Pruebas automáticas cubren herramientas geométricas, relleno, transformaciones,
+  tiempos acotados, migración JSON, código Arduino/ESP-IDF, CapiRules, fuente del
+  intérprete, tipos, lint, build y el recorrido visual del modal.
+
+Quedan como ampliaciones posteriores del catálogo —no como promesas falsas del
+hardware actual— selección rectangular/copiar/pegar, importación de imágenes,
+color, fundidos/zoom y patrones generativos de matriz. La aceptación física
+queda pendiente en LCD 16 × 2, LCD 20 × 4, SSD1306, ILI9341/ILI9488 y MAX7219.
 
 ## Objetivo
 
@@ -144,7 +176,7 @@ visual, no una medición de luminosidad o corriente.
 - Parpadeos rápidos, destellos intensos y frecuencias riesgosas quedan
   excluidos; los estados importantes conservan texto accesible.
 
-## Orden sugerido de implementación
+## Orden implementado y extensible
 
 1. Unificar el motor de línea de tiempo y su tabla de capacidades por perfil.
 2. Sustituir la cuadrícula pequeña por el editor modal con herramientas,

@@ -97,7 +97,7 @@ type VisualAnimation =
       deviceId: string;
       areaId: string;
       text: string;
-      effect: 'type' | 'scroll' | 'blink';
+      effect: import('./display-graphics.ts').DisplayTextEffect;
       speedMs: number;
     }
   | {
@@ -107,7 +107,7 @@ type VisualAnimation =
       cycleMs: number;
       deviceId: string;
       rows: number[];
-      effect: 'slide' | 'blink';
+      effect: Exclude<import('./display-graphics.ts').DisplayArtworkEffect, 'still'>;
       speedMs: number;
     }
   | {
@@ -258,7 +258,7 @@ function finiteDegrees(value: number) {
 // @ts-expect-error Node strip-types runner.
 import { displayArtworks, displayTargets, layoutDisplayText } from './display-model.ts';
 // @ts-expect-error Node strip-types tests import the source extension.
-import { displayAnimationMs, displayArtworkById } from './display-graphics.ts';
+import { displayAnimationMs, displayArtworkById, displayArtworkEffectSteps, displayTextEffectSteps } from './display-graphics.ts';
 
 function runtimeForDevice(device: SceneDevice): RuntimeDeviceState {
   if (isEducationalModuleKind(device.kind))
@@ -288,6 +288,7 @@ function runtimeForDevice(device: SceneDevice): RuntimeDeviceState {
         kind: 'ledMatrix',
         rows: Array.from({ length: 8 }, () => 0),
         scrolling: false,
+        brightness: Math.round(device.config.brightness * 100 / 15),
       };
     case 'messages':
       return { kind: 'messages', received: [], transmitted: [], damaged: 0 };
@@ -893,6 +894,8 @@ function evaluateValue(expression: ValueExpression): number | string | boolean {
         return device.color;
       if (device.kind === 'led' && expression.property === 'brightness')
         return device.brightness;
+      if (device.kind === 'ledMatrix' && expression.property === 'brightness')
+        return device.brightness;
       if (device.kind === 'robot' && expression.property === 'motion') {
         if (device.left === 0 && device.right === 0) return 'STOP';
         if (device.left > 0 && device.right > 0) return 'FORWARD';
@@ -1170,7 +1173,7 @@ function updateVisualAnimations() {
       if (device?.kind === 'display' && area) {
         const final = layoutDisplayText(animation.text, area);
         const step = Math.floor(cycleElapsed / animation.speedMs);
-        if (animation.effect === 'type') {
+        if (animation.effect === 'type' || animation.effect === 'sequence') {
           const count = final.cells.length;
           const chunk = Math.ceil(count / 24);
           const visible = Math.min(count, (step + 1) * chunk);
@@ -1184,6 +1187,22 @@ function updateVisualAnimations() {
             (line) =>
               `${' '.repeat(area.columns - offset)}${line.slice(0, offset)}`,
           );
+        } else if (animation.effect === 'scroll-right') {
+          const offset = Math.min(area.columns, step + 1);
+          device.texts[animation.areaId] = final.lines.map(line => `${line.slice(area.columns - offset)}${' '.repeat(area.columns - offset)}`);
+        } else if (animation.effect === 'scroll-up' || animation.effect === 'scroll-down') {
+          const offset = Math.min(area.rows, step + 1);
+          const blanks = Array.from({ length: area.rows - offset }, () => ' '.repeat(area.columns));
+          device.texts[animation.areaId] = animation.effect === 'scroll-up' ? [...blanks, ...final.lines.slice(0, offset)] : [...final.lines.slice(area.rows - offset), ...blanks];
+        } else if (animation.effect === 'bounce') {
+          const phase = step < area.columns ? step + 1 : Math.max(1, area.columns * 2 - step - 1);
+          device.texts[animation.areaId] = final.lines.map(line => `${' '.repeat(area.columns - phase)}${line.slice(0, phase)}`);
+        } else if (animation.effect === 'blinds') {
+          const reveal = Math.min(Math.ceil(area.columns / 2), step + 1);
+          device.texts[animation.areaId] = final.lines.map(line => Array.from(line, (character, x) => Math.floor(x / 2) < reveal ? character : ' ').join(''));
+        } else if (animation.effect === 'center') {
+          const radius = Math.min(Math.ceil(area.columns / 2), step + 1), middle = (area.columns - 1) / 2;
+          device.texts[animation.areaId] = final.lines.map(line => Array.from(line, (character, x) => Math.abs(x - middle) < radius ? character : ' ').join(''));
         } else {
           device.texts[animation.areaId] =
             step % 2 === 0
@@ -1202,11 +1221,19 @@ function updateVisualAnimations() {
     } else {
       if (device?.kind === 'display') {
         const step = Math.floor(cycleElapsed / animation.speedMs);
-        if (animation.effect === 'slide') {
+        if (animation.effect === 'slide' || animation.effect === 'slide-right') {
           const shift = Math.max(0, 16 - (step + 1));
           device.artworkRows = animation.rows.map((row) =>
-            shift ? Math.floor(row / 2 ** shift) : row,
+            animation.effect === 'slide' ? (shift ? Math.floor(row / 2 ** shift) : row) : row % 2 ** (16 - shift) * 2 ** shift,
           );
+        } else if (animation.effect === 'blinds') {
+          const visible = Math.min(16, (step + 1) * 2), mask = visible >= 16 ? 0xffff : (2 ** visible - 1) * 2 ** (16 - visible);
+          device.artworkRows = animation.rows.map(row => row % 0x10000 & mask);
+        } else if (animation.effect === 'center') {
+          const radius = Math.min(8, step + 1), mask = (2 ** (radius * 2) - 1) * 2 ** (8 - radius);
+          device.artworkRows = animation.rows.map(row => row % 0x10000 & mask);
+        } else if (animation.effect === 'invert') {
+          device.artworkRows = animation.rows.map(row => step % 2 === 0 ? 0xffff - row : row);
         } else {
           device.artworkRows =
             step % 2 === 0
@@ -1580,12 +1607,7 @@ function executeInstruction(
         ? displayAnimationMs(definition.config.animationSpeed)
         : 200;
     const cells = area ? area.columns * area.rows : 1;
-    const steps =
-      node.effect === 'type'
-        ? Math.min(24, cells)
-        : node.effect === 'scroll'
-          ? (area?.columns ?? 1)
-          : 5;
+    const steps = displayTextEffectSteps(node.effect, area?.columns ?? 1, area?.rows ?? 1, cells);
     const cycleMs = Math.max(1, steps) * speedMs;
     visualAnimations.set(node.deviceId, {
       kind: 'displayText',
@@ -1632,7 +1654,7 @@ function executeInstruction(
       definition?.kind === 'display'
         ? displayAnimationMs(definition.config.animationSpeed)
         : 200;
-    const cycleMs = (node.effect === 'slide' ? 16 : 5) * speedMs;
+    const cycleMs = displayArtworkEffectSteps(node.effect) * speedMs;
     visualAnimations.set(node.deviceId, {
       kind: 'displayArtwork',
       startedAt: virtualNow,
@@ -1661,6 +1683,11 @@ function executeInstruction(
       blockId: node.blockId,
     };
     return 'wait';
+  }
+  if (node.op === 'visualStop') {
+    cancelVisualAnimation(node.deviceId);
+    execution.pc += 1;
+    return 'action';
   }
   if (node.op === 'timerWait') {
     const timer = state.timers[node.timerId];
@@ -2097,6 +2124,14 @@ function executeInstruction(
       }
       break;
     }
+    case 'matrixBrightness': {
+      const device = state.devices[node.deviceId];
+      if (device?.kind === 'ledMatrix') {
+        device.brightness = Math.max(0, Math.min(100, node.brightness));
+        appendConsole(`${deviceName(node.deviceId)}: brillo ${Math.round(device.brightness)}%.`);
+      }
+      break;
+    }
     case 'counterChange':
       state.counter = addCounterValues(state.counter, node.delta);
       appendConsole(`Contador = ${state.counter}`);
@@ -2359,6 +2394,9 @@ function executeOne(execution: ThreadExecution) {
       case 'visualWait':
         message = `Esperamos que termine ${deviceName(node.deviceId)} sin detener los otros caminos.`;
         break;
+      case 'visualStop':
+        message = `${deviceName(node.deviceId)}: detenemos el efecto y conservamos el cuadro actual.`;
+        break;
       case 'timerWait':
         message = 'Esperamos el próximo evento sin detener los otros caminos.';
         break;
@@ -2382,6 +2420,9 @@ function executeOne(execution: ThreadExecution) {
         break;
       case 'matrixPattern':
         message = `${deviceName(node.deviceId)}: mostramos el dibujo elegido.`;
+        break;
+      case 'matrixBrightness':
+        message = `${deviceName(node.deviceId)}: brillo al ${Math.round(node.brightness)}%.`;
         break;
       case 'buzzer':
       case 'tone':

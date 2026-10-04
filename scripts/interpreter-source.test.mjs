@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 
 const source = await readFile(new URL('../interpreter/main/main.cpp', import.meta.url), 'utf8');
 
-for (const operation of ['trafficVehicleDisplay', 'trafficPedestrianDisplay', 'servo', 'buzzer', 'tone', 'wifi', 'wifiMessageSend', 'wifiMessageReceiveWait', 'timerStart', 'timerRestart', 'timerPause', 'timerResume', 'timerStop', 'timerWait', 'otto', 'ottoSound', 'ottoExpression', 'ottoArms', 'displayWrite', 'displayClear', 'displayAnimateText', 'displayArtwork', 'matrixScroll', 'visualWait', 'messageSend', 'messageReceiveWait', 'rgbFill', 'rgbPixel', 'rgbSegment', 'rgbCoordinate', 'rgbGradient', 'rgbPattern', 'rgbAnimation'])
+for (const operation of ['trafficVehicleDisplay', 'trafficPedestrianDisplay', 'servo', 'buzzer', 'tone', 'wifi', 'wifiMessageSend', 'wifiMessageReceiveWait', 'timerStart', 'timerRestart', 'timerPause', 'timerResume', 'timerStop', 'timerWait', 'otto', 'ottoSound', 'ottoExpression', 'ottoArms', 'displayWrite', 'displayClear', 'displayAnimateText', 'displayArtwork', 'matrixBrightness', 'matrixScroll', 'visualStop', 'visualWait', 'messageSend', 'messageReceiveWait', 'rgbFill', 'rgbPixel', 'rgbSegment', 'rgbCoordinate', 'rgbGradient', 'rgbPattern', 'rgbAnimation'])
   assert.match(source, new RegExp(`"${operation}"`), `missing interpreter operation ${operation}`);
 for (const capability of ['traffic-display', 'parallel', 'variables', 'timers', 'component-state', 'servo', 'buzzer', 'wifi', 'wifi-messages', 'otto', 'display-lcd', 'display-keypad', 'display-ssd1306', 'display-ili9341', 'display-ili9488', 'matrix', 'messages', 'smart-lights', 'step', 'touch-inputs', 'autonomous-controls'])
   assert.match(source, new RegExp(`"${capability}"`), `missing negotiated capability ${capability}`);
@@ -15,7 +15,7 @@ assert.match(source, /CONFIG_PAIR/);
 assert.match(source, /hardwareId/);
 assert.match(source, /PAIR_CONFIGURED/);
 assert.match(source, /MAX_RULES = 32 \* 1024/);
-assert.match(source, /#define CAPI_FIRMWARE_VERSION "1\.6\.0"/);
+assert.match(source, /#define CAPI_FIRMWARE_VERSION "1\.7\.0"/);
 assert.match(source, /else if \(!strcmp\(type,"STEP"\)\)/);
 assert.match(source, /waveshare_touch_service/);
 assert.match(source, /ws_virtual_input/);

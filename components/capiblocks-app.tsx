@@ -218,7 +218,7 @@ function runtimeFromDevice(
         animation: null,
         pressedButton: null,
       };
-    case 'ledMatrix': return { kind: 'ledMatrix', rows: Array.from({ length: 8 }, () => 0), scrolling: false };
+      case 'ledMatrix': return { kind: 'ledMatrix', rows: Array.from({ length: 8 }, () => 0), scrolling: false, brightness: Math.round(device.config.brightness * 100 / 15) };
     case 'messages': return { kind: 'messages', received: [], transmitted: [], damaged: 0 };
     case 'trafficLight':
       return { kind: device.kind, color: 'OFF', vehicleDisplay: 'OFF', pedestrianDisplay: 'OFF' };

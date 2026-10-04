@@ -213,10 +213,12 @@ export type ProgramNode =
   | { op: 'displayClear'; deviceId: string; areaId: string; blockId: string }
   | { op: 'displayAnimateText'; deviceId: string; areaId: string; text: string; effect: DisplayTextEffect; repeatCount: number; blockId: string }
   | { op: 'displayArtwork'; deviceId: string; artworkId: string; effect: DisplayArtworkEffect; repeatCount: number; blockId: string }
+  | { op: 'visualStop'; deviceId: string; blockId: string }
   | { op: 'visualWait'; deviceId: string; blockId: string }
   | { op: 'matrixClear'; deviceId: string; blockId: string }
   | { op: 'matrixPixel'; deviceId: string; x: number; y: number; enabled: boolean; blockId: string }
   | { op: 'matrixPattern'; deviceId: string; patternId: string; blockId: string }
+  | { op: 'matrixBrightness'; deviceId: string; brightness: number; blockId: string }
   | { op: 'matrixScroll'; deviceId: string; text: string; speedMs: number; repeatCount: number; blockId: string }
   | {
       op: 'tone';
@@ -331,7 +333,7 @@ export type RuntimeDeviceState =
       animation: string | null;
       pressedButton: 'RIGHT' | 'UP' | 'DOWN' | 'LEFT' | 'SELECT' | null;
     }
-  | { kind: 'ledMatrix'; rows: number[]; scrolling: boolean }
+  | { kind: 'ledMatrix'; rows: number[]; scrolling: boolean; brightness: number }
   | {
       kind: 'trafficLight';
       color: 'RED' | 'YELLOW' | 'GREEN' | 'OFF';
@@ -1871,10 +1873,12 @@ const compatibleKindsForNode = (
     case 'displayClear':
     case 'displayAnimateText':
     case 'displayArtwork': return ['display'];
+    case 'visualStop':
     case 'visualWait': return ['display', 'ledMatrix', 'smartLights'];
     case 'matrixClear':
     case 'matrixPixel':
     case 'matrixPattern':
+    case 'matrixBrightness':
     case 'matrixScroll': return ['ledMatrix'];
     case 'messageSend':
     case 'messageReceive': return ['messages'];
@@ -2347,7 +2351,7 @@ function normalizeNodes(
           deviceId: typeof node.deviceId === 'string' ? node.deviceId : '',
           areaId: typeof node.areaId === 'string' ? node.areaId : '',
           text: typeof node.text === 'string' ? node.text : '',
-          effect: ['type', 'scroll', 'blink'].includes(String(node.effect)) ? node.effect as DisplayTextEffect : 'type',
+          effect: ['type', 'scroll', 'scroll-right', 'scroll-up', 'scroll-down', 'blink', 'sequence', 'bounce', 'blinds', 'center'].includes(String(node.effect)) ? node.effect as DisplayTextEffect : 'type',
           repeatCount: node.repeatCount === 0 ? 0 : Math.max(1, Math.min(100, Math.floor(finiteNumber(node.repeatCount, 1)))),
           blockId,
         });
@@ -2357,13 +2361,16 @@ function normalizeNodes(
           op: 'displayArtwork',
           deviceId: typeof node.deviceId === 'string' ? node.deviceId : '',
           artworkId: typeof node.artworkId === 'string' ? node.artworkId : '',
-          effect: ['still', 'slide', 'blink'].includes(String(node.effect)) ? node.effect as DisplayArtworkEffect : 'still',
+          effect: ['still', 'slide', 'slide-right', 'blink', 'blinds', 'center', 'invert'].includes(String(node.effect)) ? node.effect as DisplayArtworkEffect : 'still',
           repeatCount: node.repeatCount === 0 ? 0 : Math.max(1, Math.min(100, Math.floor(finiteNumber(node.repeatCount, 1)))),
           blockId,
         });
         break;
       case 'visualWait':
         result.push({ op: 'visualWait', deviceId: typeof node.deviceId === 'string' ? node.deviceId : '', blockId });
+        break;
+      case 'visualStop':
+        result.push({ op: 'visualStop', deviceId: typeof node.deviceId === 'string' ? node.deviceId : '', blockId });
         break;
       case 'matrixClear':
         result.push({ op: 'matrixClear', deviceId, blockId });
@@ -2373,6 +2380,9 @@ function normalizeNodes(
         break;
       case 'matrixPattern':
         result.push({ op: 'matrixPattern', deviceId, patternId: typeof node.patternId === 'string' ? node.patternId : '', blockId });
+        break;
+      case 'matrixBrightness':
+        result.push({ op: 'matrixBrightness', deviceId, brightness: Math.max(0, Math.min(100, finiteNumber(node.brightness, 50))), blockId });
         break;
       case 'matrixScroll':
         result.push({ op: 'matrixScroll', deviceId, text: typeof node.text === 'string' ? node.text : '', speedMs: finiteNumber(node.speedMs, 120), repeatCount: node.repeatCount === 0 ? 0 : Math.max(1, Math.min(100, Math.floor(finiteNumber(node.repeatCount, 1)))), blockId });
@@ -2931,11 +2941,12 @@ export function validateProgramForScene(
           diagnostics.push({ severity: 'error', code: 'display-artwork-missing', message: `${device.name}: elegí un dibujo que todavía exista.`, blockId: node.blockId, deviceId: node.deviceId });
       }
     }
-    if (node.op === 'matrixClear' || node.op === 'matrixPixel' || node.op === 'matrixPattern' || node.op === 'matrixScroll') {
+    if (node.op === 'matrixClear' || node.op === 'matrixPixel' || node.op === 'matrixPattern' || node.op === 'matrixBrightness' || node.op === 'matrixScroll') {
       const device = deviceMap.get(node.deviceId);
       if (device?.kind === 'ledMatrix' && !validMatrixConfig(device.config)) diagnostics.push({ severity: 'error', code: 'matrix-config-invalid', message: `${device.name}: la configuración de la matriz está dañada.`, blockId: node.blockId, deviceId: node.deviceId });
       if (node.op === 'matrixPixel' && (!Number.isInteger(node.x) || node.x < 0 || node.x > 31 || !Number.isInteger(node.y) || node.y < 0 || node.y > 7)) diagnostics.push({ severity: 'error', code: 'matrix-pixel-range', message: 'El punto debe estar entre x 0–31 e y 0–7.', blockId: node.blockId, deviceId: node.deviceId });
       if (node.op === 'matrixPattern' && device?.kind === 'ledMatrix' && !device.config.patterns.some(pattern => pattern.id === node.patternId)) diagnostics.push({ severity: 'error', code: 'matrix-pattern-missing', message: `${device.name}: elegí un dibujo que todavía exista.`, blockId: node.blockId, deviceId: node.deviceId });
+      if (node.op === 'matrixBrightness' && (!Number.isFinite(node.brightness) || node.brightness < 0 || node.brightness > 100)) diagnostics.push({ severity: 'error', code: 'matrix-brightness-range', message: 'El brillo debe estar entre 0 y 100%.', blockId: node.blockId, deviceId: node.deviceId });
       if (node.op === 'matrixScroll') {
         if (!node.text.trim() || node.text.length > MAX_MATRIX_TEXT) diagnostics.push({ severity: 'error', code: 'matrix-text-limit', message: `El texto debe tener entre 1 y ${MAX_MATRIX_TEXT} caracteres.`, blockId: node.blockId, deviceId: node.deviceId });
         if (!Number.isFinite(node.speedMs) || node.speedMs < 40 || node.speedMs > 1000) diagnostics.push({ severity: 'error', code: 'matrix-speed-range', message: 'La velocidad debe estar entre 40 y 1000 ms por paso.', blockId: node.blockId, deviceId: node.deviceId });
@@ -3581,7 +3592,7 @@ function instructionToCpp(
       const area = device?.kind === 'display' && validDisplayConfig(device.config) ? displayTargets(device.config).find(area => area.id === instruction.areaId) : undefined;
       if (!area || device?.kind !== 'display')
         return `${comment}\n        // Destino inválido: revisar el diagnóstico #error.\n        ${pc} = ${nextPc};\n        break;`;
-      const effect = instruction.effect === 'scroll' ? 1 : instruction.effect === 'blink' ? 2 : 0;
+      const effect = ({ type: 0, scroll: 1, blink: 2, 'scroll-right': 3, 'scroll-up': 4, 'scroll-down': 5, sequence: 6, bounce: 7, blinds: 8, center: 9 } as const)[instruction.effect];
       return `${comment}\n        capiDisplayStartText(${area.column}, ${area.row}, ${area.columns}, ${area.rows}, ${cppString(layoutDisplayText(instruction.text, area).cells)}, ${effect}, ${displayAnimationMs(device.config.animationSpeed)}, ${Math.max(0, Math.min(100, Math.round(instruction.repeatCount)))}U, now);\n        ${pc} = ${nextPc};\n        break;`;
     }
     case 'displayArtwork': {
@@ -3589,7 +3600,7 @@ function instructionToCpp(
       const artwork = device?.kind === 'display' ? displayArtworkById(displayArtworks(device.config), instruction.artworkId) : undefined;
       if (!artwork || device?.kind !== 'display')
         return `${comment}\n        // Dibujo inválido: revisar el diagnóstico #error.\n        ${pc} = ${nextPc};\n        break;`;
-      const effect = instruction.effect === 'slide' ? 1 : instruction.effect === 'blink' ? 2 : 0;
+      const effect = ({ still: 0, slide: 1, blink: 2, 'slide-right': 3, blinds: 4, center: 5, invert: 6 } as const)[instruction.effect];
       return `${comment}\n        capiDisplayStartArtwork(DISPLAY_ART_${deviceSymbol(context, instruction.deviceId)}_${cppIdentifier(artwork.id)}, ${effect}, ${displayAnimationMs(device.config.animationSpeed)}, ${Math.max(0, Math.min(100, Math.round(instruction.repeatCount)))}U, now);\n        ${pc} = ${nextPc};\n        break;`;
     }
     case 'visualWait': {
@@ -3603,12 +3614,19 @@ function instructionToCpp(
             : 'false';
       return `${comment}\n        if (${active}) return;\n        ${pc} = ${nextPc};\n        break;`;
     }
+    case 'visualStop': {
+      const device = context.scene.devices.find(device => device.id === instruction.deviceId);
+      const stop = device?.kind === 'display' ? 'capiDisplayCancelAnimation();' : device?.kind === 'ledMatrix' ? 'capiMatrixCancel();' : device?.kind === 'smartLights' ? `RGB_ANIM_${deviceSymbol(context, instruction.deviceId)}.effect = 0;` : '';
+      return `${comment}\n        ${stop}\n        ${pc} = ${nextPc};\n        break;`;
+    }
     case 'matrixClear':
       return `${comment}\n        capiMatrixClear();\n        ${pc} = ${nextPc};\n        break;`;
     case 'matrixPixel':
       return `${comment}\n        capiMatrixPixel(${Math.round(instruction.x)}, ${Math.round(instruction.y)}, ${instruction.enabled ? 'true' : 'false'});\n        ${pc} = ${nextPc};\n        break;`;
     case 'matrixPattern':
       return `${comment}\n        capiMatrixPattern(PATTERN_${deviceSymbol(context, instruction.deviceId)}_${cppIdentifier(instruction.patternId)});\n        ${pc} = ${nextPc};\n        break;`;
+    case 'matrixBrightness':
+      return `${comment}\n        capiMatrixBrightness(${Math.max(0, Math.min(100, Math.round(instruction.brightness)))});\n        ${componentStateSymbol(instruction.deviceId, 'brightness')} = ${Math.max(0, Math.min(100, Math.round(instruction.brightness)))};\n        ${pc} = ${nextPc};\n        break;`;
     case 'matrixScroll':
       return `${comment}\n        capiMatrixStartScroll(${cppString(normalizedMatrixTextLiteral(instruction.text))}, ${Math.max(40, Math.min(1000, Math.round(instruction.speedMs)))}, ${Math.max(0, Math.min(100, Math.round(instruction.repeatCount)))}U, now);\n        ${pc} = ${nextPc};\n        break;`;
     case 'repeatStart':
@@ -3696,6 +3714,7 @@ function componentStateDeclarations(scene: SceneDefinition) {
       case 'trafficLight': return [`char ${componentStateSymbol(device.id, 'color')}[121] = "OFF";`];
       case 'led': return [`int32_t ${componentStateSymbol(device.id, 'brightness')} = 0;`];
       case 'smartLights': return [`int32_t ${componentStateSymbol(device.id, 'brightness')} = ${Math.max(0, Math.min(100, Math.round(device.config.brightness)))};`];
+      case 'ledMatrix': return [`int32_t ${componentStateSymbol(device.id, 'brightness')} = ${Math.round(device.config.brightness * 100 / 15)};`];
       case 'robot': return [`char ${componentStateSymbol(device.id, 'motion')}[121] = "STOP";`];
       case 'motor': return [`int32_t ${componentStateSymbol(device.id, 'power')} = 0;`];
       case 'servo': return [`int32_t ${componentStateSymbol(device.id, 'angle')} = ${Math.max(0, Math.min(180, Math.round(device.config.angle)))};`];

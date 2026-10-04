@@ -6,7 +6,7 @@ import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 
 export const CAPI_RULES_FORMAT = 1;
 export const CAPI_INTERPRETER_ABI = 1;
-export const CAPI_INTERPRETER_VERSION = '1.6.0';
+export const CAPI_INTERPRETER_VERSION = '1.7.0';
 export const CAPI_RULES_MAX_BYTES = 32 * 1024;
 export const CAPI_RULES_MAX_INSTRUCTIONS = 2048;
 const HEADER_BYTES = 32;
@@ -40,8 +40,8 @@ const capabilityForOperation = (operation: string) => ({
   pin: 'gpio', led: 'led', traffic: 'traffic', trafficVehicleDisplay: 'traffic-display', trafficPedestrianDisplay: 'traffic-display', motor: 'motor', robot: 'robot',
   rgbFill: 'smart-lights', rgbPixel: 'smart-lights', rgbSegment: 'smart-lights', rgbCoordinate: 'smart-lights', rgbGradient: 'smart-lights', rgbPattern: 'smart-lights', rgbAnimation: 'smart-lights',
   servo: 'servo', buzzer: 'buzzer', tone: 'buzzer', otto: 'otto', ottoSound: 'otto', ottoExpression: 'otto', ottoArms: 'otto',
-  displayWrite: 'display', displayClear: 'display', displayAnimateText: 'display', displayArtwork: 'display', visualWait: 'visual-wait',
-  matrixClear: 'matrix', matrixPixel: 'matrix', matrixPattern: 'matrix', matrixScroll: 'matrix',
+  displayWrite: 'display', displayClear: 'display', displayAnimateText: 'display', displayArtwork: 'display', visualStop: 'visual-wait', visualWait: 'visual-wait',
+  matrixClear: 'matrix', matrixPixel: 'matrix', matrixPattern: 'matrix', matrixBrightness: 'matrix', matrixScroll: 'matrix',
   messageSend: 'messages', messageReceiveWait: 'messages', wifi: 'wifi', wifiMessageSend: 'wifi-messages', wifiMessageReceiveWait: 'wifi-messages', fork: 'parallel', join: 'parallel',
   counterSet: 'counter', counterChange: 'counter', variableSet: 'variables', variableChange: 'variables', serial: 'serial',
   timerStart: 'timers', timerRestart: 'timers', timerPause: 'timers', timerResume: 'timers', timerStop: 'timers', timerWait: 'timers',

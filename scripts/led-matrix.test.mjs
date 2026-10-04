@@ -23,6 +23,7 @@ assert.ok(matrixScrollSteps('A') > 32);
 const program = { version: 2, threads: [{ id: 'start', startBlockId: 'start', nodes: [
   { op: 'matrixPattern', deviceId: matrix.id, patternId: matrix.config.patterns[0].id, blockId: 'pattern' },
   { op: 'matrixPixel', deviceId: matrix.id, x: 2, y: 3, enabled: true, blockId: 'pixel' },
+  { op: 'matrixBrightness', deviceId: matrix.id, brightness: 73, blockId: 'brightness' },
   { op: 'matrixScroll', deviceId: matrix.id, text: 'HOLA', speedMs: 80, repeatCount: 1, blockId: 'scroll' },
   { op: 'visualWait', deviceId: matrix.id, blockId: 'wait-scroll' },
   { op: 'matrixClear', deviceId: matrix.id, blockId: 'clear' },
@@ -38,6 +39,7 @@ for (const generated of [generateEsp32CodeResult(program, 'Matriz', added.scene)
   assert.match(generated.code, /capiMatrixBegin/);
   assert.match(generated.code, /constexpr bool CAPI_MATRIX_REVERSE = true;/);
   assert.match(generated.code, /capiMatrixStartScroll\("HOLA", 80, 1U, now\)/);
+  assert.match(generated.code, /capiMatrixBrightness\(73\)/);
   assert.match(generated.code, /PATTERN_LED_MATRIX_1_[A-F0-9]+_HEART_[A-F0-9]+/);
   assert.doesNotMatch(generated.code, /delay\s*\(/);
 }

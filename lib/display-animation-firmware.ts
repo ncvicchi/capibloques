@@ -60,28 +60,54 @@ void capiDisplayAnimationService(uint32_t now) {
   if (capiDisplayAnimation.kind == 1) {
     const uint16_t count = capiDisplayAnimation.columns * capiDisplayAnimation.rows;
     char frame[CAPI_DISPLAY_CELLS]; memset(frame, ' ', count);
-    if (capiDisplayAnimation.effect == 0) {
+    if (capiDisplayAnimation.effect == 0 || capiDisplayAnimation.effect == 6) {
       const uint16_t chunk = (count + 23U) / 24U;
       const uint32_t reveal = (uint32_t)(capiDisplayAnimation.step + 1U) * chunk;
       const uint16_t visible = (uint16_t)(reveal < count ? reveal : count);
       memcpy(frame, capiDisplayAnimation.cells, visible); done = visible >= count;
-    } else if (capiDisplayAnimation.effect == 1) {
-      const uint16_t offset = (uint16_t)((uint32_t)capiDisplayAnimation.step + 1U < capiDisplayAnimation.columns ? (uint32_t)capiDisplayAnimation.step + 1U : capiDisplayAnimation.columns);
+    } else if (capiDisplayAnimation.effect == 1 || capiDisplayAnimation.effect == 3 || capiDisplayAnimation.effect == 7) {
+      const uint16_t phase = capiDisplayAnimation.effect == 7 && capiDisplayAnimation.step >= capiDisplayAnimation.columns
+        ? (uint16_t)(capiDisplayAnimation.columns * 2U - capiDisplayAnimation.step - 1U) : (uint16_t)(capiDisplayAnimation.step + 1U);
+      const uint16_t offset = phase < capiDisplayAnimation.columns ? phase : capiDisplayAnimation.columns;
       for (uint16_t y = 0; y < capiDisplayAnimation.rows; ++y) for (uint16_t x = 0; x < capiDisplayAnimation.columns; ++x) {
-        const int source = (int)x - (int)(capiDisplayAnimation.columns - offset);
-        if (source >= 0) frame[y * capiDisplayAnimation.columns + x] = capiDisplayAnimation.cells[y * capiDisplayAnimation.columns + (uint16_t)source];
+        const int source = capiDisplayAnimation.effect == 3 ? (int)x + (int)(capiDisplayAnimation.columns - offset) : (int)x - (int)(capiDisplayAnimation.columns - offset);
+        if (source >= 0 && source < capiDisplayAnimation.columns) frame[y * capiDisplayAnimation.columns + x] = capiDisplayAnimation.cells[y * capiDisplayAnimation.columns + (uint16_t)source];
       }
-      done = offset >= capiDisplayAnimation.columns;
+      done = capiDisplayAnimation.effect == 7 ? capiDisplayAnimation.step + 1U >= capiDisplayAnimation.columns * 2U : offset >= capiDisplayAnimation.columns;
+    } else if (capiDisplayAnimation.effect == 4 || capiDisplayAnimation.effect == 5) {
+      const uint16_t offset = (uint16_t)((uint32_t)capiDisplayAnimation.step + 1U < capiDisplayAnimation.rows ? (uint32_t)capiDisplayAnimation.step + 1U : capiDisplayAnimation.rows);
+      for (uint16_t y = 0; y < capiDisplayAnimation.rows; ++y) {
+        const int source = capiDisplayAnimation.effect == 4 ? (int)y - (int)(capiDisplayAnimation.rows - offset) : (int)y + (int)(capiDisplayAnimation.rows - offset);
+        if (source >= 0 && source < capiDisplayAnimation.rows) memcpy(frame + y * capiDisplayAnimation.columns, capiDisplayAnimation.cells + (uint16_t)source * capiDisplayAnimation.columns, capiDisplayAnimation.columns);
+      }
+      done = offset >= capiDisplayAnimation.rows;
+    } else if (capiDisplayAnimation.effect == 8 || capiDisplayAnimation.effect == 9) {
+      const uint16_t reveal = (uint16_t)(capiDisplayAnimation.step + 1U);
+      for (uint16_t y = 0; y < capiDisplayAnimation.rows; ++y) for (uint16_t x = 0; x < capiDisplayAnimation.columns; ++x) {
+        const bool visible = capiDisplayAnimation.effect == 8 ? x / 2U < reveal : abs((int)x * 2 - (int)capiDisplayAnimation.columns + 1) < (int)reveal * 2;
+        if (visible) frame[y * capiDisplayAnimation.columns + x] = capiDisplayAnimation.cells[y * capiDisplayAnimation.columns + x];
+      }
+      done = reveal >= (capiDisplayAnimation.columns + 1U) / 2U;
     } else {
       if (capiDisplayAnimation.step % 2U == 0) memcpy(frame, capiDisplayAnimation.cells, count);
       done = capiDisplayAnimation.step >= 4U;
     }
     capiDisplayWriteCells(capiDisplayAnimation.column, capiDisplayAnimation.row, capiDisplayAnimation.columns, capiDisplayAnimation.rows, frame);
   } else if (capiDisplayAnimation.kind == 2) {
-    if (capiDisplayAnimation.effect == 1) {
+    if (capiDisplayAnimation.effect == 1 || capiDisplayAnimation.effect == 3) {
       const int remaining = 16 - (int)capiDisplayAnimation.step;
-      const int16_t shift = (int16_t)(remaining > 0 ? remaining : 0);
+      const int16_t shift = (int16_t)((remaining > 0 ? remaining : 0) * (capiDisplayAnimation.effect == 3 ? -1 : 1));
       capiDisplayArtworkFrame(capiDisplayAnimation.artwork, shift, true); done = shift == 0;
+    } else if (capiDisplayAnimation.effect == 4 || capiDisplayAnimation.effect == 5) {
+      uint16_t frame[8] = {}; const uint8_t reveal = (uint8_t)(capiDisplayAnimation.step + 1U);
+      for (uint8_t y = 0; y < 8; ++y) {
+        const uint16_t mask = capiDisplayAnimation.effect == 4 ? (uint16_t)(0xffffU << (16U - (reveal > 8 ? 16 : reveal * 2U))) : (uint16_t)(((1UL << (reveal > 8 ? 16 : reveal * 2U)) - 1UL) << (8U - (reveal > 8 ? 8 : reveal)));
+        frame[y] = capiDisplayAnimation.artwork[y] & mask;
+      }
+      capiDisplayArtworkFrame(frame, 0, true); done = reveal >= 8;
+    } else if (capiDisplayAnimation.effect == 6) {
+      uint16_t frame[8]; for (uint8_t y = 0; y < 8; ++y) frame[y] = capiDisplayAnimation.step % 2U == 0 ? (uint16_t)~capiDisplayAnimation.artwork[y] : capiDisplayAnimation.artwork[y];
+      capiDisplayArtworkFrame(frame, 0, true); done = capiDisplayAnimation.step >= 4U;
     } else {
       capiDisplayArtworkFrame(capiDisplayAnimation.artwork, 0, capiDisplayAnimation.step % 2U == 0);
       done = capiDisplayAnimation.step >= 4U;

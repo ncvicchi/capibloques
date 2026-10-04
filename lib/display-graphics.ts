@@ -3,8 +3,60 @@ export const DISPLAY_ART_HEIGHT = 8;
 export const MAX_DISPLAY_ARTWORKS = 12;
 
 export type DisplayAnimationSpeed = 'slow' | 'normal' | 'fast';
-export type DisplayTextEffect = 'type' | 'scroll' | 'blink';
-export type DisplayArtworkEffect = 'still' | 'slide' | 'blink';
+export type DisplayTextEffect =
+  | 'type'
+  | 'scroll'
+  | 'scroll-right'
+  | 'scroll-up'
+  | 'scroll-down'
+  | 'blink'
+  | 'sequence'
+  | 'bounce'
+  | 'blinds'
+  | 'center';
+export type DisplayArtworkEffect =
+  | 'still'
+  | 'slide'
+  | 'slide-right'
+  | 'blink'
+  | 'blinds'
+  | 'center'
+  | 'invert';
+
+export const DISPLAY_TEXT_EFFECTS: readonly { value: DisplayTextEffect; label: string }[] = [
+  { value: 'type', label: 'máquina de escribir' },
+  { value: 'sequence', label: 'letras en secuencia' },
+  { value: 'scroll', label: 'entrar desde la derecha' },
+  { value: 'scroll-right', label: 'entrar desde la izquierda' },
+  { value: 'scroll-up', label: 'subir por filas' },
+  { value: 'scroll-down', label: 'bajar por filas' },
+  { value: 'bounce', label: 'rebotar' },
+  { value: 'blinds', label: 'persiana' },
+  { value: 'center', label: 'abrir desde el centro' },
+  { value: 'blink', label: 'parpadear' },
+];
+
+export const DISPLAY_ARTWORK_EFFECTS: readonly { value: DisplayArtworkEffect; label: string }[] = [
+  { value: 'still', label: 'quieto' }, { value: 'slide', label: 'entrar desde la derecha' },
+  { value: 'slide-right', label: 'entrar desde la izquierda' }, { value: 'blinds', label: 'persiana' },
+  { value: 'center', label: 'abrir desde el centro' }, { value: 'invert', label: 'invertir' },
+  { value: 'blink', label: 'parpadear' },
+];
+
+export function displayTextEffectSteps(effect: DisplayTextEffect, columns: number, rows: number, cells: number) {
+  if (effect === 'type' || effect === 'sequence') return Math.min(24, Math.max(1, cells));
+  if (effect === 'scroll' || effect === 'scroll-right' || effect === 'bounce') return Math.max(1, columns) * (effect === 'bounce' ? 2 : 1);
+  if (effect === 'scroll-up' || effect === 'scroll-down') return Math.max(1, rows);
+  if (effect === 'blink') return 5;
+  return Math.max(1, Math.ceil(columns / 2));
+}
+
+export function displayArtworkEffectSteps(effect: DisplayArtworkEffect) {
+  if (effect === 'still') return 1;
+  if (effect === 'slide' || effect === 'slide-right') return 16;
+  if (effect === 'blink' || effect === 'invert') return 5;
+  return 8;
+}
 
 export interface DisplayArtwork {
   id: string;

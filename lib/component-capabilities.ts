@@ -10,6 +10,7 @@ const common: Partial<Record<SceneDeviceKind, ComponentValueCapability[]>> = {
   trafficLight: [{ key:'color', label:'color actual ordenado', type:'text', source:'ordered', help:'Indica apagado, rojo, amarillo o verde según la última orden del programa; no mide las lámparas.' }],
   led: [{ key:'brightness', label:'brillo ordenado', type:'number', source:'ordered', help:'Es el porcentaje pedido al LED.' }],
   smartLights: [{ key:'brightness', label:'brillo ordenado', type:'number', source:'ordered', help:'Es el último límite de brillo pedido a las luces RGB.' }],
+  ledMatrix: [{ key:'brightness', label:'brillo ordenado', type:'number', source:'ordered', help:'Es el último porcentaje pedido a la matriz; el MAX7219 lo convierte a 16 niveles.' }],
   robot: [{ key:'motion', label:'movimiento ordenado', type:'text', source:'ordered', help:'Es el último movimiento pedido; no confirma desplazamiento físico.' }],
   motor: [{ key:'power', label:'potencia ordenada', type:'number', source:'ordered', help:'Positivo avanza, negativo retrocede y cero detiene.' }],
   servo: [{ key:'angle', label:'ángulo ordenado', type:'number', source:'ordered', help:'Es el ángulo pedido; un servo común no informa su posición real.' }],

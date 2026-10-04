@@ -207,7 +207,7 @@ Pedido aclarado el 14 de septiembre de 2026: considerar ambos tipos de pantalla.
 - CapiBloques ya implementa el perfil **LCD 20 × 4 · PCF8574 I2C**: texto directo en 20 × 4 celdas, mochila estándar, direcciones PCF8574 `0x20–0x27` y PCF8574A `0x38–0x3F`. La unidad física Winstar/2004A y su mochila deben comprobarse antes de afirmar compatibilidad: código exacto, integrado, mapeo de pines del expansor, dirección configurada, tensión y niveles I2C.
 - El componente visible se llama **Pantalla de texto** desde el 19 de septiembre de 2026. El nombre anterior, «Pantalla de mensajes», no cambia el tipo JSON `display`: proyectos guardados o importados siguen siendo compatibles.
 - También conservar el perfil ya implementado **OLED SSD1306 128 × 64 · I2C**. Es una pantalla gráfica monocromática por píxeles, habitualmente en `0x3C` o `0x3D`; CapiBloques la presenta actualmente como una rejilla de zonas de texto de 16 × 8 celdas con fuente de 8 × 8.
-- **Ampliación implementada en software el 19 de septiembre de 2026:** LCD permite texto directo o animado; OLED/TFT permiten además dibujos monocromáticos de 16 × 8. Hay siete figuras predeterminadas —incluidos avatares de capibara, robot y gato— y hasta 12 dibujos editables por proyecto. Los efectos son aparecer/desplazarse/parpadear para texto y quieto/deslizar/parpadear para dibujos; la velocidad se configura una vez en la escena. Simulación y firmware avanzan cooperativamente, sin bloquear otros caminos.
+- **Ampliación implementada y extendida por fase 43:** LCD permite texto directo o animado; OLED/TFT permiten además dibujos monocromáticos de 16 × 8. Hay siete figuras predeterminadas —incluidos avatares de capibara, robot y gato— y hasta 12 dibujos editables por proyecto. Texto dispone de diez efectos y los dibujos de siete; velocidad y repetición son acotadas. Simulación y firmware avanzan cooperativamente, sin bloquear otros caminos.
 - Ambos perfiles siguen siendo opciones distintas dentro del contrato de una pantalla por proyecto. Elegir uno no convierte proyectos, direcciones, drivers ni cableado del otro.
 - Verificar físicamente el LCD 20 × 4 aportado con texto, las cuatro filas, limpieza, actualización, contraste y dirección incorrecta en Arduino y ESP-IDF. Mantener diagnósticos de bus y actualización cooperativa; compilar no demuestra compatibilidad eléctrica ni visual.
 - Si más adelante aparece un Winstar **gráfico** 128 × 64 diferente del SSD1306, registrarlo por su código de producto, controlador y adaptador antes de agregar otro perfil.
@@ -511,12 +511,13 @@ pedido reemplaza el editor diminuto de imágenes de matriz por un modal amplio
 con zoom, lápiz, borrador, líneas, curvas, formas, relleno, selección,
 Deshacer/Rehacer y previsualización real.
 
-Asignación: **fase 43 — Efectos y animaciones de pantallas**. El catálogo de
+Asignación: **fase 43 — Efectos y animaciones de pantallas**, terminada en
+software el 4 de octubre de 2026. El catálogo de
 ideas, editor gráfico, diferencias entre LCD de caracteres, OLED/TFT y matrices
 LED, bloques, repetición, ejecución cooperativa, accesibilidad, límites y aceptación están en
-[FASE_43_EFECTOS_DISPLAY.md](FASE_43_EFECTOS_DISPLAY.md). Planificarla no la
-declara implementada; los efectos deben anunciarse según capacidades reales del
-perfil y nunca bloquear el resto del programa.
+[FASE_43_EFECTOS_DISPLAY.md](FASE_43_EFECTOS_DISPLAY.md). La entrega incluye
+editor grande, efectos cooperativos, detener/esperar y brillo MAX7219; conserva
+como ampliaciones selección/importación/color y patrones generativos.
 
 ## 40. Fidelidad espacial entre editor y escena ejecutada
 
@@ -585,7 +586,7 @@ matriciales cuando el módulo lo soporte. La matriz MAX7219 ya guarda un brillo
 inicial de 0 a 15 en la escena y lo aplica al arrancar; el trabajo pendiente es
 hacer esa capacidad más visible y programable durante la ejecución.
 
-Asignación: **fase 43 — Efectos y animaciones de pantallas**. Agregar un bloque
+Asignación: **fase 43 — Efectos y animaciones de pantallas**. Entregado el bloque
 infantil `poner brillo de [matriz] a [porcentaje]`, estado consultable, simulación
 visual y uso por efectos como pulso o fundido. El porcentaje se traduce al rango
 nativo del controlador —por ejemplo 0–15 en MAX7219— de forma idéntica en

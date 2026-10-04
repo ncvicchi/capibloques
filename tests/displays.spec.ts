@@ -483,9 +483,12 @@ test('pantalla gráfica: crea dibujos, ofrece avatares y anima sin bloquear', as
   await editor.getByRole('button', { name: 'Cambiar modelo' }).click();
   await editor.getByRole('combobox', { name: 'Velocidad de animaciones' }).selectOption('fast');
   await editor.getByRole('textbox', { name: 'Nombre del dibujo de pantalla' }).fill('Cohete');
-  const pixel = editor.getByRole('button', { name: 'Columna 16, fila 8' });
+  await editor.getByRole('button', { name: 'Editar dibujo en grande' }).click();
+  const drawing = page.getByRole('dialog', { name: 'Editar Cohete' });
+  const pixel = drawing.getByRole('button', { name: 'Columna 16, fila 8' });
   await pixel.click();
   await expect(pixel).toHaveAttribute('aria-pressed', 'true');
+  await drawing.getByRole('button', { name: 'Guardar dibujo' }).click();
   await editor.getByRole('button', { name: 'Guardar cambios', exact: false }).click();
   await editor.getByRole('button', { name: 'Auto conectar', exact: true }).click();
   await editor.getByRole('button', { name: 'Guardar escena', exact: true }).click();
@@ -506,7 +509,7 @@ test('pantalla gráfica: crea dibujos, ofrece avatares y anima sin bloquear', as
     buffer: Buffer.from(JSON.stringify(project)),
   });
   await page.getByRole('button', { name: 'Conservar copia local y abrir', exact: true }).click();
-  await expect(page.locator('[data-id="animate-text"]')).toContainText('aparecer');
+  await expect(page.locator('[data-id="animate-text"]')).toContainText('máquina de escribir');
   await expect(page.locator('[data-id="animate-text"]')).toContainText('varias veces');
   await expect(page.locator('[data-id="wait-text-animation"]')).toContainText('esperar a que termine');
   await expect(page.locator('[data-id="animate-artwork"]')).toContainText('Capibara');
