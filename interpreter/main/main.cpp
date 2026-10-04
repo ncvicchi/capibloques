@@ -696,7 +696,33 @@ static void reset_program(){stop_program();counter_value=0;if(active){initialize
 
 static void command(cJSON *request) {
   const char *type = text(request,"type");
-  if (!strcmp(type,"HELLO")) { cJSON *out=cJSON_CreateObject(); cJSON_AddStringToObject(out,"type","HELLO"); cJSON_AddStringToObject(out,"protocol","CapiLink"); cJSON_AddStringToObject(out,"firmware",CAPI_FIRMWARE_VERSION); cJSON_AddNumberToObject(out,"abi",ABI); cJSON_AddStringToObject(out,"board",CAPI_BOARD_ID);std::string identity=hardware_id();cJSON_AddStringToObject(out,"hardwareId",identity.c_str());char shown_mac[18]={};if(identity.size()==12)snprintf(shown_mac,sizeof(shown_mac),"%.2s:%.2s:%.2s:%.2s:%.2s:%.2s",identity.c_str(),identity.c_str()+2,identity.c_str()+4,identity.c_str()+6,identity.c_str()+8,identity.c_str()+10);cJSON_AddStringToObject(out,"wifiMac",shown_mac); cJSON_AddNumberToObject(out,"maxRulesBytes",MAX_RULES); cJSON *caps=cJSON_AddArrayToObject(out,"capabilities"); for(const char *cap:{"core","parallel","expressions","variables","timers","component-state","gpio","led","smart-lights","traffic","traffic-display","motor","robot","otto","servo","buzzer","matrix","display","display-lcd","display-lcd1602","display-lcd2004","display-lcd1602keypad","display-graphic","display-ssd1306","display-ili9341","display-ili9488","display-keypad","visual-wait","messages","wifi","wifi-messages","pairing","counter","serial","digital-input","analog-input","step"}) cJSON_AddItemToArray(caps,cJSON_CreateString(cap));if(is_waveshare()){cJSON_AddItemToArray(caps,cJSON_CreateString("touch-inputs"));cJSON_AddItemToArray(caps,cJSON_CreateString("autonomous-controls"));} cJSON *resources=cJSON_AddObjectToObject(out,"resources");cJSON_AddNumberToObject(resources,"pwmChannels",8); send_json(out); }
+  if (!strcmp(type,"HELLO")) {
+    cJSON *out=cJSON_CreateObject();
+    cJSON_AddStringToObject(out,"type","HELLO");
+    cJSON_AddStringToObject(out,"protocol","CapiLink");
+    cJSON_AddStringToObject(out,"firmware",CAPI_FIRMWARE_VERSION);
+    cJSON_AddNumberToObject(out,"abi",ABI);
+    cJSON_AddStringToObject(out,"board",CAPI_BOARD_ID);
+    std::string identity=hardware_id();
+    cJSON_AddStringToObject(out,"hardwareId",identity.c_str());
+    char shown_mac[18]={};
+    if(identity.size()==12){
+      snprintf(shown_mac,sizeof(shown_mac),"%.2s:%.2s:%.2s:%.2s:%.2s:%.2s",identity.c_str(),identity.c_str()+2,identity.c_str()+4,identity.c_str()+6,identity.c_str()+8,identity.c_str()+10);
+    }
+    cJSON_AddStringToObject(out,"wifiMac",shown_mac);
+    cJSON_AddNumberToObject(out,"maxRulesBytes",MAX_RULES);
+    cJSON *caps=cJSON_AddArrayToObject(out,"capabilities");
+    for(const char *cap:{"core","parallel","expressions","variables","timers","component-state","gpio","led","smart-lights","traffic","traffic-display","motor","robot","otto","servo","buzzer","matrix","display","display-lcd","display-lcd1602","display-lcd2004","display-lcd1602keypad","display-graphic","display-ssd1306","display-ili9341","display-ili9488","display-keypad","visual-wait","messages","wifi","wifi-messages","pairing","counter","serial","digital-input","analog-input","step"}){
+      cJSON_AddItemToArray(caps,cJSON_CreateString(cap));
+    }
+    if(is_waveshare()){
+      cJSON_AddItemToArray(caps,cJSON_CreateString("touch-inputs"));
+      cJSON_AddItemToArray(caps,cJSON_CreateString("autonomous-controls"));
+    }
+    cJSON *resources=cJSON_AddObjectToObject(out,"resources");
+    cJSON_AddNumberToObject(resources,"pwmChannels",8);
+    send_json(out);
+  }
   else if (!strcmp(type,"CONFIG_WIFI")) { if(running){reply("ERROR","Detené el programa antes de cambiar la red Wi-Fi.");return;}if(wifi_provision(text(request,"ssid"),text(request,"password")))reply("WIFI_CONFIGURED");else reply("ERROR","La red o la clave Wi-Fi no tienen un formato válido."); }
   else if (!strcmp(type,"CONFIG_PAIR")) {if(running){reply("ERROR","Detené el programa antes de emparejar las placas.");return;}if(wifi_provision_pair(text(request,"role"),text(request,"ssid"),text(request,"password"),text(request,"pairingKey"),text(request,"screenHardwareId"))){reply("PAIR_CONFIGURED");wifi_connect();}else reply("ERROR","No pudimos guardar un perfil de pareja válido para esta placa.");}
   else if (!strcmp(type,"BEGIN")) { if(running){reply("ERROR","Detené el programa antes de reemplazarlo.");return;} expected_bytes=number(request,"bytes"); const char *sum=text(request,"checksum"); expected_crc=strtoul(sum,nullptr,16); if(!expected_bytes||expected_bytes>MAX_RULES){reply("ERROR","Tamaño de reglas inválido.");return;} candidate.clear(); candidate.reserve(expected_bytes); reply("READY"); }
