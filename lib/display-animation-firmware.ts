@@ -84,7 +84,8 @@ void capiDisplayAnimationService(uint32_t now) {
     } else if (capiDisplayAnimation.effect == 8 || capiDisplayAnimation.effect == 9) {
       const uint16_t reveal = (uint16_t)(capiDisplayAnimation.step + 1U);
       for (uint16_t y = 0; y < capiDisplayAnimation.rows; ++y) for (uint16_t x = 0; x < capiDisplayAnimation.columns; ++x) {
-        const bool visible = capiDisplayAnimation.effect == 8 ? x / 2U < reveal : abs((int)x * 2 - (int)capiDisplayAnimation.columns + 1) < (int)reveal * 2;
+        const int distance = (int)x * 2 - (int)capiDisplayAnimation.columns + 1;
+        const bool visible = capiDisplayAnimation.effect == 8 ? x / 2U < reveal : (distance < 0 ? -distance : distance) < (int)reveal * 2;
         if (visible) frame[y * capiDisplayAnimation.columns + x] = capiDisplayAnimation.cells[y * capiDisplayAnimation.columns + x];
       }
       done = reveal >= (capiDisplayAnimation.columns + 1U) / 2U;

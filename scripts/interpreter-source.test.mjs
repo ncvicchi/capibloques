@@ -1,7 +1,18 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
 
 const source = await readFile(new URL('../interpreter/main/main.cpp', import.meta.url), 'utf8');
+
+// Preserve the actual preprocessor guards: shared helpers must compile for
+// Wemos as well as both S3 boards, even without the RGB/USB target code.
+const boardProbe = '#include <cstring>\n' + source.split('\n').filter((line) =>
+  /^#(?:if|else|elif|endif|define)/.test(line) || line.startsWith('static bool is_waveshare(')
+).join('\n') + '\nint main(){return is_waveshare();}\n';
+for (const [board, s3] of [['wemos-d1-r32', false], ['diymall-esp32-s3-devkitc-v1-n16r8', true], ['waveshare-esp32-s3-touch-lcd-5-28117', true]]) {
+  const compile = spawnSync(process.env.CXX || 'g++', ['-x', 'c++', '-std=c++17', '-Wall', '-Werror', '-fsyntax-only', `-DCAPI_BOARD_ID="${board}"`, ...(s3 ? ['-DCONFIG_IDF_TARGET_ESP32S3=1'] : []), '-'], { input: boardProbe, encoding: 'utf8' });
+  assert.equal(compile.status, 0, `board helper compilation (${board}): ${compile.error?.message || compile.stderr}`);
+}
 
 for (const operation of ['trafficVehicleDisplay', 'trafficPedestrianDisplay', 'servo', 'buzzer', 'tone', 'wifi', 'wifiMessageSend', 'wifiMessageReceiveWait', 'timerStart', 'timerRestart', 'timerPause', 'timerResume', 'timerStop', 'timerWait', 'otto', 'ottoSound', 'ottoExpression', 'ottoArms', 'displayWrite', 'displayClear', 'displayAnimateText', 'displayArtwork', 'matrixBrightness', 'matrixScroll', 'visualStop', 'visualWait', 'messageSend', 'messageReceiveWait', 'rgbFill', 'rgbPixel', 'rgbSegment', 'rgbCoordinate', 'rgbGradient', 'rgbPattern', 'rgbAnimation'])
   assert.match(source, new RegExp(`"${operation}"`), `missing interpreter operation ${operation}`);

@@ -394,6 +394,16 @@ La fase 20 está autorizada y terminada en software; la siguiente fase requiere 
 
 ## 10. Lista de cierre y mantenimiento obligatorio
 
+Corrección de compilación del 5 de octubre de 2026: `is_waveshare()` estaba
+definida dentro de `CONFIG_IDF_TARGET_ESP32S3` aunque las expresiones, condiciones
+y HELLO comunes la utilizan; ahora se define para todos los destinos. Se corrigió
+también el guard de animación ambiguo y la dependencia implícita de `abs` en
+el generador de efectos. Verificado con compilación C++ del helper preservando
+las condiciones reales para los tres perfiles y con los seis adaptadores de
+display compilados/ejecutados por `scripts/display-driver.test.mjs`. Esto no
+equivale a compilar todo ESP-IDF ni a aceptación física; la recompilación completa
+queda a cargo del actualizador DEV que ejecuta el propietario.
+
 Corrección operativa del 5 de octubre de 2026: el actualizador DEV permite
 reanudar un mantenimiento cuyo objetivo guardado es anterior al checkout,
 si ambos pertenecen a la misma línea del objetivo actual. Audita desde el

@@ -48,6 +48,7 @@
 #define CAPI_BOARD_ID "wemos-d1-r32"
 #endif
 #define CAPI_FIRMWARE_VERSION "1.7.0"
+static bool is_waveshare(){return !strcmp(CAPI_BOARD_ID,"waveshare-esp32-s3-touch-lcd-5-28117");}
 static constexpr uint16_t ABI = 1;
 static constexpr size_t MAX_RULES = 32 * 1024;
 static constexpr uart_port_t LINK = UART_NUM_0;
@@ -228,7 +229,9 @@ static bool display_area(cJSON *instruction,int &column,int &row,int &columns,in
 static void display_write_area(int column,int row,int columns,int rows,const std::string *cells){if(column<0||row<0||column+columns>display.columns||row+rows>display.rows)return;display.animation=false;for(int y=0;y<rows;++y)for(int x=0;x<columns;++x)display.wanted[(row+y)*display.columns+column+x]=cells&&y*columns+x<(int)cells->size()?(*cells)[y*columns+x]:' ';}
 static void display_artwork_frame(int shift,bool visible){std::fill(display.wanted.begin(),display.wanted.end(),' ');if(!visible)return;int base_x=(display.columns-16)/2+shift,base_y=(display.rows-8)/2;for(int y=0;y<8;++y)for(int x=0;x<16;++x)if(display.artwork[y]&(1U<<(15-x))){int target_x=base_x+x,target_y=base_y+y;if(target_x>=0&&target_x<display.columns&&target_y>=0&&target_y<display.rows)display.wanted[target_y*display.columns+target_x]=0x7f;}}
 static void display_animation_service(TickType_t now){
-  if(!display.animation||now<display.next)return;display.next=now+pdMS_TO_TICKS(display.speed);bool done=false;
+  if(!display.animation||now<display.next){return;}
+  display.next=now+pdMS_TO_TICKS(display.speed);
+  bool done=false;
   if(display.animation_kind==1){
     int count=display.width*display.height;std::string frame(count,' ');
     if(display.effect==0||display.effect==6){int chunk=(count+23)/24,visible=std::min(count,(display.step+1)*chunk);memcpy(frame.data(),display.cells.data(),visible);done=visible>=count;}
@@ -316,7 +319,6 @@ waveshare_dirty=true;
 static RuntimeValue component_get(const char *device_id,const char *property){RuntimeValue out;bool found=false;if(variables_mutex)xSemaphoreTake(variables_mutex,portMAX_DELAY);for(const auto &state:component_states)if(state.device_id==device_id&&state.property==property){out=state.value;found=true;break;}if(variables_mutex)xSemaphoreGive(variables_mutex);if(!found){cJSON *dev=device(device_id);const char *kind=dev?text(dev,"kind"):"";if((!strcmp(kind,"trafficLight")&&!strcmp(property,"color"))||(!strcmp(kind,"robot")&&!strcmp(property,"motion"))||(!strcmp(kind,"otto")&&(!strcmp(property,"motion")||!strcmp(property,"expression")))){out.kind=RuntimeValue::TEXT;out.text=!strcmp(kind,"trafficLight")?"OFF":!strcmp(kind,"robot")?"STOP":!strcmp(property,"expression")?"SMILE":"HOME";}else if(!strcmp(kind,"servo")&&!strcmp(property,"angle"))out.number=number(cJSON_GetObjectItem(dev,"config"),"angle",90);}return out;}
 
 #ifdef CONFIG_IDF_TARGET_ESP32S3
-static bool is_waveshare(){return !strcmp(CAPI_BOARD_ID,"waveshare-esp32-s3-touch-lcd-5-28117");}
 static uint16_t rgb565(uint8_t r,uint8_t g,uint8_t b){return (uint16_t)(((r&0xf8)<<8)|((g&0xfc)<<3)|(b>>3));}
 static void ws_rect(int x,int y,int width,int height,uint16_t color){
   if(!waveshare_pixels||width<=0||height<=0){return;}
