@@ -659,7 +659,7 @@ El alcance transversal, orden, perfiles, componentes postergados y fuentes de la
 
 ## Fase 42 — Simplificación integral de la interfaz
 
-**Estado:** entregada en software el 4 de octubre de 2026; actualización y aceptación visual en DEV pendientes. Ver [inventario, decisiones y evidencia](FASE_42_SIMPLIFICACION_UI.md). **Objetivo:** conservar toda la funcionalidad, pero dejar de presentarla simultáneamente como una colección de barras, paneles y decisiones competidoras.
+**Estado:** entregada en software el 4 de octubre de 2026; actualización y aceptación visual en DEV pendientes. El pulido complementario del 5 de octubre mejora los botones de avatar, unidades Wi-Fi, escala fija del catálogo y señal visual de la papelera; sigue sin desplegarse y no cierra la aceptación. Ver [inventario, decisiones y evidencia](FASE_42_SIMPLIFICACION_UI.md). **Objetivo:** conservar toda la funcionalidad, pero dejar de presentarla simultáneamente como una colección de barras, paneles y decisiones competidoras.
 
 Alcance:
 

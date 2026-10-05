@@ -245,19 +245,29 @@ export default function PreferencesPicker({
               </Button>
             </div>
           )}
-          <div className="account-actions">
+          <div
+            className={`account-actions${kind === 'avatar' ? ' avatar-actions' : ''}`}
+          >
             <Button
+              className={kind === 'avatar' ? 'avatar-action' : undefined}
               disabled={busy || !verified || conflict}
               onClick={() => void save()}
             >
               {busy
                 ? 'Guardando…'
                 : kind === 'avatar'
-                  ? 'Guardar avatar'
+                  ? 'Seleccionar Avatar'
                   : 'Guardar favoritos'}
             </Button>
-            <Button variant="outline" disabled={busy} onClick={onClose}>
-              Cancelar {kind === 'avatar' ? 'avatar' : 'favoritos'}
+            <Button
+              className={kind === 'avatar' ? 'avatar-action' : undefined}
+              variant="outline"
+              disabled={busy}
+              onClick={onClose}
+            >
+              {kind === 'avatar'
+                ? 'No cambiar mi avatar'
+                : 'Cancelar favoritos'}
             </Button>
           </div>
         </DialogContent>

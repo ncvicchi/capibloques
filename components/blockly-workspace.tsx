@@ -631,6 +631,7 @@ const BlocklyWorkspace = forwardRef<
   useEffect(() => {
     let disposed = false;
     let resizeObserver: ResizeObserver | undefined;
+    let colorObserver: MutationObserver | undefined;
     let resizeFrame: number | undefined;
     let dragConfigurationFrame: number | undefined;
     let dragConfigurationPending = false;
@@ -688,12 +689,22 @@ const BlocklyWorkspace = forwardRef<
           grid: { spacing: 22, length: 2, colour: '#d9dced', snap: false },
           sounds: false,
         });
-        const colorObserver = new MutationObserver(() => {
-          workspace.getParentSvg().querySelectorAll<HTMLElement>(
-            '.blocklyToolboxCategory, .blocklyTreeRow',
-          ).forEach((row) => {
-            if (row.style.color) row.style.setProperty('--category-colour', row.style.color);
-          });
+        const updateFixedFlyoutScale = () => {
+          const flyoutWorkspace = workspace.getFlyout()?.getWorkspace();
+          if (flyoutWorkspace && flyoutWorkspace.getScale() !== 0.9)
+            flyoutWorkspace.setScale(0.9);
+        };
+        updateFixedFlyoutScale();
+        colorObserver = new MutationObserver(() => {
+          workspace
+            .getParentSvg()
+            .querySelectorAll<HTMLElement>(
+              '.blocklyToolboxCategory, .blocklyTreeRow',
+            )
+            .forEach((row) => {
+              if (row.style.color)
+                row.style.setProperty('--category-colour', row.style.color);
+            });
         });
         colorObserver.observe(workspace.getParentSvg(), {
           attributes: true,
@@ -862,6 +873,18 @@ const BlocklyWorkspace = forwardRef<
           changeTimerRef.current = setTimeout(publishWorkspaceChange, delay);
         };
         workspace.addChangeListener((event) => {
+          if (event.type === Blockly.Events.TRASHCAN_OPEN) {
+            workspace
+              .getParentSvg()
+              .querySelector('.blocklyTrash')
+              ?.classList.toggle(
+                'capi-trash-active',
+                (event as import('blockly').Events.TrashcanOpen).isOpen ===
+                  true,
+              );
+          }
+          if (event.type === Blockly.Events.VIEWPORT_CHANGE)
+            updateFixedFlyoutScale();
           if (readOnlyRef.current) return;
           if (event.type === Blockly.Events.TOOLBOX_ITEM_SELECT)
             setPaletteOpen(Boolean(workspace.getFlyout()?.isVisible()));
@@ -1056,7 +1079,7 @@ const BlocklyWorkspace = forwardRef<
       if (keyboardHost && openCalledDefinition)
         keyboardHost.removeEventListener('dblclick', openCalledDefinition);
       resizeObserver?.disconnect();
-      colorObserver.disconnect();
+      colorObserver?.disconnect();
       if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
       if (dragConfigurationFrame !== undefined) {
         cancelAnimationFrame(dragConfigurationFrame);

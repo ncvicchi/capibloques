@@ -1,6 +1,6 @@
 # CapiBloques — contexto para continuar
 
-Documento vivo iniciado en **fase 11**. Actualización: **3 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
+Documento vivo iniciado en **fase 11**. Actualización: **5 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
 
 ## 1. Punto de entrada y autorización actual
 
@@ -29,6 +29,12 @@ CapiBloques enseña programación visual a chicos de **8–12 años**. Se arma u
 - Placas implementadas en software: Wemos D1 R32, DIYmall ESP32-S3-DevKitC V1.0 N16R8 y, desde fase 17, Waveshare ESP32-S3-Touch-LCD-5 **SKU 28117, 800 × 480**. Esta última conserva aceptación física pendiente; no extrapolar a 5B/5C ni a otra revisión.
 
 ## 3. Evidencia y versiones
+
+### Pulido visual complementario de fase 42 — 5 de octubre de 2026
+
+- Se agrandaron y renombraron las acciones de avatar; los dos bloques Wi-Fi expresan «segundos» completo; el catálogo conserva la escala 0,9 al cambiar el zoom del programa; la papelera se colorea en rojo al recibir un bloque arrastrado.
+- Lint dirigido de los componentes modificados, pruebas smoke y `scripts/wifi-messages.test.mjs` correctos. `git diff --check` correcto. El `tsc` del runtime disponible no pudo certificar el proyecto: reportó múltiples `@ts-expect-error` preexistentes como no utilizados, incluso con imports `.ts` habilitados.
+- No desplegado en DEV; versión remota sin verificar/cambiar. La aceptación visual y de uso de fase 42 sigue pendiente. Evidencia y límites en [FASE_42_SIMPLIFICACION_UI.md](FASE_42_SIMPLIFICACION_UI.md).
 
 ### Corte histórico al iniciar el traspaso
 

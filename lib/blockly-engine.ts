@@ -2592,7 +2592,7 @@ function registerBlocks(Blockly: BlocklyApi) {
     },
     {
       type: 'capi_wifi_connect',
-      message0: '📶 conectar a Wi-Fi (máximo %1 s)',
+      message0: '📶 conectar a Wi-Fi (máximo %1 segundos)',
       args0: [
         {
           type: 'field_number',
@@ -2643,7 +2643,7 @@ function registerBlocks(Blockly: BlocklyApi) {
     },
     {
       type: 'capi_wifi_message_receive',
-      message0: '📡 esperar en %1 de %2 el mensaje %3 durante %4 s',
+      message0: '📡 esperar en %1 de %2 el mensaje %3 durante %4 segundos',
       args0: [
         deviceField('Elegí Wi-Fi'),
         {

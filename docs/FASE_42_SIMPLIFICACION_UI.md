@@ -75,3 +75,20 @@ real: crear, probar, detener, guardar, abrir un proyecto y usar una placa. La
 aceptación debe confirmar que Proyecto y Más resultan descubribles para chicos
 de 8 a 12 años. Si una opción importante no se encuentra, se ajusta su entrada;
 no se vuelve a exhibir toda la funcionalidad simultáneamente.
+
+## Pulido complementario — 5 de octubre de 2026
+
+Se ampliaron las acciones de avatar y se nombraron **Seleccionar Avatar** y
+**No cambiar mi avatar**; los bloques Wi-Fi muestran «segundos» completo. El
+zoom del programa conserva fijo el tamaño de los bloques del catálogo y la
+papelera se marca en rojo cuando Blockly indica que un bloque arrastrado está
+encima. Las operaciones originales de selección, cancelación, conexión, espera,
+zoom y borrado siguen usando sus mismos manejadores.
+
+Verificación de esta entrega: lint de los componentes modificados y la prueba
+de humo general correctos; `scripts/wifi-messages.test.mjs` y
+`git diff --check` correctos. El chequeo global de TypeScript no se pudo validar
+con el compilador disponible: además de una opción de imports `.ts` ausente en
+la primera ejecución, la ejecución ajustada marcó numerosos
+`@ts-expect-error` preexistentes como no utilizados. No se actualizó DEV; la
+aceptación visual y de uso indicada arriba sigue pendiente.

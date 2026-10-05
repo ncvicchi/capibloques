@@ -716,6 +716,10 @@ select:focus-visible {
 .blocklyTrash {
   opacity: 0.75;
 }
+.blocklyTrash image { transition: filter 120ms ease; }
+.blocklyTrash.capi-trash-active image {
+  filter: brightness(0) saturate(100%) invert(18%) sepia(89%) saturate(4500%) hue-rotate(339deg) brightness(96%) contrast(112%);
+}
 .blocklyText,
 .blocklyHtmlInput {
   font-family: Inter, 'Segoe UI', sans-serif !important;
@@ -3478,6 +3482,8 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .favorite-choice input { width: 18px; height: 18px; flex-shrink: 0; }
 .preferences-conflict { border-left: 4px solid #b37516; padding: 12px; background: #fff3d9; }
 .preferences-dialog .account-actions { position: sticky; bottom: -8px; background: white; padding: 12px 0 4px; flex-wrap: wrap; }
+.preferences-dialog .avatar-actions { gap: 12px; }
+.preferences-dialog .avatar-action { min-height: 52px; height: auto; padding: 12px 20px; font-size: 1.05rem; font-weight: 750; white-space: normal; }
 @media (max-width: 540px) { .preferences-dialog { padding: 16px; } .avatar-grid, .favorite-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .favorite-choice { padding: 8px; gap: 5px; } .preferences-dialog button { white-space: normal; height: auto; min-height: 40px; } }
 
 /* Editor de dibujos compartido por pantallas gráficas y matrices LED. */
