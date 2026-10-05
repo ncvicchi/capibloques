@@ -472,6 +472,52 @@ test('pantalla: recupera nombre vacío y layout incompleto sin publicarlos', asy
   ).toHaveValue('5');
 });
 
+for (const width of [16, 32]) test(`animación por cuadros de ${width} columnas: dibujar, duplicar, importar y guardar`, async ({ page }) => {
+  await open(page);
+  await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  if (width === 16) {
+    await editor.getByRole('button', { name: /^Agregar Pantalla de texto/ }).click();
+    await editor.getByRole('combobox', { name: 'Modelo de pantalla' }).selectOption('ssd1306');
+    await editor.getByRole('button', { name: 'Cambiar modelo' }).click();
+  } else await editor.getByRole('button', { name: /^Agregar Matriz LED/ }).click();
+  await editor.getByRole('button', { name: 'Nueva animación', exact: true }).click();
+  const draft = page.getByRole('dialog', { name: 'Animación por cuadros', exact: true });
+  await draft.getByLabel('Nombre de animación', { exact: true }).fill('Saludo');
+  await draft.getByLabel('Tiempo de cada cuadro (ms)', { exact: true }).fill('100');
+  await draft.getByRole('button', { name: 'Dibujar cuadro 1', exact: true }).click();
+  const pixels = page.getByRole('dialog', { name: 'Editar cuadro 1', exact: true });
+  await pixels.getByRole('button', { name: 'Columna 1, fila 1', exact: true }).click();
+  await pixels.getByRole('button', { name: 'Guardar dibujo', exact: true }).click();
+  await draft.getByRole('button', { name: /Duplicar/ }).click();
+  await expect(draft.getByRole('button', { name: 'Cuadro 2', exact: true })).toBeVisible();
+  const data = await page.evaluate(() => { const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 8; const ctx = canvas.getContext('2d')!; ctx.fillStyle = 'black'; ctx.fillRect(0, 0, 32, 8); return canvas.toDataURL().split(',')[1]; });
+  await draft.getByLabel('Importar cuadros desde imágenes', { exact: true }).setInputFiles({ name: 'negro.png', mimeType: 'image/png', buffer: Buffer.from(data, 'base64') });
+  await expect(draft.getByRole('button', { name: 'Cuadro 3', exact: true })).toBeVisible();
+  await draft.getByRole('button', { name: 'Guardar animación', exact: true }).click();
+  await expect(editor.getByText('Saludo · 3 cuadros · 100 ms', { exact: true })).toBeVisible();
+  await editor.getByRole('button', { name: 'Editar Saludo', exact: true }).click();
+  await expect(draft.getByLabel('Nombre de animación', { exact: true })).toHaveValue('Saludo');
+  await expect(draft.getByRole('button', { name: /^Cuadro [123]$/, exact: true })).toHaveCount(3);
+  await draft.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await editor.getByRole('button', { name: 'Guardar escena', exact: true }).click();
+  await expect(editor).toBeHidden();
+  const saved = await exportProject(page);
+  const device = saved.scene.devices.find((item: { kind: string }) => item.kind === (width === 16 ? 'display' : 'ledMatrix'));
+  expect(device.config.animations).toHaveLength(1);
+  expect(device.config.animations[0]).toMatchObject({ name: 'Saludo', frameMs: 100 });
+  expect(device.config.animations[0].frames).toHaveLength(3);
+  saved.workspace = { blocks: { languageVersion: 0, blocks: [{ type: 'capi_start', id: 'start-frames', x: 40, y: 40, inputs: { DO: { block: {
+    type: 'capi_frame_animation', id: 'show-frames', fields: { DEVICE_ID: device.id, ANIMATION_ID: device.config.animations[0].id, REPEAT_MODE: 'COUNT', REPEAT_COUNT: 2 }, next: { block: { type: 'capi_visual_wait', id: 'wait-frames', fields: { DEVICE_ID: device.id } } },
+  } } } }] } };
+  await page.locator('input[type=file]').setInputFiles({ name: 'cuadros.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(saved)) });
+  await page.getByRole('button', { name: 'Conservar copia local y abrir', exact: true }).click();
+  await expect(page.locator('[data-id="show-frames"]')).toContainText('Saludo');
+  await expect(page.locator('[data-id="show-frames"]')).toContainText('varias veces');
+  await page.getByRole('button', { name: 'Simular', exact: true }).click();
+  await expect(page.getByText('Programa terminado', { exact: true })).toBeVisible({ timeout: 15000 });
+});
+
 for (const width of [16, 32]) test(`editor de dibujos: arrastra figuras de ${width} columnas con preview y conserva deshacer, rehacer y guardado`, async ({ page }) => {
   await open(page);
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();

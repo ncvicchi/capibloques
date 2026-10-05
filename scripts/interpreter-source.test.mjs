@@ -26,7 +26,7 @@ assert.match(source, /CONFIG_PAIR/);
 assert.match(source, /hardwareId/);
 assert.match(source, /PAIR_CONFIGURED/);
 assert.match(source, /MAX_RULES = 32 \* 1024/);
-assert.match(source, /#define CAPI_FIRMWARE_VERSION "1\.7\.0"/);
+assert.match(source, /#define CAPI_FIRMWARE_VERSION "1\.8\.0"/);
 assert.match(source, /else if \(!strcmp\(type,"STEP"\)\)/);
 assert.match(source, /waveshare_touch_service/);
 assert.match(source, /ws_virtual_input/);

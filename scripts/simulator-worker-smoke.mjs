@@ -496,4 +496,20 @@ send({ type: 'RUN' });
 for (let turn = 0; turn < 4 && latestState().status !== 'done'; turn++) advance(16);
 assert.equal(latestState().devices[led.id].brightness, 100);
 
+// Una animación por cuadros no bloquea; esperar es explícito y se conserva el último cuadro.
+matrix.config.animations = [{ id: 'frames', name: 'Cuadros', frameMs: 64, frames: [Array(8).fill(1), Array(8).fill(2)] }];
+send({ type: 'LOAD', scene: baseScene([matrix]), program: { version: 2, threads: [{ id: 'frames', startBlockId: 'frames-start', nodes: [
+  { op: 'frameAnimation', deviceId: matrix.id, animationId: 'frames', repeatCount: 2, blockId: 'show-frames' },
+  { op: 'counterChange', delta: 1, blockId: 'nonblocking' },
+  { op: 'visualWait', deviceId: matrix.id, blockId: 'wait-frames' },
+  { op: 'counterChange', delta: 10, blockId: 'after-frames' },
+] }] } });
+send({ type: 'RUN' });
+advance(16); advance(16); advance(16);
+assert.equal(latestState().counter, 1);
+assert.equal(latestState().devices[matrix.id].scrolling, true);
+for (let turn = 0; turn < 40 && latestState().status !== 'done'; turn++) advance(16);
+assert.equal(latestState().counter, 11);
+assert.deepEqual(latestState().devices[matrix.id].rows, Array(8).fill(2));
+assert.equal(latestState().devices[matrix.id].scrolling, false);
 console.log('Simulator worker smoke checks passed.');

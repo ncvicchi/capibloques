@@ -218,6 +218,7 @@ export type ProgramNode =
   | { op: 'matrixClear'; deviceId: string; blockId: string }
   | { op: 'matrixPixel'; deviceId: string; x: number; y: number; enabled: boolean; blockId: string }
   | { op: 'matrixPattern'; deviceId: string; patternId: string; blockId: string }
+  | { op: 'frameAnimation'; deviceId: string; animationId: string; repeatCount: number; blockId: string }
   | { op: 'matrixBrightness'; deviceId: string; brightness: number; blockId: string }
   | { op: 'matrixScroll'; deviceId: string; text: string; speedMs: number; repeatCount: number; blockId: string }
   | {
@@ -1041,6 +1042,7 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_display_clear',
   'capi_display_animate_text',
   'capi_display_artwork',
+  'capi_frame_animation',
   'capi_visual_wait',
   'capi_matrix_clear',
   'capi_matrix_pixel',
@@ -1873,6 +1875,7 @@ const compatibleKindsForNode = (
     case 'displayClear':
     case 'displayAnimateText':
     case 'displayArtwork': return ['display'];
+    case 'frameAnimation': return ['ledMatrix', 'display'];
     case 'visualStop':
     case 'visualWait': return ['display', 'ledMatrix', 'smartLights'];
     case 'matrixClear':
@@ -2381,6 +2384,9 @@ function normalizeNodes(
       case 'matrixPattern':
         result.push({ op: 'matrixPattern', deviceId, patternId: typeof node.patternId === 'string' ? node.patternId : '', blockId });
         break;
+      case 'frameAnimation':
+        result.push({ op: 'frameAnimation', deviceId, animationId: typeof node.animationId === 'string' ? node.animationId : '', repeatCount: node.repeatCount === 0 ? 0 : Math.max(1, Math.min(100, Math.floor(finiteNumber(node.repeatCount, 1)))), blockId });
+        break;
       case 'matrixBrightness':
         result.push({ op: 'matrixBrightness', deviceId, brightness: Math.max(0, Math.min(100, finiteNumber(node.brightness, 50))), blockId });
         break;
@@ -2873,7 +2879,7 @@ export function validateProgramForScene(
       const leftType = valueExpressionType(node.condition.left), rightType = valueExpressionType(node.condition.right);
       if (leftType !== rightType || ((node.condition.operator !== 'EQ' && node.condition.operator !== 'NEQ') && leftType !== 'number')) diagnostics.push({ severity: 'error', code: 'condition-type', message: 'Compará datos del mismo tipo; menor y mayor se usan solamente con números.', blockId: node.blockId });
     }
-    if (node.op === 'displayAnimateText' || node.op === 'displayArtwork' || node.op === 'matrixScroll') {
+    if (node.op === 'displayAnimateText' || node.op === 'displayArtwork' || node.op === 'matrixScroll' || node.op === 'frameAnimation') {
       if (!Number.isInteger(node.repeatCount) || node.repeatCount < 0 || node.repeatCount > 100)
         diagnostics.push({ severity: 'error', code: 'animation-repeat-range', message: 'La animación debe repetirse entre 1 y 100 veces, o quedar sin parar.', blockId: node.blockId, deviceId: node.deviceId });
       if (node.repeatCount === 0 && !(node.op === 'displayArtwork' && node.effect === 'still')) foreverVisualDevices.add(node.deviceId);
@@ -2940,6 +2946,11 @@ export function validateProgramForScene(
         else if (!displayArtworkById(displayArtworks(device.config), node.artworkId))
           diagnostics.push({ severity: 'error', code: 'display-artwork-missing', message: `${device.name}: elegí un dibujo que todavía exista.`, blockId: node.blockId, deviceId: node.deviceId });
       }
+    }
+    if (node.op === 'frameAnimation') {
+      const device = scene.devices.find(item => item.id === node.deviceId);
+      if (!(device?.kind === 'ledMatrix' || (device?.kind === 'display' && displayProfiles[device.config.profile].graphic))) diagnostics.push({ severity: 'error', code: 'animation-device', message: 'Elegí una matriz o una pantalla gráfica para la animación.', blockId: node.blockId, deviceId: node.deviceId });
+      else if (!device.config.animations?.some(item => item.id === node.animationId)) diagnostics.push({ severity: 'error', code: 'animation-missing', message: `${device.name}: creá o elegí una animación que todavía exista.`, blockId: node.blockId, deviceId: node.deviceId });
     }
     if (node.op === 'matrixClear' || node.op === 'matrixPixel' || node.op === 'matrixPattern' || node.op === 'matrixBrightness' || node.op === 'matrixScroll') {
       const device = deviceMap.get(node.deviceId);
@@ -3603,6 +3614,12 @@ function instructionToCpp(
       const effect = ({ still: 0, slide: 1, blink: 2, 'slide-right': 3, blinds: 4, center: 5, invert: 6 } as const)[instruction.effect];
       return `${comment}\n        capiDisplayStartArtwork(DISPLAY_ART_${deviceSymbol(context, instruction.deviceId)}_${cppIdentifier(artwork.id)}, ${effect}, ${displayAnimationMs(device.config.animationSpeed)}, ${Math.max(0, Math.min(100, Math.round(instruction.repeatCount)))}U, now);\n        ${pc} = ${nextPc};\n        break;`;
     }
+    case 'frameAnimation': {
+      const device = context.scene.devices.find(item => item.id === instruction.deviceId);
+      const animation = device?.kind === 'display' || device?.kind === 'ledMatrix' ? device.config.animations?.find(item => item.id === instruction.animationId) : undefined;
+      const call = animation ? `${device?.kind === 'display' ? 'capiDisplayStartFrames' : 'capiMatrixStartFrames'}(FRAMES_${deviceSymbol(context, instruction.deviceId)}_${cppIdentifier(animation.id)}, ${animation.frames.length}, ${animation.frameMs}, ${instruction.repeatCount}, now);` : '// Animación inválida: revisar diagnóstico.';
+      return `${comment}\n        ${call}\n        ${pc} = ${nextPc};\n        break;`;
+    }
     case 'visualWait': {
       const device = context.scene.devices.find(device => device.id === instruction.deviceId);
       const active = device?.kind === 'display'
@@ -3691,9 +3708,10 @@ function deviceDeclarations(
           if (!profile.graphic) return '// Pantalla configurada en capiScreen.';
           return [...BUILTIN_DISPLAY_ARTWORKS, ...displayArtworks(device.config)]
             .map(artwork => `constexpr uint16_t DISPLAY_ART_${symbol}_${cppIdentifier(artwork.id)}[8] = { ${artwork.rows.map(row => `${row}U`).join(', ')} }; // ${cppLineComment(artwork.name)}`)
+            .concat((device.config.animations ?? []).map(item => `constexpr uint16_t FRAMES_${symbol}_${cppIdentifier(item.id)}[${item.frames.length}][8] = { ${item.frames.map(rows => `{ ${rows.map(row => `${row}U`).join(', ')} }`).join(', ')} };`))
             .join('\n');
         }
-        case 'ledMatrix': return device.config.patterns.map(pattern => `constexpr uint32_t PATTERN_${symbol}_${cppIdentifier(pattern.id)}[8] = { ${pattern.rows.map(row => `${row >>> 0}UL`).join(', ')} }; // ${cppLineComment(pattern.name)}`).join('\n');
+        case 'ledMatrix': return device.config.patterns.map(pattern => `constexpr uint32_t PATTERN_${symbol}_${cppIdentifier(pattern.id)}[8] = { ${pattern.rows.map(row => `${row >>> 0}UL`).join(', ')} }; // ${cppLineComment(pattern.name)}`).concat((device.config.animations ?? []).map(item => `constexpr uint32_t FRAMES_${symbol}_${cppIdentifier(item.id)}[${item.frames.length}][8] = { ${item.frames.map(rows => `{ ${rows.map(row => `${row >>> 0}UL`).join(', ')} }`).join(', ')} };`)).join('\n');
         case 'messages': return `constexpr MessageDevice DEV_${symbol}{${messageDevices.findIndex(item => item.id === device.id) + 1}, ${gpioOrPlaceholder(device.pins.tx)}, ${gpioOrPlaceholder(device.pins.rx)}, ${device.config.baudRate}}; // ${cppLineComment(device.name)}`;
         default:
           return `constexpr uint8_t PIN_${symbol} = ${label(device.pins.signal)}`;

@@ -19,7 +19,7 @@ constexpr uint8_t CAPI_MATRIX_CS = ${device.pins.cs ?? 255};
 constexpr bool CAPI_MATRIX_REVERSE = ${device.config.order === 'right-to-left' ? 'true' : 'false'};
 constexpr bool CAPI_MATRIX_ROTATED = ${device.config.orientation === 'rotated' ? 'true' : 'false'};
 uint32_t capiMatrixRows[8] = {};
-struct CapiMatrixAnimation { bool active = false; const char* text = nullptr; uint16_t width = 0; uint16_t offset = 0; uint16_t speedMs = 0; uint16_t repeatsRemaining = 1; uint32_t nextAt = 0; };
+struct CapiMatrixAnimation { bool active = false; const char* text = nullptr; uint16_t width = 0; uint16_t offset = 0; uint16_t speedMs = 0; uint16_t repeatsRemaining = 1; uint32_t nextAt = 0; const uint32_t (*frames)[8] = nullptr; uint16_t frameCount = 0; uint32_t startedAt = 0; };
 CapiMatrixAnimation capiMatrixAnimation;
 void capiMatrixFlush();
 void capiMatrixClear();
@@ -77,13 +77,26 @@ ${fontCases}
 }
 bool capiMatrixAnimationActive() { return capiMatrixAnimation.active; }
 void capiMatrixStartScroll(const char* text, uint16_t speedMs, uint16_t repeatCount, uint32_t now) {
+  capiMatrixAnimation.frames = nullptr;
   capiMatrixAnimation.active = true; capiMatrixAnimation.text = text;
   capiMatrixAnimation.width = (uint16_t)(strlen(text) * 6U); capiMatrixAnimation.offset = 0;
   capiMatrixAnimation.nextAt = now; capiMatrixAnimation.speedMs = speedMs;
   capiMatrixAnimation.repeatsRemaining = repeatCount;
 }
+void capiMatrixStartFrames(const uint32_t (*frames)[8], uint16_t count, uint16_t speedMs, uint16_t repeatCount, uint32_t now) {
+  capiMatrixAnimation = {}; capiMatrixAnimation.active = true; capiMatrixAnimation.frames = frames;
+  capiMatrixAnimation.frameCount = count; capiMatrixAnimation.speedMs = speedMs; capiMatrixAnimation.repeatsRemaining = repeatCount; capiMatrixAnimation.startedAt = now; capiMatrixAnimation.nextAt = now;
+  memcpy(capiMatrixRows, frames[0], sizeof(capiMatrixRows)); capiMatrixFlush();
+}
 void capiMatrixService(uint32_t now) {
   if (!capiMatrixAnimation.active || (int32_t)(now - capiMatrixAnimation.nextAt) < 0) return;
+  if (capiMatrixAnimation.frames) {
+    const uint32_t step = (now - capiMatrixAnimation.startedAt) / capiMatrixAnimation.speedMs;
+    const bool done = capiMatrixAnimation.repeatsRemaining && step >= (uint32_t)capiMatrixAnimation.frameCount * capiMatrixAnimation.repeatsRemaining;
+    const uint16_t index = done ? capiMatrixAnimation.frameCount - 1 : step % capiMatrixAnimation.frameCount;
+    memcpy(capiMatrixRows, capiMatrixAnimation.frames[index], sizeof(capiMatrixRows)); capiMatrixFlush();
+    capiMatrixAnimation.active = !done; capiMatrixAnimation.nextAt = now + capiMatrixAnimation.speedMs; return;
+  }
   const char* text = capiMatrixAnimation.text;
   memset(capiMatrixRows, 0, sizeof(capiMatrixRows));
   for (uint8_t x = 0; x < 32; ++x) {

@@ -1,6 +1,36 @@
 # Fase 43 — Efectos y animaciones de pantallas
 
-**Estado al 4 de octubre de 2026:** **entregada en software; DEV y aceptación física pendientes**.
+**Estado al 5 de octubre de 2026:** **entregada en software, ampliada con animación por cuadros; DEV y aceptación física pendientes**.
+
+## Animaciones por cuadros — ampliación autorizada
+
+- En las propiedades de Matriz LED y pantalla gráfica: Nueva animación abre un
+  borrador modal con nombre, miniaturas, dibujo grande, duplicar, quitar y
+  reordenar cuadros. Puede aprovechar dibujos guardados. Cancelar no modifica
+  la escena; Guardar animación actualiza el borrador de escena y Guardar escena
+  confirma el conjunto. Importación/exportación JSON conserva las secuencias.
+- Hasta 4 animaciones de 16 cuadros por dispositivo. Matriz: 32 × 8 puntos;
+  OLED/TFT: dibujo monocromático 16 × 8 centrado, no imagen a pantalla completa.
+  LCD de caracteres no ofrece esta función.
+- Importar PNG/JPG/WebP agrega cuadros en el orden de los archivos seleccionados.
+  Conversión local: encuadre proporcional centrado, píxeles oscuros encendidos,
+  fondo blanco/transparente apagado. Se revisa y edita antes de guardar. Límite
+  visible de cuadros; cada imagen hasta 10 MiB y 4096 × 4096 píxeles.
+- Cada animación define 40–2000 ms por cuadro. El bloque «Mostrar animación»
+  selecciona una vez, N veces (2–100) o sin parar. Corre en segundo plano;
+  «esperar a que termine» sincroniza y «detener efecto» conserva el cuadro actual.
+  Otra escritura/dibujo/borrado/animación reemplaza la reproducción. Al terminar
+  una secuencia finita queda su último cuadro.
+- Simulador, fuentes Arduino/ESP-IDF e intérprete incluyen la operación. Runtime
+  mínimo **1.8.0**, capacidad `frame-animation`, formato/ABI sin cambios. Firmware
+  anterior se actualiza desde el asistente antes de enviar reglas.
+- Evidencia local: smoke completo, tipos/lint, dos recorridos Chromium 16/32
+  (dibujar, duplicar, importar, guardar, exportar/reimportar y ejecutar el bloque), reproducción cooperativa del
+  worker, validación/configuración/CapiRules y C++ generado Arduino/nativo
+  compilado con `-Wall -Wextra -Werror`. Playback del intérprete también se prueba
+  en C++ con repetición y desbordamiento de reloj. Estas pruebas no equivalen a
+  una compilación completa con ESP-IDF ni a aceptación física; ambas quedan
+  para actualizar DEV y grabar/probar el firmware 1.8.0 en los módulos reales.
 
 ## Entrega implementada
 
@@ -25,12 +55,13 @@
   válidos.
 - CapiRules conserva formato 1/ABI 1 y exige intérprete **1.7.0**. El firmware
   anterior se detecta antes de enviar reglas y la interfaz ofrece actualizarlo.
+  La ampliación por cuadros eleva este mínimo a 1.8.0.
 - Pruebas automáticas cubren herramientas geométricas, relleno, transformaciones,
   tiempos acotados, migración JSON, código Arduino/ESP-IDF, CapiRules, fuente del
   intérprete, tipos, lint, build y el recorrido visual del modal.
 
 Quedan como ampliaciones posteriores del catálogo —no como promesas falsas del
-hardware actual— selección rectangular/copiar/pegar, importación de imágenes,
+hardware actual— selección rectangular/copiar/pegar, importación de imágenes a color,
 color, fundidos/zoom y patrones generativos de matriz. La aceptación física
 queda pendiente en LCD 16 × 2, LCD 20 × 4, SSD1306, ILI9341/ILI9488 y MAX7219.
 

@@ -11,6 +11,9 @@ export function displayAnimationFirmwareSupport() {
   uint16_t column = 0, row = 0, columns = 0, rows = 0;
   const char* cells = nullptr;
   const uint16_t* artwork = nullptr;
+  const uint16_t (*frames)[8] = nullptr;
+  uint16_t frameCount = 0;
+  uint32_t startedAt = 0;
 };
 CapiDisplayAnimation capiDisplayAnimation;
 void capiDisplayCancelAnimation() { capiDisplayAnimation.active = false; }
@@ -53,9 +56,20 @@ void capiDisplayStartArtwork(const uint16_t* rows, uint8_t effect, uint16_t spee
   capiDisplayAnimation.speedMs = speedMs; capiDisplayAnimation.nextAt = now; capiDisplayAnimation.artwork = rows;
   capiDisplayAnimation.repeatsRemaining = repeatCount;
 }
+void capiDisplayStartFrames(const uint16_t (*frames)[8], uint16_t count, uint16_t speedMs, uint16_t repeatCount, uint32_t now) {
+  capiDisplayAnimation = {}; capiDisplayAnimation.active = true; capiDisplayAnimation.kind = 3; capiDisplayAnimation.frames = frames;
+  capiDisplayAnimation.frameCount = count; capiDisplayAnimation.speedMs = speedMs; capiDisplayAnimation.repeatsRemaining = repeatCount; capiDisplayAnimation.startedAt = now; capiDisplayAnimation.nextAt = now;
+  capiDisplayArtworkFrame(frames[0], 0, true);
+}
 void capiDisplayAnimationService(uint32_t now) {
   if (!capiDisplayAnimation.active || (int32_t)(now - capiDisplayAnimation.nextAt) < 0) return;
   capiDisplayAnimation.nextAt = now + capiDisplayAnimation.speedMs;
+  if (capiDisplayAnimation.kind == 3) {
+    const uint32_t step = (now - capiDisplayAnimation.startedAt) / capiDisplayAnimation.speedMs;
+    const bool done = capiDisplayAnimation.repeatsRemaining && step >= (uint32_t)capiDisplayAnimation.frameCount * capiDisplayAnimation.repeatsRemaining;
+    const uint16_t index = done ? capiDisplayAnimation.frameCount - 1 : step % capiDisplayAnimation.frameCount;
+    capiDisplayArtworkFrame(capiDisplayAnimation.frames[index], 0, true); capiDisplayAnimation.active = !done; return;
+  }
   bool done = false;
   if (capiDisplayAnimation.kind == 1) {
     const uint16_t count = capiDisplayAnimation.columns * capiDisplayAnimation.rows;

@@ -40,7 +40,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 40 | Software entregado: movimiento e identificación; físico pendiente | 37 | Eventos cooperativos, privacidad y buses validados |
 | 41 | Software entregado: actuación y medición avanzada; físico pendiente | 37 | Planificador cooperativo, privacidad GPS y hardware concreto |
 | 42 | Simplificación integral de la interfaz | Pedido del 25 de septiembre | Inventario de funciones y recorridos; fase 20 como patrón de divulgación progresiva |
-| 43 | Software entregado; DEV/físico pendientes | Pedidos 39 y 42 | Motor cooperativo, perfiles de fase 23 e intérprete 1.7.0 |
+| 43 | Software entregado; incluye cuadros; DEV/físico pendientes | Pedidos 39 y 42 | Motor cooperativo, perfiles de fase 23 e intérprete 1.8.0 |
 | 44 | Laboratorio interactivo y autónomo en Waveshare | Pedido 45 | Fases 18, 20, 32, 34, 36 y escena visual de fase 45 |
 | 45 | Escenas atractivas y fidelidad visual completa | Pedidos 40 y 46 | Geometría/cámara de fase 12, renderer de fase 18 y perfiles de fase 17 |
 | Final | Producción, HTTPS, respaldos y piloto | Antigua fase 11 | Postergada hasta autorización explícita y validaciones de salida |
@@ -682,8 +682,10 @@ La entrega incorpora editor modal amplio, lápiz, borrador, línea, curva,
 rectángulos, elipse, relleno, transformaciones, historial y vista previa real;
 efectos horizontales/verticales, secuencia, rebote, persiana, centro, inversión
 y parpadeo; una/N/sin parar, cancelación/reemplazo y espera explícita. Matriz
-MAX7219 suma brillo programable 0–100%. Selección rectangular, importación,
-color y patrones generativos permanecen como ampliaciones del catálogo.
+MAX7219 suma brillo programable 0–100%. El 5 de octubre se agregan animaciones
+por cuadros e importación monocromática local para MAX7219/OLED/TFT, con editor,
+velocidad y una/N/sin parar cooperativos; intérprete mínimo 1.8.0.
+Selección rectangular, color y patrones generativos permanecen como ampliaciones.
 
 No se ofrecen efectos imposibles para el perfil elegido ni se simulan como si
 existieran físicamente. Simulador, Arduino, ESP-IDF e intérprete deben compartir

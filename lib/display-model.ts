@@ -82,6 +82,8 @@ export const displayProfiles = {
   },
 } as const;
 
+// @ts-expect-error Node strip-types tests import the source extension.
+import { validFrameAnimations, type FrameAnimation } from './frame-animation.ts';
 export type DisplayProfile = keyof typeof displayProfiles;
 export type TextArea = {
   id: string;
@@ -99,6 +101,7 @@ export type DisplayConfig = {
   /** Optional only so projects exported before drawings existed remain valid. */
   animationSpeed?: DisplayAnimationSpeed;
   artworks?: DisplayArtwork[];
+  animations?: FrameAnimation[];
   retiredArtworkIds?: string[];
   /** Waveshare-only local dashboard. Referenced devices are logical, not wired GPIO. */
   dashboard?: { enabled: boolean; deviceIds: string[] };
@@ -243,6 +246,11 @@ export function validDisplayConfig(
   value: unknown,
   incompleteLayout = false,
 ): value is DisplayConfig {
+  if (record(value) && Object.hasOwn(value, 'animations')) {
+    if (!validFrameAnimations(value.animations, 16)) return false;
+    const { animations: _animations, ...legacy } = value;
+    return validDisplayConfig(legacy, incompleteLayout) && (displayProfiles[legacy.profile as DisplayProfile].graphic || (value.animations as unknown[]).length === 0);
+  }
   if (
     !record(value) ||
     !(

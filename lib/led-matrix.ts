@@ -1,3 +1,5 @@
+// @ts-expect-error Node strip-types tests import the source extension.
+import { validFrameAnimations, type FrameAnimation } from './frame-animation.ts';
 export const MATRIX_WIDTH = 32;
 export const MATRIX_HEIGHT = 8;
 export const MAX_MATRIX_PATTERNS = 12;
@@ -17,6 +19,7 @@ export interface LedMatrixConfig extends Record<string, unknown> {
   order: MatrixOrder;
   orientation: MatrixOrientation;
   patterns: MatrixPattern[];
+  animations?: FrameAnimation[];
 }
 
 function rowsFromArt(art: readonly string[]) {
@@ -79,6 +82,11 @@ const plainRecord = (value: unknown): value is Record<string, unknown> => Boolea
 const exactKeys = (value: Record<string, unknown>, keys: readonly string[]) => Object.keys(value).length === keys.length && keys.every(key => key in value);
 
 export function validMatrixConfig(value: unknown): value is LedMatrixConfig {
+  if (plainRecord(value) && Object.hasOwn(value, 'animations')) {
+    if (!validFrameAnimations(value.animations, MATRIX_WIDTH)) return false;
+    const { animations: _animations, ...legacy } = value;
+    return validMatrixConfig(legacy);
+  }
   if (!plainRecord(value) || !exactKeys(value, ['brightness', 'order', 'orientation', 'patterns'])) return false;
   if (!Number.isInteger(value.brightness) || Number(value.brightness) < 0 || Number(value.brightness) > 15) return false;
   if (!['left-to-right', 'right-to-left'].includes(String(value.order)) || !['normal', 'rotated'].includes(String(value.orientation))) return false;

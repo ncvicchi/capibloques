@@ -43,11 +43,12 @@
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "font5x7.h"
+#include "frame_animation.h"
 
 #ifndef CAPI_BOARD_ID
 #define CAPI_BOARD_ID "wemos-d1-r32"
 #endif
-#define CAPI_FIRMWARE_VERSION "1.7.0"
+#define CAPI_FIRMWARE_VERSION "1.8.0"
 static bool is_waveshare(){return !strcmp(CAPI_BOARD_ID,"waveshare-esp32-s3-touch-lcd-5-28117");}
 static constexpr uint16_t ABI = 1;
 static constexpr size_t MAX_RULES = 32 * 1024;
@@ -101,7 +102,7 @@ static int output_pins[32] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
 static portMUX_TYPE gpio_mux=portMUX_INITIALIZER_UNLOCKED;
 static bool timer_ready[3] = {false,false,false};
 static std::atomic<uint32_t> buzzer_epochs[GPIO_NUM_MAX];
-struct MatrixState { int din=-1,clk=-1,cs=-1;bool reverse=true,rotated=false;uint32_t rows[8]={};std::string text;int offset=0,repeats=0,speed=100;TickType_t next=0;bool active=false,ready=false; };
+struct MatrixState { int din=-1,clk=-1,cs=-1;bool reverse=true,rotated=false;uint32_t rows[8]={};std::string text;int offset=0,repeats=0,speed=100;TickType_t next=0;bool active=false,ready=false;FrameAnimationPlayback frames; };
 static MatrixState matrix;
 static SemaphoreHandle_t matrix_mutex=nullptr;
 static constexpr uart_port_t MESSAGE_UART = UART_NUM_1;
@@ -113,7 +114,7 @@ static MessageParser message_parser;
 struct OttoState { cJSON *device=nullptr;std::atomic<int> owner{-1};std::atomic<int> distance{0};uint8_t sonar_state=0,sound_preset=0,sound_step=5;uint64_t sonar_at=0,echo_started=0;TickType_t sound_at=0;bool ready=false; };
 static OttoState otto;
 static SemaphoreHandle_t otto_mutex=nullptr;
-struct DisplayState { cJSON *device=nullptr;int columns=0,rows=0,pixel_width=0,pixel_height=0,pixel_bytes=0;bool ready=false,parallel=false,oled=false,tft=false;std::vector<char> wanted,sent;bool animation=false;uint8_t animation_kind=0,effect=0;int step=0,repeats=0,column=0,row=0,width=0,height=0,speed=200;TickType_t next=0;std::string cells;uint16_t artwork[8]={}; };
+struct DisplayState { cJSON *device=nullptr;int columns=0,rows=0,pixel_width=0,pixel_height=0,pixel_bytes=0;bool ready=false,parallel=false,oled=false,tft=false;std::vector<char> wanted,sent;bool animation=false;uint8_t animation_kind=0,effect=0;int step=0,repeats=0,column=0,row=0,width=0,height=0,speed=200;TickType_t next=0;std::string cells;uint16_t artwork[8]={};FrameAnimationPlayback frames; };
 static DisplayState display;
 static SemaphoreHandle_t display_mutex=nullptr;
 static i2c_master_bus_handle_t display_i2c_bus=nullptr;
@@ -230,6 +231,14 @@ static void display_write_area(int column,int row,int columns,int rows,const std
 static void display_artwork_frame(int shift,bool visible){std::fill(display.wanted.begin(),display.wanted.end(),' ');if(!visible)return;int base_x=(display.columns-16)/2+shift,base_y=(display.rows-8)/2;for(int y=0;y<8;++y)for(int x=0;x<16;++x)if(display.artwork[y]&(1U<<(15-x))){int target_x=base_x+x,target_y=base_y+y;if(target_x>=0&&target_x<display.columns&&target_y>=0&&target_y<display.rows)display.wanted[target_y*display.columns+target_x]=0x7f;}}
 static void display_animation_service(TickType_t now){
   if(!display.animation||now<display.next){return;}
+  if(display.animation_kind==3){
+    uint32_t rows[8]={};
+    display.animation=display.frames.render((uint32_t)(esp_timer_get_time()/1000),rows);
+    for(int y=0;y<8;++y){display.artwork[y]=(uint16_t)rows[y];}
+    display_artwork_frame(0,true);
+    display.next=now+pdMS_TO_TICKS(display.frames.frame_ms);
+    return;
+  }
   display.next=now+pdMS_TO_TICKS(display.speed);
   bool done=false;
   if(display.animation_kind==1){
@@ -269,7 +278,26 @@ static uint8_t reverse_byte(uint8_t value){value=(value&0xf0)>>4|(value&0x0f)<<4
 static void matrix_register(uint8_t address,uint8_t data){output(matrix.cs,0);for(int module=0;module<4;++module)matrix_shift(address,data);output(matrix.cs,1);}
 static void matrix_flush(){if(!matrix.ready)return;for(int physical_row=0;physical_row<8;++physical_row){output(matrix.cs,0);for(int physical_module=3;physical_module>=0;--physical_module){int logical=matrix.reverse?3-physical_module:physical_module;if(matrix.rotated)logical=3-logical;int row=matrix.rotated?7-physical_row:physical_row;uint8_t data=(matrix.rows[row]>>((3-logical)*8))&0xff;if(matrix.rotated)data=reverse_byte(data);matrix_shift(physical_row+1,data);}output(matrix.cs,1);}}
 static uint8_t matrix_glyph(char character,int column){static const char symbols[]="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789? ";static const uint8_t glyphs[][5]={{126,17,17,17,126},{127,73,73,73,54},{62,65,65,65,34},{127,65,65,34,28},{127,73,73,73,65},{127,9,9,9,1},{62,65,73,73,122},{127,8,8,8,127},{65,65,127,65,65},{32,64,65,63,1},{127,8,20,34,65},{127,64,64,64,64},{127,2,12,2,127},{127,4,8,16,127},{62,65,65,65,62},{127,9,9,9,6},{62,65,81,33,94},{127,9,25,41,70},{38,73,73,73,50},{1,1,127,1,1},{63,64,64,64,63},{31,32,64,32,31},{127,32,24,32,127},{99,20,8,20,99},{3,4,120,4,3},{97,81,73,69,67},{62,69,73,81,62},{0,66,127,64,0},{98,81,73,73,70},{34,65,73,73,54},{24,20,18,127,16},{47,73,73,73,49},{62,73,73,73,50},{1,1,113,9,7},{54,73,73,73,54},{38,73,73,73,62},{2,1,81,9,6},{0,0,0,0,0}};if(column<0||column>=5)return 0;const char *found=strchr(symbols,character);int index=found?found-symbols:36;return glyphs[index][column];}
-static void matrix_service(void*){for(;;){if(matrix_mutex)xSemaphoreTake(matrix_mutex,portMAX_DELAY);TickType_t now=xTaskGetTickCount();if(matrix.active&&now>=matrix.next){memset(matrix.rows,0,sizeof(matrix.rows));int width=matrix.text.size()*6;for(int x=0;x<32;++x){int source=matrix.offset+x-32;uint8_t column=source>=0&&source<width?matrix_glyph(matrix.text[source/6],source%6):0;for(int y=0;y<7;++y)if(column&(1<<y))matrix.rows[y]|=1UL<<(31-x);}matrix_flush();++matrix.offset;matrix.next=now+pdMS_TO_TICKS(matrix.speed);if(matrix.offset>width+32){if(matrix.repeats==1)matrix.active=false;else{if(matrix.repeats>1)--matrix.repeats;matrix.offset=0;}}}if(matrix_mutex)xSemaphoreGive(matrix_mutex);cooperative_delay_ms(5);}}
+static void matrix_service(void*){
+  for(;;){
+    if(matrix_mutex){xSemaphoreTake(matrix_mutex,portMAX_DELAY);}
+    TickType_t now=xTaskGetTickCount();
+    if(matrix.active&&now>=matrix.next){
+      if(matrix.frames.count){
+        matrix.active=matrix.frames.render((uint32_t)(esp_timer_get_time()/1000),matrix.rows);
+        matrix.next=now+pdMS_TO_TICKS(matrix.frames.frame_ms);
+      }else{
+        memset(matrix.rows,0,sizeof(matrix.rows));int width=matrix.text.size()*6;
+        for(int x=0;x<32;++x){int source=matrix.offset+x-32;uint8_t column=source>=0&&source<width?matrix_glyph(matrix.text[source/6],source%6):0;for(int y=0;y<7;++y)if(column&(1<<y))matrix.rows[y]|=1UL<<(31-x);}
+        ++matrix.offset;matrix.next=now+pdMS_TO_TICKS(matrix.speed);
+        if(matrix.offset>width+32){if(matrix.repeats==1){matrix.active=false;}else{if(matrix.repeats>1){--matrix.repeats;}matrix.offset=0;}}
+      }
+      matrix_flush();
+    }
+    if(matrix_mutex){xSemaphoreGive(matrix_mutex);}
+    cooperative_delay_ms(5);
+  }
+}
 static void matrix_begin(){matrix.ready=false;cJSON *resources=active?cJSON_GetObjectItem(active,"resources"):nullptr,*devices=resources?cJSON_GetObjectItem(resources,"devices"):nullptr,*dev;cJSON_ArrayForEach(dev,devices)if(!strcmp(text(dev,"kind"),"ledMatrix")){matrix.din=pin(dev,"din");matrix.clk=pin(dev,"clk");matrix.cs=pin(dev,"cs");cJSON *config=cJSON_GetObjectItem(dev,"config");matrix.reverse=!strcmp(text(config,"order","right-to-left"),"right-to-left");matrix.rotated=!strcmp(text(config,"orientation"),"rotated");matrix.ready=true;output(matrix.cs,1);output(matrix.clk,0);matrix_register(0x0f,0);matrix_register(0x0c,1);matrix_register(0x0b,7);matrix_register(0x09,0);matrix_register(0x0a,std::clamp(number(config,"brightness",5),0,15));memset(matrix.rows,0,sizeof(matrix.rows));matrix_flush();break;}}
 static void motor(cJSON *dev, int power, bool robot_side = false, bool right = false) {
   const char *a = robot_side ? (right ? "rightIn1" : "leftIn1") : "in1";
@@ -286,13 +314,32 @@ static bool allowed_pin(int value) {
 }
 static bool allowed_output_pin(int value){if(value<0)return false;static const int wemos[]={13,14,16,17,18,19,23,25,26,27};static const int s3[]={4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,21,38,39,40,41,42,47};const int *values=!strcmp(CAPI_BOARD_ID,"wemos-d1-r32")?wemos:s3;size_t count=!strcmp(CAPI_BOARD_ID,"wemos-d1-r32")?sizeof(wemos)/sizeof(*wemos):sizeof(s3)/sizeof(*s3);return std::find(values,values+count,value)!=values+count;}
 static bool supported_operation(const char *op) {
-  static const char *values[] = {"halt","wait","counterSet","counterChange","variableSet","variableChange","timerStart","timerRestart","timerPause","timerResume","timerStop","timerWait","pin","led","rgbFill","rgbPixel","rgbSegment","rgbCoordinate","rgbGradient","rgbPattern","rgbAnimation","traffic","trafficVehicleDisplay","trafficPedestrianDisplay","motor","robot","otto","ottoSound","ottoExpression","ottoArms","servo","buzzer","tone","wifi","serial","messageSend","messageReceiveWait","wifiMessageSend","wifiMessageReceiveWait","displayWrite","displayClear","displayAnimateText","displayArtwork","matrixClear","matrixPixel","matrixPattern","matrixBrightness","matrixScroll","visualStop","visualWait","repeatStart","repeatNext","jump","jumpIfFalse","fork","join"};
+static const char *values[] = {"halt","wait","counterSet","counterChange","variableSet","variableChange","timerStart","timerRestart","timerPause","timerResume","timerStop","timerWait","pin","led","rgbFill","rgbPixel","rgbSegment","rgbCoordinate","rgbGradient","rgbPattern","rgbAnimation","traffic","trafficVehicleDisplay","trafficPedestrianDisplay","motor","robot","otto","ottoSound","ottoExpression","ottoArms","servo","buzzer","tone","wifi","serial","messageSend","messageReceiveWait","wifiMessageSend","wifiMessageReceiveWait","displayWrite","displayClear","displayAnimateText","displayArtwork","frameAnimation","matrixClear","matrixPixel","matrixPattern","matrixBrightness","matrixScroll","visualStop","visualWait","repeatStart","repeatNext","jump","jumpIfFalse","fork","join"};
   return std::find_if(std::begin(values),std::end(values),[op](const char *value){return !strcmp(op,value);}) != std::end(values);
 }
 static bool supported_expression(cJSON *expression){if(!cJSON_IsObject(expression))return false;const char *kind=text(expression,"kind");if(!strcmp(kind,"number")||!strcmp(kind,"text")||!strcmp(kind,"boolean")||!strcmp(kind,"counterValue")||!strcmp(kind,"timerElapsed")||!strcmp(kind,"timerRemaining")||!strcmp(kind,"sensorValue")||!strcmp(kind,"buttonValue")||!strcmp(kind,"barrierValue")||!strcmp(kind,"displayButtonValue")||!strcmp(kind,"messageValue")||!strcmp(kind,"ottoDistance")||!strcmp(kind,"wifiValue")||!strcmp(kind,"variable")||!strcmp(kind,"componentValue"))return true;if(!strcmp(kind,"join")){cJSON *parts=cJSON_GetObjectItem(expression,"parts"),*part;if(!cJSON_IsArray(parts))return false;cJSON_ArrayForEach(part,parts)if(!supported_expression(part))return false;return true;}if(!strcmp(kind,"math"))return supported_expression(cJSON_GetObjectItem(expression,"left"))&&supported_expression(cJSON_GetObjectItem(expression,"right"));return false;}
 static bool supported_condition(cJSON *condition){if(!cJSON_IsObject(condition))return false;const char *kind=text(condition,"kind");if(!strcmp(kind,"boolean")||!strcmp(kind,"counter")||!strcmp(kind,"compare")||!strcmp(kind,"sensor")||!strcmp(kind,"buttonPressed")||!strcmp(kind,"displayButtonPressed")||!strcmp(kind,"wifiConnected"))return true;if(!strcmp(kind,"value"))return supported_expression(cJSON_GetObjectItem(condition,"expression"));if(!strcmp(kind,"valueCompare"))return supported_expression(cJSON_GetObjectItem(condition,"left"))&&supported_expression(cJSON_GetObjectItem(condition,"right"));return false;}
 static bool contains_device(cJSON *devices,const char *id){cJSON *item;cJSON_ArrayForEach(item,devices)if(!strcmp(text(item,"id"),id))return true;return false;}
 static bool operation_device_valid(cJSON *devices,const char *op,const char *id){if(!id[0])return true;cJSON *item;cJSON_ArrayForEach(item,devices)if(!strcmp(text(item,"id"),id)){const char *kind=text(item,"kind");return !strcmp(op,"led")?!strcmp(kind,"led"):!strncmp(op,"rgb",3)?!strcmp(kind,"smartLights"):!strncmp(op,"traffic",7)?!strcmp(kind,"trafficLight"):!strcmp(op,"motor")?!strcmp(kind,"motor"):!strcmp(op,"robot")?!strcmp(kind,"robot"):!strncmp(op,"otto",4)?!strcmp(kind,"otto"):!strcmp(op,"servo")?!strcmp(kind,"servo"):!strcmp(op,"buzzer")?(!strcmp(kind,"activeBuzzer")||!strcmp(kind,"passiveBuzzer")):!strcmp(op,"tone")?!strcmp(kind,"passiveBuzzer"):!strncmp(op,"wifiMessage",11)?!strcmp(kind,"wifiNode"):!strncmp(op,"message",7)?!strcmp(kind,"messages"):!strncmp(op,"display",7)?!strcmp(kind,"display"):!strncmp(op,"matrix",6)?!strcmp(kind,"ledMatrix"):(!strcmp(op,"visualWait")||!strcmp(op,"visualStop"))?(!strcmp(kind,"ledMatrix")||!strcmp(kind,"display")||!strcmp(kind,"smartLights")):true;}return false;}
+static cJSON *find_frame_animation(cJSON *dev,const char *id){
+  cJSON *config=dev?cJSON_GetObjectItem(dev,"config"):nullptr,*items=config?cJSON_GetObjectItem(config,"animations"):nullptr,*item;
+  cJSON_ArrayForEach(item,items){if(!strcmp(text(item,"id"),id)){return item;}}
+  return nullptr;
+}
+static bool valid_frame_animation(cJSON *item,bool wide){
+  cJSON *frames=cJSON_GetObjectItem(item,"frames"),*speed=cJSON_GetObjectItem(item,"frameMs"),*rows,*row;
+  if(!cJSON_IsNumber(speed)||speed->valuedouble!=speed->valueint||speed->valueint<40||speed->valueint>2000||!cJSON_IsArray(frames)||cJSON_GetArraySize(frames)<1||cJSON_GetArraySize(frames)>16){return false;}
+  cJSON_ArrayForEach(rows,frames){
+    if(!cJSON_IsArray(rows)||cJSON_GetArraySize(rows)!=8){return false;}
+    cJSON_ArrayForEach(row,rows){if(!cJSON_IsNumber(row)||row->valuedouble<0||row->valuedouble>(wide?4294967295.0:65535.0)||floor(row->valuedouble)!=row->valuedouble){return false;}}
+  }
+  return true;
+}
+static void load_frame_animation(FrameAnimationPlayback &out,cJSON *item,int repeats){
+  out=FrameAnimationPlayback{};
+  cJSON *frames=cJSON_GetObjectItem(item,"frames");out.count=cJSON_GetArraySize(frames);out.frame_ms=number(item,"frameMs");out.repeats=repeats;out.started_at=(uint32_t)(esp_timer_get_time()/1000);
+  for(int i=0;i<out.count;++i){cJSON *rows=cJSON_GetArrayItem(frames,i);for(int y=0;y<8;++y){out.frames[i][y]=(uint32_t)cJSON_GetArrayItem(rows,y)->valuedouble;}}
+}
 static bool validate_rules(const std::vector<uint8_t> &bytes, cJSON **document) {
   if (bytes.size() < 32 || bytes.size() > MAX_RULES || memcmp(bytes.data(), "CAPIRULE", 8) || u16(&bytes[8]) != 1 || u16(&bytes[10]) != ABI || u32(&bytes[12]) != bytes.size() - 32 || u32(&bytes[16]) != crc32(&bytes[32], bytes.size() - 32)) return false;
   std::string payload((const char *)&bytes[32], bytes.size() - 32); cJSON *root = cJSON_ParseWithLength(payload.data(), payload.size());
@@ -301,6 +348,20 @@ static bool validate_rules(const std::vector<uint8_t> &bytes, cJSON **document) 
   cJSON *item,*pins,*pin_item,*task,*instruction;int message_devices=0,otto_devices=0,display_devices=0;cJSON_ArrayForEach(item,devices){pins=cJSON_GetObjectItem(item,"pins"); if(!cJSON_IsObject(pins)){cJSON_Delete(root);return false;} cJSON_ArrayForEach(pin_item,pins) if(cJSON_IsNumber(pin_item)&&!allowed_pin(pin_item->valueint)){cJSON_Delete(root);return false;}const char *kind=text(item,"kind");if(!strcmp(kind,"led")||!strcmp(kind,"smartLights")||!strcmp(kind,"trafficLight")||!strcmp(kind,"motor")||!strcmp(kind,"robot")||!strcmp(kind,"servo")||!strcmp(kind,"activeBuzzer")||!strcmp(kind,"passiveBuzzer")||!strcmp(kind,"ledMatrix"))cJSON_ArrayForEach(pin_item,pins)if(cJSON_IsNumber(pin_item)&&!allowed_output_pin(pin_item->valueint)){cJSON_Delete(root);return false;}if(!strcmp(kind,"otto")){++otto_devices;cJSON *echo=cJSON_GetObjectItem(pins,"echo");cJSON_ArrayForEach(pin_item,pins)if(cJSON_IsNumber(pin_item)&&pin_item!=echo&&!allowed_output_pin(pin_item->valueint)){cJSON_Delete(root);return false;}if(otto_devices>1||(cJSON_IsNumber(echo)&&!allowed_pin(echo->valueint))){cJSON_Delete(root);return false;}}if(!strcmp(kind,"display")){++display_devices;cJSON *config=cJSON_GetObjectItem(item,"config");const char *profile=text(config,"profile");bool parallel=!strcmp(profile,"lcd1602keypad"),i2c=!strcmp(profile,"lcd1602")||!strcmp(profile,"lcd2004")||!strcmp(profile,"ssd1306"),spi=!strcmp(profile,"ili9341")||!strcmp(profile,"ili9488");if(display_devices>1||(!parallel&&!i2c&&!spi)){cJSON_Delete(root);return false;}cJSON *keys=cJSON_GetObjectItem(pins,"keys");cJSON_ArrayForEach(pin_item,pins)if(cJSON_IsNumber(pin_item)&&pin_item!=keys&&!allowed_output_pin(pin_item->valueint)){cJSON_Delete(root);return false;}if(parallel&&(!cJSON_IsNumber(keys)||!allowed_pin(keys->valueint))){cJSON_Delete(root);return false;}}if(!strcmp(kind,"messages")){++message_devices;cJSON *tx=cJSON_GetObjectItem(pins,"tx"),*rx=cJSON_GetObjectItem(pins,"rx"),*config=cJSON_GetObjectItem(item,"config");const char *mode=text(config,"mode");int baud=number(config,"baudRate");if(message_devices>1||(!cJSON_IsNull(tx)&&(!cJSON_IsNumber(tx)||!allowed_output_pin(tx->valueint)))||(!cJSON_IsNull(rx)&&(!cJSON_IsNumber(rx)||!allowed_pin(rx->valueint)))||(strcmp(mode,"send")&&strcmp(mode,"receive")&&strcmp(mode,"both"))||(baud!=9600&&baud!=19200&&baud!=38400&&baud!=57600&&baud!=115200)){cJSON_Delete(root);return false;}}}
   uint32_t instructions=0; cJSON_ArrayForEach(task,tasks){cJSON *output=cJSON_GetObjectItem(task,"output");int output_size=cJSON_GetArraySize(output); if(!cJSON_IsArray(output)){cJSON_Delete(root);return false;} cJSON_ArrayForEach(instruction,output){const char *op=text(instruction,"op"),*device_id=text(instruction,"deviceId");bool target_ok=true;if(!strcmp(op,"jump"))target_ok=number(instruction,"target",-1)>=0&&number(instruction,"target")<output_size;else if(!strcmp(op,"repeatStart"))target_ok=number(instruction,"end",-1)>=0&&number(instruction,"end")<output_size;else if(!strcmp(op,"repeatNext"))target_ok=number(instruction,"target",-1)>=0&&number(instruction,"target")<output_size;else if(!strcmp(op,"jumpIfFalse"))target_ok=number(instruction,"target",-1)>=0&&number(instruction,"target")<output_size;else if(!strcmp(op,"messageReceiveWait")||!strcmp(op,"wifiMessageReceiveWait"))target_ok=number(instruction,"equalTarget",-1)>=0&&number(instruction,"equalTarget")<output_size&&number(instruction,"differentTarget",-1)>=0&&number(instruction,"differentTarget")<output_size&&number(instruction,"timeoutTarget",-1)>=0&&number(instruction,"timeoutTarget")<=output_size&&number(instruction,"timeoutMs",0)>=100&&number(instruction,"timeoutMs",0)<=300000;else if(!strcmp(op,"pin"))target_ok=allowed_output_pin(number(instruction,"pin",-1));else if(!strcmp(op,"fork")||!strcmp(op,"join")){cJSON *children=cJSON_GetObjectItem(instruction,"children"),*child;target_ok=cJSON_IsArray(children);cJSON_ArrayForEach(child,children)if(!cJSON_IsNumber(child)||child->valueint<0||child->valueint>=cJSON_GetArraySize(tasks))target_ok=false;}if(++instructions>2048||!supported_operation(op)||!target_ok||!operation_device_valid(devices,op,device_id)||(device_id[0]&&!contains_device(devices,device_id))||(!strcmp(op,"jumpIfFalse")&&!supported_condition(cJSON_GetObjectItem(instruction,"condition")))||(!strcmp(op,"variableSet")&&!supported_expression(cJSON_GetObjectItem(instruction,"value")))||(!strcmp(op,"variableChange")&&!supported_expression(cJSON_GetObjectItem(instruction,"delta")))||((!strcmp(op,"serial")||!strcmp(op,"messageSend")||!strcmp(op,"wifiMessageSend")||!strcmp(op,"displayWrite"))&&cJSON_HasObjectItem(instruction,"expression")&&!supported_expression(cJSON_GetObjectItem(instruction,"expression")))){cJSON_Delete(root);return false;}}}
   if(instructions!=u32(&bytes[20])){cJSON_Delete(root);return false;}
+  cJSON *frame_device;
+  cJSON_ArrayForEach(frame_device,devices){
+    cJSON *config=cJSON_GetObjectItem(frame_device,"config"),*animations=config?cJSON_GetObjectItem(config,"animations"):nullptr,*animation;
+    if(!animations){continue;}
+    const char *kind=text(frame_device,"kind"),*profile=text(config,"profile");bool wide=!strcmp(kind,"ledMatrix");
+    if(!cJSON_IsArray(animations)||cJSON_GetArraySize(animations)>4||(cJSON_GetArraySize(animations)>0&&!wide&&(strcmp(kind,"display")||(strcmp(profile,"ssd1306")&&strcmp(profile,"ili9341")&&strcmp(profile,"ili9488"))))){cJSON_Delete(root);return false;}
+    cJSON_ArrayForEach(animation,animations){if(!valid_frame_animation(animation,wide)){cJSON_Delete(root);return false;}}
+  }
+  cJSON_ArrayForEach(task,tasks){cJSON *output=cJSON_GetObjectItem(task,"output");cJSON_ArrayForEach(instruction,output){
+    if(strcmp(text(instruction,"op"),"frameAnimation")){continue;}
+    cJSON *dev=nullptr; cJSON_ArrayForEach(item,devices){if(!strcmp(text(item,"id"),text(instruction,"deviceId"))){dev=item;break;}}
+    cJSON *animation=find_frame_animation(dev,text(instruction,"animationId")),*repeats=cJSON_GetObjectItem(instruction,"repeatCount");
+    if(!animation||!cJSON_IsNumber(repeats)||repeats->valuedouble!=repeats->valueint||repeats->valueint<0||repeats->valueint>100){cJSON_Delete(root);return false;}
+  }}
   *document = root; return true;
 }
 
@@ -647,11 +708,28 @@ static void execute_task(void *parameter) {
     else if (!strcmp(op,"displayWrite")||!strcmp(op,"displayClear")) {cJSON *expression=cJSON_GetObjectItem(instruction,"expression");std::string value=!strcmp(op,"displayWrite")?(expression?value_text(evaluate(expression)):text(instruction,"text")):"";int column=0,row=0,columns=0,rows=0;if(display_mutex)xSemaphoreTake(display_mutex,portMAX_DELAY);if(display_area(instruction,column,row,columns,rows)){if(!strcmp(op,"displayClear"))display_write_area(column,row,columns,rows,nullptr);else{std::string cells=display_layout(value,columns,rows);display_write_area(column,row,columns,rows,&cells);}}if(display_mutex)xSemaphoreGive(display_mutex);}
     else if (!strcmp(op,"displayAnimateText")) {int column=0,row=0,columns=0,rows=0;if(display_mutex)xSemaphoreTake(display_mutex,portMAX_DELAY);if(display_area(instruction,column,row,columns,rows)){display.animation=true;display.animation_kind=1;const char *effect=text(instruction,"effect");display.effect=!strcmp(effect,"scroll")?1:!strcmp(effect,"blink")?2:!strcmp(effect,"scroll-right")?3:!strcmp(effect,"scroll-up")?4:!strcmp(effect,"scroll-down")?5:!strcmp(effect,"sequence")?6:!strcmp(effect,"bounce")?7:!strcmp(effect,"blinds")?8:!strcmp(effect,"center")?9:0;display.step=0;display.repeats=std::clamp(number(instruction,"repeatCount",1),0,100);display.column=column;display.row=row;display.width=columns;display.height=rows;display.cells=display_layout(text(instruction,"text"),columns,rows);cJSON *config=display.device?cJSON_GetObjectItem(display.device,"config"):nullptr;const char *speed=text(config,"animationSpeed","normal");display.speed=!strcmp(speed,"slow")?400:!strcmp(speed,"fast")?100:200;display.next=xTaskGetTickCount();}if(display_mutex)xSemaphoreGive(display_mutex);}
     else if (!strcmp(op,"displayArtwork")) {if(display_mutex)xSemaphoreTake(display_mutex,portMAX_DELAY);if((display.oled||display.tft)&&display_load_artwork(text(instruction,"artworkId"))){const char *effect=text(instruction,"effect");if(!strcmp(effect,"still")){display.animation=false;display_artwork_frame(0,true);}else{display.animation=true;display.animation_kind=2;display.effect=!strcmp(effect,"slide")?1:!strcmp(effect,"blink")?2:!strcmp(effect,"slide-right")?3:!strcmp(effect,"blinds")?4:!strcmp(effect,"center")?5:6;display.step=0;display.repeats=std::clamp(number(instruction,"repeatCount",1),0,100);cJSON *config=display.device?cJSON_GetObjectItem(display.device,"config"):nullptr;const char *speed=text(config,"animationSpeed","normal");display.speed=!strcmp(speed,"slow")?400:!strcmp(speed,"fast")?100:200;display.next=xTaskGetTickCount();}}if(display_mutex)xSemaphoreGive(display_mutex);}
-    else if (!strcmp(op,"matrixClear")) {if(matrix_mutex)xSemaphoreTake(matrix_mutex,portMAX_DELAY);matrix.active=false;memset(matrix.rows,0,sizeof(matrix.rows));matrix_flush();if(matrix_mutex)xSemaphoreGive(matrix_mutex);}
+    else if (!strcmp(op,"frameAnimation")) {
+      cJSON *animation=find_frame_animation(dev,text(instruction,"animationId"));
+      if(animation&&dev){
+        int repeats=std::clamp(number(instruction,"repeatCount",1),0,100);
+        if(!strcmp(text(dev,"kind"),"ledMatrix")){
+          if(matrix_mutex){xSemaphoreTake(matrix_mutex,portMAX_DELAY);}
+          load_frame_animation(matrix.frames,animation,repeats);matrix.active=true;matrix.next=xTaskGetTickCount();
+          matrix.frames.render(matrix.frames.started_at,matrix.rows);matrix_flush();
+          if(matrix_mutex){xSemaphoreGive(matrix_mutex);}
+        }else{
+          if(display_mutex){xSemaphoreTake(display_mutex,portMAX_DELAY);}
+          load_frame_animation(display.frames,animation,repeats);display.animation=true;display.animation_kind=3;display.next=xTaskGetTickCount();
+          display_animation_service(display.next);
+          if(display_mutex){xSemaphoreGive(display_mutex);}
+        }
+      }
+    }
+else if (!strcmp(op,"matrixClear")) {if(matrix_mutex)xSemaphoreTake(matrix_mutex,portMAX_DELAY);matrix.active=false;memset(matrix.rows,0,sizeof(matrix.rows));matrix_flush();if(matrix_mutex)xSemaphoreGive(matrix_mutex);}
     else if (!strcmp(op,"matrixPixel")) {if(matrix_mutex)xSemaphoreTake(matrix_mutex,portMAX_DELAY);matrix.active=false;int x=std::clamp(number(instruction,"x"),0,31),y=std::clamp(number(instruction,"y"),0,7);uint32_t mask=1UL<<(31-x);if(cJSON_IsTrue(cJSON_GetObjectItem(instruction,"enabled")))matrix.rows[y]|=mask;else matrix.rows[y]&=~mask;matrix_flush();if(matrix_mutex)xSemaphoreGive(matrix_mutex);}
     else if (!strcmp(op,"matrixPattern")) {if(matrix_mutex)xSemaphoreTake(matrix_mutex,portMAX_DELAY);matrix.active=false;cJSON *config=cJSON_GetObjectItem(dev,"config"),*patterns=config?cJSON_GetObjectItem(config,"patterns"):nullptr,*pattern;cJSON_ArrayForEach(pattern,patterns)if(!strcmp(text(pattern,"id"),text(instruction,"patternId"))){cJSON *rows=cJSON_GetObjectItem(pattern,"rows");for(int row=0;row<8;++row){cJSON *value=cJSON_GetArrayItem(rows,row);matrix.rows[row]=cJSON_IsNumber(value)?(uint32_t)value->valuedouble:0;}break;}matrix_flush();if(matrix_mutex)xSemaphoreGive(matrix_mutex);}
     else if (!strcmp(op,"matrixBrightness")) {int brightness=std::clamp(number(instruction,"brightness",50),0,100);if(matrix_mutex)xSemaphoreTake(matrix_mutex,portMAX_DELAY);matrix_register(0x0a,(uint8_t)(brightness*15/100));if(matrix_mutex)xSemaphoreGive(matrix_mutex);RuntimeValue value;value.number=brightness;component_set(text(instruction,"deviceId"),"brightness",value);}
-    else if (!strcmp(op,"matrixScroll")) {if(matrix_mutex)xSemaphoreTake(matrix_mutex,portMAX_DELAY);matrix.text=text(instruction,"text");if(matrix.text.size()>32)matrix.text.resize(32);matrix.speed=std::clamp(number(instruction,"speedMs",100),20,2000);matrix.repeats=std::clamp(number(instruction,"repeatCount",1),0,100);matrix.offset=0;matrix.next=xTaskGetTickCount();matrix.active=true;if(matrix_mutex)xSemaphoreGive(matrix_mutex);}
+    else if (!strcmp(op,"matrixScroll")) {if(matrix_mutex)xSemaphoreTake(matrix_mutex,portMAX_DELAY);matrix.frames.count=0;matrix.text=text(instruction,"text");if(matrix.text.size()>32)matrix.text.resize(32);matrix.speed=std::clamp(number(instruction,"speedMs",100),20,2000);matrix.repeats=std::clamp(number(instruction,"repeatCount",1),0,100);matrix.offset=0;matrix.next=xTaskGetTickCount();matrix.active=true;if(matrix_mutex)xSemaphoreGive(matrix_mutex);}
     else if (!strcmp(op,"visualStop")) {if(dev&&!strcmp(text(dev,"kind"),"display")){if(display_mutex)xSemaphoreTake(display_mutex,portMAX_DELAY);display.animation=false;if(display_mutex)xSemaphoreGive(display_mutex);}else if(dev&&!strcmp(text(dev,"kind"),"smartLights")){if(smart_lights_mutex)xSemaphoreTake(smart_lights_mutex,portMAX_DELAY);SmartLightsState *lights=smart_find(text(instruction,"deviceId"));if(lights)lights->effect=0;if(smart_lights_mutex)xSemaphoreGive(smart_lights_mutex);}else{if(matrix_mutex)xSemaphoreTake(matrix_mutex,portMAX_DELAY);matrix.active=false;if(matrix_mutex)xSemaphoreGive(matrix_mutex);}}
     else if (!strcmp(op,"visualWait")) {bool active=false;if(dev&&!strcmp(text(dev,"kind"),"display")){if(display_mutex)xSemaphoreTake(display_mutex,portMAX_DELAY);active=display.animation;if(display_mutex)xSemaphoreGive(display_mutex);}else if(dev&&!strcmp(text(dev,"kind"),"smartLights")){if(smart_lights_mutex)xSemaphoreTake(smart_lights_mutex,portMAX_DELAY);SmartLightsState *lights=smart_find(text(instruction,"deviceId"));active=lights&&lights->effect;if(smart_lights_mutex)xSemaphoreGive(smart_lights_mutex);}else{if(matrix_mutex)xSemaphoreTake(matrix_mutex,portMAX_DELAY);active=matrix.active;if(matrix_mutex)xSemaphoreGive(matrix_mutex);}if(active){vTaskDelay(pdMS_TO_TICKS(5));continue;}}
     else if (!strcmp(op,"repeatStart")) { int slot=number(instruction,"slot"), count=number(instruction,"count"); if (slot>=0&&slot<(int)loops.size()) { if (!loops[slot]) loops[slot]=count; if (loops[slot]<=0) { loops[slot]=0; pc=number(instruction,"end"); continue; } } }
@@ -714,7 +792,7 @@ static void command(cJSON *request) {
     cJSON_AddStringToObject(out,"wifiMac",shown_mac);
     cJSON_AddNumberToObject(out,"maxRulesBytes",MAX_RULES);
     cJSON *caps=cJSON_AddArrayToObject(out,"capabilities");
-    for(const char *cap:{"core","parallel","expressions","variables","timers","component-state","gpio","led","smart-lights","traffic","traffic-display","motor","robot","otto","servo","buzzer","matrix","display","display-lcd","display-lcd1602","display-lcd2004","display-lcd1602keypad","display-graphic","display-ssd1306","display-ili9341","display-ili9488","display-keypad","visual-wait","messages","wifi","wifi-messages","pairing","counter","serial","digital-input","analog-input","step"}){
+    for(const char *cap:{"core","parallel","expressions","variables","timers","component-state","gpio","led","smart-lights","traffic","traffic-display","motor","robot","otto","servo","buzzer","matrix","display","display-lcd","display-lcd1602","display-lcd2004","display-lcd1602keypad","display-graphic","display-ssd1306","display-ili9341","display-ili9488","display-keypad","frame-animation","visual-wait","messages","wifi","wifi-messages","pairing","counter","serial","digital-input","analog-input","step"}){
       cJSON_AddItemToArray(caps,cJSON_CreateString(cap));
     }
     if(is_waveshare()){

@@ -4,6 +4,28 @@ Documento vivo iniciado en **fase 11**. Actualización: **5 de octubre de 2026**
 
 ## 1. Punto de entrada y autorización actual
 
+### Última entrega: animaciones por cuadros (fase 43, 5 de octubre)
+
+El propietario autorizó crear animaciones con dibujos/imágenes. Implementado:
+editor de secuencias (crear/duplicar/quitar/reordenar/dibujar/importar), cuatro
+animaciones de hasta 16 cuadros, velocidad 40–2000 ms, bloque una/N/sin parar,
+worker y Arduino/ESP-IDF/intérprete, JSON retrocompatible. Sólo matriz 32×8 y
+dibujos gráficos monocromáticos 16×8; no LCD ni imágenes full-screen/color.
+Runtime mínimo vigente **1.8.0** y capacidad `frame-animation`; las menciones
+posteriores a 1.7.0 describen la entrega previa. Ver guía de fase 43.
+Pruebas locales: smoke completo, tipos/lint, C++ playback/servicios generados
+Arduino/nativo con warnings como errores y dos recorridos Chromium 16/32.
+No se ejecutó compilación completa ESP-IDF ni prueba física de 1.8.0.
+DEV no fue actualizado por el asistente: lo opera el propietario con:
+
+```bash
+cd /home/capi/capibloques && git fetch --quiet origin main && git show origin/main:scripts/update-dev.sh | bash -s -- --fast
+```
+
+Esta actualización reconstruye una vez el intérprete por el cambio de firmware;
+después hace falta instalar 1.8.0 en la placa desde el asistente. No afirmar que
+DEV o hardware estén probados hasta confirmación del propietario.
+
 - Repositorio: [ncvicchi/capibloques](https://github.com/ncvicchi/capibloques). Rama de trabajo actual: `main`. Nuevas ramas, si hacen falta: prefijo `codex/`. Respetar el árbol existente, sin reset/force ni descartar cambios ajenos.
 - El propietario autorizó y se implementaron en software las fases **17, 18, 35, 38, 39, 40 y 41**. Las fases de hardware conservan aceptación física pendiente; no convertir esa ausencia de módulos en una prueba aprobada.
 - **Fases 11–17, 20, 27–33 y 35–41 entregadas en software; fases 18, 23, 34 y 45 en curso.** La fase 45 ya tiene fondos/aventuras y una segunda entrega con selección múltiple, alineación/distribución, grilla configurable, guías magnéticas, orden visual persistente, cajas/anclas, avisos de solapamiento y el mismo orden/anclas en Waveshare. Le faltan capturas de referencia, mediciones y aceptación física. Las entregas que involucran hardware conservan sus aceptaciones físicas explícitas.

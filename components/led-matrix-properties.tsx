@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { PixelArtEditor } from '@/components/pixel-art-editor';
+import { FrameAnimationEditor } from '@/components/frame-animation-editor';
 import { Input } from '@/components/ui/input';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { MAX_MATRIX_PATTERNS, MATRIX_HEIGHT, MATRIX_WIDTH, type MatrixPattern } from '@/lib/led-matrix';
@@ -64,6 +65,7 @@ export function LedMatrixProperties({ device, onChange }: { device: LedMatrixDev
           <PixelArtEditor open={editingPattern} name={selected.name} width={MATRIX_WIDTH} height={MATRIX_HEIGHT} rows={selected.rows} onCancel={() => setEditingPattern(false)} onSave={rows => { updatePattern(pattern => ({ ...pattern, rows })); setEditingPattern(false); }} />
         </>}
       </fieldset>
+      <FrameAnimationEditor width={MATRIX_WIDTH} animations={device.config.animations ?? []} drawings={device.config.patterns} onChange={animations => onChange({ ...device, config: { ...device.config, animations } })} />
       <p className="display-portable-note">Mirá la matriz de frente y elegí de qué lado está DIN. Si los cuatro módulos aparecen 4‑3‑2‑1, elegí el otro lado. Esto no cambia el dibujo lógico.</p>
     </div>
   );

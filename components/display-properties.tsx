@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { PixelArtEditor } from '@/components/pixel-art-editor';
+import { FrameAnimationEditor } from '@/components/frame-animation-editor';
 import {
   displayConfig,
   displayArtworks,
@@ -442,6 +443,7 @@ export function DisplayProperties({
               </>
             )}
           </fieldset>
+          <FrameAnimationEditor width={DISPLAY_ART_WIDTH} animations={device.config.animations ?? []} drawings={displayArtworks(device.config)} onChange={animations => onChange({ ...device, config: { ...device.config, animations } })} />
         </>
       )}
       {!validDisplayConfig(config) && (

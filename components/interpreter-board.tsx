@@ -22,6 +22,7 @@ const operationNames: Record<string, string> = {
   led: 'cambiar la luz', motor: 'mover el motor', robot: 'mover el robot', servo: 'mover el servo',
   buzzer: 'hacer sonar el buzzer', tone: 'reproducir un tono', serial: 'mostrar un mensaje',
   fork: 'comenzar caminos en paralelo', join: 'esperar los caminos',
+  frameAnimation: 'inició la animación por cuadros',
 };
 function programBlocks(program: CompiledProgram) {
   const blocks = new Map<string, Record<string, unknown>>();

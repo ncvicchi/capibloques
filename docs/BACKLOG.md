@@ -517,7 +517,10 @@ ideas, editor gráfico, diferencias entre LCD de caracteres, OLED/TFT y matrices
 LED, bloques, repetición, ejecución cooperativa, accesibilidad, límites y aceptación están en
 [FASE_43_EFECTOS_DISPLAY.md](FASE_43_EFECTOS_DISPLAY.md). La entrega incluye
 editor grande, efectos cooperativos, detener/esperar y brillo MAX7219; conserva
-como ampliaciones selección/importación/color y patrones generativos.
+como ampliaciones selección/color y patrones generativos. El 5 de octubre se
+agregan secuencias monocromáticas por cuadros (4 animaciones × 16 cuadros),
+importación local de imágenes, edición/duplicado/orden, velocidad y bloque
+cooperativo una/N/sin parar. Requiere intérprete 1.8.0; DEV/físico pendientes.
 
 ## 40. Fidelidad espacial entre editor y escena ejecutada
 

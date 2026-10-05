@@ -30,6 +30,8 @@ import {
 } from './scene-model.ts';
 // @ts-expect-error Node strip-types tests import the source extension.
 import { matrixPixel, matrixScrollRows, matrixScrollSteps } from './led-matrix.ts';
+// @ts-expect-error Node strip-types runner.
+import { animationFrame, type FrameAnimation } from './frame-animation.ts';
 // @ts-expect-error Node's type-stripping smoke runner needs the explicit suffix.
 import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 
@@ -80,6 +82,7 @@ type Pending =
   | null;
 
 type VisualAnimation =
+  | { kind: 'frames'; startedAt: number; until: number; cycleMs: number; deviceId: string; animation: FrameAnimation; repeatCount: number }
   | {
       kind: 'matrix';
       startedAt: number;
@@ -1119,7 +1122,11 @@ function updateVisualAnimations() {
     let done = virtualNow >= animation.until;
     const elapsed = Math.max(0, virtualNow - animation.startedAt);
     const cycleElapsed = done ? animation.cycleMs : elapsed % animation.cycleMs;
-    if (animation.kind === 'smartLights') {
+    if (animation.kind === 'frames') {
+      const frame = animationFrame(animation.animation, elapsed, animation.repeatCount);
+      if (device?.kind === 'ledMatrix') { device.rows = [...frame.rows]; device.scrolling = !done; }
+      else if (device?.kind === 'display') { device.artworkRows = [...frame.rows]; device.animation = done ? null : 'cuadros'; }
+    } else if (animation.kind === 'smartLights') {
       if (device?.kind === 'smartLights') {
         const step = Math.floor(cycleElapsed / animation.speedMs);
         const rainbow = [
@@ -1591,6 +1598,20 @@ function executeInstruction(
       text: node.text,
       speedMs: Math.max(40, node.speedMs),
     });
+    execution.pc += 1;
+    return 'action';
+  }
+  if (node.op === 'frameAnimation') {
+    const definition = scene.devices.find(item => item.id === node.deviceId);
+    const animation = definition?.kind === 'display' || definition?.kind === 'ledMatrix' ? definition.config.animations?.find(item => item.id === node.animationId) : undefined;
+    cancelVisualAnimation(node.deviceId);
+    if (animation) {
+      const cycleMs = animation.frames.length * animation.frameMs;
+      visualAnimations.set(node.deviceId, { kind: 'frames', startedAt: virtualNow, until: node.repeatCount === 0 ? Infinity : virtualNow + cycleMs * node.repeatCount, cycleMs, deviceId: node.deviceId, animation, repeatCount: node.repeatCount });
+      const device = state.devices[node.deviceId];
+      if (device?.kind === 'display') device.texts = Object.fromEntries(Object.entries(device.texts).map(([id, lines]) => [id, lines.map(line => ' '.repeat(line.length))]));
+      updateVisualAnimations();
+    }
     execution.pc += 1;
     return 'action';
   }
@@ -2363,6 +2384,9 @@ function executeOne(execution: ThreadExecution) {
         break;
       case 'matrixScroll':
         message = `Desplazamos “${node.text.slice(0, 32)}” sin detener los otros caminos.`;
+        break;
+      case 'frameAnimation':
+        message = `${deviceName(node.deviceId)}: iniciamos la animación por cuadros.`;
         break;
       case 'rgbFill':
         message = `${deviceName(node.deviceId)}: encendemos todas las luces con el color elegido.`;

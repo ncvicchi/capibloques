@@ -96,6 +96,7 @@ function targetWorkspaceForBlock(block: BlocklyBlock) {
 
 function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
   switch (block.type) {
+    case 'capi_frame_animation': return ['display', 'ledMatrix'];
     case 'capi_display_write':
     case 'capi_display_clear':
     case 'capi_display_animate_text':
@@ -192,6 +193,7 @@ function devicesForBlock(block: BlocklyBlock) {
   const kinds = acceptedDeviceKinds(block);
   return (workspaceDevices.get(workspace) ?? []).filter((device) => {
     if (!kinds.includes(device.kind)) return false;
+    if (block.type === 'capi_frame_animation') return device.kind === 'ledMatrix' || (device.kind === 'display' && displayProfiles[device.config.profile].graphic);
     if (block.type === 'capi_display_button_pressed')
       return (
         device.kind === 'display' && device.config.profile === 'lcd1602keypad'
@@ -301,6 +303,11 @@ function updateDeviceWarning(block: BlocklyBlock) {
       'matrix-pattern',
     );
   }
+  if (block.getField('ANIMATION_ID')) {
+    const device = devicesForBlock(block).find(device => device.id === value);
+    const exists = (device?.kind === 'display' || device?.kind === 'ledMatrix') && device.config.animations?.some(item => item.id === block.getFieldValue('ANIMATION_ID'));
+    block.setWarningText(exists ? null : 'Creá o elegí una animación existente en este componente.', 'frame-animation');
+  }
   if (block.getField(DISPLAY_ARTWORK_FIELD)) {
     const device = devicesForBlock(block).find((device) => device.id === value);
     const artworkId = block.getFieldValue(DISPLAY_ARTWORK_FIELD);
@@ -403,6 +410,15 @@ function wifiPeerMenuGenerator(
       ? device.config.peers.map((peer) => [peer, peer] as BlocklyMenuOption)
       : []),
   ];
+}
+
+function frameAnimationMenuGenerator(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
+  const block = this.getSourceBlock();
+  const device = block ? devicesForBlock(block).find(item => item.id === block.getFieldValue(DEVICE_FIELD)) : undefined;
+  const options: BlocklyMenuOption[] = device?.kind === 'ledMatrix' || device?.kind === 'display' ? (device.config.animations ?? []).map(item => [item.name, item.id]) : [];
+  const current = this.getValue();
+  if (current && current !== '__missing_animation__' && !options.some(item => item[1] === current)) options.push(['⚠️ Animación retirada', current]);
+  return options.length ? options : [['Creá una animación en la escena', '__missing_animation__']];
 }
 
 function patternMenuGenerator(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
@@ -572,6 +588,8 @@ function refreshDeviceField(block: BlocklyBlock) {
   refreshMessageField(block);
   refreshPatternField(block);
   refreshDisplayArtworkField(block);
+  const animationField = block.getField('ANIMATION_ID') as BlocklyFieldDropdown | null;
+  if (animationField) { const previous = animationField.getValue(); animationField.setOptions(frameAnimationMenuGenerator); if (animationField.getOptions(false).some(item => item[1] === previous)) animationField.setValue(previous); }
   refreshComponentPropertyField(block);
   const wifiMessage = block.getField(
     WIFI_MESSAGE_FIELD,
@@ -875,6 +893,7 @@ const toolbox = {
         { kind: 'block', type: 'capi_display_write' },
         { kind: 'block', type: 'capi_display_animate_text' },
         { kind: 'block', type: 'capi_display_artwork' },
+        { kind: 'block', type: 'capi_frame_animation' },
         { kind: 'block', type: 'capi_display_clear' },
         { kind: 'block', type: 'capi_visual_stop' },
         { kind: 'block', type: 'capi_visual_wait' },
@@ -890,6 +909,7 @@ const toolbox = {
         { kind: 'block', type: 'capi_matrix_pattern' },
         { kind: 'block', type: 'capi_matrix_brightness' },
         { kind: 'block', type: 'capi_matrix_scroll' },
+        { kind: 'block', type: 'capi_frame_animation' },
         { kind: 'block', type: 'capi_visual_stop' },
         { kind: 'block', type: 'capi_visual_wait' },
       ],
@@ -918,6 +938,7 @@ function registerBlocks(Blockly: BlocklyApi) {
         (
           this.getField(DISPLAY_ARTWORK_FIELD) as BlocklyFieldDropdown | null
         )?.setOptions(displayArtworkMenuGenerator);
+        (this.getField('ANIMATION_ID') as BlocklyFieldDropdown | null)?.setOptions(frameAnimationMenuGenerator);
         (
           this.getField(WIFI_MESSAGE_FIELD) as BlocklyFieldDropdown | null
         )?.setOptions(wifiMessageMenuGenerator);
@@ -2972,6 +2993,15 @@ function registerBlocks(Blockly: BlocklyApi) {
       tooltip: 'Muestra uno de los dibujos creados en la escena.',
     },
     {
+      type: 'capi_frame_animation',
+      message0: '🎞️ en %1 mostrar animación %2',
+      args0: [deviceField('Elegí una matriz o pantalla gráfica'), { type: 'field_dropdown', name: 'ANIMATION_ID', options: [['Creá una animación', '__missing_animation__']] }],
+      message1: 'repetir %1 %2',
+      args1: [{ type: 'field_dropdown', name: 'REPEAT_MODE', options: [['una vez', 'ONCE'], ['varias veces', 'COUNT'], ['sin parar', 'FOREVER']] }, { type: 'field_number', name: 'REPEAT_COUNT', value: 2, min: 2, max: 100, precision: 1 }],
+      previousStatement: null, nextStatement: null, colour: '#B47B00', extensions: [DEVICE_EXTENSION, ANIMATION_REPEAT_EXTENSION],
+      tooltip: 'Muestra los cuadros guardados a su velocidad. El programa continúa; usá Esperar a que termine si necesitás esperar.',
+    },
+    {
       type: 'capi_matrix_brightness',
       message0: '☀️ brillo de %1 al %2 %%',
       args0: [
@@ -3961,6 +3991,9 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           patternId: String(block.getFieldValue(PATTERN_FIELD) ?? ''),
           blockId,
         });
+        break;
+      case 'capi_frame_animation':
+        result.push({ op: 'frameAnimation', deviceId: selectedDeviceId(block), animationId: String(block.getFieldValue('ANIMATION_ID') ?? ''), repeatCount: animationRepeatCount(block), blockId });
         break;
       case 'capi_matrix_brightness':
         result.push({
