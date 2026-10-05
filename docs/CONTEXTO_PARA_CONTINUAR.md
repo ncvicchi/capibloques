@@ -394,6 +394,16 @@ La fase 20 está autorizada y terminada en software; la siguiente fase requiere 
 
 ## 10. Lista de cierre y mantenimiento obligatorio
 
+Corrección operativa del 5 de octubre de 2026: el actualizador DEV permite
+reanudar un mantenimiento cuyo objetivo guardado es anterior al checkout,
+si ambos pertenecen a la misma línea del objetivo actual. Audita desde el
+objetivo pendiente para no omitir cambios ya presentes en HEAD, conserva
+los pasos pendientes y la pausa original, y mantiene las validaciones finales.
+Verificado localmente con seis escenarios de Git real en
+`python scripts/test_deploy_resume.py`, los once contratos públicos y sintaxis
+Bash. El propietario debe repetir el actualizador; todavía no hay confirmación
+de recuperación remota. No borrar el marcador ni abrir admisión manualmente.
+
 1. Registrar autorización exacta y alcance entregado; distinguir pendiente, bloqueado y postergado, sin porcentajes ficticios.
 2. Actualizar este corte con commits funcionales, pruebas y resultados reales, límites/mocks, fecha de verificación remota y versión desplegada. No adjudicar a un commit una prueba corrida sobre otro.
 3. Enlazar la guía de entrega nueva y actualizar plan, backlog, README/AGENTS cuando cambie su estado. Mantener enlaces históricos sin llamar completas funciones no verificadas.

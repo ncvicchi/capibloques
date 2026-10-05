@@ -66,7 +66,22 @@ TARGET_COMMIT=$(repo_git rev-parse origin/main)
 CURRENT_COMMIT=$(repo_git rev-parse HEAD)
 repo_git merge-base --is-ancestor "$CURRENT_COMMIT" "$TARGET_COMMIT" || fail "la actualización no es fast-forward"
 
-changed_files=$(repo_git diff --name-only "$CURRENT_COMMIT..$TARGET_COMMIT")
+AUDIT_BASE=$CURRENT_COMMIT
+if [[ -f $STATE_FILE ]]; then
+  pending_target=$(sed -n 's/^target=//p' "$STATE_FILE")
+  [[ $pending_target =~ ^[0-9a-f]{40}$ ]] && repo_git cat-file -e "$pending_target^{commit}" 2>/dev/null || \
+    fail "el estado del mantenimiento anterior contiene un commit inválido; revisar $STATE_FILE"
+  repo_git merge-base --is-ancestor "$pending_target" "$TARGET_COMMIT" || \
+    fail "el mantenimiento pendiente pertenece a otra línea de Git; revisar $STATE_FILE"
+  if repo_git merge-base --is-ancestor "$pending_target" "$CURRENT_COMMIT"; then
+    # HEAD puede haber avanzado antes de terminar el mantenimiento. Auditar
+    # también esos cambios: un diff HEAD..objetivo vacío no prueba su aplicación.
+    AUDIT_BASE=$pending_target
+  elif ! repo_git merge-base --is-ancestor "$CURRENT_COMMIT" "$pending_target"; then
+    fail "el checkout divergió del mantenimiento pendiente; revisar $STATE_FILE"
+  fi
+fi
+changed_files=$(repo_git diff --name-only "$AUDIT_BASE..$TARGET_COMMIT")
 RUN_MIGRATIONS=0
 REBUILD_COMPILER=0
 BUILD_INTERPRETER=0
@@ -215,8 +230,8 @@ if [[ -f $STATE_FILE ]]; then
   if [[ $saved_target != "$TARGET_COMMIT" ]]; then
     repo_git merge-base --is-ancestor "$saved_target" "$TARGET_COMMIT" || \
       fail "el mantenimiento pendiente pertenece a otra línea de Git; revisar $STATE_FILE"
-    repo_git merge-base --is-ancestor "$CURRENT_COMMIT" "$saved_target" || \
-      fail "el checkout ya no corresponde al inicio del mantenimiento pendiente; revisar $STATE_FILE"
+    # La relación entre checkout, marcador y objetivo ya se validó al elegir
+    # AUDIT_BASE; permite reanudar tanto antes como después del objetivo viejo.
     # El objetivo nuevo es descendiente del anterior y el preflight acaba de
     # auditar todos sus cambios. Conservamos cualquier paso de mantenimiento
     # que el intento anterior todavía podía deber y sumamos los del objetivo.

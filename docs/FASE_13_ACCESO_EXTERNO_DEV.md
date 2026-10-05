@@ -215,3 +215,12 @@ La «VM Nginx» no es el gateway y no es el host Proxmox. Si el inventario no pe
 5. Confirmar que no se tocaron PRD, gateway, host Proxmox, otros sitios, base ni volúmenes.
 
 La reversión de publicación no implica borrar proyectos ni regenerar secretos. Los cambios materiales se registran con su prueba y resultado.
+
+### Reanudación cuando el checkout ya avanzó
+
+Desde el 5 de octubre de 2026, un marcador pendiente anterior a HEAD puede
+reanudarse si pertenece a la misma línea Git. El script audita los cambios
+desde el objetivo guardado hasta el nuevo, suma los pasos pendientes y conserva
+la pausa original. No requiere borrar `dev-deploy.state`. La prueba local
+`python scripts/test_deploy_resume.py` cubre checkout anterior, igual y posterior
+al marcador, objetivo ya alcanzado y rechazo de historias divergentes.
