@@ -24,6 +24,7 @@ import {
   FileJson,
   FolderOpen,
   Gauge,
+  Pencil,
   Maximize2,
   MoreHorizontal,
   LogOut,
@@ -1313,12 +1314,12 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         <div className="brand">
           <button className="avatar-button" title="Elegir mi avatar" aria-label="Elegir mi avatar" disabled={!preferences.verified} onClick={()=>setPreferencesOpen('avatar')}><UserAvatar id={preferences.preferences?.avatarId ?? account.avatarId} decorative /></button>
           <div>
-            <strong>CapiBloques</strong>
             <span title={`@${account.alias} · Borrador local de esta cuenta`}>{account.displayName} · {boardProfile(projectTarget.boardProfile).shortName}</span>
           </div>
         </div>
         <label className="project-name">
           <span>Proyecto</span>
+          <Pencil size={14} aria-hidden="true" />
           <input
             value={projectName}
             maxLength={80}
@@ -1417,7 +1418,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           </button>
         ) : (
           <button className="run-button" onClick={() => { setWorkspaceMode('try'); setActiveTab('scene'); if (physicalMirrorActive) physicalControlRef.current?.('RUN'); else run(); }}>
-            <Play size={18} fill="currentColor" /> Ejecutar
+          <Play size={18} fill="currentColor" /> Simular
           </button>
         )}
         <button onClick={() => { setWorkspaceMode('try'); if (physicalMirrorActive) physicalControlRef.current?.('STEP'); else step(); }}><StepForward size={18} /> Paso</button>
@@ -1533,6 +1534,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
               <TabsTrigger value="scene">Escena</TabsTrigger>
               <TabsTrigger value="state">Estado</TabsTrigger>
               <TabsTrigger value="console">{physicalMirrorActive ? 'Mensajes de placa' : 'Consola'}</TabsTrigger>
+              <TabsTrigger value="execution">Ejecución</TabsTrigger>
             </TabsList>
             <TabsContent value="scene" className="sim-content" keepMounted>
               <div className="sim-stage composed-scene">
@@ -1746,8 +1748,10 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                 )}
               </div>
             </TabsContent>
+            <TabsContent value="execution" className="sim-content execution-tab-content" keepMounted>
+              <ExecutionPanel compact state={sim} post={postToWorker} onFollow={blockId => editorRef.current?.focusBlock(blockId)} />
+            </TabsContent>
           </Tabs>
-          <ExecutionPanel compact state={sim} post={postToWorker} onFollow={blockId => editorRef.current?.focusBlock(blockId)} />
           <div className={`sim-status ${sim.status}`}>
             <span className="status-dot" />
             <div>

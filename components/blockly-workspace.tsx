@@ -688,6 +688,18 @@ const BlocklyWorkspace = forwardRef<
           grid: { spacing: 22, length: 2, colour: '#d9dced', snap: false },
           sounds: false,
         });
+        const colorObserver = new MutationObserver(() => {
+          workspace.getParentSvg().querySelectorAll<HTMLElement>(
+            '.blocklyToolboxCategory, .blocklyTreeRow',
+          ).forEach((row) => {
+            if (row.style.color) row.style.setProperty('--category-colour', row.style.color);
+          });
+        });
+        colorObserver.observe(workspace.getParentSvg(), {
+          attributes: true,
+          subtree: true,
+          attributeFilter: ['style'],
+        });
         const configureBlockDragging = createBlockDraggingConfigurator(
           Blockly,
           workspace,
@@ -1044,6 +1056,7 @@ const BlocklyWorkspace = forwardRef<
       if (keyboardHost && openCalledDefinition)
         keyboardHost.removeEventListener('dblclick', openCalledDefinition);
       resizeObserver?.disconnect();
+      colorObserver.disconnect();
       if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
       if (dragConfigurationFrame !== undefined) {
         cancelAnimationFrame(dragConfigurationFrame);

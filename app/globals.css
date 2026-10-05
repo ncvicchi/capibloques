@@ -328,6 +328,7 @@ select:focus-visible {
   align-items: center;
   gap: 1px;
 }
+.project-name svg { color: #5942b4; margin-bottom: -2px; }
 .project-name span {
   color: var(--muted);
   font-size: 11px;
@@ -693,6 +694,7 @@ select:focus-visible {
   display: flex;
   align-items: center;
 }
+.blocklyToolboxCategory { background-color: color-mix(in srgb, var(--category-colour, #e9e7f5) 16%, white) !important; }
 .blocklyTreeLabel,
 .blocklyToolboxCategoryLabel {
   font-family: Inter, 'Segoe UI', sans-serif !important;
@@ -3499,6 +3501,7 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 /* Phase 12: two global rows; context and execution live beside their canvas. */
 .workbench { height: 100dvh; min-height: 500px; }
 .workbench .topbar { height: 66px; padding: 0 16px; gap: 14px; grid-template-columns: 190px minmax(150px, 230px) minmax(0, 1fr); }
+.workbench .topbar { grid-template-columns: 44px minmax(150px, 230px) minmax(0, 1fr); }
 .workbench .brand strong { font-size: 20px; }
 .workbench .brand span { font-size: 11px; }
 .workbench .project-name input { min-width: 0; }
@@ -3534,9 +3537,11 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .scene-context details p { position: absolute; z-index: 10; top: 100%; left: 0; width: min(330px, 75vw); background: white; box-shadow: 0 6px 24px #1e245333; padding: 14px; border-radius: 8px; border: 1px solid var(--line); font-size: 13px; }
 .scene-context .scene-builder-button { width: auto; padding: 6px 9px; min-height: 34px; font-size: 12px; white-space: nowrap; }
 .workbench .sim-tabs-list { height: 38px; min-height: 38px; }
+.workbench .sim-tabs-list [data-slot='tabs-trigger'] { min-width: 0; padding-inline: 9px; }
 .workbench .sim-tabs-root { min-height: 0; }
 .workbench .sim-content { min-height: 0; }
 .workbench .sim-content[hidden] { display: none !important; }
+.workbench .execution-tab-content { overflow: auto; }
 .workbench .sim-stage { min-height: 0; padding: 6px; height: 100%; }
 .workbench .sim-status { padding: 5px 10px; min-height: 24px; gap: 6px; }
 .workbench .sim-status > div { display: flex; align-items: center; gap: 6px; min-width: 0; }
@@ -3605,7 +3610,7 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .wiring-pin-button { border: 1px solid #bca6df; color: #522494; background: #f7f1ff; padding: 7px 9px; border-radius: 6px; white-space: nowrap; font-weight: 700; }
 .wiring-pin-button[aria-pressed='true'] { background: #eadcff; outline: 2px solid #7a45bd; }
 @media (max-width: 1150px) {
-  .workbench .topbar { grid-template-columns: 155px minmax(135px, 170px) minmax(0, 1fr); gap: 8px; padding: 0 10px; }
+  .workbench .topbar { grid-template-columns: 44px minmax(135px, 170px) minmax(0, 1fr); gap: 8px; padding: 0 10px; }
   .workbench .header-actions > button { padding-left: 8px; padding-right: 8px; font-size: 12px; }
   .workbench .cloud-state { min-width: 75px; font-size: 10px; }
   .workbench .workspace-grid.functional { grid-template-columns: minmax(390px, 1fr) minmax(330px, 38%); padding: 8px 10px 0; gap: 8px; }
