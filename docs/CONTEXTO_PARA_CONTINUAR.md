@@ -394,6 +394,16 @@ La fase 20 está autorizada y terminada en software; la siguiente fase requiere 
 
 ## 10. Lista de cierre y mantenimiento obligatorio
 
+Corrección del editor de dibujos del 5 de octubre de 2026: la captura de puntero
+en cada casilla dejaba el punto final igual al inicial y suprimía el recorrido.
+El lienzo ahora captura el gesto y calcula coordenadas reales, previsualiza
+figuras, interpola lápiz/borrador y restaura el borrador al cancelar el gesto.
+Cada apertura inicia un borrador independiente; cada gesto se deshace como una
+operación. Verificados línea, curva, rectángulo, rectángulo lleno, círculo y balde,
+preview, Deshacer/Rehacer y guardar/reabrir en Chrome y Edge para 16×8 y 32×8
+(4/4 E2E), además de TypeScript, lint del componente y prueba de rasterización.
+Actualización DEV a ejecutar por el propietario; no exige recompilar firmware.
+
 Corrección de compilación del 5 de octubre de 2026: `is_waveshare()` estaba
 definida dentro de `CONFIG_IDF_TARGET_ESP32S3` aunque las expresiones, condiciones
 y HELLO comunes la utilizan; ahora se define para todos los destinos. Se corrigió

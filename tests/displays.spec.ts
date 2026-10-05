@@ -12,6 +12,7 @@ import {
 } from '../lib/display-model';
 import { displayArtworkPixel } from '../lib/display-graphics';
 import { projectTargetForBoard } from '../lib/board-profiles';
+import { drawPixelShape, pixelIsOn, type PixelTool } from '../lib/pixel-art';
 
 async function open(page: Page) {
   await mockEditorSession(page);
@@ -469,6 +470,56 @@ test('pantalla: recupera nombre vacío y layout incompleto sin publicarlos', asy
   await expect(
     editor.getByLabel('Fila inicial de second', { exact: true }),
   ).toHaveValue('5');
+});
+
+for (const width of [16, 32]) test(`editor de dibujos: arrastra figuras de ${width} columnas con preview y conserva deshacer, rehacer y guardado`, async ({ page }) => {
+  await open(page);
+  await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  if (width === 16) {
+    await editor.getByRole('button', { name: /^Agregar Pantalla de texto/ }).click();
+    await editor.getByRole('combobox', { name: 'Modelo de pantalla' }).selectOption('ssd1306');
+    await editor.getByRole('button', { name: 'Cambiar modelo' }).click();
+    await editor.getByRole('textbox', { name: 'Nombre del dibujo de pantalla' }).fill('Herramientas');
+  } else {
+    await editor.getByRole('button', { name: /^Agregar Matriz LED/ }).click();
+    await editor.getByRole('textbox', { name: 'Nombre del dibujo' , exact: true }).fill('Herramientas');
+  }
+  await editor.getByRole('button', { name: 'Editar dibujo en grande' }).click();
+  const drawing = page.getByRole('dialog', { name: 'Editar Herramientas' });
+  const grid = drawing.locator('.pixel-editor-grid');
+  const read = () => grid.locator('button').evaluateAll(cells => cells.map(cell => cell.getAttribute('aria-pressed') === 'true'));
+  const start = { x: 2, y: 5 }, end = { x: width - 4, y: 2 };
+  const center = async (point: { x: number; y: number }) => {
+    const bounds = await grid.locator(`[data-x="${point.x}"][data-y="${point.y}"]`).boundingBox();
+    if (!bounds) throw new Error('Missing pixel');
+    return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+  };
+  let expected: boolean[] = [];
+  for (const [tool, label] of [['line', 'Línea'], ['curve', 'Curva'], ['rectangle', 'Rectángulo'], ['filled-rectangle', 'Relleno'], ['ellipse', 'Círculo']] as [PixelTool, string][]) {
+    await drawing.getByRole('button', { name: 'Borrar todo' }).click();
+    await drawing.getByRole('button', { name: label, exact: false }).click();
+    const from = await center(start), to = await center(end);
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(to.x, to.y, { steps: 5 });
+    const rows = drawPixelShape(Array(8).fill(0), width, tool, start, end);
+    expected = Array.from({ length: width * 8 }, (_, index) => pixelIsOn(rows, width, index % width, Math.floor(index / width)));
+    await expect.poll(read).toEqual(expected);
+    await page.mouse.up();
+    await expect.poll(read).toEqual(expected);
+    await drawing.getByRole('button', { name: 'Deshacer', exact: false }).click();
+    await expect.poll(read).toEqual(Array(width * 8).fill(false));
+    await drawing.getByRole('button', { name: 'Rehacer', exact: false }).click();
+    await expect.poll(read).toEqual(expected);
+  }
+  await drawing.getByRole('button', { name: 'Borrar todo' }).click();
+  await drawing.getByRole('button', { name: 'Balde', exact: false }).click();
+  await grid.locator('[data-x="4"][data-y="3"]').click();
+  await expect.poll(read).toEqual(Array(width * 8).fill(true));
+  await drawing.getByRole('button', { name: 'Guardar dibujo' }).click();
+  await editor.getByRole('button', { name: 'Editar dibujo en grande' }).click();
+  await expect.poll(read).toEqual(Array(width * 8).fill(true));
 });
 
 test('pantalla gráfica: crea dibujos, ofrece avatares y anima sin bloquear', async ({

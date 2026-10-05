@@ -194,6 +194,15 @@ visual, no una medición de luminosidad o corriente.
 
 ## Aceptación
 
+Corrección del 5 de octubre de 2026: la captura se realiza sobre el lienzo,
+con coordenadas calculadas desde el puntero y preview durante el arrastre.
+Línea, curva, rectángulo, relleno y círculo ya no toman la casilla inicial como
+destino. El lápiz/borrador interpola el recorrido y cada gesto tiene un único
+paso de Deshacer. Se verificaron las herramientas y balde, Deshacer/Rehacer y
+guardar/reabrir en 16×8 y 32×8 con Chrome y Edge instalados (4 pruebas E2E).
+La corrección es web; no cambia reglas ni versión del firmware. DEV pendiente
+de actualización por el propietario.
+
 - El mismo proyecto muestra una animación equivalente en simulador y placa.
 - Motores, sensores, temporizadores y caminos paralelos continúan avanzando
   durante cualquier efecto, incluso `sin parar`.
