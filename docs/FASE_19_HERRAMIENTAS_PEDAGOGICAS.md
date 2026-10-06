@@ -403,6 +403,15 @@ Empaquetado, reanudación del actualizador y diez pruebas del builder incrementa
 
 ### Pendientes de aceptación, no nuevas fases
 
+Corrección del 6 de octubre: la actualización DEV reportó 230 pruebas y una
+falla en el contrato de baja de cuentas. Recibo vacío vuelve a dar 400, mientras
+recibo inválido/vencido/ajeno da 409; el progreso solo sigue requiriendo respaldo.
+Pasan la prueba original y los 16 contratos locales de desafíos/validación,
+con SQLite sintético. La suite completa en PostgreSQL queda pendiente de
+reintentar en DEV. Un ensayo ampliado local de baja carece de cryptography y
+de rutas en el URLConf reducido; no se presenta como aprobado. No se cambia
+firmware ni migraciones.
+
 1. Propietario: actualizar DEV con el comando habitual y verificar migración, acceso alumno/docente y avance tras salir/volver a entrar. Probar las pruebas backend con PostgreSQL y el build real del intérprete 1.9.0.
 2. Aceptación de teclado/lector, móvil, Edge, docentes y chicos de 8–12 años. No presentarla como realizada por las pruebas Chromium automatizadas.
 3. Retos físicos sólo después de aceptar sus componentes. Autoría mediada de alumnos y recursos imprimibles siguen siendo oportunidades opcionales del plan, no herramientas implementadas.

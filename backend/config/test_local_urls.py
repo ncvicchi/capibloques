@@ -9,4 +9,5 @@ urlpatterns = [
     path('api/challenges/courses/<uuid:course_id>/', challenges.edit),
     path('api/challenges/courses/<uuid:course_id>/progress/', challenges.overview),
     path('api/management/users/<uuid:user_id>/deletion/', deletion.deletion),
+    path('api/management/users/<uuid:user_id>/deletion/backup/', deletion.backup),
 ]

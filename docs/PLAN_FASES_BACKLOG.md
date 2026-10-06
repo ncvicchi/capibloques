@@ -1,5 +1,9 @@
 # Nuevas fases de CapiBloques
 
+Corrección de aceptación de fase 19 (6 de octubre): restaurado contrato 400/409
+del respaldo para baja de cuentas. Prueba fallida más 16 contratos locales
+aprobados; reintento PostgreSQL/DEV pendiente. Ver guía y contexto vivo.
+
 Plan elaborado el 8 de septiembre de 2026 y actualizado el 5 de octubre de 2026. **Fases 11–17, 19, 27–33, 35–42 entregadas en software; fases 18, 20, 23, 34, 44 y 45 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`, aunque cada cierre posterior requiere su actualización explícita. La fase 19 está implementada en software con aceptación DEV/pedagógica pendiente; 21–22, 24–26 y 43 permanecen pendientes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
 
 La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros consecutivos; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. Los pedidos del 23 de septiembre amplían la fase 19 y continúan hasta la fase 41 sin alterar entregas cerradas; la simplificación y displays solicitados el 25 de septiembre son las fases 42–43, y la experiencia Waveshare y escenas visuales solicitadas el 26 son 44–45.

@@ -64,11 +64,13 @@ def deletion(request, user_id):
         if text_field(data, "confirmationAlias", 32) != target.username or data["understandsLocalDrafts"] is not True or data["understandsPermanent"] is not True:
             return fail("Confirmá el alias exacto y ambas advertencias antes de eliminar.")
         if current["projects"]["count"] or current["challengeProgressCount"]:
+            # Datos incompletos: 400; un recibo presente pero inválido: 409.
+            backup_receipt = text_field(data, "backupReceipt", 2048)
             try:
-                receipt = signing.loads(text_field(data, "backupReceipt", 2048), salt=SALT, max_age=600)
+                receipt = signing.loads(backup_receipt, salt=SALT, max_age=600)
                 if receipt["actor"] != str(actor.pk) or receipt["epoch"] != actor.session_epoch or receipt["target"] != str(target.pk) or receipt["version"] != current["version"]:
                     raise ValueError
-            except (signing.BadSignature, ValidationError, ValueError, KeyError, TypeError):
+            except (signing.BadSignature, ValueError, KeyError, TypeError):
                 return fail("Descargá nuevamente el respaldo actual antes de confirmar (vigencia: 10 minutos).", "backup_required", 409)
         # Objetos exactos verificados en esta transacción. Auditar antes de borrar,
         # conservando UUIDs; nunca tocar cuentas, cursos o proyectos ajenos.

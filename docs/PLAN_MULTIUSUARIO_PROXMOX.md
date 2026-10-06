@@ -1,5 +1,9 @@
 # Plan de CapiBloques: multiusuario, enseñanza y programación de Wemos
 
+6 de octubre: corregida regresión 400/409 del recibo de baja de cuentas de
+fase 19. Conserva respaldo obligatorio para progreso y proyectos. Reintento
+de actualización DEV y suite PostgreSQL pendientes del propietario.
+
 **Actualización vigente, 5 de octubre de 2026:** fase 19 autorizada y entregada
 en software; 17 desafíos, Según/Mientras, progreso y autoría docente por curso.
 Runtime 1.9.0 y dos migraciones aditivas auditadas. DEV, SDK completo y

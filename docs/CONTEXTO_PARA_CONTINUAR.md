@@ -4,6 +4,18 @@ Documento vivo iniciado en **fase 11**. Actualización: **5 de octubre de 2026**
 
 ## 1. Punto de entrada y autorización actual
 
+### Corrección de aceptación DEV — 6 de octubre de 2026
+
+El propietario informó 230 pruebas backend con una falla: recibo vacío de baja
+de cuenta devolvía 409 en vez de 400. Se restaura la validación de entrada antes
+de verificar la firma: vacío/mal formado devuelve 400; recibo inválido, vencido
+o de otro actor devuelve 409. Se mantiene respaldo obligatorio para proyectos
+o progreso de desafíos. Prueba original fallida y 16 contratos locales pasan
+con SQLite sintético (no prueban bloqueo PostgreSQL). El ensayo ampliado local
+de baja no es concluyente: faltan cryptography y rutas en el URLConf reducido.
+Suite completa PostgreSQL y actualización DEV pendientes del propietario.
+Sin migraciones ni cambios de firmware; usar el comando habitual --fast.
+
 ### Última entrega: fase 19 — desafíos y herramientas pedagógicas (5 de octubre)
 
 Autorizada por «Dale con todo» y entregada en software: 17 retos propios, paleta

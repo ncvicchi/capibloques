@@ -115,8 +115,15 @@ class ChallengeTests(TestCase):
         self.assertNotEqual(first['version'], current['version'])
         self.assertEqual(current['challengeProgressCount'], 1)
         self.login(self.admin)
-        response = self.client.delete(f'/api/management/users/{self.other.pk}/deletion/', {'version': current['version'], 'confirmationAlias': self.other.username, 'understandsLocalDrafts': True, 'understandsPermanent': True, 'backupReceipt': ''}, content_type='application/json')
+        payload = {'version': current['version'], 'confirmationAlias': self.other.username, 'understandsLocalDrafts': True, 'understandsPermanent': True, 'backupReceipt': ''}
+        url = f'/api/management/users/{self.other.pk}/deletion/'
+        response = self.client.delete(url, payload, content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['code'], 'invalid_input')
+        payload['backupReceipt'] = 'fake'
+        response = self.client.delete(url, payload, content_type='application/json')
         self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()['code'], 'backup_required')
         self.assertTrue(User.objects.filter(pk=self.other.pk).exists())
 
     def test_upload_limit_before_parser(self):
