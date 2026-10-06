@@ -4,6 +4,21 @@ Documento vivo iniciado en **fase 11**. Actualización: **5 de octubre de 2026**
 
 ## 1. Punto de entrada y autorización actual
 
+### Última mejora operativa: compilación incremental (5 de octubre)
+
+El propietario autorizó corregir la recompilación completa del SDK en cada
+actualización. Causa confirmada: `build-interpreter-firmware.sh` borraba sus
+directorios antes/después. Ahora conserva dos cachés por target en `outputs`,
+comparte SDK entre los S3 e invalida ante cambios de defaults/toolchain/rutas.
+ccache persistente de 256 MB sólo si ya está disponible, sin reconstruir la
+imagen para instalarlo. Bundle reutilizable validado también por `buildIdentity`.
+Diez pruebas locales cubren caché y builder Bash con `idf.py` sintético, más
+empaquetado/sintaxis y reanudación operativa. No hay medición ni despliegue remoto
+de esta mejora; primera construcción sin objetos sigue siendo completa.
+Guía: [COMPILACION_INCREMENTAL_INTERPRETE.md](COMPILACION_INCREMENTAL_INTERPRETE.md).
+El propietario actualiza con el comando habitual que figura debajo. No iniciar
+actualizaciones simultáneas ni modificar el checkout durante una construcción.
+
 ### Última entrega: animaciones por cuadros (fase 43, 5 de octubre)
 
 El propietario autorizó crear animaciones con dibujos/imágenes. Implementado:

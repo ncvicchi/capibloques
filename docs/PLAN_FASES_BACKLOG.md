@@ -268,6 +268,11 @@ No incluye una competencia pública, chat o tutor de IA, creación libre de desa
 
 ## Fase 20 — Uso guiado de la placa
 
+Mejora operativa asociada a fases 20/36 (5 de octubre): se conserva el build
+incremental del intérprete entre actualizaciones, con identidad por target y
+ccache opcional. Pruebas locales entregadas; DEV/medición real pendientes según
+[COMPILACION_INCREMENTAL_INTERPRETE.md](COMPILACION_INCREMENTAL_INTERPRETE.md).
+
 **Estado:** asistente, selección visual y emparejamiento automático de dos placas entregados en software; escena remota Waveshare, historial global del cambio y aceptación física pendientes. Ver [decisión, recorrido y evidencia](FASE_20_USO_GUIADO_PLACA.md).
 
 **Objetivo redefinido por el propietario:** que la actividad normal no compile un firmware por proyecto. La web instala o actualiza un firmware CapiBloques precompilado por placa y después genera, envía y ejecuta reglas locales en pocos segundos.

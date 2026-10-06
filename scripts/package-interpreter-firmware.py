@@ -17,6 +17,7 @@ def main():
     parser.add_argument("--output", type=pathlib.Path, required=True)
     parser.add_argument("--version", default="1.8.0")
     parser.add_argument("--revision", default="unknown")
+    parser.add_argument("--build-identity", default="")
     args = parser.parse_args()
     metadata = json.loads((args.build / "flasher_args.json").read_text(encoding="utf-8"))
     flash_files = metadata.get("flash_files", {})
@@ -39,6 +40,8 @@ def main():
         archive.writestr("LEEME.txt", f"Intérprete CapiBloques {args.version} para {args.profile}.\n")
         for index, (_, data) in enumerate(selected): archive.writestr(f"firmware/part-{index}.bin", data)
     info = {"board":args.profile,"version":args.version,"abi":1,"bundle":bundle.name,"bytes":bundle.stat().st_size,"sha256":digest(bundle.read_bytes()),"sourceRevision":args.revision}
+    if args.build_identity:
+        info["buildIdentity"] = args.build_identity
     (args.output / f"{args.profile}.json").write_text(json.dumps(info, separators=(",",":"), sort_keys=True), encoding="utf-8")
     print(json.dumps(info))
 

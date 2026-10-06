@@ -188,7 +188,10 @@ jobs:
       - name: Validar scripts operativos
         run: |
           bash -n scripts/deploy-dev-remote.sh
+          bash -n scripts/build-interpreter-firmware.sh
           bash -n scripts/update-dev.sh
+          python scripts/test_interpreter_cache.py
+          python scripts/test_package_interpreter.py
           pwsh -NoProfile -Command '[scriptblock]::Create((Get-Content scripts/deploy-dev.ps1 -Raw)) | Out-Null'
 
       - name: Validar configuración del entorno de desarrollo

@@ -333,6 +333,13 @@ Toda caché debe incluir toolchain, framework, placa, memoria, particiones, bibl
 
 **Resuelto por cambio de arquitectura en fase 20/36:** el firmware intérprete se precompila una vez por placa y el proyecto cotidiano envía reglas locales; no corresponde introducir una caché compleja para ese recorrido. Las optimizaciones enumeradas siguen siendo opciones del compilador nativo avanzado si vuelve a convertirse en un cuello de botella medido.
 
+**Mejora operativa implementada el 5 de octubre:** el builder del intérprete
+dejaba sin objetos SDK cada actualización. Se eliminó esa limpieza sistemática:
+caché persistente por target, reutilización S3 e identidad de configuración y
+toolchain; ccache opcional acotado si está instalado. Pruebas locales aprobadas;
+medición real/DEV pendiente, sin modificar el aislamiento de proyectos privados.
+Ver [COMPILACION_INCREMENTAL_INTERPRETE.md](COMPILACION_INCREMENTAL_INTERPRETE.md).
+
 ## 24. Identidad del colegio como centro del ingreso
 
 Pedido del 20 de septiembre de 2026: antes de iniciar sesión, el **logo y el nombre del colegio deben ser los protagonistas visuales**. No alcanza con que estén presentes como una marca secundaria: la pantalla debe comunicar primero a qué institución pertenece el espacio y después pedir alias y contraseña.

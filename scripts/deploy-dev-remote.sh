@@ -330,6 +330,9 @@ if ((REBUILD_COMPILER)); then
   compiler_image=$(docker image inspect capibloques-compiler-dev:phase9 --format '{{.Id}}')
   [[ $compiler_image =~ ^sha256:[0-9a-f]{64}$ ]] || fail "la imagen nueva del compilador no tiene un ID válido"
   compiler_recipe=${compiler_image#sha256:}
+  # Un cambio de imagen debe revisar también la identidad de los binarios;
+  # la caché decide si los objetos existentes siguen siendo compatibles.
+  BUILD_INTERPRETER=1
 fi
 
 if ((RUN_MIGRATIONS)); then
@@ -343,12 +346,13 @@ if ((BUILD_INTERPRETER)); then
   # herramientas. Reutilizarla evita conservar y extraer una segunda imagen
   # oficial de varios GB, algo que no entra en el disco pequeño de DEV.
   interpreter_builder_image=capibloques-compiler-dev:phase9
-  docker image inspect "$interpreter_builder_image" >/dev/null 2>&1 || \
+  interpreter_toolchain_key=$(docker image inspect "$interpreter_builder_image" --format '{{.Id}}' 2>/dev/null) || \
     fail "falta la imagen local $interpreter_builder_image para construir el intérprete"
-  echo "Construyendo los tres firmwares intérprete con la toolchain local del compilador."
+  echo "Construyendo intérpretes de forma incremental; los objetos ESP-IDF se conservan en outputs."
   docker run --rm --cpus 1 --memory 1200m --memory-swap 1500m \
     --entrypoint /bin/bash \
     --user "$(id -u capi):$(id -g capi)" -e HOME=/tmp/capi-idf -e IDF_PY_BUILD_JOBS=2 \
+    -e CAPI_INTERPRETER_TOOLCHAIN_KEY="$interpreter_toolchain_key" \
     -v "$REPOSITORY:/project" -w /project \
     "$interpreter_builder_image" \
     -lc '. "$IDF_PATH/export.sh" >/dev/null && bash ./scripts/build-interpreter-firmware.sh 1.8.0 /project/public/interpreter '"$INTERPRETER_SOURCE"
