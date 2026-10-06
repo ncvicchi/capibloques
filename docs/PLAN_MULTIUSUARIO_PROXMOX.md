@@ -1,5 +1,11 @@
 # Plan de CapiBloques: multiusuario, enseñanza y programación de Wemos
 
+**Actualización vigente, 5 de octubre de 2026:** fase 19 autorizada y entregada
+en software; 17 desafíos, Según/Mientras, progreso y autoría docente por curso.
+Runtime 1.9.0 y dos migraciones aditivas auditadas. DEV, SDK completo y
+aceptación pedagógica pendientes; ver [guía de entrega](FASE_19_HERRAMIENTAS_PEDAGOGICAS.md#14-entrega-implementada-y-evidencia--5-de-octubre-de-2026).
+El párrafo histórico siguiente no describe por sí solo el estado actual.
+
 Estado: **fases 0–9 y 11–14 implementadas y verificadas en DEV**. La fase 10 conserva aceptación física pendiente por falta de Wemos. La [fase 13](FASE_13_ACCESO_EXTERNO_DEV.md) publicó DEV de forma persistente y segura, la [fase 14](FASE_14_EJECUCION_VISUAL.md) entregó la ejecución visual y las correcciones posteriores de la barra residual, del arrastre individual/grupal y del guardado estable durante el arrastre están desplegadas hasta `2b97af9`; las fases 15–26 requieren autorización. Producción es la **Fase final**, postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) contiene el detalle y la evidencia vigente.
 Fecha de actualización: 19 de septiembre de 2026.
 Backlog posterior: [pedidos completos](BACKLOG.md), asignados íntegramente a las [fases 12–26](PLAN_FASES_BACKLOG.md), precedidas por la fase 11 de contexto portable. Las fases 12–14 están entregadas; las fases 15–26 requieren autorización propia.

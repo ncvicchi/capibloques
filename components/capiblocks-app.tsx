@@ -45,6 +45,7 @@ import BlocklyWorkspace, {
   type BlocklyHistoryState,
   type BlocklyWorkspaceHandle,
 } from '@/components/blockly-workspace';
+import ChallengeWorkbench from '@/components/challenge-workbench';
 import SceneStage from '@/components/scene-stage';
 import ExecutionPanel from '@/components/execution-panel';
 import UserAvatar from '@/components/user-avatar';
@@ -481,6 +482,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const [speed, setSpeed] = useState(1);
   const [muted, setMuted] = useState(false);
   const [examplesOpen, setExamplesOpen] = useState(false);
+  const [challengePalette, setChallengePalette] = useState<readonly string[]|undefined>(undefined);
   const [sceneBuilderOpen, setSceneBuilderOpen] = useState(false);
   const sceneCommitRef = useRef<SceneDefinition | null>(null);
   const targetCommitRef = useRef<ProjectTarget | null>(null);
@@ -723,7 +725,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         stopSound();
         setNotice('Cambiaste los bloques. Ejecutar o Paso comenzará con el programa actualizado.');
       }
-      setWorkspace(nextWorkspace);
+      setWorkspace(previous => previous.capiChallenge ? {...nextWorkspace,capiChallenge:previous.capiChallenge} : nextWorkspace);
       setDiagnostics([]);
       setNoticeTone('ok');
     },
@@ -949,7 +951,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   );
 
   const currentProject = useCallback((): ProjectFile => {
-    const savedWorkspace = editorRef.current?.save() ?? workspace;
+    const savedWorkspace = { ...(editorRef.current?.save() ?? workspace), ...(workspace.capiChallenge ? {capiChallenge:workspace.capiChallenge} : {}) };
     return makeProject(projectName, sceneCommitRef.current ?? scene, savedWorkspace, speed, targetCommitRef.current ?? projectTarget);
   }, [projectName, projectTarget, scene, speed, workspace]);
 
@@ -1329,6 +1331,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         </label>
         <nav className="header-actions" aria-label="Acciones del proyecto">
           <ProjectLibrary ref={libraryRef} account={account} store={draftStore} csrfToken={csrfToken} hydrated={hydrated} sceneEditing={sceneBuilderOpen} offline={offline} fingerprint={fingerprint} capture={currentProject} apply={applyLibraryProject} onNew={newLibraryProject} onImport={() => fileInputRef.current?.click()} notice={message => { setNotice(message); setNoticeTone('ok'); }} />
+          <ChallengeWorkbench account={account} token={csrfToken} enabled={!offline&&draftStore.remoteAllowed} workspace={workspace} capture={currentProject} projectId={()=>draftStore.remote?.id??null} compile={()=>editorRef.current?.compile()??emptyProgram()} load={(project,applied)=>{const apply=()=>{libraryRef.current?.detach();applyLibraryProject(project);applied?.();};if(libraryRef.current)libraryRef.current.replace(apply);else apply();}} onPalette={setChallengePalette}/>
           <DropdownMenu>
             <DropdownMenuTrigger className="export-button" aria-label="Opciones del proyecto">
               <FolderOpen size={18} /> Proyecto
@@ -1492,6 +1495,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             <BlocklyWorkspace
               ref={editorRef}
               favorites={preferences.preferences?.favorites}
+              allowedBlocks={challengePalette}
               onChooseFavorites={()=>setPreferencesOpen('favorites')}
               initialWorkspace={workspace}
               revision={workspaceRevision}

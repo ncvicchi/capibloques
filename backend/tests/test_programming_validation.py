@@ -4,6 +4,13 @@ from projects.validation import workspace
 
 
 class ParallelWorkspaceTests(SimpleTestCase):
+    def test_switch_preserves_all_case_branches(self):
+        sample = {"blocks": {"languageVersion": 0, "blocks": [{"type": "capi_switch", "id": "switch", "extraState": {"cases": 2, "type": "boolean"}, "fields": {"CASES": "2", "CASE_TYPE": "boolean", "CASE_VALUE0": "true", "CASE_VALUE1": "false"}}]}}
+        workspace(sample)
+        sample["blocks"]["blocks"][0]["inputs"] = {"CASE2": {"block": {"type": "capi_wait", "id": "wait"}}}
+        with self.assertRaises(ValidationError):
+            workspace(sample)
+
     def sample(self):
         return {"blocks": {"languageVersion": 0, "blocks": [{"type": "capi_start", "id": "start", "deletable": False, "inputs": {"DO": {"block": {"type": "capi_parallel", "id": "roads", "extraState": {"branches": 2}, "fields": {"BRANCHES": "2"}, "inputs": {"BRANCH0": {"block": {"type": "capi_wait", "id": "wait", "fields": {"SECONDS": 1}}}}}}}}]}}
 

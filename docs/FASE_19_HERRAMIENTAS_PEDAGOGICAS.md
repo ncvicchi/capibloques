@@ -1,6 +1,6 @@
 # Fase 19 — Herramientas pedagógicas y desafíos progresivos
 
-**Estado:** planificada, no autorizada ni implementada.
+**Estado (5 de octubre de 2026):** autorizada e implementada en software. Validación local completada; DEV, construcción completa del SDK y aceptación docente/infantil pendientes. El alcance entregado y sus límites se detallan al final; el inventario original no constituye evidencia de prueba física.
 
 Este documento amplía la fase 19 existente. Conserva el pedido original de desafíos progresivos e incorpora las dos revisiones de Pilas Bloques realizadas el 23 de septiembre de 2026: primero su catálogo y editor clásico y luego, en profundidad, la aplicación 3.0.2, su creador de desafíos, formato versionado, análisis estructural, recursos docentes y propuesta desenchufada. No se copian historias, personajes, escenas ni soluciones: se estudian herramientas de lenguaje, construcción de desafíos, ejecución y acompañamiento.
 
@@ -378,3 +378,32 @@ Es una única fase; estos son hitos internos, no subfases independientes:
 - Crear un segundo editor incompatible para los desafíos.
 - Incorporar tutor de IA o chat como requisito de la fase.
 - Declarar comprendido un concepto sólo porque la escena terminó una vez.
+
+## 14. Entrega implementada y evidencia — 5 de octubre de 2026
+
+- Entrada **Desafíos** en el editor, con 17 actividades propias sin hardware: secuencias, destellos, procedimientos, decisiones, repetición condicional, sensores numéricos, contador/texto con datos, parámetros, Según, temporizadores, paralelo, depuración, pantallas/consola, refactorización, programa parcial y creación libre. No hay contenidos copiados ni bloqueos por puntuación.
+- Abrir/reiniciar usa la confirmación existente antes de reemplazar el proyecto. La asociación portable contiene sólo ID/versión del reto; no identidad de alumno, curso o servidor. Guardar/autoguardado, recuperación e importación/exportación siguen siendo los del proyecto normal. Copia libre quita la asociación y devuelve la paleta completa.
+- **Según**: 2–8 casos numéricos/textuales/sí-no y opciones conocidas de semáforo/robot; valor evaluado una vez, casos exclusivos, sin caída entre ramas, otra opción por defecto. Duplicados, tipos incompatibles y componentes retirados se rechazan. Redimensionar no descarta ramas ocupadas. **Mientras / Hasta que** agrega repetición condicional cooperativa. Incluidos Blockly, JSON, worker, reglas y generadores Arduino/ESP-IDF.
+- Validador en un worker separado: escenas/entradas deterministas, objetivos en tiempos virtuales, comparación tipada, condiciones pedagógicas obligatorias sólo si figuran en la consigna, sugerencias separadas, hechos de cada caso y reproducción conservando los bloques. Presupuesto de 4 s de CPU/6 s de espera; cancelación/error no cuentan como intento. Los objetivos no disponibles se distinguen de una solución incorrecta.
+- Autor docente por curso: proyecto/escena inicial, paleta, semillas y listas de entradas, objetivos de componentes/contador/variables/temporizadores/textos, operadores incluidos `contiene`, pistas, expectativas; guardar/cancelar/deshacer/rehacer, duplicar, importar/exportar, publicar versiones inmutables, asignar y archivar. La base se puede actualizar desde el proyecto abierto. Conflictos conservan el borrador y permiten actualizar la precondición de curso explícitamente.
+- Casos **reservados** sólo llegan al docente. La revisión docente puede comprobar el programa actualmente abierto —por ejemplo una copia de un trabajo compartido— con todos los casos. El alumno sólo autoevalúa casos visibles. **No hay ejecución secreta de programas del alumno en el servidor ni nota automática basada en pruebas privadas.** La exportación docente del reto sí contiene estos casos y debe tratarse como material docente.
+- Progreso en PostgreSQL por cuenta/curso/ID/versión: intentos, pistas, estado, fecha y referencia al proyecto propio si ya está guardado. Reintentos con la misma operación/cuerpo no duplican intentos dentro de las últimas 20 operaciones. Se identifica expresamente como autoevaluación, no como prueba de dominio. Docente ve únicamente alumnos activos de sus cursos; administrador global no adquiere acceso docente. No hay rankings ni registro de cada gesto.
+- Dos migraciones aditivas: `accounts.0005_challenge_progress`, `courses.0002_challenge_library`. El actualizador admite sólo sus blobs exactos auditados y conserva respaldo PostgreSQL verificado antes de migrar. No se borra/recrea la base ni se amplía una excepción genérica. La baja de cuenta incluye progreso en su versión, conteo, respaldo ZIP con hash y confirmación.
+- Runtime mínimo **1.9.0**, capacidades `switch` y `conditional-loop`. Se conserva la compilación incremental de la entrega anterior. Actualizar DEV no actualiza una placa: instalar firmware vigente desde el asistente antes de enviar reglas nuevas.
+
+### Evidencia local reproducible
+
+`npm run test:challenges`: los 17 documentos/paletas/proyectos iniciales; solución válida y alternativa; respuesta incompleta y error cercano en los 16 retos calificables; creatividad sin aprobación automática; tipos/duplicados/default de Según; semillas y round-trip Blockly; expansión de procedimientos y ambas salidas nativas. `npm run test:smoke`: suite completa anterior aprobada, incluidos worker y contratos C++ existentes.
+
+`tests/challenges.spec.ts`, Chromium: tres recorridos aprobados —catálogo/pistas/copia libre, importación/validación funcional y creador docente con undo/redo/publicación/asignación— con cuentas sintéticas. Se corrigió además una carrera donde refrescar el catálogo cancelaba la comprobación.
+
+Backend: 16 pruebas locales de desafíos y almacenamiento de bloques, con SQLite sintético; aislamiento por cuenta/curso, revocación, administrador sin membresía, versiones inmutables, conflictos, replay, casos reservados, baja respaldada y límites antes del parser. **SQLite no verifica el bloqueo advisory ni concurrencia PostgreSQL.** Las pruebas normales de backend conservan PostgreSQL. `makemigrations --check --dry-run`: sin diferencias pendientes.
+
+Empaquetado, reanudación del actualizador y diez pruebas del builder incremental también aprobados. No se compiló el SDK completo ESP-IDF ni se grabó ninguna placa desde esta PC. No se accedió a VMs ni se actualizaron datos reales.
+
+### Pendientes de aceptación, no nuevas fases
+
+1. Propietario: actualizar DEV con el comando habitual y verificar migración, acceso alumno/docente y avance tras salir/volver a entrar. Probar las pruebas backend con PostgreSQL y el build real del intérprete 1.9.0.
+2. Aceptación de teclado/lector, móvil, Edge, docentes y chicos de 8–12 años. No presentarla como realizada por las pruebas Chromium automatizadas.
+3. Retos físicos sólo después de aceptar sus componentes. Autoría mediada de alumnos y recursos imprimibles siguen siendo oportunidades opcionales del plan, no herramientas implementadas.
+4. El motor observa componentes, datos, textos y conteos; no verifica todavía colisiones/tránsito del decorado ni mide comprensión. Las entradas de variantes cambian al inicio; eventos de sensor guionados durante el caso no están implementados. El docente puede diseñar casos iniciales distintos o revisión manual.

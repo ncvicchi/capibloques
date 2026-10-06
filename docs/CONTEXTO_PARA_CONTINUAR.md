@@ -4,6 +4,37 @@ Documento vivo iniciado en **fase 11**. Actualización: **5 de octubre de 2026**
 
 ## 1. Punto de entrada y autorización actual
 
+### Última entrega: fase 19 — desafíos y herramientas pedagógicas (5 de octubre)
+
+Autorizada por «Dale con todo» y entregada en software: 17 retos propios, paleta
+por actividad, Según tipado y Mientras/Hasta que cooperativo, comprobador
+multicaso en worker, pistas, avance personal y creador docente por curso con
+borradores, historial undo/redo, versiones publicadas inmutables y asignación.
+Guía exacta/evidencia/límites: [FASE_19_HERRAMIENTAS_PEDAGOGICAS.md](FASE_19_HERRAMIENTAS_PEDAGOGICAS.md#14-entrega-implementada-y-evidencia--5-de-octubre-de-2026).
+Autoevaluación no equivale a nota. Casos reservados sólo llegan al docente y
+se comprueban durante su revisión; no hay validador secreto servidor.
+
+Runtime mínimo vigente **1.9.0**, con `switch` y `conditional-loop`; 1.8.0 debajo
+describe la entrega anterior. Migraciones aditivas `accounts.0005` y
+`courses.0002`, blobs exactos autorizados por el actualizador, respaldo antes
+de migrar. Progreso incluido en baja/respaldo. Se conserva caché incremental.
+Pruebas: 17 retos con alternativas/errores, smoke previo, 16 contratos backend
+sintéticos SQLite, 3 recorridos Chromium, tipos/estilo, empaquetado, reanudación
+y 10 casos del builder. Sin acceso remoto, sin SDK completo y sin hardware.
+Quedan aceptación PostgreSQL/DEV, Edge/accesibilidad/docente/infantil. No marcar
+esos ensayos como aprobados ni iniciar otra fase sin autorización.
+
+Para actualizar DEV (lo opera el propietario):
+
+```bash
+cd /home/capi/capibloques && git fetch --quiet origin main && git show origin/main:scripts/update-dev.sh | bash -s -- --fast
+```
+
+Primera actualización aplica respaldo/migraciones y construye los binarios
+1.9.0. Después se instala firmware en cada placa sólo si se usará el código
+nuevo. El simulador y el catálogo no requieren una placa. No afirmar que DEV
+está actualizado hasta confirmación operativa del propietario.
+
 ### Última mejora operativa: compilación incremental (5 de octubre)
 
 El propietario autorizó corregir la recompilación completa del SDK en cada
@@ -43,7 +74,7 @@ DEV o hardware estén probados hasta confirmación del propietario.
 
 - Repositorio: [ncvicchi/capibloques](https://github.com/ncvicchi/capibloques). Rama de trabajo actual: `main`. Nuevas ramas, si hacen falta: prefijo `codex/`. Respetar el árbol existente, sin reset/force ni descartar cambios ajenos.
 - El propietario autorizó y se implementaron en software las fases **17, 18, 35, 38, 39, 40 y 41**. Las fases de hardware conservan aceptación física pendiente; no convertir esa ausencia de módulos en una prueba aprobada.
-- **Fases 11–17, 20, 27–33 y 35–41 entregadas en software; fases 18, 23, 34 y 45 en curso.** La fase 45 ya tiene fondos/aventuras y una segunda entrega con selección múltiple, alineación/distribución, grilla configurable, guías magnéticas, orden visual persistente, cajas/anclas, avisos de solapamiento y el mismo orden/anclas en Waveshare. Le faltan capturas de referencia, mediciones y aceptación física. Las entregas que involucran hardware conservan sus aceptaciones físicas explícitas.
+- **Fases 11–17, 19–20, 27–33 y 35–41 entregadas en software; fases 18, 23, 34 y 45 en curso.** La fase 45 ya tiene fondos/aventuras y una segunda entrega con selección múltiple, alineación/distribución, grilla configurable, guías magnéticas, orden visual persistente, cajas/anclas, avisos de solapamiento y el mismo orden/anclas en Waveshare. Le faltan capturas de referencia, mediciones y aceptación física. Las entregas que involucran hardware conservan sus aceptaciones físicas explícitas.
 - Fase 10: software entregado, **aceptación física pendiente**. El propietario no tiene Wemos disponible; no dar por probada la placa ni conectar/programar otro puerto como sustituto.
 - Producción es **Fase final, postergada**, no «fase 11». Los documentos históricos con letras son evidencias antiguas, no fases nuevas ni puntos para pedir OK.
 - Este contexto no transfiere automáticamente credenciales, chats, sesiones ni permisos. Otra cuenta debe tener su propio acceso verificado y la solicitud del propietario antes de operar.

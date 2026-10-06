@@ -1,6 +1,22 @@
 @import 'tailwindcss';
 @import 'shadcn/tailwind.css';
 
+.challenge-dialog { width:min(960px,94vw); max-width:960px; max-height:90dvh; overflow:auto; }
+.challenge-dialog h3 { font-weight:700; margin-top:1rem; }
+.challenge-dialog label { display:flex; flex-direction:column; gap:.3rem; margin:.6rem 0; }
+.challenge-dialog input:not([type="checkbox"]), .challenge-dialog textarea, .challenge-dialog select { border:1px solid #bbb7d3; border-radius:.5rem; padding:.5rem; background:var(--background,white); color:inherit; width:100%; }
+.challenge-dialog textarea { min-height:5rem; }
+.challenge-actions { display:flex; flex-wrap:wrap; gap:.5rem; margin:.8rem 0; }
+.challenge-catalog { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:.75rem; }
+.challenge-catalog article, .challenge-active, .challenge-dialog fieldset { border:1px solid #d8d3ea; border-radius:.8rem; padding:1rem; }
+.challenge-catalog h4 { font-weight:700; }
+.challenge-catalog p { margin:.5rem 0; }
+.challenge-catalog small { display:block; margin-bottom:.5rem; }
+.challenge-goal { border-top:1px solid #d8d3ea; padding:.5rem 0; }
+.challenge-palette { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:.3rem; }
+.challenge-palette label { flex-direction:row; align-items:center; }
+.challenge-dialog .challenge-author-fields { border:0; padding:0; min-width:0; }
+
 .display-properties { display: grid; gap: 12px; font-size: 13px; }
 .display-properties label { display: grid; gap: 4px; min-width: 0; }
 .display-properties select, .display-properties input { width: 100%; min-width: 0; border: 1px solid #a2b8b1; border-radius: 6px; background: white; padding: 6px; }

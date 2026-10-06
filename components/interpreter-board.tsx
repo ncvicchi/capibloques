@@ -18,7 +18,7 @@ import { sessionChangePending, watchSessionChange, type Account, type AccountDra
 
 const showTelemetryValue = (value: unknown) => value === undefined ? '' : typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' ? ` · ${value}` : ` · ${JSON.stringify(value)}`;
 const operationNames: Record<string, string> = {
-  traffic: 'cambiar el semáforo', wait: 'esperar', jump: 'repetir o continuar', jumpIfFalse: 'comprobar una condición',
+  traffic: 'cambiar el semáforo', wait: 'esperar', jump: 'repetir o continuar', jumpIfFalse: 'comprobar una condición', switchDispatch: 'elegir un caso de Según',
   led: 'cambiar la luz', motor: 'mover el motor', robot: 'mover el robot', servo: 'mover el servo',
   buzzer: 'hacer sonar el buzzer', tone: 'reproducir un tono', serial: 'mostrar un mensaje',
   fork: 'comenzar caminos en paralelo', join: 'esperar los caminos',

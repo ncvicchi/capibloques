@@ -31,9 +31,9 @@ def summary(target):
     history = list(ProjectRevision.objects.filter(project__owner=target).order_by("project_id", "revision").values_list("project_id", "revision", "size_bytes", "pinned"))
     comments = list(ProjectFeedback.objects.filter(snapshot__project__owner=target).order_by("id").values_list("id", "version", "size_bytes", "author_id", "author__username", "author__display_name", "author__avatar_id"))
     interventions = list(ProjectFeedback.objects.filter(author=target).exclude(snapshot__project__owner=target).order_by("id").values_list("id", "version"))
-    version = salted_hmac(SALT, json.dumps([record(target)["version"], rows, members, history, comments, interventions], default=str), algorithm="sha256").hexdigest()
+    version = salted_hmac(SALT, json.dumps([record(target)["version"], rows, members, history, comments, interventions, target.challenge_progress], default=str), algorithm="sha256").hexdigest()
     return {"user": record(target), "projects": {"count": len(rows), "active": sum(row[3] is None for row in rows), "trash": sum(row[3] is not None for row in rows), "bytes": sum(row[2] for row in rows), "historyCount": len(history), "historyBytes": sum(row[2] for row in history), "feedbackCount": len(comments), "feedbackBytes": sum(row[2] for row in comments)}, "interventionsAnonymized": len(interventions), "memberships": len(members), "version": version,
-            "canDelete": not target.is_active and not members}
+            "canDelete": not target.is_active and not members, "challengeProgressCount": len(target.challenge_progress)}
 
 
 def actor_for(request):
@@ -63,12 +63,12 @@ def deletion(request, user_id):
         current = prepared(target, data)
         if text_field(data, "confirmationAlias", 32) != target.username or data["understandsLocalDrafts"] is not True or data["understandsPermanent"] is not True:
             return fail("Confirmá el alias exacto y ambas advertencias antes de eliminar.")
-        if current["projects"]["count"]:
+        if current["projects"]["count"] or current["challengeProgressCount"]:
             try:
                 receipt = signing.loads(text_field(data, "backupReceipt", 2048), salt=SALT, max_age=600)
                 if receipt["actor"] != str(actor.pk) or receipt["epoch"] != actor.session_epoch or receipt["target"] != str(target.pk) or receipt["version"] != current["version"]:
                     raise ValueError
-            except (signing.BadSignature, ValueError, KeyError, TypeError):
+            except (signing.BadSignature, ValidationError, ValueError, KeyError, TypeError):
                 return fail("Descargá nuevamente el respaldo actual antes de confirmar (vigencia: 10 minutos).", "backup_required", 409)
         # Objetos exactos verificados en esta transacción. Auditar antes de borrar,
         # conservando UUIDs; nunca tocar cuentas, cursos o proyectos ajenos.
@@ -98,6 +98,9 @@ def backup(request, user_id):
             archive = tempfile.TemporaryFile(mode="w+b", dir="/tmp")
             manifest = {"application": "CapiBloquesAccountBackup", "schemaVersion": 2, "exportedAt": timezone.now().isoformat(), "account": {key: value for key, value in current["user"].items() if key != "version"}, "projects": []}
             with zipfile.ZipFile(archive, mode="w", compression=zipfile.ZIP_DEFLATED, compresslevel=1) as bundle:
+                contents = encoded(target.challenge_progress)
+                manifest["challengeProgress"] = {"count": len(target.challenge_progress), "file": "challenge-progress.json", "sha256": hashlib.sha256(contents).hexdigest()}
+                bundle.writestr("challenge-progress.json", contents)
                 # Un documento a la vez, no la biblioteca completa en memoria.
                 for project in target.projects.select_related("course").order_by("id").iterator(chunk_size=1):
                     filename = f"projects/{project.pk}.capibloques.json"

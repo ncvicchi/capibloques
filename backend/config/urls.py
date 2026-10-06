@@ -1,6 +1,7 @@
 from django.urls import include, path, re_path
 from school import views as school
 from courses import views as courses
+from courses import challenges
 from projects import views as projects
 from projects import review
 from compiler import views as compiler
@@ -8,6 +9,10 @@ from compiler import views as compiler
 from .views import live, ready
 
 urlpatterns = [
+    path("api/challenges/", challenges.catalog),
+    path("api/challenges/progress/", challenges.progress),
+    path("api/challenges/courses/<uuid:course_id>/", challenges.edit),
+    path("api/challenges/courses/<uuid:course_id>/progress/", challenges.overview),
     path("api/builds/", compiler.collection),
     path("api/builds/<uuid:job_id>/", compiler.detail),
     path("api/builds/<uuid:job_id>/download/", compiler.download),

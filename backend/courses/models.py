@@ -10,6 +10,7 @@ class Course(models.Model):
     name = models.CharField(max_length=100)
     description = models.CharField(max_length=500, blank=True)
     is_archived = models.BooleanField(default=False)
+    challenge_library = models.JSONField(default=dict, blank=True)
     version = models.UUIDField(default=uuid.uuid4, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -50,6 +50,7 @@ export interface BlocklyHistoryState {
 }
 
 interface BlocklyWorkspaceProps {
+  allowedBlocks?: readonly string[];
   favorites?: readonly string[];
   onChooseFavorites?: () => void;
   onHelpDevice?: (deviceId: string) => void;
@@ -109,9 +110,18 @@ function sameTabs(left: WorkspaceTabsState, right: WorkspaceTabsState) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-function workspaceToolbox(activeTabId: string) {
-  if (activeTabId !== MAIN_WORKSPACE_TAB_ID) return toolbox;
+function workspaceToolbox(activeTabId: string, allowed?: readonly string[]) {
   const copy = structuredClone(toolbox) as typeof toolbox;
+  if (allowed) {
+    // Explicit entries replace dynamic/favorite categories so they cannot leak
+    // unrestricted tools into a challenge; normal editing keeps its callbacks.
+    copy.contents = copy.contents.filter(category => {
+      if (!Array.isArray(category.contents)) return false;
+      category.contents = category.contents.filter(item => item.kind !== 'block' || !('type' in item) || allowed.includes(String(item.type)));
+      return category.contents.some(item => item.kind === 'block');
+    });
+  }
+  if (activeTabId !== MAIN_WORKSPACE_TAB_ID) return copy;
   for (const category of copy.contents ?? []) {
     if (
       category.kind !== 'category' ||
@@ -521,6 +531,7 @@ const BlocklyWorkspace = forwardRef<
     onError,
     onHistoryChange,
     readOnly = false,
+    allowedBlocks,
     favorites = EMPTY_FAVORITES,
     onChooseFavorites,
     onHelpDevice,
@@ -560,6 +571,8 @@ const BlocklyWorkspace = forwardRef<
   const onErrorRef = useRef(onError);
   const onHistoryChangeRef = useRef(onHistoryChange);
   const favoritesRef = useRef(favorites);
+  const allowedBlocksRef = useRef(allowedBlocks);
+  useEffect(() => { allowedBlocksRef.current = allowedBlocks; if(workspaceRef.current&&!readOnlyRef.current)workspaceRef.current.updateToolbox(workspaceToolbox(activeTabIdRef.current,allowedBlocks)); }, [allowedBlocks]);
   const onChooseFavoritesRef = useRef(onChooseFavorites);
   const onHelpDeviceRef = useRef(onHelpDevice);
   useEffect(() => {
@@ -671,7 +684,7 @@ const BlocklyWorkspace = forwardRef<
           },
         });
         const workspace = Blockly.inject(hostRef.current, {
-          toolbox: readOnlyRef.current ? undefined : toolbox,
+          toolbox: readOnlyRef.current ? undefined : workspaceToolbox(MAIN_WORKSPACE_TAB_ID,allowedBlocksRef.current),
           readOnly: readOnlyRef.current,
           theme,
           renderer: 'zelos',
@@ -745,7 +758,7 @@ const BlocklyWorkspace = forwardRef<
           workspace.getToolbox()?.clearSelection();
           setPaletteOpen(false);
           if (!readOnlyRef.current)
-            workspace.updateToolbox(workspaceToolbox(validId));
+            workspace.updateToolbox(workspaceToolbox(validId,allowedBlocksRef.current));
           for (const block of workspace.getAllBlocks(false)) {
             const owner = tabForRoot(tabsRef.current, block.getRootBlock().id);
             block

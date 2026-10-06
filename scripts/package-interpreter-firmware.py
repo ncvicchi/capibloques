@@ -15,7 +15,7 @@ def main():
     parser.add_argument("--profile", choices=PROFILES, required=True)
     parser.add_argument("--build", type=pathlib.Path, required=True)
     parser.add_argument("--output", type=pathlib.Path, required=True)
-    parser.add_argument("--version", default="1.8.0")
+    parser.add_argument("--version", default="1.9.0")
     parser.add_argument("--revision", default="unknown")
     parser.add_argument("--build-identity", default="")
     args = parser.parse_args()

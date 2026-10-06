@@ -32,6 +32,8 @@ import {
 import { matrixPixel, matrixScrollRows, matrixScrollSteps } from './led-matrix.ts';
 // @ts-expect-error Node strip-types runner.
 import { animationFrame, type FrameAnimation } from './frame-animation.ts';
+// @ts-expect-error Node strip-types runner.
+import { decodeChallenge, variantScene, compareChallenge, challengeExpectations } from './challenges.ts';
 // @ts-expect-error Node's type-stripping smoke runner needs the explicit suffix.
 import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 
@@ -141,6 +143,7 @@ type BuzzerRuntimeState = Extract<RuntimeDeviceState, { playing: boolean }>;
 type SensorRuntimeState = Extract<RuntimeDeviceState, { value: number }>;
 
 type WorkerInboundMessage =
+  | { type: 'ASSESS_CHALLENGE'; challenge: unknown; program: CompiledProgram }
   | { type: 'LOAD'; program: unknown; scene?: unknown; boardProfile?: unknown }
   | { type: 'SYNC_SCENE'; scene: unknown; boardProfile?: unknown }
   | { type: 'RUN' | 'PAUSE' | 'STOP' | 'RESET' | 'STEP' }
@@ -164,6 +167,48 @@ const scope = self as unknown as {
   ): void;
 };
 
+/** A separate worker runs these bounded checks; it never controls a connected board. */
+export function assessChallenge(challenge: import('./challenges').Challenge, candidate: CompiledProgram): import('./challenges').ChallengeReport {
+  if(challenge.mode==='creative')return {status:'creative',cases:[],suggestions:[],requirements:[],message:'Laboratorio abierto: explicá tu idea, probala paso a paso y compartí una versión guardada con tu docente. No hay una única solución ni aprobación automática.'};
+  const cases: import('./challenges').ChallengeReport['cases'] = [];
+  const started = performance.now();
+  try {
+    for (const variant of challenge.variants) {
+      inputOverrides.clear(); legacyInputOverrides.clear(); wifiAvailableOverride=undefined;
+      scene=variantScene(challenge,variant); currentBoardProfile=challenge.initial.target.boardProfile;
+      program=normalizeCompiledProgram(candidate,scene); resetExecution(); refreshDiagnostics();
+      if(simulationBlocked)return {status:'invalid',cases:[],suggestions:[],requirements:[],message:diagnostics.filter(d=>d.severity==='error'&&!HARDWARE_ONLY_ERROR_CODES.has(d.code)).map(d=>d.message).join(' ')};
+      const probes=variant.goals.flatMap((goal,index)=>['consoleText','displayText','actionCount'].includes(goal.value.kind)?[]:[{op:'serial' as const,text:'',expression:goal.value as ValueExpression,blockId:`challenge-goal-${index}`}]);
+      const checked=validateProgramForScene({...program,threads:[...program.threads,{id:'challenge-goals',startBlockId:'challenge-goals',nodes:probes}]},scene,currentBoardProfile).filter(d=>d.severity==='error'&&d.blockId?.startsWith('challenge-goal-')&&!HARDWARE_ONLY_ERROR_CODES.has(d.code));
+      if(checked.length)throw new Error(`El objetivo no se puede comprobar: ${checked.map(d=>d.message).join(' ')}`);
+      const facts:string[]=[], goals=[...variant.goals].sort((a,b)=>a.atMs-b.atMs);
+      let next=0, passed=true;
+      const limit=goals.at(-1)!.atMs;
+      for(let now=0;now<=limit+16;now+=16){
+        if(performance.now()-started>4000)throw new Error('La comprobación superó su límite. Simplificá los casos o su duración.');
+        virtualNow=now;
+        if(now>0)updatePhysics(16);
+        runScheduler();
+        while(next<goals.length&&goals[next].atMs<=now){
+          const goal=goals[next++];
+          let actual:number|string|boolean;
+          if(goal.value.kind==='consoleText')actual=state.console.map(line=>line.replace(/^[^·]*· /,'')).join('\n');
+          else if(goal.value.kind==='displayText'){const display=state.devices[goal.value.deviceId];actual=display?.kind==='display'?(display.texts[goal.value.areaId]??[]).join('\n').trim():'';}
+          else if(goal.value.kind==='actionCount')actual=assessedActions.get(goal.value.operation)??0;
+          else actual=evaluateValue(goal.value);
+          const ok=compareChallenge(actual,goal.operator,goal.expected);
+          passed&&=ok;
+          facts.push(`${ok?'✓':'✗'} ${goal.label}: ${String(actual)} (se esperaba ${goal.operator} ${String(goal.expected)} a ${goal.atMs} ms).`);
+        }
+        if(next===goals.length)break;
+      }
+      cases.push({label:variant.label,seed:variant.seed,passed,facts});
+    }
+    const conceptual=challengeExpectations(candidate,challenge), works=cases.every(test=>test.passed);
+    return {status:works&&!conceptual.requirements.length?'passed':'retry',cases,...conceptual,message:works?'Funciona en todos los casos probados.':'Todavía hay casos por resolver. Revisá los hechos y probá paso a paso.'};
+  } catch(error) { return {status:'validator-error',cases:[],suggestions:[],requirements:[],message:error instanceof Error?error.message:'Falló el comprobador; no se registra un intento.'}; }
+}
+
 let program: CompiledProgram = { version: 2, threads: [] };
 let scene: SceneDefinition = inferSceneForProgram(program);
 let currentBoardProfile: BoardProfileId = 'wemos-d1-r32';
@@ -178,6 +223,7 @@ let eventSequence = 0;
 let trace: ExecutionEvent[] = [];
 let running = false;
 let doneEmitted = false;
+const assessedActions=new Map<string,number>();
 let speed = 1;
 let virtualNow = 0;
 let schedulerDebtMs = 0;
@@ -759,6 +805,7 @@ function resetExecution(
     : new Map<string, RuntimeDeviceState>();
   stopSounds();
   state = freshState();
+  assessedActions.clear();
   for (const [deviceId, device] of manualDevices) {
     if (!state.devices[deviceId] || !dashboardDeviceIds(scene).has(deviceId))
       continue;
@@ -1484,7 +1531,12 @@ function executeInstruction(
     return 'yield';
   }
   if (node.op === 'jumpIfFalse') {
-    execution.pc = evaluate(node.condition) ? execution.pc + 1 : node.target;
+    execution.pc = (node.negate ? !evaluate(node.condition) : evaluate(node.condition)) ? execution.pc + 1 : node.target;
+    return 'continue';
+  }
+  if (node.op === 'switchDispatch') {
+    const selected = evaluateValue(node.value);
+    execution.pc = node.cases.find(branch => evaluateValue(branch.value) === selected)?.target ?? node.defaultTarget;
     return 'continue';
   }
   if (node.op === 'jump') {
@@ -2314,6 +2366,7 @@ function executeOne(execution: ThreadExecution) {
   const wasDone = execution.done;
   const consoleBefore = state.console;
   const result = executeInstruction(execution);
+  if(result==='action'&&node)assessedActions.set(node.op,(assessedActions.get(node.op)??0)+1);
   if (wasDone || !node) return result;
   let message = '';
   if (pending) {
@@ -2338,6 +2391,9 @@ function executeOne(execution: ThreadExecution) {
           execution.pc === node.target
             ? 'La condición es falsa: vamos por «si no».'
             : 'La condición es verdadera: vamos por «si».';
+        break;
+      case 'switchDispatch':
+        message = execution.pc === node.defaultTarget ? 'Según: ningún caso coincidió; vamos al otro caso.' : `Según: coincidió el caso ${node.cases.findIndex(branch => branch.target === execution.pc) + 1}.`;
         break;
       case 'repeatStart':
         message = node.count
@@ -2794,6 +2850,10 @@ function setLegacyInput(name: unknown, value: unknown) {
 scope.addEventListener('message', (event) => {
   const message = event.data;
   switch (message.type) {
+    case 'ASSESS_CHALLENGE':
+      try { scope.postMessage({type:'CHALLENGE_REPORT',report:assessChallenge(decodeChallenge(message.challenge),message.program)}); }
+      catch(error) { scope.postMessage({type:'CHALLENGE_REPORT',report:{status:'validator-error',cases:[],suggestions:[],requirements:[],message:error instanceof Error?error.message:'No pudimos comprobar el desafío.'}}); }
+      break;
     case 'SYNC_SCENE': {
       if (!isSceneDefinition(message.scene)) break;
       currentBoardProfile = isBoardProfileId(message.boardProfile)
@@ -2951,5 +3011,3 @@ scope.addEventListener('message', (event) => {
 });
 
 setInterval(tick, 16);
-
-export {};

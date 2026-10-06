@@ -6,7 +6,7 @@ import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 
 export const CAPI_RULES_FORMAT = 1;
 export const CAPI_INTERPRETER_ABI = 1;
-export const CAPI_INTERPRETER_VERSION = '1.8.0';
+export const CAPI_INTERPRETER_VERSION = '1.9.0';
 export const CAPI_RULES_MAX_BYTES = 32 * 1024;
 export const CAPI_RULES_MAX_INSTRUCTIONS = 2048;
 const HEADER_BYTES = 32;
@@ -43,6 +43,7 @@ const capabilityForOperation = (operation: string) => ({
   displayWrite: 'display', displayClear: 'display', displayAnimateText: 'display', displayArtwork: 'display', visualStop: 'visual-wait', visualWait: 'visual-wait',
   matrixClear: 'matrix', matrixPixel: 'matrix', matrixPattern: 'matrix', matrixBrightness: 'matrix', matrixScroll: 'matrix',
   frameAnimation: 'frame-animation',
+  switchDispatch: 'switch',
   messageSend: 'messages', messageReceiveWait: 'messages', wifi: 'wifi', wifiMessageSend: 'wifi-messages', wifiMessageReceiveWait: 'wifi-messages', fork: 'parallel', join: 'parallel',
   counterSet: 'counter', counterChange: 'counter', variableSet: 'variables', variableChange: 'variables', serial: 'serial',
   timerStart: 'timers', timerRestart: 'timers', timerPause: 'timers', timerResume: 'timers', timerStop: 'timers', timerWait: 'timers',
@@ -50,6 +51,7 @@ const capabilityForOperation = (operation: string) => ({
 
 function instructionCapabilities(instruction: ExecutableTask['output'][number]) {
   const result = [capabilityForOperation(instruction.op)];
+  if (instruction.op === 'switchDispatch') result.push('expressions');
   const encodedInstruction = JSON.stringify(instruction);
   if (instruction.op === 'variableSet' || instruction.op === 'variableChange' || (instruction.op === 'serial' && instruction.expression)) result.push('expressions');
   if (encodedInstruction.includes('sensorValue')) result.push('analog-input');
@@ -62,6 +64,7 @@ function instructionCapabilities(instruction: ExecutableTask['output'][number]) 
   if (encodedInstruction.includes('"kind":"timerElapsed"') || encodedInstruction.includes('"kind":"timerRemaining"')) result.push('timers');
   if (encodedInstruction.includes('"kind":"componentValue"')) result.push('component-state');
   if (instruction.op === 'jumpIfFalse') {
+    if(instruction.negate!==undefined)result.push('conditional-loop');
     const condition = instruction.condition;
     if (condition.kind === 'sensor') result.push('analog-input');
     if (condition.kind === 'buttonPressed') result.push('digital-input');

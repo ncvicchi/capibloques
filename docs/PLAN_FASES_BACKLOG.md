@@ -1,6 +1,6 @@
 # Nuevas fases de CapiBloques
 
-Plan elaborado el 8 de septiembre de 2026 y actualizado el 4 de octubre de 2026. **Fases 11–17, 27–33, 35–42 entregadas en software; fases 18, 20, 23, 34, 44 y 45 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`, aunque cada cierre posterior requiere su actualización explícita. La fase 19 queda ampliada por el inventario pedagógico y el bloque `según`; 21–22, 24–26 y 43 permanecen pendientes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
+Plan elaborado el 8 de septiembre de 2026 y actualizado el 5 de octubre de 2026. **Fases 11–17, 19, 27–33, 35–42 entregadas en software; fases 18, 20, 23, 34, 44 y 45 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`, aunque cada cierre posterior requiere su actualización explícita. La fase 19 está implementada en software con aceptación DEV/pedagógica pendiente; 21–22, 24–26 y 43 permanecen pendientes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
 
 La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros consecutivos; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. Los pedidos del 23 de septiembre amplían la fase 19 y continúan hasta la fase 41 sin alterar entregas cerradas; la simplificación y displays solicitados el 25 de septiembre son las fases 42–43, y la experiencia Waveshare y escenas visuales solicitadas el 26 son 44–45.
 
@@ -16,7 +16,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 16 | Soporte completo ESP32-S3 DevKit y selección de placa | 2: DevKit; 9: guía visual DevKit | Modelo exacto identificado; incorporar el contrato TX/RX de fase 15 |
 | 17 | Software entregado: perfil Waveshare ESP32-S3 con pantalla de 5 pulgadas; DEV/físico pendientes | 2: Waveshare; 9: guía visual Waveshare | Perfiles de fase 16 y modelo/revisión exactos identificados |
 | 18 | En curso: base lógica entregada; falta escena remota real/simulada en el display | 3: display interactivo; pedidos 41 y 43 | Perfil de fase 17, geometría compartida y telemetría de fase 34 |
-| 19 | Desafíos progresivos, herramientas pedagógicas y bloque `según` | 12 y 35 | Plan completo versionado; primeros retos sin hardware; valores tipados de fase 29 |
+| 19 | Software entregado: 17 desafíos, Según/Mientras, evaluación y autoría docente; aceptación DEV/pedagógica pendiente | 12 y 35 | Guía de fase 19 con pruebas y límites; runtime mínimo 1.9.0; migraciones aditivas auditadas |
 | 20 | Asistente y cambio visual Wemos/DIYmall entregados; reconexión posgrabación, consulta informativa y Waveshare/físico pendientes | 15, 17, 23 y 34; observación del 3 de octubre | Intérprete de fase 36 publicado; panel/touch Waveshare aún fuera del intérprete |
 | 21 | Claridad y ergonomía educativa del editor | Informe externo vital 4, sutiles 1–8 y futuras 1–2 y 5–7 | Fases 12 y 14; reproducción previa de cada observación; fidelidad espacial trasladada a fase 45 |
 | 22 | Avatar acompañante y reacciones accesibles | 14; informe futuro 3 | Fase 19 para reacciones de desafíos y fase 20 para resultados de compilar/grabar |
@@ -242,6 +242,8 @@ Aceptación:
 - Arranque y salida de modo manual seguros para el montaje verificado; no presentar el control gráfico como paro de emergencia ni confundir cerrar la pestaña con detener la placa.
 
 ## Fase 19 — Desafíos progresivos
+
+**Actualización 5 de octubre:** fase autorizada y entregada en software. Alcance, evidencia y aceptación pendiente en [la guía de fase 19, sección 14](FASE_19_HERRAMIENTAS_PEDAGOGICAS.md#14-entrega-implementada-y-evidencia--5-de-octubre-de-2026). Los puntos siguientes conservan los criterios del plan, no demuestran una validación con chicos ni hardware. DEV lo actualiza el propietario.
 
 **Objetivo:** ofrecer un recorrido de retos atractivos y cada vez más complejos para aprender a usar CapiBloques y desarrollar conceptos de programación mediante la práctica.
 

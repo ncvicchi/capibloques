@@ -671,6 +671,7 @@ const toolbox = {
       colour: '#FF7D3B',
       contents: [
         { kind: 'block', type: 'capi_forever' },
+        { kind: 'block', type: 'capi_while' },
         { kind: 'block', type: 'capi_repeat' },
         { kind: 'block', type: 'capi_wait' },
       ],
@@ -681,6 +682,7 @@ const toolbox = {
       colour: '#CF4EB9',
       contents: [
         { kind: 'block', type: 'capi_if' },
+        { kind: 'block', type: 'capi_switch' },
         { kind: 'block', type: 'capi_compare' },
         { kind: 'block', type: 'capi_value_compare' },
         { kind: 'block', type: 'capi_traffic_is' },
@@ -1494,6 +1496,7 @@ function registerBlocks(Blockly: BlocklyApi) {
       colour: '#CF4EB9',
       tooltip: 'Elige un camino según una pregunta.',
     },
+    {type:'capi_while',message0:'repetir %1 %2',args0:[{type:'field_dropdown',name:'MODE',options:[['mientras','WHILE'],['hasta que','UNTIL']]},{type:'input_value',name:'CONDITION',check:'Boolean'}],message1:'hacer %1',args1:[{type:'input_statement',name:'DO'}],previousStatement:null,nextStatement:null,colour:'#FF7D3B',tooltip:'Consulta la condición antes de cada vuelta. Si todavía no corresponde salir, repite y deja trabajar a los otros caminos.'},
     {
       type: 'capi_compare',
       message0: 'comparar %1 %2 %3',
@@ -3121,6 +3124,47 @@ function registerBlocks(Blockly: BlocklyApi) {
       this.setFieldValue(String(state.branches), 'BRANCHES');
     },
   };
+  const switchTypes = new WeakMap<BlocklyBlock,string>();
+  const resizeSwitch = (block: BlocklyBlock, count: number, type: string) => {
+    for (const input of block.inputList.slice()) if (input.name.startsWith('CASE') && (Number(input.name.slice(4)) >= count || switchTypes.get(block) !== type)) {
+      // Replacing a value field preserves the statement connection and its blocks.
+      if (Number(input.name.slice(4)) >= count) block.removeInput(input.name);
+      else input.removeField(`CASE_VALUE${input.name.slice(4)}`, true);
+    }
+    for (let index = 0; index < count; index++) {
+      const name = `CASE_VALUE${index}`;
+      const input = block.getInput(`CASE${index}`) ?? block.appendStatementInput(`CASE${index}`).appendField('si vale');
+      if (!block.getField(name)) {
+        const choices: Record<string, [string,string][]> = { boolean: [['sí','true'],['no','false']], traffic: [['apagado','OFF'],['rojo','RED'],['amarillo','YELLOW'],['verde','GREEN']], robot: [['quieto','STOP'],['adelante','FORWARD'],['atrás','BACKWARD'],['izquierda','LEFT'],['derecha','RIGHT']] };
+        input.appendField(type === 'number' ? new Blockly.FieldNumber(index) : type === 'text' ? new Blockly.FieldTextInput(`caso ${index + 1}`) : new Blockly.FieldDropdown(choices[type] ?? choices.boolean), name);
+        if(choices[type])block.setFieldValue(choices[type][index % choices[type].length][1],name);
+      }
+    }
+    if (block.getInput('OTHERWISE')) block.moveInputBefore('OTHERWISE', null);
+    switchTypes.set(block,type);
+  };
+  Blockly.Blocks['capi_switch'] = {
+    init(this: BlocklyBlock) {
+      this.appendValueInput('VALUE').appendField('🧭 según');
+      this.appendDummyInput('OPTIONS').appendField(new Blockly.FieldDropdown([['número','number'],['texto','text'],['sí/no','boolean'],['color de semáforo','traffic'],['movimiento de robot','robot']], value => {
+        resizeSwitch(this, Number(this.getFieldValue('CASES')) || 2, value);
+        return value;
+      }), 'CASE_TYPE').appendField(new Blockly.FieldDropdown(Array.from({length:7},(_,i)=>[`${i+2} casos`,String(i+2)] as [string,string]), value => {
+        const count = Number(value);
+        if (this.inputList.some(input => input.name.startsWith('CASE') && Number(input.name.slice(4)) >= count && input.connection?.targetBlock())) { this.setWarningText('Mové primero los bloques de los casos que querés quitar.', 'switch-shape'); return null; }
+        this.setWarningText(null, 'switch-shape'); resizeSwitch(this,count,String(this.getFieldValue('CASE_TYPE') ?? 'number')); return value;
+      }), 'CASES');
+      this.appendStatementInput('OTHERWISE').appendField('en cualquier otro caso');
+      resizeSwitch(this,2,'number');
+      this.setPreviousStatement(true); this.setNextStatement(true); this.setInputsInline(false); this.setColour('#CF4EB9');
+      this.setTooltip('Lee el valor una sola vez y ejecuta únicamente el caso que coincide. Los casos deben ser diferentes y del mismo tipo.');
+    },
+    saveExtraState(this: BlocklyBlock) { return { cases: Number(this.getFieldValue('CASES')), type: this.getFieldValue('CASE_TYPE') }; },
+    loadExtraState(this: BlocklyBlock, state: {cases?: unknown; type?: unknown}) {
+      if (!Number.isInteger(state.cases) || Number(state.cases)<2 || Number(state.cases)>8 || !['number','text','boolean','traffic','robot'].includes(String(state.type))) throw new Error('Casos de según no válidos.');
+      this.setFieldValue(String(state.type),'CASE_TYPE'); this.setFieldValue(String(state.cases),'CASES'); resizeSwitch(this,Number(state.cases),String(state.type));
+    },
+  };
   registeredBlocklies.add(Blockly);
 }
 
@@ -3525,6 +3569,19 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           otherwise: compileStack(block.getInputTargetBlock('ELSE')),
           blockId,
         });
+        break;
+      case 'capi_switch': {
+        const switchBlock = block;
+        const type = String(block.getFieldValue('CASE_TYPE'));
+        result.push({ op: 'switch', value: block.getInputTargetBlock('VALUE') ? compileValue(block.getInputTargetBlock('VALUE')) : {kind:'variable',variableId:'__missing_switch_value__',valueType:'number'}, cases: Array.from({length:Number(block.getFieldValue('CASES')) || 2}, (_,index) => {
+          const raw = switchBlock.getFieldValue(`CASE_VALUE${index}`);
+          const value: ValueExpression = type === 'number' ? {kind:'number', value:Number(raw)} : type === 'boolean' ? {kind:'boolean',value:raw==='true'} : {kind:'text',value:String(raw)};
+          return { value, body:compileStack(switchBlock.getInputTargetBlock(`CASE${index}`)) };
+        }), otherwise:compileStack(block.getInputTargetBlock('OTHERWISE')), blockId });
+        break;
+      }
+      case 'capi_while':
+        result.push({op:'while',condition:compileCondition(block.getInputTargetBlock('CONDITION')),until:block.getFieldValue('MODE')==='UNTIL',body:compileStack(block.getInputTargetBlock('DO')),blockId});
         break;
       case 'capi_counter_set':
         result.push({

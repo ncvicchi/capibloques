@@ -89,7 +89,7 @@ unknown_maintenance=()
 while IFS= read -r file; do
   [[ -n $file ]] || continue
   case "$file" in
-    backend/compiler/migrations/0002_build_board_profile.py)
+    backend/compiler/migrations/0002_build_board_profile.py|backend/accounts/migrations/0005_challenge_progress.py|backend/courses/migrations/0002_challenge_library.py)
       RUN_MIGRATIONS=1
       ;;
     ops/compiler/Dockerfile|ops/compiler/archive.py|ops/compiler/entry.py|ops/compiler/runner.py)
@@ -131,14 +131,26 @@ for profile in profiles:
     try:
         info = json.loads((root / f"{profile}.json").read_text(encoding="utf-8"))
         bundle = root / info["bundle"]
-        assert info["sourceRevision"] == revision and info["version"] == "1.8.0" and bundle.is_file()
+        assert info["sourceRevision"] == revision and info["version"] == "1.9.0" and bundle.is_file()
     except Exception:
         raise SystemExit(1)
 PY
 then
   BUILD_INTERPRETER=1
 fi
+audit_challenge_migrations() {
+  local path expected actual
+  for path in backend/accounts/migrations/0005_challenge_progress.py backend/courses/migrations/0002_challenge_library.py; do
+    case "$path" in
+      backend/accounts/*) expected=4eedc9d42c0a6288b8e6c78576d4ca886061577d ;;
+      backend/courses/*) expected=1dd9a147e9d19e4343ab9cdf6c63da9f321b7d29 ;;
+    esac
+    actual=$(repo_git rev-parse --verify "$TARGET_COMMIT:$path" 2>/dev/null || true)
+    [[ -z $actual || $actual == "$expected" ]] || fail "la migración de desafíos $path no coincide con la versión aditiva auditada"
+  done
+}
 if ((RUN_MIGRATIONS)); then
+  audit_challenge_migrations
   migration_object=$(repo_git rev-parse "$TARGET_COMMIT:backend/compiler/migrations/0002_build_board_profile.py" 2>/dev/null || true)
   [[ $migration_object == 8920d046b1a13bea5b7a989daf5899f2860a609a ]] || \
     fail "la migración compiler.0002 no coincide con la versión auditada; DEV no fue modificado"
@@ -188,7 +200,7 @@ curl --fail --silent --show-error --max-time 12 http://127.0.0.1:3000/api/health
 read -r paused revision queued building concurrency ceiling <<<"$(compiler_state)"
 printf 'Preflight: checkout=%s objetivo=%s pausa=%s revision=%s cola=%s activos=%s concurrencia=%s/%s api=%s\n' \
   "$CURRENT_COMMIT" "$TARGET_COMMIT" "$paused" "$revision" "$queued" "$building" "$concurrency" "$ceiling" "$WITH_API"
-((RUN_MIGRATIONS)) && echo "Mantenimiento reconocido: respaldo PostgreSQL y migración compiler.0002."
+((RUN_MIGRATIONS)) && echo "Mantenimiento reconocido: respaldo PostgreSQL y migraciones aditivas auditadas (compilador/desafíos)."
 ((REBUILD_COMPILER)) && echo "Mantenimiento reconocido: reconstrucción y registro de la imagen del compilador."
 ((BUILD_INTERPRETER)) && echo "Firmware intérprete: se construirá una vez para Wemos y ESP32-S3; no se compila por proyecto."
 ((REINSTALL_RUNTIME)) && echo "Runtime DEV: se instalará la corrección que preserva el propietario Git."
@@ -262,6 +274,7 @@ fi
 # Un estado reanudado puede exigir una migración que ya no aparece en el diff
 # porque el checkout alcanzó el objetivo anterior antes del corte.
 if ((RUN_MIGRATIONS)); then
+  audit_challenge_migrations
   migration_object=$(repo_git rev-parse "$TARGET_COMMIT:backend/compiler/migrations/0002_build_board_profile.py" 2>/dev/null || true)
   [[ $migration_object == 8920d046b1a13bea5b7a989daf5899f2860a609a ]] || \
     fail "la migración compiler.0002 pendiente no coincide con la versión auditada"
@@ -355,14 +368,14 @@ if ((BUILD_INTERPRETER)); then
     -e CAPI_INTERPRETER_TOOLCHAIN_KEY="$interpreter_toolchain_key" \
     -v "$REPOSITORY:/project" -w /project \
     "$interpreter_builder_image" \
-    -lc '. "$IDF_PATH/export.sh" >/dev/null && bash ./scripts/build-interpreter-firmware.sh 1.8.0 /project/public/interpreter '"$INTERPRETER_SOURCE"
+    -lc '. "$IDF_PATH/export.sh" >/dev/null && bash ./scripts/build-interpreter-firmware.sh 1.9.0 /project/public/interpreter '"$INTERPRETER_SOURCE"
   python3 - "$REPOSITORY/public/interpreter" "$INTERPRETER_SOURCE" <<'PY'
 import hashlib, json, pathlib, sys
 root, revision = pathlib.Path(sys.argv[1]), sys.argv[2]
 for profile in ("wemos-d1-r32", "diymall-esp32-s3-devkitc-v1-n16r8", "waveshare-esp32-s3-touch-lcd-5-28117"):
     info = json.loads((root / f"{profile}.json").read_text(encoding="utf-8"))
     bundle = root / info["bundle"]
-    assert info["sourceRevision"] == revision and info["version"] == "1.8.0"
+    assert info["sourceRevision"] == revision and info["version"] == "1.9.0"
     assert bundle.stat().st_size == info["bytes"]
     assert hashlib.sha256(bundle.read_bytes()).hexdigest() == info["sha256"]
 print("Firmware intérprete empaquetado y verificado para las tres placas.")

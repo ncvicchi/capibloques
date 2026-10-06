@@ -22,6 +22,8 @@
     { "type": "capi_repeat", "name": "Repetir veces", "category": "Bucles" },
     { "type": "capi_wait", "name": "Esperar", "category": "Bucles" },
     { "type": "capi_if", "name": "Si / si no", "category": "Condiciones" },
+    { "type": "capi_while", "name": "Repetir mientras / hasta que", "category": "Bucles" },
+    { "type": "capi_switch", "name": "Según", "category": "Condiciones" },
     { "type": "capi_compare", "name": "Comparar números", "category": "Condiciones" },
     { "type": "capi_counter_compare", "name": "Comparar contador", "category": "Condiciones" },
     { "type": "capi_button_pressed", "name": "Botón presionado", "category": "Condiciones" },

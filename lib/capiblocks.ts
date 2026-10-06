@@ -229,7 +229,9 @@ export type ProgramNode =
       blockId: string;
     }
   | { op: 'repeat'; count: number; body: ProgramNode[]; blockId: string }
+  | { op: 'while'; condition: Condition; until: boolean; body: ProgramNode[]; blockId: string }
   | { op: 'parallel'; branches: ProgramNode[][]; blockId: string }
+  | { op: 'switch'; value: ValueExpression; cases: { value: ValueExpression; body: ProgramNode[] }[]; otherwise: ProgramNode[]; blockId: string }
   | {
       op: 'if';
       condition: Condition;
@@ -963,6 +965,8 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_repeat',
   'capi_wait',
   'capi_if',
+  'capi_switch',
+  'capi_while',
   'capi_compare',
   'capi_value_compare',
   'capi_counter_compare',
@@ -2401,6 +2405,9 @@ function normalizeNodes(
           blockId,
         });
         break;
+      case 'while':
+        result.push({op:'while',condition:normalizeCondition(node.condition,scene),until:node.until===true,body:normalizeNodes(node.body,scene),blockId});
+        break;
       case 'parallel':
         result.push({ op: 'parallel', branches: Array.isArray(node.branches) ? node.branches.map(branch => normalizeNodes(branch, scene)) : [], blockId });
         break;
@@ -2412,6 +2419,12 @@ function normalizeNodes(
           otherwise: normalizeNodes(node.otherwise, scene),
           blockId,
         });
+        break;
+      case 'switch':
+        result.push({ op: 'switch', value: normalizeValueExpression(node.value), cases: Array.isArray(node.cases) ? node.cases.map(raw => {
+          const branch = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
+          return { value: normalizeValueExpression(branch.value), body: normalizeNodes(branch.body, scene) };
+        }) : [], otherwise: normalizeNodes(node.otherwise, scene), blockId });
         break;
     }
   }
@@ -2440,7 +2453,11 @@ function collectRequiredKindsFromNodes(
       collectRequiredKindsFromNodes(node.consequent, result);
       collectRequiredKindsFromNodes(node.otherwise, result);
     }
-    if (node.op === 'repeat') collectRequiredKindsFromNodes(node.body, result);
+    if (node.op === 'repeat' || node.op === 'while') collectRequiredKindsFromNodes(node.body, result);
+    if (node.op === 'switch') {
+      if (Array.isArray(node.cases)) node.cases.forEach(raw => collectRequiredKindsFromNodes((raw as Record<string, unknown>)?.body, result));
+      collectRequiredKindsFromNodes(node.otherwise, result);
+    }
     if (node.op === 'parallel' && Array.isArray(node.branches)) node.branches.forEach(branch => collectRequiredKindsFromNodes(branch, result));
     if (node.op === 'messageReceive') {
       collectRequiredKindsFromNodes(node.equal, result);
@@ -2566,7 +2583,8 @@ function visitProgram(
   const visit = (nodes: ProgramNode[]) => {
     for (const node of nodes) {
       visitor(node);
-      if (node.op === 'repeat') visit(node.body);
+      if (node.op === 'repeat' || node.op === 'while') visit(node.body);
+      if (node.op === 'switch') { node.cases.forEach(branch => visit(branch.body)); visit(node.otherwise); }
       if (node.op === 'parallel') node.branches.forEach(visit);
       if (node.op === 'if') {
         visit(node.consequent);
@@ -2617,6 +2635,8 @@ export function expandProgramRoutines(input: CompiledProgram): CompiledProgram {
       return [{ op: 'wait', ms: 0, blockId: node.blockId } as ProgramNode, ...expandNodes(routine.body, nested, [...stack, routine.id]), { op: 'wait', ms: 0, blockId: node.blockId } as ProgramNode];
     }
     if (node.op === 'repeat') return [{ ...node, body: expandNodes(node.body, bindings, stack) }];
+    if (node.op === 'while') return [{...node,condition:substituteCondition(node.condition,bindings,stack),body:expandNodes(node.body,bindings,stack)}];
+    if (node.op === 'switch') return [{ ...node, value: substituteValue(node.value, bindings, stack), cases: node.cases.map(branch => ({ ...branch, body: expandNodes(branch.body, bindings, stack) })), otherwise: expandNodes(node.otherwise, bindings, stack) }];
     if (node.op === 'parallel') return [{ ...node, branches: node.branches.map(branch => expandNodes(branch, bindings, stack)) }];
     if (node.op === 'if') return [{ ...node, condition: substituteCondition(node.condition, bindings, stack), consequent: expandNodes(node.consequent, bindings, stack), otherwise: expandNodes(node.otherwise, bindings, stack) }];
     if (node.op === 'messageReceive' || node.op === 'wifiMessageReceive') return [{ ...node, equal: expandNodes(node.equal, bindings, stack), different: expandNodes(node.different, bindings, stack), timeout: expandNodes(node.timeout, bindings, stack) }];
@@ -2785,11 +2805,24 @@ export function validateProgramForScene(
   visitProgram(program, (node) => {
     const expressions: ValueExpression[] = [];
     if (node.op === 'variableSet') expressions.push(node.value);
+    if (node.op === 'switch') {
+      expressions.push(node.value);
+      const type = valueExpressionType(node.value);
+      const seen = new Set<string>();
+      const domain = node.value.kind === 'componentValue' ? componentValueCapability(deviceMap.get(node.value.deviceId), node.value.property)?.choices : undefined;
+      if (node.cases.length < 2 || node.cases.length > 8) diagnostics.push({ severity: 'error', code: 'switch-cases', message: 'Según necesita entre 2 y 8 casos.', blockId: node.blockId });
+      for (const branch of node.cases) {
+        const literal = ['number', 'text', 'boolean'].includes(branch.value.kind);
+        const key = JSON.stringify(branch.value.kind === 'number' ? {...branch.value,value:normalizeCounterValue(branch.value.value)} : branch.value);
+        if (!literal || valueExpressionType(branch.value) !== type || seen.has(key) || (branch.value.kind === 'text' && !branch.value.value.trim()) || (domain && branch.value.kind === 'text' && !domain.includes(branch.value.value))) diagnostics.push({ severity: 'error', code: 'switch-case-value', message: 'Revisá los casos: mismo tipo, valores únicos y disponibles; sin textos vacíos.', blockId: node.blockId });
+        seen.add(key);
+      }
+    }
     if (node.op === 'variableChange') expressions.push(node.delta);
     if (node.op === 'procedureCall') expressions.push(...node.arguments);
     if ((node.op === 'serial' || node.op === 'messageSend' || node.op === 'wifiMessageSend' || node.op === 'displayWrite') && node.expression) expressions.push(node.expression);
-    if (node.op === 'if' && node.condition.kind === 'value') expressions.push(node.condition.expression);
-    if (node.op === 'if' && node.condition.kind === 'valueCompare') expressions.push(node.condition.left, node.condition.right);
+    if ((node.op === 'if'||node.op==='while') && node.condition.kind === 'value') expressions.push(node.condition.expression);
+    if ((node.op === 'if'||node.op==='while') && node.condition.kind === 'valueCompare') expressions.push(node.condition.left, node.condition.right);
     for (const expression of expressions) visitValueExpression(expression, value => {
       if (value.kind === 'variable') {
         const variable = variables.get(value.variableId);
@@ -2874,8 +2907,8 @@ export function validateProgramForScene(
       if (!routine || routine.kind !== 'procedure') diagnostics.push({ severity: 'error', code: 'routine-missing', message: 'Elegí una tarea que todavía exista.', blockId: node.blockId });
       else if (routine.parameters.length !== node.arguments.length || routine.parameters.some((parameter, index) => valueExpressionType(node.arguments[index] ?? defaultValue(parameter.type)) !== parameter.type)) diagnostics.push({ severity: 'error', code: 'routine-arguments', message: `${routine.name}: revisá la cantidad y el tipo de sus datos de entrada.`, blockId: node.blockId });
     }
-    if (node.op === 'if' && node.condition.kind === 'value' && valueExpressionType(node.condition.expression) !== 'boolean') diagnostics.push({ severity: 'error', code: 'condition-type', message: 'La condición necesita un valor de tipo sí/no.', blockId: node.blockId });
-    if (node.op === 'if' && node.condition.kind === 'valueCompare') {
+    if ((node.op === 'if'||node.op==='while') && node.condition.kind === 'value' && valueExpressionType(node.condition.expression) !== 'boolean') diagnostics.push({ severity: 'error', code: 'condition-type', message: 'La condición necesita un valor de tipo sí/no.', blockId: node.blockId });
+    if ((node.op === 'if'||node.op==='while') && node.condition.kind === 'valueCompare') {
       const leftType = valueExpressionType(node.condition.left), rightType = valueExpressionType(node.condition.right);
       if (leftType !== rightType || ((node.condition.operator !== 'EQ' && node.condition.operator !== 'NEQ') && leftType !== 'number')) diagnostics.push({ severity: 'error', code: 'condition-type', message: 'Compará datos del mismo tipo; menor y mayor se usan solamente con números.', blockId: node.blockId });
     }
@@ -3020,7 +3053,7 @@ export function validateProgramForScene(
         });
       }
     }
-    if (node.op === 'if') {
+    if (node.op === 'if'||node.op==='while') {
       validateConditionTarget(
         node.condition,
         node.blockId,
@@ -3046,7 +3079,8 @@ export function validateProgramForScene(
 }
 
 export type FlatInstruction =
-  | Exclude<ProgramNode, { op: 'repeat' } | { op: 'if' } | { op: 'parallel' } | { op: 'messageReceive' } | { op: 'wifiMessageReceive' }>
+  | Exclude<ProgramNode, { op: 'repeat' } | { op: 'while' } | { op: 'if' } | { op: 'switch' } | { op: 'parallel' } | { op: 'messageReceive' } | { op: 'wifiMessageReceive' }>
+  | { op: 'switchDispatch'; value: ValueExpression; cases: { value: ValueExpression; target: number }[]; defaultTarget: number; blockId: string }
   | { op: 'messageReceiveWait'; deviceId: string; expected: string; timeoutMs: number; equalTarget: number; differentTarget: number; timeoutTarget: number; blockId: string }
   | { op: 'wifiMessageReceiveWait'; deviceId: string; expected: string; sender: string; timeoutMs: number; equalTarget: number; differentTarget: number; timeoutTarget: number; blockId: string }
   | { op: 'fork' | 'join'; children: number[]; blockId: string }
@@ -3058,7 +3092,7 @@ export type FlatInstruction =
       blockId: string;
     }
   | { op: 'repeatNext'; slot: number; target: number; blockId: string }
-  | { op: 'jumpIfFalse'; condition: Condition; target: number; blockId: string }
+  | { op: 'jumpIfFalse'; condition: Condition; negate?: boolean; target: number; blockId: string }
   | { op: 'jump'; target: number; yieldAfter?: boolean; blockId: string }
   | { op: 'halt'; blockId: string };
 
@@ -3067,7 +3101,11 @@ function flattenProgram(nodes: ProgramNode[], branchTask: (nodes: ProgramNode[],
   let loopSlot = 0;
   const visit = (items: ProgramNode[]) => {
     for (const node of items) {
-      if (node.op === 'repeat') {
+      if (node.op === 'while') {
+        const start=output.length;
+        const check:Extract<FlatInstruction,{op:'jumpIfFalse'}>={op:'jumpIfFalse',condition:node.condition,negate:node.until,target:-1,blockId:node.blockId};
+        output.push(check);visit(node.body);output.push({op:'jump',target:start,yieldAfter:true,blockId:node.blockId});check.target=output.length;
+      } else if (node.op === 'repeat') {
         if (node.count < 0) {
           const start = output.length;
           visit(node.body);
@@ -3102,6 +3140,19 @@ function flattenProgram(nodes: ProgramNode[], branchTask: (nodes: ProgramNode[],
             >
           ).end = output.length;
         }
+      } else if (node.op === 'switch') {
+        const dispatch: Extract<FlatInstruction, { op: 'switchDispatch' }> = { op: 'switchDispatch', value: node.value.kind==='number'?{...node.value,value:normalizeCounterValue(node.value.value)}:node.value, cases: [], defaultTarget: -1, blockId: node.blockId };
+        output.push(dispatch);
+        const exits: Extract<FlatInstruction, { op: 'jump' }>[] = [];
+        for (const branch of node.cases) {
+          dispatch.cases.push({ value: branch.value.kind==='number'?{...branch.value,value:normalizeCounterValue(branch.value.value)}:branch.value, target: output.length });
+          visit(branch.body);
+          const exit: Extract<FlatInstruction, { op: 'jump' }> = { op: 'jump', target: -1, blockId: node.blockId };
+          exits.push(exit); output.push(exit);
+        }
+        dispatch.defaultTarget = output.length;
+        visit(node.otherwise);
+        exits.forEach(exit => { exit.target = output.length; });
       } else if (node.op === 'parallel') {
         const children = node.branches.map((branch, index) => branchTask(branch, node.blockId, index));
         output.push({ op: 'fork', children, blockId: node.blockId }, { op: 'join', children, blockId: node.blockId });
@@ -3651,7 +3702,9 @@ function instructionToCpp(
     case 'repeatNext':
       return `${comment}\n        --${loops}[${instruction.slot}];\n        if (${loops}[${instruction.slot}] > 0) { ${pc} = ${instruction.target}; }\n        else { ${loops}[${instruction.slot}] = -1; ${pc} = ${nextPc}; }\n        return;`;
     case 'jumpIfFalse':
-      return `${comment}\n        ${pc} = (${conditionToCpp(instruction.condition, context)}) ? ${nextPc} : ${instruction.target};\n        break;`;
+      return `${comment}\n        ${pc} = (${instruction.negate?'!':''}(${conditionToCpp(instruction.condition, context)})) ? ${nextPc} : ${instruction.target};\n        break;`;
+    case 'switchDispatch':
+      return `${comment}\n        { const auto selected = (${valueToCpp(instruction.value, context)});\n          ${pc} = ${instruction.defaultTarget};\n          ${instruction.cases.map((branch, index) => `${index ? 'else ' : ''}if (selected == (${valueToCpp(branch.value, context)})) { ${pc} = ${branch.target}; }`).join('\n          ')}\n        }\n        break;`;
     case 'jump':
       return `${comment}\n        ${pc} = ${instruction.target};\n        ${instruction.yieldAfter ? 'return;' : 'break;'}`;
     case 'halt':
@@ -3663,15 +3716,16 @@ export function programUsesWifi(program: CompiledProgram) {
   let usesWifi = false;
   visitProgram(program, (node) => {
     if (node.op === 'wifi' || node.op === 'wifiMessageSend' || node.op === 'wifiMessageReceive') usesWifi = true;
-    if (node.op === 'if' && node.condition.kind === 'wifiConnected') {
+    if ((node.op === 'if'||node.op==='while') && node.condition.kind === 'wifiConnected') {
       usesWifi = true;
     }
     const expressions: ValueExpression[] = [];
+    if (node.op === 'switch') expressions.push(node.value);
     if (node.op === 'variableSet') expressions.push(node.value);
     if (node.op === 'variableChange') expressions.push(node.delta);
     if ((node.op === 'serial' || node.op === 'messageSend' || node.op === 'wifiMessageSend' || node.op === 'displayWrite') && node.expression) expressions.push(node.expression);
-    if (node.op === 'if' && node.condition.kind === 'value') expressions.push(node.condition.expression);
-    if (node.op === 'if' && node.condition.kind === 'valueCompare') expressions.push(node.condition.left, node.condition.right);
+    if ((node.op === 'if'||node.op==='while') && node.condition.kind === 'value') expressions.push(node.condition.expression);
+    if ((node.op === 'if'||node.op==='while') && node.condition.kind === 'valueCompare') expressions.push(node.condition.left, node.condition.right);
     expressions.forEach(expression => visitValueExpression(expression, value => { if (value.kind === 'wifiValue' || (value.kind === 'componentValue' && (value.property === 'connected' || value.property === 'status' || value.property.startsWith('lastWifi')))) usesWifi = true; }));
   });
   return usesWifi;

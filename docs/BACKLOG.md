@@ -131,7 +131,7 @@ Pedido del 12 de septiembre de 2026: agregar una sección de **desafíos de comp
 - Registrar progreso por cuenta con reglas explícitas de privacidad y revisión. No introducir rankings públicos, comparación entre alumnos ni recompensas que oculten si el concepto fue comprendido.
 - Mantener accesibilidad, teclado, móvil, texto ampliado, importación/exportación y compatibilidad de proyectos. El catálogo de desafíos debe poder versionarse sin invalidar avances ya obtenidos.
 
-Asignación: **Fase 19**, agregada al plan y pendiente de autorización propia. La cantidad y selección final del catálogo inicial se fijan al autorizarla; el plan propone una base verificable sin hacer depender los primeros retos de hardware.
+Asignación: **Fase 19**, autorizada y entregada en software el 5 de octubre de 2026: 17 retos propios, Según/Mientras, pistas, comprobación multicaso, progreso por cuenta y creador docente versionado por curso. Evidencia, límites y aceptaciones pendientes en [la guía de fase 19](FASE_19_HERRAMIENTAS_PEDAGOGICAS.md#14-entrega-implementada-y-evidencia--5-de-octubre-de-2026). DEV/SDK completo y aceptación docente/infantil pendientes; no confundir autoevaluación con calificación. Casos reservados se revisan por el docente, no se ejecutan secretamente en el servidor.
 
 ## 13. Barra de desplazamiento residual del catálogo
 

@@ -25,6 +25,8 @@ BOARD_PINS = {
 }
 BLOCKS = {"capi_" + name for name in ("start", "forever", "repeat", "wait", "if", "compare", "counter_compare", "counter_set", "counter_change", "traffic", "led", "pin_write", "robot", "otto", "motor", "servo", "buzzer", "tone", "button_pressed", "sensor_compare", "wifi_connect", "wifi_connected", "serial")}
 BLOCKS.add("capi_parallel")
+BLOCKS.add("capi_switch")
+BLOCKS.add("capi_while")
 BLOCKS.add("capi_power_switch")
 BLOCKS.add("capi_stepper")
 BLOCKS.update(("capi_display_write", "capi_display_clear", "capi_display_animate_text", "capi_display_artwork", "capi_display_button_pressed", "capi_visual_wait"))
@@ -35,6 +37,7 @@ BLOCKS.update(("capi_variable_set_number", "capi_variable_change", "capi_variabl
 BLOCKS.add("capi_value_compare")
 BLOCKS.add("capi_barrier_state")
 BLOCKS.update(("capi_otto", "capi_otto_sound", "capi_otto_expression", "capi_otto_arms", "capi_otto_distance"))
+BLOCKS.update(("capi_timer_start", "capi_timer_restart", "capi_timer_pause", "capi_timer_resume", "capi_timer_stop", "capi_timer_wait", "capi_timer_elapsed", "capi_timer_remaining", "capi_timer_compare", "capi_procedure_def", "capi_procedure_call", "capi_function_def_number", "capi_function_def_text", "capi_function_def_boolean", "capi_function_call_number", "capi_function_call_text", "capi_function_call_boolean", "capi_parameter_number", "capi_parameter_text", "capi_parameter_boolean", "capi_component_number", "capi_component_text", "capi_component_boolean", "capi_traffic_color", "capi_traffic_is", "capi_traffic_vehicle_display", "capi_traffic_pedestrian_display", "capi_frame_animation", "capi_matrix_brightness", "capi_visual_stop", "capi_wifi_message_send", "capi_wifi_message_receive"))
 PINS = {"trafficLight": ["red", "yellow", "green"], "robot": ["leftIn1", "leftIn2", "rightIn1", "rightIn2"], "otto": ["leftLeg", "rightLeg", "leftFoot", "rightFoot", "leftArm", "rightArm", "buzzer", "trigger", "echo", "matrixDin", "matrixClk", "matrixCs"], "motor": ["in1", "in2"], **{kind: ["signal"] for kind in ("led", "smartLights", "servo", "activeBuzzer", "passiveBuzzer", "button", "infraredBarrier", "lightSensor", "potentiometer")}, "wifiNode": []}
 CONFIGS = {
     "trafficLight": {"redBrightness": (0, 100), "yellowBrightness": (0, 100), "greenBrightness": (0, 100)},
@@ -205,15 +208,20 @@ def workspace(value):
     bounded_json(value, 128, 35000)
     require(len(encoded(value)) <= 1_500_000, "El área de bloques supera 1,5 MB.")
     variables = value.get("variables", [])
-    require(isinstance(variables, list) and len(variables) <= 32)
+    require(isinstance(variables, list) and len(variables) <= 72)
+    variable_counts = {}
     variable_ids, variable_names = set(), set()
     for variable in variables:
         require(isinstance(variable, dict) and set(variable) == {"name", "id", "type"})
         require(text(variable["id"], 128, 1) and variable["id"].strip() and variable["id"] not in variable_ids)
         require(text(variable["name"], 32, 1) and variable["name"].strip())
         normalized = unicodedata.normalize("NFKD", variable["name"]).casefold()
-        require(normalized not in variable_names and variable["type"] in ("Number", "String", "Boolean"))
-        variable_ids.add(variable["id"]); variable_names.add(normalized)
+        require(variable["type"] in ("Number", "String", "Boolean", "Timer", "Procedure", "FunctionNumber", "FunctionText", "FunctionBoolean"))
+        group = 'data' if variable['type'] in ('Number', 'String', 'Boolean') else 'timers' if variable['type'] == 'Timer' else 'routines'
+        key = (group, normalized)
+        variable_counts[group] = variable_counts.get(group, 0) + 1
+        require(key not in variable_names and variable_counts[group] <= {'data': 32, 'timers': 16, 'routines': 24}[group])
+        variable_ids.add(variable["id"]); variable_names.add(key)
     if "blocks" not in value:
         return
     section = value["blocks"]
@@ -228,6 +236,20 @@ def workspace(value):
         ids.add(block_id)
         require(len(ids) <= 2000, "El proyecto supera 2000 bloques.")
         require("fields" not in block or isinstance(block["fields"], dict))
+        if block["type"] == "capi_switch":
+            extra = block.get("extraState", {})
+            fields = block.get("fields", {})
+            require(isinstance(extra, dict))
+            raw = extra.get("cases", fields.get("CASES", 2))
+            require(type(raw) is int or isinstance(raw, str) and raw.isdigit())
+            count = int(raw)
+            require(2 <= count <= 8)
+            require(fields.get("CASES") is None or str(fields["CASES"]) == str(count))
+            kind = extra.get("type", fields.get("CASE_TYPE", "number"))
+            require(kind in ("number", "text", "boolean", "traffic", "robot"))
+            require(fields.get("CASE_TYPE") is None or fields["CASE_TYPE"] == kind)
+            require(isinstance(block.get("inputs", {}), dict))
+            require(all(name in ("VALUE", "OTHERWISE") or re.fullmatch(r"CASE\d+", name) and int(name[4:]) < count for name in block.get("inputs", {})))
         if block["type"] == "capi_parallel":
             extra = block.get("extraState", {})
             require(isinstance(extra, dict))

@@ -209,6 +209,8 @@ jobs:
           npm run lint
           npm run lint:displays
           npm run test:smoke
+          npm run test:challenges
+          npm run lint:challenges
           npm run test:display-driver
           npm run test:idf
           npm run test:idf-driver

@@ -11,6 +11,21 @@ class ProjectUploadLimit:
         self.get_response = get_response
 
     def __call__(self, request):
+        if request.path.startswith('/api/challenges/') and request.method == 'POST':
+            limit = 2048 if request.path == '/api/challenges/progress/' else 260000
+            try:
+                length = int(request.META.get('CONTENT_LENGTH', ''))
+                if request.content_type != 'application/json' or not 0 < length <= limit:
+                    raise ValueError
+                data = request.read(limit + 1)
+                if len(data) != length:
+                    raise ValueError
+            except (ValueError, TypeError, OSError):
+                response = JsonResponse({'error': 'El desafío supera el límite de carga o no indica su tamaño.', 'code': 'upload_size'}, status=413)
+                response['Cache-Control'] = 'no-store'
+                return response
+            request._body = data
+            request._stream = BytesIO(data)
         if request.path.startswith("/api/review/") and request.method in ("POST", "PATCH"):
             try:
                 length = int(request.META.get("CONTENT_LENGTH", ""))

@@ -19,6 +19,7 @@ type Preview = {
   user: { id: string; alias: string; displayName: string; isActive: boolean };
   projects: { count: number; active: number; trash: number; bytes: number; historyCount?: number; historyBytes?: number; feedbackCount?: number; feedbackBytes?: number };
   interventionsAnonymized?: number;
+  challengeProgressCount?: number;
   memberships: number;
   version: string;
   canDelete: boolean;
@@ -176,7 +177,7 @@ export default function AccountDeletion({
       alias !== preview.user.alias ||
       !localDrafts ||
       !permanent ||
-      (preview.projects.count > 0 && !receipt)
+      ((preview.projects.count > 0 || (preview.challengeProgressCount ?? 0) > 0) && !receipt)
     )
       return;
     const ticket = ++generation.current;
@@ -262,6 +263,7 @@ export default function AccountDeletion({
               {preview.memberships} membresías.
             </p>
             <p>{preview.projects.feedbackCount ?? 0} devoluciones con sus respuestas se incluyen en el respaldo y se borran junto con sus proyectos. {preview.interventionsAnonymized ?? 0} intervenciones en trabajos ajenos conservarán su texto, pero se retirará la identidad del autor. No se borran ni exportan aquí los proyectos ajenos.</p>
+            <p>{preview.challengeProgressCount ?? 0} registros de progreso de desafíos también se incluyen en el respaldo y se eliminan con esta cuenta.</p>
             {!preview.canDelete ? (
               <p className="account-error">
                 Primero cancelá, desactivá la cuenta desde Editar y retirale
@@ -314,10 +316,10 @@ export default function AccountDeletion({
                   <Checkbox
                     id="backup-permanent"
                     checked={permanent}
-                    disabled={busy || (preview.projects.count > 0 && !receipt)}
+                    disabled={busy || ((preview.projects.count > 0 || (preview.challengeProgressCount ?? 0) > 0) && !receipt)}
                     onCheckedChange={setPermanent}
                   />
-                  Conservé el respaldo si hay proyectos y confirmo la
+                  Conservé el respaldo si hay proyectos o progreso y confirmo la
                   eliminación definitiva.
                 </label>
                 <label htmlFor="delete-alias">
@@ -346,7 +348,7 @@ export default function AccountDeletion({
               !localDrafts ||
               !permanent ||
               alias !== preview?.user.alias ||
-              (preview.projects.count > 0 && !receipt)
+              ((preview.projects.count > 0 || (preview.challengeProgressCount ?? 0) > 0) && !receipt)
             }
             onClick={() => void remove()}
           >
