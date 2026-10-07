@@ -359,7 +359,7 @@ function deviceReading(device: RuntimeDeviceState | undefined) {
   switch (device.kind) {
     case 'educationalModule': return Object.values(device.values).map(value => typeof value === 'boolean' ? value ? 'sí' : 'no' : String(value)).join(' · ');
     case 'trafficLight':
-      return device.color === 'OFF' ? 'Apagado' : device.color;
+      return ({ RED: 'Rojo', YELLOW: 'Amarillo', GREEN: 'Verde', OFF: 'Apagado' })[device.color];
     case 'display': return Object.values(device.texts).some(lines => lines.join('').trim()) ? 'Con texto' : 'Sin texto';
     case 'ledMatrix': return device.scrolling ? 'Texto en movimiento' : device.rows.some(row => row !== 0) ? 'Con dibujo' : 'Apagada';
     case 'led':
@@ -1316,7 +1316,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         <div className="brand">
           <button className="avatar-button" title="Elegir mi avatar" aria-label="Elegir mi avatar" disabled={!preferences.verified} onClick={()=>setPreferencesOpen('avatar')}><UserAvatar id={preferences.preferences?.avatarId ?? account.avatarId} decorative /></button>
           <div>
-            <span title={`@${account.alias} · Borrador local de esta cuenta`}>{account.displayName} · {boardProfile(projectTarget.boardProfile).shortName}</span>
+            <span title="Borrador local de esta cuenta">Hola, {account.displayName} · {boardProfile(projectTarget.boardProfile).shortName}</span>
           </div>
         </div>
         <label className="project-name">
@@ -1840,6 +1840,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             scene={scene}
             boardProfile={projectTarget.boardProfile}
             rawPins={rawOutputPins}
+            runtimeDevices={sim.devices}
+            runtimePins={sim.pins}
             diagnostics={diagnostics}
             acknowledged={wiringAcknowledged}
             onAcknowledgedChange={(value) =>

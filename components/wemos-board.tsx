@@ -7,7 +7,7 @@ import { useId } from 'react';
 import { wemosBottom, wemosTop, type BoardContact } from '@/lib/wemos-board';
 import { wemosD1R32Pins } from '@/lib/scene-model';
 
-export type WiringConnection = { id: string; deviceId: string; deviceName: string; signal: string; pin: number | null | undefined; boardLabel?: string };
+export type WiringConnection = { id: string; deviceId: string; deviceName: string; signal: string; pin: number | null | undefined; boardLabel?: string; simulated?: import('@/lib/simulated-pin-state').SimulatedPinState };
 
 export default function WemosBoard({ connections, selectedPin, selectedDevice, onSelect }: { connections: WiringConnection[]; selectedPin?: number; selectedDevice?: string; onSelect: (pin: number) => void }) {
   const titleId = useId();
@@ -23,7 +23,7 @@ export default function WemosBoard({ connections, selectedPin, selectedDevice, o
       onKeyDown={event => { if (matches.length && pin.gpio !== undefined && ['Enter', ' '].includes(event.key)) { event.preventDefault(); onSelect(pin.gpio); } }}>
       <title>{label}</title>
       <rect x={x - 18} y={y - 24} width={36} height={48} rx={6} className="board-contact-target" />
-      <circle cx={x} cy={y} r={9} />
+      <circle cx={x} cy={y} r={9} style={supported && matches.length === 1 && matches[0]?.simulated ? { fill: matches[0].simulated.color, fillOpacity: .25 + .75 * matches[0].simulated.intensity } : undefined} />
       <text x={x} y={bottom ? y + 37 : y - 29} textAnchor="middle" className="board-physical-label">{pin.label}</text>
       {pin.alias && <text x={x} y={bottom ? y + 54 : y - 39} textAnchor="middle" className="board-alias">{pin.alias}</text>}
       {matches.length > 0 && <text x={x} y={bottom ? y - 22 : y + 31} textAnchor="middle" className="board-wire-number">{matches.map(row => row.number).join(',')}</text>}

@@ -24,7 +24,7 @@ test('mesa de trabajo: dos filas globales, área útil y cámara sin cambiar el 
   expect(area!.y).toBeLessThan(150);
   const dimensions = await page.evaluate(() => ({ width: innerWidth, scroll: document.documentElement.scrollWidth }));
   expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width);
-  for (const name of ['Guardar', 'Mis proyectos', 'Crear', 'Probar', 'Ejecutar', 'Usar en placa', 'Deshacer', 'Rehacer', 'Armar escena', 'Más herramientas']) await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
+  for (const name of ['Guardar', 'Mis proyectos', 'Crear', 'Probar', 'Simular', 'Usar en placa', 'Deshacer', 'Rehacer', 'Armar escena', 'Más herramientas']) await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
   const before = await exported(page);
   const viewport = page.getByRole('application', { name: 'Lienzo de la escena' });
   await page.getByRole('button', { name: 'Acercar escena', exact: true }).click();
@@ -40,7 +40,7 @@ test('mesa de trabajo: dos filas globales, área útil y cámara sin cambiar el 
   const after = await exported(page);
   expect(after.scene).toEqual(before.scene); expect(after.workspace).toEqual(before.workspace);
   const pan = await viewport.getAttribute('data-camera-x');
-  await page.getByRole('button', { name: 'Ejecutar', exact: true }).click();
+  await page.getByRole('button', { name: 'Simular', exact: true }).click();
   await page.getByRole('button', { name: 'Pausar', exact: true }).click();
   await page.getByRole('button', { name: 'Paso', exact: true }).click();
   await expect(viewport).toHaveAttribute('data-camera-zoom', '1.25');
@@ -187,7 +187,12 @@ test('cámara: teclado, zoom táctil con Mano y revisión docente de sólo lectu
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await expect.poll(async () => Number(await viewport.getAttribute('data-camera-zoom'))).toBeGreaterThan(1.5);
   await cdp.detach();
-  await mockReview(page); await page.goto(reviewPath);
+  const currentProject = await exported(page);
+  const review = await mockReview(page);
+  // The historical backend fixture has a traffic light outside a crossroads;
+  // keep that fixture intact and review a currently valid scene here.
+  review.documents.set(1, currentProject);
+  await page.goto(reviewPath);
   await expect(page.getByLabel('Bloques de la versión, sólo lectura')).toBeVisible();
   const reviewCamera = page.getByRole('application', { name: 'Lienzo de la escena' });
   await page.getByRole('button', { name: 'Acercar escena' }).click();

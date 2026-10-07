@@ -2,6 +2,7 @@
 import { DisplayPreview } from '@/components/display-preview';
 import { LedMatrixPreview } from '@/components/led-matrix-preview';
 import SceneViewport from '@/components/scene-viewport';
+import { trafficColorLabel } from '@/lib/editor-ergonomics';
 
 import {
   useEffect,
@@ -857,6 +858,7 @@ export default function SceneStage({
             <article
               key={device.id}
               data-device-id={device.id}
+              title={device.kind === 'trafficLight' ? `${device.name}: ${trafficColorLabel(runtime?.color ?? 'OFF')}` : device.name}
               className={`scene-device scene-device-${device.kind}${activeDeviceId === device.id ? ' scene-device-active' : ''}`}
               style={style}
               aria-label={

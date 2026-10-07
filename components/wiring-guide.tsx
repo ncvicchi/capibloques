@@ -22,7 +22,8 @@ import {
   type SceneDefinition,
   type SceneDevice,
 } from '@/lib/scene-model';
-import type { CapiDiagnostic } from '@/lib/capiblocks';
+import type { CapiDiagnostic, RuntimeDeviceState } from '@/lib/capiblocks';
+import { simulatedPinState, rawSimulatedPinState } from '@/lib/simulated-pin-state';
 import { displayProfiles } from '@/lib/display-model';
 import { educationalModuleSpecs } from '@/lib/educational-modules';
 
@@ -33,6 +34,8 @@ interface WiringGuideProps {
   boardProfile: BoardProfileId;
   rawPins: number[];
   diagnostics: CapiDiagnostic[];
+  runtimeDevices?: Record<string, RuntimeDeviceState>;
+  runtimePins?: Record<number, boolean>;
   acknowledged: boolean;
   onAcknowledgedChange: (value: boolean) => void;
 }
@@ -75,9 +78,12 @@ export default function WiringGuide({
   boardProfile: profileId,
   rawPins,
   diagnostics,
+  runtimeDevices,
+  runtimePins,
   acknowledged,
   onAcknowledgedChange,
 }: WiringGuideProps) {
+  const [showSimulation, setShowSimulation] = useState(false);
   const signature = sceneSignature(scene, rawPins, profileId);
   const [selection, setSelection] = useState<{ signature: string; pin: number } | null>(null);
   const [deviceSelection, setDeviceSelection] = useState<{ signature: string; id: string } | null>(null);
@@ -160,6 +166,7 @@ export default function WiringGuide({
         signal: requirement.label,
         pin,
         boardLabel: boardPin?.label,
+        simulated: showSimulation ? simulatedPinState(device, requirement.key, runtimeDevices?.[device.id]) : undefined,
       };
     });
   });
@@ -171,6 +178,7 @@ export default function WiringGuide({
       signal: 'Salida digital',
       pin,
       boardLabel: profile.pins.find((item) => item.gpio === pin)?.label,
+      simulated: showSimulation && runtimePins && Object.hasOwn(runtimePins, pin) ? rawSimulatedPinState(runtimePins[pin]) : undefined,
     })),
   );
   const allChecked = checklist.every((item) => checks[item.id]);
@@ -187,6 +195,8 @@ export default function WiringGuide({
         </DialogHeader>
 
         <div className="wiring-layout">
+          {runtimeDevices && profileId !== 'waveshare-esp32-s3-touch-lcd-5-28117' && <label className="simulated-pins-toggle"><input type="checkbox" checked={showSimulation} onChange={event => setShowSimulation(event.target.checked)} /> Ver estado simulado de los pines</label>}
+          {showSimulation && <p className="simulated-pins-explanation">Simulación lógica, no medición eléctrica. Color e intensidad muestran el estado del programa. Buses y señales no modeladas se indican sin lectura.</p>}
           <label className="wiring-highlight">Resaltar conexiones de
             <select aria-label="Resaltar conexiones de" value={selectedDevice ?? ''} onChange={event => { setSelection(null); setDeviceSelection({ signature, id: event.target.value }); }}>
               <option value="">Todos los componentes</option>
@@ -231,6 +241,7 @@ export default function WiringGuide({
                       <th>Señal</th>
                       <th>Serigrafía / alias</th>
                       <th>GPIO</th>
+                      {showSimulation && <th>Estado simulado</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -241,6 +252,7 @@ export default function WiringGuide({
                         <td>{row.signal}</td>
                         <td>{(profileId === 'wemos-d1-r32' ? physicalWemosLabel(row.pin) : profileId === 'waveshare-esp32-s3-touch-lcd-5-28117' ? undefined : physicalS3Label(row.pin)) ?? (row.pin == null ? 'Integrado / sin cable' : 'No localizado')}{row.boardLabel ? ` / ${row.boardLabel}` : ''}</td>
                         <td>{row.pin == null ? '—' : <button type="button" className="wiring-pin-button" aria-label={`Localizar conexión ${index + 1}: ${row.deviceName}, ${row.signal}, GPIO ${row.pin}`} aria-pressed={row.pin === selectedPin} onClick={() => setSelection({ signature, pin: row.pin! })}>GPIO {row.pin}</button>}</td>
+                        {showSimulation && <td>{row.simulated?.label ?? 'Sin lectura simulada'}</td>}
                       </tr>
                     ))}
                   </tbody>

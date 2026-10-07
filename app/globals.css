@@ -345,6 +345,16 @@ select:focus-visible {
   gap: 1px;
 }
 .project-name svg { color: #5942b4; margin-bottom: -2px; }
+.project-name:focus-within { outline: 2px solid #5942b4; outline-offset: 2px; }
+.project-name input { box-shadow: inset 0 -1px 0 #777394; }
+.capi-choice-field .blocklyFieldRect { fill: #fff !important; fill-opacity: .92 !important; stroke: #42355e !important; stroke-width: 1.5px; }
+.blockly-shell .blocklySvg .capi-choice-field .blocklyText, .blockly-shell .blocklySvg .capi-choice-field .blocklyDropdownText { fill: #29203f !important; }
+.capi-choice-field .blocklyDropdownArrow { fill: #29203f !important; }
+.capi-number-field .blocklyFieldRect { stroke-dasharray: 2 2; stroke: #4b4263; }
+.capi-block-detached > .blocklyPath { fill-opacity: .8; stroke-dasharray: 6 3; stroke-width: 2px; }
+.detached-blocks-notice { position: absolute; bottom: 10px; left: 155px; right: 70px; z-index: 3; width: fit-content; max-width: calc(100% - 225px); border: 1px solid #8c6c28; border-radius: 8px; padding: 6px 10px; background: #fff8df; color: #543e0c; font-size: 12px; pointer-events: none; }
+.simulated-pins-toggle { display: flex; gap: 10px; align-items: center; min-height: 44px; font-weight: 700; }
+.simulated-pins-explanation { color: #493466; background: #f2edff; border-radius: 8px; padding: 10px; }
 .project-name span {
   color: var(--muted);
   font-size: 11px;
@@ -3536,6 +3546,7 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .workbench .brand strong { font-size: 20px; }
 .workbench .brand span { font-size: 11px; }
 .workbench .project-name input { min-width: 0; }
+.workbench .project-name { display: flex; }
 .workbench .header-actions { overflow: visible; gap: 6px; }
 .workbench .header-actions > button { flex-shrink: 0; }
 .workbench .cloud-state { min-width: 100px; flex: 1; max-width: 210px; font-size: 11px; line-height: 1.3; overflow-wrap: anywhere; }

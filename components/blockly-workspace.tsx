@@ -12,6 +12,7 @@ import type { CompiledProgram, ExecutionTaskState } from '@/lib/capiblocks';
 import type { SceneDevice } from '@/lib/scene-model';
 import type { BoardProfileId } from '@/lib/board-profiles';
 import { validFavorite } from '@/lib/user-preferences';
+import { separatedBlockOffset } from '@/lib/editor-ergonomics';
 import {
   MAIN_WORKSPACE_TAB_ID,
   MAX_WORKSPACE_TABS,
@@ -249,12 +250,23 @@ function blockAccessibilityLabel(block: BlocklyBlock) {
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 100);
-  return `Bloque: ${description || 'bloque vacío'}`;
+  const root = block.getRootBlock();
+  const detached = root.type !== 'capi_start' && !isRoutineDefinitionType(root.type);
+  return `Bloque: ${description || 'bloque vacío'}${detached ? '. Fuera del programa; conectalo para ejecutarlo.' : ''}`;
 }
 
 function refreshBlockAccessibility(workspace: BlocklyWorkspaceSvg) {
   for (const block of workspace.getAllBlocks(false)) {
     const root = block.getSvgRoot();
+    const chain = block.getRootBlock();
+    const detached = chain.type !== 'capi_start' && !isRoutineDefinitionType(chain.type);
+    root?.classList.toggle('capi-block-detached', detached);
+    block.setWarningText(block === chain && detached ? 'Fuera del programa. Conectá estos bloques a Al comenzar o dentro de un procedimiento.' : null, 'outside-program');
+    for (const input of block.inputList) for (const field of input.fieldRow) {
+      const fieldRoot = field.getSvgRoot();
+      fieldRoot?.classList.toggle('capi-choice-field', 'getOptions' in field);
+      fieldRoot?.classList.toggle('capi-number-field', typeof field.getValue() === 'number');
+    }
     const path = root?.querySelector<SVGElement>('.blocklyPath');
     if (!path) continue;
     path.setAttribute('role', 'img');
@@ -584,6 +596,7 @@ const BlocklyWorkspace = forwardRef<
   const keyboardStatusRef = useRef<HTMLOutputElement>(null);
   const [ready, setReady] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [detachedCount, setDetachedCount] = useState(0);
   const [tabs, setTabs] = useState(initialTabs.tabs);
   const [activeTabId, setActiveTabId] = useState(MAIN_WORKSPACE_TAB_ID);
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
@@ -652,6 +665,7 @@ const BlocklyWorkspace = forwardRef<
     let activateKeyboardNavigation: ((event: KeyboardEvent) => void) | null =
       null;
     let deactivateKeyboardNavigation: (() => void) | null = null;
+    let deactivateOutsideEditor: ((event: FocusEvent) => void) | null = null;
     let announceBlocklyFocus: ((event?: FocusEvent) => void) | null = null;
     let openCalledDefinition: ((event: MouseEvent) => void) | null = null;
     void Promise.all([import('blockly'), import('blockly/msg/es')]).then(
@@ -867,6 +881,7 @@ const BlocklyWorkspace = forwardRef<
         configureBlockDragging();
         refreshTabView(MAIN_WORKSPACE_TAB_ID);
         refreshBlockAccessibility(workspace);
+        setDetachedCount(workspace.getTopBlocks(false).filter(block => block.type !== 'capi_start' && !isRoutineDefinitionType(block.type)).length);
         appliedRevisionRef.current = revisionRef.current;
         onChangeRef.current(captureStableWorkspace());
         let workspaceChangePending = false;
@@ -878,6 +893,7 @@ const BlocklyWorkspace = forwardRef<
           }
           workspaceChangePending = false;
           refreshBlockAccessibility(workspace);
+          setDetachedCount(workspace.getTopBlocks(false).filter(block => block.type !== 'capi_start' && !isRoutineDefinitionType(block.type)).length);
           onChangeRef.current(captureStableWorkspace());
           onHistoryChangeRef.current?.(historyState(workspace));
         };
@@ -903,6 +919,20 @@ const BlocklyWorkspace = forwardRef<
             setPaletteOpen(Boolean(workspace.getFlyout()?.isVisible()));
           if (event.type === Blockly.Events.BLOCK_DRAG) {
             if (!(event as import('blockly').Events.BlockDrag).isStart) {
+              const droppedId = (event as import('blockly').Events.BlockDrag).blockId;
+              window.requestAnimationFrame(() => {
+                if (workspace.isDragging() || !droppedId) return;
+                const dropped = workspace.getBlockById(droppedId);
+                // Never separate a successful connection, an import or an undo.
+                if (!dropped || dropped.getParent()) return;
+                const owner = tabForRoot(tabsRef.current, dropped.id);
+                const peers = workspace.getTopBlocks(false).filter(block => block.id !== dropped.id && tabForRoot(tabsRef.current, block.id) === owner);
+                const delta = separatedBlockOffset(dropped.getBoundingRectangle(), peers.map(block => block.getBoundingRectangle()));
+                if (!delta) return;
+                const previousGroup = Blockly.Events.getGroup();
+                Blockly.Events.setGroup(workspace.getUndoStack().at(-1)?.group || true);
+                try { dropped.moveBy(0, delta); } finally { Blockly.Events.setGroup(previousGroup); }
+              });
               workspace.getToolbox()?.clearSelection();
               if (dragConfigurationPending) configureBlockDraggingWhenIdle();
               if (workspaceChangePending || changeTimerRef.current) {
@@ -1029,6 +1059,11 @@ const BlocklyWorkspace = forwardRef<
           'pointerdown',
           deactivateKeyboardNavigation,
         );
+        deactivateOutsideEditor = (event: FocusEvent) => {
+          if (event.target instanceof Node && !keyboardHost?.contains(event.target))
+            deactivateKeyboardNavigation?.();
+        };
+        document.addEventListener('focusin', deactivateOutsideEditor, true);
         openCalledDefinition = (event: MouseEvent) => {
           const target =
             event.target instanceof Element
@@ -1078,6 +1113,7 @@ const BlocklyWorkspace = forwardRef<
     return () => {
       disposed = true;
       if (keyboardHost && activateKeyboardNavigation) {
+        if (deactivateOutsideEditor) document.removeEventListener('focusin', deactivateOutsideEditor, true);
         keyboardHost.removeEventListener('keydown', activateKeyboardNavigation);
       }
       if (keyboardHost && deactivateKeyboardNavigation) {
@@ -1134,6 +1170,7 @@ const BlocklyWorkspace = forwardRef<
     appliedRevisionRef.current = revision;
     onChangeRef.current(captureStableWorkspace());
     refreshBlockAccessibility(workspaceRef.current);
+    setDetachedCount(workspaceRef.current.getTopBlocks(false).filter(block => block.type !== 'capi_start' && !isRoutineDefinitionType(block.type)).length);
   }, [ready, revision]);
 
   useEffect(() => {
@@ -1418,6 +1455,7 @@ const BlocklyWorkspace = forwardRef<
         </button>
       )}
       {!ready && <div className="editor-loading">Preparando los bloques…</div>}
+      {detachedCount > 0 && <output className="detached-blocks-notice" aria-live="polite">{detachedCount} {detachedCount === 1 ? 'grupo fuera' : 'grupos fuera'} del programa · Conectalos para ejecutarlos.</output>}
       <p id="blockly-keyboard-help" className="visually-hidden">
         Usa Tab para recorrer el editor. Las flechas permiten navegar por los
         controles de Blockly.{' '}

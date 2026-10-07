@@ -22,7 +22,7 @@ export default function S3Board({ connections, selectedPin, selectedDevice, onSe
       onKeyDown={event => { if (matches.length && pin.gpio !== undefined && ['Enter', ' '].includes(event.key)) { event.preventDefault(); onSelect(pin.gpio); } }}>
       <title>{label}</title>
       <rect x={x - 25} y={y - 12} width={50} height={24} rx={5} className="board-contact-target" />
-      <circle cx={x} cy={y} r={7} />
+      <circle cx={x} cy={y} r={7} style={supported && matches.length === 1 && matches[0]?.simulated ? { fill: matches[0].simulated.color, fillOpacity: .25 + .75 * matches[0].simulated.intensity } : undefined} />
       <text x={right ? x + 19 : x - 19} y={y + 4} textAnchor={right ? 'start' : 'end'} className="board-physical-label">{pin.label}</text>
       {matches.length > 0 && <text x={right ? x - 18 : x + 18} y={y + 4} textAnchor={right ? 'end' : 'start'} className="board-wire-number">{matches.map(row => row.number).join(',')}</text>}
     </g>;

@@ -1,5 +1,9 @@
 # Plan de CapiBloques: multiusuario, enseñanza y programación de Wemos
 
+**7 de octubre: fase 21 entregada en software.** Ergonomía de bloques/borrador,
+comparadores, título móvil y vista simulada de pines. Sin firmware/migraciones.
+DEV y aceptación humana pendientes. Ver [guía de fase 21](FASE_21_ERGONOMIA_EDITOR.md).
+
 6 de octubre: corregida regresión 400/409 del recibo de baja de cuentas de
 fase 19. Conserva respaldo obligatorio para progreso y proyectos. Reintento
 de actualización DEV y suite PostgreSQL pendientes del propietario.

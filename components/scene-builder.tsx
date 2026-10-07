@@ -591,7 +591,15 @@ function SceneBuilderSession({
   };
 
   const moveItem = (itemId: string, position: ScenePosition) => {
-    if (!requireSettledInspector('mover objetos')) return;
+    if (inspectorDirty) {
+      // Move the preview without implicitly applying or discarding its fields.
+      if (inspectorDraft?.value.id !== itemId) { setMessage('Terminá los cambios del objeto seleccionado antes de mover otro.'); return; }
+      const constrained = constrainSceneItemPosition(previewScene, inspectorDraft.value, position);
+      setInspectorDraft(inspectorDraft.kind === 'device'
+        ? { kind: 'device', value: { ...inspectorDraft.value, position: { ...constrained } } }
+        : { kind: 'widget', value: { ...inspectorDraft.value, position: { ...constrained } } });
+      return;
+    }
     let next = cloneScene(previewScene);
     const movingItem = findSceneItem(next, itemId);
     const groupIds = selectedIds.includes(itemId) && selectedIds.length > 1 &&
@@ -770,7 +778,6 @@ function SceneBuilderSession({
   };
 
   const autoConnect = () => {
-    if (!requireSettledInspector('asignar los pines')) return;
     if (waveshareSimulation) {
       setMessage('La Waveshare simula los componentes en su pantalla: no necesita conexiones GPIO.');
       return;
@@ -782,6 +789,8 @@ function SceneBuilderSession({
         ? 'Conecté todo lo posible. Aún faltan pines para algunos componentes.'
         : `Pines compatibles asignados para ${boardProfile(draftBoardProfile).name}.`,
     );
+    // commitScene refreshes the inspector from this preview; the project is
+    // unchanged until Guardar escena and Cancelar can discard the whole draft.
   };
 
   const changeBoardProfile = (nextProfile: BoardProfileId) => {

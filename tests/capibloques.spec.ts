@@ -38,7 +38,7 @@ test.describe('CapiBloques', () => {
     const simulator = page.getByRole('region', {
       name: 'Crear, probar y usar en placa',
     });
-    for (const name of ['Crear', 'Probar', 'Ejecutar', 'Usar en placa', 'Más herramientas']) {
+    for (const name of ['Crear', 'Probar', 'Simular', 'Usar en placa', 'Más herramientas']) {
       await expect(simulator.getByRole('button', { name })).toBeVisible();
     }
     await expect(page.getByRole('button', { name: 'Armar escena' })).toBeVisible();
@@ -69,7 +69,7 @@ test.describe('CapiBloques', () => {
     const simulator = page.getByRole('region', {
       name: 'Crear, probar y usar en placa',
     });
-    for (const name of ['Crear', 'Probar', 'Ejecutar', 'Usar en placa', 'Más herramientas']) {
+    for (const name of ['Crear', 'Probar', 'Simular', 'Usar en placa', 'Más herramientas']) {
       await expect(simulator.getByRole('button', { name })).toBeVisible();
     }
     await expect(
@@ -149,7 +149,7 @@ test.describe('CapiBloques', () => {
     await expect(notice).not.toContainText('Proyecto importado correctamente');
     await expect(page.getByLabel('Editor visual de bloques')).toBeVisible();
     await expect(page.locator('.blocklySvg')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Ejecutar' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Simular' })).toBeEnabled();
     expect(pageErrors).toEqual([]);
   });
 
@@ -320,6 +320,8 @@ test.describe('CapiBloques', () => {
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify(project)),
     });
+    const replacement = page.getByRole('alertdialog', { name: 'Antes de reemplazar el editor' });
+    if (await replacement.isVisible()) await replacement.getByRole('button', { name: 'Descartar cambios y abrir' }).click();
     await expect(page.locator('output.notice')).toContainText(
       'La simulación puede continuar',
     );
@@ -374,6 +376,8 @@ test.describe('CapiBloques', () => {
     expect(exported.schemaVersion).toBe(2);
     expect(exported.scene.devices).toHaveLength(1);
     expect(exported.workspace.blocks.blocks).not.toHaveLength(0);
+    await page.keyboard.press('Escape');
+    await page.getByRole('textbox', { name: 'Nombre del proyecto' }).click();
     await page
       .getByRole('textbox', { name: 'Nombre del proyecto' })
       .fill('Otro proyecto');
@@ -386,7 +390,7 @@ test.describe('CapiBloques', () => {
     await expect(
       page.getByRole('textbox', { name: 'Nombre del proyecto' }),
     ).toHaveValue('Mi semáforo exportado');
-    await page.getByRole('button', { name: 'Ejecutar', exact: true }).click();
+    await page.getByRole('button', { name: 'Simular', exact: true }).click();
     await expect(page.getByText('Programa en marcha')).toBeVisible();
     expect(errors).toEqual([]);
   });
@@ -407,7 +411,7 @@ test.describe('CapiBloques', () => {
     if (await replace.isVisible()) await replace.getByRole('button', { name: 'Descartar cambios y abrir' }).click();
     await expect(examples).toBeHidden();
 
-    await page.getByRole('button', { name: 'Ejecutar' }).click();
+    await page.getByRole('button', { name: 'Simular' }).click();
     await expect(page.getByText('Programa en marcha')).toBeVisible();
     await page.getByRole('button', { name: 'Detener' }).click();
     await expect(page.getByText('Programa detenido')).toBeVisible();

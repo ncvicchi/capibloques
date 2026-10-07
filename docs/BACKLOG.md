@@ -717,6 +717,13 @@ Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus
 
 ### Señalados como de vital importancia
 
+Estado del 7 de octubre: la parte asignada a fase 21 está entregada en software;
+cada observación sutil/futura se contrastó con el editor vigente. Algunas ya
+estaban resueltas; no se duplicaron sus controles. Pin con chincheta y aumento
+global de emojis se descartaron con razones. La geometría de escena sigue en
+fase 45. Resoluciones, evidencia y aceptación DEV/humana pendiente en
+[FASE_21_ERGONOMIA_EDITOR.md](FASE_21_ERGONOMIA_EDITOR.md).
+
 1. **Progreso de compilación paso a paso.** Informar qué está sucediendo con cada pedido y, cuando exista una medida real, su avance. Se analiza dentro del [pedido 17](#17-comprender-medir-y-mejorar-la-compilación-de-binarios); no mostrar porcentajes inventados.
 2. **Proyecto sin guardar al abrir Compilar y descargar firmware.** Dar mayor jerarquía al aviso «Hay cambios sin guardar o el proyecto todavía es local…», con color de advertencia, icono y una acción para Guardar desde ese recorrido. Analizar cómo reutilizar el guardado vigente, sus conflictos, su estado pendiente y la reanudación del flujo sin duplicar operaciones. Coordinarlo con el [asistente del pedido 15](#15-asistente-grande-para-compilar-y-grabar-la-placa).
 3. **Reinicio y reconexión automática después de grabar.** Verificar con hardware por qué la Wemos necesita actualmente pulsar RESET después del flasheo y si Web Serial/esptool puede controlar de forma confiable DTR/RTS o ejecutar el reinicio correspondiente. Se informó además el estado intermedio concreto en el que la grabación termina, pero el asistente no permite continuar directamente a conectar: hay que volver a cargar ese apartado y desenchufar/enchufar la placa. El recorrido normal debe conservar el paso y el puerto autorizado, esperar la reenumeración USB, reabrir CapiLink y continuar a enviar reglas sin recargar la página ni reconectar físicamente; **Reintentar conexión** queda como recuperación visible y desenchufar sólo como último recurso explicado. Conservar mensajes y recuperación cuando la placa o el adaptador no permitan reset/reapertura automática; una grabación correcta no demuestra que el firmware ya responda.

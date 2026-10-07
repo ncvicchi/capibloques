@@ -1,8 +1,27 @@
 # CapiBloques — contexto para continuar
 
-Documento vivo iniciado en **fase 11**. Actualización: **5 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
+Documento vivo iniciado en **fase 11**. Actualización: **7 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
 
 ## 1. Punto de entrada y autorización actual
+
+### Última entrega: fase 21 — ergonomía del editor (7 de octubre de 2026)
+
+Software implementado por autorización «Vamos con la 21»: separación de grupos
+al soltarlos, sin reordenar importaciones ni conexiones; grupos fuera del
+programa con texto/borde/advertencia; comparadores con palabras y campos
+diferenciados; título editable en tablet/móvil; saludo sin alias en cabecera;
+colores españoles; mover inspector pendiente y Auto-conectar sobre el borrador
+con Cancelar/Deshacer/Rehacer. Conexiones ofrece estados simulados opcionales
+sobre Wemos/DIYmall y en tabla, nunca mediciones físicas. Detalle de todos los
+pedidos, decisiones y pruebas: [FASE_21_ERGONOMIA_EDITOR.md](FASE_21_ERGONOMIA_EDITOR.md).
+
+Tipos/estilo/smoke aprobados y 26 pruebas Chromium de editor/mesa/recuperación,
+incluidas móvil 390×844/568×320, teclado, zoom, sólo lectura y texto ampliado.
+Contratos específicos de fase 21 verificados en Chromium/Chrome/Edge.
+Aceptación humana/docente/infantil/lector real y publicación DEV pendientes.
+No hay migraciones ni cambios de firmware; mínimo intérprete sigue 1.9.0.
+El propietario actualiza con el comando habitual --fast que aparece debajo.
+No iniciar fase 22 ni operar DEV sin autorización.
 
 ### Corrección de aceptación DEV — 6 de octubre de 2026
 

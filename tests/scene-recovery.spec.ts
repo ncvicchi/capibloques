@@ -56,6 +56,8 @@ test('escena: exportación e importación conserva borrador inválido sin public
   await editor.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await page.getByRole('button', { name: 'Salir sin guardar', exact: true }).click();
   await page.locator('input[type=file]').setInputFiles((await file.path())!);
+  const replacement = page.getByRole('alertdialog', { name: 'Antes de reemplazar el editor' });
+  if (await replacement.isVisible()) await replacement.getByRole('button', { name: 'Descartar cambios y abrir' }).click();
   await expect(page.locator('.notice')).toContainText('Hay una escena pendiente');
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
   await page.getByRole('button', { name: 'Recuperar borrador', exact: true }).click();

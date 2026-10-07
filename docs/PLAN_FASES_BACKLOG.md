@@ -1,5 +1,10 @@
 # Nuevas fases de CapiBloques
 
+Actualización vigente, 7 de octubre de 2026: **fase 21 entregada en software**,
+con DEV y aceptación humana pendientes. El estado histórico inferior que la
+incluye en 21–22 pendientes queda sustituido por este cierre. Evidencia y
+decisiones completas: [FASE_21_ERGONOMIA_EDITOR.md](FASE_21_ERGONOMIA_EDITOR.md).
+
 Corrección de aceptación de fase 19 (6 de octubre): restaurado contrato 400/409
 del respaldo para baja de cuentas. Prueba fallida más 16 contratos locales
 aprobados; reintento PostgreSQL/DEV pendiente. Ver guía y contexto vivo.
@@ -22,7 +27,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 18 | En curso: base lógica entregada; falta escena remota real/simulada en el display | 3: display interactivo; pedidos 41 y 43 | Perfil de fase 17, geometría compartida y telemetría de fase 34 |
 | 19 | Software entregado: 17 desafíos, Según/Mientras, evaluación y autoría docente; aceptación DEV/pedagógica pendiente | 12 y 35 | Guía de fase 19 con pruebas y límites; runtime mínimo 1.9.0; migraciones aditivas auditadas |
 | 20 | Asistente y cambio visual Wemos/DIYmall entregados; reconexión posgrabación, consulta informativa y Waveshare/físico pendientes | 15, 17, 23 y 34; observación del 3 de octubre | Intérprete de fase 36 publicado; panel/touch Waveshare aún fuera del intérprete |
-| 21 | Claridad y ergonomía educativa del editor | Informe externo vital 4, sutiles 1–8 y futuras 1–2 y 5–7 | Fases 12 y 14; reproducción previa de cada observación; fidelidad espacial trasladada a fase 45 |
+| 21 | Software entregado: bloques, comparadores, borrador y estado simulado de pines; DEV/humana pendientes | Informe externo vital 4, sutiles 1–8 y futuras 1–2 y 5–7 | Guía de fase 21 con observaciones contrastadas; fidelidad espacial sigue en fase 45 |
 | 22 | Avatar acompañante y reacciones accesibles | 14; informe futuro 3 | Fase 19 para reacciones de desafíos y fase 20 para resultados de compilar/grabar |
 | 23 | En curso: software de matriz MAX7219 implementado; aceptación física de matriz y displays pendiente | 18 y 19 | Módulos exactos identificados; fase 10 para el recorrido físico por USB |
 | 24 | Panel web local para celular | 20 | Contrato Wi-Fi vigente, seguridad/emparejamiento y límites medidos |
@@ -301,6 +306,11 @@ ccache opcional. Pruebas locales entregadas; DEV/medición real pendientes segú
 La aceptación física exige instalar, actualizar y ejecutar reglas en Wemos y DIYmall S3 reales. No se presenta como realizada por la compilación reproducible de los binarios.
 
 ## Fase 21 — Claridad y ergonomía educativa del editor
+
+**Entregada en software el 7 de octubre de 2026.** Guía de resolución de cada
+observación y límites: [FASE_21_ERGONOMIA_EDITOR.md](FASE_21_ERGONOMIA_EDITOR.md).
+Tipos, estilo, smoke y regresión de 26 recorridos Chromium aprobados; contratos
+propios en Chrome/Edge/Chromium. DEV y revisión con usuarios siguen pendientes.
 
 **Objetivo:** resolver en una entrega comprobable las observaciones de comprensión y manipulación del editor que quedaron fuera del alcance original de fases 12 y 14.
 
