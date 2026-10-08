@@ -281,7 +281,7 @@ Bloques iniciales propuestos:
 - acciones «mostrar [texto/valor] en [indicador web]» y «actualizar la escena del panel»;
 - una marca de mensaje nuevo para que el mismo texto no dispare una acción indefinidamente.
 
-El diseño recomendado conserva «al comenzar» como entrada única del programa y trata los controles web como sensores/entradas que pueden consultarse o esperarse dentro de caminos normales. No vincular directamente un botón del celular con un motor por fuera del programa: las plantillas pueden preparar bloques sencillos, pero la decisión queda visible y programable por el alumno. El generador deriva de escena y programa un manifiesto cerrado de vistas, inputs, outputs y estados; el firmware no acepta que el celular agregue controles o código en ejecución.
+El diseño recomendado conserva «al comenzar» como entrada única del programa y trata los controles web como sensores/entradas que pueden consultarse o esperarse dentro de caminos normales. No vincular directamente un botón del celular con un motor por fuera del programa: cada decisión queda visible y programable por el alumno. El generador deriva de escena y programa un manifiesto cerrado de vistas, inputs, outputs y estados; el firmware no acepta que el celular agregue controles o código en ejecución.
 
 ### Ejecución desde el celular
 
@@ -704,17 +704,25 @@ aceptación en
 
 ## 46. Escenas atractivas, fondos y rótulos fieles
 
-Pedido del 26 de septiembre de 2026: mejorar las plantillas —el jardín actual no
-puede quedar reducido a tres franjas— y conservar exactamente la composición
-entre editor, simulación, revisión y Waveshare. Incluye fondos/decoración con
-detalle, geometría compartida, capas, anclas, cajas reales y rótulos sin
-colisiones. El caso observado de dos semáforos debe mantener ambos nombres
-legibles sin mover los componentes.
+Pedido del 26 de septiembre de 2026: mejorar las escenas y conservar exactamente
+la composición entre editor, simulación, revisión y Waveshare. Incluye
+fondos/decoración con detalle, geometría compartida, capas, anclas, cajas reales
+y rótulos sin colisiones. El caso observado de dos semáforos debe mantener ambos
+nombres legibles sin mover los componentes.
 
 Asignación: **fase 45 — Escenas atractivas y fidelidad visual completa**. Absorbe
 el pedido 40 que antes estaba en fase 21 y agrega paridad de fondo con Waveshare.
 Contrato y aceptación en
 [FASE_45_ESCENAS_VISUALES.md](FASE_45_ESCENAS_VISUALES.md).
+
+Cambio solicitado por el propietario el 8 de octubre de 2026: retirar de toda la
+interfaz las aventuras/escenas prearmadas y no volver a ofrecerlas como ejemplos,
+plantillas, misiones ni acciones del asistente. Los proyectos empiezan con una
+escena vacía. La compatibilidad interna sólo puede conservarse para abrir datos
+históricos y fixtures de pruebas; no debe alimentar opciones visibles ni un
+proyecto nuevo. Este retiro no elimina la fidelidad visual de escenas creadas por
+el usuario ni la composición compartida entre editor, simulación, revisión y
+Waveshare. Cualquier reconsideración requiere una solicitud explícita posterior.
 
 ## Pedidos externos a analizar
 
@@ -836,7 +844,7 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 43. Waveshare como Pantalla central Wi‑Fi | 18, 20 y 34. Escena compartida, selección/provisión de la pareja y telemetría/entradas remotas |
 | 44. Raspberry Pi como Central CapiBloques | Para análisis. Primero central de escenas/telemetría/controles; GPIO Linux queda como posibilidad posterior separada |
 | 45. Waveshare como laboratorio interactivo y autónomo | 44. Touch, depuración física, escenarios, autonomía y actividades entre placas |
-| 46. Escenas atractivas, fondos y rótulos fieles | 45. Plantillas enriquecidas y composición única en editor, web y Waveshare |
+| 46. Escenas atractivas, fondos y rótulos fieles | 45. Composición única en editor, web y Waveshare |
 | 23. Reducir al mínimo la latencia de compilación | 20. Medición, caché, precompilación y arquitectura del compilador |
 
 Las observaciones externas quedan asignadas así: fase 20 resolvió el recorrido cotidiano mediante firmware intérprete/reglas y conserva el compilador como modo avanzado; fase 21 cubre superposición de bloques y claridad/ergonomía de edición; fase 45 concentra la fidelidad espacial y visual de escenas; fase 22 avatar, fase 25 enlaces/QR y fase 26 acceso de aula/asistencia. Producción es la **Fase final, postergada**, fuera de esta numeración. Las fases 10 y 20 mantienen aceptación física pendiente. La fase 23 está en curso con la matriz implementada; el resto requiere autorización propia. Los números de pedido no son fases nuevas.

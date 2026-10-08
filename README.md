@@ -18,7 +18,7 @@ La [supervisión docente de fase 5](docs/FASE_5_SUPERVISION_DOCENTE.md) se abre 
 
 ## Qué se puede construir
 
-Una escena ya no es una pantalla fija. El editor permite partir de cero, repetir una plantilla o mezclar varias. Por ejemplo:
+Una escena ya no es una pantalla fija. Cada proyecto empieza vacío y el editor permite agregar componentes uno por uno. Por ejemplo:
 
 - dos o más semáforos;
 - un semáforo junto a un robot;
@@ -28,7 +28,7 @@ Una escena ya no es una pantalla fija. El editor permite partir de cero, repetir
 
 Cada componente se puede agregar, seleccionar, mover, rotar, renombrar, duplicar o eliminar. El editor trabaja sobre un borrador: permite deshacer y rehacer, guardar cambios de un objeto, cancelarlos y salir sin alterar la escena original. También se pueden elegir los GPIO manualmente o usar la asignación automática de pines seguros. El validador señala pines repetidos, incompatibles o faltantes antes de generar el sketch.
 
-Las plantillas prácticas incluidas —semáforo, robot, Wi-Fi y contador— son puntos de partida, no límites. Se pueden añadir varias veces a la misma escena y después personalizarla.
+Los proyectos anteriores que contienen escenas prearmadas siguen siendo importables y editables; CapiBloques ya no ofrece escenas o aventuras prearmadas para iniciar proyectos.
 
 ## Programación por bloques
 
@@ -77,7 +77,7 @@ El programa intermedio y las salidas Arduino/ESP-IDF se regeneran a partir de es
 
 **Guardar** sube el proyecto a la cuenta. Después del primer guardado confirmado, el **autoguardado al servidor** envía cambios al dejar de editar durante 1,5 segundos (o a los 10 segundos de edición continua, sujeto a pausas). Se puede desactivar en Mis proyectos; la opción se recuerda por cuenta/navegador. Guardar manual sigue disponible. La escena conserva su Guardar/Cancelar; mientras se arma no se sube su borrador.
 
-**Mis proyectos** permite abrir, buscar, renombrar, duplicar, exportar y enviar a una papelera recuperable. Se comprueba la revisión para no pisar cambios de otra pestaña. Importar y cargar un ejemplo crean trabajos independientes; antes de reemplazar cambios se ofrece Guardar, **Conservar copia local y abrir**, Descartar o Cancelar. **Copias en esta computadora** permite recuperar, exportar y quitar con confirmación otros borradores de la misma cuenta. Guardar conserva la operación pendiente en IndexedDB antes de enviarla, para reintentar tras una recarga o reinicio del navegador sin duplicar el envío. No es una cola de todas las acciones: sólo se sincroniza el proyecto abierto. Durante un corte se puede continuar localmente con un proyecto ya cargado y una sesión no vencida, previa elección explícita. Reconectar revalida cuenta y permisos antes de enviar.
+**Mis proyectos** permite abrir, buscar, renombrar, duplicar, exportar y enviar a una papelera recuperable. Se comprueba la revisión para no pisar cambios de otra pestaña. Importar crea un trabajo independiente; antes de reemplazar cambios se ofrece Guardar, **Conservar copia local y abrir**, Descartar o Cancelar. **Copias en esta computadora** permite recuperar, exportar y quitar con confirmación otros borradores de la misma cuenta. Guardar conserva la operación pendiente en IndexedDB antes de enviarla, para reintentar tras una recarga o reinicio del navegador sin duplicar el envío. No es una cola de todas las acciones: sólo se sincroniza el proyecto abierto. Durante un corte se puede continuar localmente con un proyecto ya cargado y una sesión no vencida, previa elección explícita. Reconectar revalida cuenta y permisos antes de enviar.
 
 La exportación JSON es la copia transportable, sin ID de cuenta o servidor. Los borradores locales no protegen frente a acceso al perfil del navegador. Los borradores anteriores a las cuentas se conservan sin asignar y pueden recuperarse desde Mi cuenta. Las credenciales Wi-Fi no se guardan en el proyecto: las fuentes exportadas usan marcadores, y la compilación privada las solicita por separado con consentimiento explícito.
 
@@ -165,7 +165,7 @@ La asignación automática usa un conjunto conservador de pines de la Wemos y ev
 | Sensor de luz (LDR)     | A2           |      35 |
 | Potenciómetro           | A3           |      34 |
 
-Esta tabla es sólo un punto de partida. Al combinar varias plantillas, cada salida necesita un GPIO libre y compatible; el editor puede reasignarlos automáticamente.
+Esta tabla es sólo un punto de partida. Cada salida necesita un GPIO libre y compatible; el editor puede reasignarlos automáticamente.
 
 ## Seguridad eléctrica
 
@@ -215,7 +215,7 @@ La escena describe **qué existe y cómo está conectado**; los bloques describe
 
 Una pantalla por proyecto: LCD Keypad paralelo 16×2, LCD I2C 16×2/20×4, OLED SSD1306 o TFT SPI ILI9341/ILI9488. Se agrega desde **Armar escena → Pantalla de texto**. El Keypad incorpora cinco botones simulables y la condición «botón … presionado»; sus valores ADC quedan ocultos al alumno. LCD recibe texto directo y animado; OLED/TFT agregan zonas de texto y dibujos monocromáticos de 16×8. Incluyen figuras predeterminadas (corazón, estrella, sonrisa, capibara, robot, gato y flor), hasta 12 dibujos creados por el alumno y animaciones simples configuradas a velocidad lenta, normal o rápida en la escena. Guardar/Cancelar, deshacer/rehacer y recuperación local conservan la configuración.
 
-En **Mensajes** están los bloques de escribir, animar y borrar texto, mostrar dibujos en pantallas gráficas y escribir en consola/Serial de forma independiente. El ejemplo **Mensajes para la plaza** permite empezar. Texto portable, ajuste por filas y avisos de caracteres no compatibles o recorte; agregar una espera entre mensajes para leerlos. Consultar [perfiles, bibliotecas y precauciones de fase 7](docs/FASE_7_MENSAJES_Y_PANTALLAS.md). La compilación no sustituye verificar físicamente el módulo antes de usarlo con alumnos.
+En **Mensajes** están los bloques de escribir, animar y borrar texto, mostrar dibujos en pantallas gráficas y escribir en consola/Serial de forma independiente. El editor empieza con una escena vacía; agregá los componentes que necesites. El texto es portable, se ajusta por filas y avisa sobre caracteres no compatibles o recortes; agregá una espera entre mensajes para leerlos. Consultar [perfiles, bibliotecas y precauciones de fase 7](docs/FASE_7_MENSAJES_Y_PANTALLAS.md). La compilación no sustituye verificar físicamente el módulo antes de usarlo con alumnos.
 
 ### Hardware y flujo disponible
 

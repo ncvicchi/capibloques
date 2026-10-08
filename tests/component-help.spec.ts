@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
 
 test('ayuda: catálogo e inspector explican y actualizan las conexiones', async ({ page }) => {
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
-  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  const editor = page.getByRole('dialog', { name: 'Arma tu escena', exact: true });
   await editor.getByRole('button', { name: 'Ayuda sobre LED' }).click();
 
   let help = page.getByRole('dialog', { name: /Ayuda: LED$/ });
@@ -30,7 +30,7 @@ test('ayuda: catálogo e inspector explican y actualizan las conexiones', async 
 test('ayuda: se adapta a una pantalla angosta sin perder navegación', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
-  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  const editor = page.getByRole('dialog', { name: 'Arma tu escena', exact: true });
   await editor.getByRole('button', { name: 'Ayuda sobre Botón' }).click();
   const help = page.getByRole('dialog', { name: /Ayuda: Botón$/ });
   await expect(help.getByRole('link', { name: 'Conectalo' })).toBeVisible();

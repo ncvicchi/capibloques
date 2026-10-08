@@ -200,7 +200,7 @@ test('pantalla: crear, cambiar modelo con confirmación y autoconectar SPI', asy
   await open(page);
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
   const editor = page.getByRole('dialog', {
-    name: 'Arma tu mundo',
+    name: 'Arma tu escena',
     exact: true,
   });
   await editor
@@ -306,7 +306,7 @@ test('pantalla: Guardar/Cancelar y deshacer/rehacer conservan zonas e identidade
   await importProject(page);
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
   const editor = page.getByRole('dialog', {
-    name: 'Arma tu mundo',
+    name: 'Arma tu escena',
     exact: true,
   });
   await editor
@@ -361,7 +361,7 @@ test('pantalla: retirar zona no retargetea bloques; layout inválido no se guard
   await importProject(page);
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
   const editor = page.getByRole('dialog', {
-    name: 'Arma tu mundo',
+    name: 'Arma tu escena',
     exact: true,
   });
   await editor
@@ -430,7 +430,7 @@ test('pantalla: recupera nombre vacío y layout incompleto sin publicarlos', asy
   await importProject(page);
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
   const editor = page.getByRole('dialog', {
-    name: 'Arma tu mundo',
+    name: 'Arma tu escena',
     exact: true,
   });
   await editor
@@ -475,7 +475,7 @@ test('pantalla: recupera nombre vacío y layout incompleto sin publicarlos', asy
 for (const width of [16, 32]) test(`animación por cuadros de ${width} columnas: dibujar, duplicar, importar y guardar`, async ({ page }) => {
   await open(page);
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
-  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  const editor = page.getByRole('dialog', { name: 'Arma tu escena', exact: true });
   if (width === 16) {
     await editor.getByRole('button', { name: /^Agregar Pantalla de texto/ }).click();
     await editor.getByRole('combobox', { name: 'Modelo de pantalla' }).selectOption('ssd1306');
@@ -521,7 +521,7 @@ for (const width of [16, 32]) test(`animación por cuadros de ${width} columnas:
 for (const width of [16, 32]) test(`editor de dibujos: arrastra figuras de ${width} columnas con preview y conserva deshacer, rehacer y guardado`, async ({ page }) => {
   await open(page);
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
-  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  const editor = page.getByRole('dialog', { name: 'Arma tu escena', exact: true });
   if (width === 16) {
     await editor.getByRole('button', { name: /^Agregar Pantalla de texto/ }).click();
     await editor.getByRole('combobox', { name: 'Modelo de pantalla' }).selectOption('ssd1306');
@@ -573,7 +573,7 @@ test('pantalla gráfica: crea dibujos, ofrece avatares y anima sin bloquear', as
 }) => {
   await open(page);
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
-  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  const editor = page.getByRole('dialog', { name: 'Arma tu escena', exact: true });
   await editor.getByRole('button', { name: /^Agregar Pantalla de texto/ }).click();
   const model = editor.getByRole('combobox', { name: 'Modelo de pantalla' });
   await model.selectOption('ssd1306');

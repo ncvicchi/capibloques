@@ -9,14 +9,14 @@ test('escena: conserva inspector separado al recargar, cancelar no publica, guar
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
-  let editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  let editor = page.getByRole('dialog', { name: 'Arma tu escena', exact: true });
   await editor.getByRole('button', { name: /^Agregar LED\./ }).click();
   await editor.locator('#selected-device-name').fill('Inspector sin confirmar');
   await expect.poll(async () => (await recoveryRows(page, student.id))[0]?.sceneDraft?.inspector?.value.name).toBe('Inspector sin confirmar');
   let saved = (await recoveryRows(page, student.id))[0];
-  expect(JSON.parse(saved.document).scene.devices).toHaveLength(1);
-  expect(saved.sceneDraft?.scene.devices).toHaveLength(2);
-  expect(saved.sceneDraft?.scene.devices[1].name).not.toBe('Inspector sin confirmar');
+  expect(JSON.parse(saved.document).scene.devices).toHaveLength(0);
+  expect(saved.sceneDraft?.scene.devices).toHaveLength(1);
+  expect(saved.sceneDraft?.scene.devices[0].name).not.toBe('Inspector sin confirmar');
   page.on('dialog', dialog => dialog.accept());
   await page.reload();
   await expect(page.getByRole('button', { name: 'Revisar escena pendiente' })).toBeVisible();
@@ -24,7 +24,7 @@ test('escena: conserva inspector separado al recargar, cancelar no publica, guar
   await page.getByRole('button', { name: 'Ahora no', exact: true }).click();
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
   await page.getByRole('button', { name: 'Recuperar borrador', exact: true }).click();
-  editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  editor = page.getByRole('dialog', { name: 'Arma tu escena', exact: true });
   await expect(editor.locator('#selected-device-name')).toHaveValue('Inspector sin confirmar');
   await editor.getByRole('button', { name: 'Cancelar cambios', exact: true }).click();
   await expect(editor.locator('#selected-device-name')).not.toHaveValue('Inspector sin confirmar');
@@ -32,7 +32,7 @@ test('escena: conserva inspector separado al recargar, cancelar no publica, guar
   await page.getByRole('button', { name: 'Salir sin guardar', exact: true }).click();
   await expect(editor).toBeHidden();
   saved = (await recoveryRows(page, student.id))[0];
-  expect(saved.sceneDraft).toBeNull(); expect(JSON.parse(saved.document).scene.devices).toHaveLength(1);
+  expect(saved.sceneDraft).toBeNull(); expect(JSON.parse(saved.document).scene.devices).toHaveLength(0);
   await page.reload();
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Hay una escena sin terminar' })).toHaveCount(0);
@@ -40,13 +40,13 @@ test('escena: conserva inspector separado al recargar, cancelar no publica, guar
   await editor.getByRole('button', { name: 'Guardar escena', exact: true }).click();
   await expect(editor).toBeHidden();
   saved = (await recoveryRows(page, student.id))[0];
-  expect(saved.sceneDraft).toBeNull(); expect(JSON.parse(saved.document).scene.devices).toHaveLength(2);
+  expect(saved.sceneDraft).toBeNull(); expect(JSON.parse(saved.document).scene.devices).toHaveLength(1);
   expect(errors).toEqual([]);
 });
 
 test('escena: exportación e importación conserva borrador inválido sin publicarlo', async ({ page }) => {
   await page.goto('/'); await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
-  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  const editor = page.getByRole('dialog', { name: 'Arma tu escena', exact: true });
   await editor.getByRole('button', { name: /^Agregar LED\./ }).click();
   await editor.locator('#selected-device-name').fill('');
   await expect.poll(async () => (await recoveryRows(page, student.id))[0]?.sceneDraft?.inspector?.value.name).toBe('');
@@ -69,14 +69,14 @@ test('escena: exportación e importación conserva borrador inválido sin public
   await expect(editor).toBeHidden();
   const row = (await recoveryRows(page, student.id))[0];
   expect(row.remote).toBeNull(); expect(row.pending).toBeNull(); expect(row.sceneDraft).toBeNull();
-  expect(JSON.parse(row.document).scene.devices[1].name).toBe('Luz recuperada');
+  expect(JSON.parse(row.document).scene.devices[0].name).toBe('Luz recuperada');
 });
 
 test('escena: fallo de almacenamiento no cierra ni afirma guardar o descartar', async ({ page }) => {
   await page.goto('/'); await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
-  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  const editor = page.getByRole('dialog', { name: 'Arma tu escena', exact: true });
   await editor.getByRole('button', { name: /^Agregar LED\./ }).click();
-  await expect.poll(async () => (await recoveryRows(page, student.id))[0]?.sceneDraft?.scene.devices.length).toBe(2);
+  await expect.poll(async () => (await recoveryRows(page, student.id))[0]?.sceneDraft?.scene.devices.length).toBe(1);
   await page.evaluate(() => { const original = IDBObjectStore.prototype.put; Object.assign(window, { restoreSceneStorage: () => { IDBObjectStore.prototype.put = original; } }); IDBObjectStore.prototype.put = function (...args) { if (this.name === 'drafts') throw new DOMException('Cuota de prueba', 'QuotaExceededError'); return original.apply(this, args); }; });
   await editor.getByRole('button', { name: 'Guardar escena', exact: true }).click();
   await expect(editor).toContainText('Cuota de prueba');
@@ -84,12 +84,12 @@ test('escena: fallo de almacenamiento no cierra ni afirma guardar o descartar', 
   await page.evaluate(() => (window as unknown as { restoreSceneStorage: () => void }).restoreSceneStorage());
   await editor.getByRole('button', { name: 'Guardar escena', exact: true }).click();
   await expect(editor).toBeHidden();
-  expect(JSON.parse((await recoveryRows(page, student.id))[0].document).scene.devices).toHaveLength(2);
+  expect(JSON.parse((await recoveryRows(page, student.id))[0].document).scene.devices).toHaveLength(1);
 });
 
 test('escena: la copia no pasa a otra cuenta tras recargar', async ({ page }) => {
   await page.goto('/'); await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
-  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  const editor = page.getByRole('dialog', { name: 'Arma tu escena', exact: true });
   await editor.getByRole('button', { name: /^Agregar LED\./ }).click();
   await editor.locator('#selected-device-name').fill('Privado de Luna');
   await expect.poll(async () => (await recoveryRows(page, student.id))[0]?.sceneDraft?.inspector?.value.name).toBe('Privado de Luna');
@@ -111,8 +111,8 @@ test('escena: abrir desde servidor pide confirmar también cuando sólo hay una 
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
   await expect(page.locator('.cloud-state')).toContainText('Guardado en tu cuenta');
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Arma tu mundo' }).getByRole('button', { name: /^Agregar LED\./ }).click();
-  await expect.poll(async () => (await recoveryRows(page, student.id))[0]?.sceneDraft?.scene.devices.length).toBe(2);
+  await page.getByRole('dialog', { name: 'Arma tu escena' }).getByRole('button', { name: /^Agregar LED\./ }).click();
+  await expect.poll(async () => (await recoveryRows(page, student.id))[0]?.sceneDraft?.scene.devices.length).toBe(1);
   page.on('dialog', dialog => dialog.accept());
   await page.reload();
   await page.getByRole('button', { name: 'Mis proyectos', exact: true }).click();

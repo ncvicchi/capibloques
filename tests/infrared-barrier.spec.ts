@@ -31,7 +31,7 @@ function barrierProject() {
 test('Barrera infrarroja: se agrega y configura la polaridad en la escena', async ({ page }) => {
   await open(page);
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
-  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  const editor = page.getByRole('dialog', { name: 'Arma tu escena', exact: true });
   await editor.getByRole('button', { name: /^Agregar Barrera infrarroja/ }).click();
   await expect(editor.getByLabel('Nivel de interrupción de Barrera infrarroja 1')).toHaveValue('LOW');
   await editor.getByLabel('Nivel de interrupción de Barrera infrarroja 1').selectOption('HIGH');

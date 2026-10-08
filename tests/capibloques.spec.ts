@@ -77,10 +77,7 @@ test.describe('CapiBloques', () => {
     ).toBeVisible();
 
     await projectActions.getByRole('button', { name: 'Opciones del proyecto' }).click();
-    await page.getByRole('menuitem', { name: 'Abrir un ejemplo' }).click();
-    await expect(
-      page.getByRole('dialog', { name: 'Elige una misión' }),
-    ).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Abrir un ejemplo' })).toHaveCount(0);
     expect(pageErrors).toEqual([]);
   });
 
@@ -91,12 +88,12 @@ test.describe('CapiBloques', () => {
     await openApp(page);
 
     await page.getByRole('button', { name: 'Armar escena' }).click();
-    let editor = page.getByRole('dialog', { name: 'Arma tu mundo' });
+    let editor = page.getByRole('dialog', { name: 'Arma tu escena' });
     await expect(editor).toBeVisible();
-    await expect(editor.getByText(/^1 objeto ·/)).toBeVisible();
+    await expect(editor.getByText(/^0 objetos ·/)).toBeVisible();
 
     await editor.getByRole('button', { name: /^Agregar LED\./ }).click();
-    await expect(editor.getByText(/^2 objetos ·/)).toBeVisible();
+    await expect(editor.getByText(/^1 objeto ·/)).toBeVisible();
 
     const undo = editor.getByRole('button', {
       name: 'Deshacer último cambio',
@@ -106,10 +103,10 @@ test.describe('CapiBloques', () => {
     });
     await expect(undo).toBeEnabled();
     await undo.click();
-    await expect(editor.getByText(/^1 objeto ·/)).toBeVisible();
+    await expect(editor.getByText(/^0 objetos ·/)).toBeVisible();
     await expect(redo).toBeEnabled();
     await redo.click();
-    await expect(editor.getByText(/^2 objetos ·/)).toBeVisible();
+    await expect(editor.getByText(/^1 objeto ·/)).toBeVisible();
 
     await editor.getByRole('button', { name: 'Cancelar', exact: true }).click();
     const discard = page.getByRole('alertdialog', {
@@ -120,15 +117,15 @@ test.describe('CapiBloques', () => {
     await expect(editor).toBeHidden();
 
     await page.getByRole('button', { name: 'Armar escena' }).click();
-    editor = page.getByRole('dialog', { name: 'Arma tu mundo' });
-    await expect(editor.getByText(/^1 objeto ·/)).toBeVisible();
+    editor = page.getByRole('dialog', { name: 'Arma tu escena' });
+    await expect(editor.getByText(/^0 objetos ·/)).toBeVisible();
     await editor.getByRole('button', { name: /^Agregar LED\./ }).click();
     await editor.getByRole('button', { name: 'Guardar escena' }).click();
     await expect(editor).toBeHidden();
 
     await page.getByRole('button', { name: 'Armar escena' }).click();
-    editor = page.getByRole('dialog', { name: 'Arma tu mundo' });
-    await expect(editor.getByText(/^2 objetos ·/)).toBeVisible();
+    editor = page.getByRole('dialog', { name: 'Arma tu escena' });
+    await expect(editor.getByText(/^1 objeto ·/)).toBeVisible();
     expect(pageErrors).toEqual([]);
   });
 
@@ -164,12 +161,12 @@ test.describe('CapiBloques', () => {
       const errors = collectPageErrors(page);
       await openApp(page);
       await page.getByRole('button', { name: 'Armar escena' }).click();
-      const editor = page.getByRole('dialog', { name: 'Arma tu mundo' });
+      const editor = page.getByRole('dialog', { name: 'Arma tu escena' });
       await expect(editor).toBeVisible();
       const grid = await editor.locator('.scene-builder-grid').boundingBox();
       expect(grid?.height).toBeGreaterThanOrEqual(120);
       await editor.getByRole('button', { name: /^Agregar LED\./ }).click();
-      await expect(editor.getByText(/^2 objetos ·/)).toBeVisible();
+      await expect(editor.getByText(/^1 objeto ·/)).toBeVisible();
       await editor.locator('#selected-device-name').fill('Luz de la casa');
       await editor.getByRole('button', { name: 'Guardar cambios' }).click();
       await editor.getByRole('button', { name: 'Guardar escena' }).click();
@@ -189,7 +186,7 @@ test.describe('CapiBloques', () => {
     const errors = collectPageErrors(page);
     await openApp(page);
     await page.getByRole('button', { name: 'Armar escena' }).click();
-    const editor = page.getByRole('dialog', { name: 'Arma tu mundo' });
+    const editor = page.getByRole('dialog', { name: 'Arma tu escena' });
     await editor.getByRole('button', { name: /^Agregar LED\./ }).click();
     const name = editor.locator('#selected-device-name');
     const originalName = await name.inputValue();
@@ -236,9 +233,9 @@ test.describe('CapiBloques', () => {
     await expect(object).toHaveAttribute('style', after!);
     await editor.getByRole('button', { name: '🗑 Quitar', exact: true }).click();
     await confirmation.getByRole('button', { name: 'Sí, quitar' }).click();
-    await expect(editor.getByText(/^1 objeto ·/)).toBeVisible();
+    await expect(editor.getByText(/^0 objetos ·/)).toBeVisible();
     await undo.click();
-    await expect(editor.getByText(/^2 objetos ·/)).toBeVisible();
+    await expect(editor.getByText(/^1 objeto ·/)).toBeVisible();
     expect(errors).toEqual([]);
   });
 
@@ -374,7 +371,7 @@ test.describe('CapiBloques', () => {
     const buffer = Buffer.concat(chunks);
     const exported = JSON.parse(buffer.toString());
     expect(exported.schemaVersion).toBe(2);
-    expect(exported.scene.devices).toHaveLength(1);
+    expect(exported.scene.devices).toHaveLength(0);
     expect(exported.workspace.blocks.blocks).not.toHaveLength(0);
     await page.keyboard.press('Escape');
     await page.getByRole('textbox', { name: 'Nombre del proyecto' }).click();
@@ -395,21 +392,19 @@ test.describe('CapiBloques', () => {
     expect(errors).toEqual([]);
   });
 
-  test('abre un ejemplo y lo ejecuta sin errores de página', async ({
+  test('empieza con un proyecto vacío y ya no ofrece ejemplos prearmados', async ({
     page,
   }) => {
     const pageErrors = collectPageErrors(page);
     await openApp(page);
 
     await page.getByRole('button', { name: 'Opciones del proyecto' }).click();
-    await page.getByRole('menuitem', { name: 'Abrir un ejemplo' }).click();
-    const examples = page.getByRole('dialog', { name: 'Elige una misión' });
-    await examples
-      .getByRole('button', { name: /Semáforo de la plaza/ })
-      .click();
-    const replace = page.getByRole('alertdialog', { name: 'Antes de reemplazar el editor' });
-    if (await replace.isVisible()) await replace.getByRole('button', { name: 'Descartar cambios y abrir' }).click();
-    await expect(examples).toBeHidden();
+    await expect(page.getByRole('menuitem', { name: 'Abrir un ejemplo' })).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await expect(page.getByLabel('Nombre del proyecto')).toHaveValue('Mi proyecto');
+    await page.getByRole('button', { name: 'Armar escena' }).click();
+    await expect(page.getByRole('dialog', { name: 'Arma tu escena' }).getByText(/^0 objetos ·/)).toBeVisible();
+    await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
 
     await page.getByRole('button', { name: 'Simular' }).click();
     await expect(page.getByText('Programa en marcha')).toBeVisible();

@@ -35,6 +35,22 @@ completo y lint dirigido de componentes pasaron. Se agregó un recorrido E2E,
 pero Playwright no pudo iniciarlo porque falta el binario Chromium local; no se
 instaló. `git diff --check` pasó. Detalle: [MODO_INVITADO.md](MODO_INVITADO.md).
 
+### Ajuste inicial de «Armar escena» — 8 de octubre de 2026
+
+Por pedido del propietario, retiré la galería de aventuras/ejemplos prearmados,
+su acción en el menú Proyecto y el comando expuesto al asistente. Proyectos
+nuevos abren con «Mi proyecto» y una escena vacía; «Nuevo proyecto» hace lo
+mismo. «Armar escena» conserva componentes alfabéticos, propiedades ampliadas,
+encabezado breve y Guardar/Cancelar, sin controles de nombre/fondo, combinación
+de aventuras, alineación/distribución/capas ni X. El primer semáforo prepara el
+cruce automáticamente para que siga pudiéndose añadir sin el selector de fondo.
+La compatibilidad interna con escenas antiguas queda sólo para migración y
+fixtures, sin opciones visibles. README, backlog, guía de fase 45 y pruebas
+existentes se actualizaron. Verificación: `tsc --noEmit`, lint del código
+modificado y `git diff --check` pasaron. Se actualizaron recorridos E2E
+existentes, pero no se ejecutaron pruebas funcionales ni se desplegó DEV. Commit
+y push quedan pendientes.
+
 ### Corrección de aceptación DEV — 6 de octubre de 2026
 
 El propietario informó 230 pruebas backend con una falla: recibo vacío de baja
@@ -117,7 +133,7 @@ DEV o hardware estén probados hasta confirmación del propietario.
 
 - Repositorio: [ncvicchi/capibloques](https://github.com/ncvicchi/capibloques). Rama de trabajo actual: `main`. Nuevas ramas, si hacen falta: prefijo `codex/`. Respetar el árbol existente, sin reset/force ni descartar cambios ajenos.
 - El propietario autorizó y se implementaron en software las fases **17, 18, 35, 38, 39, 40 y 41**. Las fases de hardware conservan aceptación física pendiente; no convertir esa ausencia de módulos en una prueba aprobada.
-- **Fases 11–17, 19–20, 27–33 y 35–41 entregadas en software; fases 18, 23, 34 y 45 en curso.** La fase 45 ya tiene fondos/aventuras y una segunda entrega con selección múltiple, alineación/distribución, grilla configurable, guías magnéticas, orden visual persistente, cajas/anclas, avisos de solapamiento y el mismo orden/anclas en Waveshare. Le faltan capturas de referencia, mediciones y aceptación física. Las entregas que involucran hardware conservan sus aceptaciones físicas explícitas.
+- **Fases 11–17, 19–20, 27–33 y 35–41 entregadas en software; fases 18, 23, 34 y 45 en curso.** La fase 45 conserva el trabajo de fondos, geometría compartida, cajas/anclas, avisos de solapamiento y paridad con Waveshare para representar escenas guardadas/importadas. Por pedido del 8 de octubre ya no expone aventuras prearmadas ni controles para cambiar fondo, alinear/distribuir/cambiar capas. Le faltan capturas de referencia, mediciones y aceptación física. Las entregas que involucran hardware conservan sus aceptaciones físicas explícitas.
 - Fase 10: software entregado, **aceptación física pendiente**. El propietario no tiene Wemos disponible; no dar por probada la placa ni conectar/programar otro puerto como sustituto.
 - Producción es **Fase final, postergada**, no «fase 11». Los documentos históricos con letras son evidencias antiguas, no fases nuevas ni puntos para pedir OK.
 - Este contexto no transfiere automáticamente credenciales, chats, sesiones ni permisos. Otra cuenta debe tener su propio acceso verificado y la solicitud del propietario antes de operar.

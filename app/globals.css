@@ -1340,7 +1340,6 @@ select:focus-visible {
   cursor: pointer;
 }
 
-.example-dialog,
 .components-dialog,
 .code-dialog,
 .problems-dialog,
@@ -1353,7 +1352,6 @@ select:focus-visible {
   overflow: auto;
   box-shadow: 0 24px 80px rgb(23 32 70 / 25%);
 }
-.example-dialog [data-slot='dialog-title'],
 .components-dialog [data-slot='dialog-title'],
 .code-dialog [data-slot='dialog-title'],
 .problems-dialog [data-slot='dialog-title'],
@@ -1361,67 +1359,6 @@ select:focus-visible {
   font-size: 22px;
   font-weight: 820;
   letter-spacing: -0.025em;
-}
-.example-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-.example-card {
-  position: relative;
-  min-height: 176px;
-  padding: 17px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: #fff;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    transform 0.15s,
-    border-color 0.15s,
-    box-shadow 0.15s;
-}
-.example-card:hover {
-  transform: translateY(-2px);
-  border-color: #a9a2fb;
-  box-shadow: 0 11px 28px rgb(51 48 112 / 10%);
-}
-.example-icon {
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  margin-bottom: 11px;
-  border-radius: 15px;
-  background: #f0f2ff;
-  font-size: 29px;
-}
-.example-card strong {
-  display: block;
-  font-size: 16px;
-}
-.example-card p {
-  margin: 5px 0 15px;
-  color: var(--muted);
-  font-size: 13px;
-}
-.level {
-  position: absolute;
-  right: 13px;
-  top: 13px;
-  padding: 5px 8px;
-  border-radius: 999px;
-  background: #ecfaf5;
-  color: #147867;
-  font-size: 10px;
-  font-weight: 850;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-.open-example {
-  color: var(--purple);
-  font-size: 12px;
-  font-weight: 800;
 }
 .safety-banner {
   display: flex;
@@ -1846,7 +1783,7 @@ select:focus-visible {
   box-shadow: 0 28px 90px rgb(23 32 70 / 30%);
 }
 .scene-builder-heading {
-  padding: 20px 24px 14px;
+  padding: 12px 20px;
   display: flex;
   flex-direction: row;
   align-items: flex-start;
@@ -1865,13 +1802,17 @@ select:focus-visible {
   text-transform: uppercase;
 }
 .scene-builder-heading [data-slot='dialog-title'] {
-  font-size: 24px;
+  font-size: 21px;
   font-weight: 850;
   letter-spacing: -0.035em;
 }
 .scene-builder-heading [data-slot='dialog-description'] {
   margin-top: 6px;
   max-width: 680px;
+}
+.scene-builder-heading .eyebrow,
+.scene-builder-heading [data-slot='dialog-description'] {
+  display: none;
 }
 .scene-builder-status {
   display: flex;
@@ -1987,7 +1928,7 @@ select:focus-visible {
 .scene-builder-grid {
   min-height: 0;
   display: grid;
-  grid-template-columns: 260px minmax(440px, 1fr) 270px;
+  grid-template-columns: minmax(260px, 22%) minmax(360px, 1fr) minmax(340px, 30%);
   background: #f6f7fc;
 }
 .scene-library,
@@ -1999,6 +1940,9 @@ select:focus-visible {
 .scene-library {
   padding: 15px;
   border-right: 1px solid var(--line);
+}
+.scene-advanced-hidden {
+  display: none !important;
 }
 .scene-library section + section {
   margin-top: 20px;
@@ -2016,38 +1960,10 @@ select:focus-visible {
   font-size: 12px;
   line-height: 1.4;
 }
-.template-palette {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 7px;
-}
-.template-palette button {
-  min-height: 84px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  padding: 9px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: linear-gradient(145deg, #fff, #f5f5ff);
-  text-align: left;
-  cursor: pointer;
-}
-.template-palette button:hover,
 .component-palette .component-add-button:hover,
 .component-palette .component-help-button:hover {
   border-color: #9c94f2;
   background: #f5f2ff;
-}
-.template-palette button > span {
-  font-size: 23px;
-}
-.template-palette strong {
-  font-size: 13px;
-}
-.template-palette small {
-  color: var(--muted);
-  font-size: 12px;
 }
 .component-palette {
   display: grid;
@@ -2955,7 +2871,7 @@ select:focus-visible {
     display: none;
   }
   .scene-builder-grid {
-    grid-template-columns: 225px minmax(390px, 1fr) 235px;
+    grid-template-columns: minmax(220px, 22%) minmax(330px, 1fr) minmax(300px, 29%);
   }
 }
 
@@ -3096,10 +3012,6 @@ select:focus-visible {
   .blocklyTreeLabel {
     font-size: 11px !important;
   }
-  .example-grid {
-    grid-template-columns: 1fr;
-  }
-  .example-dialog,
   .components-dialog,
   .code-dialog,
   .problems-dialog,
@@ -3166,37 +3078,24 @@ select:focus-visible {
     overflow: auto;
   }
   .scene-builder-canvas {
-    order: 1;
+    order: 2;
     min-height: 240px;
     flex: 0 0 auto;
     padding: 10px;
   }
   .scene-inspector {
-    order: 2;
+    order: 3;
     flex: 0 0 auto;
   }
   .scene-library {
-    order: 3;
-  }
-  .scene-builder-grid.empty .scene-library {
     order: 1;
   }
-  .scene-builder-grid.empty .scene-builder-canvas {
-    order: 2;
-  }
-  .scene-builder-grid.empty .scene-inspector {
-    order: 3;
-  }
+  .scene-advanced-hidden { display: none !important; }
   .scene-library {
     flex: 0 0 auto;
     overflow: visible;
     border-right: 0;
     border-bottom: 1px solid var(--line);
-  }
-  .template-palette {
-    grid-template-columns: repeat(4, minmax(108px, 1fr));
-    overflow-x: auto;
-    padding-bottom: 4px;
   }
   .component-palette {
     grid-auto-flow: column;

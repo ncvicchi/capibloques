@@ -23,7 +23,7 @@ function sample(text = 'HOLA', repeatMode = 'FOREVER') {
 test('Matriz LED: configura hardware y edita un dibujo de 32 × 8', async ({ page }) => {
   await open(page);
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
-  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  const editor = page.getByRole('dialog', { name: 'Arma tu escena', exact: true });
   await editor.getByRole('button', { name: /^Agregar Matriz LED/ }).click();
   await editor.getByRole('slider', { name: /^Brillo/ }).fill('9');
   await expect(editor.getByLabel('Orden físico de los módulos')).toHaveValue('right-to-left');
@@ -42,7 +42,7 @@ test('Matriz LED: configura hardware y edita un dibujo de 32 × 8', async ({ pag
 test('Matriz LED: explica por qué no puede agregarse si ya hay una pantalla', async ({ page }) => {
   await open(page);
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
-  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  const editor = page.getByRole('dialog', { name: 'Arma tu escena', exact: true });
   await editor.getByRole('button', { name: /^Agregar Pantalla de texto/ }).click();
   await expect(editor.getByRole('note')).toContainText('Ya usás Pantalla de texto 1');
   await expect(editor.getByRole('note')).toContainText('Para elegir otra, primero quitá la actual');
@@ -52,7 +52,7 @@ test('Matriz LED: explica por qué no puede agregarse si ya hay una pantalla', a
 test('Escena: el tachito y Supr permiten quitar la salida visual', async ({ page }) => {
   await open(page);
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
-  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  const editor = page.getByRole('dialog', { name: 'Arma tu escena', exact: true });
   await editor.getByRole('button', { name: /^Agregar Matriz LED/ }).click();
   await editor.getByRole('button', { name: /Quitar Matriz LED 1/ }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Sí, quitar' }).click();

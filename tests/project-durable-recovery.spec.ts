@@ -216,7 +216,7 @@ test('recuperación durable: cambiar de proyecto conserva su pendiente y permite
     .getByRole('button', { name: 'Conservar copia local y abrir', exact: true })
     .click();
   await expect(page.getByLabel('Nombre del proyecto')).toHaveValue(
-    'Mi aventura',
+    'Mi proyecto',
   );
   await page.getByLabel('Nombre del proyecto').fill('Segundo');
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
@@ -334,7 +334,7 @@ test('recuperación durable: quitar copia requiere confirmar y no elimina el pro
     .getByRole('button', { name: 'Nuevo proyecto', exact: true })
     .click();
   await expect(page.getByLabel('Nombre del proyecto')).toHaveValue(
-    'Mi aventura',
+    'Mi proyecto',
   );
   await page
     .getByRole('button', { name: 'Mis proyectos', exact: true })

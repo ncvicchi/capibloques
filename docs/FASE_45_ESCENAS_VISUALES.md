@@ -4,12 +4,22 @@ Estado: **en curso; segunda entrega funcional el 3 de octubre de 2026**.
 Reúne y amplía la antigua asignación de fidelidad espacial de fase 21; no queda
 duplicada allí.
 
+### Cambio de alcance del 8 de octubre de 2026
+
+Por pedido del propietario, CapiBloques no muestra ni ofrece aventuras/escenas
+prearmadas, ejemplos de proyecto ni plantillas para iniciar o combinar escenas.
+Los proyectos nuevos comienzan vacíos. Las descripciones de plantillas que
+aparecen en el historial de entregas de abajo registran trabajo anterior y no
+autorizan volver a exponerlas. La compatibilidad de datos históricos y los
+fixtures técnicos pueden conservarse internamente; no deben poblar la interfaz.
+La fase sigue cubriendo la fidelidad de las escenas que construye el usuario.
+
 ## Entregado en la primera implementación
 
-- Cinco aventuras nuevas y serializables: **Cruce de la escuela**, **Pista de
+- Cinco aventuras nuevas y serializables incorporadas como datos internos en la primera entrega: **Cruce de la escuela**, **Pista de
   reparto**, **Huerta inteligente**, **Entrada segura** y **Estación del clima**.
-  Usan únicamente componentes actuales y también pueden combinarse desde Armar
-  escena.
+  Usan únicamente componentes actuales. Su disponibilidad en interfaz quedó
+  retirada el 8 de octubre de 2026 por pedido del propietario.
 - Diez fondos vectoriales locales en total. Parque, taller, casa y laguna ya no
   dependen sólo de franjas; cruce, pista, huerta, entrada y patio meteorológico
   tienen zonas reconocibles y escalan con el mismo lienzo lógico de 960 × 540.
@@ -107,9 +117,9 @@ nombres en la simulación web, revisión docente y Waveshare.
 
 ## Escenas más lindas
 
-- Rediseñar las plantillas existentes. El jardín deja de ser tres franjas y
-  agrega cielo, terreno, sendero, vegetación, flores, nubes y detalles suaves que
-  ayuden a contar una historia sin competir con los componentes.
+- Mantener fondos heredados visualmente ricos al abrir proyectos que ya los
+  contienen. El jardín usa cielo, terreno, sendero, vegetación, flores, nubes y
+  detalles suaves que no compiten con los componentes.
 - Aplicar el mismo criterio a ciudad/semaforización, robot, aula, laboratorio y
   demás fondos: profundidad simple, zonas reconocibles, paleta infantil y puntos
   útiles de colocación.
@@ -161,16 +171,17 @@ nombres en la simulación web, revisión docente y Waveshare.
 
 - Vista previa inmediata del borrador con Guardar/Cancelar, Deshacer/Rehacer y
   autoguardado correctamente separados.
-- Guías de alineación, distribución y encastre opcionales, rejilla configurable,
-  orden adelante/atrás y selección múltiple. Nada de esto altera proyectos al
-  abrirlos ni obliga a usar auto-layout.
-- Permitir escoger una plantilla enriquecida, fondo simple o color accesible sin
-  crear decenas de tipos de escena incompatibles.
+- El alumno coloca los componentes arrastrándolos en la escena; la grilla sigue
+  configurable. Los proyectos existentes conservan su composición al abrirlos.
+- No ofrecer aventuras/plantillas prearmadas ni controles para cambiar el fondo
+  en la interfaz. Los fondos que ya formen parte de un proyecto se siguen
+  representando de forma fiel.
 
 ## Aceptación
 
-- El jardín y al menos cuatro plantillas adicionales tienen fondos enriquecidos
-  coherentes en editor, simulación, revisión y Waveshare.
+- Los fondos heredados Cruce, Pista, Huerta, Entrada y Clima se representan de
+  forma coherente en editor, simulación, revisión y Waveshare cuando estén en un
+  proyecto importado o guardado previamente.
 - Una escena con display, barrera y semáforo casi pegados conserva distancias y
   alineación a distintas resoluciones, zoom y orientación.
 - Una escena con dos semáforos de nombres largos no superpone rótulos en web ni

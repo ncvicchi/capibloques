@@ -74,7 +74,6 @@ import {
   collectRawOutputPins,
   decodeProject,
   downloadText,
-  examples,
   generateEsp32CodeResult,
   programUsesWifi,
   makeProject,
@@ -85,8 +84,6 @@ import {
   type ExecutionTaskState,
   type ProjectFile,
   type RuntimeDeviceState,
-  type ExampleId,
-  type SceneId,
   type SimulatorState,
   type FirmwareFramework,
   type ProjectTarget,
@@ -95,8 +92,8 @@ import { boardProfile, projectTargetForBoard, type BoardProfileId } from '@/lib/
 import { createEspIdfArchive, downloadFirmwareArchive } from '@/lib/firmware-archive';
 import {
   addDeviceToScene,
-  assignSafePins,
   cloneScene,
+  createEmptyScene,
   sceneDeviceKinds,
   type SceneDefinition,
   type SceneDevice,
@@ -451,12 +448,11 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   checkpointRef: RefObject<EditorCheckpoint | null>;
   onLogout: () => void;
 }) {
-  const currentExample = examples[0];
   const preferences = useAccountPreferences(account.id, !offline && draftStore.remoteAllowed);
   const [preferencesOpen, setPreferencesOpen] = useState<'avatar'|'favorites'|null>(null);
   const initialScene = useMemo(
-    () => cloneScene(currentExample.scene),
-    [currentExample.scene],
+    () => createEmptyScene('Mi escena'),
+    [],
   );
   const editorRef = useRef<BlocklyWorkspaceHandle>(null);
   const libraryRef = useRef<ProjectLibraryHandle>(null);
@@ -469,11 +465,11 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const pendingHighlightFrameRef = useRef<number | null>(null);
   const pendingExecutionTasksRef = useRef<ExecutionTaskState[]>([]);
   const [hydrated, setHydrated] = useState(false);
-  const [projectName, setProjectName] = useState(currentExample.title);
+  const [projectName, setProjectName] = useState('Mi proyecto');
   const [scene, setScene] = useState<SceneDefinition>(initialScene);
   const [projectTarget, setProjectTarget] = useState<ProjectTarget>(() => projectTargetForBoard('wemos-d1-r32'));
   const [workspace, setWorkspace] = useState<Record<string, unknown>>(
-    currentExample.workspace,
+    { blocks: { languageVersion: 0, blocks: [{ type: 'capi_start', id: 'start-main', x: 48, y: 42 }] } },
   );
   const [workspaceRevision, setWorkspaceRevision] = useState(0);
   const [sim, setSim] = useState<SimulatorState>(() =>
@@ -482,7 +478,6 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const [simulationEpoch, setSimulationEpoch] = useState(0);
   const [speed, setSpeed] = useState(1);
   const [muted, setMuted] = useState(false);
-  const [examplesOpen, setExamplesOpen] = useState(false);
   const [challengePalette, setChallengePalette] = useState<readonly string[]|undefined>(undefined);
   const [sceneBuilderOpen, setSceneBuilderOpen] = useState(false);
   const sceneCommitRef = useRef<SceneDefinition | null>(null);
@@ -523,12 +518,6 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const [activeTab, setActiveTab] = useState('scene');
   const [workspaceMode, setWorkspaceMode] = useState<'create' | 'try'>('create');
   const [lastProgram, setLastProgram] = useState<CompiledProgram>(emptyProgram);
-
-  const sourceExample = useMemo(
-    () =>
-      examples.find((example) => example.id === scene.sourceTemplate || (example.id === 'display' && example.scene.id === scene.id)) ?? null,
-    [scene.sourceTemplate, scene.id],
-  );
 
   const postToWorker = useCallback((message: Record<string, unknown>) => {
     if (!draftStore.active && message.type !== 'PAUSE' && message.type !== 'STOP' && message.type !== 'SET_DASHBOARD') return;
@@ -906,31 +895,6 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     [postToWorker, scene],
   );
 
-  const loadExample = useCallback(
-    (id: ExampleId) => {
-      const applyExample = () => {
-      libraryRef.current?.detach();
-      const example = examples.find((item) => item.id === id) ?? examples[0];
-      const nextScene = assignSafePins(cloneScene(example.scene), { boardProfile: projectTarget.boardProfile, reassignAll: true }).scene;
-      postToWorker({ type: 'STOP' });
-      stopSound();
-      setProjectName(example.title);
-      setScene(nextScene);
-      setSim(makeInitialState(nextScene));
-      setWorkspace(example.workspace);
-      setWorkspaceRevision((value) => value + 1);
-      setWiringAcknowledgedSignature(null);
-      setDiagnostics([]);
-      setExamplesOpen(false);
-      setActiveTab('scene');
-      setNotice(`Ejemplo cargado: ${example.title}`);
-      setNoticeTone('ok');
-      };
-      if (libraryRef.current) libraryRef.current.replace(applyExample); else applyExample();
-    },
-    [postToWorker, projectTarget.boardProfile],
-  );
-
   const addSceneComponent = useCallback(
     (kind: SceneDeviceKind) => {
       postToWorker({ type: 'STOP' });
@@ -993,10 +957,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   }, [postToWorker]);
 
   const newLibraryProject = useCallback(() => {
-    const blank = cloneScene(examples[0].scene);
-    blank.id = crypto.randomUUID(); blank.name = 'Mi escena'; blank.description = '';
-    blank.devices = []; blank.widgets = []; blank.retiredDeviceIds = []; blank.canvas.background = 'blank'; delete blank.sourceTemplate;
-    applyLibraryProject(makeProject('Mi aventura', blank, { blocks: { languageVersion: 0, blocks: [{ type: 'capi_start', id: crypto.randomUUID(), x: 40, y: 40 }] } }, 1));
+    const blank = createEmptyScene('Mi escena', { id: crypto.randomUUID() });
+    applyLibraryProject(makeProject('Mi proyecto', blank, { blocks: { languageVersion: 0, blocks: [{ type: 'capi_start', id: crypto.randomUUID(), x: 40, y: 40 }] } }, 1));
   }, [applyLibraryProject]);
 
   useLayoutEffect(() => {
@@ -1231,35 +1193,6 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     const registrations = [
       modelContext.registerTool(
         {
-          name: 'load_capiblocks_example',
-          title: 'Cargar ejemplo de CapiBloques',
-          description:
-            'Carga un ejemplo visible de semáforo, contador, robot o Wi-Fi.',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              example: {
-                type: 'string',
-                enum: ['traffic', 'counter', 'robot', 'wifi'],
-              },
-            },
-            required: ['example'],
-            additionalProperties: false,
-          },
-          annotations: { readOnlyHint: false, untrustedContentHint: false },
-          execute(input: unknown) {
-            if (!draftStore.active) throw new Error('Verificá tu sesión antes de editar');
-            const example = (input as { example?: SceneId })?.example;
-            if (!example || !examples.some((item) => item.id === example))
-              throw new Error('Ejemplo no válido');
-            loadExample(example);
-            return { requested: example, note: 'Puede requerir confirmar los cambios pendientes en el editor.' };
-          },
-        },
-        { signal: lifecycle.signal },
-      ),
-      modelContext.registerTool(
-        {
           name: 'add_capiblocks_component',
           title: 'Agregar componente a la escena',
           description:
@@ -1290,7 +1223,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       registrations.map((value) => Promise.resolve(value)),
     ).catch(() => undefined);
     return () => lifecycle.abort();
-  }, [addSceneComponent, loadExample, draftStore]);
+  }, [addSceneComponent, draftStore]);
 
   const inputDevices = scene.devices.filter((device) =>
     isEducationalModuleKind(device.kind) || ['button', 'infraredBarrier', 'lightSensor', 'potentiometer'].includes(device.kind) ||
@@ -1344,10 +1277,6 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="project-menu">
               <DropdownMenuGroup>
-                <DropdownMenuLabel>Empezar y compartir</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => setExamplesOpen(true)}>
-                  <Blocks /> Abrir un ejemplo
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={exportJson}>
                   <FileJson /> Proyecto editable JSON
                 </DropdownMenuItem>
@@ -1540,7 +1469,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           aria-label="Simulador de comportamiento"
         >
           <div className="scene-context">
-            <details><summary><span aria-hidden="true">🦫</span> {scene.name}</summary><p>{scene.description || sourceExample?.mission || 'Combiná componentes y creá tu propia aventura.'}</p></details>
+            <details><summary><span aria-hidden="true">🦫</span> {scene.name}</summary><p>{scene.description || 'Agregá componentes y armá tu escena.'}</p></details>
             <button className="header-text-button scene-builder-button" onClick={() => toggleSceneBuilder(true)}><Blocks size={17} /> Armar escena</button>
           </div>
           <Tabs
@@ -1801,33 +1730,6 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           </button>
         )}
       </output>
-
-      <Dialog open={examplesOpen} onOpenChange={setExamplesOpen}>
-        <DialogContent className="example-dialog">
-          <DialogHeader>
-            <DialogTitle>Elige una misión</DialogTitle>
-            <DialogDescription>
-              Empieza con un ejemplo y luego combínalo con otros en el editor de
-              escenas.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="example-grid">
-            {examples.map((example) => (
-              <button
-                key={example.id}
-                className="example-card"
-                onClick={() => loadExample(example.id)}
-              >
-                <span className="example-icon">{example.icon}</span>
-                <span className="level">{example.level}</span>
-                <strong>{example.title}</strong>
-                <p>{example.description}</p>
-                <span className="open-example">Abrir misión →</span>
-              </button>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {sceneBuilderOpen && (
         <Suspense fallback={null}>
