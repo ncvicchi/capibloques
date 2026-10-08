@@ -48,8 +48,13 @@ La compatibilidad interna con escenas antiguas queda sólo para migración y
 fixtures, sin opciones visibles. README, backlog, guía de fase 45 y pruebas
 existentes se actualizaron. Verificación: `tsc --noEmit`, lint del código
 modificado y `git diff --check` pasaron. Se actualizaron recorridos E2E
-existentes, pero no se ejecutaron pruebas funcionales ni se desplegó DEV. Commit
-y push quedan pendientes.
+existentes, pero no se ejecutaron pruebas funcionales. Commit `5731650` está
+publicado en `origin/main`. DEV no se actualizó: falta en este equipo la
+configuración SSH privada `capibloques-dev.conf`, necesaria para identificar
+`capi-dev` y usar sólo el bastión como salto TCP. Desde la PC configurada, el
+propietario puede completar el pedido con
+`powershell -File .\scripts\deploy-dev.ps1 -Fast`; no compartir claves ni
+contraseñas en el repositorio o el chat.
 
 ### Corrección de aceptación DEV — 6 de octubre de 2026
 
