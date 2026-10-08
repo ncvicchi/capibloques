@@ -52,6 +52,15 @@ completo y lint dirigido de componentes pasaron. Se agregó un recorrido E2E,
 pero Playwright no pudo iniciarlo porque falta el binario Chromium local; no se
 instaló. `git diff --check` pasó. Detalle: [MODO_INVITADO.md](MODO_INVITADO.md).
 
+### Registro histórico de ajustes de escena y bloqueo DEV — octubre de 2026
+
+El 8 de octubre se publicó en `main` el commit `5731650`, que retiraba las
+aventuras prearmadas y simplificaba «Armar escena». Esta rama de recuperación
+parte de `93561ab` para conservar las aventuras y no incluye ese retiro. El
+piloto visual se reaplicó encima; su compatibilidad y documentación se están
+revisando aquí. La publicación anterior anotó que DEV no se actualizó porque
+faltaba la configuración SSH privada `capibloques-dev.conf`. No copiar claves ni
+contraseñas al repositorio o al chat.
 ### Corrección de aceptación DEV — 6 de octubre de 2026
 
 El propietario informó 230 pruebas backend con una falla: recibo vacío de baja
