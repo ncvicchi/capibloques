@@ -2,6 +2,23 @@
 
 Documento vivo iniciado en **fase 11**. Actualización: **8 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
 
+### Piloto visual CapiBloques — login, favicon y encabezado (8 de octubre)
+
+Implementado localmente con pattern de encastres en movimiento diagonal CSS en
+la pantalla de cuenta, isotipo/wordmark bicolor, favicon de marca y un isotipo
+pequeño junto a “Proyecto” en el encabezado cuando esa etiqueta es visible.
+Respeta movimiento reducido, conserva el panel sólido y no cambia colores de
+Blockly, estados o acciones del editor. Nunito Sans no se carga todavía. La
+revisión visual inicial a 614 × 614 observó patrón/foco legibles; contraste
+calculado pasa para texto principal, logo, botón y foco. `oxlint`, `tsc --noEmit`,
+`vinext build`, XML de SVG y `git diff --check` pasaron. El entorno de revisión
+devolvió 404 para `/api/auth/session/` y `/api/school/`, no permitió revisar el
+formulario normal, logo institucional ni encabezado activo. Faltan viewports
+desktop/móvil y emulación dinámica de movimiento reducido; aceptación completa
+pendiente. No se ejecutaron pruebas E2E ni se desplegó DEV. Alcance y detalle:
+[PILOTO_IDENTIDAD_VISUAL_UI.md](PILOTO_IDENTIDAD_VISUAL_UI.md). Recursos y
+manual: [MANUAL_DE_MARCA_CAPIBLOQUES.md](MANUAL_DE_MARCA_CAPIBLOQUES.md).
+
 ## 1. Punto de entrada y autorización actual
 
 ### Última entrega: fase 21 — ergonomía del editor (7 de octubre de 2026)
