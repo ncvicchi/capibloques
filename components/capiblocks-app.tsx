@@ -442,8 +442,9 @@ function DeviceStateCard({
   );
 }
 
-export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLogout, csrfToken, offline = false }: {
+export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLogout, csrfToken, offline = false, guest = false }: {
   offline?: boolean;
+  guest?: boolean;
   csrfToken: string;
   account: Account;
   draftStore: AccountDraftStore;
@@ -510,7 +511,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const exportEpoch = useRef(0);
   useEffect(() => { const current = ++exportEpoch.current; return () => { exportEpoch.current = current + 1; }; }, [account.id]);
   const [copied, setCopied] = useState(false);
-  const [notice, setNotice] = useState('Recuperación local activa · Guardar sube a tu cuenta');
+  const [notice, setNotice] = useState(guest ? 'Modo invitado · proyecto guardado en este navegador' : 'Recuperación local activa · Guardar sube a tu cuenta');
   const [noticeTone, setNoticeTone] = useState<'ok' | 'warning' | 'error'>(
     'ok',
   );
@@ -1022,7 +1023,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       draftStore.write(JSON.stringify(currentProject()));
       await draftStore.flush();
       if (!draftStore.active) return;
-      setNotice('Proyecto guardado para tu cuenta en este navegador');
+      setNotice(guest ? 'Proyecto guardado sólo en este navegador' : 'Proyecto guardado para tu cuenta en este navegador');
       setNoticeTone('ok');
       sound(760, 80, muted);
     } catch (error) {
@@ -1034,7 +1035,12 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       );
       setNoticeTone('error');
     }
-  }, [currentProject, draftStore, muted]);
+  }, [currentProject, draftStore, guest, muted]);
+
+  const openAccountLogin = useCallback(async () => {
+    try { draftStore.write(JSON.stringify(currentProject())); await draftStore.flush(); window.location.assign('/cuenta/'); }
+    catch { setNotice('No pudimos terminar de guardar tu proyecto local. Esperá un momento y volvé a ingresar.'); setNoticeTone('error'); }
+  }, [currentProject, draftStore]);
 
   const exportJson = useCallback(() => {
     try {
@@ -1314,9 +1320,9 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       {preferencesOpen && !preferences.preferences && <Dialog open onOpenChange={open=>{if(!open)setPreferencesOpen(null);}}><DialogContent><DialogHeader><DialogTitle>Preferencias de tu cuenta</DialogTitle><DialogDescription>{preferences.error || 'Estamos cargando tus preferencias. Tu programa no se modificó.'}</DialogDescription></DialogHeader><button className="header-text-button" onClick={()=>void preferences.refresh()}>Reintentar preferencias</button><button className="header-text-button" onClick={()=>setPreferencesOpen(null)}>Cancelar</button></DialogContent></Dialog>}
       <header className="topbar">
         <div className="brand">
-          <button className="avatar-button" title="Elegir mi avatar" aria-label="Elegir mi avatar" disabled={!preferences.verified} onClick={()=>setPreferencesOpen('avatar')}><UserAvatar id={preferences.preferences?.avatarId ?? account.avatarId} decorative /></button>
+          {guest ? <span className="avatar-button" aria-label="Modo invitado" title="Modo invitado">🐾</span> : <button className="avatar-button" title="Elegir mi avatar" aria-label="Elegir mi avatar" disabled={!preferences.verified} onClick={()=>setPreferencesOpen('avatar')}><UserAvatar id={preferences.preferences?.avatarId ?? account.avatarId} decorative /></button>}
           <div>
-            <span title="Borrador local de esta cuenta">Hola, {account.displayName} · {boardProfile(projectTarget.boardProfile).shortName}</span>
+            <span title={guest ? 'Borrador local anónimo' : `@${account.alias} · Borrador local de esta cuenta`}>{guest ? 'Invitado' : `Hola, ${account.displayName}`} · {boardProfile(projectTarget.boardProfile).shortName}</span>
           </div>
         </div>
         <label className="project-name">
@@ -1330,8 +1336,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           />
         </label>
         <nav className="header-actions" aria-label="Acciones del proyecto">
-          <ProjectLibrary ref={libraryRef} account={account} store={draftStore} csrfToken={csrfToken} hydrated={hydrated} sceneEditing={sceneBuilderOpen} offline={offline} fingerprint={fingerprint} capture={currentProject} apply={applyLibraryProject} onNew={newLibraryProject} onImport={() => fileInputRef.current?.click()} notice={message => { setNotice(message); setNoticeTone('ok'); }} />
-          <ChallengeWorkbench account={account} token={csrfToken} enabled={!offline&&draftStore.remoteAllowed} workspace={workspace} capture={currentProject} projectId={()=>draftStore.remote?.id??null} compile={()=>editorRef.current?.compile()??emptyProgram()} load={(project,applied)=>{const apply=()=>{libraryRef.current?.detach();applyLibraryProject(project);applied?.();};if(libraryRef.current)libraryRef.current.replace(apply);else apply();}} onPalette={setChallengePalette}/>
+          {!guest && <ProjectLibrary ref={libraryRef} account={account} store={draftStore} csrfToken={csrfToken} hydrated={hydrated} sceneEditing={sceneBuilderOpen} offline={offline} fingerprint={fingerprint} capture={currentProject} apply={applyLibraryProject} onNew={newLibraryProject} onImport={() => fileInputRef.current?.click()} notice={message => { setNotice(message); setNoticeTone('ok'); }} />}
+          {!guest && <ChallengeWorkbench account={account} token={csrfToken} enabled={!offline&&draftStore.remoteAllowed} workspace={workspace} capture={currentProject} projectId={()=>draftStore.remote?.id??null} compile={()=>editorRef.current?.compile()??emptyProgram()} load={(project,applied)=>{const apply=()=>{libraryRef.current?.detach();applyLibraryProject(project);applied?.();};if(libraryRef.current)libraryRef.current.replace(apply);else apply();}} onPalette={setChallengePalette}/>}
           <DropdownMenu>
             <DropdownMenuTrigger className="export-button" aria-label="Opciones del proyecto">
               <FolderOpen size={18} /> Proyecto
@@ -1352,12 +1358,20 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                 <Upload /> Importar proyecto JSON
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setAdvancedToolsOpen(true)}>
-                <Settings2 /> Herramientas avanzadas para adultos
-              </DropdownMenuItem>
+                {!guest && <DropdownMenuItem onClick={() => setAdvancedToolsOpen(true)}>
+                  <Settings2 /> Herramientas avanzadas para adultos
+                </DropdownMenuItem>}
             </DropdownMenuContent>
           </DropdownMenu>
-          <DropdownMenu>
+          {guest ? <DropdownMenu>
+            <DropdownMenuTrigger className="icon-button account-menu-button" aria-label="Opciones de invitado"><Settings2 size={19} /></DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Modo invitado</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => void openAccountLogin()}>Ingresar a mi cuenta</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setMuted(value => !value)}>{muted ? <VolumeX /> : <Volume2 />}{muted ? 'Activar sonidos' : 'Silenciar sonidos'}</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu> : <DropdownMenu>
             <DropdownMenuTrigger className="icon-button account-menu-button" aria-label="Opciones de mi cuenta" title="Mi cuenta y sonidos"><Settings2 size={19} /></DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuGroup>
@@ -1368,7 +1382,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                 <DropdownMenuItem onClick={onLogout}><LogOut />Cerrar sesión</DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>
-          </DropdownMenu>
+          </DropdownMenu>}
           <input
             ref={fileInputRef}
             type="file"
@@ -1430,9 +1444,9 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           else postToWorker({ type: 'STOP' });
           stopSound(); pendingExecutionTasksRef.current = []; editorRef.current?.showExecution();
         }}><CircleStop size={18} /> Detener</button>}
-        <button className="board-run-button" disabled={!physicalMirrorActive && (offline || sim.status === 'running' || sim.status === 'paused')} title={physicalMirrorActive ? 'Abrí el asistente para ver la conexión, la telemetría o volver a enviar las reglas.' : offline ? 'Necesitás conexión para verificar tu cuenta antes de usar USB.' : sim.status === 'running' || sim.status === 'paused' ? 'Detené el simulador antes de usar la placa.' : 'Instalá CapiBloques una vez y después enviá solamente las reglas.'} onClick={() => physicalMirrorActive ? physicalControlRef.current?.('SHOW') : openInterpreter()}>
+        {!guest && <button className="board-run-button" disabled={!physicalMirrorActive && (offline || sim.status === 'running' || sim.status === 'paused')} title={physicalMirrorActive ? 'Abrí el asistente para ver la conexión, la telemetría o volver a enviar las reglas.' : offline ? 'Necesitás conexión para verificar tu cuenta antes de usar USB.' : sim.status === 'running' || sim.status === 'paused' ? 'Detené el simulador antes de usar la placa.' : 'Instalá CapiBloques una vez y después enviá solamente las reglas.'} onClick={() => physicalMirrorActive ? physicalControlRef.current?.('SHOW') : openInterpreter()}>
           <Cable size={18} /> {physicalMirrorActive ? 'Detalles de placa' : 'Usar en placa'}
-        </button>
+        </button>}
         <DropdownMenu>
           <DropdownMenuTrigger className="more-tools-button" aria-label="Más herramientas">
             <MoreHorizontal size={20} /> Más
@@ -1451,7 +1465,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuLabel>Revisar y conectar</DropdownMenuLabel>
-              <DropdownMenuItem onClick={openCode}><Code2 /> Ver código ESP32</DropdownMenuItem>
+              {!guest && <DropdownMenuItem onClick={openCode}><Code2 /> Ver código ESP32</DropdownMenuItem>}
               <DropdownMenuItem onClick={openWiring}><Cable /> Ver conexiones</DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>
@@ -1913,7 +1927,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         </DialogContent>
       </Dialog>
 
-      <Dialog open={advancedToolsOpen} onOpenChange={setAdvancedToolsOpen}>
+      <Dialog open={advancedToolsOpen && !guest} onOpenChange={setAdvancedToolsOpen}>
         <DialogContent className="firmware-dialog advanced-tools-dialog">
           <DialogHeader>
             <DialogTitle>Herramientas avanzadas para adultos</DialogTitle>
@@ -1931,9 +1945,9 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         </DialogContent>
       </Dialog>
 
-      {usbOpen && !offline && <UsbBoard account={account} store={draftStore} job={usbJob} currentBoardProfile={projectTarget.boardProfile} currentFingerprint={fingerprint} onClose={() => { setUsbOpen(false); setUsbJob(null); }} onBuilds={() => { setUsbOpen(false); setUsbJob(null); setBuildsOpen(true); }} />}
-      {interpreterOpen && <InterpreterBoard account={account} store={draftStore} program={lastProgram} scene={scene} board={projectTarget.boardProfile} centralDisplay={projectTarget.centralDisplay} onChangeBoard={changeBoardFromAssistant} onChangeCentralDisplay={changeCentralDisplayFromAssistant} onMirrorCommand={mirrorPhysicalExecution} onPhysicalStatus={reportPhysicalStatus} onPhysicalLog={appendPhysicalLog} controlRef={physicalControlRef} onClose={closeInterpreter} />}
-      {buildsOpen && !offline && <FirmwareBuilds account={account} store={draftStore} csrfToken={csrfToken} capture={currentProject} fingerprint={fingerprint} targetBoardProfile={projectTarget.boardProfile} onClose={() => setBuildsOpen(false)} onProgram={job => { setBuildsOpen(false); setUsbJob(job); setUsbOpen(true); }} validate={framework => {
+      {usbOpen && !offline && !guest && <UsbBoard account={account} store={draftStore} job={usbJob} currentBoardProfile={projectTarget.boardProfile} currentFingerprint={fingerprint} onClose={() => { setUsbOpen(false); setUsbJob(null); }} onBuilds={() => { setUsbOpen(false); setUsbJob(null); setBuildsOpen(true); }} />}
+      {interpreterOpen && !guest && <InterpreterBoard account={account} store={draftStore} program={lastProgram} scene={scene} board={projectTarget.boardProfile} centralDisplay={projectTarget.centralDisplay} onChangeBoard={changeBoardFromAssistant} onChangeCentralDisplay={changeCentralDisplayFromAssistant} onMirrorCommand={mirrorPhysicalExecution} onPhysicalStatus={reportPhysicalStatus} onPhysicalLog={appendPhysicalLog} controlRef={physicalControlRef} onClose={closeInterpreter} />}
+      {buildsOpen && !offline && !guest && <FirmwareBuilds account={account} store={draftStore} csrfToken={csrfToken} capture={currentProject} fingerprint={fingerprint} targetBoardProfile={projectTarget.boardProfile} onClose={() => setBuildsOpen(false)} onProgram={job => { setBuildsOpen(false); setUsbJob(job); setUsbOpen(true); }} validate={framework => {
         const generated = buildCode(framework);
         if (generated.diagnostics.some(item => item.severity === 'error')) { setProblemsOpen(true); return null; }
         if (hasPhysicalConnections(scene, generated.program) && wiringAcknowledgedSignature !== wiringReviewSignature(scene, generated.program, projectTarget.boardProfile)) {

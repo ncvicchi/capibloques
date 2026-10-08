@@ -131,10 +131,10 @@ export default function AccountAccess() {
           <span className="brand-mark" aria-hidden="true">🐾</span>
           <div><span className="account-brand">CapiBloques</span><h1 id="account-title">{user ? 'Mi cuenta' : 'Ingresar'}</h1></div>
         </header>
-        {loading ? <output>Comprobando tu sesión…</output> : <>
+        {loading ? <><output>Comprobando tu sesión…</output><Button variant="outline" className="account-action" onClick={() => window.location.assign('/?guest=1')}>Ingresar como invitado</Button></> : <>
           {error && <p className="account-error" role="alert">{error}</p>}
           {notice && <output className="account-notice">{notice}</output>}
-          {!session ? <Button className="account-action" onClick={() => void refresh()}>Reintentar conexión</Button> : !user ? <>
+          {!session ? <><Button className="account-action" onClick={() => void refresh()}>Reintentar conexión</Button><Button variant="outline" className="account-action" onClick={() => window.location.assign('/?guest=1')}>Ingresar como invitado</Button></> : !user ? <>
             <p>Usá el alias que te dio tu administrador. No necesitás correo electrónico.</p>
             <form onSubmit={event => { event.preventDefault(); void submit('login', { alias, password }); }}>
               <fieldset disabled={busy}>
@@ -146,6 +146,7 @@ export default function AccountAccess() {
                 <Button className="account-action" type="submit">{busy ? 'Ingresando…' : 'Ingresar'}</Button>
               </fieldset>
             </form>
+            <Button variant="outline" className="account-action" disabled={busy} onClick={() => window.location.assign('/?guest=1')}>Ingresar como invitado</Button>
             <p className="account-help">¿Olvidaste tu contraseña? Pedile ayuda al administrador. No hay registro público.</p>
           </> : <>
             <div className="account-identity"><ShieldCheck aria-hidden="true" /><div><strong>{user.displayName}</strong><span>@{user.alias} · {user.roles.join(' y ')}</span></div></div>

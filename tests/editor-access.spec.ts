@@ -3,6 +3,7 @@ import { makeProject } from '../lib/capiblocks';
 import { createEmptyScene } from '../lib/scene-model';
 import { student, token } from './editor-fixture';
 import { recoveryRows } from './recovery-fixture';
+import { GUEST_DRAFT_ID } from '../lib/account-session';
 
 const other = { ...student, id: 'e6d7e9f1-91eb-44d2-8b7e-84920bed16ed', alias: 'sol', displayName: 'Sol' };
 const key = (id: string) => `capibloques-account:${id}:project-v2`;
@@ -31,6 +32,31 @@ test('editor: sin sesión no lee proyectos, ni confía en una identidad local', 
   await expect(page.locator('body')).not.toContainText('Proyecto privado de Luna');
   await page.reload();
   await expect(page.getByLabel('Alias', { exact: true })).toBeVisible();
+});
+
+test('editor: ingreso invitado conserva el proyecto local y oculta cuenta, desafíos y placa', async ({ page }) => {
+  let editorSessionRequests = 0;
+  await page.route('**/api/auth/session/', route => route.fulfill({ json: { user: null, csrfToken: token } }));
+  await page.route('**/api/auth/editor-session/', route => {
+    editorSessionRequests++;
+    return route.fulfill({ status: 401, json: { code: 'login_required' } });
+  });
+  await page.goto('/cuenta/');
+  await page.getByRole('button', { name: 'Ingresar como invitado' }).click();
+  await expect(page).toHaveURL(/[?&]guest=1$/);
+  await expect(page.getByLabel('Editor visual de bloques')).toBeVisible();
+  await expect(page.getByText('Modo invitado · guardado local en esta computadora')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Usar en placa' })).toHaveCount(0);
+  await expect(page.getByText('Compilar un firmware específico')).toHaveCount(0);
+
+  await page.getByLabel('Nombre del proyecto').fill('Proyecto invitado persistente');
+  await expect.poll(async () => {
+    const row = (await recoveryRows(page, GUEST_DRAFT_ID))[0];
+    return row ? JSON.parse(row.document).metadata.title : null;
+  }).toBe('Proyecto invitado persistente');
+  await page.reload();
+  await expect(page.getByLabel('Nombre del proyecto')).toHaveValue('Proyecto invitado persistente');
+  expect(editorSessionRequests).toBe(0);
 });
 
 test('editor: login desde la puerta abre el editor; contraseña temporal no', async ({ page }) => {

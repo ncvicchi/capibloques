@@ -44,6 +44,16 @@ export function watchSessionChange(callback: (changing: boolean) => void, ignore
 
 export type AccountDraftStore = ReturnType<typeof createAccountDraftStore>;
 
+export const GUEST_DRAFT_ID = 'anonymous-guest';
+
+// El modo invitado usa el mismo formato durable que los borradores de cuenta,
+// pero con una partición fija anónima y sin permitir operaciones remotas.
+export function createGuestDraftStore() {
+  const store = createAccountDraftStore(GUEST_DRAFT_ID);
+  store.remoteAllowed = false;
+  return store;
+}
+
 // El dueño queda fijado al crear el editor. Nunca se toma de un alias ni de
 // una variable global que pueda cambiar mientras hay un autoguardado pendiente.
 export function createAccountDraftStore(accountId: string) {

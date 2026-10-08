@@ -1,6 +1,6 @@
 # CapiBloques — contexto para continuar
 
-Documento vivo iniciado en **fase 11**. Actualización: **7 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
+Documento vivo iniciado en **fase 11**. Actualización: **8 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
 
 ## 1. Punto de entrada y autorización actual
 
@@ -22,6 +22,18 @@ Aceptación humana/docente/infantil/lector real y publicación DEV pendientes.
 No hay migraciones ni cambios de firmware; mínimo intérprete sigue 1.9.0.
 El propietario actualiza con el comando habitual --fast que aparece debajo.
 No iniciar fase 22 ni operar DEV sin autorización.
+
+### Primera entrega del modo invitado — 8 de octubre de 2026
+
+Implementación local autorizada: el login ofrece **Ingresar como invitado** y
+abre el editor sin sesión; un espacio anónimo separado en IndexedDB conserva el
+proyecto entre recargas/cierres. Se ocultan biblioteca de cuenta, desafíos,
+compilación específica y uso con placa. No hay sincronización ni migración
+automática a una cuenta; la oferta para guardar el proyecto en una cuenta al
+iniciar sesión queda para una entrega posterior. No se desplegó DEV. Typecheck
+completo y lint dirigido de componentes pasaron. Se agregó un recorrido E2E,
+pero Playwright no pudo iniciarlo porque falta el binario Chromium local; no se
+instaló. `git diff --check` pasó. Detalle: [MODO_INVITADO.md](MODO_INVITADO.md).
 
 ### Corrección de aceptación DEV — 6 de octubre de 2026
 
@@ -116,7 +128,7 @@ Orden de lectura: [AGENTS](../AGENTS.md) → este documento → [plan de fases p
 
 CapiBloques enseña programación visual a chicos de **8–12 años**. Se arma una escena con dispositivos, se programan bloques inspirados en Scratch, se simula el comportamiento en el navegador y se ejecuta autónomamente en una placa. No emula el ESP32 instrucción por instrucción.
 
-- Una institución por instalación. Logo/nombre del colegio visibles antes del login. Cuentas creadas por administrador; alias y contraseña, sin correo obligatorio ni registro público. Roles administrador, docente y alumno.
+- Una institución por instalación. Logo/nombre del colegio visibles antes del login. Cuentas creadas por administrador; alias y contraseña, sin correo obligatorio ni registro público. Roles administrador, docente y alumno. El modo invitado abre el editor con guardado local anónimo; en su primera entrega no habilita proyectos de cuenta, desafíos, compilación ni placa.
 - Proyectos personales con biblioteca, guardar/autoguardar, recuperación local, JSON portable, papelera e historial. Compartir con un curso es explícito. El docente revisa versiones guardadas y comenta sin editar el original; ser administrador no abre por sí solo trabajos privados ajenos.
 - Escenas componibles: por ejemplo dos semáforos o semáforo y robot. LEDs/PWM, motores mediante driver, servos, buzzers activo/pasivo, botón, sensores, Wi-Fi y pantalla de mensajes. Potencia/velocidad son conceptos visibles para los chicos, no configuración técnica PWM obligatoria.
 - Un único «al comenzar» obligatorio, fuera del catálogo; concurrencia mediante «al mismo tiempo». Favoritos por cuenta, avatares divertidos y ejecución normal/guiada sin alterar el algoritmo.

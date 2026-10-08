@@ -4,6 +4,11 @@ Seguimiento de fase 19, 6 de octubre: corregido fallo de aceptación DEV en
 respuesta de baja sin recibo (400, no 409). No es una fase nueva. Evidencia y
 reintento pendiente en la guía de fase 19 y el contexto vivo.
 
+Ampliación transversal autorizada el 8 de octubre: primera entrega parcial del
+modo invitado, registrada en [MODO_INVITADO.md](MODO_INVITADO.md). Login de
+invitado, editor y recuperación local anónima implementados en checkout; el
+guardado en cuenta, compilación y placa para invitados siguen pendientes.
+
 Pedidos del propietario desde el 7 de septiembre de 2026, registrados durante distintas entregas. El 8 de septiembre se asignaron a las [nuevas fases](PLAN_FASES_BACKLOG.md), precedidas por una fase de contexto portable para otra cuenta. **La fase 12 implementa los pedidos 1, 6, 8 y 10, y la parte Wemos del 9; la fase 14 implementa los pedidos 4, 5 y 7**. Alcance, pruebas y límites en sus guías de entrega. Los restantes siguen pendientes. Los números de este archivo identifican pedidos, no fases. Las notas de «no interrumpir» son históricas, referidas a la entrega que transcurría cuando se hizo cada solicitud; no sustituyen el estado ni las autorizaciones del plan vigente.
 
 ## 1. Redistribuir la interfaz

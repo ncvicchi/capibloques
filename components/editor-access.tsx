@@ -3,13 +3,13 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { createAccountDraftStore, sessionChangePending, watchSessionChange, type AccountDraftStore, type EditorSession } from '@/lib/account-session';
+import { createAccountDraftStore, createGuestDraftStore, GUEST_DRAFT_ID, sessionChangePending, watchSessionChange, type AccountDraftStore, type EditorSession } from '@/lib/account-session';
 import SessionExit from '@/components/session-exit';
 import { watchPeriodicRefresh } from '@/lib/session-polling';
 
 const CapiBlocksApp = lazy(() => import('@/components/capiblocks-app'));
 export type EditorCheckpoint = { suspend: () => boolean; resume: () => void; ready: () => boolean };
-type OpenEditor = { session: EditorSession; store: AccountDraftStore };
+type OpenEditor = { session: EditorSession; store: AccountDraftStore; guest: boolean };
 
 export default function EditorAccess() {
   const [editor, setEditor] = useState<OpenEditor | null>(null);
@@ -25,6 +25,26 @@ export default function EditorAccess() {
   const checking = useRef<number | null>(null);
   const exitPending = useRef(false);
   const [exitTarget, setExitTarget] = useState<OpenEditor | null>(null);
+  const guestRequested = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('guest') === '1';
+
+  const enterGuest = useCallback(() => {
+    const account = { id: GUEST_DRAFT_ID, alias: 'invitado', displayName: 'Invitado', roles: ['invitado'], mustChangePassword: false };
+    const guestEditor = { session: { user: account, csrfToken: '', context: 'guest', expiresAt: null }, store: createGuestDraftStore(), guest: true } as OpenEditor;
+    current.current = guestEditor;
+    setEditor(guestEditor); setError(''); setOffline(false); setCanContinueLocally(false);
+    document.documentElement.dataset.editorLocked = 'false';
+    setLocked(false);
+  }, []);
+
+  const openAccountLogin = useCallback(async () => {
+    try {
+      if (checkpoint.current?.suspend() === false) return;
+      await current.current?.store.flush();
+      window.location.assign('/cuenta/');
+    } catch {
+      setError('No pudimos terminar de guardar tu proyecto local. Esperá un momento y volvé a ingresar.');
+    }
+  }, []);
 
   const lock = useCallback(() => {
     checkpoint.current?.suspend();
@@ -63,7 +83,7 @@ export default function EditorAccess() {
         lock();
         if (previous?.session.user.id === body.user.id) await previous.store.flush();
         if (ticket !== generation.current || exitPending.current) return;
-        current.current = { session: body, store: createAccountDraftStore(body.user.id) };
+        current.current = { session: body, store: createAccountDraftStore(body.user.id), guest: false };
       } else {
         previous.session = body;
         previous.store.active = true;
@@ -93,6 +113,15 @@ export default function EditorAccess() {
 
   useEffect(() => {
     let disposed = false;
+    if (guestRequested) {
+      queueMicrotask(() => { if (!disposed) enterGuest(); });
+      const pageHide = () => {
+        checkpoint.current?.suspend();
+        void current.current?.store.flush();
+      };
+      window.addEventListener('pagehide', pageHide);
+      return () => { disposed = true; window.removeEventListener('pagehide', pageHide); };
+    }
     queueMicrotask(() => { if (!disposed) void check(); });
     const pageHide = () => { ++generation.current; lock(); };
     const stopWatching = watchSessionChange(changing => {
@@ -112,7 +141,7 @@ export default function EditorAccess() {
       window.removeEventListener('pagehide', pageHide);
       delete document.documentElement.dataset.editorLocked;
     };
-  }, [check, lock]);
+  }, [check, enterGuest, guestRequested, lock]);
 
   useEffect(() => {
     const deadline = Date.parse(editor?.session.expiresAt ?? '');
@@ -151,7 +180,8 @@ export default function EditorAccess() {
   const feedback = error ? <><p role="alert" className="account-error">{error}</p><Button className="account-action" onClick={() => void check()}>Reintentar</Button></> : <output>Comprobando tu sesión…</output>;
 
   return <>
-    {editor && !locked && offline && <output className="offline-banner"><strong>Sin conexión · sólo en esta computadora · @{editor.session.user.alias}</strong><span>Podés editar, simular y exportar. No se envía nada al servidor. No podemos comprobar cambios de acceso hasta reconectar.</span><Button variant="outline" onClick={() => void check(false)}>Reconectar</Button></output>}
+    {editor?.guest && !locked && <output className="offline-banner"><strong>Modo invitado · guardado local en esta computadora</strong><span>Tu proyecto se conserva al recargar o cerrar esta página. Los proyectos de cuenta, desafíos, compilación y uso con placa requieren otra etapa.</span><Button variant="outline" onClick={() => void openAccountLogin()}>Ingresar a mi cuenta</Button></output>}
+    {editor && !editor.guest && !locked && offline && <output className="offline-banner"><strong>Sin conexión · sólo en esta computadora · @{editor.session.user.alias}</strong><span>Podés editar, simular y exportar. No se envía nada al servidor. No podemos comprobar cambios de acceso hasta reconectar.</span><Button variant="outline" onClick={() => void check(false)}>Reconectar</Button></output>}
     {editor && !locked && error && !offline && <div className="account-error" role="alert">{error}</div>}
     {!editor && <main className="account-page session-cover"><section className="account-card" aria-label="Acceso al editor">
       <header className="account-heading"><span className="brand-mark" aria-hidden="true">🐾</span><h1>CapiBloques</h1></header>{feedback}
@@ -172,7 +202,7 @@ export default function EditorAccess() {
     </Dialog>}
     {editor && <div className="authenticated-editor" inert={locked} aria-hidden={locked || undefined}>
       <Suspense fallback={<div className="account-page"><output>Abriendo tu editor…</output></div>}>
-        <CapiBlocksApp key={`${editor.session.user.id}:${editor.session.context}`} account={editor.session.user} csrfToken={editor.session.csrfToken} draftStore={editor.store} checkpointRef={checkpoint} onLogout={() => void logout()} offline={offline} />
+        <CapiBlocksApp key={`${editor.session.user.id}:${editor.session.context}`} account={editor.session.user} csrfToken={editor.session.csrfToken} draftStore={editor.store} checkpointRef={checkpoint} onLogout={() => void logout()} offline={offline} guest={editor.guest} />
       </Suspense>
     </div>}
   </>;
