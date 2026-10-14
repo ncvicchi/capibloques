@@ -21,8 +21,10 @@ toolchain. No se ejecutó E2E. El orquestador despliega `origin/main`; esperar e
 merge del PR #1 y checks antes de ejecutar DEV. Aceptación visual/humana
 pendiente. En el head remoto `e98e0b8`, CI reportó Arduino con prototipos
 generados antes de `OttoDevice`, dos avisos `-Werror=misleading-indentation` en
-Waveshare y fallo de `idf-driver` con log insuficiente para determinar su causa;
-backend y scope pasaron. En el árbol local sin subir, Arduino ahora exporta un
+Waveshare y fallo de `idf-driver`: `g++` devolvió `status=null` compilando
+`runtime`, y la prueba no registraba señal/stdout/stderr, así que el log no
+permite distinguir la causa. Se amplió el diagnóstico de esa aserción. Backend y
+scope pasaron. En el árbol local sin subir, Arduino ahora exporta un
 ZIP con `.ino` mínimo y `capibloques_program.h`; interfaz, revisión docente y
 compilador servidor comparten este formato. Se corrigieron también las dos
 sentencias de Waveshare y el nombre de sketch de las fixtures. Typecheck, lint

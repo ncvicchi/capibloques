@@ -777,7 +777,9 @@ el preprocesador Arduino) y en `verify` (`idf-driver.test.mjs` no ejecutó su
 binario nativo); ambos deben repetirse sobre el head actual antes de integrar.
 En `e98e0b8`, firmware falló por prototipos Arduino antes de `OttoDevice`;
 ESP-IDF falló por dos líneas Waveshare rechazadas por `-Werror` y `idf-driver`
-falló sin diagnóstico adicional en el log. En el árbol local sin subir, Arduino
+falló al compilar `runtime`: `g++` devolvió `status=null`, sin registrar señal,
+stdout ni stderr. Se amplió la salida del test para capturar esos datos en CI.
+En el árbol local sin subir, Arduino
 se exporta como ZIP con un `.ino` mínimo y `capibloques_program.h`; exportación,
 revisión docente, compilador servidor y fixtures comparten el formato. Las dos
 sentencias ESP-IDF se separaron. Typecheck, lint dirigido y pruebas dirigidas

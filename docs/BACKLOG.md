@@ -732,7 +732,9 @@ preprocesado de Arduino y `verify` no pudo ejecutar el binario de
 `idf-driver.test.mjs`. En `e98e0b8`, GitHub reportó: firmware, prototipos Arduino
 con `OttoDevice` antes del tipo; ESP-IDF, dos `-Werror=misleading-indentation`
 en Waveshare; `verify`, fallo en `idf-driver` cuyo log no expone la causa. Backend
-y scope pasaron. Corrección local pendiente de subir: el código Arduino se
+y scope pasaron. En `verify`, `g++` devolvió `status=null` compilando `runtime`,
+pero el test omitía señal/stdout/stderr y el log no permite distinguir la causa;
+el diagnóstico local ahora los imprime. Corrección local pendiente de subir: el código Arduino se
 empaqueta como ZIP con un `.ino` mínimo y `capibloques_program.h`, evitando la
 reordenación de prototipos; exportación del editor/revisión docente y compilador
 del servidor usan el mismo formato. Las fixtures respetan nombre de sketch y

@@ -22,7 +22,9 @@ binario nativo); esa revisión precede al revert explícito y requiere una nueva
 ejecución antes de integrar o desplegar.
 En `e98e0b8`, CI falló: Arduino ubicó prototipos para `OttoDevice` antes del tipo;
 ESP-IDF encontró dos líneas Waveshare rechazadas por `-Werror`; `idf-driver`
-falló sin causa visible adicional en el log. En el árbol local sin subir, el
+falló cuando `g++` devolvió `status=null` al compilar `runtime`; la prueba
+omitía señal/stdout/stderr. Se amplió su mensaje de diagnóstico para la siguiente
+ejecución. En el árbol local sin subir, el
 proyecto Arduino se exporta como ZIP con `.ino` mínimo y encabezado generado,
 para impedir que Arduino reordene esos prototipos. El editor, revisión docente,
 compilador servidor y fixtures usan el mismo esquema; las dos líneas Waveshare
