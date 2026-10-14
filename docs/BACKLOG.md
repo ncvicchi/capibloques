@@ -723,9 +723,11 @@ segura y Estación del clima, y reaplicando el piloto visual y los cambios local
 de identidad. Typecheck, lint y prueba dirigida de mundos/plantillas pasaron. La
 suite completa quedó incompleta: `frame-animation.test.mjs` e
 `interpreter-source.test.mjs` necesitan `g++`, que no está instalado en
-`capi-dev`; no se instala toolchain pesada fuera de su fase. E2E/visual y DEV
-también quedan pendientes. No aplicar de nuevo el retiro de `5731650` en esta
-línea de recuperación.
+`capi-dev`; no se instala toolchain pesada fuera de su fase. E2E/visual también
+queda pendiente. DEV no se actualizó: el orquestador apunta a `origin/main` y la
+rama aún no está integrada; la creación de PR fue rechazada con 403 por la
+integración de GitHub. No aplicar de nuevo el retiro de `5731650` en esta línea
+de recuperación.
 
 ## Pedidos externos a analizar
 

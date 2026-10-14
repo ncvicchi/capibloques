@@ -18,7 +18,11 @@ presentes en esta rama. `tsc --noEmit`, lint del código de producto,
 `scripts/scene-worlds.test.mjs` y `git diff --check` pasaron. No se ejecutó la
 suite E2E. La smoke suite general quedó incompleta porque `frame-animation` e
 `interpreter-source` requieren `g++`, ausente en `capi-dev`; no se instaló
-toolchain. No se desplegó DEV; aceptación visual/humana pendiente.
+toolchain. No se desplegó DEV: el orquestador vigente despliega `origin/main`,
+no esta rama; el intento de crear PR para integrarla respondió 403
+`Resource not accessible by integration`. Rama publicada; PR/merge, DEV y
+aceptación visual/humana pendientes. No ejecutar el update hasta integrar la
+recuperación a `main`.
 
 ### Piloto visual CapiBloques — login, favicon y encabezado (8 de octubre)
 
