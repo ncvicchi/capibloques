@@ -4410,14 +4410,14 @@ struct MessageDevice { uint8_t port; uint8_t tx; uint8_t rx; uint32_t baud; };
 enum class TrafficColor { RED, YELLOW, GREEN, OFF };
 ${trafficGlyphDeclarations}
 
+${deviceDeclarations(scene, symbols)}
+${componentStateDeclarations(scene)}
 ${displaySupport}
 
 ${matrixSupport}
 
 ${smartLightsSupport}
 
-${deviceDeclarations(scene, symbols)}
-${componentStateDeclarations(scene)}
 ${stepperFirmwareSupport(scene, symbols, native)}
 ${dashboardSupport}
 

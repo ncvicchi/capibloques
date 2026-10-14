@@ -16,6 +16,13 @@ reaplicaron. Typecheck, lint, smoke básico, workbench, mundos/plantillas y
 `frame-animation` e `interpreter-source` necesitan `g++`, ausente en `capi-dev`;
 no se instaló toolchain. E2E/aceptación visual, capturas/mediciones y aceptación
 física de Waveshare quedan pendientes; el PR #1 sigue abierto y la fase no cierra.
+Los checks del primer head del PR fallaron en firmware (tipos no declarados tras
+el preprocesador Arduino) y en `verify` (`idf-driver.test.mjs` no ejecutó su
+binario nativo); esa revisión precede al revert explícito y requiere una nueva
+ejecución antes de integrar o desplegar.
+El generador Arduino se ajustó localmente para declarar tipos antes de
+funciones de soporte; typecheck, lint y pruebas dirigidas de ESP-IDF, pantallas,
+semáforos, Otto y mensajes pasaron. Falta la compilación Arduino y el nuevo CI.
 
 ## Entregado en la primera implementación
 

@@ -19,7 +19,13 @@ pasaron. La smoke suite completa no pudo completarse: `frame-animation` e
 `interpreter-source` necesitan `g++`, ausente en `capi-dev`; no se instaló
 toolchain. No se ejecutó E2E. El orquestador despliega `origin/main`; esperar el
 merge del PR #1 y checks antes de ejecutar DEV. Aceptación visual/humana
-pendiente.
+pendiente. Los checks del head previo del PR reportaron fallo en firmware
+(tipos de dispositivos no declarados tras el preprocesador Arduino) y en
+`verify` (`idf-driver.test.mjs` no ejecutó su binario nativo). La revisión era
+anterior a `646d730`; repetir y validar los checks en el head actual antes de
+integrar o desplegar. Se reordenaron localmente las declaraciones de tipos del
+generador Arduino; typecheck, lint y pruebas dirigidas de ESP-IDF, pantallas,
+semáforos, Otto y mensajes pasaron. Falta la compilación Arduino y repetir CI.
 
 ### Piloto visual CapiBloques — login, favicon y encabezado (8 de octubre)
 

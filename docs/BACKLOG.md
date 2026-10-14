@@ -725,7 +725,13 @@ lint, smoke básico, workbench y prueba de mundos/plantillas pasaron. La smoke
 suite completa no pudo ejecutarse: `frame-animation.test.mjs` e
 `interpreter-source.test.mjs` requieren `g++`, ausente en `capi-dev`; no se
 instala toolchain pesada fuera de su fase. E2E/visual y DEV quedan pendientes del
-PR/checks.
+PR/checks. Los checks de la primera revisión del PR (antes del head actual)
+fallaron: `firmware` mostró tipos de dispositivos no declarados tras el
+preprocesado de Arduino y `verify` no pudo ejecutar el binario de
+`idf-driver.test.mjs`. Se reordenaron las declaraciones del generador Arduino;
+typecheck, lint y pruebas dirigidas de ESP-IDF, pantallas, semáforos, Otto y
+mensajes pasaron localmente. Falta ejecutar la compilación Arduino y repetir los
+checks en el nuevo head; no están aprobados todavía.
 
 ## Pedidos externos a analizar
 

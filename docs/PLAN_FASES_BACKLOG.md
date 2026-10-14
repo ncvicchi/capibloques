@@ -772,6 +772,12 @@ porque dos pruebas requieren `g++`, ausente en `capi-dev`; no se instala
 toolchain pesada fuera de su fase. El PR #1 sigue abierto; E2E/aceptación visual
 y actualización DEV aún pendientes. La recuperación no cierra la fase 45 ni sus
 aceptaciones de Waveshare.
+Los checks del primer head del PR fallaron en firmware (tipos no declarados tras
+el preprocesador Arduino) y en `verify` (`idf-driver.test.mjs` no ejecutó su
+binario nativo); ambos deben repetirse sobre el head actual antes de integrar.
+El generador Arduino se ajustó localmente para declarar tipos antes de
+funciones de soporte; pasaron typecheck, lint y pruebas dirigidas, pero falta
+compilar firmware Arduino y obtener un nuevo CI verde.
 
 ## Fase final — Producción y piloto, postergada
 
