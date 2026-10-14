@@ -41,7 +41,6 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
-import Image from 'next/image';
 import BlocklyWorkspace, {
   type BlocklyHistoryState,
   type BlocklyWorkspaceHandle,
@@ -75,6 +74,7 @@ import {
   collectRawOutputPins,
   decodeProject,
   downloadText,
+  examples,
   generateEsp32CodeResult,
   programUsesWifi,
   makeProject,
@@ -85,16 +85,18 @@ import {
   type ExecutionTaskState,
   type ProjectFile,
   type RuntimeDeviceState,
+  type ExampleId,
+  type SceneId,
   type SimulatorState,
   type FirmwareFramework,
   type ProjectTarget,
 } from '@/lib/capiblocks';
 import { boardProfile, projectTargetForBoard, type BoardProfileId } from '@/lib/board-profiles';
-import { createEspIdfArchive, downloadFirmwareArchive } from '@/lib/firmware-archive';
+import { createArduinoArchive, createEspIdfArchive, downloadFirmwareArchive } from '@/lib/firmware-archive';
 import {
   addDeviceToScene,
+  assignSafePins,
   cloneScene,
-  createEmptyScene,
   sceneDeviceKinds,
   type SceneDefinition,
   type SceneDevice,
@@ -449,11 +451,12 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   checkpointRef: RefObject<EditorCheckpoint | null>;
   onLogout: () => void;
 }) {
+  const currentExample = examples[0];
   const preferences = useAccountPreferences(account.id, !offline && draftStore.remoteAllowed);
   const [preferencesOpen, setPreferencesOpen] = useState<'avatar'|'favorites'|null>(null);
   const initialScene = useMemo(
-    () => createEmptyScene('Mi escena'),
-    [],
+    () => cloneScene(currentExample.scene),
+    [currentExample.scene],
   );
   const editorRef = useRef<BlocklyWorkspaceHandle>(null);
   const libraryRef = useRef<ProjectLibraryHandle>(null);
@@ -466,11 +469,11 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const pendingHighlightFrameRef = useRef<number | null>(null);
   const pendingExecutionTasksRef = useRef<ExecutionTaskState[]>([]);
   const [hydrated, setHydrated] = useState(false);
-  const [projectName, setProjectName] = useState('Mi proyecto');
+  const [projectName, setProjectName] = useState(currentExample.title);
   const [scene, setScene] = useState<SceneDefinition>(initialScene);
   const [projectTarget, setProjectTarget] = useState<ProjectTarget>(() => projectTargetForBoard('wemos-d1-r32'));
   const [workspace, setWorkspace] = useState<Record<string, unknown>>(
-    { blocks: { languageVersion: 0, blocks: [{ type: 'capi_start', id: 'start-main', x: 48, y: 42 }] } },
+    currentExample.workspace,
   );
   const [workspaceRevision, setWorkspaceRevision] = useState(0);
   const [sim, setSim] = useState<SimulatorState>(() =>
@@ -479,6 +482,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const [simulationEpoch, setSimulationEpoch] = useState(0);
   const [speed, setSpeed] = useState(1);
   const [muted, setMuted] = useState(false);
+  const [examplesOpen, setExamplesOpen] = useState(false);
   const [challengePalette, setChallengePalette] = useState<readonly string[]|undefined>(undefined);
   const [sceneBuilderOpen, setSceneBuilderOpen] = useState(false);
   const sceneCommitRef = useRef<SceneDefinition | null>(null);
@@ -519,6 +523,12 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const [activeTab, setActiveTab] = useState('scene');
   const [workspaceMode, setWorkspaceMode] = useState<'create' | 'try'>('create');
   const [lastProgram, setLastProgram] = useState<CompiledProgram>(emptyProgram);
+
+  const sourceExample = useMemo(
+    () =>
+      examples.find((example) => example.id === scene.sourceTemplate || (example.id === 'display' && example.scene.id === scene.id)) ?? null,
+    [scene.sourceTemplate, scene.id],
+  );
 
   const postToWorker = useCallback((message: Record<string, unknown>) => {
     if (!draftStore.active && message.type !== 'PAUSE' && message.type !== 'STOP' && message.type !== 'SET_DASHBOARD') return;
@@ -896,6 +906,31 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     [postToWorker, scene],
   );
 
+  const loadExample = useCallback(
+    (id: ExampleId) => {
+      const applyExample = () => {
+      libraryRef.current?.detach();
+      const example = examples.find((item) => item.id === id) ?? examples[0];
+      const nextScene = assignSafePins(cloneScene(example.scene), { boardProfile: projectTarget.boardProfile, reassignAll: true }).scene;
+      postToWorker({ type: 'STOP' });
+      stopSound();
+      setProjectName(example.title);
+      setScene(nextScene);
+      setSim(makeInitialState(nextScene));
+      setWorkspace(example.workspace);
+      setWorkspaceRevision((value) => value + 1);
+      setWiringAcknowledgedSignature(null);
+      setDiagnostics([]);
+      setExamplesOpen(false);
+      setActiveTab('scene');
+      setNotice(`Ejemplo cargado: ${example.title}`);
+      setNoticeTone('ok');
+      };
+      if (libraryRef.current) libraryRef.current.replace(applyExample); else applyExample();
+    },
+    [postToWorker, projectTarget.boardProfile],
+  );
+
   const addSceneComponent = useCallback(
     (kind: SceneDeviceKind) => {
       postToWorker({ type: 'STOP' });
@@ -958,8 +993,10 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   }, [postToWorker]);
 
   const newLibraryProject = useCallback(() => {
-    const blank = createEmptyScene('Mi escena', { id: crypto.randomUUID() });
-    applyLibraryProject(makeProject('Mi proyecto', blank, { blocks: { languageVersion: 0, blocks: [{ type: 'capi_start', id: crypto.randomUUID(), x: 40, y: 40 }] } }, 1));
+    const blank = cloneScene(examples[0].scene);
+    blank.id = crypto.randomUUID(); blank.name = 'Mi escena'; blank.description = '';
+    blank.devices = []; blank.widgets = []; blank.retiredDeviceIds = []; blank.canvas.background = 'blank'; delete blank.sourceTemplate;
+    applyLibraryProject(makeProject('Mi aventura', blank, { blocks: { languageVersion: 0, blocks: [{ type: 'capi_start', id: crypto.randomUUID(), x: 40, y: 40 }] } }, 1));
   }, [applyLibraryProject]);
 
   useLayoutEffect(() => {
@@ -1098,8 +1135,10 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         const archive = await createEspIdfArchive(generated);
         if (epoch !== exportEpoch.current) return;
         downloadFirmwareArchive(`${safeFilename(projectName)}-esp-idf.zip`, archive);
-      } else downloadText(`${safeFilename(projectName)}.ino`, generated.code, 'text/x-c++src');
-      setNotice(framework === 'esp-idf' ? 'Proyecto ESP-IDF .zip descargado: fuentes, configuración e instrucciones; no es un binario.' : 'Código .ino descargado para la Wemos D1 R32');
+      } else {
+        downloadFirmwareArchive(`${safeFilename(projectName)}-arduino.zip`, createArduinoArchive(generated));
+      }
+      setNotice(framework === 'esp-idf' ? 'Proyecto ESP-IDF .zip descargado: fuentes, configuración e instrucciones; no es un binario.' : 'Proyecto Arduino .zip descargado: sketch y soporte generado; abrí el .ino desde su carpeta.');
       setNoticeTone('ok');
     } catch (error) {
       if (epoch === exportEpoch.current) { setNotice(error instanceof Error ? error.message : 'No pudimos preparar la descarga.'); setNoticeTone('error'); }
@@ -1194,6 +1233,35 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     const registrations = [
       modelContext.registerTool(
         {
+          name: 'load_capiblocks_example',
+          title: 'Cargar ejemplo de CapiBloques',
+          description:
+            'Carga un ejemplo visible de semáforo, contador, robot o Wi-Fi.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              example: {
+                type: 'string',
+                enum: ['traffic', 'counter', 'robot', 'wifi'],
+              },
+            },
+            required: ['example'],
+            additionalProperties: false,
+          },
+          annotations: { readOnlyHint: false, untrustedContentHint: false },
+          execute(input: unknown) {
+            if (!draftStore.active) throw new Error('Verificá tu sesión antes de editar');
+            const example = (input as { example?: SceneId })?.example;
+            if (!example || !examples.some((item) => item.id === example))
+              throw new Error('Ejemplo no válido');
+            loadExample(example);
+            return { requested: example, note: 'Puede requerir confirmar los cambios pendientes en el editor.' };
+          },
+        },
+        { signal: lifecycle.signal },
+      ),
+      modelContext.registerTool(
+        {
           name: 'add_capiblocks_component',
           title: 'Agregar componente a la escena',
           description:
@@ -1224,7 +1292,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       registrations.map((value) => Promise.resolve(value)),
     ).catch(() => undefined);
     return () => lifecycle.abort();
-  }, [addSceneComponent, draftStore]);
+  }, [addSceneComponent, loadExample, draftStore]);
 
   const inputDevices = scene.devices.filter((device) =>
     isEducationalModuleKind(device.kind) || ['button', 'infraredBarrier', 'lightSensor', 'potentiometer'].includes(device.kind) ||
@@ -1260,7 +1328,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           </div>
         </div>
         <label className="project-name">
-          <span className="project-name-label"><Image src="/brand/capibloques-isotipo.svg" alt="" aria-hidden="true" width={20} height={16} unoptimized /><span>Proyecto</span></span>
+          <span className="project-name-label"><span className="account-brand-icon project-brand-icon" aria-hidden="true" /><span>Proyecto</span></span>
           <Pencil size={14} aria-hidden="true" />
           <input
             value={projectName}
@@ -1278,6 +1346,10 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="project-menu">
               <DropdownMenuGroup>
+                <DropdownMenuLabel>Empezar y compartir</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => setExamplesOpen(true)}>
+                  <Blocks /> Abrir un ejemplo
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={exportJson}>
                   <FileJson /> Proyecto editable JSON
                 </DropdownMenuItem>
@@ -1374,9 +1446,9 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           else postToWorker({ type: 'STOP' });
           stopSound(); pendingExecutionTasksRef.current = []; editorRef.current?.showExecution();
         }}><CircleStop size={18} /> Detener</button>}
-        {!guest && <button className="board-run-button" disabled={!physicalMirrorActive && (offline || sim.status === 'running' || sim.status === 'paused')} title={physicalMirrorActive ? 'Abrí el asistente para ver la conexión, la telemetría o volver a enviar las reglas.' : offline ? 'Necesitás conexión para verificar tu cuenta antes de usar USB.' : sim.status === 'running' || sim.status === 'paused' ? 'Detené el simulador antes de usar la placa.' : 'Instalá CapiBloques una vez y después enviá solamente las reglas.'} onClick={() => physicalMirrorActive ? physicalControlRef.current?.('SHOW') : openInterpreter()}>
+        <button className="board-run-button" disabled={!physicalMirrorActive && (offline || sim.status === 'running' || sim.status === 'paused')} title={physicalMirrorActive ? 'Abrí el asistente para ver la conexión, la telemetría o volver a enviar las reglas.' : offline ? 'Necesitás conexión para verificar tu cuenta antes de usar USB.' : sim.status === 'running' || sim.status === 'paused' ? 'Detené el simulador antes de usar la placa.' : 'Instalá CapiBloques una vez y después enviá solamente las reglas.'} onClick={() => physicalMirrorActive ? physicalControlRef.current?.('SHOW') : openInterpreter()}>
           <Cable size={18} /> {physicalMirrorActive ? 'Detalles de placa' : 'Usar en placa'}
-        </button>}
+        </button>
         <DropdownMenu>
           <DropdownMenuTrigger className="more-tools-button" aria-label="Más herramientas">
             <MoreHorizontal size={20} /> Más
@@ -1470,7 +1542,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           aria-label="Simulador de comportamiento"
         >
           <div className="scene-context">
-            <details><summary><span aria-hidden="true">🦫</span> {scene.name}</summary><p>{scene.description || 'Agregá componentes y armá tu escena.'}</p></details>
+            <details><summary><span aria-hidden="true">🦫</span> {scene.name}</summary><p>{scene.description || sourceExample?.mission || 'Combiná componentes y creá tu propia aventura.'}</p></details>
             <button className="header-text-button scene-builder-button" onClick={() => toggleSceneBuilder(true)}><Blocks size={17} /> Armar escena</button>
           </div>
           <Tabs
@@ -1732,6 +1804,33 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         )}
       </output>
 
+      <Dialog open={examplesOpen} onOpenChange={setExamplesOpen}>
+        <DialogContent className="example-dialog">
+          <DialogHeader>
+            <DialogTitle>Elige una misión</DialogTitle>
+            <DialogDescription>
+              Empieza con un ejemplo y luego combínalo con otros en el editor de
+              escenas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="example-grid">
+            {examples.map((example) => (
+              <button
+                key={example.id}
+                className="example-card"
+                onClick={() => loadExample(example.id)}
+              >
+                <span className="example-icon">{example.icon}</span>
+                <span className="level">{example.level}</span>
+                <strong>{example.title}</strong>
+                <p>{example.description}</p>
+                <span className="open-example">Abrir misión →</span>
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {sceneBuilderOpen && (
         <Suspense fallback={null}>
           <SceneBuilder
@@ -1839,7 +1938,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             </DialogDescription>
           </DialogHeader>
           <section className="advanced-tools-list">
-            <button disabled={exportBusy} onClick={() => { setAdvancedToolsOpen(false); void exportCode('arduino'); }}><Code2 /> Exportar código Arduino .ino</button>
+            <button disabled={exportBusy} onClick={() => { setAdvancedToolsOpen(false); void exportCode('arduino'); }}><Code2 /> Exportar proyecto Arduino .zip</button>
             <button disabled={exportBusy} onClick={() => { setAdvancedToolsOpen(false); void exportCode('esp-idf'); }}><Code2 /> Exportar proyecto ESP-IDF .zip</button>
             <button disabled={offline || sceneBuilderOpen || !hydrated} onClick={() => { setAdvancedToolsOpen(false); setBuildsOpen(true); }}><Settings2 /> Compilar un firmware específico</button>
             <button disabled={offline || sceneBuilderOpen || !hydrated} onClick={() => { setAdvancedToolsOpen(false); setUsbJob(null); setUsbOpen(true); }}><Cable /> Firmware específico y monitor Serial</button>
@@ -1849,7 +1948,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       </Dialog>
 
       {usbOpen && !offline && !guest && <UsbBoard account={account} store={draftStore} job={usbJob} currentBoardProfile={projectTarget.boardProfile} currentFingerprint={fingerprint} onClose={() => { setUsbOpen(false); setUsbJob(null); }} onBuilds={() => { setUsbOpen(false); setUsbJob(null); setBuildsOpen(true); }} />}
-      {interpreterOpen && !guest && <InterpreterBoard account={account} store={draftStore} program={lastProgram} scene={scene} board={projectTarget.boardProfile} centralDisplay={projectTarget.centralDisplay} onChangeBoard={changeBoardFromAssistant} onChangeCentralDisplay={changeCentralDisplayFromAssistant} onMirrorCommand={mirrorPhysicalExecution} onPhysicalStatus={reportPhysicalStatus} onPhysicalLog={appendPhysicalLog} controlRef={physicalControlRef} onClose={closeInterpreter} />}
+      {interpreterOpen && <InterpreterBoard account={account} store={draftStore} guest={guest} program={lastProgram} scene={scene} board={projectTarget.boardProfile} centralDisplay={projectTarget.centralDisplay} onChangeBoard={changeBoardFromAssistant} onChangeCentralDisplay={changeCentralDisplayFromAssistant} onMirrorCommand={mirrorPhysicalExecution} onPhysicalStatus={reportPhysicalStatus} onPhysicalLog={appendPhysicalLog} controlRef={physicalControlRef} onClose={closeInterpreter} />}
       {buildsOpen && !offline && !guest && <FirmwareBuilds account={account} store={draftStore} csrfToken={csrfToken} capture={currentProject} fingerprint={fingerprint} targetBoardProfile={projectTarget.boardProfile} onClose={() => setBuildsOpen(false)} onProgram={job => { setBuildsOpen(false); setUsbJob(job); setUsbOpen(true); }} validate={framework => {
         const generated = buildCode(framework);
         if (generated.diagnostics.some(item => item.severity === 'error')) { setProblemsOpen(true); return null; }
@@ -1871,7 +1970,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             <label>
               Formato de código{' '}
               <select aria-label="Formato de código" value={codeFramework} disabled={exportBusy} onChange={event => buildCode(event.target.value as FirmwareFramework)}>
-                <option value="arduino">Arduino (.ino)</option>
+            <option value="arduino">Arduino (.zip)</option>
                 <option value="esp-idf">ESP-IDF nativo (.zip)</option>
               </select>
             </label>
@@ -1894,10 +1993,10 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
               title={
                 diagnostics.some((item) => item.severity === 'error')
                   ? 'Corregí los problemas antes de descargar'
-                  : codeFramework === 'esp-idf' ? 'Descargar proyecto ESP-IDF completo' : 'Descargar código Arduino'
+              : codeFramework === 'esp-idf' ? 'Descargar proyecto ESP-IDF completo' : 'Descargar proyecto Arduino completo'
               }
             >
-              <Download size={16} /> {exportBusy ? 'Preparando…' : codeFramework === 'esp-idf' ? 'Descargar ESP-IDF .zip' : 'Descargar .ino'}
+              <Download size={16} /> {exportBusy ? 'Preparando…' : `${codeFramework === 'esp-idf' ? 'Descargar ESP-IDF' : 'Descargar Arduino'} .zip`}
             </button>
           </div>
           {diagnostics.length > 0 && (

@@ -41,11 +41,11 @@ La interfaz toma del logo la calidez del crema, la legibilidad del espresso y el
 
 ## Archivos involucrados
 
-- `components/account-access.tsx`: isotipo y wordmark bicolor en login/cuenta.
-- `components/capiblocks-app.tsx`: isotipo compacto en la etiqueta Proyecto del encabezado.
+- `components/account-access.tsx`: recorte del símbolo del arte aprobado y wordmark bicolor en login/cuenta.
+- `components/capiblocks-app.tsx`: el mismo símbolo compacto en la etiqueta Proyecto del encabezado.
 - `app/globals.css`: tokens de marca, estilo localizado y ciclo de fondo con movimiento reducido.
 - `app/layout.tsx`, `public/favicon.svg`: selección del favicon de marca.
-- `public/brand/capibloques-isotipo.svg`, `public/brand/capibloques-pattern.svg`: recursos gráficos.
+- `public/brand/logo-referencia.png` es la fuente del símbolo en login y encabezado; se muestra recortada con CSS para reutilizar el arte aprobado y evitar una reconstrucción SVG distinta. `public/brand/capibloques-pattern.svg` conserva el patrón.
 - `docs/MANUAL_DE_MARCA_CAPIBLOQUES.md`: reglas generales de la marca actualizadas.
 
 ## Revisión y aceptación parcial — 8 de octubre de 2026
@@ -64,4 +64,8 @@ La interfaz toma del logo la calidez del crema, la legibilidad del espresso y el
 
 El servidor local de Vinext responde 404 en `/api/auth/session/` y `/api/school/`. Por eso el navegador sólo mostró el estado de error de conexión: no se pudo revisar visualmente el formulario de credenciales ni el logo institucional presente en una sesión normal. El editor con sesión/invitado tampoco llegó a renderizar su encabezado en ese entorno; el isotipo de “Proyecto” se verificó por markup/CSS, no por captura. El navegador integrado expuso 614 × 614 y no permitió cambiar viewport, así que quedan pendientes capturas en desktop (>1100 px) y móvil (<540 px), incluida la barra del editor en desktop.
 
-Resultado: la implementación compila y los elementos observados pasan la revisión inicial de contraste, foco y jerarquía visual. **Aceptación completa del piloto todavía pendiente** hasta revisar login normal y encabezado en viewports representativos, además de activar movimiento reducido en navegador. No se ejecutaron pruebas E2E ni se desplegó DEV. La identidad SVG sigue siendo la reconstrucción inicial documentada en el manual, no una vectorización certificada del logo de referencia.
+Resultado de la implementación inicial: compilación, accesibilidad observada y estados visibles pasaron revisión parcial. El login normal, la sesión activa del editor y los tamaños desktop/móvil siguen pendientes de captura visual. El piloto inicial se desplegó en DEV el 9 de octubre de 2026 con `bfc0673`; la verificación reportó el editor saludable y un aviso de espacio Docker insuficiente para completar la limpieza.
+
+### Corrección del isotipo — 10 de octubre de 2026
+
+El SVG reconstruido no correspondía con precisión al carpincho aprobado. Login y encabezado ahora reutilizan el arte del PNG de referencia, recortado mediante CSS para mostrar sólo el carpincho y su cuerpo rompecabezas. `mix-blend-mode: multiply` integra el fondo blanco del recurso con la superficie crema. Esta corrección no modifica el archivo original ni el favicon.

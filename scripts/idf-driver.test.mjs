@@ -145,7 +145,7 @@ async function run(name, code, checks, args = [[]]) {
   const input = resolve(directory, `${name}.cpp`), output = resolve(directory, `${name}${process.platform === 'win32' ? '.exe' : ''}`);
   await writeFile(input, `${code}\n${checks}`);
   const compile = spawnSync('g++', ['-std=c++17', '-Wall', '-Wextra', '-Werror', '-Wno-unused-parameter', '-I', directory, input, '-o', output], { encoding:'utf8', timeout:60000 });
-  assert.equal(compile.status, 0, `${name}: ${compile.error ?? compile.stderr}`);
+  assert.equal(compile.status, 0, `${name}: status=${compile.status} signal=${compile.signal ?? 'none'} error=${compile.error ?? 'none'} stdout=${compile.stdout ?? ''} stderr=${compile.stderr ?? ''}`);
   for (const values of args) {
     const result = spawnSync(output, values, { encoding:'utf8', timeout:5000 });
     assert.equal(result.status, 0, `${name} ${values}: ${result.error ?? result.stderr}`);

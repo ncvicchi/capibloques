@@ -1,6 +1,6 @@
 # Nuevas fases de CapiBloques
 
-Actualización vigente, 7 de octubre de 2026: **fase 21 entregada en software**,
+Actualización vigente, 14 de octubre de 2026: **fase 21 entregada en software**,
 con DEV y aceptación humana pendientes. El estado histórico inferior que la
 incluye en 21–22 pendientes queda sustituido por este cierre. Evidencia y
 decisiones completas: [FASE_21_ERGONOMIA_EDITOR.md](FASE_21_ERGONOMIA_EDITOR.md).
@@ -9,9 +9,9 @@ Corrección de aceptación de fase 19 (6 de octubre): restaurado contrato 400/40
 del respaldo para baja de cuentas. Prueba fallida más 16 contratos locales
 aprobados; reintento PostgreSQL/DEV pendiente. Ver guía y contexto vivo.
 
-Plan elaborado el 8 de septiembre de 2026 y actualizado el 8 de octubre de 2026. **Fases 11–17, 19, 27–33, 35–42 entregadas en software; fases 18, 20, 23, 34, 44 y 45 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`, aunque cada cierre posterior requiere su actualización explícita. La fase 19 está implementada en software con aceptación DEV/pedagógica pendiente; 21–22, 24–26 y 43 permanecen pendientes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
+Plan elaborado el 8 de septiembre de 2026 y actualizado el 14 de octubre de 2026. **Fases 11–17, 19, 27–33, 35–42 entregadas en software; fases 18, 20, 23, 34, 44 y 45 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`, aunque cada cierre posterior requiere su actualización explícita. La fase 19 está implementada en software con aceptación DEV/pedagógica pendiente; 21–22, 24–26 y 43 permanecen pendientes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
 
-Ampliación transversal autorizada el 8 de octubre: primera entrega del [modo invitado](MODO_INVITADO.md), sin asignarlo a una fase numerada. Incluye entrada desde login, editor y recuperación local anónima. Biblioteca de cuenta/desafíos y compilación/placa permanecen bloqueadas en invitado. Oferta para guardar en la cuenta y acceso invitado a compilación/placa no forman parte de esta entrega. Sin despliegue DEV registrado.
+Ampliación transversal del [modo invitado](MODO_INVITADO.md), sin asignarlo a una fase numerada: la primera entrega agregó ingreso y recuperación local anónima; la ampliación autorizada el 14 de octubre habilita instalar firmware intérprete CapiBloques y ejecutar reglas locales por USB. Biblioteca, desafíos y compilación específica siguen bloqueados. La aceptación física y el despliegue DEV de esta ampliación no se presumen.
 
 La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y **postergada**. Las nuevas fases continúan con enteros consecutivos; no hay fases con letras ni entregas parciales presentadas como fases completas. La fase 10 conserva su aceptación física pendiente por falta de Wemos. Los pedidos del 23 de septiembre amplían la fase 19 y continúan hasta la fase 41 sin alterar entregas cerradas; la simplificación y displays solicitados el 25 de septiembre son las fases 42–43, y la experiencia Waveshare y escenas visuales solicitadas el 26 son 44–45.
 
@@ -763,6 +763,29 @@ movimiento grupal, alineación/distribución, grilla configurable, orden visual
 persistente, guías magnéticas, cajas compartidas, anclas de rótulo y avisos de
 solapamiento; Waveshare consume el mismo orden y criterio de anclas. Quedan
 capturas de referencia, mediciones y aceptación física.
+
+El 14 de octubre se recuperó la oferta de las cinco aventuras en la rama
+`codex/adventures-pilot-v2`, basada en `93561ab`, integrada con `origin/main` y
+con revert explícito `646d730` de `5731650`. Typecheck, lint, smoke básico,
+workbench y prueba de mundos pasan. La suite smoke general no pudo completarse
+porque dos pruebas requieren `g++`, ausente en `capi-dev`; no se instala
+toolchain pesada fuera de su fase. El PR #1 sigue abierto; E2E/aceptación visual
+y actualización DEV aún pendientes. La recuperación no cierra la fase 45 ni sus
+aceptaciones de Waveshare.
+Los checks del primer head del PR fallaron en firmware (tipos no declarados tras
+el preprocesador Arduino) y en `verify` (`idf-driver.test.mjs` no ejecutó su
+binario nativo); ambos deben repetirse sobre el head actual antes de integrar.
+En `e98e0b8`, firmware falló por prototipos Arduino antes de `OttoDevice`;
+ESP-IDF falló por dos líneas Waveshare rechazadas por `-Werror` y `idf-driver`
+falló al compilar `runtime`: `g++` devolvió `status=null`, sin registrar señal,
+stdout ni stderr. Se amplió la salida del test para capturar esos datos en CI.
+En run 273, backend, ESP-IDF, Wemos, S3 y siete perfiles Arduino pasaron; `verify`
+sigue fallando en `idf-driver` con el mismo mensaje sin señal/diagnóstico. En el
+árbol local Arduino se exporta como ZIP con un `.ino` mínimo y
+`capibloques_program.h`; exportación, revisión docente, compilador servidor y
+fixtures comparten el formato. Las dos sentencias ESP-IDF se separaron.
+Typecheck, lint dirigido y pruebas locales relevantes pasan; Arduino CLI y `g++`
+no están disponibles localmente. Sin `verify` verde, no integrar ni desplegar.
 
 ## Fase final — Producción y piloto, postergada
 

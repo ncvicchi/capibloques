@@ -1,6 +1,42 @@
 # CapiBloques — contexto para continuar
 
-Documento vivo iniciado en **fase 11**. Actualización: **8 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
+Documento vivo iniciado en **fase 11**. Actualización: **14 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
+
+### Recuperación de aventuras sobre la rama del piloto visual — 14 de octubre
+
+Se creó `codex/adventures-pilot-v2` desde `93561ab88f663205a96d14d0828ad08f39fbffa6`,
+el último commit anterior a la eliminación. Se reaplicó el piloto visual de
+`bfc0673` y los cuatro refinamientos locales, preservados en `92f04e4` y
+reaplicados en `73e91b5`. Para que el PR exprese de forma explícita la
+restauración, se integró `origin/main` y se creó el commit `646d730`, que revierte
+`5731650`. El PR #1 está abierto con esta corrección; su merge y DEV están
+pendientes.
+
+Las aventuras serializables y su selección/composición en «Armar escena» están
+presentes en esta rama. `tsc --noEmit`, lint, `scripts/smoke.mjs`,
+`scripts/scene-worlds.test.mjs`, `scripts/workbench.test.mjs` y `git diff --check`
+pasaron. La smoke suite completa no pudo completarse: `frame-animation` e
+`interpreter-source` necesitan `g++`, ausente en `capi-dev`; no se instaló
+toolchain. No se ejecutó E2E. El orquestador despliega `origin/main`; esperar el
+merge del PR #1 y checks antes de ejecutar DEV. Aceptación visual/humana
+pendiente. En el head remoto `e98e0b8`, CI reportó Arduino con prototipos
+generados antes de `OttoDevice`, dos avisos `-Werror=misleading-indentation` en
+Waveshare y fallo de `idf-driver`: `g++` devolvió `status=null` compilando
+`runtime`, y la prueba no registraba señal/stdout/stderr, así que el log no
+permite distinguir la causa. Se amplió el diagnóstico de esa aserción. Backend y
+scope pasaron. En el árbol local sin subir, Arduino ahora exporta un
+ZIP con `.ino` mínimo y `capibloques_program.h`; interfaz, revisión docente y
+compilador servidor comparten este formato. Se corrigieron también las dos
+sentencias de Waveshare y el nombre de sketch de las fixtures. Typecheck, lint
+dirigido, smoke básico y pruebas dirigidas (pantallas, Otto, módulos educativos,
+carteles, ESP-IDF y generador servidor) pasan. El generador servidor omite el
+primer fixture v2 antiguo porque ya no satisface el validador actual. En GitHub
+run 273, backend, firmware Arduino (Wemos, S3 y siete perfiles) y ESP-IDF pasaron;
+`verify` falló en `idf-driver`, cuyo `g++` termina con `status=null` compilando
+`runtime`, sin señal/stderr en el log. Se amplió el diagnóstico en `ea2a034`,
+pero el log del run sigue mostrando el formato anterior. PR #1 no está listo para
+integración ni deploy hasta corregir `idf-driver` y obtener `verify` verde. No hay
+Arduino CLI ni `g++` localmente.
 
 ### Piloto visual CapiBloques — login, favicon y encabezado (8 de octubre)
 
@@ -40,39 +76,27 @@ No hay migraciones ni cambios de firmware; mínimo intérprete sigue 1.9.0.
 El propietario actualiza con el comando habitual --fast que aparece debajo.
 No iniciar fase 22 ni operar DEV sin autorización.
 
-### Primera entrega del modo invitado — 8 de octubre de 2026
+### Modo invitado — ampliación USB autorizada el 14 de octubre de 2026
 
-Implementación local autorizada: el login ofrece **Ingresar como invitado** y
-abre el editor sin sesión; un espacio anónimo separado en IndexedDB conserva el
-proyecto entre recargas/cierres. Se ocultan biblioteca de cuenta, desafíos,
-compilación específica y uso con placa. No hay sincronización ni migración
-automática a una cuenta; la oferta para guardar el proyecto en una cuenta al
-iniciar sesión queda para una entrega posterior. No se desplegó DEV. Typecheck
-completo y lint dirigido de componentes pasaron. Se agregó un recorrido E2E,
-pero Playwright no pudo iniciarlo porque falta el binario Chromium local; no se
-instaló. `git diff --check` pasó. Detalle: [MODO_INVITADO.md](MODO_INVITADO.md).
+El login ofrece **Ingresar como invitado** y abre el editor sin sesión; un
+espacio anónimo separado en IndexedDB conserva el proyecto entre
+recargas/cierres. La ampliación autorizada permite abrir **Usar en placa**,
+instalar el firmware intérprete publicado y enviar/ejecutar las reglas locales
+por USB. No consulta sesión de cuenta ni envía el proyecto/reglas a la API.
+Biblioteca de cuenta, desafíos, compilación específica, monitor Serial y
+migración/oferta de guardado en cuenta siguen fuera de alcance. Typecheck y
+oxlint dirigido pasaron; E2E invitado no pudo lanzar Chromium porque falta el
+ejecutable local. No se instaló ni se probó placa física ni se desplegó DEV.
+Detalle y pendientes: [MODO_INVITADO.md](MODO_INVITADO.md).
 
-### Ajuste inicial de «Armar escena» — 8 de octubre de 2026
+### Registro histórico de ajustes de escena y bloqueo DEV — octubre de 2026
 
-Por pedido del propietario, retiré la galería de aventuras/ejemplos prearmados,
-su acción en el menú Proyecto y el comando expuesto al asistente. Proyectos
-nuevos abren con «Mi proyecto» y una escena vacía; «Nuevo proyecto» hace lo
-mismo. «Armar escena» conserva componentes alfabéticos, propiedades ampliadas,
-encabezado breve y Guardar/Cancelar, sin controles de nombre/fondo, combinación
-de aventuras, alineación/distribución/capas ni X. El primer semáforo prepara el
-cruce automáticamente para que siga pudiéndose añadir sin el selector de fondo.
-La compatibilidad interna con escenas antiguas queda sólo para migración y
-fixtures, sin opciones visibles. README, backlog, guía de fase 45 y pruebas
-existentes se actualizaron. Verificación: `tsc --noEmit`, lint del código
-modificado y `git diff --check` pasaron. Se actualizaron recorridos E2E
-existentes, pero no se ejecutaron pruebas funcionales. Commit `5731650` está
-publicado en `origin/main`. DEV no se actualizó: falta en este equipo la
-configuración SSH privada `capibloques-dev.conf`, necesaria para identificar
-`capi-dev` y usar sólo el bastión como salto TCP. Desde la PC configurada, el
-propietario puede completar el pedido con
-`powershell -File .\scripts\deploy-dev.ps1 -Fast`; no compartir claves ni
-contraseñas en el repositorio o el chat.
-
+El 8 de octubre se publicó en `main` el commit `5731650`, que retiraba las
+aventuras prearmadas y simplificaba «Armar escena». La rama de recuperación
+incluye ahora `646d730`, que revierte explícitamente ese retiro sobre
+`origin/main`. El piloto visual sigue aplicado. El PR #1 está abierto; el merge
+y el despliegue DEV quedan pendientes. No copiar claves ni contraseñas al
+repositorio o al chat.
 ### Corrección de aceptación DEV — 6 de octubre de 2026
 
 El propietario informó 230 pruebas backend con una falla: recibo vacío de baja
@@ -155,7 +179,7 @@ DEV o hardware estén probados hasta confirmación del propietario.
 
 - Repositorio: [ncvicchi/capibloques](https://github.com/ncvicchi/capibloques). Rama de trabajo actual: `main`. Nuevas ramas, si hacen falta: prefijo `codex/`. Respetar el árbol existente, sin reset/force ni descartar cambios ajenos.
 - El propietario autorizó y se implementaron en software las fases **17, 18, 35, 38, 39, 40 y 41**. Las fases de hardware conservan aceptación física pendiente; no convertir esa ausencia de módulos en una prueba aprobada.
-- **Fases 11–17, 19–20, 27–33 y 35–41 entregadas en software; fases 18, 23, 34 y 45 en curso.** La fase 45 conserva el trabajo de fondos, geometría compartida, cajas/anclas, avisos de solapamiento y paridad con Waveshare para representar escenas guardadas/importadas. Por pedido del 8 de octubre ya no expone aventuras prearmadas ni controles para cambiar fondo, alinear/distribuir/cambiar capas. Le faltan capturas de referencia, mediciones y aceptación física. Las entregas que involucran hardware conservan sus aceptaciones físicas explícitas.
+- **Fases 11–17, 19–20, 27–33 y 35–41 entregadas en software; fases 18, 23, 34 y 45 en curso.** La fase 45 ya tiene fondos/aventuras y una segunda entrega con selección múltiple, alineación/distribución, grilla configurable, guías magnéticas, orden visual persistente, cajas/anclas, avisos de solapamiento y el mismo orden/anclas en Waveshare. Le faltan capturas de referencia, mediciones y aceptación física. Las entregas que involucran hardware conservan sus aceptaciones físicas explícitas.
 - Fase 10: software entregado, **aceptación física pendiente**. El propietario no tiene Wemos disponible; no dar por probada la placa ni conectar/programar otro puerto como sustituto.
 - Producción es **Fase final, postergada**, no «fase 11». Los documentos históricos con letras son evidencias antiguas, no fases nuevas ni puntos para pedir OK.
 - Este contexto no transfiere automáticamente credenciales, chats, sesiones ni permisos. Otra cuenta debe tener su propio acceso verificado y la solicitud del propietario antes de operar.

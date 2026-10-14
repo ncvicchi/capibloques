@@ -41,7 +41,8 @@ bool capiGtWrite(uint16_t reg, uint8_t value) {
 }
 void capiTouchService() {
   static uint32_t last = 0; const uint32_t now = capiMillis();
-  if ((uint32_t)(now - last) < 16U) return; last = now;
+  if ((uint32_t)(now - last) < 16U) return;
+  last = now;
   uint8_t status = 0; if (!capiGtRead(0x814e, &status, 1) || !(status & 0x80)) return;
   const uint8_t points = status & 0x0f; capiTouchDown = points > 0;
   if (points) { uint8_t point[4]; if (capiGtRead(0x8150, point, sizeof(point))) {
@@ -84,7 +85,8 @@ void capiDisplayBegin() {
 void capiDisplayService(uint32_t now) {
   capiTouchService(); capiDisplayAnimationService(now);
   static uint32_t last = 0; static uint16_t cursor = 0;
-  if (!capiDisplayReady || (uint32_t)(now - last) < 2U) return; last = now;
+  if (!capiDisplayReady || (uint32_t)(now - last) < 2U) return;
+  last = now;
   for (uint16_t scanned = 0; scanned < CAPI_DISPLAY_CELLS; ++scanned) {
     const uint16_t index = cursor; cursor = (cursor + 1) % CAPI_DISPLAY_CELLS;
     if (capiDisplaySent[index] == capiDisplayWanted[index]) continue;

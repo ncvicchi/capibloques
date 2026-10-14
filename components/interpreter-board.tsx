@@ -56,7 +56,7 @@ function BoardPhoto({ id }: { id: BoardProfileId }) {
   return <figure className={`board-photo-figure ${id === 'diymall-esp32-s3-devkitc-v1-n16r8' ? 'is-diymall' : ''}`}><img src={boardPhotos[id]} alt={`${boardProfile(id).name}, vista superior`} loading="lazy" /><figcaption>{boardProfile(id).shortName}</figcaption></figure>;
 }
 
-export default function InterpreterBoard({ account, store, program, scene, board, centralDisplay, onChangeBoard, onChangeCentralDisplay, onMirrorCommand, onPhysicalStatus, onPhysicalLog, controlRef, onClose }: { account: Account; store: AccountDraftStore; program: CompiledProgram; scene: SceneDefinition; board: BoardProfileId; centralDisplay?: CentralDisplayTarget; onChangeBoard: (board: BoardProfileId, scene: SceneDefinition) => void; onChangeCentralDisplay: (centralDisplay?: CentralDisplayTarget) => void; onMirrorCommand: (command: 'RUN' | 'PAUSE' | 'RESUME' | 'STEP' | 'STOP' | 'RESET_PROGRAM' | 'DONE') => void; onPhysicalStatus: (stage: string, message: string) => void; onPhysicalLog: (message: string) => void; controlRef: RefObject<PhysicalBoardControl | null>; onClose: () => void }) {
+export default function InterpreterBoard({ account, store, guest = false, program, scene, board, centralDisplay, onChangeBoard, onChangeCentralDisplay, onMirrorCommand, onPhysicalStatus, onPhysicalLog, controlRef, onClose }: { account: Account; store: AccountDraftStore; guest?: boolean; program: CompiledProgram; scene: SceneDefinition; board: BoardProfileId; centralDisplay?: CentralDisplayTarget; onChangeBoard: (board: BoardProfileId, scene: SceneDefinition) => void; onChangeCentralDisplay: (centralDisplay?: CentralDisplayTarget) => void; onMirrorCommand: (command: 'RUN' | 'PAUSE' | 'RESUME' | 'STEP' | 'STOP' | 'RESET_PROGRAM' | 'DONE') => void; onPhysicalStatus: (stage: string, message: string) => void; onPhysicalLog: (message: string) => void; controlRef: RefObject<PhysicalBoardControl | null>; onClose: () => void }) {
   const [session] = useState(() => new InterpreterSession());
   const state = useSyncExternalStore(session.subscribe, session.snapshot, session.snapshot);
   const [installer] = useState(() => new UsbSession(createEspDriver));
@@ -151,6 +151,7 @@ export default function InterpreterBoard({ account, store, program, scene, board
   }), [program, scene]);
   useEffect(() => () => { void session.close(); installer.dispose(); }, [installer, session]);
   useEffect(() => {
+    if (guest) return;
     let alive = true;
     const revoke = () => { if (!alive) return; setRevoked(true); void session.close(); installer.cancel(); };
     const stop = watchSessionChange(revoke);
@@ -160,8 +161,12 @@ export default function InterpreterBoard({ account, store, program, scene, board
     };
     void check(); const timer = window.setInterval(() => void check(), 60_000);
     return () => { alive = false; stop(); clearInterval(timer); };
-  }, [account.id, installer, session, store]);
+  }, [account.id, guest, installer, session, store]);
   const verifySession = async (signal?: AbortSignal) => {
+    if (guest) {
+      if (!store.active) throw new Error('El modo invitado se cerró. Volvé a abrir el editor antes de usar la placa.');
+      return;
+    }
     if (!store.active || !store.remoteAllowed || sessionChangePending()) throw new Error('La sesión cambió. Volvé a ingresar antes de usar la placa.');
     const response = await fetch('/api/auth/session/', { cache: 'no-store', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(8000)]) : AbortSignal.timeout(8000) });
     if (!response.ok || (await response.json() as { user?: Account }).user?.id !== account.id) throw new Error('La sesión cambió. Volvé a ingresar antes de usar la placa.');

@@ -4,10 +4,11 @@ Seguimiento de fase 19, 6 de octubre: corregido fallo de aceptación DEV en
 respuesta de baja sin recibo (400, no 409). No es una fase nueva. Evidencia y
 reintento pendiente en la guía de fase 19 y el contexto vivo.
 
-Ampliación transversal autorizada el 8 de octubre: primera entrega parcial del
-modo invitado, registrada en [MODO_INVITADO.md](MODO_INVITADO.md). Login de
-invitado, editor y recuperación local anónima implementados en checkout; el
-guardado en cuenta, compilación y placa para invitados siguen pendientes.
+Ampliación transversal del modo invitado, registrada en
+[MODO_INVITADO.md](MODO_INVITADO.md): login, editor y recuperación local
+anónima; firmware intérprete y ejecución de programas por USB autorizados el
+14 de octubre. Guardado en cuenta, compilación específica y placa remota siguen
+fuera de alcance.
 
 Pedidos del propietario desde el 7 de septiembre de 2026, registrados durante distintas entregas. El 8 de septiembre se asignaron a las [nuevas fases](PLAN_FASES_BACKLOG.md), precedidas por una fase de contexto portable para otra cuenta. **La fase 12 implementa los pedidos 1, 6, 8 y 10, y la parte Wemos del 9; la fase 14 implementa los pedidos 4, 5 y 7**. Alcance, pruebas y límites en sus guías de entrega. Los restantes siguen pendientes. Los números de este archivo identifican pedidos, no fases. Las notas de «no interrumpir» son históricas, referidas a la entrega que transcurría cuando se hizo cada solicitud; no sustituyen el estado ni las autorizaciones del plan vigente.
 
@@ -281,7 +282,7 @@ Bloques iniciales propuestos:
 - acciones «mostrar [texto/valor] en [indicador web]» y «actualizar la escena del panel»;
 - una marca de mensaje nuevo para que el mismo texto no dispare una acción indefinidamente.
 
-El diseño recomendado conserva «al comenzar» como entrada única del programa y trata los controles web como sensores/entradas que pueden consultarse o esperarse dentro de caminos normales. No vincular directamente un botón del celular con un motor por fuera del programa: cada decisión queda visible y programable por el alumno. El generador deriva de escena y programa un manifiesto cerrado de vistas, inputs, outputs y estados; el firmware no acepta que el celular agregue controles o código en ejecución.
+El diseño recomendado conserva «al comenzar» como entrada única del programa y trata los controles web como sensores/entradas que pueden consultarse o esperarse dentro de caminos normales. No vincular directamente un botón del celular con un motor por fuera del programa: las plantillas pueden preparar bloques sencillos, pero la decisión queda visible y programable por el alumno. El generador deriva de escena y programa un manifiesto cerrado de vistas, inputs, outputs y estados; el firmware no acepta que el celular agregue controles o código en ejecución.
 
 ### Ejecución desde el celular
 
@@ -704,25 +705,43 @@ aceptación en
 
 ## 46. Escenas atractivas, fondos y rótulos fieles
 
-Pedido del 26 de septiembre de 2026: mejorar las escenas y conservar exactamente
-la composición entre editor, simulación, revisión y Waveshare. Incluye
-fondos/decoración con detalle, geometría compartida, capas, anclas, cajas reales
-y rótulos sin colisiones. El caso observado de dos semáforos debe mantener ambos
-nombres legibles sin mover los componentes.
+Pedido del 26 de septiembre de 2026: mejorar las plantillas —el jardín actual no
+puede quedar reducido a tres franjas— y conservar exactamente la composición
+entre editor, simulación, revisión y Waveshare. Incluye fondos/decoración con
+detalle, geometría compartida, capas, anclas, cajas reales y rótulos sin
+colisiones. El caso observado de dos semáforos debe mantener ambos nombres
+legibles sin mover los componentes.
 
 Asignación: **fase 45 — Escenas atractivas y fidelidad visual completa**. Absorbe
 el pedido 40 que antes estaba en fase 21 y agrega paridad de fondo con Waveshare.
 Contrato y aceptación en
 [FASE_45_ESCENAS_VISUALES.md](FASE_45_ESCENAS_VISUALES.md).
 
-Cambio solicitado por el propietario el 8 de octubre de 2026: retirar de toda la
-interfaz las aventuras/escenas prearmadas y no volver a ofrecerlas como ejemplos,
-plantillas, misiones ni acciones del asistente. Los proyectos empiezan con una
-escena vacía. La compatibilidad interna sólo puede conservarse para abrir datos
-históricos y fixtures de pruebas; no debe alimentar opciones visibles ni un
-proyecto nuevo. Este retiro no elimina la fidelidad visual de escenas creadas por
-el usuario ni la composición compartida entre editor, simulación, revisión y
-Waveshare. Cualquier reconsideración requiere una solicitud explícita posterior.
+Recuperación del 14 de octubre de 2026: a pedido del propietario se reconstruyó
+`codex/adventures-pilot-v2` desde el commit anterior al retiro y se integró
+`origin/main`; el commit `646d730` revierte explícitamente `5731650` para que el
+PR #1 restaure los cinco mundos y la autoría desde la versión publicada. Se
+reaplicaron el piloto visual y los cambios locales de identidad. Typecheck,
+lint, smoke básico, workbench y prueba de mundos/plantillas pasaron. La smoke
+suite completa no pudo ejecutarse: `frame-animation.test.mjs` e
+`interpreter-source.test.mjs` requieren `g++`, ausente en `capi-dev`; no se
+instala toolchain pesada fuera de su fase. E2E/visual y DEV quedan pendientes del
+PR/checks. Los checks de la primera revisión del PR (antes del head actual)
+fallaron: `firmware` mostró tipos de dispositivos no declarados tras el
+preprocesado de Arduino y `verify` no pudo ejecutar el binario de
+`idf-driver.test.mjs`. En `e98e0b8`, GitHub reportó: firmware, prototipos Arduino
+con `OttoDevice` antes del tipo; ESP-IDF, dos `-Werror=misleading-indentation`
+en Waveshare; `verify`, fallo en `idf-driver`. En `ea2a034`, GitHub CI run 273
+pasó `backend`, `firmware` (Wemos, S3 y siete perfiles) y `esp-idf`; `verify`
+sigue fallando en `idf-driver`, donde `g++` devuelve `status=null` compilando
+`runtime`, sin señal ni stderr. Se subió un diagnóstico ampliado, pero el run
+aún muestra el mensaje anterior; falta aclarar y corregir ese fallo. Arduino se
+empaqueta como ZIP con `.ino` mínimo y `capibloques_program.h`, evitando la
+reordenación de prototipos; editor, revisión docente y compilador servidor
+comparten el formato. Se separaron dos sentencias Waveshare rechazadas por
+`-Werror`. Typecheck, lint dirigido y pruebas locales relevantes pasan; no hay
+Arduino CLI ni `g++` localmente. PR #1 no es integrable ni desplegable hasta que
+`verify` pase.
 
 ## Pedidos externos a analizar
 
@@ -844,7 +863,7 @@ El [plan principal](PLAN_MULTIUSUARIO_PROXMOX.md) y el [alcance detallado de las
 | 43. Waveshare como Pantalla central Wi‑Fi | 18, 20 y 34. Escena compartida, selección/provisión de la pareja y telemetría/entradas remotas |
 | 44. Raspberry Pi como Central CapiBloques | Para análisis. Primero central de escenas/telemetría/controles; GPIO Linux queda como posibilidad posterior separada |
 | 45. Waveshare como laboratorio interactivo y autónomo | 44. Touch, depuración física, escenarios, autonomía y actividades entre placas |
-| 46. Escenas atractivas, fondos y rótulos fieles | 45. Composición única en editor, web y Waveshare |
+| 46. Escenas atractivas, fondos y rótulos fieles | 45. Plantillas enriquecidas y composición única en editor, web y Waveshare |
 | 23. Reducir al mínimo la latencia de compilación | 20. Medición, caché, precompilación y arquitectura del compilador |
 
 Las observaciones externas quedan asignadas así: fase 20 resolvió el recorrido cotidiano mediante firmware intérprete/reglas y conserva el compilador como modo avanzado; fase 21 cubre superposición de bloques y claridad/ergonomía de edición; fase 45 concentra la fidelidad espacial y visual de escenas; fase 22 avatar, fase 25 enlaces/QR y fase 26 acceso de aula/asistencia. Producción es la **Fase final, postergada**, fuera de esta numeración. Las fases 10 y 20 mantienen aceptación física pendiente. La fase 23 está en curso con la matriz implementada; el resto requiere autorización propia. Los números de pedido no son fases nuevas.

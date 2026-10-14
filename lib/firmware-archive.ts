@@ -148,6 +148,21 @@ export function zipFirmwareFiles(files: FirmwareFiles): Uint8Array {
   return bytes;
 }
 
+/** Arduino auto-generates prototypes in .ino files before user-defined types.
+ * Keep the implementation in a header so the sketch preprocessor cannot
+ * reorder those declarations ahead of the generated device types. */
+export function arduinoProjectFiles(generated: CodeGenerationResult): FirmwareFiles {
+  if (generated.framework !== 'arduino' || generated.diagnostics.some(issue => issue.severity === 'error'))
+    throw new Error('Corregí el programa y las conexiones antes de exportar Arduino.');
+  const program = generated.code.trimStart();
+  const sketch = `// Sketch CapiBloques. Mantener junto a capibloques_program.h.\n#include "capibloques_program.h"\n`;
+  return { 'capibloques/capibloques.ino': sketch, 'capibloques/capibloques_program.h': `#pragma once\n${program}\n` };
+}
+
+export function createArduinoArchive(generated: CodeGenerationResult) {
+  return zipFirmwareFiles(arduinoProjectFiles(generated));
+}
+
 export async function createEspIdfArchive(generated: CodeGenerationResult) {
   const files = espIdfProjectFiles(generated);
   const hashes: Record<string, string> = {};

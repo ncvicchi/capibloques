@@ -1202,13 +1202,13 @@ export interface CreateSceneOptions {
 }
 
 export function createEmptyScene(
-  name = 'Mi escena',
+  name = 'Mi aventura',
   options: CreateSceneOptions = {},
 ): SceneDefinition {
   return {
     schemaVersion: SCENE_SCHEMA_VERSION,
     id: options.id ?? `scene-${slugify(name) || 'adventure'}`,
-    name: normalizeName(name, 'Mi escena'),
+    name: normalizeName(name, 'Mi aventura'),
     description: options.description ?? '',
     canvas: { ...defaultCanvas, ...options.canvas },
     devices: [],
@@ -2628,7 +2628,7 @@ export interface SceneMigrationResult {
  */
 export function migrateSceneDefinition(
   value: unknown,
-  _fallback: LegacySceneId = 'traffic',
+  fallback: LegacySceneId = 'traffic',
 ): SceneMigrationResult {
   if (isSceneDefinition(value)) {
     const scene = cloneScene(value);
@@ -2741,10 +2741,10 @@ export function migrateSceneDefinition(
     }
   }
   return {
-    scene: createEmptyScene('Mi escena'),
+    scene: migrateLegacyScene(fallback),
     migrated: true,
     warnings: [
-      'No se reconoció la escena guardada. Se abrió una escena vacía sin perder el programa de bloques.',
+      `No se reconoció la escena guardada. Se cargó la plantilla “${fallback}” sin perder el programa de bloques.`,
     ],
   };
 }

@@ -4,7 +4,6 @@ import { watchPeriodicRefresh } from '@/lib/session-polling';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { ArrowLeft, Eye, EyeOff, KeyRound, LogOut, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -129,7 +128,7 @@ export default function AccountAccess() {
       <section className="account-card" aria-labelledby="account-title" aria-busy={loading || busy}>
         <SchoolBrand />
         <header className="account-heading">
-          <Image className="account-brand-icon" src="/brand/capibloques-isotipo.svg" alt="" aria-hidden="true" width={44} height={36} unoptimized />
+          <span className="account-brand-icon" aria-hidden="true" />
           <div><span className="account-brand"><span>Capi</span><span>Bloques</span></span><h1 id="account-title">{user ? 'Mi cuenta' : 'Ingresar'}</h1></div>
         </header>
         {loading ? <><output>Comprobando tu sesión…</output><Button variant="outline" className="account-action" onClick={() => window.location.assign('/?guest=1')}>Ingresar como invitado</Button></> : <>

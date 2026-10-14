@@ -1,7 +1,7 @@
 // Fixed generator: no evaluated input, sources, paths or flags from the client.
 import * as Blockly from 'blockly';
 import { decodeProject, generateEsp32CodeResult, programUsesWifi } from '../lib/capiblocks.ts';
-import { espIdfProjectFiles } from '../lib/firmware-archive.ts';
+import { arduinoProjectFiles, espIdfProjectFiles } from '../lib/firmware-archive.ts';
 import { registerBlocks, ensureSingleStart, compileWorkspace, workspaceDevices,
   workspaceBoardProfiles, serializedDeviceIds, serializedAreaIds, collectSerializedDeviceIds, refreshDeviceFields } from '../lib/blockly-engine.ts';
 
@@ -30,10 +30,10 @@ export function generateBuild(document, framework, wifi = null) {
   if (!usesWifi && wifi) throw new Error('Este programa no utiliza Wi-Fi.');
   // Fixed-width octal byte escapes prevent C++/preprocessor injection.
   const literal = value => '"' + [...Buffer.from(value, 'utf8')].map(byte => '\\' + byte.toString(8).padStart(3, '0')).join('') + '"';
-  const files = framework === 'esp-idf' ? espIdfProjectFiles(result) : { 'capibloques/capibloques.ino': result.code };
+  const files = framework === 'esp-idf' ? espIdfProjectFiles(result) : arduinoProjectFiles(result);
   if (wifi) {
     if (framework === 'esp-idf') files['main/wifi_config.h'] = `#pragma once\n#define CAPI_WIFI_SSID ${literal(wifi.ssid)}\n#define CAPI_WIFI_PASSWORD ${literal(wifi.password)}\n`;
-    else files['capibloques/capibloques.ino'] = result.code.replace('const char* WIFI_SSID = "TU_RED";', `const char* WIFI_SSID = ${literal(wifi.ssid)};`).replace('const char* WIFI_PASSWORD = "TU_CLAVE";', `const char* WIFI_PASSWORD = ${literal(wifi.password)};`);
+    else files['capibloques/capibloques_program.h'] = files['capibloques/capibloques_program.h'].replace('const char* WIFI_SSID = "TU_RED";', `const char* WIFI_SSID = ${literal(wifi.ssid)};`).replace('const char* WIFI_PASSWORD = "TU_CLAVE";', `const char* WIFI_PASSWORD = ${literal(wifi.password)};`);
   }
   return { files, usesWifi, program: result.program, target: project.target };
 }

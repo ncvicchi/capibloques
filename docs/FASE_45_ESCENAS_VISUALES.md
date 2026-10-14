@@ -4,22 +4,43 @@ Estado: **en curso; segunda entrega funcional el 3 de octubre de 2026**.
 Reúne y amplía la antigua asignación de fidelidad espacial de fase 21; no queda
 duplicada allí.
 
-### Cambio de alcance del 8 de octubre de 2026
+### Recuperación de la oferta de aventuras — 14 de octubre de 2026
 
-Por pedido del propietario, CapiBloques no muestra ni ofrece aventuras/escenas
-prearmadas, ejemplos de proyecto ni plantillas para iniciar o combinar escenas.
-Los proyectos nuevos comienzan vacíos. Las descripciones de plantillas que
-aparecen en el historial de entregas de abajo registran trabajo anterior y no
-autorizan volver a exponerlas. La compatibilidad de datos históricos y los
-fixtures técnicos pueden conservarse internamente; no deben poblar la interfaz.
-La fase sigue cubriendo la fidelidad de las escenas que construye el usuario.
+La rama `codex/adventures-pilot-v2` parte de `93561ab`, integra `origin/main` y
+añade el revert explícito `646d730` de `5731650`, de modo que el PR restaure
+Cruce de la escuela, Pista de reparto, Huerta inteligente, Entrada segura y
+Estación del clima, junto con su flujo para seleccionarlas y combinarlas desde
+«Armar escena». El piloto visual y los refinamientos locales de identidad se
+reaplicaron. Typecheck, lint, smoke básico, workbench, mundos/plantillas y
+`git diff --check` pasaron. La smoke suite completa no pudo ejecutarse porque
+`frame-animation` e `interpreter-source` necesitan `g++`, ausente en `capi-dev`;
+no se instaló toolchain. E2E/aceptación visual, capturas/mediciones y aceptación
+física de Waveshare quedan pendientes; el PR #1 sigue abierto y la fase no cierra.
+Los checks del primer head del PR fallaron en firmware (tipos no declarados tras
+el preprocesador Arduino) y en `verify` (`idf-driver.test.mjs` no ejecutó su
+binario nativo); esa revisión precede al revert explícito y requiere una nueva
+ejecución antes de integrar o desplegar.
+En `e98e0b8`, CI falló: Arduino ubicó prototipos para `OttoDevice` antes del tipo;
+ESP-IDF encontró dos líneas Waveshare rechazadas por `-Werror`; `idf-driver`
+falló cuando `g++` devolvió `status=null` al compilar `runtime`; la prueba
+omitía señal/stdout/stderr. Se amplió su mensaje de diagnóstico para la siguiente
+ejecución. En el árbol local sin subir, el
+proyecto Arduino se exporta como ZIP con `.ino` mínimo y encabezado generado,
+para impedir que Arduino reordene esos prototipos. El editor, revisión docente,
+compilador servidor y fixtures usan el mismo esquema; las dos líneas Waveshare
+se separaron. Pasan typecheck, lint dirigido y pruebas locales dirigidas, pero
+Arduino ya pasó Wemos, S3 y siete perfiles en CI, y el build ESP-IDF/backend también
+pasó en run 273. `verify` aún falla en `idf-driver`: `g++` devuelve `status=null`
+compilando `runtime`; la señal/causa sigue sin aparecer en el log pese al ajuste
+de diagnóstico subido. `g++` y Arduino CLI no están instalados localmente. No
+integrar/desplegar hasta resolver `idf-driver` y obtener CI verde.
 
 ## Entregado en la primera implementación
 
-- Cinco aventuras nuevas y serializables incorporadas como datos internos en la primera entrega: **Cruce de la escuela**, **Pista de
+- Cinco aventuras nuevas y serializables: **Cruce de la escuela**, **Pista de
   reparto**, **Huerta inteligente**, **Entrada segura** y **Estación del clima**.
-  Usan únicamente componentes actuales. Su disponibilidad en interfaz quedó
-  retirada el 8 de octubre de 2026 por pedido del propietario.
+  Usan únicamente componentes actuales y también pueden combinarse desde Armar
+  escena.
 - Diez fondos vectoriales locales en total. Parque, taller, casa y laguna ya no
   dependen sólo de franjas; cruce, pista, huerta, entrada y patio meteorológico
   tienen zonas reconocibles y escalan con el mismo lienzo lógico de 960 × 540.
@@ -117,9 +138,9 @@ nombres en la simulación web, revisión docente y Waveshare.
 
 ## Escenas más lindas
 
-- Mantener fondos heredados visualmente ricos al abrir proyectos que ya los
-  contienen. El jardín usa cielo, terreno, sendero, vegetación, flores, nubes y
-  detalles suaves que no compiten con los componentes.
+- Rediseñar las plantillas existentes. El jardín deja de ser tres franjas y
+  agrega cielo, terreno, sendero, vegetación, flores, nubes y detalles suaves que
+  ayuden a contar una historia sin competir con los componentes.
 - Aplicar el mismo criterio a ciudad/semaforización, robot, aula, laboratorio y
   demás fondos: profundidad simple, zonas reconocibles, paleta infantil y puntos
   útiles de colocación.
@@ -171,17 +192,16 @@ nombres en la simulación web, revisión docente y Waveshare.
 
 - Vista previa inmediata del borrador con Guardar/Cancelar, Deshacer/Rehacer y
   autoguardado correctamente separados.
-- El alumno coloca los componentes arrastrándolos en la escena; la grilla sigue
-  configurable. Los proyectos existentes conservan su composición al abrirlos.
-- No ofrecer aventuras/plantillas prearmadas ni controles para cambiar el fondo
-  en la interfaz. Los fondos que ya formen parte de un proyecto se siguen
-  representando de forma fiel.
+- Guías de alineación, distribución y encastre opcionales, rejilla configurable,
+  orden adelante/atrás y selección múltiple. Nada de esto altera proyectos al
+  abrirlos ni obliga a usar auto-layout.
+- Permitir escoger una plantilla enriquecida, fondo simple o color accesible sin
+  crear decenas de tipos de escena incompatibles.
 
 ## Aceptación
 
-- Los fondos heredados Cruce, Pista, Huerta, Entrada y Clima se representan de
-  forma coherente en editor, simulación, revisión y Waveshare cuando estén en un
-  proyecto importado o guardado previamente.
+- El jardín y al menos cuatro plantillas adicionales tienen fondos enriquecidos
+  coherentes en editor, simulación, revisión y Waveshare.
 - Una escena con display, barrera y semáforo casi pegados conserva distancias y
   alineación a distintas resoluciones, zoom y orientación.
 - Una escena con dos semáforos de nombres largos no superpone rótulos en web ni
