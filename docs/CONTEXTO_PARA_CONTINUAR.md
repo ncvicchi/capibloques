@@ -10,13 +10,15 @@ piloto visual de `bfc0673` y los cuatro refinamientos locales que estaban en
 `main`, preservados primero en `92f04e4` y reaplicados en `73e91b5`. También se
 incorporó el registro del bloqueo DEV (`5232f08`) con una nota histórica que
 aclara que la eliminación no forma parte de esta rama. Las aventuras y la
-composición asociada permanecen en la base; no se reaplicó `5731650`.
+composición asociada permanecen en la base; no se reaplicó `5731650`. La rama
+está publicada en `origin/codex/adventures-pilot-v2`.
 
 Las aventuras serializables y su selección/composición en «Armar escena» están
 presentes en esta rama. `tsc --noEmit`, lint del código de producto,
 `scripts/scene-worlds.test.mjs` y `git diff --check` pasaron. No se ejecutó la
-suite E2E ni se desplegó DEV; aceptación visual/humana pendiente. La rama aún
-no se publicó.
+suite E2E. La smoke suite general quedó incompleta porque `frame-animation` e
+`interpreter-source` requieren `g++`, ausente en `capi-dev`; no se instaló
+toolchain. No se desplegó DEV; aceptación visual/humana pendiente.
 
 ### Piloto visual CapiBloques — login, favicon y encabezado (8 de octubre)
 

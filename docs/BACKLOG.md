@@ -716,6 +716,17 @@ el pedido 40 que antes estaba en fase 21 y agrega paridad de fondo con Waveshare
 Contrato y aceptación en
 [FASE_45_ESCENAS_VISUALES.md](FASE_45_ESCENAS_VISUALES.md).
 
+Recuperación del 14 de octubre de 2026: a pedido del propietario se reconstruyó
+`codex/adventures-pilot-v2` desde el commit anterior al retiro de aventuras,
+preservando Cruce de la escuela, Pista de reparto, Huerta inteligente, Entrada
+segura y Estación del clima, y reaplicando el piloto visual y los cambios locales
+de identidad. Typecheck, lint y prueba dirigida de mundos/plantillas pasaron. La
+suite completa quedó incompleta: `frame-animation.test.mjs` e
+`interpreter-source.test.mjs` necesitan `g++`, que no está instalado en
+`capi-dev`; no se instala toolchain pesada fuera de su fase. E2E/visual y DEV
+también quedan pendientes. No aplicar de nuevo el retiro de `5731650` en esta
+línea de recuperación.
+
 ## Pedidos externos a analizar
 
 Informe externo recibido el 14 de septiembre de 2026. Esta sección conserva sus observaciones para reproducirlas y contrastarlas con el comportamiento vigente. **No confirma que cada problema exista y la asignación no autoriza implementarlos.** Progreso/guardado/reinicio corresponden a fase 20; superposición y los ajustes de claridad/escena corresponden a fase 21; avatar a fase 22; compartir a fase 25; acceso de aula a fase 26. Las prioridades «vital» y «sutil» pertenecen al informe de origen y cada observación debe reproducirse antes de cambiar código.

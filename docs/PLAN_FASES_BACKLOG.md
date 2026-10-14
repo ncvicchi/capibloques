@@ -1,6 +1,6 @@
 # Nuevas fases de CapiBloques
 
-Actualización vigente, 7 de octubre de 2026: **fase 21 entregada en software**,
+Actualización vigente, 14 de octubre de 2026: **fase 21 entregada en software**,
 con DEV y aceptación humana pendientes. El estado histórico inferior que la
 incluye en 21–22 pendientes queda sustituido por este cierre. Evidencia y
 decisiones completas: [FASE_21_ERGONOMIA_EDITOR.md](FASE_21_ERGONOMIA_EDITOR.md).
@@ -9,7 +9,7 @@ Corrección de aceptación de fase 19 (6 de octubre): restaurado contrato 400/40
 del respaldo para baja de cuentas. Prueba fallida más 16 contratos locales
 aprobados; reintento PostgreSQL/DEV pendiente. Ver guía y contexto vivo.
 
-Plan elaborado el 8 de septiembre de 2026 y actualizado el 8 de octubre de 2026. **Fases 11–17, 19, 27–33, 35–42 entregadas en software; fases 18, 20, 23, 34, 44 y 45 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`, aunque cada cierre posterior requiere su actualización explícita. La fase 19 está implementada en software con aceptación DEV/pedagógica pendiente; 21–22, 24–26 y 43 permanecen pendientes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
+Plan elaborado el 8 de septiembre de 2026 y actualizado el 14 de octubre de 2026. **Fases 11–17, 19, 27–33, 35–42 entregadas en software; fases 18, 20, 23, 34, 44 y 45 en curso**. DEV está publicado en `https://capibloques.dev.nvicchi.com/`, aunque cada cierre posterior requiere su actualización explícita. La fase 19 está implementada en software con aceptación DEV/pedagógica pendiente; 21–22, 24–26 y 43 permanecen pendientes. No están autorizadas por estar documentadas. La Fase final sigue postergada. El [contexto vivo](CONTEXTO_PARA_CONTINUAR.md) conserva evidencia y operación.
 
 Ampliación transversal autorizada el 8 de octubre: primera entrega del [modo invitado](MODO_INVITADO.md), sin asignarlo a una fase numerada. Incluye entrada desde login, editor y recuperación local anónima. Biblioteca de cuenta/desafíos y compilación/placa permanecen bloqueadas en invitado. Oferta para guardar en la cuenta y acceso invitado a compilación/placa no forman parte de esta entrega. Sin despliegue DEV registrado.
 
@@ -763,6 +763,15 @@ movimiento grupal, alineación/distribución, grilla configurable, orden visual
 persistente, guías magnéticas, cajas compartidas, anclas de rótulo y avisos de
 solapamiento; Waveshare consume el mismo orden y criterio de anclas. Quedan
 capturas de referencia, mediciones y aceptación física.
+
+El 14 de octubre se recuperó la oferta de las cinco aventuras en la rama
+`codex/adventures-pilot-v2`, basada en `93561ab` y publicada en `origin`. El
+piloto visual y los cuatro refinamientos locales se reaplicaron sobre esa base.
+Typecheck, lint y `scripts/scene-worlds.test.mjs` pasan. La suite smoke general
+no pudo completarse porque dos pruebas requieren `g++`, ausente en `capi-dev`;
+no se instala toolchain pesada fuera de su fase. E2E/aceptación visual y
+actualización DEV aún pendientes. La recuperación no cierra la fase 45 ni sus
+aceptaciones de Waveshare.
 
 ## Fase final — Producción y piloto, postergada
 

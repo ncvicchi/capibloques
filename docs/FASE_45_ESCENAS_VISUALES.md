@@ -11,8 +11,13 @@ aventuras de `5731650`. Conserva Cruce de la escuela, Pista de reparto, Huerta
 inteligente, Entrada segura y Estación del clima, junto con el flujo para
 seleccionarlas y combinarlas desde «Armar escena». El piloto visual y los
 refinamientos locales de identidad se reaplicaron sobre esa base. La
-reconstrucción aún requiere typecheck, lint y pruebas dirigidas antes de
-considerarse verificada; no se desplegó DEV.
+reconstrucción está publicada en `origin`. Pasaron `tsc --noEmit`, lint,
+`scripts/scene-worlds.test.mjs` y `git diff --check`. No se ejecutó E2E ni se
+desplegó DEV. La smoke suite general quedó incompleta: las pruebas de
+`frame-animation` e `interpreter-source` necesitan `g++`, no disponible en
+`capi-dev`; no se instaló toolchain. Quedan aceptación E2E/visual,
+capturas/mediciones de fase 45 y aceptación física de Waveshare; la recuperación
+no cierra la fase.
 
 ## Entregado en la primera implementación
 
