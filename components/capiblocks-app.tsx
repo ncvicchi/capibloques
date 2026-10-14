@@ -831,7 +831,10 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     }
     if (command === 'DONE') return;
     postToWorker({ type: command === 'RESUME' ? 'RUN' : command === 'RESET_PROGRAM' ? 'RESET' : command });
-    if (command === 'STOP') stopSound();
+    if (command === 'STOP') {
+      setWorkspaceMode('create');
+      stopSound();
+    }
   }, [lastProgram, postToWorker, projectTarget.boardProfile, scene]);
 
   const reportPhysicalStatus = useCallback((stage: string, message: string) => {
@@ -1446,6 +1449,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         {executionActive && <button className="stop-button" onClick={() => {
           if (physicalMirrorActive) physicalControlRef.current?.('STOP');
           else postToWorker({ type: 'STOP' });
+          setWorkspaceMode('create');
           stopSound(); pendingExecutionTasksRef.current = []; editorRef.current?.showExecution();
         }}><CircleStop size={18} /> Detener</button>}
         <button className="board-run-button" disabled={!physicalMirrorActive && (offline || sim.status === 'running' || sim.status === 'paused')} title={physicalMirrorActive ? 'Abrí el asistente para ver la conexión, la telemetría o volver a enviar las reglas.' : offline ? 'Necesitás conexión para verificar tu cuenta antes de usar USB.' : sim.status === 'running' || sim.status === 'paused' ? 'Detené el simulador antes de usar la placa.' : 'Instalá CapiBloques una vez y después enviá solamente las reglas.'} onClick={() => physicalMirrorActive ? physicalControlRef.current?.('SHOW') : openInterpreter()}>
