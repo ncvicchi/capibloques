@@ -20,9 +20,10 @@ Los checks del primer head del PR fallaron en firmware (tipos no declarados tras
 el preprocesador Arduino) y en `verify` (`idf-driver.test.mjs` no ejecutó su
 binario nativo); esa revisión precede al revert explícito y requiere una nueva
 ejecución antes de integrar o desplegar.
-El generador Arduino se ajustó localmente para declarar tipos antes de
-funciones de soporte; typecheck, lint y pruebas dirigidas de ESP-IDF, pantallas,
-semáforos, Otto y mensajes pasaron. Falta la compilación Arduino y el nuevo CI.
+Se reordenó localmente la salida para que tipos y dispositivos precedan al
+soporte común. Typecheck y pruebas dirigidas de ESP-IDF, pantallas, semáforos,
+Otto y mensajes pasaron antes del último ajuste de plantilla. No se dispone del
+toolchain Arduino ni de `g++` localmente; falta repetir CI y validar la salida.
 
 ## Entregado en la primera implementación
 

@@ -4395,6 +4395,29 @@ ${(program.timers?.length ?? 0) === 0 ? '  (void)now;' : `  for (uint8_t id = 0;
   const trafficGlyphDeclarations = [...new Set([...vehicleDisplayValues, ...pedestrianDisplayValues])]
     .map(value => `constexpr uint8_t TRAFFIC_GLYPH_${value}[8] = { ${trafficDisplayRows(value).map(row => `0x${row.toString(16).padStart(2, '0')}`).join(', ')} };`)
     .join('\n');
+  const supportCode = `${displaySupport}
+
+${matrixSupport}
+
+${smartLightsSupport}
+
+${stepperFirmwareSupport(scene, symbols, native)}
+${dashboardSupport}
+
+${messageRuntimeSupport(scene, native)}
+
+${usesWifiMessages ? wifiMessageRuntimeSupport(scene, native) : ''}
+
+${valueRuntime}
+${variableDeclarations}
+${timerRuntime}
+${messageValueDeclarations}
+int32_t counterValue = 0;
+uint32_t lastSchedulerTick = 0;
+constexpr uint32_t SCHEDULER_QUANTUM_MS = 16;
+${buzzerDeclarations(scene, symbols)}
+${threadGlobals}`;
+
   const code = `// ${cppLineComment(projectTitle(title))}
 // Generado por CapiBloques para ${profile.name}
 // ${native ? `ESP-IDF ${IDF_VERSION} | Target: ${profile.idfTarget} | CapiBloques generator 8.1` : `Arduino-ESP32 3.3.11 | FQBN: ${profile.fqbn}`}
@@ -4412,28 +4435,6 @@ ${trafficGlyphDeclarations}
 
 ${deviceDeclarations(scene, symbols)}
 ${componentStateDeclarations(scene)}
-${displaySupport}
-
-${matrixSupport}
-
-${smartLightsSupport}
-
-${stepperFirmwareSupport(scene, symbols, native)}
-${dashboardSupport}
-
-${messageRuntimeSupport(scene, native)}
-
-${valueRuntime}
-${usesWifiMessages ? wifiMessageRuntimeSupport(scene, native) : ''}
-${variableDeclarations}
-${timerRuntime}
-${messageValueDeclarations}
-int32_t counterValue = 0;
-uint32_t lastSchedulerTick = 0;
-constexpr uint32_t SCHEDULER_QUANTUM_MS = 16;
-${buzzerDeclarations(scene, symbols)}
-${threadGlobals}
-
 void setTraffic(const TrafficDevice& device, TrafficColor color) {
   ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.red, color == TrafficColor::RED ? ${native ? '1 : 0' : 'HIGH : LOW'});
   ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.yellow, color == TrafficColor::YELLOW ? ${native ? '1 : 0' : 'HIGH : LOW'});
@@ -4585,6 +4586,10 @@ void ottoBegin(OttoDevice& device) {
   ottoHome(device); ottoArms(device, 0);
   if (device.matrixCs != 255) { ottoMatrixSend(device, 0x0F, 0); ottoMatrixSend(device, 0x0C, 1); ottoMatrixSend(device, 0x0B, 7); ottoMatrixSend(device, 0x0A, device.matrixBrightness); ottoExpression(device, 0); }
 }
+
+${native ? supportCode : ''}
+
+${native ? '' : supportCode}
 
 ${threadFunctions}
 

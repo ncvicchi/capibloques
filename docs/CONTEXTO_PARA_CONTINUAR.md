@@ -23,9 +23,12 @@ pendiente. Los checks del head previo del PR reportaron fallo en firmware
 (tipos de dispositivos no declarados tras el preprocesador Arduino) y en
 `verify` (`idf-driver.test.mjs` no ejecutó su binario nativo). La revisión era
 anterior a `646d730`; repetir y validar los checks en el head actual antes de
-integrar o desplegar. Se reordenaron localmente las declaraciones de tipos del
-generador Arduino; typecheck, lint y pruebas dirigidas de ESP-IDF, pantallas,
-semáforos, Otto y mensajes pasaron. Falta la compilación Arduino y repetir CI.
+integrar o desplegar. Se reordenó la salida de firmware: tipos y dispositivos
+aparecen antes del soporte común, que se emite después en ambos generadores.
+Typecheck y pruebas dirigidas de ESP-IDF, pantallas, semáforos, Otto y mensajes
+pasaron antes del último ajuste de plantilla. La compilación Arduino no se ejecuta
+localmente sin el toolchain; `idf-driver.test.mjs` confirma el bloqueo local por
+`g++` ausente. Falta repetir CI; el resultado no está validado aún.
 
 ### Piloto visual CapiBloques — login, favicon y encabezado (8 de octubre)
 
