@@ -25,10 +25,14 @@ pendiente. Los checks del head previo del PR reportaron fallo en firmware
 anterior a `646d730`; repetir y validar los checks en el head actual antes de
 integrar o desplegar. Se reordenó la salida de firmware: tipos y dispositivos
 aparecen antes del soporte común, que se emite después en ambos generadores.
-Typecheck y pruebas dirigidas de ESP-IDF, pantallas, semáforos, Otto y mensajes
-pasaron antes del último ajuste de plantilla. La compilación Arduino no se ejecuta
-localmente sin el toolchain; `idf-driver.test.mjs` confirma el bloqueo local por
-`g++` ausente. Falta repetir CI; el resultado no está validado aún.
+Typecheck y las pruebas dirigidas de ESP-IDF, pantallas, semáforos, Otto y
+mensajes pasaron antes del último ajuste de plantilla. Tras ese ajuste, volvió a
+pasar `scripts/idf.test.mjs` y `git diff --check`. La compilación Arduino no se
+ejecuta localmente sin Arduino CLI; `idf-driver.test.mjs` se bloquea localmente
+por `g++` ausente. El commit `67e0da7` ya está en el PR, pero una inspección
+posterior encontró que su soporte no quedó colocado en el sitio correcto; esa
+ubicación se corrigió en el árbol local y todavía no está subida ni validada por
+CI. No integrar ni desplegar hasta un CI verde del head corregido.
 
 ### Piloto visual CapiBloques — login, favicon y encabezado (8 de octubre)
 

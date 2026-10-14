@@ -775,9 +775,10 @@ aceptaciones de Waveshare.
 Los checks del primer head del PR fallaron en firmware (tipos no declarados tras
 el preprocesador Arduino) y en `verify` (`idf-driver.test.mjs` no ejecutó su
 binario nativo); ambos deben repetirse sobre el head actual antes de integrar.
-Se reordenó localmente la salida para declarar tipos y dispositivos antes del
-soporte común. Pasaron typecheck y pruebas dirigidas antes del último ajuste;
-la VM no tiene toolchain Arduino ni `g++`. Falta repetir CI y validar el firmware.
+El commit `67e0da7` se subió, pero la inspección posterior encontró el soporte
+común mal ubicado; su posición se corrigió localmente, aún sin subir ni validar.
+Typecheck y pruebas dirigidas pasaron antes del ajuste final; luego pasó
+`scripts/idf.test.mjs`. Falta CI verde; la VM no tiene Arduino CLI ni `g++`.
 
 ## Fase final — Producción y piloto, postergada
 

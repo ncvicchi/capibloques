@@ -729,11 +729,12 @@ instala toolchain pesada fuera de su fase. E2E/visual y DEV quedan pendientes de
 PR/checks. Los checks de la primera revisión del PR (antes del head actual)
 fallaron: `firmware` mostró tipos de dispositivos no declarados tras el
 preprocesado de Arduino y `verify` no pudo ejecutar el binario de
-`idf-driver.test.mjs`. Se reordenó la salida para colocar tipos/dispositivos antes
-del soporte común. Typecheck y pruebas dirigidas de ESP-IDF, pantallas,
-semáforos, Otto y mensajes pasaron antes del último ajuste. La compilación
-Arduino no se ejecuta localmente sin su toolchain; `idf-driver.test.mjs` confirma
-`g++` ausente en la VM. Falta repetir CI; los checks no están aprobados.
+`idf-driver.test.mjs`. El commit `67e0da7` se subió al PR, pero una inspección
+posterior encontró que el soporte común no quedó donde debía. Se corrigió en el
+árbol local, aún sin subir ni verificar por CI. Typecheck y pruebas dirigidas
+pasaron antes de ese último ajuste; después volvió a pasar `scripts/idf.test.mjs`
+y `git diff --check`. Arduino CLI y `g++` no están disponibles localmente. No
+integrar/desplegar: falta subir el ajuste y obtener CI verde.
 
 ## Pedidos externos a analizar
 
