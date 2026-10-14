@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 480" role="img" aria-labelledby="title desc">
+  <title id="title">CapiBloques</title>
+  <desc id="desc">Carpincho de perfil cuyo cuerpo es una pieza de rompecabezas, junto al nombre CapiBloques.</desc>
+  <g stroke="#3A2117" stroke-width="13" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Cuerpo: una única pieza de rompecabezas integrada con la cabeza -->
+    <path fill="#C9803E" d="M245 95 C268 73 296 66 329 69 C365 72 388 87 405 110 C421 95 434 86 450 88 C468 90 479 105 477 121 C475 137 463 148 447 151 C463 169 474 191 479 216 C482 235 493 245 513 247 L547 249 C561 250 569 260 565 273 C562 282 553 286 546 292 C533 304 536 324 550 333 C564 342 584 333 591 319 C602 327 606 344 599 357 C591 372 572 379 556 372 C554 391 546 409 530 425 L544 454 C551 469 543 482 527 480 L465 471 C453 469 447 460 450 448 C455 432 444 417 428 417 C412 417 402 432 407 448 C411 460 404 469 392 471 L330 480 C314 482 306 474 308 459 L311 418 C294 431 274 437 254 435 C232 433 216 418 215 399 C214 383 226 370 244 368 C259 366 270 374 278 388 L277 328 C260 329 249 325 242 313 C234 300 239 285 253 277 C263 271 275 272 286 277 L284 246 C281 223 270 206 250 195 C235 186 222 172 218 154 C214 135 223 111 245 95 Z" transform="translate(-30 -13) scale(.94)"/>
+    <!-- Orejas -->
+    <path fill="#E7A15B" d="M211 77 C205 54 219 39 237 41 C255 43 263 62 254 81"/>
+    <path fill="#E7A15B" d="M424 91 C425 68 441 53 459 59 C478 65 479 86 463 103"/>
+    <!-- Cabeza y hocico, unidos al hombro del cuerpo -->
+    <path fill="#D78D49" d="M179 106 C209 82 253 80 286 93 C307 101 324 117 333 139 C344 167 340 194 359 207 C370 215 389 216 408 217 L425 217 C431 217 434 222 431 228 C425 240 423 253 431 263 C439 274 454 276 465 268 C476 259 477 245 470 234 C465 226 467 220 477 217 L514 208 C530 204 539 214 537 230 L532 288 C530 300 536 307 548 307"/>
+    <path fill="#FFF1D6" stroke="none" d="M170 171 C190 142 223 132 251 141 C282 151 289 174 301 197 C316 224 340 235 364 231 C350 249 342 265 342 283 C316 292 292 304 269 307 C231 312 197 300 177 278 C159 259 152 236 152 213 C152 197 158 183 170 171 Z"/>
+    <path fill="#FFF1D6" d="M170 171 C190 142 223 132 251 141 C282 151 289 174 301 197 C316 224 340 235 364 231 C350 249 342 265 342 283 C316 292 292 304 269 307 C231 312 197 300 177 278 C159 259 152 236 152 213 C152 197 158 183 170 171 Z"/>
+    <!-- Hocico prominente -->
+    <path fill="#6A3B27" d="M147 156 C124 154 107 162 101 179 C94 198 107 216 130 221 C150 226 174 217 187 200 C197 187 195 173 183 165 C174 160 160 157 147 156 Z"/>
+    <path fill="none" d="M131 177 C128 189 130 201 137 210 C146 220 163 221 174 211"/>
+    <!-- Expresión sencilla -->
+    <path fill="none" d="M248 145 C258 132 274 132 284 145"/>
+    <path fill="none" d="M310 151 C320 139 335 140 344 153"/>
+    <path fill="none" d="M161 220 C166 237 181 246 198 244"/>
+  </g>
+  <!-- Acento de movimiento -->
+  <g fill="none" stroke="#087E8B" stroke-width="12" stroke-linecap="round">
+    <path d="M559 167 l14 -20"/><path d="M580 183 l17 -12"/>
+  </g>
+  <!-- Wordmark tipográfico: Capi y Bloques se distinguen por color -->
+  <text x="62" y="425" font-family="Nunito Sans, Nunito, 'Arial Rounded MT Bold', sans-serif" font-size="70" font-weight="900" letter-spacing="-4" fill="#3A2117">Capi</text>
+  <text x="208" y="425" font-family="Nunito Sans, Nunito, 'Arial Rounded MT Bold', sans-serif" font-size="70" font-weight="900" letter-spacing="-4" fill="#087E8B">Bloques</text>
+</svg>

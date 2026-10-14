@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: 'CapiBloques | Programa tu Wemos D1 R32 jugando',
   description:
     'Editor visual para crear, simular y exportar programas no bloqueantes para Wemos D1 R32.',
+  icons: { icon: '/favicon.svg' },
 };
 
 export default function RootLayout({
