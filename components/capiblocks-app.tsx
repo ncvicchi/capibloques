@@ -1322,7 +1322,6 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       {preferencesOpen && !preferences.preferences && <Dialog open onOpenChange={open=>{if(!open)setPreferencesOpen(null);}}><DialogContent><DialogHeader><DialogTitle>Preferencias de tu cuenta</DialogTitle><DialogDescription>{preferences.error || 'Estamos cargando tus preferencias. Tu programa no se modificó.'}</DialogDescription></DialogHeader><button className="header-text-button" onClick={()=>void preferences.refresh()}>Reintentar preferencias</button><button className="header-text-button" onClick={()=>setPreferencesOpen(null)}>Cancelar</button></DialogContent></Dialog>}
       <header className="topbar">
         <div className="brand">
-          {guest ? <span className="avatar-button" aria-label="Modo invitado" title="Modo invitado">🐾</span> : <button className="avatar-button" title="Elegir mi avatar" aria-label="Elegir mi avatar" disabled={!preferences.verified} onClick={()=>setPreferencesOpen('avatar')}><UserAvatar id={preferences.preferences?.avatarId ?? account.avatarId} decorative /></button>}
           <div>
             <span title={guest ? 'Borrador local anónimo' : `@${account.alias} · Borrador local de esta cuenta`}>{guest ? 'Invitado' : `Hola, ${account.displayName}`} · {boardProfile(projectTarget.boardProfile).shortName}</span>
           </div>
@@ -1403,6 +1402,9 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           />
         </nav>
       </header>
+      <div className="avatar-corner">
+        {guest ? <span className="avatar-button" aria-label="Modo invitado" title="Modo invitado">🐾</span> : <button className="avatar-button" title="Elegir mi avatar" aria-label="Elegir mi avatar" disabled={!preferences.verified} onClick={()=>setPreferencesOpen('avatar')}><UserAvatar id={preferences.preferences?.avatarId ?? account.avatarId} decorative /></button>}
+      </div>
 
       {!sceneBuilderOpen && draftStore.sceneDraft && <aside className="scene-recovery-banner"><span>🧩 Hay una escena sin terminar en esta computadora. Tu escena confirmada no cambió.</span><button onClick={() => toggleSceneBuilder(true)}>Revisar escena pendiente</button></aside>}
 
