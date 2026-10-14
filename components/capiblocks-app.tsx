@@ -1323,13 +1323,13 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       <header className="topbar">
         <label className="project-name">
           <span className="project-name-label"><span className="account-brand-icon project-brand-icon" aria-hidden="true" /><span>Proyecto</span></span>
-          <Pencil size={14} aria-hidden="true" />
           <input
             value={projectName}
             maxLength={80}
             onChange={(event) => setProjectName(event.target.value)}
             aria-label="Nombre del proyecto"
           />
+          <Pencil size={14} aria-hidden="true" />
         </label>
         <nav className="header-actions" aria-label="Acciones del proyecto">
           {!guest && <ProjectLibrary ref={libraryRef} account={account} store={draftStore} csrfToken={csrfToken} hydrated={hydrated} sceneEditing={sceneBuilderOpen} offline={offline} fingerprint={fingerprint} capture={currentProject} apply={applyLibraryProject} onNew={newLibraryProject} onImport={() => fileInputRef.current?.click()} notice={message => { setNotice(message); setNoticeTone('ok'); }} />}

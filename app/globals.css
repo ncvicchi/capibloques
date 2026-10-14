@@ -3619,7 +3619,8 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .workbench .brand strong { font-size: 20px; }
 .workbench .brand span { font-size: 11px; }
 .workbench .project-name input { min-width: 0; }
-.workbench .project-name { display: flex; }
+.workbench .project-name { display: flex; flex-direction: row; align-items: center; gap: 6px; }
+.workbench .project-name input { width: min(180px, 22vw); text-align: left; }
 .workbench .header-actions { overflow: visible; gap: 6px; }
 .workbench .header-actions > button { flex-shrink: 0; }
 .workbench .cloud-state { min-width: 100px; flex: 1; max-width: 210px; font-size: 11px; line-height: 1.3; overflow-wrap: anywhere; }
