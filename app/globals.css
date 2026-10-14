@@ -3615,7 +3615,7 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 /* Phase 12: two global rows; context and execution live beside their canvas. */
 .workbench { height: 100dvh; min-height: 500px; }
 .workbench .topbar { height: 66px; padding: 0 16px; gap: 14px; grid-template-columns: 190px minmax(150px, 230px) minmax(0, 1fr); }
-.workbench .topbar { grid-template-columns: 44px minmax(150px, 230px) minmax(0, 1fr); }
+.workbench .topbar { grid-template-columns: minmax(150px, 230px) minmax(0, 1fr); }
 .workbench .brand strong { font-size: 20px; }
 .workbench .brand span { font-size: 11px; }
 .workbench .project-name input { min-width: 0; }
@@ -3726,7 +3726,7 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .wiring-pin-button { border: 1px solid #bca6df; color: #522494; background: #f7f1ff; padding: 7px 9px; border-radius: 6px; white-space: nowrap; font-weight: 700; }
 .wiring-pin-button[aria-pressed='true'] { background: #eadcff; outline: 2px solid #7a45bd; }
 @media (max-width: 1150px) {
-  .workbench .topbar { grid-template-columns: 44px minmax(135px, 170px) minmax(0, 1fr); gap: 8px; padding: 0 10px; }
+  .workbench .topbar { grid-template-columns: minmax(135px, 170px) minmax(0, 1fr); gap: 8px; padding: 0 10px; }
   .workbench .header-actions > button { padding-left: 8px; padding-right: 8px; font-size: 12px; }
   .workbench .cloud-state { min-width: 75px; font-size: 10px; }
   .workbench .workspace-grid.functional { grid-template-columns: minmax(390px, 1fr) minmax(330px, 38%); padding: 8px 10px 0; gap: 8px; }

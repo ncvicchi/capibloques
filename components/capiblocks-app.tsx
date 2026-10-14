@@ -1321,11 +1321,6 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       {preferencesOpen && preferences.preferences && <PreferencesPicker kind={preferencesOpen} {...preferences} preferences={preferences.preferences} onSave={preferences.save} onRetry={()=>void preferences.refresh()} onClose={()=>setPreferencesOpen(null)}/>}
       {preferencesOpen && !preferences.preferences && <Dialog open onOpenChange={open=>{if(!open)setPreferencesOpen(null);}}><DialogContent><DialogHeader><DialogTitle>Preferencias de tu cuenta</DialogTitle><DialogDescription>{preferences.error || 'Estamos cargando tus preferencias. Tu programa no se modificó.'}</DialogDescription></DialogHeader><button className="header-text-button" onClick={()=>void preferences.refresh()}>Reintentar preferencias</button><button className="header-text-button" onClick={()=>setPreferencesOpen(null)}>Cancelar</button></DialogContent></Dialog>}
       <header className="topbar">
-        <div className="brand">
-          <div>
-            <span title="Placa seleccionada">{boardProfile(projectTarget.boardProfile).shortName}</span>
-          </div>
-        </div>
         <label className="project-name">
           <span className="project-name-label"><span className="account-brand-icon project-brand-icon" aria-hidden="true" /><span>Proyecto</span></span>
           <Pencil size={14} aria-hidden="true" />
