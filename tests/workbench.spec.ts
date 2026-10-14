@@ -19,6 +19,14 @@ async function exported(page: Page) {
 test('mesa de trabajo: dos filas globales, área útil y cámara sin cambiar el proyecto', async ({ page }, info) => {
   await page.setViewportSize({ width: 1366, height: 768 });
   await open(page);
+  const projectHeader = page.locator('.project-header-controls');
+  await expect(projectHeader.getByRole('button', { name: 'Guardar', exact: true })).toBeVisible();
+  await expect(projectHeader.locator('.cloud-state')).toContainText('Personal · Sólo en esta computadora');
+  await expect(page.locator('.topbar')).not.toContainText('Wemos');
+  await expect(page.locator('.project-name input + svg')).toHaveCount(1);
+  expect(await page.locator('.avatar-corner').evaluate(element => getComputedStyle(element).zIndex)).toBe('120');
+  expect(await page.locator('.blocklyToolboxDiv').evaluate(element => element.getBoundingClientRect().width)).toBeLessThanOrEqual(150);
+  expect(await page.locator('.blocklyTreeLabel').first().evaluate(element => getComputedStyle(element).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
   const area = await page.locator('.workspace-grid').boundingBox();
   expect(area!.height / 768).toBeGreaterThanOrEqual(.70);
   expect(area!.y).toBeLessThan(150);
@@ -41,11 +49,18 @@ test('mesa de trabajo: dos filas globales, área útil y cámara sin cambiar el 
   expect(after.scene).toEqual(before.scene); expect(after.workspace).toEqual(before.workspace);
   const pan = await viewport.getAttribute('data-camera-x');
   await page.getByRole('button', { name: 'Simular', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Pausar', exact: true })).toHaveCSS('background-color', 'rgb(242, 181, 68)');
+  await expect(page.getByRole('button', { name: 'Pausar', exact: true })).toHaveCSS('color', 'rgb(23, 18, 10)');
   await page.getByRole('button', { name: 'Pausar', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Probar', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Paso', exact: true }).click();
   await expect(viewport).toHaveAttribute('data-camera-zoom', '1.25');
   await expect(viewport).toHaveAttribute('data-camera-x', pan!);
+  await expect(page.getByRole('button', { name: 'Detener', exact: true })).toHaveCSS('background-color', 'rgb(198, 40, 40)');
+  await expect(page.getByRole('button', { name: 'Detener', exact: true })).toHaveCSS('color', 'rgb(255, 255, 255)');
   await page.getByRole('button', { name: 'Detener', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Crear', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Probar', exact: true })).toHaveAttribute('aria-pressed', 'false');
   await page.getByRole('button', { name: 'Ajustar escena', exact: true }).click();
   await expect(viewport).toHaveAttribute('data-camera-zoom', '1'); await expect(viewport).toHaveAttribute('data-camera-x', '0.00');
   await page.screenshot({ path: info.outputPath('workbench-1366.png') });
@@ -60,10 +75,17 @@ test('interfaz simple: Crear y Probar priorizan su zona y lo avanzado aparece ba
   const initialSimulatorWidth = (await simulator.boundingBox())!.width;
   expect(createWidth).toBeGreaterThan(initialSimulatorWidth);
   await expect(page.getByRole('button', { name: 'Crear', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  const category = page.locator('.blocklyTreeLabel').first();
+  await expect(category).toBeVisible();
 
   await page.getByRole('button', { name: 'Probar', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Probar', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(category).toBeHidden();
   expect((await simulator.boundingBox())!.width).toBeGreaterThan((await canvas.boundingBox())!.width);
+
+  await page.getByRole('button', { name: 'Crear', exact: true }).click();
+  await expect(category).toBeVisible();
+  await page.getByRole('button', { name: 'Probar', exact: true }).click();
 
   await expect(page.getByRole('button', { name: 'Ver código ESP32' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Más herramientas' }).click();
