@@ -1323,7 +1323,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       <header className="topbar">
         <div className="brand">
           <div>
-            <span title={guest ? 'Borrador local anónimo' : `@${account.alias} · Borrador local de esta cuenta`}>{guest ? 'Invitado' : `Hola, ${account.displayName}`} · {boardProfile(projectTarget.boardProfile).shortName}</span>
+            <span title="Placa seleccionada">{boardProfile(projectTarget.boardProfile).shortName}</span>
           </div>
         </div>
         <label className="project-name">
