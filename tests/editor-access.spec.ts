@@ -34,9 +34,10 @@ test('editor: sin sesión no lee proyectos, ni confía en una identidad local', 
   await expect(page.getByLabel('Alias', { exact: true })).toBeVisible();
 });
 
-test('editor: ingreso invitado conserva el proyecto local y oculta cuenta, desafíos y placa', async ({ page }) => {
+test('editor: invitado conserva el proyecto local y puede abrir el asistente de placa sin usar servicios de cuenta', async ({ page }) => {
   let editorSessionRequests = 0;
-  await page.route('**/api/auth/session/', route => route.fulfill({ json: { user: null, csrfToken: token } }));
+  let accountSessionRequests = 0;
+  await page.route('**/api/auth/session/', route => { accountSessionRequests++; return route.fulfill({ json: { user: null, csrfToken: token } }); });
   await page.route('**/api/auth/editor-session/', route => {
     editorSessionRequests++;
     return route.fulfill({ status: 401, json: { code: 'login_required' } });
@@ -46,8 +47,13 @@ test('editor: ingreso invitado conserva el proyecto local y oculta cuenta, desaf
   await expect(page).toHaveURL(/[?&]guest=1$/);
   await expect(page.getByLabel('Editor visual de bloques')).toBeVisible();
   await expect(page.getByText('Modo invitado · guardado local en esta computadora')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Usar en placa' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Usar en placa' })).toBeVisible();
   await expect(page.getByText('Compilar un firmware específico')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Usar en placa' }).click();
+  await expect(page.getByRole('heading', { name: '⚡ Usar mi placa' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Conectar mi placa' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Todavía no tiene CapiBloques' })).toBeVisible();
+  await page.keyboard.press('Escape');
 
   await page.getByLabel('Nombre del proyecto').fill('Proyecto invitado persistente');
   await expect.poll(async () => {
@@ -57,6 +63,7 @@ test('editor: ingreso invitado conserva el proyecto local y oculta cuenta, desaf
   await page.reload();
   await expect(page.getByLabel('Nombre del proyecto')).toHaveValue('Proyecto invitado persistente');
   expect(editorSessionRequests).toBe(0);
+  expect(accountSessionRequests).toBe(0);
 });
 
 test('editor: login desde la puerta abre el editor; contraseña temporal no', async ({ page }) => {

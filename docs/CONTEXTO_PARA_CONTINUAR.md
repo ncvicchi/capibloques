@@ -65,17 +65,18 @@ No hay migraciones ni cambios de firmware; mínimo intérprete sigue 1.9.0.
 El propietario actualiza con el comando habitual --fast que aparece debajo.
 No iniciar fase 22 ni operar DEV sin autorización.
 
-### Primera entrega del modo invitado — 8 de octubre de 2026
+### Modo invitado — ampliación USB autorizada el 14 de octubre de 2026
 
-Implementación local autorizada: el login ofrece **Ingresar como invitado** y
-abre el editor sin sesión; un espacio anónimo separado en IndexedDB conserva el
-proyecto entre recargas/cierres. Se ocultan biblioteca de cuenta, desafíos,
-compilación específica y uso con placa. No hay sincronización ni migración
-automática a una cuenta; la oferta para guardar el proyecto en una cuenta al
-iniciar sesión queda para una entrega posterior. No se desplegó DEV. Typecheck
-completo y lint dirigido de componentes pasaron. Se agregó un recorrido E2E,
-pero Playwright no pudo iniciarlo porque falta el binario Chromium local; no se
-instaló. `git diff --check` pasó. Detalle: [MODO_INVITADO.md](MODO_INVITADO.md).
+El login ofrece **Ingresar como invitado** y abre el editor sin sesión; un
+espacio anónimo separado en IndexedDB conserva el proyecto entre
+recargas/cierres. La ampliación autorizada permite abrir **Usar en placa**,
+instalar el firmware intérprete publicado y enviar/ejecutar las reglas locales
+por USB. No consulta sesión de cuenta ni envía el proyecto/reglas a la API.
+Biblioteca de cuenta, desafíos, compilación específica, monitor Serial y
+migración/oferta de guardado en cuenta siguen fuera de alcance. Typecheck y
+oxlint dirigido pasaron; E2E invitado no pudo lanzar Chromium porque falta el
+ejecutable local. No se instaló ni se probó placa física ni se desplegó DEV.
+Detalle y pendientes: [MODO_INVITADO.md](MODO_INVITADO.md).
 
 ### Registro histórico de ajustes de escena y bloqueo DEV — octubre de 2026
 
