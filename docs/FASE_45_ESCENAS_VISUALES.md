@@ -4,6 +4,16 @@ Estado: **en curso; segunda entrega funcional el 3 de octubre de 2026**.
 Reúne y amplía la antigua asignación de fidelidad espacial de fase 21; no queda
 duplicada allí.
 
+### Recuperación de la oferta de aventuras — 14 de octubre de 2026
+
+La rama `codex/adventures-pilot-v2` parte de `93561ab`, anterior al retiro de
+aventuras de `5731650`. Conserva Cruce de la escuela, Pista de reparto, Huerta
+inteligente, Entrada segura y Estación del clima, junto con el flujo para
+seleccionarlas y combinarlas desde «Armar escena». El piloto visual y los
+refinamientos locales de identidad se reaplicaron sobre esa base. La
+reconstrucción aún requiere typecheck, lint y pruebas dirigidas antes de
+considerarse verificada; no se desplegó DEV.
+
 ## Entregado en la primera implementación
 
 - Cinco aventuras nuevas y serializables: **Cruce de la escuela**, **Pista de
