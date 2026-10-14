@@ -6,18 +6,16 @@ duplicada allí.
 
 ### Recuperación de la oferta de aventuras — 14 de octubre de 2026
 
-La rama `codex/adventures-pilot-v2` parte de `93561ab`, anterior al retiro de
-aventuras de `5731650`. Conserva Cruce de la escuela, Pista de reparto, Huerta
-inteligente, Entrada segura y Estación del clima, junto con el flujo para
-seleccionarlas y combinarlas desde «Armar escena». El piloto visual y los
-refinamientos locales de identidad se reaplicaron sobre esa base. La
-reconstrucción está publicada en `origin`. Pasaron `tsc --noEmit`, lint,
-`scripts/scene-worlds.test.mjs` y `git diff --check`. No se ejecutó E2E ni se
-desplegó DEV. La smoke suite general quedó incompleta: las pruebas de
-`frame-animation` e `interpreter-source` necesitan `g++`, no disponible en
-`capi-dev`; no se instaló toolchain. Quedan aceptación E2E/visual,
-capturas/mediciones de fase 45 y aceptación física de Waveshare; la recuperación
-no cierra la fase.
+La rama `codex/adventures-pilot-v2` parte de `93561ab`, integra `origin/main` y
+añade el revert explícito `646d730` de `5731650`, de modo que el PR restaure
+Cruce de la escuela, Pista de reparto, Huerta inteligente, Entrada segura y
+Estación del clima, junto con su flujo para seleccionarlas y combinarlas desde
+«Armar escena». El piloto visual y los refinamientos locales de identidad se
+reaplicaron. Typecheck, lint, smoke básico, workbench, mundos/plantillas y
+`git diff --check` pasaron. La smoke suite completa no pudo ejecutarse porque
+`frame-animation` e `interpreter-source` necesitan `g++`, ausente en `capi-dev`;
+no se instaló toolchain. E2E/aceptación visual, capturas/mediciones y aceptación
+física de Waveshare quedan pendientes; el PR #1 sigue abierto y la fase no cierra.
 
 ## Entregado en la primera implementación
 

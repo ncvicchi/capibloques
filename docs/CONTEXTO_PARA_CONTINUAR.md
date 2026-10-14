@@ -5,24 +5,21 @@ Documento vivo iniciado en **fase 11**. Actualización: **14 de octubre de 2026*
 ### Recuperación de aventuras sobre la rama del piloto visual — 14 de octubre
 
 Se creó `codex/adventures-pilot-v2` desde `93561ab88f663205a96d14d0828ad08f39fbffa6`,
-el último commit anterior a la eliminación. Se reaplicó el cambio aislado del
-piloto visual de `bfc0673` y los cuatro refinamientos locales que estaban en
-`main`, preservados primero en `92f04e4` y reaplicados en `73e91b5`. También se
-incorporó el registro del bloqueo DEV (`5232f08`) con una nota histórica que
-aclara que la eliminación no forma parte de esta rama. Las aventuras y la
-composición asociada permanecen en la base; no se reaplicó `5731650`. La rama
-está publicada en `origin/codex/adventures-pilot-v2`.
+el último commit anterior a la eliminación. Se reaplicó el piloto visual de
+`bfc0673` y los cuatro refinamientos locales, preservados en `92f04e4` y
+reaplicados en `73e91b5`. Para que el PR exprese de forma explícita la
+restauración, se integró `origin/main` y se creó el commit `646d730`, que revierte
+`5731650`. El PR #1 está abierto con esta corrección; su merge y DEV están
+pendientes.
 
 Las aventuras serializables y su selección/composición en «Armar escena» están
-presentes en esta rama. `tsc --noEmit`, lint del código de producto,
-`scripts/scene-worlds.test.mjs` y `git diff --check` pasaron. No se ejecutó la
-suite E2E. La smoke suite general quedó incompleta porque `frame-animation` e
-`interpreter-source` requieren `g++`, ausente en `capi-dev`; no se instaló
-toolchain. No se desplegó DEV: el orquestador vigente despliega `origin/main`,
-no esta rama; el intento de crear PR para integrarla respondió 403
-`Resource not accessible by integration`. Rama publicada; PR/merge, DEV y
-aceptación visual/humana pendientes. No ejecutar el update hasta integrar la
-recuperación a `main`.
+presentes en esta rama. `tsc --noEmit`, lint, `scripts/smoke.mjs`,
+`scripts/scene-worlds.test.mjs`, `scripts/workbench.test.mjs` y `git diff --check`
+pasaron. La smoke suite completa no pudo completarse: `frame-animation` e
+`interpreter-source` necesitan `g++`, ausente en `capi-dev`; no se instaló
+toolchain. No se ejecutó E2E. El orquestador despliega `origin/main`; esperar el
+merge del PR #1 y checks antes de ejecutar DEV. Aceptación visual/humana
+pendiente.
 
 ### Piloto visual CapiBloques — login, favicon y encabezado (8 de octubre)
 
@@ -77,11 +74,11 @@ instaló. `git diff --check` pasó. Detalle: [MODO_INVITADO.md](MODO_INVITADO.md
 ### Registro histórico de ajustes de escena y bloqueo DEV — octubre de 2026
 
 El 8 de octubre se publicó en `main` el commit `5731650`, que retiraba las
-aventuras prearmadas y simplificaba «Armar escena». Esta rama de recuperación
-parte de `93561ab` para conservar las aventuras y no incluye ese retiro. El
-piloto visual se reaplicó encima. La publicación anterior anotó que DEV no se actualizó porque
-faltaba la configuración SSH privada `capibloques-dev.conf`. No copiar claves ni
-contraseñas al repositorio o al chat.
+aventuras prearmadas y simplificaba «Armar escena». La rama de recuperación
+incluye ahora `646d730`, que revierte explícitamente ese retiro sobre
+`origin/main`. El piloto visual sigue aplicado. El PR #1 está abierto; el merge
+y el despliegue DEV quedan pendientes. No copiar claves ni contraseñas al
+repositorio o al chat.
 ### Corrección de aceptación DEV — 6 de octubre de 2026
 
 El propietario informó 230 pruebas backend con una falla: recibo vacío de baja

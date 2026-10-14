@@ -717,17 +717,15 @@ Contrato y aceptación en
 [FASE_45_ESCENAS_VISUALES.md](FASE_45_ESCENAS_VISUALES.md).
 
 Recuperación del 14 de octubre de 2026: a pedido del propietario se reconstruyó
-`codex/adventures-pilot-v2` desde el commit anterior al retiro de aventuras,
-preservando Cruce de la escuela, Pista de reparto, Huerta inteligente, Entrada
-segura y Estación del clima, y reaplicando el piloto visual y los cambios locales
-de identidad. Typecheck, lint y prueba dirigida de mundos/plantillas pasaron. La
-suite completa quedó incompleta: `frame-animation.test.mjs` e
-`interpreter-source.test.mjs` necesitan `g++`, que no está instalado en
-`capi-dev`; no se instala toolchain pesada fuera de su fase. E2E/visual también
-queda pendiente. DEV no se actualizó: el orquestador apunta a `origin/main` y la
-rama aún no está integrada; la creación de PR fue rechazada con 403 por la
-integración de GitHub. No aplicar de nuevo el retiro de `5731650` en esta línea
-de recuperación.
+`codex/adventures-pilot-v2` desde el commit anterior al retiro y se integró
+`origin/main`; el commit `646d730` revierte explícitamente `5731650` para que el
+PR #1 restaure los cinco mundos y la autoría desde la versión publicada. Se
+reaplicaron el piloto visual y los cambios locales de identidad. Typecheck,
+lint, smoke básico, workbench y prueba de mundos/plantillas pasaron. La smoke
+suite completa no pudo ejecutarse: `frame-animation.test.mjs` e
+`interpreter-source.test.mjs` requieren `g++`, ausente en `capi-dev`; no se
+instala toolchain pesada fuera de su fase. E2E/visual y DEV quedan pendientes del
+PR/checks.
 
 ## Pedidos externos a analizar
 

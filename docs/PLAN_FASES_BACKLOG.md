@@ -765,12 +765,12 @@ solapamiento; Waveshare consume el mismo orden y criterio de anclas. Quedan
 capturas de referencia, mediciones y aceptación física.
 
 El 14 de octubre se recuperó la oferta de las cinco aventuras en la rama
-`codex/adventures-pilot-v2`, basada en `93561ab` y publicada en `origin`. El
-piloto visual y los cuatro refinamientos locales se reaplicaron sobre esa base.
-Typecheck, lint y `scripts/scene-worlds.test.mjs` pasan. La suite smoke general
-no pudo completarse porque dos pruebas requieren `g++`, ausente en `capi-dev`;
-no se instala toolchain pesada fuera de su fase. E2E/aceptación visual y
-actualización DEV aún pendientes. La recuperación no cierra la fase 45 ni sus
+`codex/adventures-pilot-v2`, basada en `93561ab`, integrada con `origin/main` y
+con revert explícito `646d730` de `5731650`. Typecheck, lint, smoke básico,
+workbench y prueba de mundos pasan. La suite smoke general no pudo completarse
+porque dos pruebas requieren `g++`, ausente en `capi-dev`; no se instala
+toolchain pesada fuera de su fase. El PR #1 sigue abierto; E2E/aceptación visual
+y actualización DEV aún pendientes. La recuperación no cierra la fase 45 ni sus
 aceptaciones de Waveshare.
 
 ## Fase final — Producción y piloto, postergada
