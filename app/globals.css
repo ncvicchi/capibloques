@@ -3629,6 +3629,7 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .workbench .toolbar .work-mode-switch button[aria-pressed='true'] { color: #fff; background: #5942b4; box-shadow: 0 2px 0 #352078; }
 .workbench .taskbar .execution-target { min-width: 156px; max-width: 230px; min-height: 40px; padding: 4px 9px; }
 .workbench .taskbar .execution-target small { max-width: 160px; }
+.workbench .taskbar .workspace-history-button { width: 40px; min-width: 40px; min-height: 40px; padding: 0; }
 .workbench .taskbar .more-tools-button { margin-left: auto; }
 .project-menu, .task-tools-menu { min-width: 245px !important; }
 .project-menu [data-slot='dropdown-menu-item'], .task-tools-menu [data-slot='dropdown-menu-item'] { min-height: 38px; padding: 8px 10px; }

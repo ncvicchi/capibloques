@@ -1454,6 +1454,15 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         <button className="board-run-button" disabled={!physicalMirrorActive && (offline || sim.status === 'running' || sim.status === 'paused')} title={physicalMirrorActive ? 'Abrí el asistente para ver la conexión, la telemetría o volver a enviar las reglas.' : offline ? 'Necesitás conexión para verificar tu cuenta antes de usar USB.' : sim.status === 'running' || sim.status === 'paused' ? 'Detené el simulador antes de usar la placa.' : 'Instalá CapiBloques una vez y después enviá solamente las reglas.'} onClick={() => physicalMirrorActive ? physicalControlRef.current?.('SHOW') : openInterpreter()}>
           <Cable size={18} /> {physicalMirrorActive ? 'Detalles de placa' : 'Usar en placa'}
         </button>
+        <button className="workspace-history-button" onClick={() => editorRef.current?.undo()} aria-label="Deshacer cambio en los bloques" title="Deshacer" disabled={!blockHistory.canUndo}>
+          <Undo2 size={17} />
+        </button>
+        <button className="workspace-history-button" onClick={() => editorRef.current?.redo()} aria-label="Rehacer cambio en los bloques" title="Rehacer" disabled={!blockHistory.canRedo}>
+          <Redo2 size={17} />
+        </button>
+        <button className="workspace-history-button" onClick={() => editorRef.current?.zoomToFit()} aria-label="Centrar todos los bloques" title="Centrar">
+          <Maximize2 size={17} />
+        </button>
         <DropdownMenu>
           <DropdownMenuTrigger className="more-tools-button" aria-label="Más herramientas">
             <MoreHorizontal size={20} /> Más
@@ -1481,37 +1490,6 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
 
       <div className={`workspace-grid functional focus-${workspaceMode}`}>
         <section className="canvas-panel" aria-label="Programa visual">
-          <div className="canvas-header">
-            <div>
-              <span>Programa visual</span>
-              <strong>Arrastra, encaja y elige qué objeto controlas</strong>
-            </div>
-            <div
-              className="canvas-header-actions"
-              aria-label="Historial de bloques"
-            >
-              <button
-                onClick={() => editorRef.current?.undo()}
-                title="Deshacer cambio en los bloques"
-                disabled={!blockHistory.canUndo}
-              >
-                <Undo2 size={17} /> Deshacer
-              </button>
-              <button
-                onClick={() => editorRef.current?.redo()}
-                title="Rehacer cambio en los bloques"
-                disabled={!blockHistory.canRedo}
-              >
-                <Redo2 size={17} /> Rehacer
-              </button>
-              <button
-                onClick={() => editorRef.current?.zoomToFit()}
-                title="Centrar todos los bloques"
-              >
-                <Maximize2 size={17} /> Centrar
-              </button>
-            </div>
-          </div>
           {hydrated && (
             <BlocklyWorkspace
               ref={editorRef}
