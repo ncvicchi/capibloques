@@ -2,6 +2,24 @@
 
 Documento vivo iniciado en **fase 11**. Actualización: **14 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
 
+### Ajustes visuales del editor y despliegue DEV — 14 de octubre de 2026
+
+Se integró «Mis proyectos» al menú «Proyecto», se llevó el avatar a la esquina
+inferior derecha y se retiró el saludo del encabezado. El catálogo quedó en
+escala fija `0,72`, independiente del zoom del programa. Se retiró el título
+«Programa visual» y Deshacer/Rehacer/Centrar comparten la fila de «Usar en
+placa». Durante la ejecución, Pausar es amarillo anaranjado con texto negro y
+Detener rojo con texto blanco. Typecheck, lint dirigido y pruebas de workbench y
+ergonomía pasaron; el recorrido visual/humano sigue pendiente.
+
+Los cinco cambios de barra y el ajuste de colores tienen commits separados; el
+último funcional es `9e3d0b9` (`main`, publicado). DEV quedó actualizado con
+`capibloques-editor-dev:9e3d0b9b7be4`; salud interna/pública `ok`, API y DB
+saludables, planificador activo, admisión abierta (`pausa=0`) y cola vacía. La
+VM mantiene 1,2 GiB libres, por debajo del objetivo de 2 GiB de la limpieza
+Docker; no se tocaron imágenes activas ni volúmenes. Aceptación visual humana
+pendiente.
+
 ### Recuperación de aventuras sobre la rama del piloto visual — 14 de octubre
 
 Se creó `codex/adventures-pilot-v2` desde `93561ab88f663205a96d14d0828ad08f39fbffa6`,
@@ -9,8 +27,8 @@ el último commit anterior a la eliminación. Se reaplicó el piloto visual de
 `bfc0673` y los cuatro refinamientos locales, preservados en `92f04e4` y
 reaplicados en `73e91b5`. Para que el PR exprese de forma explícita la
 restauración, se integró `origin/main` y se creó el commit `646d730`, que revierte
-`5731650`. El PR #1 está abierto con esta corrección; su merge y DEV están
-pendientes.
+`5731650`. El PR #1 se integró en `main` en `8b9be43`; el checkout y DEV
+avanzaron después hasta `9e3d0b9`.
 
 Las aventuras serializables y su selección/composición en «Armar escena» están
 presentes en esta rama. `tsc --noEmit`, lint, `scripts/smoke.mjs`,
@@ -23,20 +41,13 @@ pendiente. En el head remoto `e98e0b8`, CI reportó Arduino con prototipos
 generados antes de `OttoDevice`, dos avisos `-Werror=misleading-indentation` en
 Waveshare y fallo de `idf-driver`: `g++` devolvió `status=null` compilando
 `runtime`, y la prueba no registraba señal/stdout/stderr, así que el log no
-permite distinguir la causa. Se amplió el diagnóstico de esa aserción. Backend y
-scope pasaron. En el árbol local sin subir, Arduino ahora exporta un
-ZIP con `.ino` mínimo y `capibloques_program.h`; interfaz, revisión docente y
-compilador servidor comparten este formato. Se corrigieron también las dos
-sentencias de Waveshare y el nombre de sketch de las fixtures. Typecheck, lint
-dirigido, smoke básico y pruebas dirigidas (pantallas, Otto, módulos educativos,
-carteles, ESP-IDF y generador servidor) pasan. El generador servidor omite el
-primer fixture v2 antiguo porque ya no satisface el validador actual. En GitHub
-run 273, backend, firmware Arduino (Wemos, S3 y siete perfiles) y ESP-IDF pasaron;
-`verify` falló en `idf-driver`, cuyo `g++` termina con `status=null` compilando
-`runtime`, sin señal/stderr en el log. Se amplió el diagnóstico en `ea2a034`,
-pero el log del run sigue mostrando el formato anterior. PR #1 no está listo para
-integración ni deploy hasta corregir `idf-driver` y obtener `verify` verde. No hay
-Arduino CLI ni `g++` localmente.
+permite distinguir la causa. Backend y scope pasaron. En el árbol de recuperación,
+Arduino exporta un ZIP con `.ino` mínimo y `capibloques_program.h`; interfaz,
+revisión docente y compilador servidor comparten este formato. Se corrigieron
+sentencias de Waveshare y fixtures. El run 273 mostró fallos históricos de
+`idf-driver`; el despliegue del 14 de octubre usó el modo DEV directo, que no
+espera GitHub Actions. No se afirma que la CI completa del commit `9e3d0b9` haya
+pasado. No hay Arduino CLI ni `g++` localmente.
 
 ### Piloto visual CapiBloques — login, favicon y encabezado (8 de octubre)
 
@@ -548,7 +559,7 @@ El [plan detallado](PLAN_FASES_BACKLOG.md) define aceptación y el [backlog](BAC
 - 32: **implementada en software**; contrato común tipado para datos medidos, órdenes lógicas y servicios, con selectores por instancia, simulación, JSON, Arduino, ESP-IDF y `CapiRules`/intérprete 1.2.0. El semáforo tiene accesos infantiles directos `color actual` y `¿está apagado/rojo/amarillo/verde?`, además del dato genérico. Despliegue DEV y aceptación física pendientes; ver [FASE_32_ESTADOS_COMPONENTES.md](FASE_32_ESTADOS_COMPONENTES.md).
 - 33: **implementada en software**; roles Crear/Conectarse, identidad de placa, pares y textos predefinidos, envío y recepción con ramas igual/distinto/timeout, simulador, Arduino, ESP-IDF y `CapiRules`/intérprete 1.3.0 con protocolo versionado, CRC y deduplicación. Las credenciales permanecen fuera de JSON/Git/logs. Falta actualizar DEV y aceptar físicamente un AP con dos clientes; ver [FASE_33_WIFI_ENTRE_PLACAS.md](FASE_33_WIFI_ENTRE_PLACAS.md).
 - 34: **base de pareja implementada en software**; selección dual, `WSMMMMMM`, contraseña/clave generadas localmente, NVS y provisión de AP/cliente están entregados en CapiLink 1.5.3. Faltan canal autenticado, descriptor/telemetría, escena RGB, touch, entradas/servicios, DEV y aceptación física. La placa ejecutora seguirá siendo autoridad única. Ver [FASE_34_PANTALLA_CENTRAL_WIFI.md](FASE_34_PANTALLA_CENTRAL_WIFI.md).
-- 42: **entregada en software; DEV/aceptación visual pendientes**. La mesa ofrece Crear y Probar con ancho contextual, mantiene Ejecutar/Pausar, Paso y Usar en placa como acciones principales, muestra Detener sólo al ejecutar y reúne Reiniciar/velocidad/código/conexiones en Más. Ejemplos, importar/exportar y herramientas adultas viven en Proyecto. No se retiraron funciones ni confirmaciones. Pasó lint, tipos, smoke, build y la prueba específica en Chromium/Chrome/Edge. Ver [inventario, decisiones y evidencia](FASE_42_SIMPLIFICACION_UI.md).
+- 42: **entregada en software y desplegada en DEV; aceptación visual pendiente**. La mesa ofrece Crear y Probar con ancho contextual, mantiene Ejecutar/Pausar, Paso y Usar en placa como acciones principales, muestra Detener sólo al ejecutar y reúne Reiniciar/velocidad/código/conexiones en Más. Mis proyectos y opciones de archivo viven en Proyecto; avatar abajo a la derecha; Deshacer/Rehacer/Centrar junto a Usar en placa; catálogo de escala fija 0,72. En ejecución, Pausar es amarillo anaranjado con texto negro y Detener rojo con texto blanco. No se retiraron confirmaciones. Ver [inventario, decisiones, evidencia y despliegue](FASE_42_SIMPLIFICACION_UI.md).
 - 44: **en curso; núcleo local implementado en software con runtime 1.6.0**. CapiLink/placa/espejo web admiten `STEP`; la Waveshare ofrece Ejecutar/Pausa, Paso, Detener y Reiniciar en pantalla, inspector de contador/variables/temporizadores/caminos y GT911 para botón, barrera/PIR, valor gradual y joystick como entradas virtuales tipadas. Negocia `step`, `touch-inputs` y `autonomous-controls`. El 4 de octubre el propietario decidió postergar la compilación y las pruebas físicas de 1.6.0 para poder avanzar con otra fase; quedan registradas como pendientes. También faltan escenarios, bloque actual por camino y actividades remotas dependientes de fase 34. Ver [FASE_44_EXPERIENCIA_WAVESHARE.md](FASE_44_EXPERIENCIA_WAVESHARE.md).
 - 45: **en curso, segunda entrega funcional**; cinco aventuras nuevas, fondos vectoriales, cruce con flujo variable/filas/choques, pista de robot, encaje de semáforos y renderer compacto Waveshare 1.5.7. En web, los cuatro semáforos forzados quedan sobre el jardín en el lado de destino del flujo que controlan. Flechas de carril y una vista superior orientada junto a las tres luces hacen explícita la relación. Se nombran Semáforo 1–4 reutilizando el primer número libre; sólo existen en Cruce con tránsito, ocupan automáticamente un slot libre, sólo se mueven entre slots libres y nunca superan cuatro. Cada uno admite matrices MAX7219 8×8 opcionales: segundero vehicular sólo 0–9/apagado y cartel peatonal con persona caminando/quieta/apagado, encadenadas sobre DIN/CLK/CS compartidos, con bloques, simulación y soporte físico. Las calles de doble mano admiten tránsito seleccionable hacia derecha, izquierda, abajo y arriba. Dos semáforos conservan control por eje; con cuatro, cada acceso controla su sentido. Amarillo/rojo usan la línea de detención y los actores respetan velocidad/pausa; apagado se comporta como amarillo y nunca reinicia los autos. **Reiniciar** sí restablece programa y mundo completo: autos, filas, choque y azar. Los autos nacen independientemente y se destruyen al salir; el máximo simultáneo es doce. La segunda entrega suma selección múltiple, movimiento grupal acotado, alineación/distribución, grilla 10/20/40, guías magnéticas, orden Adelante/Atrás persistido y validado, cajas lógicas comunes, anclas deterministas de rótulo y avisos no bloqueantes de solapamiento. Waveshare consume el mismo orden y criterio de anclas. Quedan capturas de referencia, mediciones y aceptación física. Ver [FASE_45_ESCENAS_VISUALES.md](FASE_45_ESCENAS_VISUALES.md).
 - 43: **terminada en software; DEV/físico pendientes**. Editor modal grande compartido 16×8/32×8 con lápiz, borrador, línea, curva, formas, relleno, transformaciones, historial y vista real; diez efectos de texto, siete de dibujo, una/N/sin parar, detener y esperar cooperativos. Matriz MAX7219 agrega brillo programable 0–100%. CapiRules exige intérprete 1.7.0 para evitar cargar reglas nuevas en firmware viejo. Selección/importación/color y patrones generativos quedan como ampliaciones; ver [FASE_43_EFECTOS_DISPLAY.md](FASE_43_EFECTOS_DISPLAY.md).

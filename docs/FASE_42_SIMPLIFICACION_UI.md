@@ -1,7 +1,7 @@
 # Fase 42 — Simplificación integral de la interfaz
 
-Estado al 4 de octubre de 2026: **entregada en software; actualización y
-aceptación visual en DEV pendientes**.
+Estado al 14 de octubre de 2026: **entregada en software y desplegada en DEV
+en `9e3d0b9`; aceptación visual y de uso pendiente**.
 
 ## Resultado
 
@@ -19,20 +19,20 @@ la fila principal. Reiniciar, velocidad, código y conexiones están en **Más**
 Así no compiten permanentemente con la acción actual, pero siguen a dos gestos
 como máximo y son operables con teclado.
 
-Ejemplos, exportación JSON, copia local, importación y herramientas para adultos
-se reúnen en **Proyecto**. Guardar, Mis proyectos, estado de guardado, nombre,
-cuenta y avatar siguen visibles porque responden preguntas distintas y
-frecuentes: qué estoy haciendo, si está guardado y dónde lo recupero.
+Ejemplos, **Mis proyectos**, exportación JSON, copia local, importación y
+herramientas para adultos se reúnen en **Proyecto**. Guardar, estado de guardado,
+nombre y cuenta siguen en la barra; el avatar se ubica en la esquina inferior
+derecha y el saludo con el nombre de la cuenta ya no aparece.
 
 ## Inventario de acciones
 
 | Lugar | Siempre visible | Visible según contexto | Bajo demanda |
 | --- | --- | --- | --- |
-| Proyecto | nombre, Guardar, Mis proyectos y estado | errores de guardado | ejemplos, JSON, copia local, importar y herramientas adultas |
-| Trabajo | Crear, Probar, destino, Ejecutar/Pausar, Paso y Usar en placa | Detener durante una ejecución; Detalles de placa al conectarse | Reiniciar, velocidad, código y conexiones |
-| Programa | pestañas, Deshacer, Rehacer y Centrar | catálogo de la categoría elegida | ayuda y menú contextual de bloques |
+| Proyecto | nombre, Guardar y estado | errores de guardado | Mis proyectos, ejemplos, JSON, copia local, importar y herramientas adultas |
+| Trabajo | Crear, Probar, destino, Ejecutar/Pausar, Paso, Usar en placa, Deshacer, Rehacer y Centrar | Detener durante una ejecución; Detalles de placa al conectarse | Reiniciar, velocidad, código y conexiones |
+| Programa | pestañas | catálogo de la categoría elegida, con escala fija 0,72 | ayuda y menú contextual de bloques |
 | Escena | escena, Estado/Consola y Armar escena | controles de entradas y progreso del objeto | cámara, propiedades y cableado detallado |
-| Cuenta | avatar y menú de cuenta | estado offline o sesión revocada | preferencias, sonido, gestión por rol y salir |
+| Cuenta | avatar en la esquina inferior derecha y menú de cuenta | estado offline o sesión revocada | preferencias, sonido, gestión por rol y salir |
 
 Las pantallas administrativas permanecen fuera del editor. Los asistentes de
 escena, placa, guardado/recuperación, errores y herramientas avanzadas siguen
@@ -70,11 +70,12 @@ confirmaciones ni mezcla sus decisiones en la mesa principal.
 
 ## Pendiente de aceptación
 
-Actualizar DEV y comprobar con el propietario el recorrido cotidiano a tamaño
-real: crear, probar, detener, guardar, abrir un proyecto y usar una placa. La
-aceptación debe confirmar que Proyecto y Más resultan descubribles para chicos
-de 8 a 12 años. Si una opción importante no se encuentra, se ajusta su entrada;
-no se vuelve a exhibir toda la funcionalidad simultáneamente.
+DEV quedó actualizado en `9e3d0b9`. Comprobar con el propietario el recorrido
+cotidiano a tamaño real: crear, probar, detener, guardar, abrir un proyecto y
+usar una placa. La aceptación debe confirmar que Proyecto y Más resultan
+descubribles para chicos de 8 a 12 años. Si una opción importante no se
+encuentra, se ajusta su entrada; no se vuelve a exhibir toda la funcionalidad
+simultáneamente.
 
 ## Pulido complementario — 5 de octubre de 2026
 
@@ -90,5 +91,24 @@ de humo general correctos; `scripts/wifi-messages.test.mjs` y
 `git diff --check` correctos. El chequeo global de TypeScript no se pudo validar
 con el compilador disponible: además de una opción de imports `.ts` ausente en
 la primera ejecución, la ejecución ajustada marcó numerosos
-`@ts-expect-error` preexistentes como no utilizados. No se actualizó DEV; la
-aceptación visual y de uso indicada arriba sigue pendiente.
+`@ts-expect-error` preexistentes como no utilizados. En ese momento no se
+actualizó DEV; la aceptación visual y de uso indicada arriba sigue pendiente.
+
+## Ajustes de barra y ejecución — 14 de octubre de 2026
+
+«Mis proyectos» se abre desde el menú **Proyecto**; su botón independiente se
+retiró. El avatar ahora es un control flotante en la esquina inferior derecha,
+sin el saludo con el nombre de la cuenta en la barra superior. El catálogo
+conserva tamaño independiente del zoom del programa y usa escala fija `0,72`.
+Se retiró el encabezado «Programa visual» y Deshacer/Rehacer/Centrar se movieron
+junto a «Usar en placa». Mientras corre una ejecución, **Pausar** usa fondo
+amarillo anaranjado con texto negro y **Detener** fondo rojo con texto blanco.
+
+Los cambios se separaron en commits; el último funcional es `9e3d0b9` y DEV
+quedó saludable con ese commit. Typecheck, lint dirigido y pruebas de workbench
+y ergonomía pasaron. El recorrido visual/humano sigue pendiente. Tras el primer
+intento de despliegue, la caché de build se limpió con autorización y el
+orquestador se reanudó; la salud interna y pública respondieron `ok`, el
+planificador quedó activo, admisión abierta y cola vacía. La VM conserva menos
+de 2 GiB libres; la limpieza Docker informó esa advertencia y no se tocaron
+imágenes activas ni volúmenes.
