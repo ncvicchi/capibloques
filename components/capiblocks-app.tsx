@@ -1347,6 +1347,9 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             <DropdownMenuContent align="end" className="project-menu">
               <DropdownMenuGroup>
                 <DropdownMenuLabel>Empezar y compartir</DropdownMenuLabel>
+                {!guest && <DropdownMenuItem disabled={!hydrated || offline} onClick={() => libraryRef.current?.open()}>
+                  <FolderOpen /> Mis proyectos
+                </DropdownMenuItem>}
                 <DropdownMenuItem onClick={() => setExamplesOpen(true)}>
                   <Blocks /> Abrir un ejemplo
                 </DropdownMenuItem>

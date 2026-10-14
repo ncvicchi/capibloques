@@ -11,7 +11,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { FolderOpen, Save } from 'lucide-react';
+import { Save } from 'lucide-react';
 import ProjectCourseDialog from '@/components/project-course';
 import ProjectHistory from '@/components/project-history';
 import { reviewUrl } from '@/lib/project-review';
@@ -54,6 +54,7 @@ import { announceSessionChange, type Account, type AccountDraftStore } from '@/l
 export type ProjectLibraryHandle = {
   detach: () => void;
   replace: (action: () => void) => void;
+  open: () => void;
 };
 type Props = {
   account: Account;
@@ -255,7 +256,13 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
       },
       [dirty, store],
     );
-    useImperativeHandle(ref, () => ({ detach, replace }), [detach, replace]);
+    const showLibrary = useCallback(() => {
+      setError('');
+      setCloudNotice('');
+      setListing(null);
+      setOpen(true);
+    }, []);
+    useImperativeHandle(ref, () => ({ detach, replace, open: showLibrary }), [detach, replace, showLibrary]);
 
     async function request<T>(
       url: string,
@@ -686,20 +693,6 @@ const ProjectLibrary = forwardRef<ProjectLibraryHandle, Props>(
         >
           <Save size={18} />
           Guardar
-        </button>
-        <button
-          className="header-text-button"
-          disabled={!hydrated || busy || offline}
-          title={offline ? 'Reconectá para abrir proyectos del servidor' : undefined}
-          onClick={() => {
-            setError('');
-            setCloudNotice('');
-            setListing(null);
-            setOpen(true);
-          }}
-        >
-          <FolderOpen size={18} />
-          Mis proyectos
         </button>
         <span className="cloud-state" aria-live="polite">
           {link ? context?.id === link.id ? context.course ? `Curso ${context.course.name}${context.course.ownerCanEdit ? ' · Visible para sus docentes' : ' · Sólo lectura; continuá con una copia'}` : 'Personal' : 'Visibilidad sin verificar' : 'Personal'} · {status}
