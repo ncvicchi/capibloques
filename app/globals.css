@@ -3614,8 +3614,11 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 
 /* Phase 12: two global rows; context and execution live beside their canvas. */
 .workbench { height: 100dvh; min-height: 500px; }
-.workbench .topbar { height: 66px; padding: 0 16px; gap: 14px; grid-template-columns: 190px minmax(150px, 230px) minmax(0, 1fr); }
-.workbench .topbar { grid-template-columns: minmax(150px, 230px) minmax(0, 1fr); }
+.workbench .topbar { height: 66px; padding: 0 16px; gap: 14px; grid-template-columns: minmax(0, 1fr) auto; }
+.project-header-controls { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.project-header-controls .project-name { flex: 0 0 auto; }
+.project-header-controls .save-project-button { flex: 0 0 auto; }
+.workbench .project-header-controls .cloud-state { max-width: 220px; }
 .workbench .brand strong { font-size: 20px; }
 .workbench .brand span { font-size: 11px; }
 .workbench .project-name input { min-width: 0; }
@@ -3727,7 +3730,7 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .wiring-pin-button { border: 1px solid #bca6df; color: #522494; background: #f7f1ff; padding: 7px 9px; border-radius: 6px; white-space: nowrap; font-weight: 700; }
 .wiring-pin-button[aria-pressed='true'] { background: #eadcff; outline: 2px solid #7a45bd; }
 @media (max-width: 1150px) {
-  .workbench .topbar { grid-template-columns: minmax(135px, 170px) minmax(0, 1fr); gap: 8px; padding: 0 10px; }
+  .workbench .topbar { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 0 10px; }
   .workbench .header-actions > button { padding-left: 8px; padding-right: 8px; font-size: 12px; }
   .workbench .cloud-state { min-width: 75px; font-size: 10px; }
   .workbench .workspace-grid.functional { grid-template-columns: minmax(390px, 1fr) minmax(330px, 38%); padding: 8px 10px 0; gap: 8px; }
@@ -3740,7 +3743,8 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 }
 @media (max-width: 800px) {
   .workbench { height: auto; min-height: 100dvh; overflow: visible; }
-  .workbench .topbar { position: static; height: auto; padding: 8px; grid-template-columns: 1fr 1fr; }
+  .workbench .topbar { position: static; height: auto; padding: 8px; grid-template-columns: 1fr; }
+  .workbench .project-header-controls { grid-column: 1 / -1; flex-wrap: wrap; }
   .workbench .header-actions { grid-column: 1 / -1; flex-wrap: wrap; justify-content: flex-start; max-width: none; }
   .workbench .header-actions > button { width: auto; padding: 8px; white-space: nowrap; }
   .workbench .cloud-state { max-width: none; min-width: 90px; }

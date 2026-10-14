@@ -1321,18 +1321,20 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       {preferencesOpen && preferences.preferences && <PreferencesPicker kind={preferencesOpen} {...preferences} preferences={preferences.preferences} onSave={preferences.save} onRetry={()=>void preferences.refresh()} onClose={()=>setPreferencesOpen(null)}/>}
       {preferencesOpen && !preferences.preferences && <Dialog open onOpenChange={open=>{if(!open)setPreferencesOpen(null);}}><DialogContent><DialogHeader><DialogTitle>Preferencias de tu cuenta</DialogTitle><DialogDescription>{preferences.error || 'Estamos cargando tus preferencias. Tu programa no se modificó.'}</DialogDescription></DialogHeader><button className="header-text-button" onClick={()=>void preferences.refresh()}>Reintentar preferencias</button><button className="header-text-button" onClick={()=>setPreferencesOpen(null)}>Cancelar</button></DialogContent></Dialog>}
       <header className="topbar">
-        <label className="project-name">
-          <span className="project-name-label"><span className="account-brand-icon project-brand-icon" aria-hidden="true" /><span>Proyecto</span></span>
-          <input
-            value={projectName}
-            maxLength={80}
-            onChange={(event) => setProjectName(event.target.value)}
-            aria-label="Nombre del proyecto"
-          />
-          <Pencil size={14} aria-hidden="true" />
-        </label>
-        <nav className="header-actions" aria-label="Acciones del proyecto">
+        <div className="project-header-controls">
+          <label className="project-name">
+            <span className="project-name-label"><span className="account-brand-icon project-brand-icon" aria-hidden="true" /><span>Proyecto</span></span>
+            <input
+              value={projectName}
+              maxLength={80}
+              onChange={(event) => setProjectName(event.target.value)}
+              aria-label="Nombre del proyecto"
+            />
+            <Pencil size={14} aria-hidden="true" />
+          </label>
           {!guest && <ProjectLibrary ref={libraryRef} account={account} store={draftStore} csrfToken={csrfToken} hydrated={hydrated} sceneEditing={sceneBuilderOpen} offline={offline} fingerprint={fingerprint} capture={currentProject} apply={applyLibraryProject} onNew={newLibraryProject} onImport={() => fileInputRef.current?.click()} notice={message => { setNotice(message); setNoticeTone('ok'); }} />}
+        </div>
+        <nav className="header-actions" aria-label="Acciones del proyecto">
           {!guest && <ChallengeWorkbench account={account} token={csrfToken} enabled={!offline&&draftStore.remoteAllowed} workspace={workspace} capture={currentProject} projectId={()=>draftStore.remote?.id??null} compile={()=>editorRef.current?.compile()??emptyProgram()} load={(project,applied)=>{const apply=()=>{libraryRef.current?.detach();applyLibraryProject(project);applied?.();};if(libraryRef.current)libraryRef.current.replace(apply);else apply();}} onPalette={setChallengePalette}/>}
           <DropdownMenu>
             <DropdownMenuTrigger className="export-button" aria-label="Opciones del proyecto">
