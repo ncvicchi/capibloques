@@ -30,10 +30,13 @@ compilador servidor comparten este formato. Se corrigieron también las dos
 sentencias de Waveshare y el nombre de sketch de las fixtures. Typecheck, lint
 dirigido, smoke básico y pruebas dirigidas (pantallas, Otto, módulos educativos,
 carteles, ESP-IDF y generador servidor) pasan. El generador servidor omite el
-primer fixture v2 antiguo porque ya no satisface el validador actual. No hay
-Arduino CLI ni `g++` localmente, por lo que no se verificaron aquí la compilación
-Arduino ni `idf-driver`; CI aún debe ejecutarse sobre el árbol actualizado. No
-integrar ni desplegar hasta CI verde.
+primer fixture v2 antiguo porque ya no satisface el validador actual. En GitHub
+run 273, backend, firmware Arduino (Wemos, S3 y siete perfiles) y ESP-IDF pasaron;
+`verify` falló en `idf-driver`, cuyo `g++` termina con `status=null` compilando
+`runtime`, sin señal/stderr en el log. Se amplió el diagnóstico en `ea2a034`,
+pero el log del run sigue mostrando el formato anterior. PR #1 no está listo para
+integración ni deploy hasta corregir `idf-driver` y obtener `verify` verde. No hay
+Arduino CLI ni `g++` localmente.
 
 ### Piloto visual CapiBloques — login, favicon y encabezado (8 de octubre)
 

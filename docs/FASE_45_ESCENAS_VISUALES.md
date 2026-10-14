@@ -29,8 +29,11 @@ proyecto Arduino se exporta como ZIP con `.ino` mínimo y encabezado generado,
 para impedir que Arduino reordene esos prototipos. El editor, revisión docente,
 compilador servidor y fixtures usan el mismo esquema; las dos líneas Waveshare
 se separaron. Pasan typecheck, lint dirigido y pruebas locales dirigidas, pero
-la compilación Arduino y `idf-driver` requieren CI (Arduino CLI y `g++` no están
-instalados localmente). No integrar/desplegar hasta obtener CI verde.
+Arduino ya pasó Wemos, S3 y siete perfiles en CI, y el build ESP-IDF/backend también
+pasó en run 273. `verify` aún falla en `idf-driver`: `g++` devuelve `status=null`
+compilando `runtime`; la señal/causa sigue sin aparecer en el log pese al ajuste
+de diagnóstico subido. `g++` y Arduino CLI no están instalados localmente. No
+integrar/desplegar hasta resolver `idf-driver` y obtener CI verde.
 
 ## Entregado en la primera implementación
 

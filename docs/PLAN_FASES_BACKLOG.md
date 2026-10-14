@@ -779,12 +779,13 @@ En `e98e0b8`, firmware falló por prototipos Arduino antes de `OttoDevice`;
 ESP-IDF falló por dos líneas Waveshare rechazadas por `-Werror` y `idf-driver`
 falló al compilar `runtime`: `g++` devolvió `status=null`, sin registrar señal,
 stdout ni stderr. Se amplió la salida del test para capturar esos datos en CI.
-En el árbol local sin subir, Arduino
-se exporta como ZIP con un `.ino` mínimo y `capibloques_program.h`; exportación,
-revisión docente, compilador servidor y fixtures comparten el formato. Las dos
-sentencias ESP-IDF se separaron. Typecheck, lint dirigido y pruebas dirigidas
-pasan; Arduino CLI y `g++` no están disponibles localmente. Falta CI sobre estas
-correcciones; sin CI verde, no integrar ni desplegar.
+En run 273, backend, ESP-IDF, Wemos, S3 y siete perfiles Arduino pasaron; `verify`
+sigue fallando en `idf-driver` con el mismo mensaje sin señal/diagnóstico. En el
+árbol local Arduino se exporta como ZIP con un `.ino` mínimo y
+`capibloques_program.h`; exportación, revisión docente, compilador servidor y
+fixtures comparten el formato. Las dos sentencias ESP-IDF se separaron.
+Typecheck, lint dirigido y pruebas locales relevantes pasan; Arduino CLI y `g++`
+no están disponibles localmente. Sin `verify` verde, no integrar ni desplegar.
 
 ## Fase final — Producción y piloto, postergada
 

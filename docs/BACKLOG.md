@@ -731,19 +731,17 @@ fallaron: `firmware` mostró tipos de dispositivos no declarados tras el
 preprocesado de Arduino y `verify` no pudo ejecutar el binario de
 `idf-driver.test.mjs`. En `e98e0b8`, GitHub reportó: firmware, prototipos Arduino
 con `OttoDevice` antes del tipo; ESP-IDF, dos `-Werror=misleading-indentation`
-en Waveshare; `verify`, fallo en `idf-driver` cuyo log no expone la causa. Backend
-y scope pasaron. En `verify`, `g++` devolvió `status=null` compilando `runtime`,
-pero el test omitía señal/stdout/stderr y el log no permite distinguir la causa;
-el diagnóstico local ahora los imprime. Corrección local pendiente de subir: el código Arduino se
-empaqueta como ZIP con un `.ino` mínimo y `capibloques_program.h`, evitando la
-reordenación de prototipos; exportación del editor/revisión docente y compilador
-del servidor usan el mismo formato. Las fixtures respetan nombre de sketch y
-carpeta. También se separaron dos sentencias rechazadas por `-Werror` en
-Waveshare. Typecheck, lint dirigido y pruebas dirigidas de pantallas, Otto,
-módulos educativos, carteles, ESP-IDF, generador servidor y smoke básico pasan.
-No hay Arduino CLI ni `g++` localmente, así que firmware y `idf-driver` requieren
-CI. Este árbol aún no se subió y no hay resultado de CI para estas correcciones;
-no integrar/desplegar hasta CI verde.
+en Waveshare; `verify`, fallo en `idf-driver`. En `ea2a034`, GitHub CI run 273
+pasó `backend`, `firmware` (Wemos, S3 y siete perfiles) y `esp-idf`; `verify`
+sigue fallando en `idf-driver`, donde `g++` devuelve `status=null` compilando
+`runtime`, sin señal ni stderr. Se subió un diagnóstico ampliado, pero el run
+aún muestra el mensaje anterior; falta aclarar y corregir ese fallo. Arduino se
+empaqueta como ZIP con `.ino` mínimo y `capibloques_program.h`, evitando la
+reordenación de prototipos; editor, revisión docente y compilador servidor
+comparten el formato. Se separaron dos sentencias Waveshare rechazadas por
+`-Werror`. Typecheck, lint dirigido y pruebas locales relevantes pasan; no hay
+Arduino CLI ni `g++` localmente. PR #1 no es integrable ni desplegable hasta que
+`verify` pase.
 
 ## Pedidos externos a analizar
 
