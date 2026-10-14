@@ -20,6 +20,25 @@ VM mantiene 1,2 GiB libres, por debajo del objetivo de 2 GiB de la limpieza
 Docker; no se tocaron imágenes activas ni volúmenes. Aceptación visual humana
 pendiente.
 
+### Pulido adicional de la barra del editor — 14 de octubre de 2026
+
+Por autorización del propietario se implementaron ocho ajustes en commits
+separados: catálogo más compacto (escala `0,58`, ancho fijo de 148 px), avatar
+por encima del estado inferior, retiro de «Wemos» del encabezado, lápiz junto al
+nombre del proyecto, Guardar y destino junto a ese nombre, etiquetas del
+catálogo con el color de cada categoría, ocultamiento del catálogo en **Probar**
+y restauración en **Crear**, y vuelta a **Crear** al detener la ejecución
+(Pausa conserva la vista actual). Commits funcionales:
+`688f6d0`, `1e023bd`, `c9ef77d`, `f6aa0d8`, `ac2fb2a`, `7f7f365`, `aeaa863` y
+`90b2ea8`.
+
+`git diff --check` pasó. No se ejecutaron pruebas ni se hizo despliegue remoto.
+El DEV sigue en `9e3d0b9`; los ocho commits están en `main` local y falta
+publicarlos. Cuando el propietario quiera desplegar, usar en `capi-dev`
+`cd /home/capi/capibloques && ./scripts/update-dev.sh` (o
+`scripts/deploy-dev.ps1` desde Windows). Aceptación visual posterior al
+despliegue pendiente.
+
 ### Recuperación de aventuras sobre la rama del piloto visual — 14 de octubre
 
 Se creó `codex/adventures-pilot-v2` desde `93561ab88f663205a96d14d0828ad08f39fbffa6`,

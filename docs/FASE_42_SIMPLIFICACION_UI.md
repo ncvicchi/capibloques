@@ -77,6 +77,25 @@ descubribles para chicos de 8 a 12 años. Si una opción importante no se
 encuentra, se ajusta su entrada; no se vuelve a exhibir toda la funcionalidad
 simultáneamente.
 
+## Pulido adicional de la barra del editor — 14 de octubre de 2026
+
+Se agregaron ocho ajustes autorizados, cada uno en un commit funcional propio:
+
+- Catálogo de bloques a escala fija `0,58` y ancho fijo de 148 px.
+- Avatar superpuesto al aviso de estado inferior.
+- Retiro de la etiqueta de placa «Wemos» del encabezado.
+- Lápiz colocado a la derecha del nombre editable del proyecto.
+- Guardar y el destino/estado del proyecto colocados junto al nombre.
+- Fondo de color por categoría en las etiquetas del catálogo.
+- Categorías ocultas en **Probar** y visibles otra vez en **Crear**.
+- **Detener** vuelve a **Crear**; **Pausa** mantiene la vista elegida.
+
+Commits: `688f6d0`, `1e023bd`, `c9ef77d`, `f6aa0d8`, `ac2fb2a`, `7f7f365`,
+`aeaa863` y `90b2ea8`. `git diff --check` pasó. No se ejecutaron pruebas ni
+despliegue remoto para esta actualización. El DEV continúa en `9e3d0b9` hasta
+que el propietario ejecute el orquestador habitual. La aceptación visual de
+estos ajustes queda pendiente después de desplegarlos.
+
 ## Pulido complementario — 5 de octubre de 2026
 
 Se ampliaron las acciones de avatar y se nombraron **Seleccionar Avatar** y
