@@ -118,7 +118,7 @@ for (const profile of Object.keys(displayProfiles)) {
     assert.match(generated.code, /capiDisplayButtonPressed\(4\)/);
     assert.match(generated.code, /LiquidCrystal capiScreen/);
   }
-  assert.ok(generated.code.indexOf('struct TrafficDevice') < generated.code.indexOf('void capiDisplayWrite'), 'Arduino inserts prototypes before the first sketch function: declare helper types first');
+  assert.ok(generated.code.indexOf('struct TrafficDevice') < generated.code.indexOf('void capiDisplayWrite'), 'generated header preserves helper types before functions');
   assert.doesNotMatch(generated.code, /Serial.println\("!Hola/);
   if (profile !== 'waveshare5') assert.doesNotMatch(generated.code, /\bdelay\(/);
   if (profile === 'ili9488')

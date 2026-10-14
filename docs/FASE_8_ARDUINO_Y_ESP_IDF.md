@@ -26,13 +26,13 @@ La imagen oficial de CI está fijada por digest en el workflow y el ZIP. El mani
 ## Uso
 
 1. Abrir o importar un proyecto en DEV, simular y corregir los diagnósticos.
-2. En **Exportar**, elegir **Código Arduino .ino** o **Proyecto ESP-IDF .zip**. Ambas opciones conservan la confirmación de conexiones. Si cambian los componentes/pines, revisarlas nuevamente.
+2. En **Exportar**, elegir **Proyecto Arduino .zip** o **Proyecto ESP-IDF .zip**. El ZIP Arduino contiene `capibloques.ino` y `capibloques_program.h`: extraer ambos en una carpeta y abrir el `.ino` desde allí. El encabezado mantiene los tipos antes de las funciones y evita que el preprocesador Arduino reordene prototipos. Ambas opciones conservan la confirmación de conexiones. Si cambian los componentes/pines, revisarlas nuevamente.
 3. **Ver código ESP32 → Formato de código** permite alternar las vistas. En ESP-IDF se ve `main/main.cpp`: copiar ese texto no reemplaza descargar el proyecto completo.
 4. Extraer el ZIP. En una terminal de ESP-IDF **5.5.5**, ejecutar `idf.py set-target esp32` y `idf.py build`. El proyecto rechaza otro chip/versión para no presumir compatibilidad.
 5. Para Wi-Fi, copiar `main/wifi_config.example.h` como `main/wifi_config.h` y editarlo sólo en la PC. Está excluido de Git. El archivo exportado usa marcadores, nunca una clave de la cuenta o del servidor. El binario compilado con credenciales sí las contiene: no compartirlo.
 6. Con las herramientas oficiales instaladas localmente, `idf.py -p PUERTO flash monitor` permite grabar. La web todavía no compila ni graba: corresponden a las fases 9 y 10.
 
-La revisión docente ofrece la descarga ESP-IDF de la versión seleccionada después de revisar sus conexiones. Revalida acceso/versión antes de preparar el ZIP y acceso nuevamente después; perder permisos o cambiar de sesión cancela la descarga. No modifica el original ni incluye conversaciones. JSON sigue siendo el formato importable de CapiBloques: no se importan ZIP de fuentes ni `.ino` para reconstruir bloques.
+La revisión docente ofrece proyectos Arduino y ESP-IDF de la versión seleccionada después de revisar sus conexiones. Arduino se descarga como ZIP con sketch y encabezado generado; ESP-IDF como proyecto ZIP. Revalida acceso/versión antes de preparar el ZIP y acceso nuevamente después; perder permisos o cambiar de sesión cancela la descarga. No modifica el original ni incluye conversaciones. JSON sigue siendo el formato importable de CapiBloques: no se importan ZIP de fuentes ni `.ino` para reconstruir bloques.
 
 ## Contratos técnicos
 

@@ -4435,7 +4435,7 @@ ${trafficGlyphDeclarations}
 
 ${deviceDeclarations(scene, symbols)}
 ${componentStateDeclarations(scene)}
-${native ? supportCode : ''}
+${supportCode}
 
 void setTraffic(const TrafficDevice& device, TrafficColor color) {
   ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.red, color == TrafficColor::RED ? ${native ? '1 : 0' : 'HIGH : LOW'});
@@ -4588,8 +4588,6 @@ void ottoBegin(OttoDevice& device) {
   ottoHome(device); ottoArms(device, 0);
   if (device.matrixCs != 255) { ottoMatrixSend(device, 0x0F, 0); ottoMatrixSend(device, 0x0C, 1); ottoMatrixSend(device, 0x0B, 7); ottoMatrixSend(device, 0x0A, device.matrixBrightness); ottoExpression(device, 0); }
 }
-
-${native ? '' : supportCode}
 
 ${threadFunctions}
 

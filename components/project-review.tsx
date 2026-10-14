@@ -28,7 +28,7 @@ import {
   type CodeGenerationResult,
   type ProjectFile,
 } from '@/lib/capiblocks';
-import { createEspIdfArchive, downloadFirmwareArchive } from '@/lib/firmware-archive';
+import { createArduinoArchive, createEspIdfArchive, downloadFirmwareArchive } from '@/lib/firmware-archive';
 import {
   sessionChangePending,
   watchSessionChange,
@@ -402,7 +402,7 @@ export default function ProjectReview() {
           await request<Snapshot>(`versions/${snapshot.version.revision}/`);
           if (!active.current || !allowed.current || epoch.current !== exportEpoch) return;
           downloadFirmwareArchive(`${name}-esp-idf.zip`, archive);
-        } else downloadText(`${name}.ino`, artifact.generated.code, 'text/plain');
+        } else downloadFirmwareArchive(`${name}-arduino.zip`, createArduinoArchive(artifact.generated));
       }
       else
         throw new Error(

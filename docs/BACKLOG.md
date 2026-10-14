@@ -729,12 +729,19 @@ instala toolchain pesada fuera de su fase. E2E/visual y DEV quedan pendientes de
 PR/checks. Los checks de la primera revisión del PR (antes del head actual)
 fallaron: `firmware` mostró tipos de dispositivos no declarados tras el
 preprocesado de Arduino y `verify` no pudo ejecutar el binario de
-`idf-driver.test.mjs`. El commit `67e0da7` se subió al PR, pero una inspección
-posterior encontró que el soporte común no quedó donde debía. Se corrigió en el
-árbol local, aún sin subir ni verificar por CI. Typecheck y pruebas dirigidas
-pasaron antes de ese último ajuste; después volvió a pasar `scripts/idf.test.mjs`
-y `git diff --check`. Arduino CLI y `g++` no están disponibles localmente. No
-integrar/desplegar: falta subir el ajuste y obtener CI verde.
+`idf-driver.test.mjs`. En `e98e0b8`, GitHub reportó: firmware, prototipos Arduino
+con `OttoDevice` antes del tipo; ESP-IDF, dos `-Werror=misleading-indentation`
+en Waveshare; `verify`, fallo en `idf-driver` cuyo log no expone la causa. Backend
+y scope pasaron. Corrección local pendiente de subir: el código Arduino se
+empaqueta como ZIP con un `.ino` mínimo y `capibloques_program.h`, evitando la
+reordenación de prototipos; exportación del editor/revisión docente y compilador
+del servidor usan el mismo formato. Las fixtures respetan nombre de sketch y
+carpeta. También se separaron dos sentencias rechazadas por `-Werror` en
+Waveshare. Typecheck, lint dirigido y pruebas dirigidas de pantallas, Otto,
+módulos educativos, carteles, ESP-IDF, generador servidor y smoke básico pasan.
+No hay Arduino CLI ni `g++` localmente, así que firmware y `idf-driver` requieren
+CI. Este árbol aún no se subió y no hay resultado de CI para estas correcciones;
+no integrar/desplegar hasta CI verde.
 
 ## Pedidos externos a analizar
 

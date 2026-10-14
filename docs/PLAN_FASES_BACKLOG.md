@@ -775,10 +775,14 @@ aceptaciones de Waveshare.
 Los checks del primer head del PR fallaron en firmware (tipos no declarados tras
 el preprocesador Arduino) y en `verify` (`idf-driver.test.mjs` no ejecutó su
 binario nativo); ambos deben repetirse sobre el head actual antes de integrar.
-El commit `67e0da7` se subió, pero la inspección posterior encontró el soporte
-común mal ubicado; su posición se corrigió localmente, aún sin subir ni validar.
-Typecheck y pruebas dirigidas pasaron antes del ajuste final; luego pasó
-`scripts/idf.test.mjs`. Falta CI verde; la VM no tiene Arduino CLI ni `g++`.
+En `e98e0b8`, firmware falló por prototipos Arduino antes de `OttoDevice`;
+ESP-IDF falló por dos líneas Waveshare rechazadas por `-Werror` y `idf-driver`
+falló sin diagnóstico adicional en el log. En el árbol local sin subir, Arduino
+se exporta como ZIP con un `.ino` mínimo y `capibloques_program.h`; exportación,
+revisión docente, compilador servidor y fixtures comparten el formato. Las dos
+sentencias ESP-IDF se separaron. Typecheck, lint dirigido y pruebas dirigidas
+pasan; Arduino CLI y `g++` no están disponibles localmente. Falta CI sobre estas
+correcciones; sin CI verde, no integrar ni desplegar.
 
 ## Fase final — Producción y piloto, postergada
 

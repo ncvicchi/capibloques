@@ -7,6 +7,7 @@ import {
 } from '../lib/display-model.ts';
 import { addDeviceToScene, createEmptyScene } from '../lib/scene-model.ts';
 import { generateEsp32CodeResult } from '../lib/capiblocks.ts';
+import { arduinoProjectFiles } from '../lib/firmware-archive.ts';
 
 for (const profile of Object.keys(displayProfiles)) {
   const boardProfile = profile === 'waveshare5' ? 'waveshare-esp32-s3-touch-lcd-5-28117' : 'wemos-d1-r32';
@@ -94,5 +95,7 @@ for (const profile of Object.keys(displayProfiles)) {
     throw new Error(JSON.stringify(generated.diagnostics));
   const directory = resolve('.arduino-ci', profile);
   await mkdir(directory, { recursive: true });
-  await writeFile(resolve(directory, `${profile}.ino`), generated.code);
+  const files = arduinoProjectFiles(generated);
+  await writeFile(resolve(directory, `${profile}.ino`), files['capibloques/capibloques.ino']);
+  await writeFile(resolve(directory, 'capibloques_program.h'), files['capibloques/capibloques_program.h']);
 }

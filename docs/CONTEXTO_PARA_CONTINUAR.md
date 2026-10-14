@@ -19,20 +19,19 @@ pasaron. La smoke suite completa no pudo completarse: `frame-animation` e
 `interpreter-source` necesitan `g++`, ausente en `capi-dev`; no se instaló
 toolchain. No se ejecutó E2E. El orquestador despliega `origin/main`; esperar el
 merge del PR #1 y checks antes de ejecutar DEV. Aceptación visual/humana
-pendiente. Los checks del head previo del PR reportaron fallo en firmware
-(tipos de dispositivos no declarados tras el preprocesador Arduino) y en
-`verify` (`idf-driver.test.mjs` no ejecutó su binario nativo). La revisión era
-anterior a `646d730`; repetir y validar los checks en el head actual antes de
-integrar o desplegar. Se reordenó la salida de firmware: tipos y dispositivos
-aparecen antes del soporte común, que se emite después en ambos generadores.
-Typecheck y las pruebas dirigidas de ESP-IDF, pantallas, semáforos, Otto y
-mensajes pasaron antes del último ajuste de plantilla. Tras ese ajuste, volvió a
-pasar `scripts/idf.test.mjs` y `git diff --check`. La compilación Arduino no se
-ejecuta localmente sin Arduino CLI; `idf-driver.test.mjs` se bloquea localmente
-por `g++` ausente. El commit `67e0da7` ya está en el PR, pero una inspección
-posterior encontró que su soporte no quedó colocado en el sitio correcto; esa
-ubicación se corrigió en el árbol local y todavía no está subida ni validada por
-CI. No integrar ni desplegar hasta un CI verde del head corregido.
+pendiente. En el head remoto `e98e0b8`, CI reportó Arduino con prototipos
+generados antes de `OttoDevice`, dos avisos `-Werror=misleading-indentation` en
+Waveshare y fallo de `idf-driver` con log insuficiente para determinar su causa;
+backend y scope pasaron. En el árbol local sin subir, Arduino ahora exporta un
+ZIP con `.ino` mínimo y `capibloques_program.h`; interfaz, revisión docente y
+compilador servidor comparten este formato. Se corrigieron también las dos
+sentencias de Waveshare y el nombre de sketch de las fixtures. Typecheck, lint
+dirigido, smoke básico y pruebas dirigidas (pantallas, Otto, módulos educativos,
+carteles, ESP-IDF y generador servidor) pasan. El generador servidor omite el
+primer fixture v2 antiguo porque ya no satisface el validador actual. No hay
+Arduino CLI ni `g++` localmente, por lo que no se verificaron aquí la compilación
+Arduino ni `idf-driver`; CI aún debe ejecutarse sobre el árbol actualizado. No
+integrar ni desplegar hasta CI verde.
 
 ### Piloto visual CapiBloques — login, favicon y encabezado (8 de octubre)
 

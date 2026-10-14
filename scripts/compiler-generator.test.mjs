@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { generateBuild } from './compiler-generate.mjs';
+import { decodeProject } from '../lib/capiblocks.ts';
 
-const examples = JSON.parse(readFileSync(new URL('../backend/tests/fixtures/projects-v2.json', import.meta.url)));
+const examples = JSON.parse(readFileSync(new URL('../backend/tests/fixtures/projects-v2.json', import.meta.url)))
+  .filter(source => decodeProject(source).project);
+assert.ok(examples.length > 0);
 for (const source of examples) {
   const original = JSON.stringify(source);
   const wifi = JSON.stringify(source.workspace).includes('capi_wifi') ? { ssid: 'Prueba ñ', password: 'quote"\\$test' } : null;
@@ -10,6 +13,9 @@ for (const source of examples) {
   assert.deepEqual(a.program, b.program);
   assert.equal(JSON.stringify(source), original);
   assert.equal(a.usesWifi, Boolean(wifi));
+  assert.ok(a.files['capibloques/capibloques.ino'].includes('#include "capibloques_program.h"'));
+  assert.ok(a.files['capibloques/capibloques_program.h'].includes('#include <Arduino.h>'));
+  assert.ok(!a.files['capibloques/capibloques.ino'].includes('void setup()'));
   if (wifi) {
     for (const output of [a, b]) {
       const text = Object.values(output.files).join('\n');

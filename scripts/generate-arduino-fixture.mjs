@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { generateEsp32CodeResult } from '../lib/capiblocks.ts';
+import { arduinoProjectFiles } from '../lib/firmware-archive.ts';
 import { firmwareFixture, matrixFirmwareFixture, ottoFirmwareFixture, smartLightsFirmwareFixture } from './firmware-fixtures.mjs';
 import { createSceneFromTemplate, addDeviceToScene, assignSafePins } from '../lib/scene-model.ts';
 
@@ -29,6 +30,9 @@ const generated = generateEsp32CodeResult(program, 'Fixture Arduino CI', scene, 
 const errors = generated.diagnostics.filter(item => item.severity === 'error');
 if (errors.length) throw new Error(JSON.stringify(errors));
 const outputPath = resolve(outputArgument);
-await mkdir(dirname(outputPath), { recursive: true });
-await writeFile(outputPath, generated.code, 'utf8');
+const directory = dirname(outputPath);
+const files = arduinoProjectFiles(generated);
+await mkdir(directory, { recursive: true });
+await writeFile(outputPath, files['capibloques/capibloques.ino'], 'utf8');
+await writeFile(resolve(directory, 'capibloques_program.h'), files['capibloques/capibloques_program.h'], 'utf8');
 console.log(outputPath);

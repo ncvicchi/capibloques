@@ -92,7 +92,7 @@ import {
   type ProjectTarget,
 } from '@/lib/capiblocks';
 import { boardProfile, projectTargetForBoard, type BoardProfileId } from '@/lib/board-profiles';
-import { createEspIdfArchive, downloadFirmwareArchive } from '@/lib/firmware-archive';
+import { createArduinoArchive, createEspIdfArchive, downloadFirmwareArchive } from '@/lib/firmware-archive';
 import {
   addDeviceToScene,
   assignSafePins,
@@ -1135,8 +1135,10 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         const archive = await createEspIdfArchive(generated);
         if (epoch !== exportEpoch.current) return;
         downloadFirmwareArchive(`${safeFilename(projectName)}-esp-idf.zip`, archive);
-      } else downloadText(`${safeFilename(projectName)}.ino`, generated.code, 'text/x-c++src');
-      setNotice(framework === 'esp-idf' ? 'Proyecto ESP-IDF .zip descargado: fuentes, configuración e instrucciones; no es un binario.' : 'Código .ino descargado para la Wemos D1 R32');
+      } else {
+        downloadFirmwareArchive(`${safeFilename(projectName)}-arduino.zip`, createArduinoArchive(generated));
+      }
+      setNotice(framework === 'esp-idf' ? 'Proyecto ESP-IDF .zip descargado: fuentes, configuración e instrucciones; no es un binario.' : 'Proyecto Arduino .zip descargado: sketch y soporte generado; abrí el .ino desde su carpeta.');
       setNoticeTone('ok');
     } catch (error) {
       if (epoch === exportEpoch.current) { setNotice(error instanceof Error ? error.message : 'No pudimos preparar la descarga.'); setNoticeTone('error'); }
@@ -1936,7 +1938,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             </DialogDescription>
           </DialogHeader>
           <section className="advanced-tools-list">
-            <button disabled={exportBusy} onClick={() => { setAdvancedToolsOpen(false); void exportCode('arduino'); }}><Code2 /> Exportar código Arduino .ino</button>
+            <button disabled={exportBusy} onClick={() => { setAdvancedToolsOpen(false); void exportCode('arduino'); }}><Code2 /> Exportar proyecto Arduino .zip</button>
             <button disabled={exportBusy} onClick={() => { setAdvancedToolsOpen(false); void exportCode('esp-idf'); }}><Code2 /> Exportar proyecto ESP-IDF .zip</button>
             <button disabled={offline || sceneBuilderOpen || !hydrated} onClick={() => { setAdvancedToolsOpen(false); setBuildsOpen(true); }}><Settings2 /> Compilar un firmware específico</button>
             <button disabled={offline || sceneBuilderOpen || !hydrated} onClick={() => { setAdvancedToolsOpen(false); setUsbJob(null); setUsbOpen(true); }}><Cable /> Firmware específico y monitor Serial</button>
@@ -1968,7 +1970,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             <label>
               Formato de código{' '}
               <select aria-label="Formato de código" value={codeFramework} disabled={exportBusy} onChange={event => buildCode(event.target.value as FirmwareFramework)}>
-                <option value="arduino">Arduino (.ino)</option>
+            <option value="arduino">Arduino (.zip)</option>
                 <option value="esp-idf">ESP-IDF nativo (.zip)</option>
               </select>
             </label>
@@ -1991,10 +1993,10 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
               title={
                 diagnostics.some((item) => item.severity === 'error')
                   ? 'Corregí los problemas antes de descargar'
-                  : codeFramework === 'esp-idf' ? 'Descargar proyecto ESP-IDF completo' : 'Descargar código Arduino'
+              : codeFramework === 'esp-idf' ? 'Descargar proyecto ESP-IDF completo' : 'Descargar proyecto Arduino completo'
               }
             >
-              <Download size={16} /> {exportBusy ? 'Preparando…' : codeFramework === 'esp-idf' ? 'Descargar ESP-IDF .zip' : 'Descargar .ino'}
+              <Download size={16} /> {exportBusy ? 'Preparando…' : `${codeFramework === 'esp-idf' ? 'Descargar ESP-IDF' : 'Descargar Arduino'} .zip`}
             </button>
           </div>
           {diagnostics.length > 0 && (

@@ -20,11 +20,15 @@ Los checks del primer head del PR fallaron en firmware (tipos no declarados tras
 el preprocesador Arduino) y en `verify` (`idf-driver.test.mjs` no ejecutó su
 binario nativo); esa revisión precede al revert explícito y requiere una nueva
 ejecución antes de integrar o desplegar.
-El commit `67e0da7` se subió al PR, pero la inspección detectó que el soporte
-común quedó en un lugar incorrecto. Se corrigió su ubicación en el árbol local,
-aún sin subir ni validar por CI. Typecheck y pruebas dirigidas pasaron antes del
-último ajuste; después pasó `scripts/idf.test.mjs` y `git diff --check`. No hay
-Arduino CLI ni `g++` localmente. No integrar/desplegar hasta CI verde del ajuste.
+En `e98e0b8`, CI falló: Arduino ubicó prototipos para `OttoDevice` antes del tipo;
+ESP-IDF encontró dos líneas Waveshare rechazadas por `-Werror`; `idf-driver`
+falló sin causa visible adicional en el log. En el árbol local sin subir, el
+proyecto Arduino se exporta como ZIP con `.ino` mínimo y encabezado generado,
+para impedir que Arduino reordene esos prototipos. El editor, revisión docente,
+compilador servidor y fixtures usan el mismo esquema; las dos líneas Waveshare
+se separaron. Pasan typecheck, lint dirigido y pruebas locales dirigidas, pero
+la compilación Arduino y `idf-driver` requieren CI (Arduino CLI y `g++` no están
+instalados localmente). No integrar/desplegar hasta obtener CI verde.
 
 ## Entregado en la primera implementación
 
