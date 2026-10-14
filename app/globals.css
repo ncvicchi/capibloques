@@ -790,12 +790,15 @@ select:focus-visible {
   display: flex;
   align-items: center;
 }
-.blocklyToolboxCategory { background-color: color-mix(in srgb, var(--category-colour, #e9e7f5) 16%, white) !important; }
+.blocklyToolboxCategory { background-color: transparent !important; }
 .blocklyTreeLabel,
 .blocklyToolboxCategoryLabel {
   font-family: Inter, 'Segoe UI', sans-serif !important;
   font-size: 13px !important;
   font-weight: 740 !important;
+  padding: 4px 7px !important;
+  border-radius: 6px;
+  background-color: color-mix(in srgb, var(--category-colour, #e9e7f5) 34%, white) !important;
 }
 .blocklyTreeSelected,
 .blocklyToolboxSelected {
