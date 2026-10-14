@@ -1497,6 +1497,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
               revision={workspaceRevision}
               devices={scene.devices}
               boardProfile={projectTarget.boardProfile}
+              toolboxVisible={workspaceMode === 'create'}
               onChange={onWorkspaceChange}
               onBlockSnap={onBlockSnap}
               onHelpDevice={id => setHelpTarget({ id })}

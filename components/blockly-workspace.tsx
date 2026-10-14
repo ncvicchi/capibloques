@@ -64,6 +64,7 @@ interface BlocklyWorkspaceProps {
   onBlockSnap?: () => void;
   onError?: (message: string) => void;
   onHistoryChange?: (state: BlocklyHistoryState) => void;
+  toolboxVisible?: boolean;
 }
 
 import {
@@ -543,6 +544,7 @@ const BlocklyWorkspace = forwardRef<
     onError,
     onHistoryChange,
     readOnly = false,
+    toolboxVisible = true,
     allowedBlocks,
     favorites = EMPTY_FAVORITES,
     onChooseFavorites,
@@ -608,6 +610,18 @@ const BlocklyWorkspace = forwardRef<
       device.kind === 'display' ? device.config : null,
     ]),
   );
+
+  useEffect(() => {
+    const workspace = workspaceRef.current;
+    const toolbox = workspace?.getToolbox();
+    if (!workspace || !toolbox || readOnly) return;
+    if (!toolboxVisible) {
+      toolbox.clearSelection();
+      setPaletteOpen(false);
+    }
+    toolbox.setVisible(toolboxVisible);
+    if (blocklyRef.current) blocklyRef.current.svgResize(workspace);
+  }, [readOnly, ready, toolboxVisible]);
 
   const captureStableWorkspace = () => {
     const workspace = workspaceRef.current;
