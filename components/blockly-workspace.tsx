@@ -716,10 +716,11 @@ const BlocklyWorkspace = forwardRef<
           grid: { spacing: 22, length: 2, colour: '#d9dced', snap: false },
           sounds: false,
         });
+        const fixedFlyoutScale = 0.72;
         const updateFixedFlyoutScale = () => {
           const flyoutWorkspace = workspace.getFlyout()?.getWorkspace();
-          if (flyoutWorkspace && flyoutWorkspace.getScale() !== 0.9)
-            flyoutWorkspace.setScale(0.9);
+          if (flyoutWorkspace && flyoutWorkspace.getScale() !== fixedFlyoutScale)
+            flyoutWorkspace.setScale(fixedFlyoutScale);
         };
         updateFixedFlyoutScale();
         colorObserver = new MutationObserver(() => {
