@@ -617,7 +617,6 @@ const BlocklyWorkspace = forwardRef<
     if (!workspace || !toolbox || readOnly) return;
     if (!toolboxVisible) {
       toolbox.clearSelection();
-      setPaletteOpen(false);
     }
     toolbox.setVisible(toolboxVisible);
     if (blocklyRef.current) blocklyRef.current.svgResize(workspace);
