@@ -21,7 +21,7 @@ test.describe('perfiles de placa', () => {
 
   test('cambia a la DIYmall S3 N16R8 sin ocultar la decisión y la conserva al exportar', async ({ page }) => {
     await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
-    const editor = page.getByRole('dialog', { name: 'Arma tu mundo' });
+    const editor = page.getByRole('dialog', { name: 'Arma tu escena' });
     const board = editor.getByLabel('Placa del proyecto');
     await expect(board).toHaveValue(WEMOS_PROFILE_ID);
 

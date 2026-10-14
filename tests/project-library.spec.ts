@@ -24,7 +24,7 @@ test('biblioteca: guardar, recuperar desde servidor sin borrador local y exporta
   const chunks: Buffer[] = []; const stream = await (await download).createReadStream(); for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
   const file = JSON.parse(Buffer.concat(chunks).toString());
   expect(file.schemaVersion).toBe(2); expect(file.owner).toBeUndefined(); expect(file.projectId).toBeUndefined();
-  expect(file.scene.devices).toHaveLength(1); expect(file.workspace.blocks.blocks.length).toBeGreaterThan(0);
+  expect(file.scene.devices).toHaveLength(0); expect(file.workspace.blocks.blocks.length).toBeGreaterThan(0);
 });
 
 test('biblioteca: renombrar y duplicar, cancelar baja, papelera y restauración', async ({ page }) => {
@@ -71,7 +71,7 @@ test('biblioteca: confirmación permite cancelar, guardar antes de abrir y nuevo
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.getByRole('button', { name: 'Nuevo proyecto', exact: true }).click();
   await page.getByRole('button', { name: 'Guardar y abrir', exact: true }).click();
-  await expect(page.getByLabel('Nombre del proyecto')).toHaveValue('Mi aventura');
+  await expect(page.getByLabel('Nombre del proyecto')).toHaveValue('Mi proyecto');
   expect([...api.projects.values()][0].project.title).toBe('Sin perder');
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
   await expect.poll(() => api.projects.size).toBe(2);

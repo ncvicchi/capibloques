@@ -73,7 +73,8 @@ test('interfaz simple: Crear y Probar priorizan su zona y lo avanzado aparece ba
   await page.keyboard.press('Escape');
 
   await page.getByRole('button', { name: 'Opciones del proyecto' }).click();
-  for (const name of ['Abrir un ejemplo', 'Proyecto editable JSON', 'Guardar sólo en este navegador', 'Importar proyecto JSON', 'Herramientas avanzadas para adultos']) {
+  await expect(page.getByRole('menuitem', { name: 'Abrir un ejemplo' })).toHaveCount(0);
+  for (const name of ['Proyecto editable JSON', 'Guardar sólo en este navegador', 'Importar proyecto JSON', 'Herramientas avanzadas para adultos']) {
     await expect(page.getByRole('menuitem', { name })).toBeVisible();
   }
 });
@@ -97,6 +98,10 @@ test('sesión: foco no consulta ni bloquea, reloj sí revalida y revocación sí
 
 test('Wemos: pines y listado sincronizados, sin dar por aprobado el circuito', async ({ page }, info) => {
   await open(page);
+  await page.getByRole('button', { name: 'Armar escena' }).click();
+  const sceneEditor = page.getByRole('dialog', { name: 'Arma tu escena', exact: true });
+  await sceneEditor.getByRole('button', { name: /^Agregar Semáforo\./ }).click();
+  await sceneEditor.getByRole('button', { name: 'Guardar escena', exact: true }).click();
   await page.getByRole('button', { name: 'Más herramientas' }).click();
   await page.getByRole('menuitem', { name: 'Ver conexiones' }).click();
   const dialog = page.getByRole('dialog', { name: /Conectar .+ sin adivinar/ });
@@ -120,9 +125,8 @@ test('Wemos: pines y listado sincronizados, sin dar por aprobado el circuito', a
 
 test('escena ampliada: mover componentes y deshacer/rehacer; cámara no ensucia', async ({ page }) => {
   await open(page);
-  const project = await exported(page);
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  const dialog = page.getByRole('dialog', { name: 'Arma tu escena', exact: true });
   const undo = dialog.getByRole('button', { name: 'Deshacer último cambio' });
   await expect(undo).toBeDisabled();
   await dialog.getByRole('button', { name: 'Acercar escena' }).click();
@@ -147,30 +151,22 @@ test('escena ampliada: mover componentes y deshacer/rehacer; cámara no ensucia'
   await expect(dialog).toBeHidden();
   const saved = await exported(page);
   expect(saved.scene.devices.find((device: { kind: string }) => device.kind === 'led').position.x).toBeGreaterThan(320);
-  expect(saved.scene.devices[0].pins).toEqual(project.scene.devices[0].pins);
+  expect(saved.scene.devices[0].kind).toBe('led');
   expect(JSON.stringify(saved)).not.toContain('camera');
 });
 
-test('escena avanzada: selección múltiple, grilla, alineación y capas se guardan', async ({ page }) => {
+test('escena avanzada: la interfaz ya no muestra controles de alineación ni de capas', async ({ page }) => {
   await open(page);
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  const dialog = page.getByRole('dialog', { name: 'Arma tu escena', exact: true });
   await dialog.getByRole('button', { name: /^Agregar LED\./ }).click();
-  const light = dialog.getByRole('button', { name: /^Mover LED 1$/ });
-  const traffic = dialog.getByRole('button', { name: /^Mover Semáforo 1$/ });
-  await expect(light).toHaveAttribute('aria-pressed', 'true');
-  await traffic.click({ modifiers: ['Control'] });
-  await expect(dialog.getByText('2 seleccionados', { exact: true })).toBeVisible();
-  await dialog.getByTitle('Alinear a la izquierda').click();
-  await dialog.getByTitle('Traer adelante').click();
+  await expect(dialog.getByTitle('Alinear a la izquierda')).toHaveCount(0);
+  await expect(dialog.getByTitle('Traer adelante')).toHaveCount(0);
   await dialog.getByLabel('Grilla').selectOption('10');
   await dialog.getByRole('button', { name: 'Guardar escena', exact: true }).click();
   const saved = await exported(page);
   expect(saved.scene.canvas.gridSize).toBe(10);
-  expect(saved.scene.canvas.itemOrder).toEqual(expect.arrayContaining([
-    saved.scene.devices.find((device: { kind: string }) => device.kind === 'trafficLight').id,
-    saved.scene.devices.find((device: { kind: string }) => device.kind === 'led').id,
-  ]));
+  expect(saved.scene.devices.map((device: { kind: string }) => device.kind)).toEqual(['led']);
 });
 
 test('cámara: teclado, zoom táctil con Mano y revisión docente de sólo lectura', async ({ page, context }) => {

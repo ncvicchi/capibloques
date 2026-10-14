@@ -32,7 +32,6 @@ import {
 } from '@/components/ui/native-select';
 import {
   addDeviceToScene,
-  appendTemplateToScene,
   arrangeCrossroadsTrafficLights,
   assignSafePins,
   cloneScene,
@@ -44,7 +43,6 @@ import {
   sceneComponentCatalog,
   trafficDirections,
   validateScene,
-  type LegacySceneId,
   type PinNumber,
   type SceneBackground,
   type SceneDefinition,
@@ -59,11 +57,8 @@ import {
 import { boardProfile, boardProfiles, WAVESHARE_TOUCH_LCD_5_PROFILE_ID } from '@/lib/board-profiles';
 import { educationalModuleSpecs, isEducationalModuleKind } from '@/lib/educational-modules';
 import {
-  alignSceneItems,
   findSceneOverlaps,
-  moveSceneItemsLayer,
   sceneItemBounds,
-  type SceneAlignment,
 } from '@/lib/scene-layout';
 import {
   commitSnapshot,
@@ -117,23 +112,6 @@ const trafficDirectionOptions: {
   { value: 'westbound', label: 'hacia la izquierda', icon: '←' },
   { value: 'southbound', label: 'hacia abajo', icon: '↓' },
   { value: 'northbound', label: 'hacia arriba', icon: '↑' },
-];
-
-const quickTemplates: {
-  id: LegacySceneId;
-  name: string;
-  icon: string;
-  detail: string;
-}[] = [
-  { id: 'traffic', name: 'Semáforo', icon: '🚦', detail: '3 luces' },
-  { id: 'robot', name: 'Robot', icon: '🤖', detail: '2 motores' },
-  { id: 'wifi', name: 'Wi-Fi', icon: '📶', detail: 'conexión' },
-  { id: 'counter', name: 'Contador', icon: '🐸', detail: 'número + sonido' },
-  { id: 'intersection', name: 'Cruce', icon: '🚗', detail: '2 calles + autos' },
-  { id: 'robotCourse', name: 'Pista', icon: '🛣️', detail: 'ruta + meta' },
-  { id: 'smartGarden', name: 'Huerta', icon: '🌱', detail: 'riego inteligente' },
-  { id: 'securityGate', name: 'Entrada', icon: '🚧', detail: 'sensor + barrera' },
-  { id: 'weatherStation', name: 'Clima', icon: '🌦️', detail: 'ambiente + lluvia' },
 ];
 
 const sceneItems = (scene: SceneDefinition): SceneItem[] => [
@@ -540,54 +518,18 @@ function SceneBuilderSession({
 
   const addComponent = (kind: SceneDevice['kind']) => {
     if (!requireSettledInspector('agregar otro componente')) return;
-    const result = addDeviceToScene(previewScene, kind, { boardProfile: draftBoardProfile });
-    commitScene(result.scene, `${result.device.name} ya está en la escena.`, {
+    const needsCrossroads = kind === 'trafficLight' && previewScene.canvas.background !== 'crossroads';
+    const baseScene = needsCrossroads
+      ? { ...cloneScene(previewScene), canvas: { ...previewScene.canvas, background: 'crossroads' as const } }
+      : previewScene;
+    const result = addDeviceToScene(baseScene, kind, { boardProfile: draftBoardProfile });
+    const nextScene = needsCrossroads ? arrangeCrossroadsTrafficLights(result.scene) : result.scene;
+    commitScene(nextScene, needsCrossroads
+      ? 'Se preparó el cruce para agregar un semáforo.'
+      : `${result.device.name} ya está en la escena.`, {
       select: result.device.id,
     });
-    setInspectorDraft(createInspectorDraft(result.scene, result.device.id));
-  };
-
-  const addTemplate = (template: LegacySceneId) => {
-    if (!requireSettledInspector('combinar otra aventura')) return;
-    const lane = previewScene.devices.length % 5;
-    const result = appendTemplateToScene(previewScene, template, {
-      offset: { x: 20 + lane * 24, y: 15 + lane * 18 },
-      boardProfile: draftBoardProfile,
-    });
-    if (template === 'counter' && !result.addedDeviceIds.length) {
-      const existingCounter = result.scene.widgets.find(
-        (widget) => widget.kind === 'counter',
-      );
-      const notice =
-        result.warnings[0] ??
-        'La escena ya tiene su contador global; no hace falta agregar otro.';
-      if (!existingCounter) {
-        if (!snapshotsEqual(draftScene, result.scene))
-          commitScene(result.scene, notice);
-        else setMessage(notice);
-        return;
-      }
-      if (!snapshotsEqual(draftScene, result.scene)) {
-        commitScene(result.scene, notice, { select: existingCounter.id });
-      } else {
-        selectNow(existingCounter.id, result.scene);
-        setMessage(notice);
-      }
-      setInspectorDraft(createInspectorDraft(result.scene, existingCounter.id));
-      return;
-    }
-    const nextSelection =
-      template === 'counter'
-        ? (result.scene.widgets.at(-1)?.id ?? result.addedDeviceIds.at(-1))
-        : result.addedDeviceIds.at(-1);
-    commitScene(
-      result.scene,
-      result.warnings.length
-        ? 'Se agregó la plantilla. Revisa el cableado sugerido.'
-        : 'Plantilla combinada con tu escena.',
-      { select: nextSelection },
-    );
-    setInspectorDraft(createInspectorDraft(result.scene, nextSelection));
+    setInspectorDraft(createInspectorDraft(nextScene, result.device.id));
   };
 
   const moveItem = (itemId: string, position: ScenePosition) => {
@@ -646,26 +588,6 @@ function SceneBuilderSession({
       );
     }
     commitScene(next, '', { group: `move:${itemId}`, select: itemId, preserveMulti: true });
-  };
-
-  const arrangeSelection = (alignment: SceneAlignment) => {
-    if (!requireSettledInspector('ordenar objetos')) return;
-    if (selectedIds.length < 2) {
-      setMessage('Selecciona dos o más objetos con Ctrl/Cmd o Mayús + clic.');
-      return;
-    }
-    const next = alignSceneItems(previewScene, selectedIds, alignment);
-    commitScene(next, 'Objetos alineados. Puedes deshacer el cambio.', { preserveMulti: true });
-  };
-
-  const changeSelectionLayer = (direction: 'front' | 'back') => {
-    if (!requireSettledInspector('cambiar el orden visual')) return;
-    if (!selectedIds.length) return;
-    commitScene(
-      moveSceneItemsLayer(previewScene, selectedIds, direction),
-      direction === 'front' ? 'Selección enviada adelante.' : 'Selección enviada atrás.',
-      { preserveMulti: true },
-    );
   };
 
   const updateSelectedDraft = (
@@ -839,16 +761,10 @@ function SceneBuilderSession({
           className="scene-builder-dialog"
           inert={finishing}
           showCloseButton={false}
-          aria-describedby="scene-builder-description"
         >
           <DialogHeader className="scene-builder-heading">
             <div>
-              <span className="eyebrow">Laboratorio de escenas</span>
-              <DialogTitle>Arma tu mundo</DialogTitle>
-              <DialogDescription id="scene-builder-description">
-                Prueba cambios en un borrador. Guarda la escena cuando esté
-                lista o cancela para volver a como estaba. La copia local permite recuperarlo; todavía no forma parte del proyecto guardado en tu cuenta.
-              </DialogDescription>
+              <DialogTitle>Arma tu escena</DialogTitle>
               {storageError && <p role="alert" className="account-error">{storageError}</p>}
             </div>
             <div className="scene-builder-status" aria-live="polite">
@@ -865,16 +781,6 @@ function SceneBuilderSession({
               <span className={sceneDirty ? 'warning' : 'ready'}>
                 {sceneDirty ? '● Sin guardar' : '✓ Guardado'}
               </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={requestClose}
-                aria-label="Cerrar editor de escenas"
-                title="Cerrar"
-              >
-                ✕
-              </Button>
             </div>
           </DialogHeader>
 
@@ -896,7 +802,7 @@ function SceneBuilderSession({
               </NativeSelect>
               <small>{waveshareSimulation ? 'Sin GPIO: todo se representa de forma virtual en la pantalla.' : `${boardProfile(draftBoardProfile).flashSize} flash${boardProfile(draftBoardProfile).psramBytes ? ` · ${boardProfile(draftBoardProfile).psramBytes / 1024 / 1024} MB PSRAM` : ''}`}</small>
             </label>
-            <label htmlFor="scene-name">
+            <label className="scene-advanced-hidden" htmlFor="scene-name">
               <span>Nombre de la escena</span>
               <Input
                 id="scene-name"
@@ -922,7 +828,7 @@ function SceneBuilderSession({
                 </small>
               )}
             </label>
-            <label htmlFor="scene-background">
+            <label className="scene-advanced-hidden" htmlFor="scene-background">
               <span>Fondo</span>
               <NativeSelect
                 id="scene-background"
@@ -1089,36 +995,6 @@ function SceneBuilderSession({
               aria-label="Biblioteca de componentes"
             >
               <section>
-                <h3>Combinar aventuras</h3>
-                <p>Agrega una escena completa. Puedes repetirlas.</p>
-                <div className="template-palette">
-                  {quickTemplates.map((template) => (
-                    <button
-                      type="button"
-                      key={template.id}
-                      disabled={
-                        (template.id === 'traffic' || template.id === 'intersection') &&
-                        previewScene.canvas.background !== 'crossroads' &&
-                        objectCount > 0
-                      }
-                      onClick={() => addTemplate(template.id)}
-                      aria-label={`Agregar aventura ${template.name}: ${template.detail}`}
-                      title={
-                        (template.id === 'traffic' || template.id === 'intersection') &&
-                        previewScene.canvas.background !== 'crossroads' &&
-                        objectCount > 0
-                          ? 'Elegí primero el fondo Cruce con tránsito.'
-                          : undefined
-                      }
-                    >
-                      <span aria-hidden="true">{template.icon}</span>
-                      <strong>{template.name}</strong>
-                      <small>{template.detail}</small>
-                    </button>
-                  ))}
-                </div>
-              </section>
-              <section>
                 <h3>Componentes</h3>
                 <p>Haz clic para sumar uno a la mesa.</p>
                 {visualOutput && (
@@ -1131,15 +1007,12 @@ function SceneBuilderSession({
                   </div>
                 )}
                 <div className="component-palette">
-                  {sceneComponentCatalog.map((component) => {
+                  {[...sceneComponentCatalog].sort((a, b) => a.name.localeCompare(b.name, 'es')).map((component) => {
                     const visualBlocked = Boolean(
                       visualOutput &&
                       (component.kind === 'display' || component.kind === 'ledMatrix'),
                     );
                     const messagesBlocked = component.kind === 'messages' && previewScene.devices.filter(device => device.kind === 'messages').length >= 2;
-                    const trafficSceneBlocked =
-                      component.kind === 'trafficLight' &&
-                      previewScene.canvas.background !== 'crossroads';
                     const trafficLimitBlocked =
                       component.kind === 'trafficLight' &&
                       previewScene.devices.filter(device => device.kind === 'trafficLight').length >= 4;
@@ -1147,12 +1020,10 @@ function SceneBuilderSession({
                       ? `No disponible: ya usás ${visualOutput?.name}`
                       : messagesBlocked
                         ? 'No disponible: máximo dos por proyecto'
-                        : trafficSceneBlocked
-                          ? 'Disponible sólo en Cruce con tránsito'
-                          : trafficLimitBlocked
+                      : trafficLimitBlocked
                             ? 'No disponible: los cuatro lugares están ocupados'
                         : component.childFriendlyControl;
-                    const componentBlocked = visualBlocked || messagesBlocked || trafficSceneBlocked || trafficLimitBlocked;
+                    const componentBlocked = visualBlocked || messagesBlocked || trafficLimitBlocked;
                     return <div className="component-palette-card" key={component.kind}>
                       <button type="button" className="component-add-button" disabled={componentBlocked} onClick={() => addComponent(component.kind)} title={componentBlocked ? reason : component.description} aria-label={`Agregar ${component.name}. ${reason}`}>
                         <span aria-hidden="true">{component.icon}</span><span><strong>{component.name}</strong><small>{reason}</small></span><b aria-hidden="true">{componentBlocked ? '🔒' : '＋'}</b>
@@ -1171,10 +1042,7 @@ function SceneBuilderSession({
               <div className="canvas-label">
                 <div>
                   <span>Tu mesa de pruebas</span>
-                  <small>
-                    Arrastra o usa flechas. Supr quita y Ctrl/Cmd+D duplica
-                    componentes.
-                  </small>
+                  <small>Arrastra para mover. Supr quita y Ctrl/Cmd+D duplica.</small>
                 </div>
                 {selectedItem && (
                   <Button
@@ -1190,17 +1058,6 @@ function SceneBuilderSession({
                     🗑 Quitar {selectedItem.name}
                   </Button>
                 )}
-              </div>
-              <div className="scene-arrange-toolbar" role="toolbar" aria-label="Alinear y ordenar objetos">
-                <span>{selectedIds.length > 1 ? `${selectedIds.length} seleccionados` : 'Ctrl/Cmd o Mayús + clic para seleccionar varios'}</span>
-                <Button type="button" variant="outline" size="sm" disabled={selectedIds.length < 2 || inspectorDirty} onClick={() => arrangeSelection('left')} title="Alinear a la izquierda">⇤</Button>
-                <Button type="button" variant="outline" size="sm" disabled={selectedIds.length < 2 || inspectorDirty} onClick={() => arrangeSelection('horizontal-center')} title="Centrar horizontalmente">↔</Button>
-                <Button type="button" variant="outline" size="sm" disabled={selectedIds.length < 2 || inspectorDirty} onClick={() => arrangeSelection('top')} title="Alinear arriba">↥</Button>
-                <Button type="button" variant="outline" size="sm" disabled={selectedIds.length < 2 || inspectorDirty} onClick={() => arrangeSelection('vertical-center')} title="Centrar verticalmente">↕</Button>
-                <Button type="button" variant="outline" size="sm" disabled={selectedIds.length < 3 || inspectorDirty} onClick={() => arrangeSelection('distribute-horizontal')} title="Distribuir horizontalmente">⇥</Button>
-                <Button type="button" variant="outline" size="sm" disabled={selectedIds.length < 3 || inspectorDirty} onClick={() => arrangeSelection('distribute-vertical')} title="Distribuir verticalmente">⇳</Button>
-                <Button type="button" variant="outline" size="sm" disabled={!selectedIds.length || inspectorDirty} onClick={() => changeSelectionLayer('front')} title="Traer adelante">Adelante</Button>
-                <Button type="button" variant="outline" size="sm" disabled={!selectedIds.length || inspectorDirty} onClick={() => changeSelectionLayer('back')} title="Enviar atrás">Atrás</Button>
               </div>
               {overlaps.length > 0 && (
                 <output className="scene-overlap-warning">

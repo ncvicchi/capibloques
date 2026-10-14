@@ -135,7 +135,7 @@ test('autoguardado: no publica borrador de escena ni envía durante arrastre o b
   await page.getByRole('button', { name: /^Agregar LED\./ }).click();
   await page.clock.runFor(12000);
   expect(api.writes).toBe(1);
-  expect([...api.projects.values()][0].document.scene.devices).toHaveLength(1);
+  expect([...api.projects.values()][0].document.scene.devices).toHaveLength(0);
   await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await page
     .getByRole('button', { name: 'Salir sin guardar', exact: true })
@@ -175,7 +175,7 @@ test('autoguardado: no publica borrador de escena ni envía durante arrastre o b
     .click();
   await page.clock.runFor(2000);
   await expect.poll(() => api.writes).toBe(4);
-  expect([...api.projects.values()][0].document.scene.devices).toHaveLength(2);
+  expect([...api.projects.values()][0].document.scene.devices).toHaveLength(1);
 });
 
 test('autoguardado: curso de sólo lectura no recibe envíos automáticos', async ({

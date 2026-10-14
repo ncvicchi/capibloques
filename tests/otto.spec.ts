@@ -12,7 +12,7 @@ async function open(page: Page) {
 test('Otto: se agrega y la escena se guarda', async ({ page }) => {
   await open(page);
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
-  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  const editor = page.getByRole('dialog', { name: 'Arma tu escena', exact: true });
   await editor.getByRole('button', { name: /^Agregar Robot Otto/ }).click();
   await expect(editor.locator('.stage-otto')).toHaveAttribute('data-profile', 'biped4');
   await editor.getByRole('button', { name: 'Guardar escena', exact: true }).click();
@@ -44,7 +44,7 @@ test('Otto: representa el perfil y cambia la cara al simular', async ({ page }) 
 test('Guardar escena explica junto al botón qué impide guardar', async ({ page }) => {
   await open(page);
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
-  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  const editor = page.getByRole('dialog', { name: 'Arma tu escena', exact: true });
   await editor.getByRole('button', { name: /^Agregar Robot Otto/ }).click();
   await editor.getByLabel('Nombre de la escena').fill('');
   await editor.getByRole('button', { name: 'Guardar escena', exact: true }).click();

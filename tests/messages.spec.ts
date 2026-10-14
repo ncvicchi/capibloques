@@ -39,7 +39,7 @@ async function importSample(page: Page) {
 test('Mensajes: configura modo, velocidad, lista y pines usados', async ({ page }) => {
   await open(page);
   await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
-  const editor = page.getByRole('dialog', { name: 'Arma tu mundo', exact: true });
+  const editor = page.getByRole('dialog', { name: 'Arma tu escena', exact: true });
   await editor.getByRole('button', { name: /^Agregar Mensajes/ }).click();
   await editor.getByRole('combobox', { name: /^Modo de/ }).selectOption('send');
   await editor.getByRole('combobox', { name: /^Velocidad de/ }).selectOption('19200');
