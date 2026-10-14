@@ -615,10 +615,12 @@ select:focus-visible {
 }
 .toolbar .board-run-button { color: #3b327c; border-color: #aaa2e8; background: #f1efff; }
 .toolbar .pause-button {
-  background: #a84f12;
-  border-color: #a84f12;
-  box-shadow: 0 4px 0 #773307;
+  color: #17120a;
+  background: #f2b544;
+  border-color: #d99a1b;
+  box-shadow: 0 4px 0 #a96d08;
 }
+.toolbar .stop-button { color: #fff; background: #c62828; border-color: #a91f1f; box-shadow: 0 4px 0 #781515; }
 .toolbar-separator {
   width: 1px;
   height: 28px;

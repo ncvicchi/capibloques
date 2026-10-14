@@ -1446,7 +1446,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           </button>
         )}
         <button onClick={() => { setWorkspaceMode('try'); if (physicalMirrorActive) physicalControlRef.current?.('STEP'); else step(); }}><StepForward size={18} /> Paso</button>
-        {executionActive && <button onClick={() => {
+        {executionActive && <button className="stop-button" onClick={() => {
           if (physicalMirrorActive) physicalControlRef.current?.('STOP');
           else postToWorker({ type: 'STOP' });
           stopSound(); pendingExecutionTasksRef.current = []; editorRef.current?.showExecution();
