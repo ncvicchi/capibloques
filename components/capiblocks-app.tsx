@@ -41,7 +41,6 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
-import Image from 'next/image';
 import BlocklyWorkspace, {
   type BlocklyHistoryState,
   type BlocklyWorkspaceHandle,
@@ -1327,7 +1326,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           </div>
         </div>
         <label className="project-name">
-          <span className="project-name-label"><Image src="/brand/capibloques-isotipo.svg" alt="" aria-hidden="true" width={20} height={16} unoptimized /><span>Proyecto</span></span>
+          <span className="project-name-label"><span className="account-brand-icon project-brand-icon" aria-hidden="true" /><span>Proyecto</span></span>
           <Pencil size={14} aria-hidden="true" />
           <input
             value={projectName}
