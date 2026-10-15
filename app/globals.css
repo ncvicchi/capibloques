@@ -800,6 +800,8 @@ select:focus-visible {
   font-weight: 740 !important;
   padding: 4px 3px !important;
   border-radius: 6px;
+  color: color-mix(in srgb, var(--category-colour, #59627d) 72%, #211a35) !important;
+  fill: color-mix(in srgb, var(--category-colour, #59627d) 72%, #211a35) !important;
   background-color: transparent !important;
 }
 .blocklyTreeSelected,
