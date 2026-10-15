@@ -785,7 +785,7 @@ select:focus-visible {
 .blocklyToolboxCategory {
   height: 40px !important;
   margin: 3px 0 !important;
-  padding: 0 10px !important;
+  padding: 0 4px !important;
   border-left: 4px solid var(--category-colour, #aaa3c8) !important;
   border-radius: 0 10px 10px 0;
   display: flex;
@@ -798,7 +798,7 @@ select:focus-visible {
   font-family: Inter, 'Segoe UI', sans-serif !important;
   font-size: 13px !important;
   font-weight: 740 !important;
-  padding: 4px 7px !important;
+  padding: 4px 3px !important;
   border-radius: 6px;
   background-color: transparent !important;
 }
@@ -3658,7 +3658,7 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .workbench .taskbar .more-tools-button { margin-left: auto; }
 .project-menu, .task-tools-menu { min-width: 245px !important; }
 .project-menu [data-slot='dropdown-menu-item'], .task-tools-menu [data-slot='dropdown-menu-item'] { min-height: 38px; padding: 8px 10px; }
-.workbench .workspace-grid.functional { padding: 12px 16px 0; gap: 0; grid-template-columns: minmax(450px, 1fr) minmax(350px, 39%); }
+.workbench .workspace-grid.functional { padding: 12px 16px 0 0; gap: 0; grid-template-columns: minmax(450px, 1fr) minmax(350px, 39%); }
 .workbench .workspace-grid.functional.focus-create { grid-template-columns: minmax(500px, 1fr) minmax(330px, 35%); }
 .workbench .workspace-grid.functional.focus-try { grid-template-columns: minmax(410px, 44%) minmax(390px, 1fr); }
 .workbench .workspace-grid.focus-create .canvas-panel,
@@ -3750,7 +3750,7 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
   .workbench .topbar { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 0 10px; }
   .workbench .header-actions > button { padding-left: 8px; padding-right: 8px; font-size: 12px; }
   .workbench .cloud-state { min-width: 75px; font-size: 10px; }
-  .workbench .workspace-grid.functional { grid-template-columns: minmax(390px, 1fr) minmax(330px, 38%); padding: 8px 10px 0; gap: 8px; }
+  .workbench .workspace-grid.functional { grid-template-columns: minmax(390px, 1fr) minmax(330px, 38%); padding: 8px 10px 0 0; gap: 0; }
   .workbench .toolbar { padding: 5px 10px; gap: 4px; }
   .workbench .toolbar button { padding: 7px 9px; font-size: 12px; }
   .workbench .taskbar .execution-target { min-width: 130px; }
@@ -3769,7 +3769,7 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
   .workbench .taskbar .execution-target { order: 3; width: 100%; max-width: none; }
   .workbench .taskbar .execution-target small { display: block; max-width: none; }
   .workbench .taskbar .more-tools-button { margin-left: 0; }
-  .workbench .workspace-grid.functional { display: flex; flex-direction: column; padding: 8px; }
+  .workbench .workspace-grid.functional { display: flex; flex-direction: column; padding: 8px 0; }
   .workbench .canvas-panel { height: 65dvh; min-height: 420px; }
   .workbench .simulator-panel { height: 620px; }
   .workbench .canvas-header { height: auto; flex-wrap: wrap; gap: 6px; }
