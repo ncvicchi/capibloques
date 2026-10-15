@@ -613,7 +613,9 @@ select:focus-visible {
   background: var(--teal);
   box-shadow: 0 4px 0 #055f53;
 }
-.toolbar .board-run-button { color: #3b327c; border-color: #aaa2e8; background: #f1efff; }
+.toolbar .board-run-button { color: #fff; border-color: #5942b4; background: #5942b4; box-shadow: 0 4px 0 #352078; }
+.toolbar .board-run-button:hover:not(:disabled) { background: #4c37a4; }
+.toolbar .board-run-button:disabled { opacity: .55; box-shadow: none; }
 .toolbar .pause-button {
   color: #17120a;
   background: #f2b544;
