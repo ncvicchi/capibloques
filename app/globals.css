@@ -3658,7 +3658,7 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .workbench .taskbar .more-tools-button { margin-left: auto; }
 .project-menu, .task-tools-menu { min-width: 245px !important; }
 .project-menu [data-slot='dropdown-menu-item'], .task-tools-menu [data-slot='dropdown-menu-item'] { min-height: 38px; padding: 8px 10px; }
-.workbench .workspace-grid.functional { padding: 12px 16px 0; gap: 12px; grid-template-columns: minmax(450px, 1fr) minmax(350px, 39%); }
+.workbench .workspace-grid.functional { padding: 12px 16px 0; gap: 0; grid-template-columns: minmax(450px, 1fr) minmax(350px, 39%); }
 .workbench .workspace-grid.functional.focus-create { grid-template-columns: minmax(500px, 1fr) minmax(330px, 35%); }
 .workbench .workspace-grid.functional.focus-try { grid-template-columns: minmax(410px, 44%) minmax(390px, 1fr); }
 .workbench .workspace-grid.focus-create .canvas-panel,
