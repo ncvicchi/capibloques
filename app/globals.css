@@ -2064,7 +2064,7 @@ select:focus-visible {
 .scene-builder-grid {
   min-height: 0;
   display: grid;
-  grid-template-columns: 260px minmax(440px, 1fr) 270px;
+  grid-template-columns: 230px minmax(330px, 0.9fr) minmax(340px, 1.1fr);
   background: #f6f7fc;
 }
 .scene-library,
@@ -3032,7 +3032,7 @@ select:focus-visible {
     display: none;
   }
   .scene-builder-grid {
-    grid-template-columns: 225px minmax(390px, 1fr) 235px;
+    grid-template-columns: 210px minmax(300px, 0.9fr) minmax(300px, 1.1fr);
   }
 }
 
