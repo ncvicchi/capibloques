@@ -785,7 +785,14 @@ sigue fallando en `idf-driver` con el mismo mensaje sin señal/diagnóstico. En 
 `capibloques_program.h`; exportación, revisión docente, compilador servidor y
 fixtures comparten el formato. Las dos sentencias ESP-IDF se separaron.
 Typecheck, lint dirigido y pruebas locales relevantes pasan; Arduino CLI y `g++`
-no están disponibles localmente. Sin `verify` verde, no integrar ni desplegar.
+no están disponibles localmente. La CI completa del 15 de octubre sobre
+`50c2cad` repitió el fallo en `idf-driver` (`runtime`: `status=null`), backend
+aprobó y los trabajos `esp-idf`/`firmware` no quedaron confirmados al cerrarse
+el seguimiento por `verify`. Por reiteración explícita del propietario, el
+ajuste de interfaz del armador se publicó y desplegó en DEV con `--fast` sobre
+ese commit; el orquestador verificó la imagen y salud. La limpieza Docker quedó
+pendiente por menos de 2 GiB libres. No equivale a CI completa ni cierra fase 45;
+la aceptación visual/de uso, capturas y aceptación física siguen pendientes.
 
 ## Fase final — Producción y piloto, postergada
 

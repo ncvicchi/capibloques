@@ -212,3 +212,21 @@ nombres en la simulación web, revisión docente y Waveshare.
   historial y recuperación no pierden trabajo ni cambian la composición.
 - Se miden memoria, tamaño del paquete y tiempo de dibujo en Waveshare con el
   máximo admitido de objetos y decoración.
+
+## Ajustes de interfaz del armador — 15 de octubre de 2026
+
+Por pedido explícito del propietario se retiró del armador el selector de placa,
+se simplificó el encabezado para mostrar los estados y el cierre, y se dio más
+ancho al inspector derecho reduciendo la proporción del tablero. El campo de
+nombre de escena permanece; unificarlo con el nombre del proyecto está pendiente
+de resolver cómo se representan recuperación e importación. Los cambios están
+en commits separados `ec01571`, `d9879f3` y `50c2cad`.
+
+DEV se actualizó desde `50c2cad` con `./scripts/update-dev.sh --fast`; la imagen
+activa y la salud del editor quedaron verificadas por el orquestador. La limpieza
+Docker quedó incompleta por tener menos de 2 GiB libres. CI completa para el
+commit falló en `verify`: `scripts/idf-driver.test.mjs` informó `status=null` al
+compilar `runtime`; backend aprobó y `esp-idf`/`firmware` no quedaron confirmados
+por el cierre temprano. La actualización rápida se hizo tras reiteración
+explícita del propietario. Esto no cierra la fase ni sus aceptaciones visuales,
+de uso y físicas.

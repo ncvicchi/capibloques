@@ -1,6 +1,25 @@
 # CapiBloques — contexto para continuar
 
-Documento vivo iniciado en **fase 11**. Actualización: **14 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
+Documento vivo iniciado en **fase 11**. Actualización: **15 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
+
+### Armador de escenas: simplificación y deploy DEV — 15 de octubre de 2026
+
+Por pedido explícito del propietario se retiró el selector duplicado de placa,
+se simplificó el encabezado para dejar estados y cierre, y se amplió la columna
+del inspector a costa del tablero. La edición del nombre de escena sigue vigente;
+su futura relación con el nombre del proyecto requiere una decisión aparte por
+la recuperación e importación de escenas. Commits funcionales separados:
+`ec01571`, `d9879f3`, `50c2cad`.
+
+Se publicó `50c2cad` en `main` y se desplegó DEV con el orquestador en modo
+`--fast`. Confirmó la imagen `capibloques-editor-dev:50c2cad38513`, editor
+saludable, validación final correcta, cola vacía y admisión abierta. La limpieza
+Docker no terminó porque quedan menos de 2 GiB libres; la actualización sí se
+confirmó como completa. CI completa ejecutada para el mismo commit: `backend`
+aprobó; `verify` falló en `scripts/idf-driver.test.mjs` porque la compilación
+de `runtime` devolvió `status=null`; el modo rápido se usó tras la reiteración
+explícita del propietario. `esp-idf` y `firmware` no quedaron confirmados por el
+cierre temprano ante el fallo. No se ejecutó aceptación visual/humana ni física.
 
 ### Ajustes visuales del editor y despliegue DEV — 14 de octubre de 2026
 
