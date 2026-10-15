@@ -56,7 +56,7 @@ import {
   type TrafficDirection,
   type BoardProfileId,
 } from '@/lib/scene-model';
-import { boardProfile, boardProfiles, WAVESHARE_TOUCH_LCD_5_PROFILE_ID } from '@/lib/board-profiles';
+import { boardProfile, WAVESHARE_TOUCH_LCD_5_PROFILE_ID } from '@/lib/board-profiles';
 import { educationalModuleSpecs, isEducationalModuleKind } from '@/lib/educational-modules';
 import {
   alignSceneItems,
@@ -879,23 +879,6 @@ function SceneBuilderSession({
           </DialogHeader>
 
           <div className="scene-builder-toolbar">
-            <label htmlFor="scene-board-profile">
-              <span>Placa del proyecto</span>
-              <NativeSelect
-                id="scene-board-profile"
-                value={draftBoardProfile}
-                onChange={event => {
-                  if (!requireSettledInspector('cambiar la placa')) return;
-                  const next = event.target.value as BoardProfileId;
-                  if (next !== draftBoardProfile) setPendingBoardProfile(next);
-                }}
-              >
-                {Object.values(boardProfiles).map(profile => (
-                  <NativeSelectOption key={profile.id} value={profile.id}>{profile.id === WAVESHARE_TOUCH_LCD_5_PROFILE_ID ? `${profile.shortName} · simulación en pantalla` : profile.shortName}</NativeSelectOption>
-                ))}
-              </NativeSelect>
-              <small>{waveshareSimulation ? 'Sin GPIO: todo se representa de forma virtual en la pantalla.' : `${boardProfile(draftBoardProfile).flashSize} flash${boardProfile(draftBoardProfile).psramBytes ? ` · ${boardProfile(draftBoardProfile).psramBytes / 1024 / 1024} MB PSRAM` : ''}`}</small>
-            </label>
             <label htmlFor="scene-name">
               <span>Nombre de la escena</span>
               <Input
