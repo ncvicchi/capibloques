@@ -454,6 +454,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const currentExample = examples[0];
   const preferences = useAccountPreferences(account.id, !offline && draftStore.remoteAllowed);
   const [preferencesOpen, setPreferencesOpen] = useState<'avatar'|'favorites'|null>(null);
+  const [guestAccountDialogOpen, setGuestAccountDialogOpen] = useState(false);
   const initialScene = useMemo(
     () => cloneScene(currentExample.scene),
     [currentExample.scene],
@@ -1323,6 +1324,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
     <main className="app-shell workbench">
       {preferencesOpen && preferences.preferences && <PreferencesPicker kind={preferencesOpen} {...preferences} preferences={preferences.preferences} onSave={preferences.save} onRetry={()=>void preferences.refresh()} onClose={()=>setPreferencesOpen(null)}/>}
       {preferencesOpen && !preferences.preferences && <Dialog open onOpenChange={open=>{if(!open)setPreferencesOpen(null);}}><DialogContent><DialogHeader><DialogTitle>Preferencias de tu cuenta</DialogTitle><DialogDescription>{preferences.error || 'Estamos cargando tus preferencias. Tu programa no se modificó.'}</DialogDescription></DialogHeader><button className="header-text-button" onClick={()=>void preferences.refresh()}>Reintentar preferencias</button><button className="header-text-button" onClick={()=>setPreferencesOpen(null)}>Cancelar</button></DialogContent></Dialog>}
+      {guest && <Dialog open={guestAccountDialogOpen} onOpenChange={setGuestAccountDialogOpen}><DialogContent><DialogHeader><DialogTitle>Estás en modo invitado</DialogTitle><DialogDescription>Tu programa se guarda en este navegador. Iniciá sesión para acceder a las opciones de tu cuenta.</DialogDescription></DialogHeader><div className="guest-account-actions"><button className="header-text-button" onClick={() => void openAccountLogin()}>Iniciar sesión</button><button className="header-text-button" onClick={() => setGuestAccountDialogOpen(false)}>Continuar con mi programa</button></div></DialogContent></Dialog>}
       <header className="topbar">
         <div className="project-header-controls">
           <label className="project-name">
@@ -1367,15 +1369,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                 </DropdownMenuItem>}
             </DropdownMenuContent>
           </DropdownMenu>
-          {guest ? <DropdownMenu>
-            <DropdownMenuTrigger className="icon-button account-menu-button" aria-label="Opciones de invitado"><Settings2 size={19} /></DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Modo invitado</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => void openAccountLogin()}>Ingresar a mi cuenta</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setMuted(value => !value)}>{muted ? <VolumeX /> : <Volume2 />}{muted ? 'Activar sonidos' : 'Silenciar sonidos'}</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu> : <DropdownMenu>
+          {guest ? <button type="button" className="icon-button account-menu-button" aria-label="Opciones de invitado" onClick={() => setGuestAccountDialogOpen(true)}><Settings2 size={19} /></button> : <DropdownMenu>
             <DropdownMenuTrigger className="icon-button account-menu-button" aria-label="Opciones de mi cuenta" title="Mi cuenta y sonidos"><Settings2 size={19} /></DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuGroup>
@@ -1418,10 +1412,15 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
             <Play size={18} /> Probar
           </button>
         </fieldset>
-        <output className={`execution-target ${physicalMirrorActive ? 'is-board' : 'is-simulator'}`} aria-live="polite">
-          <span aria-hidden="true">{physicalMirrorActive ? '⚡' : '🖥️'}</span>
-          <span><strong>{physicalMirrorActive ? `Placa · ${boardProfile(projectTarget.boardProfile).shortName}` : 'Simulador web'}</strong><small>{physicalMirrorActive ? physicalStatus.message : 'Corre solamente en este navegador'}</small></span>
-        </output>
+        <div className="execution-association">
+          <output className={`execution-target ${physicalMirrorActive ? 'is-board' : 'is-simulator'}`} aria-live="polite">
+            <span aria-hidden="true">{physicalMirrorActive ? '⚡' : '🖥️'}</span>
+            <span><strong>{physicalMirrorActive ? `Placa · ${boardProfile(projectTarget.boardProfile).shortName}` : 'Simulador web'}</strong><small>{physicalMirrorActive ? physicalStatus.message : 'Corre solamente en este navegador'}</small></span>
+          </output>
+          <button className="board-run-button" disabled={!physicalMirrorActive && (offline || sim.status === 'running' || sim.status === 'paused')} title={physicalMirrorActive ? 'Abrí el asistente para ver la conexión, la telemetría o volver a enviar las reglas.' : offline ? 'Necesitás conexión para verificar tu cuenta antes de usar USB.' : sim.status === 'running' || sim.status === 'paused' ? 'Detené el simulador antes de usar la placa.' : 'Instalá CapiBloques una vez y después enviá solamente las reglas.'} onClick={() => physicalMirrorActive ? physicalControlRef.current?.('SHOW') : openInterpreter()}>
+            <Cable size={18} /> {physicalMirrorActive ? 'Detalles de placa' : 'Usar en placa'}
+          </button>
+        </div>
         {executionRunning ? (
           <button
             className="pause-button"
@@ -1452,9 +1451,6 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           setWorkspaceMode('create');
           stopSound(); pendingExecutionTasksRef.current = []; editorRef.current?.showExecution();
         }}><CircleStop size={18} /> Detener</button>}
-        <button className="board-run-button" disabled={!physicalMirrorActive && (offline || sim.status === 'running' || sim.status === 'paused')} title={physicalMirrorActive ? 'Abrí el asistente para ver la conexión, la telemetría o volver a enviar las reglas.' : offline ? 'Necesitás conexión para verificar tu cuenta antes de usar USB.' : sim.status === 'running' || sim.status === 'paused' ? 'Detené el simulador antes de usar la placa.' : 'Instalá CapiBloques una vez y después enviá solamente las reglas.'} onClick={() => physicalMirrorActive ? physicalControlRef.current?.('SHOW') : openInterpreter()}>
-          <Cable size={18} /> {physicalMirrorActive ? 'Detalles de placa' : 'Usar en placa'}
-        </button>
         <button className="workspace-history-button" onClick={() => editorRef.current?.undo()} aria-label="Deshacer cambio en los bloques" title="Deshacer" disabled={!blockHistory.canUndo}>
           <Undo2 size={17} />
         </button>
