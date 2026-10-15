@@ -3,7 +3,7 @@ import { DisplayProperties } from '@/components/display-properties';
 import { LedMatrixProperties } from '@/components/led-matrix-properties';
 import ComponentHelpDialog from '@/components/component-help';
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { InspectorDraft, SceneDraft } from '@/lib/scene-recovery';
 import SceneStage from '@/components/scene-stage';
 import {
@@ -278,11 +278,20 @@ function SceneBuilderSession({
   );
   const [discardSceneOpen, setDiscardSceneOpen] = useState(false);
   const [pendingBoardProfile, setPendingBoardProfile] = useState<BoardProfileId | null>(null);
+  const [matrixPreviewPattern, setMatrixPreviewPattern] = useState<{ deviceId: string; patternId: string } | null>(null);
   const [message, setMessage] = useState('');
   const [helpTarget, setHelpTarget] = useState<{ kind: SceneDeviceKind; device?: SceneDevice } | null>(null);
   const [baselineScene] = useState(() => cloneScene(savedScene));
   const [finishing, setFinishing] = useState(false);
   const finishingRef = useRef(false);
+  const changeMatrixPreviewPattern = useCallback((deviceId: string, patternId: string | null) => {
+    setMatrixPreviewPattern(current => {
+      if (!patternId) return current?.deviceId === deviceId ? null : current;
+      return current?.deviceId === deviceId && current.patternId === patternId
+        ? current
+        : { deviceId, patternId };
+    });
+  }, []);
 
   const draftScene = history.present.scene;
   const draftBoardProfile = history.present.boardProfile;
@@ -353,6 +362,7 @@ function SceneBuilderSession({
 
   const selectNow = (itemId: string, sourceScene = draftScene) => {
     if (!findSceneItem(sourceScene, itemId)) return;
+    setMatrixPreviewPattern(current => current?.deviceId === itemId ? current : null);
     setHistory((current) =>
       replacePresentSnapshot(current, {
         ...current.present,
@@ -1184,6 +1194,7 @@ function SceneBuilderSession({
               )}
               <SceneStage
                 scene={previewScene}
+                matrixPreviewPattern={matrixPreviewPattern}
                 selectedId={selectedId}
                 selectedIds={selectedIds}
                 overlappingIds={overlappingIds}
@@ -1279,7 +1290,7 @@ function SceneBuilderSession({
                   </label>
 
                   {selected.kind === 'display' && <DisplayProperties key={selected.id} device={selected} boardProfile={draftBoardProfile} sceneDevices={draftScene.devices} onChange={next => updateSelectedDraft(() => next)} />}
-                  {selected.kind === 'ledMatrix' && <LedMatrixProperties key={selected.id} device={selected} onChange={next => updateSelectedDraft(() => next)} />}
+                  {selected.kind === 'ledMatrix' && <LedMatrixProperties key={selected.id} device={selected} onChange={update => updateSelectedDraft(device => device.kind === 'ledMatrix' ? update(device) : device)} onPreviewPatternChange={changeMatrixPreviewPattern} />}
                   {/* oxlint-disable jsx-a11y/label-has-associated-control -- compound design-system controls are wrapped by their visible labels */}
                   {selected.kind === 'trafficLight' && (
                     <div className="messages-properties">

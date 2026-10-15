@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { PixelArtEditor } from '@/components/pixel-art-editor';
 import { FrameAnimationEditor } from '@/components/frame-animation-editor';
@@ -9,23 +9,25 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { MAX_MATRIX_PATTERNS, MATRIX_HEIGHT, MATRIX_WIDTH, type MatrixPattern } from '@/lib/led-matrix';
 import type { LedMatrixDevice } from '@/lib/scene-model';
 
-export function LedMatrixProperties({ device, onChange }: { device: LedMatrixDevice; onChange: (device: LedMatrixDevice) => void }) {
+export function LedMatrixProperties({ device, onChange, onPreviewPatternChange }: { device: LedMatrixDevice; onChange: (update: (device: LedMatrixDevice) => LedMatrixDevice) => void; onPreviewPatternChange?: (deviceId: string, patternId: string | null) => void }) {
   const orderId = `${device.id}-matrix-order`;
   const orientationId = `${device.id}-matrix-orientation`;
   const nameId = `${device.id}-matrix-pattern-name`;
   const [selectedId, setSelectedId] = useState(device.config.patterns[0]?.id ?? '');
   const [editingPattern, setEditingPattern] = useState(false);
   const selected = device.config.patterns.find(pattern => pattern.id === selectedId) ?? device.config.patterns[0];
-  const updatePatterns = (patterns: MatrixPattern[]) => onChange({ ...device, config: { ...device.config, patterns } });
+  useEffect(() => onPreviewPatternChange?.(device.id, selected?.id ?? null), [device.id, onPreviewPatternChange, selected?.id]);
+  const updatePatterns = (update: (patterns: MatrixPattern[]) => MatrixPattern[]) => onChange(current => ({ ...current, config: { ...current.config, patterns: update(current.config.patterns) } }));
   const updatePattern = (change: (pattern: MatrixPattern) => MatrixPattern) => {
     if (!selected) return;
-    updatePatterns(device.config.patterns.map(pattern => pattern.id === selected.id ? change(pattern) : pattern));
+    const id = selected.id;
+    updatePatterns(patterns => patterns.map(pattern => pattern.id === id ? change(pattern) : pattern));
   };
   const addPattern = () => {
     for (let index = 1; index <= MAX_MATRIX_PATTERNS; index += 1) {
       const id = `dibujo-${index}`;
       if (device.config.patterns.some(pattern => pattern.id === id)) continue;
-      updatePatterns([...device.config.patterns, { id, name: `Dibujo ${index}`, rows: Array.from({ length: MATRIX_HEIGHT }, () => 0) }]);
+      updatePatterns(patterns => [...patterns, { id, name: `Dibujo ${index}`, rows: Array.from({ length: MATRIX_HEIGHT }, () => 0) }]);
       setSelectedId(id);
       return;
     }
@@ -33,16 +35,16 @@ export function LedMatrixProperties({ device, onChange }: { device: LedMatrixDev
   return (
     <div className="matrix-properties">
       <label>Brillo
-        <input type="range" min="0" max="15" value={device.config.brightness} onChange={event => onChange({ ...device, config: { ...device.config, brightness: Number(event.target.value) } })} />
+        <input type="range" min="0" max="15" value={device.config.brightness} onChange={event => { const brightness = Number(event.target.value); onChange(current => ({ ...current, config: { ...current.config, brightness } })); }} />
         <small>{device.config.brightness} de 15</small>
       </label>
       <label htmlFor={orderId}>Orden físico de los módulos</label>
-        <NativeSelect id={orderId} value={device.config.order} onChange={event => onChange({ ...device, config: { ...device.config, order: event.target.value as LedMatrixDevice['config']['order'] } })}>
+        <NativeSelect id={orderId} value={device.config.order} onChange={event => { const order = event.target.value as LedMatrixDevice['config']['order']; onChange(current => ({ ...current, config: { ...current.config, order } })); }}>
           <NativeSelectOption value="right-to-left">DIN junto al módulo derecho (predeterminado)</NativeSelectOption>
           <NativeSelectOption value="left-to-right">DIN junto al módulo izquierdo</NativeSelectOption>
         </NativeSelect>
       <label htmlFor={orientationId}>Orientación</label>
-        <NativeSelect id={orientationId} value={device.config.orientation} onChange={event => onChange({ ...device, config: { ...device.config, orientation: event.target.value as LedMatrixDevice['config']['orientation'] } })}>
+        <NativeSelect id={orientationId} value={device.config.orientation} onChange={event => { const orientation = event.target.value as LedMatrixDevice['config']['orientation']; onChange(current => ({ ...current, config: { ...current.config, orientation } })); }}>
           <NativeSelectOption value="normal">Normal</NativeSelectOption>
           <NativeSelectOption value="rotated">Girada 180°</NativeSelectOption>
         </NativeSelect>
@@ -55,8 +57,9 @@ export function LedMatrixProperties({ device, onChange }: { device: LedMatrixDev
           <Button type="button" variant="outline" disabled={device.config.patterns.length >= MAX_MATRIX_PATTERNS} onClick={addPattern}>Nuevo</Button>
           <Button type="button" variant="ghost" disabled={device.config.patterns.length <= 1} onClick={() => {
             if (!selected) return;
-            const next = device.config.patterns.filter(pattern => pattern.id !== selected.id);
-            updatePatterns(next); setSelectedId(next[0].id);
+            const removedId = selected.id;
+            const next = device.config.patterns.filter(pattern => pattern.id !== removedId);
+            updatePatterns(patterns => patterns.filter(pattern => pattern.id !== removedId)); setSelectedId(next[0].id);
           }}>Quitar</Button>
         </div>
         {selected && <>
@@ -65,7 +68,7 @@ export function LedMatrixProperties({ device, onChange }: { device: LedMatrixDev
           <PixelArtEditor open={editingPattern} name={selected.name} width={MATRIX_WIDTH} height={MATRIX_HEIGHT} rows={selected.rows} onCancel={() => setEditingPattern(false)} onSave={rows => { updatePattern(pattern => ({ ...pattern, rows })); setEditingPattern(false); }} />
         </>}
       </fieldset>
-      <FrameAnimationEditor width={MATRIX_WIDTH} animations={device.config.animations ?? []} drawings={device.config.patterns} onChange={animations => onChange({ ...device, config: { ...device.config, animations } })} />
+      <FrameAnimationEditor width={MATRIX_WIDTH} animations={device.config.animations ?? []} drawings={device.config.patterns} onChange={animations => onChange(current => ({ ...current, config: { ...current.config, animations } }))} />
       <p className="display-portable-note">Mirá la matriz de frente y elegí de qué lado está DIN. Si los cuatro módulos aparecen 4‑3‑2‑1, elegí el otro lado. Esto no cambia el dibujo lógico.</p>
     </div>
   );

@@ -71,6 +71,7 @@ interface SceneStageProps {
   activeDeviceId?: string;
   activeDeviceMessage?: string;
   scene: SceneDefinition;
+  matrixPreviewPattern?: { deviceId: string; patternId: string } | null;
   runtimeDevices?: Record<string, RuntimeVisualDevice>;
   counter?: number;
   simulationSpeed?: number;
@@ -316,6 +317,7 @@ function TrafficMatrix({ value, audience }: { value: VehicleDisplayValue | Pedes
 function DeviceVisual({
   device,
   runtime,
+  matrixPreviewPattern,
   sceneDevices,
   runtimeDevices,
   dashboardModes,
@@ -323,6 +325,7 @@ function DeviceVisual({
 }: {
   device: SceneDevice;
   runtime?: RuntimeVisualDevice;
+  matrixPreviewPattern?: { deviceId: string; patternId: string } | null;
   sceneDevices: readonly SceneDevice[];
   runtimeDevices: Record<string, RuntimeVisualDevice>;
   dashboardModes?: Record<string, 'program' | 'manual'>;
@@ -341,7 +344,12 @@ function DeviceVisual({
         onDashboardAction={onDashboardAction}
       />
     );
-  if (device.kind === 'ledMatrix') return <LedMatrixPreview device={device} rows={runtime?.rows} brightness={runtime?.brightness} />;
+  if (device.kind === 'ledMatrix') {
+    const previewRows = matrixPreviewPattern?.deviceId === device.id
+      ? device.config.patterns.find(pattern => pattern.id === matrixPreviewPattern.patternId)?.rows
+      : undefined;
+    return <LedMatrixPreview device={device} rows={runtime?.rows ?? previewRows} brightness={runtime?.brightness} />;
+  }
   if (device.kind === 'messages') return <span className="stage-messages" aria-hidden="true">↔️<small>{device.config.mode === 'send' ? 'enviar' : device.config.mode === 'receive' ? 'recibir' : 'ambos'}</small></span>;
   if (device.kind === 'trafficLight') {
     const color = runtime?.color ?? 'OFF';
@@ -512,6 +520,7 @@ export default function SceneStage({
   activeDeviceId,
   activeDeviceMessage,
   scene,
+  matrixPreviewPattern,
   runtimeDevices = {},
   counter = 0,
   simulationSpeed = 1,
@@ -849,7 +858,7 @@ export default function SceneStage({
         };
         const contents = (
           <>
-            <DeviceVisual device={device} runtime={runtime} sceneDevices={scene.devices} runtimeDevices={runtimeDevices} dashboardModes={dashboardModes} onDashboardAction={onDashboardAction} />
+            <DeviceVisual device={device} runtime={runtime} matrixPreviewPattern={matrixPreviewPattern} sceneDevices={scene.devices} runtimeDevices={runtimeDevices} dashboardModes={dashboardModes} onDashboardAction={onDashboardAction} />
             <span className={`scene-device-name label-${labelSide}`} title={device.name}>{device.name}</span>
           </>
         );
