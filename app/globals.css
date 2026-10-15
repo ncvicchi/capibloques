@@ -3642,6 +3642,10 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .workbench .toolbar { min-height: 54px; padding: 5px 16px; margin: 0; gap: 8px; flex-wrap: nowrap; border-bottom: 1px solid var(--line); }
 .workbench .toolbar button { min-height: 40px; padding: 8px 12px; white-space: nowrap; }
 .workbench .taskbar { overflow: visible; box-shadow: none; }
+.workbench .execution-association { display: flex; align-items: center; gap: 6px; padding: 3px; border: 1px solid #aab2cd; border-radius: 14px; background: #f5f6fb; flex: 0 0 auto; }
+.workbench .execution-association .execution-target { border: 0; background: transparent; }
+.workbench .execution-association .execution-target.is-board { background: #f1efff; }
+.workbench .execution-association .board-run-button { min-height: 40px; }
 .work-mode-switch { display: inline-flex; align-items: center; min-width: 0; margin: 0; padding: 3px; gap: 2px; border: 1px solid #cbd0e2; border-radius: 13px; background: #eef0f8; flex: 0 0 auto; }
 .workbench .toolbar .work-mode-switch button { min-height: 34px; padding: 5px 11px; border: 0; border-radius: 9px; background: transparent; color: #555e7c; box-shadow: none; }
 .workbench .toolbar .work-mode-switch button[aria-pressed='true'] { color: #fff; background: #5942b4; box-shadow: 0 2px 0 #352078; }
