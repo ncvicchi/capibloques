@@ -839,18 +839,9 @@ function SceneBuilderSession({
           className="scene-builder-dialog"
           inert={finishing}
           showCloseButton={false}
-          aria-describedby="scene-builder-description"
         >
           <DialogHeader className="scene-builder-heading">
-            <div>
-              <span className="eyebrow">Laboratorio de escenas</span>
-              <DialogTitle>Arma tu mundo</DialogTitle>
-              <DialogDescription id="scene-builder-description">
-                Prueba cambios en un borrador. Guarda la escena cuando esté
-                lista o cancela para volver a como estaba. La copia local permite recuperarlo; todavía no forma parte del proyecto guardado en tu cuenta.
-              </DialogDescription>
-              {storageError && <p role="alert" className="account-error">{storageError}</p>}
-            </div>
+            <DialogTitle className="sr-only">Editor de escenas</DialogTitle>
             <div className="scene-builder-status" aria-live="polite">
               <span className={validation.canSimulate ? 'ready' : 'problem'}>
                 {validation.canSimulate
@@ -865,6 +856,7 @@ function SceneBuilderSession({
               <span className={sceneDirty ? 'warning' : 'ready'}>
                 {sceneDirty ? '● Sin guardar' : '✓ Guardado'}
               </span>
+              {storageError && <span className="problem" role="alert">{storageError}</span>}
               <Button
                 type="button"
                 variant="ghost"
