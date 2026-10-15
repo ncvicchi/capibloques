@@ -76,7 +76,7 @@ function PixelArtEditorDraft({ open, name, width, height, rows, onCancel, onSave
   const transform = (action: Parameters<typeof transformPixelRows>[2]) => commit(transformPixelRows(draft, width, action));
   const dirty = draft.some((row, index) => row !== initial[index]);
   return <Dialog open={open} onOpenChange={value => { if (!value && (!dirty || window.confirm('¿Cerrar sin guardar el dibujo?'))) onCancel(); }}>
-    <DialogContent className="pixel-editor-dialog">
+    <DialogContent className="pixel-editor-dialog" overlayClassName="bg-black/35 supports-backdrop-filter:backdrop-blur-sm">
       <DialogHeader><DialogTitle>Editar {name}</DialogTitle><DialogDescription>{width} × {height} puntos. Arrastrá para dibujar; verás la forma antes de soltar. El balde rellena con un clic. Las guías no forman parte del dibujo.</DialogDescription></DialogHeader>
       <div className="pixel-editor-tools" role="toolbar" aria-label="Herramientas de dibujo">
         {tools.map(([id, label]) => <Button key={id} type="button" variant={tool === id ? 'default' : 'outline'} aria-pressed={tool === id} onClick={() => setTool(id)}>{label}</Button>)}

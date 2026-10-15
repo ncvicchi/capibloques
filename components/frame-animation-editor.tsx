@@ -66,7 +66,7 @@ function AnimationDraft({ width, drawings, animations, initial, onClose, onSave 
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'No pudimos abrir esas imágenes.'); }
     finally { setImporting(false); }
   };
-  return <Dialog open onOpenChange={open => { if (!open) close(); }}><DialogContent className="pixel-editor-dialog">
+  return <Dialog open onOpenChange={open => { if (!open) close(); }}><DialogContent className="pixel-editor-dialog" overlayClassName="bg-black/35 supports-backdrop-filter:backdrop-blur-sm">
     <DialogHeader><DialogTitle>Animación por cuadros</DialogTitle><DialogDescription>{width} × 8 puntos. Los píxeles oscuros de una imagen se encienden; el blanco y lo transparente se apagan. Revisá la conversión antes de guardar.</DialogDescription></DialogHeader>
     <fieldset disabled={importing}>
     <label>Nombre de animación<input aria-label="Nombre de animación" value={draft.name} maxLength={30} onChange={event => setDraft(value => ({ ...value, name: event.target.value }))} /></label>
