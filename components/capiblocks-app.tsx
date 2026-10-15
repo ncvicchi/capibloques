@@ -1774,7 +1774,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         </aside>
       </div>
 
-      <output className={`notice ${noticeTone}`} aria-live="polite">
+      <output className={`notice ${noticeTone} ${noticeTone === 'ok' ? '' : 'avatar-dialog-notice'}`} aria-live="polite">
         {noticeTone === 'ok' ? (
           <Check size={15} />
         ) : (
