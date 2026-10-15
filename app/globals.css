@@ -227,7 +227,6 @@
   background-position: -10px 0;
   mix-blend-mode: multiply;
 }
-.project-brand-icon { width: 24px; height: 16px; background-size: 30.4px 20.8px; background-position: -4px 0; }
 .account-brand span:last-child { color: var(--brand-teal); }
 .account-card p { line-height: 1.6; }
 .account-card h2 { font-size: 1.25rem; margin-top: 24px; }

@@ -1326,7 +1326,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       <header className="topbar">
         <div className="project-header-controls">
           <label className="project-name">
-            <span className="project-name-label"><span className="account-brand-icon project-brand-icon" aria-hidden="true" /><span>Proyecto</span></span>
+            <span className="project-name-label"><span>Proyecto</span></span>
             <input
               value={projectName}
               maxLength={80}
