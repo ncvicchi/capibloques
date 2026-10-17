@@ -4,7 +4,7 @@ Documento vivo iniciado en **fase 11**. Actualización: **17 de octubre de 2026*
 
 ### Ajustes de interfaz fase 42 — 17 de octubre de 2026
 
-Se implementaron localmente los ajustes de cuenta/invitado, avatar Capi por
+Se implementaron los ajustes de cuenta/invitado, avatar Capi por
 defecto, efectos hover, controles Blockly al frente, escala fija del catálogo
 ante cambios de zoom, zoom inicial `0,8`, etiquetas de Deshacer/Rehacer/Centrar,
 estilo del menú Proyecto y reubicación de Armar escena junto a sus pestañas. Se
@@ -12,8 +12,12 @@ retiró la franja alta de invitado y «Mi escena». Las categorías usaban 13 px
 propietario indicó reducirlas a 12 px. Lint dirigido, typecheck, workbench,
 mundos de escena, build y 10 rutas estáticas pasaron; `git diff --check` también.
 La suite smoke se detuvo en `frame-animation.test.mjs` porque falta `g++`
-(`status=null`); los casos posteriores de esa secuencia no corrieron. El push y
-despliegue DEV están pendientes. La aceptación visual queda pendiente. Detalle en
+(`status=null`); los casos posteriores de esa secuencia no corrieron. El commit
+`d792b69d11c34499d44afd23a2d579b2f28ace6b` se pusheó y desplegó en DEV mediante
+`update-dev.sh --fast`; imagen activa `capibloques-editor-dev:d792b69d11c3`, salud
+interna/pública correcta, admisión abierta, cola vacía y concurrencia `1/1`.
+Quedaron 31 GB libres tras retirar una imagen antigua. La aceptación visual
+humana sigue pendiente. Detalle en
 [FASE_42_SIMPLIFICACION_UI.md](FASE_42_SIMPLIFICACION_UI.md).
 
 ### Mundos interactivos y peatones del cruce — 17 de octubre de 2026

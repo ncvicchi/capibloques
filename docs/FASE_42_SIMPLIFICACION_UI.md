@@ -147,7 +147,11 @@ se redujeron a **12 px**.
 Pasaron lint dirigido, typecheck, `scripts/workbench.test.mjs`,
 `scripts/scene-worlds.test.mjs`, build de producción y verificación de las diez
 rutas estáticas. `git diff --check` también pasó. La suite smoke completa se
-detuvo en `frame-animation.test.mjs`: este entorno no tiene `g++` y el proceso
+detuvo en `frame-animation.test.mjs`: `capi-dev` no tiene `g++` y el proceso
 de compilación devolvió `status=null`; por eso no se ejecutaron los casos
-posteriores de esa secuencia. DEV aún no se actualizó con este cambio. La
-revisión visual de estos ajustes y su aceptación siguen pendientes.
+posteriores de esa secuencia. El commit `d792b69d11c34499d44afd23a2d579b2f28ace6b`
+se publicó y desplegó en DEV mediante `update-dev.sh --fast`; quedó activa la
+imagen `capibloques-editor-dev:d792b69d11c3`. La salud interna y pública fue
+correcta, la admisión quedó abierta, la cola vacía y la concurrencia `1/1`; la
+limpieza dejó 31 GB libres. Docker usó el builder clásico porque buildx no está
+instalado. La revisión visual y aceptación humana siguen pendientes.
