@@ -106,6 +106,31 @@ manual: [MANUAL_DE_MARCA_CAPIBLOQUES.md](MANUAL_DE_MARCA_CAPIBLOQUES.md).
 
 ## 1. Punto de entrada y autorización actual
 
+### Mantenimiento de espacio DEV — 17 de octubre de 2026
+
+Autorizado por el propietario: ampliar `/` con el espacio libre existente de
+LVM y limpiar sólo elementos seguros, conservando el compilador y la compilación
+incremental. Se confirmó hostname `capi-dev`, raíz ext4 y LV
+`/dev/ubuntu-vg/ubuntu-lv`. `vgcfgbackup ubuntu-vg` guardó metadatos LVM
+(no es un respaldo de datos) y `lvextend --resizefs --extents +100%FREE`
+amplió ese LV de aproximadamente 31 a 62 GiB en línea, sin reiniciar.
+
+Resultado medido: raíz de 61 GiB visibles, 28 GiB usados y 31 GiB disponibles
+(49% de uso), frente a 450 MiB libres y 99% antes. Limpieza adicional:
+377.032.704 bytes recuperados retirando exclusivamente la imagen anterior del
+editor `50c2cad38513`, sin contenedores asociados, y paquetes descargados de
+APT (`apt-get clean`). La imagen antigua sólo se recupera reconstruyéndola;
+los paquetes se pueden descargar nuevamente. No se tocaron volúmenes,
+PostgreSQL, respaldos, documentos, dependencias ni paquetes/runtimes de Codex.
+
+Compilador `capibloques-compiler-dev:phase9` conservado con idéntico ID;
+`outputs/interpreter-esp32` conservó 1.017 objetos y `outputs/interpreter-esp32s3`
+1.071 objetos. Se conservó además la caché de construcción Docker (1,692 GB).
+Los tres contenedores permanecieron saludables; la comprobación pública de
+`/api/health/ready/` devolvió HTTP 200. No se desplegó código de aplicación ni
+se cambió el script de limpieza existente; ese script todavía elimina la caché
+Docker al finalizar actualizaciones, a diferencia de esta limpieza selectiva.
+
 ### Última entrega: fase 21 — ergonomía del editor (7 de octubre de 2026)
 
 Software implementado por autorización «Vamos con la 21»: separación de grupos
