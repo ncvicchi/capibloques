@@ -92,6 +92,42 @@ por pulsar agregar aventura. Cambiar el fondo de un borrador encastra los
 componentes compatibles y conserva Cancelar/Deshacer; el validador detecta
 lugares duplicados o fuera de las posiciones admitidas.
 
+## Segundo ejemplo: procedimientos y pestañas
+
+Proyecto → Abrir un ejemplo ofrece dos soluciones independientes: «Paso a
+nivel» (directa, conservada sin cambios) y «Paso a nivel con procedimientos».
+Ambas usan la misma escena, conexiones, acciones y esperas. No se cambia el
+mundo ni se agrega firmware. La modular tiene un inicio y nueve tareas sin
+parámetros en cinco pestañas:
+
+- **Principal:** según el detector oeste/este, llama a Vía ocupada, Esperar
+  salida este/oeste y Vía libre; repite con espera de 0,05 s.
+- **Control del cruce:** Vía ocupada llama a Encender avisos, Cerrar barreras
+  y Sonar aviso. Vía libre llama a Abrir barreras y Apagar avisos.
+- **Barreras:** las tareas Cerrar/Abrir ordenan 0°/90° a ambos servos.
+- **Avisos:** Encender/Apagar controlan ambas luces; Sonar da un beep de 250 ms.
+- **Detectores:** Esperar salida este/oeste espera la interrupción del detector
+  opuesto y después su liberación por el último vagón.
+
+Las dos ramas reutilizan Vía ocupada/Vía libre, que llaman a tareas pequeñas.
+Doble clic abre la pestaña de la definición, incluso en llamadas anidadas.
+Las pestañas sólo organizan raíces del mismo workspace. JSON conserva tareas,
+nombres y distribución; los dos ejemplos no comparten un workspace mutable.
+
+`scripts/rail-examples.test.mjs`, incluido en mundos, compila ambos workspaces
+reales con Blockly, verifica nueve tareas/cinco pestañas y compara la solución
+expandida con la directa, ignorando sólo IDs y marcas de navegación de 0 ms.
+Comprueba JSON, generación Arduino/ESP-IDF y reglas. El smoke del worker ejecuta
+cada ejemplo 192 s simulados: ambos sentidos, luces/buzzer, cierre/apertura,
+sin choques, pausa/reset/velocidad/Paso. La prueba de navegador abre el segundo
+desde el catálogo, navega dos niveles de llamadas y simula. La aceptación
+humana y física y el portado del mundo Waveshare siguen pendientes.
+
+Verificación local de la ampliación modular: tipos/lint, suite smoke completa,
+ambos ejemplos en worker a 1× durante 192 s cada uno y recorrido Chromium de
+catálogo, pestañas, navegación anidada y cierre/pausa aprobados. Captura del
+Principal inspeccionada. No se compiló SDK ni se operó DEV.
+
 ## Reloj y persistencia
 
 El mundo vive en el worker, junto al reloj del programa, no en un segundo

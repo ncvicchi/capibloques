@@ -4,6 +4,25 @@ Documento vivo iniciado en **fase 11**. Actualización: **17 de octubre de 2026*
 
 ### Corrección del ejemplo Paso a nivel (17 de octubre)
 
+Ampliación autorizada posterior: segundo ejemplo «Paso a nivel con
+procedimientos», conservando el original. Rama `codex/paso-nivel-procedimientos`
+desde `origin/main` actualizado (ea9fb95, que integra la corrección anterior).
+Nueve tareas sin parámetros y cinco pestañas: Principal, Control del cruce,
+Barreras, Avisos y Detectores. Vía ocupada/Vía libre llaman a tareas pequeñas;
+Principal decide sentido y llama a ocupada/esperar salida/libre. Guía en fase 47.
+No hay nuevo tipo de escena, ABI, migración ni firmware. La prueba de equivalencia
+expande llamadas y compara acciones/condiciones/tiempos con el original; el
+worker ejecuta ambos 192 s simulados por separado. JSON/generadores/reglas
+conservados. Integración/DEV/aceptación humana y limitaciones físicas/Waveshare
+siguen pendientes para esta ampliación.
+
+Cierre local de esta ampliación: tipos, lint, suite smoke completa, worker con
+192 s a 1× por ejemplo y recorrido Chromium aprobados. El recorrido abre desde
+Proyecto, comprueba que ambos ejemplos siguen en catálogo, navega desde la
+llamada Vía ocupada a Control del cruce y desde Cerrar barreras a Barreras,
+vuelve a Principal y verifica simulación/cierre de ambos servos/pausa. Captura
+del Principal inspeccionada. Sin operación remota ni compilación SDK.
+
 El propietario aclaró: ejemplos completos, desafíos a resolver. Se corrige el
 workspace del catálogo Paso a nivel, antes vacío: decisión por entrada oeste
 o este, ambas luces, cierre de ambos servos, aviso del buzzer, espera hasta

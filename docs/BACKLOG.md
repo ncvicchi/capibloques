@@ -7,6 +7,10 @@ autos y trenes de ambos sentidos, avisos programables y accidente/reinicio.
 Corrección posterior en `codex/ejemplo-paso-nivel-completo`: el ejemplo del
 catálogo incluye la solución completa y comprobada para ambos sentidos, no
 una consigna a completar. Los desafíos siguen siendo actividades a resolver.
+Ampliación en `codex/paso-nivel-procedimientos`: segundo ejemplo completo con
+nueve tareas anidadas y cinco pestañas; mantiene la versión directa. Vía
+ocupada/libre agrupan barreras y avisos; equivalencia de ambas soluciones y
+ejecución en worker verificadas. Detalle en la misma guía de fase 47.
 Ultrasonido, switch o Hall/reed no se incorporaron como perfiles intercambiables.
 Portado Waveshare y maqueta física quedan pendientes. No iniciar fase 48 aún.
 

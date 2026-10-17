@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import './rail-examples.test.mjs';
 import { advanceRailWorld, createRailWorldState, railBindings, railSlots, railTrainBounds } from '../lib/rail-world.ts';
 import { addDeviceToScene, appendTemplateToScene, constrainSceneItemPosition, createEmptyScene, createSceneFromTemplate, isSceneDefinition, validateScene } from '../lib/scene-model.ts';
 import { decodeProject, examples, makeProject } from '../lib/capiblocks.ts';

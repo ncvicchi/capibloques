@@ -521,9 +521,10 @@ const Blockly = await import('blockly');
 const { registerBlocks, workspaceDevices, compileWorkspace } = await import('../lib/blockly-engine.ts');
 const { examples, validateProgramForScene } = await import('../lib/capiblocks.ts');
 registerBlocks(Blockly);
+for (const railwayExampleId of ['railCrossing', 'railCrossingProcedures']) {
 const railwayWorkspace = new Blockly.Workspace();
 workspaceDevices.set(railwayWorkspace, railwayScene.devices);
-Blockly.serialization.workspaces.load(structuredClone(examples.find(example => example.id === 'railCrossing').workspace), railwayWorkspace);
+Blockly.serialization.workspaces.load(structuredClone(examples.find(example => example.id === railwayExampleId).workspace), railwayWorkspace);
 const railwayProgram = compileWorkspace(railwayWorkspace);
 assert.deepEqual(validateProgramForScene(railwayProgram, railwayScene).filter(item => item.severity === 'error'), []);
 railwayWorkspace.dispose();
@@ -531,6 +532,7 @@ send({ type: 'LOAD', scene: railwayScene, program: railwayProgram });
 assert.ok(latestState().railWorld);
 send({ type: 'SET_INPUT', deviceId: 'rail-westDetector', value: true });
 assert.equal(latestState().devices['rail-westDetector'].interrupted, false, 'el detector vinculado no admite entrada manual');
+send({ type: 'SET_SPEED', speed: 1 });
 send({ type: 'RUN' });
 let railDetected = false, railClosed = false, railReopened = false;
 const railDirections = new Set();
@@ -563,4 +565,6 @@ assert.ok(latestState().railWorld.nextTrainInMs <= 3101, 'el tren usa la velocid
 send({ type: 'RESET' }); send({ type: 'STEP' });
 assert.ok(latestState().railWorld.nextTrainInMs < 3500, 'Paso también avanza mundo y detectores');
 send({ type: 'STOP' });
+resetMessages();
+}
 console.log('Simulator worker smoke checks passed, including automatic railway inputs and cooperative gates.');

@@ -51,6 +51,7 @@
 ## Producto
 
 - Ejemplos y desafíos no son equivalentes: un ejemplo debe incluir un programa completo, ejecutable y coherente con su descripción; un desafío puede dejar trabajo por resolver. No entregar un bucle vacío ni una consigna como ejemplo terminado. Paso a nivel incluye desde esta corrección la solución bidireccional con dos luces, buzzer y espera del detector de salida; su prueba compila el workspace real del catálogo y lo ejecuta en el worker.
+- Paso a nivel conserva dos ejemplos: directo y con procedimientos. El modular usa nueve tareas sin parámetros y cinco pestañas; Vía ocupada/Vía libre llaman a tareas pequeñas. Mantener único inicio, IDs de variables Procedure y asignación de raíces `capiTabs`; no crear otro tipo de escena ni lógica oculta del mundo. Su solución expandida debe equivaler a la directa. Guía en fase 47.
 
 - Ampliación autorizada de fase 43 (5 de octubre): animaciones por cuadros en matriz 32×8 y gráficos monocromáticos 16×8. Máximo 4 secuencias de 16 cuadros, 40–2000 ms, edición/importación local y ejecución cooperativa una/N/sin parar. Runtime mínimo vigente **1.8.0**, con `frame-animation`; las menciones a 1.7.0 debajo son históricas. DEV y aceptación física de 1.8.0 pendientes; ver guía de fase 43 y contexto vigente.
 
