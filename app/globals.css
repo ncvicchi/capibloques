@@ -796,7 +796,7 @@ select:focus-visible {
 .blocklyTreeLabel,
 .blocklyToolboxCategoryLabel {
   font-family: Inter, 'Segoe UI', sans-serif !important;
-  font-size: 13px !important;
+  font-size: 12px !important;
   font-weight: 740 !important;
   padding: 4px 3px !important;
   border-radius: 6px;
@@ -818,6 +818,8 @@ select:focus-visible {
 .blocklyTrash {
   opacity: 0.75;
 }
+.blocklyZoom,
+.blocklyTrash { z-index: 10000 !important; }
 .blocklyTrash image { transition: filter 120ms ease; }
 .blocklyTrash.capi-trash-active image {
   filter: brightness(0) saturate(100%) invert(18%) sepia(89%) saturate(4500%) hue-rotate(339deg) brightness(96%) contrast(112%);
@@ -3620,6 +3622,9 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .workbench .topbar .header-actions > button,
 .workbench .topbar .header-actions [data-slot='dropdown-menu-trigger'],
 .workbench .topbar .project-header-controls > button { height: 100%; min-height: 0; align-self: stretch; margin: 0; padding: 0; border-radius: 0; }
+.workbench .topbar .header-actions .export-button { height: 40px; min-height: 40px; align-self: center; margin: 0 6px; padding: 0 13px; border: 1px solid #5942b4; border-radius: 10px; background: #5942b4; color: white; box-shadow: 0 3px 0 #352078; }
+.workbench .topbar .header-actions .account-menu-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: auto; min-width: 0; height: 40px; min-height: 40px; align-self: center; margin: 0 8px; padding: 0 10px; border: 1px solid #c9cde0; border-radius: 10px; background: #fffdf8; color: #352078; font-size: 12px; font-weight: 750; white-space: nowrap; }
+.workbench .topbar .header-actions .account-menu-button span { max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
 .workbench .header-actions > button { flex-shrink: 0; }
 .workbench .cloud-state { min-width: 100px; flex: 1; max-width: 210px; font-size: 11px; line-height: 1.3; overflow-wrap: anywhere; }
 .workbench .project-save-errors { position: fixed; right: 16px; bottom: 36px; max-width: min(480px, 90vw); background: #fff5ee; padding: 12px; border: 2px solid #b94b23; border-radius: 8px; z-index: 90; display: grid; gap: 8px; }
@@ -3642,7 +3647,7 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .workbench .toolbar .work-mode-switch button[aria-pressed='true'] { color: #fff; background: #5942b4; box-shadow: 0 2px 0 #352078; }
 .workbench .taskbar .execution-target { min-width: 156px; max-width: 230px; min-height: 40px; padding: 4px 9px; }
 .workbench .taskbar .execution-target small { max-width: 160px; }
-.workbench .taskbar .workspace-history-button { width: 40px; min-width: 40px; min-height: 40px; padding: 0; }
+.workbench .taskbar .workspace-history-button { width: auto; min-width: 40px; min-height: 40px; padding: 0 10px; gap: 6px; }
 .workbench .taskbar .more-tools-button { margin-left: auto; }
 .project-menu, .task-tools-menu { min-width: 245px !important; }
 .project-menu [data-slot='dropdown-menu-item'], .task-tools-menu [data-slot='dropdown-menu-item'] { min-height: 38px; padding: 8px 10px; }
@@ -3656,12 +3661,9 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .workbench .canvas-header > div > span { font-size: 14px; font-weight: 750; color: var(--ink); }
 .workbench .canvas-header-actions button { min-height: 34px; padding: 6px 8px; }
 .workbench .simulator-panel { min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
-.scene-context { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: white; border-bottom: 1px solid var(--line); flex-shrink: 0; }
-.scene-context details { min-width: 0; flex: 1; position: relative; }
-.scene-context summary { font-weight: 750; cursor: pointer; font-size: 13px; overflow-wrap: anywhere; }
-.scene-context details p { position: absolute; z-index: 10; top: 100%; left: 0; width: min(330px, 75vw); background: white; box-shadow: 0 6px 24px #1e245333; padding: 14px; border-radius: 8px; border: 1px solid var(--line); font-size: 13px; }
-.scene-context .scene-builder-button { width: auto; padding: 6px 9px; min-height: 34px; font-size: 12px; white-space: nowrap; }
-.workbench .sim-tabs-list { height: 38px; min-height: 38px; }
+.workbench .sim-tabs-toolbar { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 4px 10px; background: #fff; border-bottom: 1px solid var(--line); flex: 0 0 auto; }
+.workbench .sim-tabs-toolbar .scene-builder-button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 6px; min-height: 34px; padding: 5px 9px; border: 1px solid #c9cde0; border-radius: 9px; background: #f6f4ff; color: #40317e; font-size: 12px; font-weight: 750; white-space: nowrap; }
+.workbench .sim-tabs-list { width: auto; height: 38px; min-height: 38px; flex: 1; padding: 0; }
 .workbench .sim-tabs-list [data-slot='tabs-trigger'] { min-width: 0; padding-inline: 9px; }
 .workbench .sim-tabs-root { min-height: 0; }
 .workbench .sim-content { min-height: 0; }
@@ -3687,6 +3689,11 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .blockly-shell .blocklyFlyoutBackground { fill: #edf1fc !important; fill-opacity: 1 !important; stroke: #97a9d0; stroke-width: 2px; }
 .blockly-shell .blocklyFlyout { filter: drop-shadow(6px 0 5px #26396029); }
 .blockly-shell[data-palette-open='false'] .blocklyFlyoutScrollbar { display: none !important; }
+.workbench button:not(:disabled) { transition: filter 120ms ease, background-color 120ms ease, color 120ms ease, border-color 120ms ease; }
+@media (hover: hover) {
+  .workbench button:not(:disabled):hover { filter: brightness(.93); }
+  .workbench button:not(:disabled):active { filter: brightness(.87); }
+}
 .palette-close { position: absolute; top: 50px; right: 14px; z-index: 35; border: 1px solid #9eabd0; background: white; box-shadow: 0 3px 12px #28365a22; color: #343761; border-radius: 9px; padding: 8px 12px; font-size: 12px; min-height: 36px; }
 
 @media (prefers-reduced-motion: reduce) {
