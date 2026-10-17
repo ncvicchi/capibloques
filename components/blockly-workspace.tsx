@@ -672,6 +672,7 @@ const BlocklyWorkspace = forwardRef<
     let resizeObserver: ResizeObserver | undefined;
     let colorObserver: MutationObserver | undefined;
     let resizeFrame: number | undefined;
+    let flyoutScaleFrame: number | undefined;
     let dragConfigurationFrame: number | undefined;
     let dragConfigurationPending = false;
     let keyboardHost: HTMLDivElement | null = null;
@@ -720,7 +721,7 @@ const BlocklyWorkspace = forwardRef<
           zoom: {
             controls: true,
             wheel: true,
-            startScale: 0.9,
+            startScale: 0.8,
             maxScale: 1.6,
             minScale: 0.45,
             scaleSpeed: 1.12,
@@ -731,11 +732,28 @@ const BlocklyWorkspace = forwardRef<
         });
         const fixedFlyoutScale = 0.58;
         const updateFixedFlyoutScale = () => {
+          flyoutScaleFrame = undefined;
           const flyoutWorkspace = workspace.getFlyout()?.getWorkspace();
           if (flyoutWorkspace && flyoutWorkspace.getScale() !== fixedFlyoutScale)
             flyoutWorkspace.setScale(fixedFlyoutScale);
+          const svg = workspace.getParentSvg();
+          for (const selector of ['.blocklyZoom', '.blocklyTrash']) {
+            const control = svg.querySelector(selector);
+            if (control?.parentNode) control.parentNode.appendChild(control);
+          }
         };
-        updateFixedFlyoutScale();
+        const scheduleFixedFlyoutScale = () => {
+          if (flyoutScaleFrame !== undefined) return;
+          flyoutScaleFrame = window.requestAnimationFrame(updateFixedFlyoutScale);
+        };
+        scheduleFixedFlyoutScale();
+        const keepFlyoutScale: Parameters<typeof workspace.addChangeListener>[0] = (event) => {
+          if (
+            event.type === Blockly.Events.VIEWPORT_CHANGE ||
+            event.type === Blockly.Events.TOOLBOX_ITEM_SELECT
+          ) scheduleFixedFlyoutScale();
+        };
+        workspace.addChangeListener(keepFlyoutScale);
         colorObserver = new MutationObserver(() => {
           workspace
             .getParentSvg()
@@ -787,6 +805,7 @@ const BlocklyWorkspace = forwardRef<
           setPaletteOpen(false);
           if (!readOnlyRef.current)
             workspace.updateToolbox(workspaceToolbox(validId,allowedBlocksRef.current));
+          scheduleFixedFlyoutScale();
           for (const block of workspace.getAllBlocks(false)) {
             const owner = tabForRoot(tabsRef.current, block.getRootBlock().id);
             block
@@ -1144,6 +1163,7 @@ const BlocklyWorkspace = forwardRef<
       resizeObserver?.disconnect();
       colorObserver?.disconnect();
       if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
+      if (flyoutScaleFrame !== undefined) cancelAnimationFrame(flyoutScaleFrame);
       if (dragConfigurationFrame !== undefined) {
         cancelAnimationFrame(dragConfigurationFrame);
       }

@@ -692,7 +692,7 @@ El alcance transversal, orden, perfiles, componentes postergados y fuentes de la
 
 ## Fase 42 — Simplificación integral de la interfaz
 
-**Estado:** entregada en software el 4 de octubre de 2026; actualización y aceptación visual en DEV pendientes. El pulido complementario del 5 de octubre mejora los botones de avatar, unidades Wi-Fi, escala fija del catálogo y señal visual de la papelera; sigue sin desplegarse y no cierra la aceptación. Ver [inventario, decisiones y evidencia](FASE_42_SIMPLIFICACION_UI.md). **Objetivo:** conservar toda la funcionalidad, pero dejar de presentarla simultáneamente como una colección de barras, paneles y decisiones competidoras.
+**Estado:** entregada en software el 4 de octubre de 2026; aceptación visual pendiente. Ajustes locales del 17 de octubre agregan el indicador de cuenta/invitado compacto, nombre junto a ajustes, hover visible, capibara por defecto, controles Blockly al frente, flyout fijo ante zoom, zoom inicial menor, etiquetas de historial, unificación visual de Proyecto y reubicación de Armar escena en la fila de pestañas. Falta revisión visual y DEV de estos ajustes. El pulido del 5 de octubre mejora además avatar, unidades Wi-Fi, escala fija del catálogo y papelera. Ver [inventario, decisiones y evidencia](FASE_42_SIMPLIFICACION_UI.md). **Objetivo:** conservar toda la funcionalidad, pero dejar de presentarla simultáneamente como una colección de barras, paneles y decisiones competidoras.
 
 Alcance:
 

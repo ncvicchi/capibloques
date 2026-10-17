@@ -525,12 +525,6 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
   const [workspaceMode, setWorkspaceMode] = useState<'create' | 'try'>('create');
   const [lastProgram, setLastProgram] = useState<CompiledProgram>(emptyProgram);
 
-  const sourceExample = useMemo(
-    () =>
-      examples.find((example) => example.id === scene.sourceTemplate || (example.id === 'display' && example.scene.id === scene.id)) ?? null,
-    [scene.sourceTemplate, scene.id],
-  );
-
   const postToWorker = useCallback((message: Record<string, unknown>) => {
     if (!draftStore.active && message.type !== 'PAUSE' && message.type !== 'STOP' && message.type !== 'SET_DASHBOARD') return;
     workerRef.current?.postMessage(message);
@@ -1369,8 +1363,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                 </DropdownMenuItem>}
             </DropdownMenuContent>
           </DropdownMenu>
-          {guest ? <button type="button" className="icon-button account-menu-button" aria-label="Opciones de invitado" onClick={() => setGuestAccountDialogOpen(true)}><Settings2 size={19} /></button> : <DropdownMenu>
-            <DropdownMenuTrigger className="icon-button account-menu-button" aria-label="Opciones de mi cuenta" title="Mi cuenta y sonidos"><Settings2 size={19} /></DropdownMenuTrigger>
+          {guest ? <button type="button" className="account-menu-button" aria-label="Modo invitado, opciones de invitado" title="Modo invitado" onClick={() => setGuestAccountDialogOpen(true)}><Settings2 size={19} /><span>Modo invitado</span></button> : <DropdownMenu>
+            <DropdownMenuTrigger className="account-menu-button" aria-label={`Sesión iniciada, opciones de ${account.displayName}`} title="Mi cuenta y sonidos"><Settings2 size={19} /><span>Conectado · {account.displayName}</span></DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuGroup>
                 <DropdownMenuLabel>{account.displayName} · @{account.alias}</DropdownMenuLabel>
@@ -1397,7 +1391,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         </nav>
       </header>
       <div className="avatar-corner">
-        {guest ? <span className="avatar-button" aria-label="Modo invitado" title="Modo invitado">🐾</span> : <button className="avatar-button" title="Elegir mi avatar" aria-label="Elegir mi avatar" disabled={!preferences.verified} onClick={()=>setPreferencesOpen('avatar')}><UserAvatar id={preferences.preferences?.avatarId ?? account.avatarId} decorative /></button>}
+        {guest ? <span className="avatar-button" aria-label="Capi el capibara" title="Capi el capibara"><UserAvatar id="capybara" decorative /></span> : <button className="avatar-button" title="Elegir mi avatar" aria-label="Elegir mi avatar" disabled={!preferences.verified} onClick={()=>setPreferencesOpen('avatar')}><UserAvatar id={preferences.preferences?.avatarId ?? account.avatarId} decorative /></button>}
       </div>
 
       {!sceneBuilderOpen && draftStore.sceneDraft && <aside className="scene-recovery-banner"><span>🧩 Hay una escena sin terminar en esta computadora. Tu escena confirmada no cambió.</span><button onClick={() => toggleSceneBuilder(true)}>Revisar escena pendiente</button></aside>}
@@ -1452,13 +1446,13 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           stopSound(); pendingExecutionTasksRef.current = []; editorRef.current?.showExecution();
         }}><CircleStop size={18} /> Detener</button>}
         <button className="workspace-history-button" onClick={() => editorRef.current?.undo()} aria-label="Deshacer cambio en los bloques" title="Deshacer" disabled={!blockHistory.canUndo}>
-          <Undo2 size={17} />
+          <Undo2 size={17} /><span>Deshacer</span>
         </button>
         <button className="workspace-history-button" onClick={() => editorRef.current?.redo()} aria-label="Rehacer cambio en los bloques" title="Rehacer" disabled={!blockHistory.canRedo}>
-          <Redo2 size={17} />
+          <Redo2 size={17} /><span>Rehacer</span>
         </button>
         <button className="workspace-history-button" onClick={() => editorRef.current?.zoomToFit()} aria-label="Centrar todos los bloques" title="Centrar">
-          <Maximize2 size={17} />
+          <Maximize2 size={17} /><span>Centrar</span>
         </button>
         <DropdownMenu>
           <DropdownMenuTrigger className="more-tools-button" aria-label="Más herramientas">
@@ -1522,21 +1516,20 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
           className="simulator-panel"
           aria-label="Simulador de comportamiento"
         >
-          <div className="scene-context">
-            <details><summary><span aria-hidden="true">🦫</span> {scene.name}</summary><p>{scene.description || sourceExample?.mission || 'Combiná componentes y creá tu propia aventura.'}</p></details>
-            <button className="header-text-button scene-builder-button" onClick={() => toggleSceneBuilder(true)}><Blocks size={17} /> Armar escena</button>
-          </div>
           <Tabs
             value={activeTab}
             onValueChange={(value) => setActiveTab(value as string)}
             className="sim-tabs-root"
           >
-            <TabsList variant="line" className="sim-tabs-list">
-              <TabsTrigger value="scene">Escena</TabsTrigger>
-              <TabsTrigger value="state">Estado</TabsTrigger>
-              <TabsTrigger value="console">{physicalMirrorActive ? 'Mensajes de placa' : 'Consola'}</TabsTrigger>
-              <TabsTrigger value="execution">Ejecución</TabsTrigger>
-            </TabsList>
+            <div className="sim-tabs-toolbar">
+              <button className="scene-builder-button" onClick={() => toggleSceneBuilder(true)}><Blocks size={17} /> Armar escena</button>
+              <TabsList variant="line" className="sim-tabs-list">
+                <TabsTrigger value="scene">Escena</TabsTrigger>
+                <TabsTrigger value="state">Estado</TabsTrigger>
+                <TabsTrigger value="console">{physicalMirrorActive ? 'Mensajes de placa' : 'Consola'}</TabsTrigger>
+                <TabsTrigger value="execution">Ejecución</TabsTrigger>
+              </TabsList>
+            </div>
             <TabsContent value="scene" className="sim-content" keepMounted>
               <div className="sim-stage composed-scene">
                 <SceneStage

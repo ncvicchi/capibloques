@@ -131,3 +131,23 @@ orquestador se reanudó; la salud interna y pública respondieron `ok`, el
 planificador quedó activo, admisión abierta y cola vacía. La VM conserva menos
 de 2 GiB libres; la limpieza Docker informó esa advertencia y no se tocaron
 imágenes activas ni volúmenes.
+
+## Ajustes visuales solicitados — 17 de octubre de 2026
+
+Quedó implementado localmente: modo invitado/cuenta y nombre de usuario en el
+botón superior derecho, retiro del aviso alto de invitado, Capi el capibara como
+avatar invitado predeterminado, efecto hover para botones, controles de Blockly
+al frente, escala fija del catálogo al abrir categorías o cambiar zoom, zoom
+inicial del programa de `0,9` a `0,8`, menú Proyecto con estilo de acción
+principal, y Deshacer/Rehacer/Centrar con texto. Se quitó la franja «Mi escena»;
+Armar escena comparte ahora la fila de pestañas Escena/Estado/Consola/Ejecución.
+Las etiquetas del catálogo medían **13 px** y, tras consultar al propietario,
+se redujeron a **12 px**.
+
+Pasaron lint dirigido, typecheck, `scripts/workbench.test.mjs`,
+`scripts/scene-worlds.test.mjs`, build de producción y verificación de las diez
+rutas estáticas. `git diff --check` también pasó. La suite smoke completa se
+detuvo en `frame-animation.test.mjs`: este entorno no tiene `g++` y el proceso
+de compilación devolvió `status=null`; por eso no se ejecutaron los casos
+posteriores de esa secuencia. DEV aún no se actualizó con este cambio. La
+revisión visual de estos ajustes y su aceptación siguen pendientes.

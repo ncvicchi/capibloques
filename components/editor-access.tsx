@@ -36,16 +36,6 @@ export default function EditorAccess() {
     setLocked(false);
   }, []);
 
-  const openAccountLogin = useCallback(async () => {
-    try {
-      if (checkpoint.current?.suspend() === false) return;
-      await current.current?.store.flush();
-      window.location.assign('/cuenta/');
-    } catch {
-      setError('No pudimos terminar de guardar tu proyecto local. Esperá un momento y volvé a ingresar.');
-    }
-  }, []);
-
   const lock = useCallback(() => {
     checkpoint.current?.suspend();
     if (current.current) current.current.store.active = false;
@@ -180,7 +170,6 @@ export default function EditorAccess() {
   const feedback = error ? <><p role="alert" className="account-error">{error}</p><Button className="account-action" onClick={() => void check()}>Reintentar</Button></> : <output>Comprobando tu sesión…</output>;
 
   return <>
-    {editor?.guest && !locked && <output className="offline-banner"><strong>Modo invitado · guardado local en esta computadora</strong><span>Tu proyecto se conserva al recargar o cerrar esta página. Podés instalar el firmware CapiBloques y ejecutar tu programa por USB; los proyectos de cuenta, desafíos y compilación específica requieren una cuenta.</span><Button variant="outline" onClick={() => void openAccountLogin()}>Ingresar a mi cuenta</Button></output>}
     {editor && !editor.guest && !locked && offline && <output className="offline-banner"><strong>Sin conexión · sólo en esta computadora · @{editor.session.user.alias}</strong><span>Podés editar, simular y exportar. No se envía nada al servidor. No podemos comprobar cambios de acceso hasta reconectar.</span><Button variant="outline" onClick={() => void check(false)}>Reconectar</Button></output>}
     {editor && !locked && error && !offline && <div className="account-error" role="alert">{error}</div>}
     {!editor && <main className="account-page session-cover"><section className="account-card" aria-label="Acceso al editor">
