@@ -50,6 +50,8 @@
 
 ## Producto
 
+- Ejemplos y desafíos no son equivalentes: un ejemplo debe incluir un programa completo, ejecutable y coherente con su descripción; un desafío puede dejar trabajo por resolver. No entregar un bucle vacío ni una consigna como ejemplo terminado. Paso a nivel incluye desde esta corrección la solución bidireccional con dos luces, buzzer y espera del detector de salida; su prueba compila el workspace real del catálogo y lo ejecuta en el worker.
+
 - Ampliación autorizada de fase 43 (5 de octubre): animaciones por cuadros en matriz 32×8 y gráficos monocromáticos 16×8. Máximo 4 secuencias de 16 cuadros, 40–2000 ms, edición/importación local y ejecución cooperativa una/N/sin parar. Runtime mínimo vigente **1.8.0**, con `frame-animation`; las menciones a 1.7.0 debajo son históricas. DEV y aceptación física de 1.8.0 pendientes; ver guía de fase 43 y contexto vigente.
 
 - Fase 4 en `docs/FASE_4_RECUPERACION_E_HISTORIAL.md` amplía las guías históricas: continuidad sólo del proyecto ya cargado y hasta expiración conocida; no autenticar offline ni permitir red sin comprobación fresca. Escena pendiente separada del documento confirmado, con CAS/época y exportación/importación portable sin identidad/operación remota. Guardar/Cancelar deben esperar almacenamiento. Historial propietario, máximo 20 puntos no referenciados más protegidos, cuota adicional 50 MB; una restauración crea revisión nueva y mantiene curso vigente. Mantener borrados explícitos bajo bloqueo, FK PROTECT, conteo/historial en ZIP de baja y recibos invalidados. Purga individual sólo tras 30 días, nombre exacto/revisión/idempotencia y tombstone sin contenido; jamás borrar datos reales como prueba. En fase 5, proteger las revisiones comentadas y revisar bajas/purga/backups.

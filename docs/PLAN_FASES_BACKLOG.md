@@ -829,6 +829,12 @@ debe declarar límites, vínculo componente/lugar, entradas/salidas, consecuenci
 pausa/velocidad/reinicio, persistencia y alcance web/Waveshare. La fase 46 no
 modifica firmware; la paridad de sus actores en Waveshare queda pendiente.
 
+Corrección de fase 47: «Paso a nivel» del catálogo es un ejemplo completo,
+con solución bidireccional, luces y buzzer verificados mediante compilación
+de sus bloques reales y ejecución en worker. Los desafíos, no los ejemplos,
+pueden entregar trabajo pendiente al alumno. Rama de la corrección:
+`codex/ejemplo-paso-nivel-completo`; DEV y aceptación humana pendientes.
+
 ## Fase final — Producción y piloto, postergada
 
 Es la antigua fase 11, renombrada por decisión del propietario. No se ejecuta como consecuencia de terminar una fase del backlog.

@@ -711,6 +711,44 @@ const trafficMessagesScene = addDeviceToScene(createSceneFromTemplate('traffic')
   id: 'messages-1', name: 'Órdenes del semáforo', config: { mode: 'receive', baudRate: 9600, messages: ['VERDE', 'ROJO'] },
 }).scene;
 const matrixExample = addDeviceToScene(createEmptyScene('Cartel de bienvenida'), 'ledMatrix', { id: 'led-matrix-1', position: { x: 480, y: 270 } });
+// Un ejemplo entrega la solución; una aventura vacía permite crear otra propia.
+const railDetector = (id: string, role: string, state = 'INTERRUPTED') => ({
+  type: 'capi_barrier_state', id, fields: { DEVICE_ID: `rail-${role}`, STATE: state },
+});
+const railPassage = (exit: string) => {
+  const prefix = `rail-to-${exit}`;
+  const gates = (angle: number) => ['northGate', 'southGate'].map(role => ({
+    type: 'capi_servo', id: `${prefix}-${role}-${angle}`, fields: { DEVICE_ID: `rail-${role}`, ANGLE: angle },
+  }));
+  const lights = (brightness: number) => [1, 2].map(index => ({
+    type: 'capi_led', id: `${prefix}-light-${index}-${brightness}`, fields: { DEVICE_ID: `rail-warning-${index}`, BRIGHTNESS: brightness },
+  }));
+  const waitFor = (state: string) => ({
+    type: 'capi_while', id: `${prefix}-wait-${state}`, fields: { MODE: 'UNTIL' }, inputs: {
+      CONDITION: { block: railDetector(`${prefix}-read-${state}`, exit, state) },
+      DO: { block: { type: 'capi_wait', id: `${prefix}-yield-${state}`, fields: { SECONDS: 0.05 } } },
+    },
+  });
+  return chain(
+    ...lights(100), ...gates(0),
+    { type: 'capi_buzzer', id: `${prefix}-alarm`, fields: { DEVICE_ID: 'rail-alarm', KIND: 'ACTIVE', DURATION: 250, FREQUENCY: 660 } },
+    waitFor('INTERRUPTED'), waitFor('CLEAR'), ...gates(90), ...lights(0),
+  );
+};
+const railWorkspace = startWorkspace({
+  type: 'capi_forever', id: 'rail-loop', inputs: { DO: { block: chain({
+    type: 'capi_if', id: 'rail-from-west', inputs: {
+      CONDITION: { block: railDetector('rail-read-west', 'westDetector') },
+      DO: { block: railPassage('eastDetector') },
+      ELSE: { block: {
+        type: 'capi_if', id: 'rail-from-east', inputs: {
+          CONDITION: { block: railDetector('rail-read-east', 'eastDetector') },
+          DO: { block: railPassage('westDetector') },
+        },
+      } },
+    },
+  }, { type: 'capi_wait', id: 'rail-tick', fields: { SECONDS: 0.05 } }) } },
+});
 const messageReceiver = (expected: string, equal: Record<string, unknown>, different: Record<string, unknown>, timeout: Record<string, unknown>) => ({
   type: 'capi_forever', id: `listen-${expected.toLowerCase()}`, inputs: { DO: { block: {
     type: 'capi_message_receive', id: `receive-${expected.toLowerCase()}`,
@@ -816,10 +854,10 @@ export const examples: ExampleDefinition[] = [
   },
   {
     id: 'railCrossing', title: 'Paso a nivel', icon: '🚂', level: 'Intermedio',
-    mission: 'Leé los dos detectores y coordiná barreras, luces y sonido antes de que llegue el tren.',
-    description: 'Vía de doble sentido, tren con vagones, autos y barreras con servo. El programa inicial no protege el cruce: completalo.',
+    mission: 'Observá cómo los detectores coordinan barreras, luces y sonido para dejar pasar el tren en ambos sentidos.',
+    description: 'Ejemplo completo: avisa, baja ambas barreras y espera al último vagón en el detector de salida antes de abrir.',
     scene: createSceneFromTemplate('railCrossing'),
-    workspace: startWorkspace({ type: 'capi_forever', id: 'rail-loop', inputs: { DO: { block: { type: 'capi_wait', id: 'rail-tick', fields: { SECONDS: 0.1 } } } } }),
+    workspace: railWorkspace,
   },
   {
     id: 'display', title: 'Mensajes para la plaza', icon: '📺', level: 'Inicial',
