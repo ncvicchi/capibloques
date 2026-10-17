@@ -1,5 +1,15 @@
 # Fase 46 — Peatones del cruce escolar
 
+Ajuste posterior del 17 de octubre: un único aviso para auto–auto y auto–peatón,
+con icono de precaución, tipo de choque, escena detenida e instrucción idéntica
+de reinicio. Ambos marcan a los involucrados; el peatón conserva su dibujo de
+pie y recibe un aro de énfasis, sin lesiones ni caída. El mundo sigue congelado
+hasta reiniciar en los dos casos. Prueba de navegador cubre ambos choques,
+marcas, ausencia de movimiento posterior y limpieza al reiniciar.
+Verificación del ajuste: tres recorridos Chromium aprobados, tipos/lint y
+regresión pura de mundos/peatones aprobados. No se compiló firmware ni se
+actualizó DEV para esta corrección.
+
 Autorización: 17 de octubre de 2026. Entrega de simulación web; no modifica
 firmware, ABI, backend, esquema JSON, credenciales ni migraciones. Plan padre:
 [PLAN_MUNDOS_INTERACTIVOS.md](PLAN_MUNDOS_INTERACTIVOS.md).

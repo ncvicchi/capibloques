@@ -4,6 +4,15 @@ Documento vivo iniciado en **fase 11**. Actualización: **17 de octubre de 2026*
 
 ### Mundos interactivos y peatones del cruce — 17 de octubre de 2026
 
+Ajuste posterior por pedido de comportamiento similar: auto–auto y auto–peatón
+comparten aviso accesible «Choque … La escena está detenida. Reiniciá programa
+y escena para volver a probar», icono de precaución y marcas de involucrados.
+El peatón se resalta con un aro sin lesiones ni caída. Ambos mundos quedan
+congelados hasta reiniciar; no cambia el algoritmo de detección ni el firmware.
+Evidencia añadida al recorrido navegador de peatones: ambos tipos de choque,
+marcas, inmovilidad tras avanzar el reloj y limpieza al reiniciar. DEV sigue
+pendiente del propietario, no se despliega por esta corrección.
+
 Se documentó la propuesta completa y el inventario contrastado en
 [PLAN_MUNDOS_INTERACTIVOS.md](PLAN_MUNDOS_INTERACTIVOS.md), enlazado en backlog,
 plan principal y plan numerado. Fases 46–55: peatones, tren/paso a nivel,

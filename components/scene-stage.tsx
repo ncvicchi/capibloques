@@ -207,7 +207,9 @@ function TrafficActors({
         {world.pedestrians.people.map((person, index, people) => {
           const queueIndex = people.slice(0, index).filter(other => !other.started && other.crossing === person.crossing && other.direction === person.direction).length;
           const at = pedestrianPosition(person, queueIndex);
-          return <g key={person.id} data-pedestrian={person.id} data-crossing={person.crossing} data-started={person.started} transform={`translate(${at.x} ${at.y}) scale(1.25)`} aria-hidden="true">
+          const involved = world.pedestrianCollision?.pedestrianId === person.id;
+          return <g key={person.id} className={involved ? 'traffic-pedestrian involved' : 'traffic-pedestrian'} data-pedestrian={person.id} data-crossing={person.crossing} data-started={person.started} transform={`translate(${at.x} ${at.y}) scale(1.25)`} aria-hidden="true">
+            {involved && <circle cy="2" r="16" fill="#fff3cd" stroke="#b32942" strokeWidth="2" />}
             <circle cy="-7" r="4" fill="#f0bd8e" stroke="#30364c" strokeWidth="1.5" />
             <path d="M0 -2V6M-6 2L0 0L6 2M0 6L-4 12M0 6L4 12" fill="none" stroke={person.direction === 1 ? '#334ea3' : '#9e3673'} strokeWidth="3" strokeLinecap="round" />
           </g>;
@@ -229,10 +231,13 @@ function TrafficActors({
           </i>
         );
       })}
-      {world.collision && (
-        <strong className="traffic-crash" role="alert">💥 Choque · Reiniciá para volver a probar</strong>
+      {(world.collision || world.pedestrianCollision) && (
+        <strong className="traffic-crash" role="alert">
+          <span aria-hidden="true">⚠️ </span>
+          Choque {world.pedestrianCollision ? `auto–peatón en ${crossingNames[world.pedestrianCollision.crossing].toLowerCase()}` : 'entre autos'}.
+          {' '}La escena está detenida. Reiniciá programa y escena para volver a probar.
+        </strong>
       )}
-      {world.pedestrianCollision && <strong className="traffic-crash" role="alert">Conflicto auto–peatón en {crossingNames[world.pedestrianCollision.crossing].toLowerCase()}. Reiniciá para volver a probar.</strong>}
       {Object.entries(signals).map(([lane, color]) =>
         color === 'RED' && enabledLanes.includes(lane as TrafficLane) ? (
           <small key={lane} className={`traffic-jam ${lane}`}>fila</small>
