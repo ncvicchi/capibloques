@@ -298,7 +298,7 @@ export interface ProjectDecodeResult {
   diagnostics: CapiDiagnostic[];
 }
 
-export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix';
+export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures';
 export interface ExampleDefinition {
   id: ExampleId;
   title: string;
@@ -749,6 +749,74 @@ const railWorkspace = startWorkspace({
     },
   }, { type: 'capi_wait', id: 'rail-tick', fields: { SECONDS: 0.05 } }) } },
 });
+// La misma solución, organizada en dos niveles de tareas y pestañas.
+const railRoutineNames = {
+  occupied: 'Vía ocupada', free: 'Vía libre', close: 'Cerrar barreras',
+  open: 'Abrir barreras', lightsOn: 'Encender avisos', lightsOff: 'Apagar avisos',
+  alarm: 'Sonar aviso', waitEast: 'Esperar salida este', waitWest: 'Esperar salida oeste',
+};
+type RailRoutine = keyof typeof railRoutineNames;
+const railCall = (id: string, routine: RailRoutine) => ({
+  type: 'capi_procedure_call', id,
+  fields: { ROUTINE: { id: `rail-task-${routine}` } },
+});
+const railDefinition = (routine: RailRoutine, x: number, y: number, body: Record<string, unknown>) => ({
+  type: 'capi_procedure_def', id: `rail-def-${routine}`, x, y,
+  fields: { ROUTINE: { id: `rail-task-${routine}` }, P1_TYPE: 'none', P2_TYPE: 'none', P3_TYPE: 'none' },
+  inputs: { BODY: { block: body } },
+});
+const railWaitForExit = (role: string) => chain(...['INTERRUPTED', 'CLEAR'].map(state => ({
+  type: 'capi_while', id: `rail-mod-wait-${role}-${state}`, fields: { MODE: 'UNTIL' },
+  inputs: {
+    CONDITION: { block: railDetector(`rail-mod-read-${role}-${state}`, role, state) },
+    DO: { block: { type: 'capi_wait', id: `rail-mod-yield-${role}-${state}`, fields: { SECONDS: 0.05 } } },
+  },
+})));
+const railModularPassage = (exit: 'East' | 'West') => chain(
+  railCall(`rail-mod-${exit}-occupied`, 'occupied'),
+  railCall(`rail-mod-${exit}-wait`, exit === 'East' ? 'waitEast' : 'waitWest'),
+  railCall(`rail-mod-${exit}-free`, 'free'),
+);
+const railModularStart = startWorkspace({
+  type: 'capi_forever', id: 'rail-mod-loop', inputs: { DO: { block: chain({
+    type: 'capi_if', id: 'rail-mod-from-west', inputs: {
+      CONDITION: { block: railDetector('rail-mod-read-west', 'westDetector') },
+      DO: { block: railModularPassage('East') },
+      ELSE: { block: {
+        type: 'capi_if', id: 'rail-mod-from-east', inputs: {
+          CONDITION: { block: railDetector('rail-mod-read-east', 'eastDetector') },
+          DO: { block: railModularPassage('West') },
+        },
+      } },
+    },
+  }, { type: 'capi_wait', id: 'rail-mod-tick', fields: { SECONDS: 0.05 } }) } },
+});
+const railProceduresWorkspace = {
+  variables: Object.entries(railRoutineNames).map(([key, name]) => ({ id: `rail-task-${key}`, name, type: 'Procedure' })),
+  blocks: { languageVersion: 0, blocks: [
+    ...railModularStart.blocks.blocks,
+    railDefinition('occupied', 48, 42, chain(
+      railCall('rail-occupied-lights', 'lightsOn'), railCall('rail-occupied-close', 'close'), railCall('rail-occupied-alarm', 'alarm'),
+    )),
+    railDefinition('free', 48, 420, chain(railCall('rail-free-open', 'open'), railCall('rail-free-lights', 'lightsOff'))),
+    ...(['close', 'open'] as const).map((routine, index) => railDefinition(routine, 48, 42 + index * 350, chain(
+      ...['northGate', 'southGate'].map(role => ({ type: 'capi_servo', id: `rail-mod-${routine}-${role}`, fields: { DEVICE_ID: `rail-${role}`, ANGLE: routine === 'close' ? 0 : 90 } })),
+    ))),
+    ...(['lightsOn', 'lightsOff'] as const).map((routine, index) => railDefinition(routine, 48, 42 + index * 350, chain(
+      ...[1, 2].map(number => ({ type: 'capi_led', id: `rail-mod-${routine}-${number}`, fields: { DEVICE_ID: `rail-warning-${number}`, BRIGHTNESS: routine === 'lightsOn' ? 100 : 0 } })),
+    ))),
+    railDefinition('alarm', 48, 742, { type: 'capi_buzzer', id: 'rail-mod-alarm', fields: { DEVICE_ID: 'rail-alarm', KIND: 'ACTIVE', DURATION: 250, FREQUENCY: 660 } }),
+    railDefinition('waitEast', 48, 42, railWaitForExit('eastDetector')),
+    railDefinition('waitWest', 48, 600, railWaitForExit('westDetector')),
+  ] },
+  capiTabs: { version: 1, tabs: [
+    { id: 'main', name: 'Principal', rootBlockIds: ['start-main'] },
+    { id: 'tab-rail-control', name: 'Control del cruce', rootBlockIds: ['rail-def-occupied', 'rail-def-free'] },
+    { id: 'tab-rail-gates', name: 'Barreras', rootBlockIds: ['rail-def-close', 'rail-def-open'] },
+    { id: 'tab-rail-warnings', name: 'Avisos', rootBlockIds: ['rail-def-lightsOn', 'rail-def-lightsOff', 'rail-def-alarm'] },
+    { id: 'tab-rail-detectors', name: 'Detectores', rootBlockIds: ['rail-def-waitEast', 'rail-def-waitWest'] },
+  ] },
+};
 const messageReceiver = (expected: string, equal: Record<string, unknown>, different: Record<string, unknown>, timeout: Record<string, unknown>) => ({
   type: 'capi_forever', id: `listen-${expected.toLowerCase()}`, inputs: { DO: { block: {
     type: 'capi_message_receive', id: `receive-${expected.toLowerCase()}`,
@@ -858,6 +926,13 @@ export const examples: ExampleDefinition[] = [
     description: 'Ejemplo completo: avisa, baja ambas barreras y espera al último vagón en el detector de salida antes de abrir.',
     scene: createSceneFromTemplate('railCrossing'),
     workspace: railWorkspace,
+  },
+  {
+    id: 'railCrossingProcedures', title: 'Paso a nivel con procedimientos', icon: '🧩', level: 'Intermedio',
+    mission: 'Compará la solución directa con la misma solución organizada en tareas que llaman a otras tareas.',
+    description: 'Ejemplo completo: Vía ocupada y Vía libre reutilizan barreras y avisos. Explorá las pestañas o hacé doble clic en una llamada.',
+    scene: createSceneFromTemplate('railCrossing'),
+    workspace: railProceduresWorkspace,
   },
   {
     id: 'display', title: 'Mensajes para la plaza', icon: '📺', level: 'Inicial',

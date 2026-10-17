@@ -835,6 +835,12 @@ de sus bloques reales y ejecución en worker. Los desafíos, no los ejemplos,
 pueden entregar trabajo pendiente al alumno. Rama de la corrección:
 `codex/ejemplo-paso-nivel-completo`; DEV y aceptación humana pendientes.
 
+Ampliación de la misma fase en `codex/paso-nivel-procedimientos`: segundo
+ejemplo con Vía ocupada/libre, tareas pequeñas reutilizadas y cinco pestañas,
+sin modificar el original. Ambas soluciones completas comparten lógica y
+tiempos comprobados. No inicia otra fase ni cambia firmware; DEV y aceptación
+humana de esta ampliación pendientes.
+
 ## Fase final — Producción y piloto, postergada
 
 Es la antigua fase 11, renombrada por decisión del propietario. No se ejecuta como consecuencia de terminar una fase del backlog.
