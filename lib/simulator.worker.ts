@@ -36,6 +36,8 @@ import { animationFrame, type FrameAnimation } from './frame-animation.ts';
 import { decodeChallenge, variantScene, compareChallenge, challengeExpectations } from './challenges.ts';
 // @ts-expect-error Node's type-stripping smoke runner needs the explicit suffix.
 import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
+// @ts-expect-error Node strip-types runner.
+import { advanceRailWorld, createRailWorldState, railBindings } from './rail-world.ts';
 
 type Pending =
   | { kind: 'wait'; startedAt: number; until: number; blockId: string }
@@ -452,12 +454,15 @@ function defaultRobot() {
 
 function freshState(): SimulatorState {
   const devices = createDeviceState();
+  const bindings = railBindings(scene);
+  const initialAngle = (id: string | undefined) => id && devices[id]?.kind === 'servo' ? devices[id].angle : 0;
   dashboardManual.clear();
   dashboardProgramStates.clear();
   for (const id of dashboardDeviceIds(scene))
     if (devices[id])
       dashboardProgramStates.set(id, structuredClone(devices[id]));
   return {
+    ...(scene.canvas.background === 'railCrossing' ? { railWorld: createRailWorldState(initialAngle(bindings.northGate), initialAngle(bindings.southGate)) } : {}),
     now: 0,
     status: 'idle',
     devices,
@@ -814,6 +819,7 @@ function resetExecution(
     state.devices[deviceId] = device;
   }
   applyInputOverrides();
+  updateRailPhysics(0);
   state.status = status;
   virtualNow = 0;
   schedulerDebtMs = 0;
@@ -2531,7 +2537,19 @@ function executeOne(execution: ThreadExecution) {
   return result;
 }
 
+function updateRailPhysics(deltaMs: number) {
+  if (!state.railWorld) return;
+  const bindings = railBindings(scene);
+  const angle = (id: string | undefined) => id && state.devices[id]?.kind === 'servo' ? state.devices[id].angle : 0;
+  state.railWorld = advanceRailWorld(state.railWorld, { northGate: angle(bindings.northGate), southGate: angle(bindings.southGate) }, deltaMs);
+  for (const role of ['westDetector', 'eastDetector'] as const) {
+    const id = bindings[role];
+    if (id) applyInputValue(id, state.railWorld.detectors[role]);
+  }
+}
+
 function updatePhysics(deltaMs: number) {
+  if (state.status !== 'done' && state.status !== 'stopped') updateRailPhysics(deltaMs);
   updateVisualAnimations();
   for (const timer of Object.values(state.timers)) {
     if (timer.status !== 'running' || timer.durationMs <= 0 || deltaMs <= 0)
@@ -2768,6 +2786,8 @@ function stopOutputs() {
 }
 
 function setInputById(deviceId: string, value: unknown) {
+  const bindings = railBindings(scene);
+  if (deviceId === bindings.westDetector || deviceId === bindings.eastDetector) return;
   const device = state.devices[deviceId];
   if (
     device?.kind === 'educationalModule' &&
@@ -2904,6 +2924,7 @@ scope.addEventListener('message', (event) => {
       break;
     }
     case 'RUN':
+      if (state.railWorld?.collision) { emit(); break; }
       if (simulationBlocked) {
         running = false;
         postDiagnostics();
@@ -2947,6 +2968,7 @@ scope.addEventListener('message', (event) => {
       resetExecution();
       break;
     case 'STEP':
+      if (state.railWorld?.collision) { emit(); break; }
       if (simulationBlocked) {
         postDiagnostics();
         emit();

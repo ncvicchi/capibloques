@@ -406,6 +406,8 @@ export interface ExecutionTaskState {
 }
 
 export interface SimulatorState {
+  /** Estado virtual transitorio; nunca forma parte del proyecto portable. */
+  railWorld?: import('./rail-world').RailWorldState;
   execution?: {
     mode: 'normal' | 'guided';
     awaitingFrame: number | null;
@@ -811,6 +813,13 @@ export const examples: ExampleDefinition[] = [
     level: 'Intermedio',
     scene: createSceneFromTemplate('weatherStation'),
     workspace: startWorkspace({ type: 'capi_serial', id: 'weather-challenge', fields: { TEXT: '¿Cómo está el tiempo?' } }),
+  },
+  {
+    id: 'railCrossing', title: 'Paso a nivel', icon: '🚂', level: 'Intermedio',
+    mission: 'Leé los dos detectores y coordiná barreras, luces y sonido antes de que llegue el tren.',
+    description: 'Vía de doble sentido, tren con vagones, autos y barreras con servo. El programa inicial no protege el cruce: completalo.',
+    scene: createSceneFromTemplate('railCrossing'),
+    workspace: startWorkspace({ type: 'capi_forever', id: 'rail-loop', inputs: { DO: { block: { type: 'capi_wait', id: 'rail-tick', fields: { SECONDS: 0.1 } } } } }),
   },
   {
     id: 'display', title: 'Mensajes para la plaza', icon: '📺', level: 'Inicial',

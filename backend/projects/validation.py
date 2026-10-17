@@ -278,11 +278,11 @@ def scene(value, board_profile="wemos-d1-r32"):
     exact(value, ("schemaVersion", "id", "name", "description", "canvas", "devices", "widgets"), ("retiredDeviceIds", "sourceTemplate"))
     require(type(value["schemaVersion"]) is int and value["schemaVersion"] == 1 and identifier(value["id"]))
     require(text(value["name"], 60, 1) and value["name"].strip() and isinstance(value["description"], str))
-    require("sourceTemplate" not in value or value["sourceTemplate"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation"))
+    require("sourceTemplate" not in value or value["sourceTemplate"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing"))
     canvas = value["canvas"]
     exact(canvas, ("width", "height", "background", "gridSize", "snapToGrid"), ("trafficDirections", "itemOrder"))
     require(number(canvas["width"], 0.01, 4096) and number(canvas["height"], 0.01, 4096) and number(canvas["gridSize"], 0.01, 512))
-    require(canvas["background"] in ("park", "workshop", "home", "pond", "crossroads", "robotTrack", "garden", "schoolGate", "weatherYard", "blank") and type(canvas["snapToGrid"]) is bool)
+    require(canvas["background"] in ("park", "workshop", "home", "pond", "crossroads", "robotTrack", "garden", "schoolGate", "weatherYard", "railCrossing", "blank") and type(canvas["snapToGrid"]) is bool)
     traffic_directions = canvas.get("trafficDirections", [])
     require(isinstance(traffic_directions, list) and len(traffic_directions) <= 4 and len(set(traffic_directions)) == len(traffic_directions))
     require(all(direction in ("eastbound", "westbound", "southbound", "northbound") for direction in traffic_directions))
@@ -370,6 +370,18 @@ def scene(value, board_profile="wemos-d1-r32"):
                 require(all(pin is None or (type(pin) is int and -2147483648 <= pin <= 2147483647) for pin in item["pins"].values()))
                 require(all(pin is None or pin in BOARD_PINS[board_profile] for pin in item["pins"].values()), "La escena usa un GPIO que no pertenece a la placa elegida.")
     dashboard_kinds = {"trafficLight", "robot", "motor", "led", "servo"}
+    if canvas["background"] == "railCrossing":
+        require(canvas["width"] == 960 and canvas["height"] == 540, "El paso a nivel utiliza un lienzo de 960 × 540.")
+        rail_slots = {"servo": ((395, 185), (565, 355)), "infraredBarrier": ((140, 270), (820, 270))}
+        occupied = set()
+        for item in value["devices"]:
+            if item["kind"] not in rail_slots:
+                continue
+            position = (item["position"]["x"], item["position"]["y"])
+            require(position in rail_slots[item["kind"]], "Elegí un lugar marcado del paso a nivel.")
+            role = (item["kind"], position)
+            require(role not in occupied, "Cada barrera y detector necesita su propio lugar.")
+            occupied.add(role)
     dashboard_items = {item["id"]: item for item in value["devices"]}
     require(all(device_id in dashboard_items and dashboard_items[device_id]["kind"] in dashboard_kinds for device_id in dashboard_ids), "El tablero contiene un control retirado o incompatible.")
     retired = value.get("retiredDeviceIds", [])
@@ -392,7 +404,7 @@ def document(value):
     require(value["metadata"]["locale"] == "es-AR" and text(value["metadata"]["updatedAt"], 64, 1))
     require("migratedFrom" not in value["metadata"] or (type(value["metadata"]["migratedFrom"]) is int and value["metadata"]["migratedFrom"] == 1))
     exact(value["simulation"], ("scene", "speed"))
-    require(value["simulation"]["scene"] in ("traffic", "robot", "wifi", "counter") and number(value["simulation"]["speed"], 0.25, 4))
+    require(value["simulation"]["scene"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing") and number(value["simulation"]["speed"], 0.25, 4))
     scene(value["scene"], target["boardProfile"])
     workspace(value["workspace"])
     size = len(encoded(value))

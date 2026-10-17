@@ -305,6 +305,7 @@ export default function ReviewSimulation({
           activeDeviceMessage={state?.execution?.trace.at(-1)?.message}
           scene={project.scene}
           runtimeDevices={state?.devices}
+          railWorld={state?.railWorld}
           counter={state?.counter}
           simulationSpeed={speed}
           simulationRunning={state?.status === 'running'}
@@ -339,6 +340,7 @@ export default function ReviewSimulation({
               const interrupted = runtime?.kind === 'infraredBarrier'
                 ? runtime.interrupted
                 : device.config.interrupted;
+              if (project.scene.canvas.background === 'railCrossing') return <p key={device.id}>{device.name}: {interrupted ? 'Haz interrumpido' : 'Haz libre'} · automático del tren virtual</p>;
               return (
                 <label key={device.id}>
                   {device.name} ·

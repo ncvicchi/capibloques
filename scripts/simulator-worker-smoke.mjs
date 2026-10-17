@@ -512,4 +512,47 @@ for (let turn = 0; turn < 40 && latestState().status !== 'done'; turn++) advance
 assert.equal(latestState().counter, 11);
 assert.deepEqual(latestState().devices[matrix.id].rows, Array(8).fill(2));
 assert.equal(latestState().devices[matrix.id].scrolling, false);
-console.log('Simulator worker smoke checks passed.');
+// Paso a nivel: las condiciones leen la ocupación automática del tren, no
+// eventos mágicos ni entradas manuales que compitan con el mundo.
+const { createSceneFromTemplate } = await import('../lib/scene-model.ts');
+const railwayScene = createSceneFromTemplate('railCrossing');
+const railCondition = (role, expected = 'INTERRUPTED') => ({ kind: 'value', expression: { kind: 'barrierValue', deviceId: `rail-${role}`, expected } });
+const railWait = (role, expected) => ({ op: 'while', condition: railCondition(role, expected), until: true, body: [{ op: 'wait', ms: 16, blockId: `poll-${role}-${expected}` }], blockId: `wait-${role}-${expected}` });
+const railGates = angle => ['northGate', 'southGate'].map(role => ({ op: 'servo', deviceId: `rail-${role}`, angle, blockId: `gate-${role}-${angle}` }));
+const railHandle = exit => [...railGates(0), { op: 'led', deviceId: 'rail-warning-1', brightness: 100, blockId: 'rail-warning-on' }, railWait(exit, 'INTERRUPTED'), railWait(exit, 'CLEAR'), ...railGates(90), { op: 'led', deviceId: 'rail-warning-1', brightness: 0, blockId: 'rail-warning-off' }];
+send({ type: 'LOAD', scene: railwayScene, program: { version: 2, threads: [{ id: 'rail-main', startBlockId: 'rail-start', nodes: [{
+  op: 'while', condition: { kind: 'boolean', value: true }, until: false, blockId: 'rail-loop', body: [{
+    op: 'if', condition: railCondition('westDetector'), consequent: railHandle('eastDetector'), otherwise: [{
+      op: 'if', condition: railCondition('eastDetector'), consequent: railHandle('westDetector'), otherwise: [], blockId: 'rail-from-east',
+    }], blockId: 'rail-from-west',
+  }, { op: 'wait', ms: 16, blockId: 'rail-yield' }],
+}] }] } });
+assert.ok(latestState().railWorld);
+send({ type: 'SET_INPUT', deviceId: 'rail-westDetector', value: true });
+assert.equal(latestState().devices['rail-westDetector'].interrupted, false, 'el detector vinculado no admite entrada manual');
+send({ type: 'RUN' });
+let railDetected = false, railClosed = false, railReopened = false;
+for (let i = 0; i < 6000; i++) {
+  advance(16);
+  const current = latestState();
+  if (current.devices['rail-westDetector'].interrupted || current.devices['rail-eastDetector'].interrupted) railDetected = true;
+  if (current.railWorld.gates.northGate === 0) railClosed = true;
+  if (railClosed && current.railWorld.gates.northGate === 90) railReopened = true;
+  assert.equal(current.railWorld.collision, null, 'un programa que espera el detector de salida despeja el cruce');
+}
+assert.ok(railDetected && railClosed && railReopened, 'el circuito sensor → programa → servo → mundo funciona');
+send({ type: 'PAUSE' });
+const pausedRail = structuredClone(latestState().railWorld);
+advance(100);
+assert.deepEqual(latestState().railWorld, pausedRail);
+send({ type: 'RESET' });
+assert.equal(latestState().railWorld.train, null);
+assert.equal(latestState().railWorld.cars.length, 0);
+assert.equal(latestState().railWorld.gates.northGate, 90);
+assert.equal(latestState().devices['rail-westDetector'].interrupted, false);
+send({ type: 'SET_SPEED', speed: 4 }); send({ type: 'RUN' }); advance(100); send({ type: 'PAUSE' });
+assert.ok(latestState().railWorld.nextTrainInMs <= 3101, 'el tren usa la velocidad del mismo reloj del programa');
+send({ type: 'RESET' }); send({ type: 'STEP' });
+assert.ok(latestState().railWorld.nextTrainInMs < 3500, 'Paso también avanza mundo y detectores');
+send({ type: 'STOP' });
+console.log('Simulator worker smoke checks passed, including automatic railway inputs and cooperative gates.');
