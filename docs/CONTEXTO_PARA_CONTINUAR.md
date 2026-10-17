@@ -2,6 +2,23 @@
 
 Documento vivo iniciado en **fase 11**. Actualización: **17 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
 
+### Corrección del ejemplo Paso a nivel (17 de octubre)
+
+El propietario aclaró: ejemplos completos, desafíos a resolver. Se corrige el
+workspace del catálogo Paso a nivel, antes vacío: decisión por entrada oeste
+o este, ambas luces, cierre de ambos servos, aviso del buzzer, espera hasta
+ocupación y liberación del detector opuesto y apertura. Sin automatismo oculto
+del mundo ni firmware nuevo. Agregar aventura desde el armador sigue agregando
+sólo componentes, sin reemplazar el programa. Regla de producto en AGENTS.
+
+Rama `codex/ejemplo-paso-nivel-completo`, creada desde origin/main que ya
+incluye fase 47 (merge 8b44fdd). Verificación: el smoke del worker ahora compila
+el workspace real mediante Blockly y lo ejecuta 192 s simulados; confirma
+ambas direcciones, cierre/apertura, luces/buzzer y ausencia de choques,
+además de pausa/reset/velocidad/Paso. Tipos, lint y mundos verificados.
+No se operó DEV; integración/actualización y aceptación humana pendientes.
+Las limitaciones físicas/Waveshare de fase 47 no cambian.
+
 ### Fase 47 — Paso a nivel, entrega en rama (17 de octubre)
 
 Disposición/reglas aprobadas por el propietario e implementadas en

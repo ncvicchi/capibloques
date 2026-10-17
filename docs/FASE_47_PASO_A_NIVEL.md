@@ -71,17 +71,23 @@ material concreto. Esta escena no es un sistema de seguridad ferroviaria real.
 
 ## Programación esperada
 
-El alumno decide todo: reconocer por qué lado llega, avisar, cerrar ambas
+El programa decide todo: reconocer por qué lado llega, avisar, cerrar ambas
 barreras, esperar al detector de salida y a su liberación y luego abrir.
 **No basta con abrir cuando los dos detectores estén libres**: el tren puede
 estar entre ambos. Tampoco basta con que se libere el detector de entrada.
-La prueba del worker incluye un programa cooperativo que espera ocupación y
-liberación del detector opuesto y vuelve a abrir sin colisiones.
+La prueba del worker compila el workspace real del ejemplo y ejecuta esa
+misma solución: espera ocupación y liberación del detector opuesto y vuelve
+a abrir sin colisiones, en ambos sentidos, con las dos luces y el buzzer.
 
-La plantilla inicial contiene sólo Al comenzar + repetir siempre + espera.
-Se declara incompleta: no protege el cruce; el alumno debe programarlo.
-Puede obtenerla desde Proyecto/Ejemplos «Paso a nivel» o agregar la aventura
-completa desde una escena vacía. No se reemplaza una escena ajena ni sus IDs
+Corrección pedida por el propietario: **los ejemplos son soluciones completas;
+los desafíos son actividades a resolver**. Desde Proyecto → Abrir un ejemplo
+→ Paso a nivel se carga un programa completo y editable con Al comenzar,
+repetir siempre, decisiones por sentido, aviso luminoso/sonoro, cierre de las
+dos barreras, esperas cooperativas del detector de salida y apertura final.
+No es una protección oculta del mundo: al editar esos bloques se cambia el
+comportamiento. La aventura del editor de escenas sólo agrega componentes,
+no sustituye el programa actual ni inserta una solución automáticamente.
+No se reemplaza una escena ajena ni sus IDs
 por pulsar agregar aventura. Cambiar el fondo de un borrador encastra los
 componentes compatibles y conserva Cancelar/Deshacer; el validador detecta
 lugares duplicados o fuera de las posiciones admitidas.

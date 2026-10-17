@@ -4,6 +4,9 @@ Fase 47 — Paso a nivel autorizada e implementada en rama, pendiente de
 integración/DEV/aceptación: [reglas, sensores, uso y límites](FASE_47_PASO_A_NIVEL.md).
 Dos barreras con servos, dos detectores infrarrojos automáticos del tren virtual,
 autos y trenes de ambos sentidos, avisos programables y accidente/reinicio.
+Corrección posterior en `codex/ejemplo-paso-nivel-completo`: el ejemplo del
+catálogo incluye la solución completa y comprobada para ambos sentidos, no
+una consigna a completar. Los desafíos siguen siendo actividades a resolver.
 Ultrasonido, switch o Hall/reed no se incorporaron como perfiles intercambiables.
 Portado Waveshare y maqueta física quedan pendientes. No iniciar fase 48 aún.
 

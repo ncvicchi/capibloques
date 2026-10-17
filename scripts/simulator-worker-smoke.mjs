@@ -516,31 +516,39 @@ assert.equal(latestState().devices[matrix.id].scrolling, false);
 // eventos mágicos ni entradas manuales que compitan con el mundo.
 const { createSceneFromTemplate } = await import('../lib/scene-model.ts');
 const railwayScene = createSceneFromTemplate('railCrossing');
-const railCondition = (role, expected = 'INTERRUPTED') => ({ kind: 'value', expression: { kind: 'barrierValue', deviceId: `rail-${role}`, expected } });
-const railWait = (role, expected) => ({ op: 'while', condition: railCondition(role, expected), until: true, body: [{ op: 'wait', ms: 16, blockId: `poll-${role}-${expected}` }], blockId: `wait-${role}-${expected}` });
-const railGates = angle => ['northGate', 'southGate'].map(role => ({ op: 'servo', deviceId: `rail-${role}`, angle, blockId: `gate-${role}-${angle}` }));
-const railHandle = exit => [...railGates(0), { op: 'led', deviceId: 'rail-warning-1', brightness: 100, blockId: 'rail-warning-on' }, railWait(exit, 'INTERRUPTED'), railWait(exit, 'CLEAR'), ...railGates(90), { op: 'led', deviceId: 'rail-warning-1', brightness: 0, blockId: 'rail-warning-off' }];
-send({ type: 'LOAD', scene: railwayScene, program: { version: 2, threads: [{ id: 'rail-main', startBlockId: 'rail-start', nodes: [{
-  op: 'while', condition: { kind: 'boolean', value: true }, until: false, blockId: 'rail-loop', body: [{
-    op: 'if', condition: railCondition('westDetector'), consequent: railHandle('eastDetector'), otherwise: [{
-      op: 'if', condition: railCondition('eastDetector'), consequent: railHandle('westDetector'), otherwise: [], blockId: 'rail-from-east',
-    }], blockId: 'rail-from-west',
-  }, { op: 'wait', ms: 16, blockId: 'rail-yield' }],
-}] }] } });
+// Compilar los bloques que abre el usuario, no una solución de test distinta.
+const Blockly = await import('blockly');
+const { registerBlocks, workspaceDevices, compileWorkspace } = await import('../lib/blockly-engine.ts');
+const { examples, validateProgramForScene } = await import('../lib/capiblocks.ts');
+registerBlocks(Blockly);
+const railwayWorkspace = new Blockly.Workspace();
+workspaceDevices.set(railwayWorkspace, railwayScene.devices);
+Blockly.serialization.workspaces.load(structuredClone(examples.find(example => example.id === 'railCrossing').workspace), railwayWorkspace);
+const railwayProgram = compileWorkspace(railwayWorkspace);
+assert.deepEqual(validateProgramForScene(railwayProgram, railwayScene).filter(item => item.severity === 'error'), []);
+railwayWorkspace.dispose();
+send({ type: 'LOAD', scene: railwayScene, program: railwayProgram });
 assert.ok(latestState().railWorld);
 send({ type: 'SET_INPUT', deviceId: 'rail-westDetector', value: true });
 assert.equal(latestState().devices['rail-westDetector'].interrupted, false, 'el detector vinculado no admite entrada manual');
 send({ type: 'RUN' });
 let railDetected = false, railClosed = false, railReopened = false;
-for (let i = 0; i < 6000; i++) {
+const railDirections = new Set();
+let railLights = false, railAlarm = false;
+for (let i = 0; i < 12000; i++) {
   advance(16);
   const current = latestState();
+  if (current.railWorld.train) railDirections.add(current.railWorld.train.direction);
+  if ([1, 2].every(index => current.devices[`rail-warning-${index}`].brightness === 100)) railLights = true;
+  if (current.devices['rail-alarm'].playing) railAlarm = true;
   if (current.devices['rail-westDetector'].interrupted || current.devices['rail-eastDetector'].interrupted) railDetected = true;
   if (current.railWorld.gates.northGate === 0) railClosed = true;
   if (railClosed && current.railWorld.gates.northGate === 90) railReopened = true;
   assert.equal(current.railWorld.collision, null, 'un programa que espera el detector de salida despeja el cruce');
 }
 assert.ok(railDetected && railClosed && railReopened, 'el circuito sensor → programa → servo → mundo funciona');
+assert.deepEqual([...railDirections].sort(), [-1, 1], 'el ejemplo resuelve ambos sentidos');
+assert.ok(railLights && railAlarm, 'el ejemplo usa las dos luces y el buzzer');
 send({ type: 'PAUSE' });
 const pausedRail = structuredClone(latestState().railWorld);
 advance(100);
