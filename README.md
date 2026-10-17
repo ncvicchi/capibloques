@@ -1,5 +1,9 @@
 # CapiBloques para Wemos D1 R32 y DIYmall ESP32-S3 N16R8
 
+Para colaborar: [flujo obligatorio de ramas, integración y actualización DEV](docs/FLUJO_RAMA_INTEGRACION_DEV.md).
+Cada tarea va en `codex/<tarea>`; main sólo recibe integraciones. No desarrollar
+en el checkout operativo ni cambiar la rama de otra persona.
+
 CapiBloques es un entorno visual educativo para que chicos de 8 a 12 años armen una escena, programen sus componentes con bloques, prueben el comportamiento en el navegador y descarguen fuentes Arduino/ESP-IDF o firmware compilado para una Wemos D1 R32 o la DIYmall ESP32-S3-DevKitC V1.0 N16R8 identificada.
 
 El editor exige ingreso con alias y contraseña. En la VM de desarrollo corren Django + PostgreSQL, cuentas, cursos y proyectos personales. GitHub Pages ya no se utiliza. Las fases 0–9, 11–14, la [fase 28 de barrera infrarroja](docs/FASE_28_BARRERA_INFRARROJA.md) y la [fase 29 de variables](docs/FASE_29_VARIABLES.md) están entregadas en software; 10, 15, la [fase 16 S3](docs/FASE_16_ESP32_S3_DEVKIT.md) y 28 conservan aceptación física pendiente. Las fases 23 y [27](docs/FASE_27_OTTO.md) tienen software funcional: Otto ofrece cinco configuraciones genéricas hasta seis servos, sonido, distancia y expresión; todavía restan ensayos físicos y variantes comerciales específicas. La [fase 12](docs/FASE_12_MESA_DE_TRABAJO.md) reorganiza la mesa de trabajo, la [fase 13](docs/FASE_13_ACCESO_EXTERNO_DEV.md) publica DEV y la [fase 14](docs/FASE_14_EJECUCION_VISUAL.md) incorpora ejecución visual. El [plan completo](docs/PLAN_FASES_BACKLOG.md) distingue lo terminado de lo pendiente. Producción es la **Fase final, postergada**.

@@ -2,6 +2,21 @@
 
 Documento vivo iniciado en **fase 11**. Actualización: **17 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
 
+### Flujo compartido de ramas — acuerdo del 17 de octubre de 2026
+
+Todas las personas/IA trabajan desde ahora en rama `codex/<tarea>` y carpeta
+independiente por sesión simultánea. Entregan rama/SHA/pruebas y comando al
+propietario para merge + actualización DEV. Procedimiento completo y plantilla:
+[FLUJO_RAMA_INTEGRACION_DEV.md](FLUJO_RAMA_INTEGRACION_DEV.md), también enlazado
+desde README y obligatorio en AGENTS. No hacer merge/pull previo en la carpeta
+operativa: el actualizador necesita su HEAD anterior para auditar mantenimiento.
+Integrar en worktree aparte, push sin force a main y luego actualizador habitual.
+Conflictos/cambios locales/push rechazado detienen sin pisar ni esconder trabajo.
+La documentación se publica en `codex/flujo-compartido-ramas`; no se integró main
+ni se operó DEV por esta entrega. Las referencias antiguas a push directo a
+main no se aplican a tareas nuevas. El script update-dev actual no se modificó
+y no integra ramas por sí solo. No se inició una fase nueva.
+
 ### Ajustes de interfaz fase 42 — 17 de octubre de 2026
 
 Se implementaron los ajustes de cuenta/invitado, avatar Capi por
