@@ -2367,6 +2367,14 @@ select:focus-visible {
   position: absolute;
   inset: 0;
 }
+.pedestrian-world {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.traffic-crash { z-index: 4; max-width: 85%; text-align: center; }
 .traffic-car {
   position: absolute;
   z-index: 1;

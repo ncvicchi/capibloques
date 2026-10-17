@@ -33,6 +33,7 @@ import {
   type TrafficLane,
 } from '@/lib/traffic-world';
 import { trafficDisplayRows, type PedestrianDisplayValue, type VehicleDisplayValue } from '@/lib/traffic-displays';
+import { crossingIds, crossingNames, crossingPaths, pedestrianPosition, type PedestrianSignals } from '@/lib/pedestrian-world';
 
 export type RuntimeVisualDevice = {
   texts?: Record<string, string[]>;
@@ -119,11 +120,15 @@ type MovableSceneItem = Pick<SceneDevice | SceneWidget, 'id' | 'position'>;
 
 function TrafficActors({
   signals,
+  pedestrianSignals,
+  crossingLabels,
   speed,
   running,
   enabledLanes,
 }: {
   signals: TrafficSignals;
+  pedestrianSignals: PedestrianSignals;
+  crossingLabels: Partial<Record<keyof PedestrianSignals, string>>;
   speed: number;
   running: boolean;
   enabledLanes: readonly TrafficLane[];
@@ -156,6 +161,7 @@ function TrafficActors({
         },
         (now - previous) * speed,
         enabledLanes,
+        pedestrianSignals,
       );
       if (now - lastPaintRef.current >= 40) {
         lastPaintRef.current = now;
@@ -170,6 +176,7 @@ function TrafficActors({
     return () => window.cancelAnimationFrame(frame);
   }, [
     eastboundSignal,
+    pedestrianSignals,
     enabledLanes,
     northboundSignal,
     running,
@@ -179,13 +186,40 @@ function TrafficActors({
   ]);
 
   return (
-    <div className={`traffic-world${world.collision ? ' conflict' : ''}`}>
+    <div className={`traffic-world${world.collision || world.pedestrianCollision ? ' conflict' : ''}`}>
+      <svg className="pedestrian-world" viewBox="0 0 960 540" preserveAspectRatio="none">
+        {crossingIds.filter(id => pedestrianSignals[id] !== undefined).map(id => {
+          const path = crossingPaths[id];
+          const walking = pedestrianSignals[id] === 'WALK';
+          const label = `${crossingNames[id]} · ${crossingLabels[id]}: ${walking ? 'Cruzar' : 'Esperar'}`;
+          const labelPosition = {
+            north: { x: 480, y: 125, anchor: 'middle' },
+            east: { x: 615, y: 175, anchor: 'start' },
+            south: { x: 480, y: 415, anchor: 'middle' },
+            west: { x: 345, y: 175, anchor: 'end' },
+          } as const;
+          return <g key={id} aria-label={label} data-crossing={id}>
+            <title>{label}</title>
+            <circle cx={path.from.x - 17} cy={path.from.y - 16} r="8" fill={walking ? '#087f5b' : '#b32942'} stroke="white" strokeWidth="2" />
+            <text x={labelPosition[id].x} y={labelPosition[id].y} textAnchor={labelPosition[id].anchor} fontSize="18" fontWeight="800" fill="#172e38" stroke="white" strokeWidth="4" paintOrder="stroke">{crossingLabels[id]} · {walking ? 'Cruzar' : 'Esperar'}</text>
+          </g>;
+        })}
+        {world.pedestrians.people.map((person, index, people) => {
+          const queueIndex = people.slice(0, index).filter(other => !other.started && other.crossing === person.crossing && other.direction === person.direction).length;
+          const at = pedestrianPosition(person, queueIndex);
+          return <g key={person.id} data-pedestrian={person.id} data-crossing={person.crossing} data-started={person.started} transform={`translate(${at.x} ${at.y}) scale(1.25)`} aria-hidden="true">
+            <circle cy="-7" r="4" fill="#f0bd8e" stroke="#30364c" strokeWidth="1.5" />
+            <path d="M0 -2V6M-6 2L0 0L6 2M0 6L-4 12M0 6L4 12" fill="none" stroke={person.direction === 1 ? '#334ea3' : '#9e3673'} strokeWidth="3" strokeLinecap="round" />
+          </g>;
+        })}
+      </svg>
       {world.cars.map(car => {
         const position = trafficCarPosition(car);
         return (
           <i
             key={car.id}
             className={`traffic-car ${car.lane}${car.crashed ? ' crashed' : ''}`}
+            aria-hidden="true"
             style={{
               left: `${(position.x / 960) * 100}%`,
               top: `${(position.y / 540) * 100}%`,
@@ -196,8 +230,9 @@ function TrafficActors({
         );
       })}
       {world.collision && (
-        <strong className="traffic-crash">💥 Choque</strong>
+        <strong className="traffic-crash" role="alert">💥 Choque · Reiniciá para volver a probar</strong>
       )}
+      {world.pedestrianCollision && <strong className="traffic-crash" role="alert">Conflicto auto–peatón en {crossingNames[world.pedestrianCollision.crossing].toLowerCase()}. Reiniciá para volver a probar.</strong>}
       {Object.entries(signals).map(([lane, color]) =>
         color === 'RED' && enabledLanes.includes(lane as TrafficLane) ? (
           <small key={lane} className={`traffic-jam ${lane}`}>fila</small>
@@ -236,11 +271,22 @@ function SceneBackdrop({
     () => enabledTrafficDirections(scene),
     [scene],
   );
+  const pedestrianCrossings = useMemo(() => {
+    const signals: PedestrianSignals = {};
+    const labels: Partial<Record<keyof PedestrianSignals, string>> = {};
+    for (const device of scene.devices) {
+      if (device.kind !== 'trafficLight' || !device.config.pedestrianDisplay) continue;
+      const id = closestCrossroadsTrafficSlot(device.position).id;
+      signals[id] = runtimeDevices[device.id]?.pedestrianDisplay ?? 'OFF';
+      labels[id] = device.name;
+    }
+    return { signals, labels };
+  }, [scene.devices, runtimeDevices]);
 
   const background = scene.canvas.background;
   return (
-    <div className={`scene-world scene-world-${background}`} aria-hidden="true">
-      <svg viewBox="0 0 960 540" preserveAspectRatio="none">
+    <div className={`scene-world scene-world-${background}`}>
+      <svg viewBox="0 0 960 540" preserveAspectRatio="none" aria-hidden="true">
         {background === 'park' && <>
           <rect width="960" height="330" fill="#aee6ff"/><circle cx="790" cy="85" r="42" fill="#ffe57a"/>
           <path d="M0 330H960V540H0z" fill="#7fc66f"/><path d="M0 445 Q240 385 480 445 T960 445 V540H0z" fill="#d9bd86"/>
@@ -268,7 +314,12 @@ function SceneBackdrop({
         {background === 'crossroads' && <>
           <rect width="960" height="540" fill="#86c978"/><rect x="0" y="180" width="960" height="180" fill="#505663"/><rect x="390" y="0" width="180" height="540" fill="#505663"/>
           <g fill="#f8dc6a"><rect x="0" y="266" width="115" height="8"/><rect x="155" y="266" width="115" height="8"/><rect x="690" y="266" width="115" height="8"/><rect x="845" y="266" width="115" height="8"/><rect x="476" y="0" width="8" height="80"/><rect x="476" y="120" width="8" height="60"/><rect x="476" y="360" width="8" height="65"/><rect x="476" y="465" width="8" height="75"/></g>
-          <g fill="#fff"><path d="M365 190h12v55h-12zm-24 0h12v55h-12zm-24 0h12v55h-12zm266 105h55v12h-55zm0 24h55v12h-55zm0 24h55v12h-55z"/></g>
+          <g fill="#fff" opacity=".9">{Array.from({ length: 12 }, (_, i) => <g key={i}>
+            <rect x={365} y={183 + i * 15} width="20" height="8" />
+            <rect x={575} y={183 + i * 15} width="20" height="8" />
+            <rect x={393 + i * 15} y={155} width="8" height="20" />
+            <rect x={393 + i * 15} y={365} width="8" height="20" />
+          </g>)}</g>
           <g fill="#fff" fontSize="38" fontWeight="900" opacity=".86"><text x="185" y="338">→</text><text x="745" y="228">←</text><text x="405" y="105">↓</text><text x="525" y="470">↑</text></g>
           <path d="M35 35h220v105H35z" fill="#f6efd0"/><path d="m25 45 120-35 120 35-14 28H39z" fill="#e76962"/><text x="83" y="105" fontSize="30" fontWeight="800" fill="#34445b">ESCUELA</text>
           <g fill="#397d46"><circle cx="805" cy="75" r="42"/><circle cx="885" cy="115" r="35"/></g>
@@ -297,6 +348,8 @@ function SceneBackdrop({
       {background === 'crossroads' && (
         <TrafficActors
           signals={traffic}
+          pedestrianSignals={pedestrianCrossings.signals}
+          crossingLabels={pedestrianCrossings.labels}
           speed={simulationSpeed}
           running={simulationRunning}
           enabledLanes={activeTrafficDirections}

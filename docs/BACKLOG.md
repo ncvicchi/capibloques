@@ -1,5 +1,19 @@
 # Backlog de CapiBloques
 
+## Mundos interactivos — pedido del 17 de octubre de 2026
+
+Plan completo: [PLAN_MUNDOS_INTERACTIVOS.md](PLAN_MUNDOS_INTERACTIVOS.md).
+Incluye inventario contrastado, componentes/actores, restricciones justificadas,
+interacciones, consecuencias, reloj común, compatibilidad y aceptación.
+Fases 46–55: peatones, paso a nivel, estacionamiento, huerta, casa/entrada,
+cinta transportadora, pista de robots, clima, Otto y análisis parque/laguna/
+aeropuerto. Sólo peatones (46) autorizado para implementar ahora. Fase 45 sigue
+siendo la presentación/fidelidad, no se duplica ni se declara cerrada.
+
+Fase 46 implementada en simulación web: [guía y pendientes](FASE_46_PEATONES.md).
+Quedan DEV/usuarios y portado del mundo peatonal a Waveshare, sin prometer esa
+paridad con el firmware vigente. Las fases 47–55 no se iniciaron.
+
 Seguimiento de fase 19, 6 de octubre: corregido fallo de aceptación DEV en
 respuesta de baja sin recibo (400, no 409). No es una fase nueva. Evidencia y
 reintento pendiente en la guía de fase 19 y el contexto vivo.

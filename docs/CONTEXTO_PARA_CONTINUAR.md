@@ -1,6 +1,43 @@
 # CapiBloques — contexto para continuar
 
-Documento vivo iniciado en **fase 11**. Actualización: **15 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
+Documento vivo iniciado en **fase 11**. Actualización: **17 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
+
+### Mundos interactivos y peatones del cruce — 17 de octubre de 2026
+
+Se documentó la propuesta completa y el inventario contrastado en
+[PLAN_MUNDOS_INTERACTIVOS.md](PLAN_MUNDOS_INTERACTIVOS.md), enlazado en backlog,
+plan principal y plan numerado. Fases 46–55: peatones, tren/paso a nivel,
+estacionamiento, huerta/invernadero, casa/entrada, cinta transportadora,
+pista de robots, clima, escenario Otto y análisis parque/laguna/aeropuerto.
+Sólo fase 46 autorizada para implementar; no iniciar las siguientes por estar
+documentadas. Fase 45 conserva presentación/fidelidad y no se declara cerrada.
+
+Fase 46 implementada en web: cada cartel peatonal activado controla el paso de
+su esquina y lo identifica por nombre. Población desde ambas veredas, espera
+en OFF/no caminar, inicio en caminar y finalización aunque cambie el cartel.
+Sin cartel no aparecen peatones en ese paso. Coincidencia espacial auto–peatón
+genera conflicto no gráfico con aviso accesible y reinicio; no hay frenado
+mágico ni falsos conflictos con autos en su línea roja. Máximo 16 personas,
+cuatro por paso, llegadas variables reproducibles y estado transitorio fuera
+del JSON. Comparte reloj/velocidad/pausa/reinicio de los autos; se usan subpasos
+acotados para velocidades altas. No modifica firmware, ABI, migraciones ni
+opciones serializadas: usa el cartel existente. Guía de uso y pendientes:
+[FASE_46_PEATONES.md](FASE_46_PEATONES.md).
+
+Verificación local: tipos y lint; pruebas puras de peatones integradas en
+mundos, regresión completa de autos/mundos, worker, carteles y workbench.
+Seis recorridos de navegador aprobados: espera/cruce/pausa/reinicio y conflicto
+espacial/reinicio en Chromium, Chrome y Edge. Captura inspeccionada; rótulos y
+personas ampliados para legibilidad. Build web y rutas estáticas verificados.
+No se ejecutó CI/compilación de firmware ni una suite backend por este cambio.
+
+Publicación DEV pendiente del propietario mediante el comando habitual
+`git fetch --quiet origin main && git show origin/main:scripts/update-dev.sh | bash -s -- --fast`
+desde `/home/capi/capibloques`. No se desplegó remotamente esta entrega.
+Aceptación docente/infantil pendiente. **Waveshare no incorpora todavía los
+peatones ni sus conflictos**: portado y prueba física pendientes, no inferir
+paridad por funcionar el espejo web. Botón peatonal sigue siendo la entrada
+programable existente, sin asociación/pulsación automática introducida aquí.
 
 ### Armador de escenas: simplificación y deploy DEV — 15 de octubre de 2026
 

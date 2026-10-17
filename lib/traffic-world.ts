@@ -1,4 +1,6 @@
 import type { TrafficDirection } from './scene-model.ts';
+// @ts-expect-error Node strip-types tests import the source extension.
+import { advancePedestrians, createPedestrianWorldState, pedestrianPosition, type PedestrianSignals, type PedestrianWorldState, type CrossingId } from './pedestrian-world.ts';
 
 export type TrafficLane = TrafficDirection;
 export type TrafficSignalColor = 'RED' | 'YELLOW' | 'GREEN' | 'OFF';
@@ -19,6 +21,8 @@ export interface TrafficCarState {
 }
 
 export interface TrafficWorldState {
+  pedestrians: PedestrianWorldState;
+  pedestrianCollision: { carId: string; pedestrianId: string; crossing: CrossingId } | null;
   cars: TrafficCarState[];
   collision: { horizontalId: string; verticalId: string } | null;
   spawnInMs: Record<TrafficLane, number>;
@@ -56,6 +60,8 @@ const MAX_TRAFFIC_CARS = 12;
 
 export function createTrafficWorldState(): TrafficWorldState {
   return {
+    pedestrians: createPedestrianWorldState(),
+    pedestrianCollision: null,
     cars: [],
     collision: null,
     spawnInMs: {
@@ -194,13 +200,13 @@ function inIntersection(car: TrafficCarState) {
   );
 }
 
-export function advanceTrafficWorld(
+function advanceTrafficFrame(
   previous: TrafficWorldState,
   signals: TrafficSignals,
   elapsedMs: number,
   enabledLanes: readonly TrafficLane[] = allTrafficLanes,
 ): TrafficWorldState {
-  if (previous.collision) return previous;
+  if (previous.collision || previous.pedestrianCollision) return previous;
   const frameMs = Math.min(100, Math.max(0, elapsedMs));
   const enabled = new Set(enabledLanes);
   let cars = previous.cars.filter(car => enabled.has(car.lane));
@@ -238,6 +244,7 @@ export function advanceTrafficWorld(
     });
   if (!collidingPair)
     return {
+      ...previous,
       cars,
       collision: null,
       spawnInMs: spawned.spawnInMs,
@@ -255,10 +262,51 @@ export function advanceTrafficWorld(
       : car,
   );
   return {
+    ...previous,
     cars,
     collision,
     spawnInMs: spawned.spawnInMs,
     nextCarId: spawned.nextCarId,
     randomState: spawned.randomState,
   };
+}
+
+/** Un reloj para autos y peatones, con subpasos para no saltar colisiones a 4×. */
+export function advanceTrafficWorld(
+  previous: TrafficWorldState,
+  signals: TrafficSignals,
+  elapsedMs: number,
+  enabledLanes: readonly TrafficLane[] = allTrafficLanes,
+  pedestrianSignals: PedestrianSignals = {},
+): TrafficWorldState {
+  let world = previous;
+  let remaining = Number.isFinite(elapsedMs) ? Math.min(2000, Math.max(0, elapsedMs)) : 0;
+  do {
+    if (world.collision || world.pedestrianCollision) return world;
+    const ms = Math.min(100, remaining);
+    world = advanceTrafficFrame(world, signals, ms, enabledLanes);
+    if (world.collision) return world;
+    const pedestrians = advancePedestrians(world.pedestrians, pedestrianSignals, ms);
+    world = { ...world, pedestrians };
+    for (const person of pedestrians.people) {
+      if (!person.started) continue;
+      const position = pedestrianPosition(person);
+      const car = world.cars.find(candidate => {
+        const at = trafficCarPosition(candidate);
+        const horizontal = candidate.lane === 'eastbound' || candidate.lane === 'westbound';
+        // Las líneas de detención quedan antes de la senda: un auto detenido
+        // correctamente no invade el paso ni genera un falso atropello.
+        return Math.abs(at.x - position.x) < (horizontal ? 22 : 14) &&
+          Math.abs(at.y - position.y) < (horizontal ? 14 : 18);
+      });
+      if (!car) continue;
+      return {
+        ...world,
+        cars: world.cars.map(candidate => candidate.id === car.id ? { ...candidate, crashed: true } : candidate),
+        pedestrianCollision: { carId: car.id, pedestrianId: person.id, crossing: person.crossing },
+      };
+    }
+    remaining -= ms;
+  } while (remaining > 0);
+  return world;
 }

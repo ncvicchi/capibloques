@@ -1,5 +1,12 @@
 # Plan de CapiBloques: multiusuario, enseñanza y programación de Wemos
 
+**17 de octubre: mundos interactivos, fases 46–55.** Inventario, vínculos entre
+actores y componentes, alcance, orden y aceptación en
+[PLAN_MUNDOS_INTERACTIVOS.md](PLAN_MUNDOS_INTERACTIVOS.md), referenciado desde el
+backlog y el plan numerado. Sólo peatones del cruce (46) autorizado ahora;
+las demás fases esperan nueva autorización. La fase 45 conserva presentación
+y fidelidad visual; las mecánicas nuevas no la sustituyen ni la cierran.
+
 **7 de octubre: fase 21 entregada en software.** Ergonomía de bloques/borrador,
 comparadores, título móvil y vista simulada de pines. Sin firmware/migraciones.
 DEV y aceptación humana pendientes. Ver [guía de fase 21](FASE_21_ERGONOMIA_EDITOR.md).

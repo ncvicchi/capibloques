@@ -2,6 +2,7 @@
 import { DisplayProperties } from '@/components/display-properties';
 import { LedMatrixProperties } from '@/components/led-matrix-properties';
 import ComponentHelpDialog from '@/components/component-help';
+import { crossingNames } from '@/lib/pedestrian-world';
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { InspectorDraft, SceneDraft } from '@/lib/scene-recovery';
@@ -37,6 +38,7 @@ import {
   assignSafePins,
   cloneScene,
   constrainSceneItemPosition,
+  closestCrossroadsTrafficSlot,
   duplicateSceneDevice,
   getPinRequirements,
   pinLabel,
@@ -1302,7 +1304,7 @@ function SceneBuilderSession({
                           const vehicleDisplay = event.target.checked;
                           const keepPins = vehicleDisplay || device.config.pedestrianDisplay;
                           return { ...device, config: { ...device.config, vehicleDisplay }, pins: keepPins ? device.pins : { ...device.pins, matrixDin: null, matrixClk: null, matrixCs: null } };
-                        })} /> Cartel para autos: número, alto o avanzar
+                        })} /> Cartel para autos: segundero de 0 a 9
                       </label>
                       <label>
                         <input type="checkbox" checked={selected.config.pedestrianDisplay} onChange={event => updateSelectedDraft(device => {
@@ -1312,6 +1314,11 @@ function SceneBuilderSession({
                           return { ...device, config: { ...device.config, pedestrianDisplay }, pins: keepPins ? device.pins : { ...device.pins, matrixDin: null, matrixClk: null, matrixCs: null } };
                         })} /> Cartel para peatones: caminar o no caminar
                       </label>
+                      {selected.config.pedestrianDisplay && <small>
+                        Controla {crossingNames[closestCrossroadsTrafficSlot(selected.position).id].toLowerCase()}.
+                        Los peatones esperan hasta «caminar» y terminan de cruzar aunque cambie el cartel.
+                        Apagado no habilita. El segundero y el color de los autos no habilitan peatones.
+                      </small>}
                       {(selected.config.vehicleDisplay || selected.config.pedestrianDisplay) && <label>
                         <span>Brillo de las matrices: {selected.config.matrixBrightness}</span>
                         <input type="range" min="0" max="15" value={selected.config.matrixBrightness} onChange={event => updateSelectedDraft(device => device.kind === 'trafficLight' ? { ...device, config: { ...device.config, matrixBrightness: Number(event.target.value) } } : device)} />

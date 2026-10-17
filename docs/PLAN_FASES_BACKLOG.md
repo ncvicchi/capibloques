@@ -54,6 +54,16 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 43 | Software entregado; incluye cuadros; DEV/físico pendientes | Pedidos 39 y 42 | Motor cooperativo, perfiles de fase 23 e intérprete 1.8.0 |
 | 44 | Laboratorio interactivo y autónomo en Waveshare | Pedido 45 | Fases 18, 20, 32, 34, 36 y escena visual de fase 45 |
 | 45 | Escenas atractivas y fidelidad visual completa | Pedidos 40 y 46 | Geometría/cámara de fase 12, renderer de fase 18 y perfiles de fase 17 |
+| 46 | Peatones del cruce escolar · simulación web | Mundos interactivos, 17 de octubre | Carteles y mundo de tránsito existentes |
+| 47 | Paso a nivel | Mundos interactivos | Servo, detectores y luces/buzzer; nueva autorización |
+| 48 | Estacionamiento | Mundos interactivos | Barrera, plazas, detectores, contador/pantalla; nueva autorización |
+| 49 | Huerta e invernadero | Mundos interactivos | Sensores y salidas existentes; nueva autorización |
+| 50 | Casa inteligente y entrada segura | Mundos interactivos | Ambiente, puertas/acceso; nueva autorización |
+| 51 | Taller y cinta transportadora | Mundos interactivos | Motor, detector y desvío; nueva autorización |
+| 52 | Pista de robots interactiva | Mundos interactivos | Obstáculos/estaciones y lecturas espaciales; nueva autorización |
+| 53 | Estación meteorológica interactiva | Mundos interactivos | Fenómenos y lecturas; nueva autorización |
+| 54 | Escenario de Otto | Mundos interactivos | Público y peticiones; nueva autorización |
+| 55 | Parque, laguna y aeropuerto | Mundos interactivos | Sólo análisis de actividades y valor nuevo |
 | Final | Producción, HTTPS, respaldos y piloto | Antigua fase 11 | Postergada hasta autorización explícita y validaciones de salida |
 
 Primero se asegura la continuidad desde otra cuenta sin depender de este chat; después se atienden los problemas cotidianos del editor y se vuelve DEV accesible desde fuera mediante un servicio controlado. TX/RX se incorpora antes de las placas nuevas para tener un contrato de comportamiento que luego se valide en cada destino. Separar DevKit, Waveshare y display interactivo permite comprobar por separado placa, pantalla y aplicación gráfica: no son el mismo soporte. Los desafíos aprovechan esas funciones como recorrido educativo propio. Las fases 20–26 separan flujos de compilación, pulido de edición, motivación, periféricos, control local, intercambio e identidad de aula para no mezclar permisos o hardware distintos en una entrega inmanejable.
@@ -793,6 +803,30 @@ ajuste de interfaz del armador se publicó y desplegó en DEV con `--fast` sobre
 ese commit; el orquestador verificó la imagen y salud. La limpieza Docker quedó
 pendiente por menos de 2 GiB libres. No equivale a CI completa ni cierra fase 45;
 la aceptación visual/de uso, capturas y aceptación física siguen pendientes.
+
+## Fases 46–55 — Mundos interactivos
+
+Plan, inventario, contratos y aceptación detallados en
+[PLAN_MUNDOS_INTERACTIVOS.md](PLAN_MUNDOS_INTERACTIVOS.md).
+Complementan la presentación de fase 45 con reglas del mundo, sin duplicarla.
+
+| Fase | Alcance | Estado / dependencias |
+| --- | --- | --- |
+| 46 | Peatones del cruce escolar | Software web implementado; DEV, usuarios y Waveshare pendientes; [guía](FASE_46_PEATONES.md) |
+| 47 | Paso a nivel | Planificada; servo, detectores, luces/buzzer y actores tren/auto |
+| 48 | Estacionamiento | Planificada; plazas, barrera, detectores, contador y pantalla |
+| 49 | Huerta e invernadero | Planificada; sensores/salidas existentes y modelo acotado de agua/plantas |
+| 50 | Casa inteligente y entrada segura | Planificada; visitantes, día/noche, puertas, luz y acceso |
+| 51 | Taller y cinta transportadora | Planificada; motor, detector, servo, paquetes, clasificación/atasco |
+| 52 | Pista de robots | Planificada; obstáculos, estaciones y sensores ligados a posición |
+| 53 | Estación meteorológica interactiva | Planificada; fenómenos y lecturas coherentes, protección programada |
+| 54 | Escenario de Otto | Planificada; público/pedidos y reacciones programadas |
+| 55 | Variantes parque/laguna y aeropuerto | Sólo análisis; actividad y valor pedagógico antes de implementar |
+
+No iniciar las fases 47–55 sin autorización. Mantener escena libre. Cada mundo
+debe declarar límites, vínculo componente/lugar, entradas/salidas, consecuencias,
+pausa/velocidad/reinicio, persistencia y alcance web/Waveshare. La fase 46 no
+modifica firmware; la paridad de sus actores en Waveshare queda pendiente.
 
 ## Fase final — Producción y piloto, postergada
 

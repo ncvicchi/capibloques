@@ -1,5 +1,10 @@
 # Fase 45 — Escenas atractivas y fidelidad visual completa
 
+Ampliación del 17 de octubre: las mecánicas de mundos interactivos se planifican
+en [PLAN_MUNDOS_INTERACTIVOS.md](PLAN_MUNDOS_INTERACTIVOS.md), fases 46–55.
+Peatones corresponde a fase 46, no a un cierre de esta fase. La paridad visual
+y de actores en Waveshare sigue siendo aceptación separada y explícita.
+
 Estado: **en curso; segunda entrega funcional el 3 de octubre de 2026**.
 Reúne y amplía la antigua asignación de fidelidad espacial de fase 21; no queda
 duplicada allí.
