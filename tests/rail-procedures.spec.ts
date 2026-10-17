@@ -9,7 +9,7 @@ test('ejemplo modular: catálogo, pestañas, llamadas anidadas y simulación', a
   await page.getByRole('menuitem', { name: 'Abrir un ejemplo' }).click();
   const chooser = page.getByRole('dialog', { name: 'Elige una misión' });
   await expect(chooser.getByRole('button', { name: /Paso a nivel con procedimientos/ })).toBeVisible();
-  await expect(chooser.getByRole('button', { name: /Paso a nivel/ })).toHaveCount(2);
+  await expect(chooser.getByRole('button', { name: /Paso a nivel/ })).toHaveCount(4);
   await chooser.getByRole('button', { name: /Paso a nivel con procedimientos/ }).click();
   const confirmation = page.getByRole('alertdialog', { name: 'Antes de reemplazar el editor' });
   if (await confirmation.isVisible()) await confirmation.getByRole('button', { name: 'Descartar cambios y abrir' }).click();

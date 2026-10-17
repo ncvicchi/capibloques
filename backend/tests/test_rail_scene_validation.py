@@ -25,6 +25,28 @@ class RailSceneValidationTests(unittest.TestCase):
     def test_accepts_rail_background_and_existing_component_profiles(self):
         self.assertGreater(document(self.sample()), 0)
 
+    def test_accepts_two_and_four_tracks_with_separate_detectors(self):
+        for tracks, ys, gates in ((2, [230, 310], (145, 395)), (4, [180, 240, 300, 360], (105, 435))):
+            value = self.sample()
+            scene = value["scene"]
+            scene["canvas"]["railTracks"] = tracks
+            scene["devices"] = scene["devices"][:2]
+            for item, y in zip(scene["devices"], gates):
+                item["position"]["y"] = y
+            for index, (x, y) in enumerate((x, y) for y in ys for x in (140, 820)):
+                scene["devices"].append(dict(schemaVersion=1, id=f"sensor-{index}", kind="infraredBarrier", name=f"Sensor {index}", position=dict(x=x, y=y), rotation=0, pins=dict(signal=None), config=dict(interrupted=False, interruptedLevel="LOW")))
+            self.assertGreater(document(value), 0)
+            scene["devices"][-1]["position"]["y"] = 270
+            with self.assertRaises(ValidationError):
+                document(value)
+
+    def test_rejects_unsupported_track_counts(self):
+        for tracks in (0, 3, 8, True, "2", None):
+            value = self.sample()
+            value["scene"]["canvas"]["railTracks"] = tracks
+            with self.assertRaises(ValidationError):
+                document(value)
+
     def test_rejects_duplicate_slots_and_off_slot_components(self):
         for position in (dict(x=395, y=185), dict(x=400, y=200)):
             value = self.sample()

@@ -2,6 +2,34 @@
 
 Documento vivo iniciado en **fase 11**. Actualización: **17 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
 
+### Paso a nivel multivía — ampliación autorizada (17 de octubre)
+
+Rama `codex/paso-nivel-multivia`, desde origin/main 4460854 (integra el ejemplo
+modular previo). Configuración del borrador 1/2/4 vías; JSON opcional
+canvas.railTracks (ausente = 1). Ambos ejemplos de una vía se conservan; nuevos
+ejemplos 2/4 con procedimientos/pestañas, un monitor por vía y control común de
+la variable Trenes pendientes. Dos detectores por vía y dos servos comunes.
+Un tren máximo por vía, simultáneos entre vías; sentidos fijos alternados para
+2/4. Geometría, sensores y colisiones por vía en worker y SVG; 45 unidades/s
+en multivía permite despejar el cruce más ancho. Sin protección oculta.
+
+Cambiar cantidad agrega/retira sensores en borrador, conserva IDs existentes y
+retirados y admite undo/guardar/cancelar; reducción pide confirmación. No adapta
+el programa automáticamente: revisar bloques o abrir el ejemplo correspondiente.
+Validadores frontend/backend aceptan sólo 1/2/4 y posiciones de cada disposición.
+Reglas completas en FASE_47_PASO_A_NIVEL.md. No cambia firmware/ABI ni DB.
+Integración/DEV y aceptación humana/física pendientes; mundo Waveshare pendiente.
+
+Cierre local multivía: tipos/lint, smoke completo, build/10 rutas estáticas,
+cinco pruebas backend y JSON real frontend→backend aprobados. Cuatro ejemplos
+en worker, 192 s a 1× y a 4× cada uno; dos/cuatro simultáneos, salida parcial
+sin abrir, conteo acotado y sin colisiones. Siete recorridos Chromium cubiertos
+entre corridas; se corrigió el clic de barrera interceptado por una luz usando
+anclas compactas/prioritarias. Repetición aislada aprobada sin forzar clics ni
+ampliar timeout; hubo además una carga inicial lenta de Blockly en otra corrida.
+Selector reduce con confirmación, preserva undo y cancelar. Captura de 4 vías
+inspeccionada y rótulos de detectores ajustados. No se operó DEV ni SDK.
+
 ### Corrección del ejemplo Paso a nivel (17 de octubre)
 
 Ampliación autorizada posterior: segundo ejemplo «Paso a nivel con

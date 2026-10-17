@@ -5,7 +5,7 @@ Rama de entrega: `codex/fase-47-paso-a-nivel`. Parte del plan de
 [mundos interactivos](PLAN_MUNDOS_INTERACTIVOS.md). Las fases siguientes no se
 inician por esta autorización.
 
-## Disposición acordada
+## Disposición original (configuración de una vía)
 
 - Lienzo lógico 960 × 540. Una vía horizontal y calle vertical de doble mano.
   No hay estación, desvíos ni peatones en esta primera versión.
@@ -50,7 +50,7 @@ material concreto. Esta escena no es un sistema de seguridad ferroviaria real.
 
 - El tren no frena por barreras ni autos. Tiene longitud: locomotora fuera del
   cruce no equivale a último vagón fuera. El siguiente no se genera antes de que
-  salga el anterior, y los actores se destruyen al abandonar el mundo.
+  salga el anterior en esa misma vía, y los actores se destruyen al abandonar el mundo.
 - Los autos llegan de forma variable por ambos accesos y guardan distancia.
   Población máxima de doce, sin reutilizar una lista fija de autos cíclicos.
 - Servo a 0°: cerrado; 90° o más: abierto. Ángulos intermedios mantienen el
@@ -127,6 +127,77 @@ Verificación local de la ampliación modular: tipos/lint, suite smoke completa,
 ambos ejemplos en worker a 1× durante 192 s cada uno y recorrido Chromium de
 catálogo, pestañas, navegación anidada y cierre/pausa aprobados. Captura del
 Principal inspeccionada. No se compiló SDK ni se operó DEV.
+
+## Ampliación: 1, 2 o 4 vías y trenes simultáneos
+
+Pedido posterior autorizado; rama `codex/paso-nivel-multivia`. En Armar escena,
+el selector «Cantidad de vías» ofrece 1 (bidireccional), 2 (una por sentido)
+o 4 (dos por sentido). Las vías 1 y 3 avanzan hacia la derecha y las 2 y 4
+hacia la izquierda, con flechas y números visibles. La versión
+de una vía conserva sus dos ejemplos y el comportamiento original.
+
+Hay como máximo un tren por vía: varios pueden circular a la vez en vías
+distintas; nunca se genera otro encima del anterior en la misma vía. Los
+detectores son independientes: dos por vía, en x=140 y x=820. La envolvente
+completa mantiene su haz ocupado. Dos servos comunes protegen toda la calle;
+las barreras y líneas de detención se desplazan fuera del conjunto de vías.
+
+Geometría lógica 960×540:
+
+| Vías | Centros Y de vías | Barreras norte/sur | Centros de detención norte/sur |
+| --- | --- | --- | --- |
+| 1 | 270 | 185 / 355 | 160 / 380 |
+| 2 | 230, 310 | 145 / 395 | 120 / 420 |
+| 4 | 180, 240, 300, 360 | 105 / 435 | 80 / 460 |
+
+Con varias vías el tren avanza a 45 unidades/s (una vía conserva 85), para
+dejar tiempo de despeje a los autos que ya pasaron la línea y deben atravesar
+un cruce más ancho; los autos siguen a 52 unidades/s. No hay frenado mágico
+ni protección automática: una programación incorrecta puede causar choque
+en cualquier vía. El accidente identifica el tren implicado y congela todos
+los actores, sin cambiar pausa, velocidad, Paso ni reinicio compartidos.
+
+Se agregan «Paso a nivel · 2 vías» y «Paso a nivel · 4 vías», completos y con
+procedimientos/pestañas. Principal inicializa **Trenes pendientes** a cero y
+lanza un camino de control común más uno por vía (3/5 procesos). Cada tarea
+Vigilar vía espera su entrada, suma uno, espera ocupación y liberación del
+detector de salida y resta uno. Controlar el cruce espera pendientes > 0,
+llama a Vía ocupada y espera pendientes = 0 antes de llamar a Vía libre. Las
+tareas globales siguen reutilizando barreras y avisos. No basta con mirar si
+ambos detectores están libres, ni se abre al salir sólo el primer tren.
+
+El selector modifica sólo el borrador, con Deshacer/Rehacer, Guardar y Cancelar.
+Aumentar agrega los detectores necesarios y los ubica; reducir pide confirmación,
+retira sensores sobrantes y conserva sus IDs retirados. Mantiene IDs, nombres
+personalizados y conexiones existentes; no cambia ni sustituye los bloques.
+Al cambiar un proyecto ya programado hay que adaptar el programa o abrir el
+ejemplo correspondiente; los destinos retirados se marcan como faltantes.
+
+JSON agrega únicamente `canvas.railTracks?: 1 | 2 | 4`; los documentos antiguos
+sin campo siguen siendo de una vía. Frontend/backend validan campo, número de
+sensores y posiciones. Las instantáneas de trenes, temporizadores de llegadas,
+actores y colisiones siguen siendo transitorias, fuera del archivo. Sin
+migración de DB ni modificación del firmware/ABI: los ejemplos usan variables,
+paralelo, procedimientos y componentes físicos existentes. La maqueta real y
+el portado del mundo a Waveshare siguen pendientes; no confundir simulación
+con seguridad ferroviaria real ni un SDK compilado con aceptación de hardware.
+
+Verificación multivía: tipos/lint, smoke completo y build de diez rutas
+estáticas aprobados. Worker ejecuta los cuatro ejemplos 192 s a 1× y otros
+192 s a 4×; comprueba simultaneidad máxima, conteo acotado, salida parcial
+sin abrir ante otros pendientes, cierre/reapertura, sin choques y controles.
+Modelo puro: 250 s por configuración, sentidos, detectores independientes y
+choque en última vía. Cinco contratos backend y JSON real frontend→Python
+de ambos ejemplos aprobados.
+
+Siete escenarios Chromium cubiertos entre corridas: ejemplos de una vía,
+choque/reinicio, roles del armador, ejemplo modular y navegación, ejemplos
+2/4 con simultaneidad y selector con deshacer/guardar/cancelar y confirmación
+de reducción. La regresión halló una luz interceptando el clic de una barrera;
+se corrigió con anclas compactas/prioritarias y el recorrido pasó. Otra
+repetición agotó 10 s en carga inicial de Blockly; repetición aislada aprobada
+sin ampliar timeouts ni forzar clics. Captura multivía inspeccionada y rótulos
+ajustados por vía. No se operó DEV ni se ejecutó SDK o hardware.
 
 ## Reloj y persistencia
 

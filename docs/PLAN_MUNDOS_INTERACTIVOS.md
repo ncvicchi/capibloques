@@ -10,6 +10,12 @@ detectores infrarrojos, circuito real entre mundo virtual y condiciones del
 programa, servos no bloqueantes y accidentes persistentes. Fases 48–55 siguen
 planificadas; el alcance Waveshare/físico no se da por probado.
 
+Ampliación de fase 47 autorizada el mismo día: 1/2/4 vías configurables,
+trenes simultáneos por vías independientes, dos detectores por vía y barreras
+comunes hasta salir todos. Ambos ejemplos de una vía se conservan; nuevos
+ejemplos 2/4 con tareas, pestañas, procesos y conteo de trenes pendientes.
+Rama `codex/paso-nivel-multivia`; guía de fase 47 actualizada, sin nuevo SDK.
+
 ## Concepto
 
 Una escena no es sólo un fondo: es un mundo acotado con actores, fenómenos,

@@ -1,5 +1,12 @@
 # Backlog de CapiBloques
 
+Ampliación autorizada de fase 47 en `codex/paso-nivel-multivia`: 1/2/4 vías,
+trenes simultáneos por vías independientes, dos detectores por vía y cierre
+común hasta salir todos. Ejemplos previos conservados y nuevos 2/4 con tareas,
+pestañas y procesos cooperativos. Configuración con undo/guardar/cancelar;
+JSON/validación compatibles con una vía por defecto. [Guía](FASE_47_PASO_A_NIVEL.md).
+No crea nueva fase ni cierra aceptación física/Waveshare; integración/DEV pendientes.
+
 Fase 47 — Paso a nivel autorizada e implementada en rama, pendiente de
 integración/DEV/aceptación: [reglas, sensores, uso y límites](FASE_47_PASO_A_NIVEL.md).
 Dos barreras con servos, dos detectores infrarrojos automáticos del tren virtual,

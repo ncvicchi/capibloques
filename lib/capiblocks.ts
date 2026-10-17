@@ -3,6 +3,7 @@ import {
   cloneScene,
   createEmptyScene,
   createSceneFromTemplate,
+  configureRailTracks,
   dashboardDeviceIds,
   isLegacySceneId,
   isSceneDefinition,
@@ -19,6 +20,8 @@ import {
 } from './scene-model.ts';
 
 export type SceneId = LegacySceneId;
+// @ts-expect-error Node strip-types runner.
+import { railBindings, railDetectorRole } from './rail-world.ts';
 // @ts-expect-error Node strip-types runner.
 import { displayArtworks, displayProfiles, displayTargets, layoutDisplayText, MAX_DISPLAY_TEXT, validDisplayConfig } from './display-model.ts';
 // @ts-expect-error Node strip-types runner.
@@ -298,7 +301,7 @@ export interface ProjectDecodeResult {
   diagnostics: CapiDiagnostic[];
 }
 
-export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures';
+export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4';
 export interface ExampleDefinition {
   id: ExampleId;
   title: string;
@@ -817,6 +820,71 @@ const railProceduresWorkspace = {
     { id: 'tab-rail-detectors', name: 'Detectores', rootBlockIds: ['rail-def-waitEast', 'rail-def-waitWest'] },
   ] },
 };
+function multitrackExample(count: 2 | 4): ExampleDefinition {
+  const scene = configureRailTracks(createSceneFromTemplate('railCrossing'), count);
+  const bindings = railBindings(scene);
+  const variable = 'rail-pending-trains';
+  const number = (id: string, value: number) => ({ type: 'capi_value_number', id, fields: { VALUE: value } });
+  const call = (id: string, routine: string) => ({ type: 'capi_procedure_call', id, fields: { ROUTINE: { id: routine } } });
+  const poll = (id: string, condition: Record<string, unknown>) => ({
+    type: 'capi_while', id, fields: { MODE: 'UNTIL' }, inputs: {
+      CONDITION: { block: condition }, DO: { block: { type: 'capi_wait', id: `${id}-yield`, fields: { SECONDS: 0.1 } } },
+    },
+  });
+  const detector = (id: string, track: number, west: boolean, state: string) => ({ type: 'capi_barrier_state', id, fields: { DEVICE_ID: bindings[railDetectorRole(track, west)], STATE: state } });
+  const change = (id: string, delta: number) => ({ type: 'capi_variable_change', id, fields: { VAR: { id: variable } }, inputs: { DELTA: { block: number(`${id}-delta`, delta) } } });
+  const pending = (id: string, operator: string) => ({ type: 'capi_value_compare', id, fields: { OPERATOR: operator }, inputs: {
+    LEFT: { block: { type: 'capi_variable_get_number', id: `${id}-read`, fields: { VAR: { id: variable } } } },
+    RIGHT: { block: number(`${id}-zero`, 0) },
+  } });
+  const definition = (key: string, y: number, body: Record<string, unknown>) => ({
+    type: 'capi_procedure_def', id: `rail-multi-def-${key}`, x: 48, y,
+    fields: { ROUTINE: { id: `rail-multi-${key}` }, P1_TYPE: 'none', P2_TYPE: 'none', P3_TYPE: 'none' }, inputs: { BODY: { block: body } },
+  });
+  const forever = (id: string, body: Record<string, unknown>) => ({ type: 'capi_forever', id, inputs: { DO: { block: body } } });
+  const monitors = Array.from({ length: count }, (_, track) => {
+    const prefix = `rail-monitor-${track}`;
+    const entryWest = track % 2 === 0;
+    return definition(`track-${track}`, 42 + track * 950, forever(`${prefix}-loop`, chain(
+      poll(`${prefix}-entry`, detector(`${prefix}-entry-read`, track, entryWest, 'INTERRUPTED')),
+      change(`${prefix}-arrive`, 1),
+      poll(`${prefix}-exit`, detector(`${prefix}-exit-read`, track, !entryWest, 'INTERRUPTED')),
+      poll(`${prefix}-tail`, detector(`${prefix}-tail-read`, track, !entryWest, 'CLEAR')),
+      change(`${prefix}-leave`, -1),
+    )));
+  });
+  const controller = definition('controller', 780, forever('rail-multi-control-loop', chain(
+    poll('rail-multi-wait-arrivals', pending('rail-multi-any', 'GT')),
+    railCall('rail-multi-occupied', 'occupied'),
+    poll('rail-multi-wait-clear', pending('rail-multi-none', 'EQ')),
+    railCall('rail-multi-free', 'free'),
+  )));
+  const baseDefinitions = railProceduresWorkspace.blocks.blocks.filter(block => block.type === 'capi_procedure_def' && !['rail-def-waitEast', 'rail-def-waitWest'].includes(block.id));
+  const workspace = {
+    variables: [
+      ...railProceduresWorkspace.variables.filter(item => !['rail-task-waitEast', 'rail-task-waitWest'].includes(item.id)),
+      { id: variable, name: 'Trenes pendientes', type: 'Number' },
+      { id: 'rail-multi-controller', name: 'Controlar el cruce', type: 'Procedure' },
+      ...monitors.map((_, track) => ({ id: `rail-multi-track-${track}`, name: `Vigilar vía ${track + 1}`, type: 'Procedure' })),
+    ],
+    blocks: { languageVersion: 0, blocks: [
+      ...startWorkspace(chain(
+        { type: 'capi_variable_set_number', id: 'rail-multi-reset-count', fields: { VAR: { id: variable } }, inputs: { VALUE: { block: number('rail-multi-zero', 0) } } },
+        { type: 'capi_parallel', id: 'rail-multi-parallel', extraState: { branches: count + 1 }, inputs: Object.fromEntries([
+          ['BRANCH0', { block: call('rail-multi-controller-call', 'rail-multi-controller') }],
+          ...monitors.map((_, track) => [`BRANCH${track + 1}`, { block: call(`rail-multi-track-${track}-call`, `rail-multi-track-${track}`) }]),
+        ]) },
+      )).blocks.blocks, ...baseDefinitions, controller, ...monitors,
+    ] },
+    capiTabs: { version: 1, tabs: [
+      ...railProceduresWorkspace.capiTabs.tabs.slice(0, 4).map(tab => tab.id === 'tab-rail-control' ? { ...tab, rootBlockIds: [...tab.rootBlockIds, controller.id] } : tab),
+      { id: 'tab-rail-detectors', name: 'Detectores', rootBlockIds: monitors.map(item => item.id) },
+    ] },
+  };
+  return { id: count === 2 ? 'railCrossing2' : 'railCrossing4', title: `Paso a nivel · ${count} vías`, icon: '🚆', level: 'Avanzado',
+    mission: 'Coordiná trenes simultáneos: cada vía registra entradas y salidas, y las barreras sólo abren cuando no queda ninguno pendiente.',
+    description: `${count} vías, ${count / 2 === 1 ? 'una' : 'dos'} por sentido. Ejemplo completo con procedimientos, procesos en paralelo y la variable Trenes pendientes.`, scene, workspace };
+}
 const messageReceiver = (expected: string, equal: Record<string, unknown>, different: Record<string, unknown>, timeout: Record<string, unknown>) => ({
   type: 'capi_forever', id: `listen-${expected.toLowerCase()}`, inputs: { DO: { block: {
     type: 'capi_message_receive', id: `receive-${expected.toLowerCase()}`,
@@ -934,6 +1002,8 @@ export const examples: ExampleDefinition[] = [
     scene: createSceneFromTemplate('railCrossing'),
     workspace: railProceduresWorkspace,
   },
+  multitrackExample(2),
+  multitrackExample(4),
   {
     id: 'display', title: 'Mensajes para la plaza', icon: '📺', level: 'Inicial',
     mission: 'Escribí en la pantalla, esperá para leer y borrá el mensaje. La consola es otro destino.',

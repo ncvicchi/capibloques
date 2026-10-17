@@ -3,7 +3,7 @@ import { DisplayPreview } from '@/components/display-preview';
 import { LedMatrixPreview } from '@/components/led-matrix-preview';
 import SceneViewport from '@/components/scene-viewport';
 import RailCrossingWorld from '@/components/rail-crossing-world';
-import { nearestRailSlot, type RailWorldState } from '@/lib/rail-world';
+import { nearestRailSlot, railTrackCount, type RailWorldState } from '@/lib/rail-world';
 import { trafficColorLabel } from '@/lib/editor-ergonomics';
 
 import {
@@ -912,22 +912,26 @@ export default function SceneStage({
               ? runtime.angle
               : device.rotation + device.config.heading
             : device.rotation;
-        const size = sceneItemSize(device);
+        const railAnchor = scene.canvas.background === 'railCrossing' && !!nearestRailSlot(device.kind, device.position, railTrackCount(scene));
+        const size = railAnchor ? { width: 40, height: 40 } : sceneItemSize(device);
         const labelSide = sceneItemLabelSide(scene, device.id);
         const style = {
           left: `${(position.x / scene.canvas.width) * 100}%`,
           top: `${(position.y / scene.canvas.height) * 100}%`,
           width: `${(size.width / scene.canvas.width) * 100}%`,
+          minWidth: railAnchor ? 0 : undefined,
+          height: railAnchor ? `${(size.height / scene.canvas.height) * 100}%` : undefined,
+          padding: railAnchor ? 0 : undefined,
           minHeight: `${(size.height / scene.canvas.height) * 100}%`,
-          zIndex: sceneItemLayer(scene, device.id),
+          zIndex: sceneItemLayer(scene, device.id) + (railAnchor ? 20 : 0),
           transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
         };
         const contents = (
           <>
-            {scene.canvas.background === 'railCrossing' && nearestRailSlot(device.kind, device.position)
-              ? <span className="rail-component-anchor" title={nearestRailSlot(device.kind, device.position)?.name}>{device.kind === 'servo' ? '⚙' : '↕'}</span>
+            {scene.canvas.background === 'railCrossing' && nearestRailSlot(device.kind, device.position, railTrackCount(scene))
+              ? <span className="rail-component-anchor" title={nearestRailSlot(device.kind, device.position, railTrackCount(scene))?.name}>{device.kind === 'servo' ? '⚙' : '↕'}</span>
               : <DeviceVisual device={device} runtime={runtime} matrixPreviewPattern={matrixPreviewPattern} sceneDevices={scene.devices} runtimeDevices={runtimeDevices} dashboardModes={dashboardModes} onDashboardAction={onDashboardAction} />}
-            <span className={`scene-device-name label-${labelSide}`} title={device.name}>{device.name}</span>
+            {!(scene.canvas.background === 'railCrossing' && railTrackCount(scene) > 1 && device.kind === 'infraredBarrier') && <span className={`scene-device-name label-${labelSide}`} title={device.name}>{device.name}</span>}
           </>
         );
         if (!editing) {

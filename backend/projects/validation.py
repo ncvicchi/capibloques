@@ -280,7 +280,8 @@ def scene(value, board_profile="wemos-d1-r32"):
     require(text(value["name"], 60, 1) and value["name"].strip() and isinstance(value["description"], str))
     require("sourceTemplate" not in value or value["sourceTemplate"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing"))
     canvas = value["canvas"]
-    exact(canvas, ("width", "height", "background", "gridSize", "snapToGrid"), ("trafficDirections", "itemOrder"))
+    exact(canvas, ("width", "height", "background", "gridSize", "snapToGrid"), ("trafficDirections", "itemOrder", "railTracks"))
+    require("railTracks" not in canvas or type(canvas["railTracks"]) is int and canvas["railTracks"] in (1, 2, 4))
     require(number(canvas["width"], 0.01, 4096) and number(canvas["height"], 0.01, 4096) and number(canvas["gridSize"], 0.01, 512))
     require(canvas["background"] in ("park", "workshop", "home", "pond", "crossroads", "robotTrack", "garden", "schoolGate", "weatherYard", "railCrossing", "blank") and type(canvas["snapToGrid"]) is bool)
     traffic_directions = canvas.get("trafficDirections", [])
@@ -372,7 +373,10 @@ def scene(value, board_profile="wemos-d1-r32"):
     dashboard_kinds = {"trafficLight", "robot", "motor", "led", "servo"}
     if canvas["background"] == "railCrossing":
         require(canvas["width"] == 960 and canvas["height"] == 540, "El paso a nivel utiliza un lienzo de 960 × 540.")
-        rail_slots = {"servo": ((395, 185), (565, 355)), "infraredBarrier": ((140, 270), (820, 270))}
+        tracks = canvas.get("railTracks", 1)
+        ys = [270] if tracks == 1 else [230, 310] if tracks == 2 else [180, 240, 300, 360]
+        north, south = (185, 355) if tracks == 1 else (145, 395) if tracks == 2 else (105, 435)
+        rail_slots = {"servo": ((395, north), (565, south)), "infraredBarrier": tuple((x, y) for y in ys for x in (140, 820))}
         occupied = set()
         for item in value["devices"]:
             if item["kind"] not in rail_slots:
