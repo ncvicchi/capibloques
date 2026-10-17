@@ -2,6 +2,57 @@
 
 Documento vivo iniciado en **fase 11**. Actualización: **17 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
 
+### Fase 47 — Paso a nivel, entrega en rama (17 de octubre)
+
+Disposición/reglas aprobadas por el propietario e implementadas en
+`codex/fase-47-paso-a-nivel`, desde `origin/main` actualizado. No se operó DEV
+ni se publicó directamente a main. Detalle de reglas, detectores, uso, alcance
+y pendientes en [FASE_47_PASO_A_NIVEL.md](FASE_47_PASO_A_NIVEL.md).
+
+Nueva plantilla/ejemplo/fondo railCrossing: una vía horizontal, calle doble
+mano vertical, un tren con longitud, dos servos en posiciones fijas, dos
+barreras infrarrojas digitales, dos luces y buzzer. Trenes de ambos sentidos
+y autos con llegadas acotadas/reproducibles. Sensores ocupados hasta el último
+vagón; roles entrada/salida dependen del sentido. Luces/buzzer sólo avisan.
+Servos 0° cerrado, 90° o más abierto; recorrido virtual 1,2 s sin bloqueo.
+Los autos esperan antes de barrera al empezar cierre, quienes pasaron despejan,
+y esperan hasta apertura completa para arrancar. Accidente auto–tren marca a
+ambos y conserva el mundo congelado hasta Reset; Stop/Run y Paso no lo limpian.
+
+El mundo vive en el worker y alimenta los mismos valores booleanos usados por
+condiciones. No es una animación separada ni entrada manual simultánea. Comparte
+pausa, velocidad, Paso y Reset con el programa. SVG consume la instantánea;
+armador/revisión web usan la misma geometría. No persistir actores/fotogramas.
+Backend acepta los nuevos IDs y valida dimensiones/roles; la lista de escenas
+de simulación se alineó con las aventuras ya existentes. Sin migraciones, SDK
+ni cambio de firmware/ABI. Si el actualizador detecta artefactos de intérprete
+faltantes/anteriores puede reconstruirlos; esta fase no cambia su fuente.
+
+Verificación local: tipos/lint, suite smoke completa (incluye mundos previos,
+JSON/generadores y worker), build web/10 rutas estáticas, tres pruebas backend
+sin DB y JSON real frontend validado por Python. Pruebas navegador cubren
+sensor→if→LED, cierre, pausa/reinicio, choque persistente y roles/límites/
+cancelación del armador. La prueba de pausa espera confirmación del worker
+antes de comparar posiciones, sin ocultar deriva real. Resultados finales y
+pendientes se amplían al cerrar la entrega.
+
+Cierre local: nueve recorridos aprobados, tres por Chromium/Chrome/Edge,
+incluido el ACK de pausa. Captura inspeccionada. Tipos/lint, suite smoke completa,
+build y tres contratos backend aprobados. Agregar la aventura respeta la lista
+de IDs retirados del documento y no pisa ni reutiliza componentes anteriores.
+
+Sólo barreras infrarrojas implementadas como detectores del mundo; switch,
+ultrasonido y Hall/reed no son perfiles intercambiables. La continuidad real
+entre vagones requiere ensayo/filtrado con la maqueta concreta. En hardware
+los sensores leen la maqueta, no el tren virtual: el espejo no es telemetría.
+Waveshare todavía no dibuja este mundo; portado/aceptación pendientes, al igual
+que maqueta y aceptación docente/infantil. No iniciar fases 48–55.
+
+El propietario integra la rama en worktree separado y luego actualiza DEV con
+el comando de entrega que verifica SHA. No hacer merge/pull previo en la carpeta
+operativa ni descartar trabajo ajeno. DEV sigue pendiente de esa ejecución;
+no se afirma actualizado por las pruebas locales.
+
 ### Flujo compartido de ramas — acuerdo del 17 de octubre de 2026
 
 Todas las personas/IA trabajan desde ahora en rama `codex/<tarea>` y carpeta

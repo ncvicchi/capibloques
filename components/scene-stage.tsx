@@ -2,6 +2,8 @@
 import { DisplayPreview } from '@/components/display-preview';
 import { LedMatrixPreview } from '@/components/led-matrix-preview';
 import SceneViewport from '@/components/scene-viewport';
+import RailCrossingWorld from '@/components/rail-crossing-world';
+import { nearestRailSlot, type RailWorldState } from '@/lib/rail-world';
 import { trafficColorLabel } from '@/lib/editor-ergonomics';
 
 import {
@@ -69,6 +71,7 @@ export type RuntimeVisualDevice = {
 };
 
 interface SceneStageProps {
+  railWorld?: RailWorldState;
   activeDeviceId?: string;
   activeDeviceMessage?: string;
   scene: SceneDefinition;
@@ -249,11 +252,13 @@ function TrafficActors({
 
 function SceneBackdrop({
   scene,
+  railWorld,
   runtimeDevices,
   simulationSpeed,
   simulationRunning,
 }: {
   scene: SceneDefinition;
+  railWorld?: RailWorldState;
   runtimeDevices: Record<string, RuntimeVisualDevice>;
   simulationSpeed: number;
   simulationRunning: boolean;
@@ -289,6 +294,7 @@ function SceneBackdrop({
   }, [scene.devices, runtimeDevices]);
 
   const background = scene.canvas.background;
+  if (background === 'railCrossing') return <RailCrossingWorld scene={scene} state={railWorld} />;
   return (
     <div className={`scene-world scene-world-${background}`}>
       <svg viewBox="0 0 960 540" preserveAspectRatio="none" aria-hidden="true">
@@ -575,6 +581,7 @@ function DeviceVisual({
 }
 
 export default function SceneStage({
+  railWorld,
   activeDeviceId,
   activeDeviceMessage,
   scene,
@@ -826,6 +833,7 @@ export default function SceneStage({
       <SceneBackdrop
         key={`scene-world:${scene.id}:${simulationEpoch}`}
         scene={scene}
+        railWorld={railWorld}
         runtimeDevices={runtimeDevices}
         simulationSpeed={safeSimulationSpeed}
         simulationRunning={simulationRunning}
@@ -916,7 +924,9 @@ export default function SceneStage({
         };
         const contents = (
           <>
-            <DeviceVisual device={device} runtime={runtime} matrixPreviewPattern={matrixPreviewPattern} sceneDevices={scene.devices} runtimeDevices={runtimeDevices} dashboardModes={dashboardModes} onDashboardAction={onDashboardAction} />
+            {scene.canvas.background === 'railCrossing' && nearestRailSlot(device.kind, device.position)
+              ? <span className="rail-component-anchor" title={nearestRailSlot(device.kind, device.position)?.name}>{device.kind === 'servo' ? '⚙' : '↕'}</span>
+              : <DeviceVisual device={device} runtime={runtime} matrixPreviewPattern={matrixPreviewPattern} sceneDevices={scene.devices} runtimeDevices={runtimeDevices} dashboardModes={dashboardModes} onDashboardAction={onDashboardAction} />}
             <span className={`scene-device-name label-${labelSide}`} title={device.name}>{device.name}</span>
           </>
         );

@@ -14,6 +14,8 @@ import { ledMatrixConfig, validMatrixConfig, type LedMatrixConfig } from './led-
 import { boardProfile, WAVESHARE_TOUCH_LCD_5_PROFILE_ID, type BoardPinDefinition, type BoardProfileId, type PinCapability } from './board-profiles.ts';
 // @ts-expect-error Node strip-types tests import the source extension.
 import { educationalModuleKinds, educationalModulePins, educationalModuleSpecs, isEducationalModuleKind, validEducationalModuleConfig, type EducationalModuleKind } from './educational-modules.ts';
+// @ts-expect-error Node strip-types runner.
+import { nearestRailSlot, railSlots } from './rail-world.ts';
 
 export const SCENE_SCHEMA_VERSION = 1 as const;
 
@@ -27,6 +29,7 @@ export const legacySceneIds = [
   'smartGarden',
   'securityGate',
   'weatherStation',
+  'railCrossing',
 ] as const;
 
 export type LegacySceneId = (typeof legacySceneIds)[number];
@@ -63,6 +66,7 @@ export const sceneBackgrounds = [
   'garden',
   'schoolGate',
   'weatherYard',
+  'railCrossing',
   'blank',
 ] as const;
 export type SceneBackground = (typeof sceneBackgrounds)[number];
@@ -132,6 +136,14 @@ export function constrainSceneItemPosition(
   item: Pick<SceneDevice | SceneWidget, 'id' | 'kind'>,
   position: ScenePosition,
 ): ScenePosition {
+  if (scene.canvas.background === 'railCrossing') {
+    const slot = nearestRailSlot(item.kind, position);
+    if (slot) {
+      const occupied = scene.devices.some(device => device.id !== item.id && nearestRailSlot(device.kind, device.position)?.role === slot.role);
+      if (occupied) return scene.devices.find(device => device.id === item.id)?.position ?? position;
+      return { x: slot.x, y: slot.y };
+    }
+  }
   if (
     scene.canvas.background === 'crossroads' &&
     item.kind === 'trafficLight'
@@ -162,6 +174,18 @@ export function arrangeCrossroadsTrafficLights(source: SceneDefinition) {
     const slot = crossroadsTrafficSlots[slotIndex % crossroadsTrafficSlots.length];
     slotIndex += 1;
     return { ...device, position: { x: slot.x, y: slot.y } };
+  });
+  return scene;
+}
+
+export function arrangeRailDevices(source: SceneDefinition) {
+  const scene = cloneScene(source);
+  const occupied = new Set<string>();
+  scene.devices = scene.devices.map(device => {
+    const slot = railSlots.find(candidate => candidate.kind === device.kind && !occupied.has(candidate.role));
+    if (!slot) return device;
+    occupied.add(slot.role);
+    return { ...device, position: { x: slot.x, y: slot.y }, rotation: 0 };
   });
   return scene;
 }
@@ -1233,6 +1257,7 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
     );
   }
   if ((kind === 'display' || kind === 'ledMatrix') && scene.devices.some(device => device.kind === 'display' || device.kind === 'ledMatrix')) throw new Error('Cada proyecto admite una sola pantalla o matriz. Configurá la existente.');
+  if (source.canvas.background === 'railCrossing' && (kind === 'servo' || kind === 'infraredBarrier') && source.devices.filter(device => device.kind === kind).length >= 2) throw new Error('El paso a nivel admite dos barreras con servo y dos detectores infrarrojos. Los lugares de este componente ya están ocupados.');
   if (kind === 'messages' && scene.devices.filter(device => device.kind === 'messages').length >= 2) throw new Error('La placa admite hasta dos componentes Mensajes.');
   if (kind === 'trafficLight') {
     if (scene.canvas.background !== 'crossroads') {
@@ -1259,6 +1284,10 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
     ...((kind === 'display' || kind === 'ledMatrix') && !options.position ? { position: { x: scene.canvas.width * 0.7, y: scene.canvas.height * 0.55 } } : {}),
     id: options.id ?? createStableDeviceId(kind, reservedIds),
   });
+  if (scene.canvas.background === 'railCrossing') {
+    const slot = railSlots.find(candidate => candidate.kind === kind && !scene.devices.some(item => nearestRailSlot(item.kind, item.position)?.role === candidate.role));
+    if (slot) device.position = { x: slot.x, y: slot.y };
+  }
   if (kind === 'trafficLight' && scene.canvas.background === 'crossroads') {
     const occupied = new Set(
       scene.devices
@@ -1596,6 +1625,26 @@ weatherStationTemplate.devices.push(
   }),
 );
 
+const railTemplate = createEmptyScene('Paso a nivel', {
+  id: 'scene-rail-crossing',
+  description: 'Un tren, dos detectores infrarrojos y dos barreras: programá los avisos y el cierre seguro.',
+  canvas: { background: 'railCrossing' },
+});
+railTemplate.sourceTemplate = 'railCrossing';
+for (const [index, slot] of railSlots.entries()) {
+  railTemplate.devices.push(templateDevice(slot.kind, railTemplate.devices, {
+    id: `rail-${slot.role}`, name: slot.name, position: { x: slot.x, y: slot.y },
+    pins: { signal: [14, 27, 34, 35][index] },
+    config: slot.kind === 'servo' ? { angle: 90 } : { interrupted: false, interruptedLevel: 'LOW' },
+  }));
+}
+for (const [index, x] of [345, 615].entries()) railTemplate.devices.push(templateDevice('led', railTemplate.devices, {
+  id: `rail-warning-${index + 1}`, name: `Luz de aviso ${index + 1}`, position: { x, y: 100 }, pins: { signal: [26, 25][index] }, config: { color: '#ef4444', brightness: 0 },
+}));
+railTemplate.devices.push(templateDevice('activeBuzzer', railTemplate.devices, {
+  id: 'rail-alarm', name: 'Aviso sonoro', position: { x: 720, y: 110 }, pins: { signal: 13 },
+}));
+
 export const sceneTemplates: Readonly<Record<LegacySceneId, SceneDefinition>> =
   {
     traffic: trafficTemplate,
@@ -1607,6 +1656,7 @@ export const sceneTemplates: Readonly<Record<LegacySceneId, SceneDefinition>> =
     smartGarden: smartGardenTemplate,
     securityGate: securityGateTemplate,
     weatherStation: weatherStationTemplate,
+    railCrossing: railTemplate,
   };
 
 export function createSceneFromTemplate(templateId: LegacySceneId) {
@@ -1637,6 +1687,21 @@ export function appendTemplateToScene(
   const offset = options.offset ?? { x: 40, y: 40 };
   const addedDeviceIds: string[] = [];
   const warnings: string[] = [];
+  if (templateId === 'railCrossing') {
+    if (scene.devices.length || scene.widgets.length) return { scene, warnings: ['El paso a nivel se agrega sobre una escena vacía para no reasignar componentes existentes.'], addedDeviceIds };
+    const replacement = cloneScene(scene);
+    replacement.canvas = structuredClone(railTemplate.canvas);
+    replacement.sourceTemplate = 'railCrossing';
+    replacement.description = railTemplate.description;
+    for (const item of railTemplate.devices) {
+      replacement.devices.push({ ...structuredClone(item),
+        id: createStableDeviceId(item.kind, [...replacement.devices.map(device => device.id), ...(replacement.retiredDeviceIds ?? [])]),
+        pins: Object.fromEntries(Object.keys(item.pins).map(key => [key, null])),
+      } as SceneDevice);
+    }
+    const assigned = assignSafePins(replacement, { boardProfile: options.boardProfile });
+    return { ...assigned, addedDeviceIds: replacement.devices.map(device => device.id) };
+  }
   const templateHasTrafficLights = template.devices.some(
     device => device.kind === 'trafficLight',
   );
@@ -1815,6 +1880,9 @@ export type SceneValidationIssueCode =
   | 'traffic-light-scene'
   | 'traffic-light-limit'
   | 'traffic-light-slot'
+  | 'rail-slot-conflict'
+  | 'rail-slot-missing'
+  | 'rail-slot-position'
   | 'missing-pin'
   | 'unsupported-pin'
   | 'pin-conflict'
@@ -1945,6 +2013,16 @@ export function validateScene(
   const trafficLights = scene.devices.filter(
     device => device.kind === 'trafficLight',
   );
+  if (scene.canvas.background === 'railCrossing') {
+    if (scene.canvas.width !== 960 || scene.canvas.height !== 540) issues.push({ code: 'rail-slot-position', severity: 'error', message: 'El paso a nivel utiliza un lienzo de 960 × 540.' });
+    for (const device of scene.devices) {
+      const slot = nearestRailSlot(device.kind, device.position);
+      if (slot && (device.position.x !== slot.x || device.position.y !== slot.y)) issues.push({ code: 'rail-slot-position', severity: 'error', deviceId: device.id, message: `${device.name}: elegí uno de los lugares marcados del paso a nivel.` });
+    }
+    const roles = scene.devices.map(device => nearestRailSlot(device.kind, device.position)?.role).filter(Boolean);
+    if (new Set(roles).size !== roles.length) issues.push({ code: 'rail-slot-conflict', severity: 'error', message: 'Cada barrera y detector debe ocupar un lugar diferente del paso a nivel.' });
+    for (const slot of railSlots) if (!roles.includes(slot.role)) issues.push({ code: 'rail-slot-missing', severity: 'warning', message: `Falta ${slot.name.toLowerCase()} en el paso a nivel. Una barrera ausente mantiene detenido su acceso.` });
+  }
   if (trafficLights.length && scene.canvas.background !== 'crossroads') {
     issues.push({
       code: 'traffic-light-scene',

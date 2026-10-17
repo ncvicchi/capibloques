@@ -1,5 +1,11 @@
 # Plan de CapiBloques: multiusuario, enseñanza y programación de Wemos
 
+**17 de octubre: fase 47 autorizada e implementada en rama.**
+[Paso a nivel: reglas, sensores y aceptación](FASE_47_PASO_A_NIVEL.md).
+Mundo cooperativo en worker con entradas infrarrojas, barreras servo, trenes y
+autos. Integración/DEV, maqueta física y renderer Waveshare pendientes; no
+iniciar fase 48. La entrega sigue el flujo compartido de ramas/worktree.
+
 **17 de octubre: mundos interactivos, fases 46–55.** Inventario, vínculos entre
 actores y componentes, alcance, orden y aceptación en
 [PLAN_MUNDOS_INTERACTIVOS.md](PLAN_MUNDOS_INTERACTIVOS.md), referenciado desde el

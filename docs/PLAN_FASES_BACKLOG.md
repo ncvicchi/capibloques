@@ -813,7 +813,7 @@ Complementan la presentación de fase 45 con reglas del mundo, sin duplicarla.
 | Fase | Alcance | Estado / dependencias |
 | --- | --- | --- |
 | 46 | Peatones del cruce escolar | Software web implementado; DEV, usuarios y Waveshare pendientes; [guía](FASE_46_PEATONES.md) |
-| 47 | Paso a nivel | Planificada; servo, detectores, luces/buzzer y actores tren/auto |
+| 47 | Paso a nivel | Autorizada; implementada en rama, integración/DEV/físico pendientes; [reglas y guía](FASE_47_PASO_A_NIVEL.md) |
 | 48 | Estacionamiento | Planificada; plazas, barrera, detectores, contador y pantalla |
 | 49 | Huerta e invernadero | Planificada; sensores/salidas existentes y modelo acotado de agua/plantas |
 | 50 | Casa inteligente y entrada segura | Planificada; visitantes, día/noche, puertas, luz y acceso |
@@ -823,7 +823,8 @@ Complementan la presentación de fase 45 con reglas del mundo, sin duplicarla.
 | 54 | Escenario de Otto | Planificada; público/pedidos y reacciones programadas |
 | 55 | Variantes parque/laguna y aeropuerto | Sólo análisis; actividad y valor pedagógico antes de implementar |
 
-No iniciar las fases 47–55 sin autorización. Mantener escena libre. Cada mundo
+Fase 47 autorizada el 17 de octubre tras aprobar disposición y reglas; no
+iniciar las fases 48–55 sin autorización. Mantener escena libre. Cada mundo
 debe declarar límites, vínculo componente/lugar, entradas/salidas, consecuencias,
 pausa/velocidad/reinicio, persistencia y alcance web/Waveshare. La fase 46 no
 modifica firmware; la paridad de sus actores en Waveshare queda pendiente.

@@ -2369,6 +2369,9 @@ select:focus-visible {
   position: absolute;
   inset: 0;
 }
+.scene-background-railCrossing .scene-device-servo,
+.scene-background-railCrossing .scene-device-infraredBarrier { background: transparent; box-shadow: none; border-color: transparent; }
+.rail-component-anchor { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #fff; color: #243947; font-weight: 900; border: 2px solid #526579; }
 .pedestrian-world {
   position: absolute;
   inset: 0;

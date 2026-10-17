@@ -4,6 +4,12 @@ Pedido y autorización: 17 de octubre de 2026. Documentar el inventario y la
 propuesta completa, asignar fases y empezar por peatones. Sólo la fase 46 queda
 autorizada para implementar; las siguientes se planifican, no se inician.
 
+Actualización del mismo día: aprobadas disposición y reglas y autorizada fase
+47. Detalle y alcance en [FASE_47_PASO_A_NIVEL.md](FASE_47_PASO_A_NIVEL.md):
+detectores infrarrojos, circuito real entre mundo virtual y condiciones del
+programa, servos no bloqueantes y accidentes persistentes. Fases 48–55 siguen
+planificadas; el alcance Waveshare/físico no se da por probado.
+
 ## Concepto
 
 Una escena no es sólo un fondo: es un mundo acotado con actores, fenómenos,

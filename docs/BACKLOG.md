@@ -1,5 +1,12 @@
 # Backlog de CapiBloques
 
+Fase 47 — Paso a nivel autorizada e implementada en rama, pendiente de
+integración/DEV/aceptación: [reglas, sensores, uso y límites](FASE_47_PASO_A_NIVEL.md).
+Dos barreras con servos, dos detectores infrarrojos automáticos del tren virtual,
+autos y trenes de ambos sentidos, avisos programables y accidente/reinicio.
+Ultrasonido, switch o Hall/reed no se incorporaron como perfiles intercambiables.
+Portado Waveshare y maqueta física quedan pendientes. No iniciar fase 48 aún.
+
 ## Mundos interactivos — pedido del 17 de octubre de 2026
 
 Plan completo: [PLAN_MUNDOS_INTERACTIVOS.md](PLAN_MUNDOS_INTERACTIVOS.md).
