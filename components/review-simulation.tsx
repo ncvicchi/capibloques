@@ -1,4 +1,5 @@
 'use client';
+import { arenaBindings } from '@/lib/robot-arena';
 import ConveyorControls from '@/components/conveyor-controls';
 import { conveyorBindings, conveyorInputRoles, defaultConveyorEnvironment } from '@/lib/conveyor-world';
 
@@ -316,6 +317,7 @@ export default function ReviewSimulation({
           gardenWorld={state?.gardenWorld}
           houseWorld={state?.houseWorld}
           conveyorWorld={state?.conveyorWorld}
+          arenaWorld={state?.arenaWorld}
           counter={state?.counter}
           simulationSpeed={speed}
           simulationRunning={state?.status === 'running'}
@@ -328,6 +330,7 @@ export default function ReviewSimulation({
           {project.scene.canvas.background === 'greenhouse' && <GardenControls value={state?.gardenWorld?.environment ?? project.scene.canvas.gardenEnvironment ?? defaultGardenEnvironment} onChange={value => worker.current?.postMessage({ type: 'SET_INPUT', name: 'gardenEnvironment', value })} />}
           {project.scene.devices.map((device) => {
             const runtime = state?.devices[device.id];
+            if (['distanceSensor', 'colorSensor', 'infraredBarrier'].some(kind => arenaBindings(project.scene)[kind as 'distanceSensor' | 'colorSensor' | 'infraredBarrier'] === device.id)) return <p key={device.id}>{device.name} · lectura automática de la pista</p>;
             if (conveyorInputRoles.some(role => conveyorBindings(project.scene)[role] === device.id)) return <p key={device.id}>{device.name} · lectura automática del taller virtual</p>;
             if (houseInputRoles.some(role => houseBindings(project.scene)[role] === device.id)) return <p key={device.id}>{device.name} · lectura automática de la casa virtual</p>;
             if (Object.entries(gardenBindings(project.scene)).some(([role, id]) => ['outsideSoil', 'insideSoil', 'climate', 'light'].includes(role) && id === device.id)) return <p key={device.id}>{device.name} · lectura automática de la huerta virtual</p>;

@@ -1,12 +1,20 @@
 # Backlog de CapiBloques
 
+**Fase 52 — Pista de robots:** software web en rama
+`codex/fase-52-pista-robots`, desde dev1. Robot, sensores montados, estaciones,
+obstáculos y contactos recuperables; dos ejemplos completos (secuencial y ocho
+procedimientos/cinco pestañas). [Reglas y entrega](FASE_52_PISTA_ROBOTS.md).
+Actualizar sólo dev1 por propietario; main/dev2 intactos. Aceptación humana,
+Waveshare y robot físico pendientes; fases 53–55 no iniciadas. Sustituye estados
+históricos inferiores.
+
 **Fase 51 — Taller y cinta transportadora:** software web en rama
 `codex/fase-51-taller-cinta`, desde dev1. Motor, lectura de color/peso estable,
 servo con atasco y salidas confirmadas; controles de llegadas y dos ejemplos
 completos (secuencial por color y modular por peso, cinco procedimientos/cuatro
 pestañas). [Reglas y entrega](FASE_51_TALLER_CINTA.md). Actualización sólo dev1
 por propietario; main/dev2 intactos. Aceptación humana, Waveshare y maqueta
-pendientes; fases 52–55 no iniciadas. Sustituye estados históricos inferiores.
+pendientes; fase 52 entregada después. Sustituye estados históricos inferiores.
 
 **Fase 50 — Casa inteligente y entrada segura:** software web en rama
 `codex/fase-50-casa-entrada-segura`, desde dev1. Visitantes, tarjetas, timbre,

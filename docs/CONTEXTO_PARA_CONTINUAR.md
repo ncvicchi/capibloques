@@ -1,5 +1,44 @@
 # CapiBloques — contexto para continuar
 
+### Entrega vigente: fase 52 — Pista de exploración y reparto, sólo dev1
+
+Autorizada tras aprobar disposición/reglas; rama `codex/fase-52-pista-robots`
+desde origin/dev1 `2d6229f` (fase 51 integrada). [Reglas y guía](FASE_52_PISTA_ROBOTS.md).
+Nuevo fondo robotArena: base, A roja, B azul, meta verde y obstáculos editables
+antes de ejecutar. Un solo robot diferencial, sensores frontal/suelo montados
+(vínculo por tipo único/ID, no nombre), barrera fija de meta y luces/buzzer.
+Mundo puro lib/robot-arena.ts alimentado por reloj worker compartido; no usar
+además la física/rebote antigua de robot para este fondo. Contacto considera
+radio 22, bloquea desplazamiento pero deja girar/retroceder y programa vivo.
+No piloto automático, metas/visitas no detienen ni corrigen el programa.
+Distancia idealizada desde el frente contra círculos/paredes, color sólo bajo
+robot, barrera con cuerpo completo y visita por 0,6 s detenido sin duplicados.
+Recorrido limitado a 300 puntos. Pausa/Paso/velocidad/reset compartidos.
+Armar escena → Pista al comenzar: preset despejado/con obstáculo, hasta cuatro,
+agregar/quitar/mover con controles X/Y y zonas protegidas. Guardar/Cancelar/
+Deshacer/Rehacer habituales. Sensores montados se editan desde lista de objetos,
+no se arrastran por separado; sin sliders SET_INPUT competidores. Duplicación
+de robot/sensores/meta bloqueada sin excepción de teclado. Robot orientable.
+Dos ejemplos completos: Reparto por estaciones (secuencial despejado), Explorador
+con obstáculos y procedimientos (para obstáculo incluido 260/420/r28, ocho
+procedimientos/cinco pestañas y procedimiento global de reparto). Desvío
+programado, no solución de laberinto universal. Ambos visitan A/B y llegan a meta
+sin contactos a 1×/4×. Plantillas antiguas robotCourse/robotTrack intactas.
+JSON opcional arenaEnvironment (guides/obstacles) estricto frontend/backend;
+sin migración, dependencias, SDK, firmware ni ABI nuevos. Exportaciones/reglas
+con componentes existentes; físico requiere calibración y aceptación propia.
+Verificado: tipos/lint, smoke completo, modelo puro, worker con workspaces reales
+a 1×/4×, veinte contratos backend de cinco mundos recientes, dos JSON reales
+frontend→Django aceptados; tres recorridos Chromium aprobados (ambos ejemplos,
+sensores automáticos, pausa/reset y edición con undo/redo/guardar/cancelar).
+Captura inspeccionada: frente del robot, sensores montados y trayectoria del
+desvío visibles. Build final aprobado, diez páginas estáticas; advertencia de
+chunk grande existente no bloqueante. No compilación SDK ni operación remota.
+Actualizar/integrar únicamente dev1 mediante comando instalado con rama/SHA40;
+propietario lo ejecuta. Main/dev2 intactos. Aceptación humana, robot físico y
+renderer/dinámica Waveshare pendientes. Fases 53–55 no iniciadas.
+Las referencias inferiores a fase 51 como entrega vigente son históricas.
+
 ### Entrega vigente: fase 51 — Taller y cinta transportadora, sólo dev1
 
 Autorizada tras aprobar disposición/reglas; rama `codex/fase-51-taller-cinta`

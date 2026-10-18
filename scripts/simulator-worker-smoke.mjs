@@ -748,3 +748,6 @@ console.log('Taller: ambos workspaces, tres colores/pesos incluido umbral exacto
   send({ type: 'RESET' }); assert.equal(latestState().conveyorWorld.jammed, false); assert.equal(latestState().conveyorWorld.packages.length, 0); send({ type: 'STOP' }); resetMessages();
 }
 console.log('Taller: programa incorrecto causa atasco sin congelar el worker; reset limpia todo.');
+
+// Independent worker harness avoids sharing live module globals with the existing suites.
+await import('node:child_process').then(({ execFileSync }) => execFileSync(process.execPath, ['--experimental-strip-types', 'scripts/arena-worker.test.mjs'], { stdio: 'inherit' }));

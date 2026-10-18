@@ -75,7 +75,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 49 | Huerta e invernadero | Mundos interactivos | Software web en rama desde dev1; dos ejemplos completos; actualización/aceptación pendientes; ver guía de fase 49 |
 | 50 | Casa inteligente y entrada segura | Mundos interactivos | Software web en rama desde dev1; dos ejemplos completos; actualización/aceptación pendientes; ver guía de fase 50 |
 | 51 | Taller y cinta transportadora | Mundos interactivos | Software web en rama desde dev1; dos ejemplos completos; ver guía de fase 51; actualización/aceptación pendientes |
-| 52 | Pista de robots interactiva | Mundos interactivos | Obstáculos/estaciones y lecturas espaciales; nueva autorización |
+| 52 | Pista de robots interactiva | Mundos interactivos | Software web en rama desde dev1; dos ejemplos completos; ver guía de fase 52; actualización/aceptación pendientes |
 | 53 | Estación meteorológica interactiva | Mundos interactivos | Fenómenos y lecturas; nueva autorización |
 | 54 | Escenario de Otto | Mundos interactivos | Público y peticiones; nueva autorización |
 | 55 | Parque, laguna y aeropuerto | Mundos interactivos | Sólo análisis de actividades y valor nuevo |
@@ -833,13 +833,13 @@ Complementan la presentación de fase 45 con reglas del mundo, sin duplicarla.
 | 49 | Huerta e invernadero | Software web en rama desde dev1; dos ejemplos completos; [reglas y entrega](FASE_49_HUERTA_INVERNADERO.md); actualización/aceptación/Waveshare/físico pendientes |
 | 50 | Casa inteligente y entrada segura | Software web en rama desde dev1; dos ejemplos completos; [reglas y entrega](FASE_50_CASA_ENTRADA_SEGURA.md); actualización/aceptación/Waveshare/físico pendientes |
 | 51 | Taller y cinta transportadora | Software web en rama desde dev1; dos ejemplos completos; [reglas y entrega](FASE_51_TALLER_CINTA.md); actualización/aceptación/Waveshare/físico pendientes |
-| 52 | Pista de robots | Planificada; obstáculos, estaciones y sensores ligados a posición |
+| 52 | Pista de robots | Software web en rama desde dev1; dos ejemplos completos; [reglas y entrega](FASE_52_PISTA_ROBOTS.md); actualización/aceptación/Waveshare/físico pendientes |
 | 53 | Estación meteorológica interactiva | Planificada; fenómenos y lecturas coherentes, protección programada |
 | 54 | Escenario de Otto | Planificada; público/pedidos y reacciones programadas |
 | 55 | Variantes parque/laguna y aeropuerto | Sólo análisis; actividad y valor pedagógico antes de implementar |
 
 Fase 47 autorizada el 17 de octubre tras aprobar disposición y reglas; no
-iniciar las fases 52–55 sin autorización. Fases 48, 49, 50 y 51 autorizadas después y documentadas
+iniciar las fases 53–55 sin autorización. Fases 48–52 autorizadas después y documentadas
 en su guía de entrega. Mantener escena libre. Cada mundo
 debe declarar límites, vínculo componente/lugar, entradas/salidas, consecuencias,
 pausa/velocidad/reinicio, persistencia y alcance web/Waveshare. La fase 46 no

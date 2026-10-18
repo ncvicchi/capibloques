@@ -380,3 +380,5 @@ assert.match(reviewSource, /type === 'RESET'.*setSimulationEpoch/);
 console.log('Mundos de escena: plantillas, carriles y límites validados.');
 
 await import('./conveyor-world.test.mjs');
+
+await import('./robot-arena.test.mjs');
