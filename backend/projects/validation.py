@@ -278,9 +278,13 @@ def scene(value, board_profile="wemos-d1-r32"):
     exact(value, ("schemaVersion", "id", "name", "description", "canvas", "devices", "widgets"), ("retiredDeviceIds", "sourceTemplate"))
     require(type(value["schemaVersion"]) is int and value["schemaVersion"] == 1 and identifier(value["id"]))
     require(text(value["name"], 60, 1) and value["name"].strip() and isinstance(value["description"], str))
-    require("sourceTemplate" not in value or value["sourceTemplate"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing", "parking", "greenhouse", "smartHouse"))
+    require("sourceTemplate" not in value or value["sourceTemplate"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor"))
     canvas = value["canvas"]
-    exact(canvas, ("width", "height", "background", "gridSize", "snapToGrid"), ("trafficDirections", "itemOrder", "railTracks", "parkingCapacity", "gardenEnvironment", "houseEnvironment", "houseAssignments"))
+    exact(canvas, ("width", "height", "background", "gridSize", "snapToGrid"), ("trafficDirections", "itemOrder", "railTracks", "parkingCapacity", "gardenEnvironment", "houseEnvironment", "houseAssignments", "conveyorEnvironment"))
+    if "conveyorEnvironment" in canvas:
+        env = canvas["conveyorEnvironment"]
+        exact(env, ("automaticArrivals", "color", "weight"))
+        require(type(env["automaticArrivals"]) is bool and env["color"] in ("red", "blue", "green") and number(env["weight"], 100, 1000))
     if "houseEnvironment" in canvas:
         environment = canvas["houseEnvironment"]
         exact(environment, ("night", "automaticDay", "automaticArrivals", "nextVisitor"))
@@ -292,7 +296,7 @@ def scene(value, board_profile="wemos-d1-r32"):
     require("parkingCapacity" not in canvas or type(canvas["parkingCapacity"]) is int and canvas["parkingCapacity"] in (4, 8, 12))
     require("railTracks" not in canvas or type(canvas["railTracks"]) is int and canvas["railTracks"] in (1, 2, 4))
     require(number(canvas["width"], 0.01, 4096) and number(canvas["height"], 0.01, 4096) and number(canvas["gridSize"], 0.01, 512))
-    require(canvas["background"] in ("park", "workshop", "home", "pond", "crossroads", "robotTrack", "garden", "schoolGate", "weatherYard", "railCrossing", "parking", "greenhouse", "smartHouse", "blank") and type(canvas["snapToGrid"]) is bool)
+    require(canvas["background"] in ("park", "workshop", "home", "pond", "crossroads", "robotTrack", "garden", "schoolGate", "weatherYard", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor", "blank") and type(canvas["snapToGrid"]) is bool)
     traffic_directions = canvas.get("trafficDirections", [])
     require(isinstance(traffic_directions, list) and len(traffic_directions) <= 4 and len(set(traffic_directions)) == len(traffic_directions))
     require(all(direction in ("eastbound", "westbound", "southbound", "northbound") for direction in traffic_directions))
@@ -404,6 +408,18 @@ def scene(value, board_profile="wemos-d1-r32"):
             require(role in ("bell", "exitButton", "outsideLight", "insideLight") and identifier(device_id) and device_id not in assigned)
             require(device_id in dashboard_items and dashboard_items[device_id]["kind"] == ("button" if role in ("bell", "exitButton") else "led"))
             assigned.add(device_id)
+    if canvas["background"] == "conveyor":
+        require(canvas["width"] == 960 and canvas["height"] == 540)
+        slots = {"motor": ((160, 360),), "infraredBarrier": ((325, 270), (785, 185), (785, 355)), "colorSensor": ((325, 170),), "scale": ((435, 360),), "servo": ((640, 270),)}
+        occupied = set()
+        for item in value["devices"]:
+            if item["kind"] not in slots:
+                continue
+            position = (item["position"]["x"], item["position"]["y"])
+            require(position in slots[item["kind"]], "Elegí un lugar marcado del taller.")
+            role = (item["kind"], position)
+            require(role not in occupied, "Cada componente necesita su propio lugar.")
+            occupied.add(role)
     if canvas["background"] == "smartHouse":
         require(canvas["width"] == 960 and canvas["height"] == 540, "La casa utiliza un lienzo de 960 × 540.")
         slots = {"servo": ((450, 280),), "pirSensor": ((175, 230), (755, 150)), "infraredBarrier": ((450, 380),), "lightSensor": ((650, 150), (65, 130)), "cardReader": ((340, 150),)}
@@ -461,7 +477,7 @@ def document(value):
     require(value["metadata"]["locale"] == "es-AR" and text(value["metadata"]["updatedAt"], 64, 1))
     require("migratedFrom" not in value["metadata"] or (type(value["metadata"]["migratedFrom"]) is int and value["metadata"]["migratedFrom"] == 1))
     exact(value["simulation"], ("scene", "speed"))
-    require(value["simulation"]["scene"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing", "parking", "greenhouse", "smartHouse") and number(value["simulation"]["speed"], 0.25, 4))
+    require(value["simulation"]["scene"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor") and number(value["simulation"]["speed"], 0.25, 4))
     scene(value["scene"], target["boardProfile"])
     workspace(value["workspace"])
     size = len(encoded(value))

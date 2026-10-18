@@ -700,3 +700,51 @@ for (const exampleId of ['smartHouse', 'smartHouseProcedures']) for (const kind 
   send({ type: 'STEP' }); assert.ok(latestState().houseWorld.nextArrivalMs < 1500); send({ type: 'STOP' }); resetMessages();
 }
 console.log('Casa: ambos workspaces con tarjeta azul/roja/sin tarjeta a 1×/4×, entradas/salidas, luces, pausa/paso/reset aprobados.');
+
+for (const exampleId of ['conveyor', 'conveyorProcedures']) for (const speed of [1, 4]) for (const [color, weight] of [['red', 300], ['blue', 800], ['green', 500]]) {
+  const e = examples.find(e => e.id === exampleId), scene = structuredClone(e.scene);
+  scene.canvas.conveyorEnvironment = { automaticArrivals: false, color, weight };
+  const workspace = new Blockly.Workspace(); workspaceDevices.set(workspace, scene.devices); Blockly.serialization.workspaces.load(structuredClone(e.workspace), workspace);
+  const program = compileWorkspace(workspace); workspace.dispose();
+  send({ type: 'LOAD', scene, program });
+  send({ type: 'SET_INPUT', deviceId: 'conveyor-presence', value: true }); assert.equal(latestState().devices['conveyor-presence'].interrupted, false);
+  send({ type: 'SET_INPUT', name: 'conveyorPackage', value: scene.canvas.conveyorEnvironment });
+  send({ type: 'LOAD', scene, program, preserveWorldTrials: true });
+  assert.equal(latestState().conveyorWorld.pendingPackage.weight, weight);
+  send({ type: 'SET_SPEED', speed }); send({ type: 'RUN' });
+  let valid = false, outputSeen = false;
+  const route = (exampleId === 'conveyor' ? color === 'red' : weight > 500) ? 'A' : 'B';
+  for (let i = 0; i < 1500 / speed; i++) {
+    advance(20); const current = latestState(), w = current.conveyorWorld;
+    assert.equal(w.jammed, false, exampleId + ': no girar sobre un paquete');
+    if (w.readingValid) { valid = true; assert.equal(current.devices['conveyor-scale'].values.weight, weight); }
+    outputSeen ||= w['output' + route];
+    if (i % 400 === 0) { const last = messages.findLast(m => m.type === 'SNAPSHOT'); resetMessages(); if (last) messages.push(last); }
+  }
+  const current = latestState(); assert.equal(current.conveyorWorld['delivered' + route], 1, JSON.stringify(current.conveyorWorld)); assert.equal(current.counter, 1); assert.ok(valid && outputSeen);
+  send({ type: 'PAUSE' }); const before = structuredClone(latestState().conveyorWorld); advance(200); assert.deepEqual(latestState().conveyorWorld, before);
+  send({ type: 'RESET' }); assert.equal(latestState().conveyorWorld.packages.length, 0); assert.equal(latestState().conveyorWorld.jammed, false); assert.equal(latestState().counter, 0);
+  send({ type: 'STEP' }); assert.ok(latestState().conveyorWorld.nextArrivalMs < 1200); send({ type: 'STOP' }); resetMessages();
+}
+for (const exampleId of ['conveyor', 'conveyorProcedures']) {
+  const e = examples.find(e => e.id === exampleId), workspace = new Blockly.Workspace(); workspaceDevices.set(workspace, e.scene.devices); Blockly.serialization.workspaces.load(structuredClone(e.workspace), workspace);
+  const program = compileWorkspace(workspace); workspace.dispose(); send({ type: 'LOAD', scene: e.scene, program }); send({ type: 'SET_SPEED', speed: 4 }); send({ type: 'RUN' });
+  for (let i = 0; i < 2000; i++) { advance(20); assert.equal(latestState().conveyorWorld.jammed, false); if (i % 400 === 0) { const last = messages.findLast(m => m.type === 'SNAPSHOT'); resetMessages(); if (last) messages.push(last); } }
+  assert.ok(latestState().conveyorWorld.deliveredA + latestState().conveyorWorld.deliveredB >= 5);
+  assert.ok(Math.abs(latestState().counter - latestState().conveyorWorld.deliveredA - latestState().conveyorWorld.deliveredB) <= 1); send({ type: 'STOP' }); resetMessages();
+}
+console.log('Taller: ambos workspaces, tres colores/pesos incluido umbral exacto a 1×/4×, automático, sensores, conteo, pausa/paso/reset aprobados.');
+{
+  const scene = structuredClone(examples.find(e => e.id === 'conveyor').scene); scene.canvas.conveyorEnvironment.automaticArrivals = false;
+  send({ type: 'LOAD', scene, program: [
+    { op: 'servo', deviceId: 'conveyor-gate', angle: 45, blockId: 'wrong-gate' },
+    { op: 'motor', deviceId: 'conveyor-motor', direction: 'FORWARD', power: 100, blockId: 'wrong-motor' },
+    { op: 'repeat', count: -1, body: [{ op: 'wait', ms: 100, blockId: 'alive' }], blockId: 'keep-alive' },
+  ] });
+  send({ type: 'SET_INPUT', name: 'conveyorPackage', value: scene.canvas.conveyorEnvironment }); send({ type: 'SET_SPEED', speed: 4 }); send({ type: 'RUN' });
+  for (let i = 0; i < 150; i++) advance(20);
+  assert.equal(latestState().conveyorWorld.jammed, true); assert.equal(latestState().status, 'running');
+  const x = latestState().conveyorWorld.packages[0].x; for (let i = 0; i < 50; i++) advance(20); assert.equal(latestState().conveyorWorld.packages[0].x, x);
+  send({ type: 'RESET' }); assert.equal(latestState().conveyorWorld.jammed, false); assert.equal(latestState().conveyorWorld.packages.length, 0); send({ type: 'STOP' }); resetMessages();
+}
+console.log('Taller: programa incorrecto causa atasco sin congelar el worker; reset limpia todo.');

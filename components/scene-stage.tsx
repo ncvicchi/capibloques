@@ -1,4 +1,6 @@
 'use client';
+import ConveyorWorld from '@/components/conveyor-world';
+import { nearestConveyorSlot, type ConveyorWorldState } from '@/lib/conveyor-world';
 import { DisplayPreview } from '@/components/display-preview';
 import { LedMatrixPreview } from '@/components/led-matrix-preview';
 import SceneViewport from '@/components/scene-viewport';
@@ -81,6 +83,7 @@ interface SceneStageProps {
   parkingWorld?: ParkingWorldState;
   gardenWorld?: GardenWorldState;
   houseWorld?: HouseWorldState;
+  conveyorWorld?: ConveyorWorldState;
   activeDeviceId?: string;
   activeDeviceMessage?: string;
   scene: SceneDefinition;
@@ -265,6 +268,7 @@ function SceneBackdrop({
   parkingWorld,
   gardenWorld,
   houseWorld,
+  conveyorWorld,
   runtimeDevices,
   simulationSpeed,
   simulationRunning,
@@ -274,6 +278,7 @@ function SceneBackdrop({
   parkingWorld?: ParkingWorldState;
   gardenWorld?: GardenWorldState;
   houseWorld?: HouseWorldState;
+  conveyorWorld?: ConveyorWorldState;
   runtimeDevices: Record<string, RuntimeVisualDevice>;
   simulationSpeed: number;
   simulationRunning: boolean;
@@ -312,6 +317,7 @@ function SceneBackdrop({
   if (background === 'railCrossing') return <RailCrossingWorld scene={scene} state={railWorld} />;
   if (background === 'parking') return <ParkingWorld scene={scene} state={parkingWorld} />;
   if (background === 'greenhouse') return <GardenWorld scene={scene} state={gardenWorld} />;
+  if (background === 'conveyor') return <ConveyorWorld scene={scene} state={conveyorWorld} />;
   if (background === 'smartHouse') return <HouseWorld scene={scene} state={houseWorld} />;
   return (
     <div className={`scene-world scene-world-${background}`}>
@@ -603,6 +609,7 @@ export default function SceneStage({
   parkingWorld,
   gardenWorld,
   houseWorld,
+  conveyorWorld,
   activeDeviceId,
   activeDeviceMessage,
   scene,
@@ -858,6 +865,7 @@ export default function SceneStage({
         parkingWorld={parkingWorld}
         gardenWorld={gardenWorld}
         houseWorld={houseWorld}
+        conveyorWorld={conveyorWorld}
         runtimeDevices={runtimeDevices}
         simulationSpeed={safeSimulationSpeed}
         simulationRunning={simulationRunning}
@@ -938,8 +946,9 @@ export default function SceneStage({
             : device.rotation;
         const parkingAnchor = scene.canvas.background === 'parking' && nearestParkingSlot(device.kind, device.position);
         const gardenAnchor = scene.canvas.background === 'greenhouse' && nearestGardenSlot(device.kind, device.position);
+        const conveyorAnchor = scene.canvas.background === 'conveyor' && nearestConveyorSlot(device.kind, device.position);
         const houseAnchor = scene.canvas.background === 'smartHouse' && nearestHouseSlot(device.kind, device.position);
-        const railAnchor = !!houseAnchor || !!gardenAnchor || !!parkingAnchor || (scene.canvas.background === 'railCrossing' && !!nearestRailSlot(device.kind, device.position, railTrackCount(scene)));
+        const railAnchor = !!conveyorAnchor || !!houseAnchor || !!gardenAnchor || !!parkingAnchor || (scene.canvas.background === 'railCrossing' && !!nearestRailSlot(device.kind, device.position, railTrackCount(scene)));
         const size = railAnchor ? { width: 40, height: 40 } : sceneItemSize(device);
         const labelSide = scene.canvas.background === 'smartHouse' && (device.kind === 'led' || device.kind === 'button') ? 'bottom' : sceneItemLabelSide(scene, device.id);
         const style = {
@@ -955,10 +964,10 @@ export default function SceneStage({
         };
         const contents = (
           <>
-            {houseAnchor ? <span className="rail-component-anchor" title={houseAnchor.name}>{device.kind === 'servo' ? '⚙' : device.kind === 'led' ? '💡' : '◉'}</span> : gardenAnchor ? <span className="rail-component-anchor" title={gardenAnchor.name}>{device.kind === 'servo' ? '⚙' : device.kind === 'powerSwitch' ? '💧' : '◉'}</span> : parkingAnchor ? <span className="rail-component-anchor" title={parkingAnchor.name}>{device.kind === 'servo' ? '⚙' : '↕'}</span> : scene.canvas.background === 'railCrossing' && nearestRailSlot(device.kind, device.position, railTrackCount(scene))
+            {conveyorAnchor ? <span className="rail-component-anchor" title={conveyorAnchor.name}>{device.kind === 'motor' ? '⚙' : device.kind === 'servo' ? '↗' : '◉'}</span> : houseAnchor ? <span className="rail-component-anchor" title={houseAnchor.name}>{device.kind === 'servo' ? '⚙' : device.kind === 'led' ? '💡' : '◉'}</span> : gardenAnchor ? <span className="rail-component-anchor" title={gardenAnchor.name}>{device.kind === 'servo' ? '⚙' : device.kind === 'powerSwitch' ? '💧' : '◉'}</span> : parkingAnchor ? <span className="rail-component-anchor" title={parkingAnchor.name}>{device.kind === 'servo' ? '⚙' : '↕'}</span> : scene.canvas.background === 'railCrossing' && nearestRailSlot(device.kind, device.position, railTrackCount(scene))
               ? <span className="rail-component-anchor" title={nearestRailSlot(device.kind, device.position, railTrackCount(scene))?.name}>{device.kind === 'servo' ? '⚙' : '↕'}</span>
               : <DeviceVisual device={device} runtime={runtime} matrixPreviewPattern={matrixPreviewPattern} sceneDevices={scene.devices} runtimeDevices={runtimeDevices} dashboardModes={dashboardModes} onDashboardAction={onDashboardAction} />}
-            {!houseAnchor && !gardenAnchor && !(scene.canvas.background === 'greenhouse' && device.kind === 'display') && !parkingAnchor && !(scene.canvas.background === 'railCrossing' && railTrackCount(scene) > 1 && device.kind === 'infraredBarrier') && <span className={`scene-device-name label-${labelSide}`} title={device.name}>{device.name}</span>}
+            {!conveyorAnchor && !houseAnchor && !gardenAnchor && !(scene.canvas.background === 'greenhouse' && device.kind === 'display') && !parkingAnchor && !(scene.canvas.background === 'railCrossing' && railTrackCount(scene) > 1 && device.kind === 'infraredBarrier') && <span className={`scene-device-name label-${labelSide}`} title={device.name}>{device.name}</span>}
           </>
         );
         if (!editing) {

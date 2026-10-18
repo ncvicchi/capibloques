@@ -378,3 +378,5 @@ assert.match(stageSource, /key={`scene-world:\$\{scene\.id}:\$\{simulationEpoch}
 assert.match(appSource, /setSimulationEpoch\(\(current\) => current \+ 1\)/);
 assert.match(reviewSource, /type === 'RESET'.*setSimulationEpoch/);
 console.log('Mundos de escena: plantillas, carriles y límites validados.');
+
+await import('./conveyor-world.test.mjs');

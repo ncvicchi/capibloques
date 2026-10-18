@@ -1,5 +1,42 @@
 # CapiBloques — contexto para continuar
 
+### Entrega vigente: fase 51 — Taller y cinta transportadora, sólo dev1
+
+Autorizada tras aprobar disposición/reglas; rama `codex/fase-51-taller-cinta`
+desde origin/dev1 `4976e14` (fase 50 integrada).
+[Reglas completas, ejemplos y límites](FASE_51_TALLER_CINTA.md).
+Una cinta hacia delante, lectura RGB/peso con presencia y estabilización,
+desviador gradual 0° A/90° B, dos infrarrojos de confirmación y bandejas.
+Paquetes acotados, llegadas reproducibles automáticas o envío manual preparado.
+Si llegan mientras gira el desviador, atasco visible hasta Reiniciar; el programa
+y servo no se congelan. El mundo nunca decide ni corrige la clasificación.
+Mundo puro en lib/conveyor-world.ts, alimentado por el reloj worker compartido;
+sensores automáticos sin SET_INPUT competidor ni mandos manuales. Lectura de
+peso inválida se distingue en UI; bloques comprueban presencia, detienen y
+esperan 0,7 s antes de leer (estabilización 0,6 s). Valor numérico inválido cero,
+sin inventar capacidad/propiedad física nueva. Ensayos y petición manual se
+conservan al LOAD interno de Simular/Paso, no al reset/cambio de proyecto.
+Editor guarda condiciones iniciales por borrador con undo/redo/guardar/cancelar.
+Dos ejemplos completos en Proyecto → Ejemplos: color secuencial, peso modular
+con variable Peso límite, cinco procedimientos y cuatro pestañas. Llegadas
+automáticas espaciadas 20–30 s; entradas manuales muy juntas requieren ampliar
+coordinación, no se corrigen ocultamente. Fondo antiguo workshop intacto.
+Contrato opcional conveyorEnvironment estricto frontend/backend; sin migración,
+SDK, firmware, ABI ni dependencias. Exportaciones/reglas usan bloques existentes.
+Pruebas locales de tipos/lint/smoke, modelo puro, dos workspaces en worker con
+tres colores/pesos (incluido umbral exacto) a 1×/4× y flujos automáticos, dieciséis
+contratos backend y ambos documentos frontend→Django aceptados.
+Tres recorridos Chromium aprobados: ejemplos directo/modular con envío previo
+a Simular, entrega/pausa/reset y editor con condiciones iniciales/undo/redo/
+guardar/cancelar. Captura inspeccionada y duplicación de rótulos corregida.
+Build final aprobado, diez páginas estáticas; lint/tipos finales aprobados.
+Prueba adicional del worker verifica que un programa incorrecto produce atasco,
+continúa ejecutándose y se recupera con reset. No equivale a despliegue/hardware.
+Actualización por propietario sólo dev1, comando instalado con rama y SHA40;
+no integrar ni operar main/dev2/servidor. Aceptación humana, maqueta física y
+renderer/dinámica Waveshare de este mundo pendientes. Fases 52–55 no iniciadas.
+Las referencias inferiores a fase 50 como entrega vigente son históricas.
+
 ### Entrega vigente: fase 50 — Casa inteligente y entrada segura, sólo dev1
 
 Autorizada tras aprobar reglas; rama `codex/fase-50-casa-entrada-segura` desde

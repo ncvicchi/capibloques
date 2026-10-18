@@ -1,4 +1,6 @@
 'use client';
+import ConveyorControls from '@/components/conveyor-controls';
+import { conveyorSlots, nearestConveyorSlot, defaultConveyorEnvironment } from '@/lib/conveyor-world';
 import { DisplayProperties } from '@/components/display-properties';
 import { LedMatrixProperties } from '@/components/led-matrix-properties';
 import ComponentHelpDialog from '@/components/component-help';
@@ -45,6 +47,7 @@ import {
   arrangeParkingDevices,
   arrangeGardenDevices,
   arrangeHouseDevices,
+  arrangeConveyorDevices,
   configureRailTracks,
   assignSafePins,
   cloneScene,
@@ -117,6 +120,7 @@ const backgrounds: { value: SceneBackground; label: string; icon: string }[] = [
   { value: 'railCrossing', label: 'Paso a nivel', icon: '🚂' },
   { value: 'parking', label: 'Estacionamiento', icon: '🅿️' },
   { value: 'greenhouse', label: 'Huerta e invernadero', icon: '🌱' },
+  { value: 'conveyor', label: 'Taller y cinta transportadora', icon: '📦' },
   { value: 'smartHouse', label: 'Casa inteligente y entrada segura', icon: '🏠' },
   { value: 'robotTrack', label: 'Pista de robots', icon: '🛣️' },
   { value: 'garden', label: 'Huerta', icon: '🌱' },
@@ -154,6 +158,7 @@ const quickTemplates: {
   { id: 'railCrossing', name: 'Paso a nivel', icon: '🚂', detail: 'barreras + detectores' },
   { id: 'parking', name: 'Estacionamiento', icon: '🅿️', detail: 'entrada + salida + plazas' },
   { id: 'greenhouse', name: 'Huerta e invernadero', icon: '🌱', detail: 'dos canteros + riego + ventana' },
+  { id: 'conveyor', name: 'Taller y cinta', icon: '📦', detail: 'motor + sensores + clasificación' },
   { id: 'smartHouse', name: 'Casa inteligente', icon: '🏠', detail: 'visitantes + puerta + luces' },
 ];
 
@@ -951,6 +956,8 @@ function SceneBuilderSession({
                       ? arrangeParkingDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
                       : changed.canvas.background === 'greenhouse'
                       ? arrangeGardenDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
+                      : changed.canvas.background === 'conveyor'
+                      ? arrangeConveyorDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
                       : changed.canvas.background === 'smartHouse'
                       ? arrangeHouseDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
                       : changed,
@@ -989,6 +996,7 @@ function SceneBuilderSession({
                 </small>
               )}
             </label>
+            {previewScene.canvas.background === 'conveyor' && <details><summary>Taller al comenzar</summary><ConveyorControls value={previewScene.canvas.conveyorEnvironment ?? defaultConveyorEnvironment} onChange={value => { if (requireSettledInspector('cambiar el taller inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, conveyorEnvironment: value } }, 'Taller inicial actualizado en el borrador.'); }} /></details>}
             {previewScene.canvas.background === 'smartHouse' && <details><summary>Casa al comenzar</summary><HouseControls value={previewScene.canvas.houseEnvironment ?? defaultHouseEnvironment} onChange={value => {
               if (requireSettledInspector('cambiar la casa inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, houseEnvironment: value } }, 'Condiciones iniciales de la casa actualizadas en el borrador.');
             }} /></details>}
@@ -1145,7 +1153,7 @@ function SceneBuilderSession({
                       type="button"
                       key={template.id}
                       disabled={
-                        ((template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse') && objectCount > 0) ||
+                        ((template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor') && objectCount > 0) ||
                         (template.id === 'traffic' || template.id === 'intersection') &&
                         previewScene.canvas.background !== 'crossroads' &&
                         objectCount > 0
@@ -1153,7 +1161,7 @@ function SceneBuilderSession({
                       onClick={() => addTemplate(template.id)}
                       aria-label={`Agregar aventura ${template.name}: ${template.detail}`}
                       title={
-                        (template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse') && objectCount > 0
+                        (template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor') && objectCount > 0
                           ? 'Este mundo completo se agrega a una escena vacía; no reemplaza componentes existentes.'
                           : (template.id === 'traffic' || template.id === 'intersection') &&
                         previewScene.canvas.background !== 'crossroads' &&
@@ -1199,6 +1207,7 @@ function SceneBuilderSession({
                       previewScene.devices.filter(device => device.kind === component.kind).length >= (component.kind === 'servo' ? 2 : railTrackCount(previewScene) * 2);
                     const parkingLimitBlocked = previewScene.canvas.background === 'parking' && (component.kind === 'servo' || component.kind === 'infraredBarrier') && previewScene.devices.filter(device => device.kind === component.kind).length >= (component.kind === 'servo' ? 2 : 4);
                     const gardenLimitBlocked = previewScene.canvas.background === 'greenhouse' && gardenSlots.some(slot => slot.kind === component.kind) && previewScene.devices.filter(device => device.kind === component.kind).length >= gardenSlots.filter(slot => slot.kind === component.kind).length;
+                    const conveyorLimitBlocked = previewScene.canvas.background === 'conveyor' && conveyorSlots.some(slot => slot.kind === component.kind) && previewScene.devices.filter(d => d.kind === component.kind).length >= conveyorSlots.filter(s => s.kind === component.kind).length;
                     const houseLimitBlocked = previewScene.canvas.background === 'smartHouse' && component.kind !== 'led' && component.kind !== 'button' && houseSlots.some(slot => slot.kind === component.kind) && previewScene.devices.filter(device => device.kind === component.kind).length >= houseSlots.filter(slot => slot.kind === component.kind).length;
                     const reason = visualBlocked
                       ? `No disponible: ya usás ${visualOutput?.name}`
@@ -1211,9 +1220,10 @@ function SceneBuilderSession({
                         : railLimitBlocked ? 'No disponible: los lugares de este componente en el paso a nivel están ocupados'
                         : parkingLimitBlocked ? 'No disponible: los lugares de este componente en el estacionamiento están ocupados'
                         : gardenLimitBlocked ? 'No disponible: los lugares de este componente en la huerta están ocupados'
+                        : conveyorLimitBlocked ? 'No disponible: los lugares de este componente en el taller están ocupados'
                         : houseLimitBlocked ? 'No disponible: los lugares de este componente en la casa están ocupados'
                         : component.childFriendlyControl;
-                    const componentBlocked = visualBlocked || messagesBlocked || trafficSceneBlocked || trafficLimitBlocked || railLimitBlocked || parkingLimitBlocked || gardenLimitBlocked || houseLimitBlocked;
+                    const componentBlocked = visualBlocked || messagesBlocked || trafficSceneBlocked || trafficLimitBlocked || railLimitBlocked || parkingLimitBlocked || gardenLimitBlocked || houseLimitBlocked || conveyorLimitBlocked;
                     return <div className="component-palette-card" key={component.kind}>
                       <button type="button" className="component-add-button" disabled={componentBlocked} onClick={() => addComponent(component.kind)} title={componentBlocked ? reason : component.description} aria-label={`Agregar ${component.name}. ${reason}`}>
                         <span aria-hidden="true">{component.icon}</span><span><strong>{component.name}</strong><small>{reason}</small></span><b aria-hidden="true">{componentBlocked ? '🔒' : '＋'}</b>
@@ -1356,7 +1366,7 @@ function SceneBuilderSession({
                       max="330"
                       step="30"
                       value={selected.rotation}
-                      disabled={(previewScene.canvas.background === 'smartHouse' && !!nearestHouseSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'greenhouse' && !!nearestGardenSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'parking' && !!nearestParkingSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'railCrossing' && !!nearestRailSlot(selected.kind, selected.position, railTrackCount(previewScene)))}
+                      disabled={(previewScene.canvas.background === 'conveyor' && !!nearestConveyorSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'smartHouse' && !!nearestHouseSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'greenhouse' && !!nearestGardenSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'parking' && !!nearestParkingSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'railCrossing' && !!nearestRailSlot(selected.kind, selected.position, railTrackCount(previewScene)))}
                       onChange={(event) =>
                         updateSelectedDraft((device) => ({
                           ...device,
@@ -1504,6 +1514,7 @@ function SceneBuilderSession({
                     </div>
                   )}
                   {previewScene.canvas.background === 'greenhouse' && nearestGardenSlot(selected.kind, selected.position) && <p className="scene-inline-notice">Función: {nearestGardenSlot(selected.kind, selected.position)?.name}. {selected.kind === 'powerSwitch' ? 'Riego por salida de potencia: 0% apagado, 100% máximo. Requiere módulo de potencia, no conectar bomba al GPIO.' : selected.kind === 'servo' ? 'Ventana: 0° cerrada, 90° abierta. Ventila hacia la temperatura exterior.' : 'Lectura automática del mundo virtual. Cambiá el clima, no el sensor. Los ajustes manuales del componente no reemplazan esa lectura.'}</p>}
+                  {previewScene.canvas.background === 'conveyor' && nearestConveyorSlot(selected.kind, selected.position) && <p className="scene-inline-notice">Función: {nearestConveyorSlot(selected.kind, selected.position)?.name}. Lecturas automáticas del paquete en esta zona. Detené la cinta 0,6 s para pesar; desviador 0° A / 90° B. Si llega un paquete mientras gira, se atasca. Marcha atrás no disponible en este taller.</p>}
                   {previewScene.canvas.background === 'smartHouse' && nearestHouseSlot(selected.kind, selected.position) && <p className="scene-inline-notice">Función: {nearestHouseSlot(selected.kind, selected.position)?.name}. {selected.kind === 'servo' ? '0° cerrada, 90° abierta. Una puerta abierta deja pasar a quien espera; el programa decide por qué abrir.' : selected.kind === 'led' ? 'Luz regulable. La luz interior modifica la luminosidad medida dentro.' : 'Entrada automática de visitantes/ambiente. No se reemplaza con controles manuales. Un PIR real detecta movimiento; la presencia continua es una simplificación educativa.'}</p>}
                   {previewScene.canvas.background === 'smartHouse' && (selected.kind === 'led' || selected.kind === 'button') && <p className="scene-inline-notice">Función: {houseSlots.find(slot => houseBindings(previewScene)[slot.role] === selected.id)?.name ?? 'Componente libre'}. Podés moverlo sin cambiar su función; las luces y botones adicionales son independientes.</p>}
                   {previewScene.canvas.background === 'parking' && nearestParkingSlot(selected.kind, selected.position) && <p className="scene-inline-notice">

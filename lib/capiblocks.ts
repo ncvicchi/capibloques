@@ -301,7 +301,7 @@ export interface ProjectDecodeResult {
   diagnostics: CapiDiagnostic[];
 }
 
-export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4' | 'parkingProcedures' | 'greenhouseProcedures' | 'smartHouseProcedures';
+export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4' | 'parkingProcedures' | 'greenhouseProcedures' | 'smartHouseProcedures' | 'conveyorProcedures';
 export interface ExampleDefinition {
   id: ExampleId;
   title: string;
@@ -414,6 +414,7 @@ export interface SimulatorState {
   parkingWorld?: import('./parking-world').ParkingWorldState;
   gardenWorld?: import('./garden-world').GardenWorldState;
   houseWorld?: import('./house-world').HouseWorldState;
+  conveyorWorld?: import('./conveyor-world').ConveyorWorldState;
   execution?: {
     mode: 'normal' | 'guided';
     awaitingFrame: number | null;
@@ -1076,6 +1077,50 @@ function smartHouseExample(modular: boolean): ExampleDefinition {
     ] : []) ] } } };
 }
 
+function conveyorExample(modular: boolean): ExampleDefinition {
+  let n = 0;
+  const id = () => `conveyor-${modular ? 'mod' : 'direct'}-${n++}`;
+  const sequence = (...blocks: Record<string, unknown>[]) => { const copies = structuredClone(blocks); for (let i = 0; i < copies.length - 1; i++) { let tail = copies[i]; while (tail.next) tail = (tail.next as { block: Record<string, unknown> }).block; tail.next = { block: copies[i + 1] }; } return copies[0]; };
+  const wait = (seconds: number) => ({ type: 'capi_wait', id: id(), fields: { SECONDS: seconds } });
+  const motor = (power: number) => ({ type: 'capi_motor', id: id(), fields: { DEVICE_ID: 'conveyor-motor', DIRECTION: power ? 'FORWARD' : 'STOP', POWER: power } });
+  const gate = (angle: number) => ({ type: 'capi_servo', id: id(), fields: { DEVICE_ID: 'conveyor-gate', ANGLE: angle } });
+  const beam = (role: string, state = 'INTERRUPTED') => ({ type: 'capi_barrier_state', id: id(), fields: { DEVICE_ID: `conveyor-${role}`, STATE: state } });
+  const until = (condition: Record<string, unknown>) => ({ type: 'capi_while', id: id(), fields: { MODE: 'UNTIL' }, inputs: { CONDITION: { block: condition }, DO: { block: wait(0.05) } } });
+  const read = (role: string, property: string) => ({ type: 'capi_component_number', id: id(), fields: { DEVICE_ID: `conveyor-${role}`, PROPERTY: property } });
+  const compare = (value: Record<string, unknown>, threshold: Record<string, unknown>) => ({ type: 'capi_value_compare', id: id(), fields: { OPERATOR: 'GT' }, inputs: { LEFT: { block: value }, RIGHT: { block: threshold } } });
+  const literal = (value: number) => ({ type: 'capi_value_number', id: id(), fields: { VALUE: value } });
+  const variable = (name: string) => ({ type: 'capi_variable_get_number', id: id(), fields: { VAR: { id: name } } });
+  const call = (name: string) => ({ type: 'capi_procedure_call', id: id(), fields: { ROUTINE: { id: `conveyor-task-${name}` } } });
+  const count = () => ({ type: 'capi_counter_change', id: id(), fields: { DELTA: 1 } });
+  const collect = () => sequence(motor(60), until(beam('presence')), motor(0), wait(0.7));
+  const deliver = (route: string) => sequence(gate(route === 'outputA' ? 0 : 90), wait(1.25), motor(60), until(beam(route)), until(beam(route, 'CLEAR')), motor(0), count());
+  const choose = () => ({ type: 'capi_if', id: id(), inputs: {
+    CONDITION: { block: modular ? compare(read('scale', 'weight'), variable('conveyor-threshold')) : compare(read('color', 'red'), literal(150)) },
+    DO: { block: modular ? call('A') : deliver('outputA') },
+    ELSE: { block: modular ? call('B') : deliver('outputB') },
+  } });
+  const routines = [
+    { key: 'cycle', name: 'Clasificar un paquete', body: () => sequence(call('collect'), call('choose')) },
+    { key: 'collect', name: 'Transportar y pesar', body: collect },
+    { key: 'choose', name: 'Elegir por peso', body: choose },
+    { key: 'A', name: 'Entregar en A', body: () => deliver('outputA') },
+    { key: 'B', name: 'Entregar en B', body: () => deliver('outputB') },
+  ];
+  const start = startWorkspace(sequence(motor(0), gate(0), { type: 'capi_counter_set', id: id(), fields: { VALUE: 0 } },
+    ...(modular ? [{ type: 'capi_variable_set_number', id: id(), fields: { VAR: { id: 'conveyor-threshold' } }, inputs: { VALUE: { block: literal(500) } } }] : []),
+    { type: 'capi_forever', id: id(), inputs: { DO: { block: modular ? call('cycle') : sequence(collect(), choose()) } } }));
+  const definitions = modular ? routines.map((r, i) => ({ type: 'capi_procedure_def', id: `conveyor-def-${r.key}`, x: 48, y: 48 + (i % 2) * 580, fields: { ROUTINE: { id: `conveyor-task-${r.key}` }, P1_TYPE: 'none', P2_TYPE: 'none', P3_TYPE: 'none' }, inputs: { BODY: { block: r.body() } } })) : [];
+  return { id: modular ? 'conveyorProcedures' : 'conveyor', title: modular ? 'Taller por peso y procedimientos' : 'Taller: clasificar por color', icon: '📦', level: 'Intermedio',
+    mission: modular ? 'Pesá con la cinta detenida. Más de 500 g a A; el resto a B. Contá sólo entregas confirmadas.' : 'Rojo a A; azul y verde a B. Detené para leer y esperá la entrega completa.',
+    description: modular ? 'Solución completa con umbral editable, cinco procedimientos y cuatro pestañas.' : 'Solución secuencial completa: presencia, lectura, desvío y confirmación de salida. Las llegadas automáticas están espaciadas para este ejemplo; paquetes manuales muy seguidos requieren coordinar el programa.',
+    scene: createSceneFromTemplate('conveyor'), workspace: { ...start, ...(modular ? { variables: [{ id: 'conveyor-threshold', name: 'Peso límite', type: 'Number' }, ...routines.map(r => ({ id: `conveyor-task-${r.key}`, name: r.name, type: 'Procedure' }))] } : {}),
+      blocks: { ...start.blocks, blocks: [...start.blocks.blocks, ...definitions] }, capiTabs: { version: 1, tabs: [{ id: 'main', name: 'Principal', rootBlockIds: ['start-main'] }, ...(modular ? [
+        { id: 'tab-conveyor-cycle', name: 'Transporte', rootBlockIds: ['conveyor-def-cycle', 'conveyor-def-collect'] },
+        { id: 'tab-conveyor-choice', name: 'Clasificación', rootBlockIds: ['conveyor-def-choose'] },
+        { id: 'tab-conveyor-delivery', name: 'Entregas', rootBlockIds: ['conveyor-def-A', 'conveyor-def-B'] },
+      ] : [])] } } };
+}
+
 export const examples: ExampleDefinition[] = [
   {
     id: 'traffic',
@@ -1193,6 +1238,8 @@ export const examples: ExampleDefinition[] = [
   greenhouseExample(true),
   smartHouseExample(false),
   smartHouseExample(true),
+  conveyorExample(false),
+  conveyorExample(true),
   {
     id: 'display', title: 'Mensajes para la plaza', icon: '📺', level: 'Inicial',
     mission: 'Escribí en la pantalla, esperá para leer y borrá el mensaje. La consola es otro destino.',

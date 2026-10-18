@@ -1,12 +1,20 @@
 # Backlog de CapiBloques
 
+**Fase 51 — Taller y cinta transportadora:** software web en rama
+`codex/fase-51-taller-cinta`, desde dev1. Motor, lectura de color/peso estable,
+servo con atasco y salidas confirmadas; controles de llegadas y dos ejemplos
+completos (secuencial por color y modular por peso, cinco procedimientos/cuatro
+pestañas). [Reglas y entrega](FASE_51_TALLER_CINTA.md). Actualización sólo dev1
+por propietario; main/dev2 intactos. Aceptación humana, Waveshare y maqueta
+pendientes; fases 52–55 no iniciadas. Sustituye estados históricos inferiores.
+
 **Fase 50 — Casa inteligente y entrada segura:** software web en rama
 `codex/fase-50-casa-entrada-segura`, desde dev1. Visitantes, tarjetas, timbre,
 salidas, puerta con paso efectivo y luces por presencia/oscuridad. Dos ejemplos
 completos: directo sin identidad y modular que compara tarjetas. Reglas y
 entrega: [FASE_50_CASA_ENTRADA_SEGURA.md](FASE_50_CASA_ENTRADA_SEGURA.md).
 Integración/actualización sólo dev1 por propietario; main/dev2 intactos.
-Aceptación humana, Waveshare y maqueta pendientes; fases 51–55 no iniciadas.
+Aceptación humana, Waveshare y maqueta pendientes; fase 51 entregada después.
 
 **Fase 49 — Huerta e invernadero:** autorizada e implementada en rama
 `codex/fase-49-huerta-invernadero`, desde dev1. Dos canteros/riegos, tierra,
