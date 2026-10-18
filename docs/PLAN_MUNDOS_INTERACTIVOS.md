@@ -79,7 +79,7 @@ ordena seguir la línea; huerta no equivale todavía a balance de agua/plantas.
 | 48 | Estacionamiento | Servo, infrarrojos, contador/datos, display | Entradas/salidas, plazas ocupadas, lleno y vehículos esperando |
 | 49 | Huerta e invernadero | Humedad del suelo, luz, ambiente, salida de potencia, motor y servo | Secado, riego, exceso de agua, salud de plantas, ventilación/luz |
 | 50 | Casa y entrada segura | Luz, movimiento, LED, botón, servo, buzzer, teclado/identificación | Día/noche, visitantes, puerta con paso efectivo, acceso, iluminación y avisos |
-| 51 | Taller y cinta transportadora | Motor, infrarrojo, servo, contador y balanza | Llegadas de paquetes, avance con la cinta, detección, desvío, clasificación y atasco |
+| 51 | Taller y cinta transportadora | Motor, infrarrojo, color, servo, contador y balanza | Software web entregado; dos ejemplos completos y [reglas de lectura, desvío y atasco](FASE_51_TALLER_CINTA.md); actualización/aceptación/Waveshare/físico pendientes |
 | 52 | Pista de robots | Robot de dos motores, sensores, luces y buzzer | Obstáculos, estaciones, llegada y lecturas ligadas a posición; sin seguir camino automáticamente |
 | 53 | Estación meteorológica | Ambiente, lluvia/viento según perfiles, display y luces | Clima cambiante, lecturas coherentes y efectos de protecciones programadas |
 | 54 | Escenario de Otto | Otto, botones, distancia, matriz y buzzer | Público que se aproxima o pide actuación; movimientos/caras/sonidos programados |
@@ -87,7 +87,9 @@ ordena seguir la línea; huerta no equivale todavía a balance de agua/plantas.
 
 Estado de la primera entrega: fase 46 implementada en simulación web; uso,
 evidencia y límites en [FASE_46_PEATONES.md](FASE_46_PEATONES.md). DEV/usuarios
-y renderer de peatones Waveshare pendientes. Las otras fases no se iniciaron.
+y renderer de peatones Waveshare pendientes. Fases 47–51 autorizadas y entregadas
+posteriormente en software web; consultar sus guías y contexto vigente. Fases
+52–55 no iniciadas.
 
 El orden recomendado prioriza 46 → 47 → 48 → 49 → 51. Las demás pueden
 reordenarse con autorización sin cambiar números. Aeropuerto se posterga: al

@@ -25,6 +25,9 @@ import { nearestHouseSlot, houseSlots, houseBindings, houseFreeRoles, validHouse
 
 export const SCENE_SCHEMA_VERSION = 1 as const;
 
+// @ts-expect-error Node strip-types runner.
+import { conveyorSlots, nearestConveyorSlot, validConveyorEnvironment, defaultConveyorEnvironment, type ConveyorEnvironment } from './conveyor-world.ts';
+
 export const legacySceneIds = [
   'traffic',
   'robot',
@@ -39,6 +42,7 @@ export const legacySceneIds = [
   'parking',
   'greenhouse',
   'smartHouse',
+  'conveyor',
 ] as const;
 
 export type LegacySceneId = (typeof legacySceneIds)[number];
@@ -79,6 +83,7 @@ export const sceneBackgrounds = [
   'parking',
   'greenhouse',
   'smartHouse',
+  'conveyor',
   'blank',
 ] as const;
 export type SceneBackground = (typeof sceneBackgrounds)[number];
@@ -111,6 +116,7 @@ export interface SceneCanvas {
   parkingCapacity?: ParkingCapacity;
   gardenEnvironment?: GardenEnvironment;
   houseEnvironment?: HouseEnvironment;
+  conveyorEnvironment?: ConveyorEnvironment;
   houseAssignments?: Partial<Record<HouseFreeRole, string>>;
   /** Identificadores de atrás hacia adelante; ausente en proyectos anteriores. */
   itemOrder?: string[];
@@ -155,6 +161,13 @@ export function constrainSceneItemPosition(
   item: Pick<SceneDevice | SceneWidget, 'id' | 'kind'>,
   position: ScenePosition,
 ): ScenePosition {
+  if (scene.canvas.background === 'conveyor') {
+    const slot = nearestConveyorSlot(item.kind, position);
+    if (slot) {
+      if (scene.devices.some(d => d.id !== item.id && nearestConveyorSlot(d.kind, d.position)?.role === slot.role)) return scene.devices.find(d => d.id === item.id)?.position ?? position;
+      return { x: slot.x, y: slot.y };
+    }
+  }
   if (scene.canvas.background === 'smartHouse') {
     const slot = nearestHouseSlot(item.kind, position);
     if (slot) {
@@ -250,6 +263,12 @@ export function arrangeGardenDevices(source: SceneDefinition) {
     occupied.add(slot.role);
     return { ...device, position: { x: slot.x, y: slot.y }, rotation: 0 };
   });
+  return scene;
+}
+
+export function arrangeConveyorDevices(source: SceneDefinition) {
+  const scene = cloneScene(source), occupied = new Set<string>();
+  scene.devices = scene.devices.map(d => { const slot = conveyorSlots.find(s => s.kind === d.kind && !occupied.has(s.role)); if (!slot) return d; occupied.add(slot.role); return { ...d, position: { x: slot.x, y: slot.y }, rotation: 0 }; });
   return scene;
 }
 
@@ -1358,6 +1377,7 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
   if (source.canvas.background === 'railCrossing' && (kind === 'servo' || kind === 'infraredBarrier') && source.devices.filter(device => device.kind === kind).length >= (kind === 'servo' ? 2 : 2 * railTrackCount(source))) throw new Error('Los lugares de este componente ya están ocupados: dos barreras y dos detectores por vía.');
   if (source.canvas.background === 'parking' && parkingSlots.some(slot => slot.kind === kind) && source.devices.filter(device => device.kind === kind).length >= (kind === 'servo' ? 2 : 4)) throw new Error('El estacionamiento tiene dos lugares para barreras y cuatro para detectores.');
   if (source.canvas.background === 'greenhouse' && gardenSlots.some(slot => slot.kind === kind) && source.devices.filter(device => device.kind === kind).length >= gardenSlots.filter(slot => slot.kind === kind).length) throw new Error('Los lugares de este componente en la huerta e invernadero están ocupados.');
+  if (source.canvas.background === 'conveyor' && conveyorSlots.some(s => s.kind === kind) && source.devices.filter(d => d.kind === kind).length >= conveyorSlots.filter(s => s.kind === kind).length) throw new Error('Los lugares de este componente en la cinta están ocupados.');
   if (source.canvas.background === 'smartHouse' && kind !== 'led' && kind !== 'button' && houseSlots.some(slot => slot.kind === kind) && source.devices.filter(device => device.kind === kind).length >= houseSlots.filter(slot => slot.kind === kind).length) throw new Error('Los lugares de este componente en la casa están ocupados.');
   if (kind === 'messages' && scene.devices.filter(device => device.kind === 'messages').length >= 2) throw new Error('La placa admite hasta dos componentes Mensajes.');
   if (kind === 'trafficLight') {
@@ -1385,6 +1405,10 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
     ...((kind === 'display' || kind === 'ledMatrix') && !options.position ? { position: { x: scene.canvas.width * 0.7, y: scene.canvas.height * 0.55 } } : {}),
     id: options.id ?? createStableDeviceId(kind, reservedIds),
   });
+  if (scene.canvas.background === 'conveyor') {
+    const slot = conveyorSlots.find(s => s.kind === kind && !scene.devices.some(d => nearestConveyorSlot(d.kind, d.position)?.role === s.role));
+    if (slot) { device.position = { x: slot.x, y: slot.y }; device.rotation = 0; }
+  }
   if (scene.canvas.background === 'smartHouse') {
     if (kind === 'led' || kind === 'button') {
       const bindings = houseBindings(scene);
@@ -1806,6 +1830,14 @@ for (const [i, slot] of houseSlots.entries()) houseTemplate.devices.push(templat
 houseTemplate.devices.push(templateDevice('display', houseTemplate.devices, { id: 'house-display', name: 'Mensajes de la casa', position: { x: 730, y: 475 }, config: displayConfig('lcd1602'), pins: { sda: 25, scl: 23 } }));
 houseTemplate.devices.push(templateDevice('activeBuzzer', houseTemplate.devices, { id: 'house-alarm', name: 'Aviso de entrada', position: { x: 235, y: 465 }, pins: { signal: 17 } }));
 
+const conveyorTemplate = createEmptyScene('Taller y cinta transportadora', { id: 'scene-conveyor', description: 'Leé color y peso, orientá el desviador y confirmá cada entrega.', canvas: { background: 'conveyor', conveyorEnvironment: { ...defaultConveyorEnvironment } } });
+conveyorTemplate.sourceTemplate = 'conveyor';
+for (const slot of conveyorSlots) conveyorTemplate.devices.push(templateDevice(slot.kind, conveyorTemplate.devices, {
+  id: `conveyor-${slot.role}`, name: slot.name, position: { x: slot.x, y: slot.y },
+  pins: slot.kind === 'motor' ? { in1: 26, in2: 27 } : slot.kind === 'colorSensor' ? { sda: 18, scl: 19 } : slot.kind === 'scale' ? { data: 34, clock: 25 } : { signal: ({ presence: 35, gate: 14, outputA: 36, outputB: 39 } as Record<string, number>)[slot.role] },
+  ...(slot.kind === 'servo' ? { config: { angle: 0 } } : {}),
+}));
+
 export const sceneTemplates: Readonly<Record<LegacySceneId, SceneDefinition>> =
   {
     traffic: trafficTemplate,
@@ -1821,6 +1853,7 @@ export const sceneTemplates: Readonly<Record<LegacySceneId, SceneDefinition>> =
     parking: parkingTemplate,
     greenhouse: greenhouseTemplate,
     smartHouse: houseTemplate,
+    conveyor: conveyorTemplate,
   };
 
 export function createSceneFromTemplate(templateId: LegacySceneId) {
@@ -1851,7 +1884,7 @@ export function appendTemplateToScene(
   const offset = options.offset ?? { x: 40, y: 40 };
   const addedDeviceIds: string[] = [];
   const warnings: string[] = [];
-  if (templateId === 'railCrossing' || templateId === 'parking' || templateId === 'greenhouse' || templateId === 'smartHouse') {
+  if (templateId === 'railCrossing' || templateId === 'parking' || templateId === 'greenhouse' || templateId === 'smartHouse' || templateId === 'conveyor') {
     if (scene.devices.length || scene.widgets.length) return { scene, warnings: ['Este mundo se agrega sobre una escena vacía para no reasignar componentes existentes.'], addedDeviceIds };
     const replacement = cloneScene(scene);
     replacement.canvas = structuredClone(template.canvas);
@@ -2055,6 +2088,9 @@ export type SceneValidationIssueCode =
   | 'garden-slot-conflict'
   | 'garden-slot-missing'
   | 'house-slot-position'
+  | 'conveyor-size'
+  | 'conveyor-slot'
+  | 'conveyor-missing'
   | 'house-slot-conflict'
   | 'house-slot-missing'
   | 'missing-pin'
@@ -2216,6 +2252,12 @@ export function validateScene(
       if (slot && (device.position.x !== slot.x || device.position.y !== slot.y)) issues.push({ code: 'garden-slot-position', severity: 'error', deviceId: device.id, message: `${device.name}: elegí un lugar marcado de la huerta e invernadero.` });
     }
     for (const slot of gardenSlots) if (!roles.includes(slot.role)) issues.push({ code: 'garden-slot-missing', severity: 'warning', message: `Falta ${slot.name.toLowerCase()}. Sin salida no actúa; sin sensor el programa no recibe esa lectura.` });
+  }
+  if (scene.canvas.background === 'conveyor') {
+    const occupied = new Set<string>();
+    if (scene.canvas.width !== 960 || scene.canvas.height !== 540) issues.push({ code: 'conveyor-size', severity: 'error', message: 'La cinta utiliza un lienzo de 960 × 540.' });
+    for (const d of scene.devices) { const slot = nearestConveyorSlot(d.kind, d.position); if (!slot) continue; if (d.position.x !== slot.x || d.position.y !== slot.y || occupied.has(slot.role)) issues.push({ code: 'conveyor-slot', severity: 'error', deviceId: d.id, message: 'Cada componente de la cinta necesita un lugar marcado libre.' }); occupied.add(slot.role); }
+    for (const slot of conveyorSlots) if (!occupied.has(slot.role)) issues.push({ code: 'conveyor-missing', severity: 'warning', message: `Falta ${slot.name.toLowerCase()}.` });
   }
   if (scene.canvas.background === 'smartHouse') {
     if (scene.canvas.width !== 960 || scene.canvas.height !== 540) issues.push({ code: 'house-slot-position', severity: 'error', message: 'La casa utiliza un lienzo de 960 × 540.' });
@@ -2829,6 +2871,7 @@ export function isSceneDefinition(value: unknown, incompleteDisplayLayout = fals
       'parkingCapacity',
       'gardenEnvironment',
       'houseEnvironment',
+      'conveyorEnvironment',
       'houseAssignments',
       'itemOrder',
     ]) &&
@@ -2846,6 +2889,7 @@ export function isSceneDefinition(value: unknown, incompleteDisplayLayout = fals
     (canvas.railTracks === undefined || [1, 2, 4].includes(canvas.railTracks as number)) &&
     (canvas.parkingCapacity === undefined || [4, 8, 12].includes(canvas.parkingCapacity as number)) &&
     (canvas.gardenEnvironment === undefined || validGardenEnvironment(canvas.gardenEnvironment)) &&
+    (canvas.conveyorEnvironment === undefined || validConveyorEnvironment(canvas.conveyorEnvironment)) &&
     (canvas.houseEnvironment === undefined || validHouseEnvironment(canvas.houseEnvironment)) &&
     (canvas.houseAssignments === undefined || (isRecord(canvas.houseAssignments) && Object.entries(canvas.houseAssignments).every(([role, id]) => houseFreeRoles.includes(role as HouseFreeRole) && typeof id === 'string' && Array.isArray(devices) && devices.some(d => isRecord(d) && d.id === id && d.kind === houseSlots.find(s => s.role === role)?.kind)) && new Set(Object.values(canvas.houseAssignments)).size === Object.keys(canvas.houseAssignments).length)) &&
     (canvas.trafficDirections === undefined ||

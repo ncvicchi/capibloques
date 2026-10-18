@@ -1,4 +1,6 @@
 'use client';
+import ConveyorControls from '@/components/conveyor-controls';
+import { conveyorBindings, conveyorInputRoles, defaultConveyorEnvironment } from '@/lib/conveyor-world';
 
 import {
   lazy,
@@ -313,6 +315,7 @@ export default function ReviewSimulation({
           parkingWorld={state?.parkingWorld}
           gardenWorld={state?.gardenWorld}
           houseWorld={state?.houseWorld}
+          conveyorWorld={state?.conveyorWorld}
           counter={state?.counter}
           simulationSpeed={speed}
           simulationRunning={state?.status === 'running'}
@@ -320,10 +323,12 @@ export default function ReviewSimulation({
         />
         <fieldset className="review-inputs" disabled={!program}>
           <legend>Sensores simulados</legend>
+          {project.scene.canvas.background === 'conveyor' && <ConveyorControls value={state?.conveyorWorld?.environment ?? project.scene.canvas.conveyorEnvironment ?? defaultConveyorEnvironment} pending={!!state?.conveyorWorld?.pendingPackage || !!state?.conveyorWorld?.jammed} onChange={value => worker.current?.postMessage({ type: 'SET_INPUT', name: 'conveyorEnvironment', value })} onSend={() => worker.current?.postMessage({ type: 'SET_INPUT', name: 'conveyorPackage', value: state?.conveyorWorld?.environment ?? project.scene.canvas.conveyorEnvironment ?? defaultConveyorEnvironment })} />}
           {project.scene.canvas.background === 'smartHouse' && <HouseControls value={state?.houseWorld?.environment ?? project.scene.canvas.houseEnvironment ?? defaultHouseEnvironment} pending={!!state?.houseWorld?.pendingVisitor} onChange={value => worker.current?.postMessage({ type: 'SET_INPUT', name: 'houseEnvironment', value })} onSend={() => worker.current?.postMessage({ type: 'SET_INPUT', name: 'houseVisitor', value: state?.houseWorld?.environment.nextVisitor ?? project.scene.canvas.houseEnvironment?.nextVisitor ?? 'known' })} />}
           {project.scene.canvas.background === 'greenhouse' && <GardenControls value={state?.gardenWorld?.environment ?? project.scene.canvas.gardenEnvironment ?? defaultGardenEnvironment} onChange={value => worker.current?.postMessage({ type: 'SET_INPUT', name: 'gardenEnvironment', value })} />}
           {project.scene.devices.map((device) => {
             const runtime = state?.devices[device.id];
+            if (conveyorInputRoles.some(role => conveyorBindings(project.scene)[role] === device.id)) return <p key={device.id}>{device.name} · lectura automática del taller virtual</p>;
             if (houseInputRoles.some(role => houseBindings(project.scene)[role] === device.id)) return <p key={device.id}>{device.name} · lectura automática de la casa virtual</p>;
             if (Object.entries(gardenBindings(project.scene)).some(([role, id]) => ['outsideSoil', 'insideSoil', 'climate', 'light'].includes(role) && id === device.id)) return <p key={device.id}>{device.name} · lectura automática de la huerta virtual</p>;
             if (device.kind === 'button')

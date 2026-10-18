@@ -1,3 +1,5 @@
+// @ts-expect-error Node strip-types runner.
+import { advanceConveyorWorld, createConveyorWorldState, conveyorBindings, conveyorInputRoles, validConveyorEnvironment } from './conveyor-world.ts';
 import {
   addCounterValues,
   compileTaskGraph,
@@ -472,6 +474,7 @@ function freshState(): SimulatorState {
     ...(scene.canvas.background === 'railCrossing' ? { railWorld: createRailWorldState(initialAngle(bindings.northGate), initialAngle(bindings.southGate), railTrackCount(scene)) } : {}),
     ...(scene.canvas.background === 'parking' ? { parkingWorld: createParkingWorldState(parkingCapacity(scene), initialAngle(parking.entryGate), initialAngle(parking.exitGate)) } : {}),
     ...(scene.canvas.background === 'greenhouse' ? { gardenWorld: createGardenWorldState(scene.canvas.gardenEnvironment, initialAngle(gardenBindings(scene).window)) } : {}),
+    ...(scene.canvas.background === 'conveyor' ? { conveyorWorld: createConveyorWorldState(scene.canvas.conveyorEnvironment, initialAngle(conveyorBindings(scene).gate)) } : {}),
     ...(scene.canvas.background === 'smartHouse' ? { houseWorld: createHouseWorldState(scene.canvas.houseEnvironment, initialAngle(houseBindings(scene).door)) } : {}),
     now: 0,
     status: 'idle',
@@ -834,6 +837,7 @@ function resetExecution(
   updateParkingPhysics(0);
   updateGardenPhysics(0);
   updateHousePhysics(0);
+  updateConveyorPhysics(0);
   state.status = status;
   virtualNow = 0;
   schedulerDebtMs = 0;
@@ -2587,6 +2591,16 @@ function updateGardenPhysics(deltaMs: number) {
   if (bindings.light) applyInputValue(bindings.light, Math.round(world.light / 100 * 4095));
 }
 
+function updateConveyorPhysics(deltaMs: number) {
+  if (!state.conveyorWorld) return;
+  const b = conveyorBindings(scene), motor = b.motor ? state.devices[b.motor] : undefined, servo = b.gate ? state.devices[b.gate] : undefined;
+  const w = state.conveyorWorld = advanceConveyorWorld(state.conveyorWorld, { power: motor?.kind === 'motor' ? motor.power : 0, angle: servo?.kind === 'servo' ? servo.angle : 0 }, deltaMs);
+  for (const [role, value] of [['presence', w.presence], ['outputA', w.outputA], ['outputB', w.outputB]] as const) if (b[role]) applyInputValue(b[role]!, value);
+  const color = b.color ? state.devices[b.color] : undefined, scale = b.scale ? state.devices[b.scale] : undefined;
+  if (color?.kind === 'educationalModule') Object.assign(color.values, { red: w.color === 'red' ? 240 : w.color ? 20 : 0, blue: w.color === 'blue' ? 240 : w.color ? 20 : 0, green: w.color === 'green' ? 240 : w.color ? 20 : 0, light: w.presence ? 80 : 0 });
+  if (scale?.kind === 'educationalModule') scale.values.weight = w.weight;
+}
+
 function updateHousePhysics(deltaMs: number) {
   if (!state.houseWorld) return;
   const bindings = houseBindings(scene);
@@ -2606,6 +2620,7 @@ function updatePhysics(deltaMs: number) {
     updateParkingPhysics(deltaMs);
     updateGardenPhysics(deltaMs);
     updateHousePhysics(deltaMs);
+    updateConveyorPhysics(deltaMs);
   }
   updateVisualAnimations();
   for (const timer of Object.values(state.timers)) {
@@ -2843,6 +2858,7 @@ function stopOutputs() {
 }
 
 function setInputById(deviceId: string, value: unknown) {
+  if (conveyorInputRoles.some(role => conveyorBindings(scene)[role] === deviceId)) return;
   if (houseInputRoles.some(role => houseBindings(scene)[role] === deviceId)) return;
   if (Object.entries(gardenBindings(scene)).some(([role, id]) => ['outsideSoil', 'insideSoil', 'climate', 'light'].includes(role) && id === deviceId)) return;
   if (Object.entries(parkingBindings(scene)).some(([role, id]) => !role.endsWith('Gate') && id === deviceId)) return;
@@ -2906,6 +2922,8 @@ function setInputById(deviceId: string, value: unknown) {
 }
 
 function setLegacyInput(name: unknown, value: unknown) {
+  if (name === 'conveyorEnvironment') { if (state.conveyorWorld && validConveyorEnvironment(value)) state.conveyorWorld.environment = { ...value }; return; }
+  if (name === 'conveyorPackage') { const w = state.conveyorWorld; if (w && !w.pendingPackage && !w.jammed && validConveyorEnvironment(value)) w.pendingPackage = { color: value.color, weight: value.weight }; return; }
   if (name === 'houseEnvironment') { if (state.houseWorld && validHouseEnvironment(value)) state.houseWorld.environment = { ...value }; return; }
   if (name === 'houseVisitor') { if (state.houseWorld && ['known', 'unknown', 'none'].includes(String(value)) && typeof value === 'string' && !state.houseWorld.pendingVisitor) state.houseWorld.pendingVisitor = value as 'known' | 'unknown' | 'none'; return; }
   if (name === 'gardenEnvironment') {
@@ -2954,6 +2972,7 @@ scope.addEventListener('message', (event) => {
       const invalidScene =
         message.scene !== undefined && !isSceneDefinition(message.scene);
       const preserveTrials = message.preserveWorldTrials === true && isSceneDefinition(message.scene) && scene.id === message.scene.id && scene.canvas.background === message.scene.canvas.background;
+      const conveyorTrial = preserveTrials && state.conveyorWorld ? { environment: { ...state.conveyorWorld.environment }, pendingPackage: state.conveyorWorld.pendingPackage } : null;
       const houseTrial = preserveTrials && state.houseWorld ? { environment: { ...state.houseWorld.environment }, pendingVisitor: state.houseWorld.pendingVisitor } : null;
       const gardenTrial = preserveTrials && state.gardenWorld ? { ...state.gardenWorld.environment } : null;
       try {
@@ -2965,6 +2984,7 @@ scope.addEventListener('message', (event) => {
           : inferSceneForProgram(message.program);
         program = normalizeCompiledProgram(message.program, scene);
         resetExecution('idle', true, false);
+        if (conveyorTrial && state.conveyorWorld) { state.conveyorWorld.environment = conveyorTrial.environment; state.conveyorWorld.pendingPackage = conveyorTrial.pendingPackage; }
         if (houseTrial && state.houseWorld) { state.houseWorld.environment = houseTrial.environment; state.houseWorld.pendingVisitor = houseTrial.pendingVisitor; }
         if (gardenTrial && state.gardenWorld) state.gardenWorld.environment = gardenTrial;
         emit();
