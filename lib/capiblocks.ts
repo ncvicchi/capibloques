@@ -301,7 +301,7 @@ export interface ProjectDecodeResult {
   diagnostics: CapiDiagnostic[];
 }
 
-export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4' | 'parkingProcedures' | 'greenhouseProcedures' | 'smartHouseProcedures' | 'conveyorProcedures';
+export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4' | 'parkingProcedures' | 'greenhouseProcedures' | 'smartHouseProcedures' | 'conveyorProcedures' | 'robotArenaProcedures';
 export interface ExampleDefinition {
   id: ExampleId;
   title: string;
@@ -415,6 +415,7 @@ export interface SimulatorState {
   gardenWorld?: import('./garden-world').GardenWorldState;
   houseWorld?: import('./house-world').HouseWorldState;
   conveyorWorld?: import('./conveyor-world').ConveyorWorldState;
+  arenaWorld?: import('./robot-arena').ArenaWorldState;
   execution?: {
     mode: 'normal' | 'guided';
     awaitingFrame: number | null;
@@ -1121,6 +1122,47 @@ function conveyorExample(modular: boolean): ExampleDefinition {
       ] : [])] } } };
 }
 
+function arenaExample(modular: boolean): ExampleDefinition {
+  let n = 0;
+  const id = () => `arena-${modular ? 'mod' : 'direct'}-${n++}`;
+  const sequence = (...blocks: Record<string, unknown>[]) => { const copies = structuredClone(blocks); for (let i = 0; i < copies.length - 1; i++) { let tail = copies[i]; while (tail.next) tail = (tail.next as { block: Record<string, unknown> }).block; tail.next = { block: copies[i + 1] }; } return copies[0]; };
+  const wait = (seconds: number) => ({ type: 'capi_wait', id: id(), fields: { SECONDS: seconds } });
+  const move = (action: string, speed = 60) => ({ type: 'capi_robot', id: id(), fields: { DEVICE_ID: 'arena-robot', ACTION: action, SPEED: speed } });
+  const call = (routine: string) => ({ type: 'capi_procedure_call', id: id(), fields: { ROUTINE: { id: `arena-task-${routine}` } } });
+  const led = (brightness: number) => ({ type: 'capi_led', id: id(), fields: { DEVICE_ID: 'arena-light', BRIGHTNESS: brightness } });
+  const compare = (device: string, property: string, operator: string, value: number) => ({ type: 'capi_value_compare', id: id(), fields: { OPERATOR: operator }, inputs: { LEFT: { block: { type: 'capi_component_number', id: id(), fields: { DEVICE_ID: device, PROPERTY: property } } }, RIGHT: { block: { type: 'capi_value_number', id: id(), fields: { VALUE: value } } } } });
+  const until = (test: Record<string, unknown>) => ({ type: 'capi_while', id: id(), fields: { MODE: 'UNTIL' }, inputs: { CONDITION: { block: test }, DO: { block: wait(0.04) } } });
+  const turn = (direction: string) => sequence(move(direction, 75), wait(0.8), move('STOP'));
+  const station = (color: string) => sequence(move('FORWARD'), until(compare('arena-color', color, 'GT', 150)), wait(0.64), move('STOP'), led(80), wait(0.8), led(0));
+  const detour = () => sequence(move('STOP'), move('BACKWARD'), wait(0.64), move('STOP'), turn('LEFT'), move('FORWARD'), wait(2.08), turn('RIGHT'), move('FORWARD'), wait(3.36), turn('RIGHT'), move('FORWARD'), wait(2.08), turn('LEFT'));
+  const approach = () => sequence(move('FORWARD'), until(compare('arena-distance', 'distance', 'LT', 70)), call('detour'), call('A'));
+  const finish = () => sequence(move('FORWARD'), until({ type: 'capi_barrier_state', id: id(), fields: { DEVICE_ID: 'arena-goal', STATE: 'INTERRUPTED' } }), move('STOP'), led(100), { type: 'capi_buzzer', id: id(), fields: { DEVICE_ID: 'arena-buzzer', KIND: 'ACTIVE', DURATION: 300, FREQUENCY: 660 } });
+  const routines = [
+    { key: 'route', name: 'Completar el reparto', body: () => sequence(call('approach'), call('left'), call('B'), call('right'), call('finish')) },
+    { key: 'approach', name: 'Recorrer primer tramo', body: approach },
+    { key: 'detour', name: 'Resolver este obstáculo', body: detour },
+    { key: 'A', name: 'Atender estación A', body: () => station('red') },
+    { key: 'B', name: 'Atender estación B', body: () => station('blue') },
+    { key: 'left', name: 'Girar a la izquierda', body: () => turn('LEFT') },
+    { key: 'right', name: 'Girar a la derecha', body: () => turn('RIGHT') },
+    { key: 'finish', name: 'Llegar y avisar', body: finish },
+  ];
+  const start = startWorkspace(sequence(led(0), modular ? call('route') : sequence(station('red'), turn('LEFT'), station('blue'), turn('RIGHT'), finish())));
+  const definitions = modular ? routines.map((r, i) => ({ type: 'capi_procedure_def', id: `arena-def-${r.key}`, x: 48, y: 48 + (i % 2) * 650, fields: { ROUTINE: { id: `arena-task-${r.key}` }, P1_TYPE: 'none', P2_TYPE: 'none', P3_TYPE: 'none' }, inputs: { BODY: { block: r.body() } } })) : [];
+  const scene = createSceneFromTemplate('robotArena');
+  if (modular) scene.canvas.arenaEnvironment = { guides: true, obstacles: [{ x: 260, y: 420, radius: 28 }] };
+  return { id: modular ? 'robotArenaProcedures' : 'robotArena', title: modular ? 'Explorador con obstáculos y procedimientos' : 'Reparto por estaciones', icon: '🤖', level: 'Intermedio',
+    mission: modular ? 'Detectá el obstáculo, rodealo y visitá A y B antes de llegar a meta.' : 'Leé marcas del suelo, detenete en A y B y avisá al cruzar la meta.',
+    description: modular ? 'Solución completa para esta disposición: ocho procedimientos y cinco pestañas. El desvío está preparado para el obstáculo incluido; no resuelve cualquier laberinto.' : 'Solución secuencial completa en pista despejada. Color, giros, pausas y meta, sin seguir automáticamente el camino.',
+    scene, workspace: { ...start, ...(modular ? { variables: routines.map(r => ({ id: `arena-task-${r.key}`, name: r.name, type: 'Procedure' })) } : {}),
+      blocks: { ...start.blocks, blocks: [...start.blocks.blocks, ...definitions] }, capiTabs: { version: 1, tabs: [{ id: 'main', name: 'Principal', rootBlockIds: ['start-main'] }, ...(modular ? [
+        { id: 'tab-arena-route', name: 'Recorrido', rootBlockIds: ['arena-def-route', 'arena-def-approach'] },
+        { id: 'tab-arena-detour', name: 'Desvío', rootBlockIds: ['arena-def-detour', 'arena-def-finish'] },
+        { id: 'tab-arena-stations', name: 'Estaciones', rootBlockIds: ['arena-def-A', 'arena-def-B'] },
+        { id: 'tab-arena-turns', name: 'Giros', rootBlockIds: ['arena-def-left', 'arena-def-right'] },
+      ] : [])] } } };
+}
+
 export const examples: ExampleDefinition[] = [
   {
     id: 'traffic',
@@ -1240,6 +1282,8 @@ export const examples: ExampleDefinition[] = [
   smartHouseExample(true),
   conveyorExample(false),
   conveyorExample(true),
+  arenaExample(false),
+  arenaExample(true),
   {
     id: 'display', title: 'Mensajes para la plaza', icon: '📺', level: 'Inicial',
     mission: 'Escribí en la pantalla, esperá para leer y borrá el mensaje. La consola es otro destino.',

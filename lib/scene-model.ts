@@ -23,6 +23,9 @@ import { nearestGardenSlot, gardenSlots, validGardenEnvironment, defaultGardenEn
 // @ts-expect-error Node strip-types runner.
 import { nearestHouseSlot, houseSlots, houseBindings, houseFreeRoles, validHouseEnvironment, defaultHouseEnvironment, type HouseEnvironment, type HouseFreeRole } from './house-world.ts';
 
+// @ts-expect-error Node strip-types runner.
+import { arenaKinds, arenaStartAllowed, validArenaEnvironment, defaultArenaEnvironment, type ArenaEnvironment } from './robot-arena.ts';
+
 export const SCENE_SCHEMA_VERSION = 1 as const;
 
 // @ts-expect-error Node strip-types runner.
@@ -43,6 +46,7 @@ export const legacySceneIds = [
   'greenhouse',
   'smartHouse',
   'conveyor',
+  'robotArena',
 ] as const;
 
 export type LegacySceneId = (typeof legacySceneIds)[number];
@@ -84,6 +88,7 @@ export const sceneBackgrounds = [
   'greenhouse',
   'smartHouse',
   'conveyor',
+  'robotArena',
   'blank',
 ] as const;
 export type SceneBackground = (typeof sceneBackgrounds)[number];
@@ -117,6 +122,7 @@ export interface SceneCanvas {
   gardenEnvironment?: GardenEnvironment;
   houseEnvironment?: HouseEnvironment;
   conveyorEnvironment?: ConveyorEnvironment;
+  arenaEnvironment?: ArenaEnvironment;
   houseAssignments?: Partial<Record<HouseFreeRole, string>>;
   /** Identificadores de atrás hacia adelante; ausente en proyectos anteriores. */
   itemOrder?: string[];
@@ -161,6 +167,10 @@ export function constrainSceneItemPosition(
   item: Pick<SceneDevice | SceneWidget, 'id' | 'kind'>,
   position: ScenePosition,
 ): ScenePosition {
+  if (scene.canvas.background === 'robotArena') {
+    if (item.kind === 'robot' && !arenaStartAllowed(position, scene.canvas.arenaEnvironment ?? defaultArenaEnvironment)) return scene.devices.find(d => d.id === item.id)?.position ?? position;
+    if (['distanceSensor', 'colorSensor', 'infraredBarrier'].includes(item.kind)) return scene.devices.find(d => d.id === item.id)?.position ?? position;
+  }
   if (scene.canvas.background === 'conveyor') {
     const slot = nearestConveyorSlot(item.kind, position);
     if (slot) {
@@ -1377,6 +1387,7 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
   if (source.canvas.background === 'railCrossing' && (kind === 'servo' || kind === 'infraredBarrier') && source.devices.filter(device => device.kind === kind).length >= (kind === 'servo' ? 2 : 2 * railTrackCount(source))) throw new Error('Los lugares de este componente ya están ocupados: dos barreras y dos detectores por vía.');
   if (source.canvas.background === 'parking' && parkingSlots.some(slot => slot.kind === kind) && source.devices.filter(device => device.kind === kind).length >= (kind === 'servo' ? 2 : 4)) throw new Error('El estacionamiento tiene dos lugares para barreras y cuatro para detectores.');
   if (source.canvas.background === 'greenhouse' && gardenSlots.some(slot => slot.kind === kind) && source.devices.filter(device => device.kind === kind).length >= gardenSlots.filter(slot => slot.kind === kind).length) throw new Error('Los lugares de este componente en la huerta e invernadero están ocupados.');
+  if (source.canvas.background === 'robotArena' && arenaKinds.includes(kind as typeof arenaKinds[number]) && source.devices.some(d => d.kind === kind)) throw new Error('La pista admite un robot y un sensor de cada tipo, montados sobre él; una barrera fija de meta.');
   if (source.canvas.background === 'conveyor' && conveyorSlots.some(s => s.kind === kind) && source.devices.filter(d => d.kind === kind).length >= conveyorSlots.filter(s => s.kind === kind).length) throw new Error('Los lugares de este componente en la cinta están ocupados.');
   if (source.canvas.background === 'smartHouse' && kind !== 'led' && kind !== 'button' && houseSlots.some(slot => slot.kind === kind) && source.devices.filter(device => device.kind === kind).length >= houseSlots.filter(slot => slot.kind === kind).length) throw new Error('Los lugares de este componente en la casa están ocupados.');
   if (kind === 'messages' && scene.devices.filter(device => device.kind === 'messages').length >= 2) throw new Error('La placa admite hasta dos componentes Mensajes.');
@@ -1409,6 +1420,7 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
     const slot = conveyorSlots.find(s => s.kind === kind && !scene.devices.some(d => nearestConveyorSlot(d.kind, d.position)?.role === s.role));
     if (slot) { device.position = { x: slot.x, y: slot.y }; device.rotation = 0; }
   }
+  if (scene.canvas.background === 'robotArena' && ['distanceSensor', 'colorSensor', 'infraredBarrier'].includes(kind)) device.position = kind === 'infraredBarrier' ? { x: 800, y: 110 } : kind === 'distanceSensor' ? { x: 165, y: 420 } : { x: 120, y: 465 };
   if (scene.canvas.background === 'smartHouse') {
     if (kind === 'led' || kind === 'button') {
       const bindings = houseBindings(scene);
@@ -1466,6 +1478,7 @@ export function duplicateSceneDevice(
   const original = source.devices.find((device) => device.id === deviceId);
   if (!original) return null;
   if (original.kind === 'display' || original.kind === 'ledMatrix') return null;
+  if (source.canvas.background === 'robotArena' && arenaKinds.includes(original.kind as typeof arenaKinds[number])) return null;
   const pins = Object.fromEntries(
     Object.keys(original.pins).map((key) => [key, null]),
   );
@@ -1838,6 +1851,17 @@ for (const slot of conveyorSlots) conveyorTemplate.devices.push(templateDevice(s
   ...(slot.kind === 'servo' ? { config: { angle: 0 } } : {}),
 }));
 
+const arenaTemplate = createEmptyScene('Pista de exploración y reparto', { id: 'scene-robot-arena', description: 'Conducí, leé el suelo, visitá estaciones y evitá obstáculos sin piloto automático.', canvas: { background: 'robotArena', arenaEnvironment: structuredClone(defaultArenaEnvironment) } });
+arenaTemplate.sourceTemplate = 'robotArena';
+for (const item of [
+  { kind: 'robot', id: 'arena-robot', name: 'Robot explorador', position: { x: 120, y: 420 }, pins: { leftIn1: 17, leftIn2: 16, rightIn1: 23, rightIn2: 19 }, config: { speed: 0, heading: 0, color: '#38bdf8' } },
+  { kind: 'distanceSensor', id: 'arena-distance', name: 'Distancia frontal', position: { x: 165, y: 420 }, pins: { trigger: 26, echo: 34 } },
+  { kind: 'colorSensor', id: 'arena-color', name: 'Color bajo el robot', position: { x: 120, y: 465 }, pins: { sda: 18, scl: 25 } },
+  { kind: 'infraredBarrier', id: 'arena-goal', name: 'Paso por la meta', position: { x: 800, y: 110 }, pins: { signal: 35 } },
+  { kind: 'led', id: 'arena-light', name: 'Aviso de estación', position: { x: 90, y: 160 }, pins: { signal: 27 } },
+  { kind: 'activeBuzzer', id: 'arena-buzzer', name: 'Aviso de llegada', position: { x: 180, y: 160 }, pins: { signal: 14 } },
+] as const) arenaTemplate.devices.push(templateDevice(item.kind, arenaTemplate.devices, item));
+
 export const sceneTemplates: Readonly<Record<LegacySceneId, SceneDefinition>> =
   {
     traffic: trafficTemplate,
@@ -1854,6 +1878,7 @@ export const sceneTemplates: Readonly<Record<LegacySceneId, SceneDefinition>> =
     greenhouse: greenhouseTemplate,
     smartHouse: houseTemplate,
     conveyor: conveyorTemplate,
+    robotArena: arenaTemplate,
   };
 
 export function createSceneFromTemplate(templateId: LegacySceneId) {
@@ -1884,7 +1909,7 @@ export function appendTemplateToScene(
   const offset = options.offset ?? { x: 40, y: 40 };
   const addedDeviceIds: string[] = [];
   const warnings: string[] = [];
-  if (templateId === 'railCrossing' || templateId === 'parking' || templateId === 'greenhouse' || templateId === 'smartHouse' || templateId === 'conveyor') {
+  if (templateId === 'railCrossing' || templateId === 'parking' || templateId === 'greenhouse' || templateId === 'smartHouse' || templateId === 'conveyor' || templateId === 'robotArena') {
     if (scene.devices.length || scene.widgets.length) return { scene, warnings: ['Este mundo se agrega sobre una escena vacía para no reasignar componentes existentes.'], addedDeviceIds };
     const replacement = cloneScene(scene);
     replacement.canvas = structuredClone(template.canvas);
@@ -2088,6 +2113,7 @@ export type SceneValidationIssueCode =
   | 'garden-slot-conflict'
   | 'garden-slot-missing'
   | 'house-slot-position'
+  | 'arena-layout'
   | 'conveyor-size'
   | 'conveyor-slot'
   | 'conveyor-missing'
@@ -2252,6 +2278,19 @@ export function validateScene(
       if (slot && (device.position.x !== slot.x || device.position.y !== slot.y)) issues.push({ code: 'garden-slot-position', severity: 'error', deviceId: device.id, message: `${device.name}: elegí un lugar marcado de la huerta e invernadero.` });
     }
     for (const slot of gardenSlots) if (!roles.includes(slot.role)) issues.push({ code: 'garden-slot-missing', severity: 'warning', message: `Falta ${slot.name.toLowerCase()}. Sin salida no actúa; sin sensor el programa no recibe esa lectura.` });
+  }
+  if (scene.canvas.background === 'robotArena') {
+    const env = scene.canvas.arenaEnvironment ?? defaultArenaEnvironment;
+    if (scene.canvas.width !== 960 || scene.canvas.height !== 540) issues.push({ code: 'arena-layout', severity: 'error', message: 'La pista utiliza un lienzo de 960 × 540.' });
+    for (const kind of arenaKinds) {
+      const devices = scene.devices.filter(d => d.kind === kind);
+      if (devices.length > 1) issues.push({ code: 'arena-layout', severity: 'error', message: 'La pista admite un robot y un sensor de cada tipo.' });
+      if (!devices.length) issues.push({ code: 'arena-layout', severity: 'warning', message: `Falta ${kind === 'robot' ? 'el robot' : kind === 'distanceSensor' ? 'la distancia frontal' : kind === 'colorSensor' ? 'el sensor de color' : 'la barrera de meta'}.` });
+    }
+    const robot = scene.devices.find(d => d.kind === 'robot');
+    if (robot && !arenaStartAllowed(robot.position, env)) issues.push({ code: 'arena-layout', severity: 'error', deviceId: robot.id, message: 'Ubicá el robot dentro de la pista y fuera de obstáculos.' });
+    const goal = scene.devices.find(d => d.kind === 'infraredBarrier');
+    if (goal && (goal.position.x !== 800 || goal.position.y !== 110)) issues.push({ code: 'arena-layout', severity: 'error', deviceId: goal.id, message: 'La barrera de meta ocupa su lugar fijo sobre el paso.' });
   }
   if (scene.canvas.background === 'conveyor') {
     const occupied = new Set<string>();
@@ -2872,6 +2911,7 @@ export function isSceneDefinition(value: unknown, incompleteDisplayLayout = fals
       'gardenEnvironment',
       'houseEnvironment',
       'conveyorEnvironment',
+      'arenaEnvironment',
       'houseAssignments',
       'itemOrder',
     ]) &&
@@ -2889,6 +2929,7 @@ export function isSceneDefinition(value: unknown, incompleteDisplayLayout = fals
     (canvas.railTracks === undefined || [1, 2, 4].includes(canvas.railTracks as number)) &&
     (canvas.parkingCapacity === undefined || [4, 8, 12].includes(canvas.parkingCapacity as number)) &&
     (canvas.gardenEnvironment === undefined || validGardenEnvironment(canvas.gardenEnvironment)) &&
+    (canvas.arenaEnvironment === undefined || validArenaEnvironment(canvas.arenaEnvironment)) &&
     (canvas.conveyorEnvironment === undefined || validConveyorEnvironment(canvas.conveyorEnvironment)) &&
     (canvas.houseEnvironment === undefined || validHouseEnvironment(canvas.houseEnvironment)) &&
     (canvas.houseAssignments === undefined || (isRecord(canvas.houseAssignments) && Object.entries(canvas.houseAssignments).every(([role, id]) => houseFreeRoles.includes(role as HouseFreeRole) && typeof id === 'string' && Array.isArray(devices) && devices.some(d => isRecord(d) && d.id === id && d.kind === houseSlots.find(s => s.role === role)?.kind)) && new Set(Object.values(canvas.houseAssignments)).size === Object.keys(canvas.houseAssignments).length)) &&

@@ -1,4 +1,6 @@
 // @ts-expect-error Node strip-types runner.
+import { advanceArenaWorld, createArenaWorldState, arenaBindings, arenaPose, defaultArenaEnvironment } from './robot-arena.ts';
+// @ts-expect-error Node strip-types runner.
 import { advanceConveyorWorld, createConveyorWorldState, conveyorBindings, conveyorInputRoles, validConveyorEnvironment } from './conveyor-world.ts';
 import {
   addCounterValues,
@@ -474,6 +476,7 @@ function freshState(): SimulatorState {
     ...(scene.canvas.background === 'railCrossing' ? { railWorld: createRailWorldState(initialAngle(bindings.northGate), initialAngle(bindings.southGate), railTrackCount(scene)) } : {}),
     ...(scene.canvas.background === 'parking' ? { parkingWorld: createParkingWorldState(parkingCapacity(scene), initialAngle(parking.entryGate), initialAngle(parking.exitGate)) } : {}),
     ...(scene.canvas.background === 'greenhouse' ? { gardenWorld: createGardenWorldState(scene.canvas.gardenEnvironment, initialAngle(gardenBindings(scene).window)) } : {}),
+    ...(scene.canvas.background === 'robotArena' ? { arenaWorld: createArenaWorldState(arenaPose(scene).position, arenaPose(scene).angle) } : {}),
     ...(scene.canvas.background === 'conveyor' ? { conveyorWorld: createConveyorWorldState(scene.canvas.conveyorEnvironment, initialAngle(conveyorBindings(scene).gate)) } : {}),
     ...(scene.canvas.background === 'smartHouse' ? { houseWorld: createHouseWorldState(scene.canvas.houseEnvironment, initialAngle(houseBindings(scene).door)) } : {}),
     now: 0,
@@ -838,6 +841,7 @@ function resetExecution(
   updateGardenPhysics(0);
   updateHousePhysics(0);
   updateConveyorPhysics(0);
+  updateArenaPhysics(0);
   state.status = status;
   virtualNow = 0;
   schedulerDebtMs = 0;
@@ -2591,6 +2595,19 @@ function updateGardenPhysics(deltaMs: number) {
   if (bindings.light) applyInputValue(bindings.light, Math.round(world.light / 100 * 4095));
 }
 
+function updateArenaPhysics(deltaMs: number) {
+  if (!state.arenaWorld) return;
+  const b = arenaBindings(scene), robot = b.robot ? state.devices[b.robot] : undefined;
+  const distanceSpec = scene.devices.find(d => d.id === b.distanceSensor);
+  const maximum = distanceSpec?.kind === 'distanceSensor' ? Number(distanceSpec.config.settings.maxDistance) : 400;
+  const w = state.arenaWorld = advanceArenaWorld(state.arenaWorld, scene.canvas.arenaEnvironment ?? defaultArenaEnvironment, robot?.kind === 'robot' ? robot.left : 0, robot?.kind === 'robot' ? robot.right : 0, deltaMs, maximum);
+  if (robot?.kind === 'robot') { robot.x = w.x / scene.canvas.width * 100; robot.y = w.y / scene.canvas.height * 100; robot.angle = w.angle; }
+  const distance = b.distanceSensor ? state.devices[b.distanceSensor] : undefined, color = b.colorSensor ? state.devices[b.colorSensor] : undefined;
+  if (distance?.kind === 'educationalModule') distance.values.distance = w.distance;
+  if (color?.kind === 'educationalModule') Object.assign(color.values, { red: w.floor === 'red' ? 240 : 20, blue: w.floor === 'blue' ? 240 : 20, green: w.floor === 'green' ? 240 : 20, light: 80 });
+  if (b.infraredBarrier) applyInputValue(b.infraredBarrier, w.goalBeam);
+}
+
 function updateConveyorPhysics(deltaMs: number) {
   if (!state.conveyorWorld) return;
   const b = conveyorBindings(scene), motor = b.motor ? state.devices[b.motor] : undefined, servo = b.gate ? state.devices[b.gate] : undefined;
@@ -2621,6 +2638,7 @@ function updatePhysics(deltaMs: number) {
     updateGardenPhysics(deltaMs);
     updateHousePhysics(deltaMs);
     updateConveyorPhysics(deltaMs);
+    updateArenaPhysics(deltaMs);
   }
   updateVisualAnimations();
   for (const timer of Object.values(state.timers)) {
@@ -2647,7 +2665,7 @@ function updatePhysics(deltaMs: number) {
       remainder === 0 ? timer.durationMs : timer.durationMs - remainder;
   }
   for (const [deviceId, device] of Object.entries(state.devices)) {
-    if (device.kind === 'robot') {
+    if (device.kind === 'robot' && scene.canvas.background !== 'robotArena') {
       const average = (device.left + device.right) / 2;
       const turn = (device.right - device.left) * 0.0012 * deltaMs;
       device.angle += turn;
@@ -2858,6 +2876,7 @@ function stopOutputs() {
 }
 
 function setInputById(deviceId: string, value: unknown) {
+  if (['distanceSensor', 'colorSensor', 'infraredBarrier'].some(kind => arenaBindings(scene)[kind as 'distanceSensor' | 'colorSensor' | 'infraredBarrier'] === deviceId)) return;
   if (conveyorInputRoles.some(role => conveyorBindings(scene)[role] === deviceId)) return;
   if (houseInputRoles.some(role => houseBindings(scene)[role] === deviceId)) return;
   if (Object.entries(gardenBindings(scene)).some(([role, id]) => ['outsideSoil', 'insideSoil', 'climate', 'light'].includes(role) && id === deviceId)) return;

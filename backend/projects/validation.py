@@ -278,9 +278,21 @@ def scene(value, board_profile="wemos-d1-r32"):
     exact(value, ("schemaVersion", "id", "name", "description", "canvas", "devices", "widgets"), ("retiredDeviceIds", "sourceTemplate"))
     require(type(value["schemaVersion"]) is int and value["schemaVersion"] == 1 and identifier(value["id"]))
     require(text(value["name"], 60, 1) and value["name"].strip() and isinstance(value["description"], str))
-    require("sourceTemplate" not in value or value["sourceTemplate"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor"))
+    require("sourceTemplate" not in value or value["sourceTemplate"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor", "robotArena"))
     canvas = value["canvas"]
-    exact(canvas, ("width", "height", "background", "gridSize", "snapToGrid"), ("trafficDirections", "itemOrder", "railTracks", "parkingCapacity", "gardenEnvironment", "houseEnvironment", "houseAssignments", "conveyorEnvironment"))
+    exact(canvas, ("width", "height", "background", "gridSize", "snapToGrid"), ("trafficDirections", "itemOrder", "railTracks", "parkingCapacity", "gardenEnvironment", "houseEnvironment", "houseAssignments", "conveyorEnvironment", "arenaEnvironment"))
+    if "arenaEnvironment" in canvas:
+        env = canvas["arenaEnvironment"]
+        exact(env, ("obstacles", "guides"))
+        require(type(env["guides"]) is bool and isinstance(env["obstacles"], list) and len(env["obstacles"]) <= 4)
+        placed = []
+        for obstacle in env["obstacles"]:
+            exact(obstacle, ("x", "y", "radius"))
+            x, y, r = obstacle["x"], obstacle["y"], obstacle["radius"]
+            require(number(x, 210, 850) and number(y, 100, 460) and number(r, 20, 40))
+            require(all((x-sx)**2 + (y-sy)**2 >= (r+75)**2 for sx, sy in ((400,420), (400,180), (800,180))))
+            require(all((x-px)**2 + (y-py)**2 >= (r+pr+15)**2 for px, py, pr in placed))
+            placed.append((x,y,r))
     if "conveyorEnvironment" in canvas:
         env = canvas["conveyorEnvironment"]
         exact(env, ("automaticArrivals", "color", "weight"))
@@ -296,7 +308,7 @@ def scene(value, board_profile="wemos-d1-r32"):
     require("parkingCapacity" not in canvas or type(canvas["parkingCapacity"]) is int and canvas["parkingCapacity"] in (4, 8, 12))
     require("railTracks" not in canvas or type(canvas["railTracks"]) is int and canvas["railTracks"] in (1, 2, 4))
     require(number(canvas["width"], 0.01, 4096) and number(canvas["height"], 0.01, 4096) and number(canvas["gridSize"], 0.01, 512))
-    require(canvas["background"] in ("park", "workshop", "home", "pond", "crossroads", "robotTrack", "garden", "schoolGate", "weatherYard", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor", "blank") and type(canvas["snapToGrid"]) is bool)
+    require(canvas["background"] in ("park", "workshop", "home", "pond", "crossroads", "robotTrack", "garden", "schoolGate", "weatherYard", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor", "robotArena", "blank") and type(canvas["snapToGrid"]) is bool)
     traffic_directions = canvas.get("trafficDirections", [])
     require(isinstance(traffic_directions, list) and len(traffic_directions) <= 4 and len(set(traffic_directions)) == len(traffic_directions))
     require(all(direction in ("eastbound", "westbound", "southbound", "northbound") for direction in traffic_directions))
@@ -408,6 +420,17 @@ def scene(value, board_profile="wemos-d1-r32"):
             require(role in ("bell", "exitButton", "outsideLight", "insideLight") and identifier(device_id) and device_id not in assigned)
             require(device_id in dashboard_items and dashboard_items[device_id]["kind"] == ("button" if role in ("bell", "exitButton") else "led"))
             assigned.add(device_id)
+    if canvas["background"] == "robotArena":
+        require(canvas["width"] == 960 and canvas["height"] == 540)
+        for kind in ("robot", "distanceSensor", "colorSensor", "infraredBarrier"):
+            require(sum(item["kind"] == kind for item in value["devices"]) <= 1)
+        for item in value["devices"]:
+            if item["kind"] == "infraredBarrier":
+                require(item["position"] == {"x": 800, "y": 110})
+            if item["kind"] == "robot":
+                x, y = item["position"]["x"], item["position"]["y"]
+                require(number(x,45,915) and number(y,75,485))
+                require(all((x-o["x"])**2 + (y-o["y"])**2 > (o["radius"]+24)**2 for o in canvas.get("arenaEnvironment", {}).get("obstacles", [])))
     if canvas["background"] == "conveyor":
         require(canvas["width"] == 960 and canvas["height"] == 540)
         slots = {"motor": ((160, 360),), "infraredBarrier": ((325, 270), (785, 185), (785, 355)), "colorSensor": ((325, 170),), "scale": ((435, 360),), "servo": ((640, 270),)}
@@ -477,7 +500,7 @@ def document(value):
     require(value["metadata"]["locale"] == "es-AR" and text(value["metadata"]["updatedAt"], 64, 1))
     require("migratedFrom" not in value["metadata"] or (type(value["metadata"]["migratedFrom"]) is int and value["metadata"]["migratedFrom"] == 1))
     exact(value["simulation"], ("scene", "speed"))
-    require(value["simulation"]["scene"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor") and number(value["simulation"]["speed"], 0.25, 4))
+    require(value["simulation"]["scene"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor", "robotArena") and number(value["simulation"]["speed"], 0.25, 4))
     scene(value["scene"], target["boardProfile"])
     workspace(value["workspace"])
     size = len(encoded(value))
