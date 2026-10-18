@@ -301,7 +301,7 @@ export interface ProjectDecodeResult {
   diagnostics: CapiDiagnostic[];
 }
 
-export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4' | 'parkingProcedures';
+export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4' | 'parkingProcedures' | 'greenhouseProcedures';
 export interface ExampleDefinition {
   id: ExampleId;
   title: string;
@@ -412,6 +412,7 @@ export interface SimulatorState {
   /** Estado virtual transitorio; nunca forma parte del proyecto portable. */
   railWorld?: import('./rail-world').RailWorldState;
   parkingWorld?: import('./parking-world').ParkingWorldState;
+  gardenWorld?: import('./garden-world').GardenWorldState;
   execution?: {
     mode: 'normal' | 'guided';
     awaitingFrame: number | null;
@@ -974,6 +975,63 @@ function parkingExample(modular: boolean): ExampleDefinition {
   };
 }
 
+function greenhouseExample(modular: boolean): ExampleDefinition {
+  let next = 0;
+  const id = () => `garden-${modular ? 'mod' : 'direct'}-${next++}`;
+  const sequence = (...blocks: Record<string, unknown>[]) => {
+    const copies = structuredClone(blocks);
+    for (let i = 0; i < copies.length - 1; i++) { let tail = copies[i]; while (tail.next) tail = (tail.next as { block: Record<string, unknown> }).block; tail.next = { block: copies[i + 1] }; }
+    return copies[0];
+  };
+  const read = (role: string, property: string) => ({ type: 'capi_component_number', id: id(), fields: { DEVICE_ID: `garden-${role}`, PROPERTY: property } });
+  const power = (role: string, value: number) => ({ type: 'capi_power_switch', id: id(), fields: { DEVICE_ID: `garden-${role}`, POWER: value } });
+  const window = (angle: number) => ({ type: 'capi_servo', id: id(), fields: { DEVICE_ID: 'garden-window', ANGLE: angle } });
+  const condition = (role: string, property: string, operator: string, value: number) => ({ type: 'capi_value_compare', id: id(), fields: { OPERATOR: operator }, inputs: { LEFT: { block: read(role, property) }, RIGHT: { block: { type: 'capi_value_number', id: id(), fields: { VALUE: value } } } } });
+  const when = (test: Record<string, unknown>, body: Record<string, unknown>) => ({ type: 'capi_if', id: id(), inputs: { CONDITION: { block: test }, DO: { block: body } } });
+  const water = (outside: boolean) => sequence(
+    when(condition(outside ? 'outsideSoil' : 'insideSoil', 'moisture', 'LT', 35), power(outside ? 'outsidePump' : 'insidePump', 100)),
+    when(condition(outside ? 'outsideSoil' : 'insideSoil', 'moisture', 'GT', 65), power(outside ? 'outsidePump' : 'insidePump', 0)),
+  );
+  const ventilate = () => sequence(when(condition('climate', 'temperature', 'GT', 30), window(90)), when(condition('climate', 'temperature', 'LT', 26), window(0)));
+  const wait = (seconds: number) => ({ type: 'capi_wait', id: id(), fields: { SECONDS: seconds } });
+  const loop = (body: Record<string, unknown>) => ({ type: 'capi_forever', id: id(), inputs: { DO: { block: body } } });
+  const call = (routine: string) => ({ type: 'capi_procedure_call', id: id(), fields: { ROUTINE: { id: `garden-task-${routine}` } } });
+  const display = () => ({ type: 'capi_display_write', id: id(), fields: { DEVICE_ID: 'garden-display', AREA_ID: 'screen', TEXT: 'Huerta %: ' }, inputs: { DYNAMIC: { block: read('outsideSoil', 'moisture') } } });
+  const routines = [
+    { key: 'careOutside', name: 'Cuidar la huerta', body: () => loop(sequence(call('waterOutside'), wait(0.2))) },
+    { key: 'careInside', name: 'Cuidar el invernadero', body: () => loop(sequence(call('waterInside'), call('ventilate'), wait(0.2))) },
+    { key: 'waterOutside', name: 'Regular riego exterior', body: () => water(true) },
+    { key: 'waterInside', name: 'Regular riego interior', body: () => water(false) },
+    { key: 'ventilate', name: 'Regular ventilación', body: ventilate },
+    { key: 'display', name: 'Mostrar humedad', body: display },
+  ];
+  const start = startWorkspace(sequence(power('outsidePump', 0), power('insidePump', 0), window(modular ? 0 : 90), {
+    type: 'capi_parallel', id: id(), extraState: { branches: 3 }, inputs: {
+      BRANCH0: { block: modular ? call('careOutside') : loop(sequence(water(true), wait(0.2))) },
+      BRANCH1: { block: modular ? call('careInside') : loop(sequence(water(false), wait(0.2))) },
+      BRANCH2: { block: loop(sequence(modular ? call('display') : display(), wait(1))) },
+    },
+  }));
+  const definitions = modular ? routines.map((routine, index) => ({ type: 'capi_procedure_def', id: `garden-def-${routine.key}`, x: 48, y: 48 + (index % 2) * 500,
+    fields: { ROUTINE: { id: `garden-task-${routine.key}` }, P1_TYPE: 'none', P2_TYPE: 'none', P3_TYPE: 'none' }, inputs: { BODY: { block: routine.body() } },
+  })) : [];
+  return {
+    id: modular ? 'greenhouseProcedures' : 'greenhouse', title: modular ? 'Huerta e invernadero con procedimientos' : 'Huerta con riego automático', icon: modular ? '🧩' : '🌱', level: 'Intermedio',
+    mission: modular ? 'Cuidá ambos canteros y regulá la ventilación con tareas reutilizables.' : 'Regá ambos canteros usando dos umbrales: encender por debajo de 35%, apagar por encima de 65%.',
+    description: modular ? 'Solución completa: dos riegos, ventana automática y cartel, en tres procesos y cuatro pestañas.' : 'Solución directa completa: riego independiente y cartel. La ventana queda abierta; el segundo ejemplo agrega regulación de temperatura.',
+    scene: createSceneFromTemplate('greenhouse'),
+    workspace: { ...start, ...(modular ? { variables: routines.map(routine => ({ id: `garden-task-${routine.key}`, name: routine.name, type: 'Procedure' })) } : {}),
+      blocks: { ...start.blocks, blocks: [...start.blocks.blocks, ...definitions] }, capiTabs: { version: 1, tabs: [
+        { id: 'main', name: 'Principal', rootBlockIds: ['start-main'] },
+        ...(modular ? [
+          { id: 'tab-garden-care', name: 'Cuidar plantas', rootBlockIds: ['garden-def-careOutside', 'garden-def-careInside'] },
+          { id: 'tab-garden-water', name: 'Riego', rootBlockIds: ['garden-def-waterOutside', 'garden-def-waterInside'] },
+          { id: 'tab-garden-climate', name: 'Clima y cartel', rootBlockIds: ['garden-def-ventilate', 'garden-def-display'] },
+        ] : []),
+      ] } },
+  };
+}
+
 export const examples: ExampleDefinition[] = [
   {
     id: 'traffic',
@@ -1087,6 +1145,8 @@ export const examples: ExampleDefinition[] = [
   multitrackExample(4),
   parkingExample(false),
   parkingExample(true),
+  greenhouseExample(false),
+  greenhouseExample(true),
   {
     id: 'display', title: 'Mensajes para la plaza', icon: '📺', level: 'Inicial',
     mission: 'Escribí en la pantalla, esperá para leer y borrá el mensaje. La consola es otro destino.',
@@ -1288,6 +1348,7 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_traffic_vehicle_display',
   'capi_traffic_pedestrian_display',
   'capi_led',
+  'capi_power_switch',
   'capi_rgb_fill',
   'capi_rgb_pixel',
   'capi_rgb_segment',

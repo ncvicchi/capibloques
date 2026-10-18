@@ -633,3 +633,38 @@ for (const exampleId of ['parking', 'parkingProcedures']) for (const capacity of
   send({ type: 'STOP' }); resetMessages();
 }
 console.log('Estacionamiento: ambos ejemplos ejecutados con 4/8/12 plazas a 1×/4×, cola, conteo, pausa, paso y reinicio aprobados.');
+
+for (const exampleId of ['greenhouse', 'greenhouseProcedures']) for (const speed of [1, 4]) {
+  const example = examples.find(item => item.id === exampleId);
+  const workspace = new Blockly.Workspace(); workspaceDevices.set(workspace, example.scene.devices);
+  Blockly.serialization.workspaces.load(structuredClone(example.workspace), workspace);
+  const gardenProgram = compileWorkspace(workspace); workspace.dispose();
+  send({ type: 'LOAD', scene: example.scene, program: gardenProgram });
+  send({ type: 'SET_INPUT', deviceId: 'garden-outsideSoil', value: { property: 'moisture', value: 99 } });
+  assert.equal(latestState().devices['garden-outsideSoil'].values.moisture, 55);
+  send({ type: 'SET_INPUT', name: 'gardenEnvironment', value: { sun: 'strong' } });
+  assert.equal(latestState().gardenWorld.environment.sun, 'medium', 'rechazar clima incompleto');
+  send({ type: 'SET_SPEED', speed }); send({ type: 'RUN' });
+  const on = new Set(), off = new Set(); let opened = false, closedAfterOpen = false;
+  for (let i = 0; i < 10000 / speed; i++) {
+    advance(20); const current = latestState(), world = current.gardenWorld;
+    assert.ok(world, 'el mundo está en el worker');
+    for (const role of ['outside', 'inside']) {
+      assert.ok(world[role].moisture >= 30 && world[role].moisture <= 70, `${exampleId}: riego estable ${role}=${world[role].moisture}`);
+      assert.ok(world[role].health >= 85, 'cuidar la planta sin corregir el programa ocultamente');
+      const power = Number(current.devices[`garden-${role}Pump`].values.power);
+      if (power > 0) on.add(role); else if (on.has(role)) off.add(role);
+      assert.ok(Math.abs(current.devices[`garden-${role}Soil`].values.moisture - world[role].moisture) <= 0.5, 'lectura realimentada al algoritmo con resolución de 1%');
+    }
+    if (world.windowAngle >= 89) opened = true;
+    if (opened && world.windowAngle < 1) closedAfterOpen = true;
+    if (i % 500 === 0) { const last = messages.findLast(message => message.type === 'SNAPSHOT'); resetMessages(); if (last) messages.push(last); }
+  }
+  assert.equal(on.size, 2); assert.equal(off.size, 2, 'ambos riegos completaron ciclos');
+  if (exampleId === 'greenhouseProcedures') assert.ok(opened && closedAfterOpen, 'ventilar con dos umbrales');
+  send({ type: 'PAUSE' }); const before = structuredClone(latestState().gardenWorld); advance(200); assert.deepEqual(latestState().gardenWorld, before);
+  send({ type: 'RESET' }); assert.equal(latestState().gardenWorld.outside.moisture, 55); assert.equal(latestState().gardenWorld.inside.health, 90);
+  send({ type: 'STEP' }); assert.ok(latestState().gardenWorld.outside.moisture < 55, 'Paso mueve el mismo mundo');
+  send({ type: 'STOP' }); resetMessages();
+}
+console.log('Huerta: workspaces reales directo/modular, histéresis, sensores, ventilación, pausa, paso y reset a 1×/4× aprobados.');

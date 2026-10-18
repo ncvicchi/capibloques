@@ -69,7 +69,7 @@ export function findSceneOverlaps(scene: SceneDefinition): SceneOverlap[] {
   // Parking controls are compact anchors, not the generic 88px device cards.
   const bounds = (item: SceneLayoutItem): SceneBounds => {
     const box = sceneItemBounds(item);
-    return scene.canvas.background === 'parking' && (item.kind === 'servo' || item.kind === 'infraredBarrier')
+    return ((scene.canvas.background === 'parking' && (item.kind === 'servo' || item.kind === 'infraredBarrier')) || (scene.canvas.background === 'greenhouse' && ['soilMoisture', 'powerSwitch', 'environmentSensor', 'servo', 'lightSensor'].includes(item.kind)))
       ? { ...box, width: 40, height: 40, left: item.position.x - 20, right: item.position.x + 20, top: item.position.y - 20, bottom: item.position.y + 20 }
       : box;
   };

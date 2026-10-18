@@ -5,6 +5,8 @@ import ComponentHelpDialog from '@/components/component-help';
 import { crossingNames } from '@/lib/pedestrian-world';
 import { nearestRailSlot, railTrackCount, type RailTrackCount } from '@/lib/rail-world';
 import { nearestParkingSlot, parkingCapacity, type ParkingCapacity } from '@/lib/parking-world';
+import { gardenSlots, nearestGardenSlot, defaultGardenEnvironment } from '@/lib/garden-world';
+import GardenControls from '@/components/garden-controls';
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { InspectorDraft, SceneDraft } from '@/lib/scene-recovery';
@@ -39,6 +41,7 @@ import {
   arrangeCrossroadsTrafficLights,
   arrangeRailDevices,
   arrangeParkingDevices,
+  arrangeGardenDevices,
   configureRailTracks,
   assignSafePins,
   cloneScene,
@@ -110,6 +113,7 @@ const backgrounds: { value: SceneBackground; label: string; icon: string }[] = [
   { value: 'crossroads', label: 'Cruce con tránsito', icon: '🚗' },
   { value: 'railCrossing', label: 'Paso a nivel', icon: '🚂' },
   { value: 'parking', label: 'Estacionamiento', icon: '🅿️' },
+  { value: 'greenhouse', label: 'Huerta e invernadero', icon: '🌱' },
   { value: 'robotTrack', label: 'Pista de robots', icon: '🛣️' },
   { value: 'garden', label: 'Huerta', icon: '🌱' },
   { value: 'schoolGate', label: 'Entrada de la escuela', icon: '🏫' },
@@ -145,6 +149,7 @@ const quickTemplates: {
   { id: 'weatherStation', name: 'Clima', icon: '🌦️', detail: 'ambiente + lluvia' },
   { id: 'railCrossing', name: 'Paso a nivel', icon: '🚂', detail: 'barreras + detectores' },
   { id: 'parking', name: 'Estacionamiento', icon: '🅿️', detail: 'entrada + salida + plazas' },
+  { id: 'greenhouse', name: 'Huerta e invernadero', icon: '🌱', detail: 'dos canteros + riego + ventana' },
 ];
 
 const sceneItems = (scene: SceneDefinition): SceneItem[] => [
@@ -939,6 +944,8 @@ function SceneBuilderSession({
                       ? arrangeRailDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
                       : changed.canvas.background === 'parking'
                       ? arrangeParkingDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
+                      : changed.canvas.background === 'greenhouse'
+                      ? arrangeGardenDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
                       : changed,
                   );
                 }}
@@ -975,6 +982,9 @@ function SceneBuilderSession({
                 </small>
               )}
             </label>
+            {previewScene.canvas.background === 'greenhouse' && <details><summary>Clima inicial de la huerta</summary><GardenControls value={previewScene.canvas.gardenEnvironment ?? defaultGardenEnvironment} onChange={value => {
+              if (requireSettledInspector('cambiar el clima inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, gardenEnvironment: value } }, 'Clima inicial actualizado en el borrador.');
+            }} /></details>}
             {previewScene.canvas.background === 'parking' && <label htmlFor="parking-capacity">
               Plazas del estacionamiento
               <NativeSelect id="parking-capacity" aria-label="Plazas del estacionamiento" value={parkingCapacity(previewScene)} onChange={event => {
@@ -1125,7 +1135,7 @@ function SceneBuilderSession({
                       type="button"
                       key={template.id}
                       disabled={
-                        ((template.id === 'railCrossing' || template.id === 'parking') && objectCount > 0) ||
+                        ((template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse') && objectCount > 0) ||
                         (template.id === 'traffic' || template.id === 'intersection') &&
                         previewScene.canvas.background !== 'crossroads' &&
                         objectCount > 0
@@ -1133,7 +1143,7 @@ function SceneBuilderSession({
                       onClick={() => addTemplate(template.id)}
                       aria-label={`Agregar aventura ${template.name}: ${template.detail}`}
                       title={
-                        (template.id === 'railCrossing' || template.id === 'parking') && objectCount > 0
+                        (template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse') && objectCount > 0
                           ? 'Este mundo completo se agrega a una escena vacía; no reemplaza componentes existentes.'
                           : (template.id === 'traffic' || template.id === 'intersection') &&
                         previewScene.canvas.background !== 'crossroads' &&
@@ -1178,6 +1188,7 @@ function SceneBuilderSession({
                       (component.kind === 'servo' || component.kind === 'infraredBarrier') &&
                       previewScene.devices.filter(device => device.kind === component.kind).length >= (component.kind === 'servo' ? 2 : railTrackCount(previewScene) * 2);
                     const parkingLimitBlocked = previewScene.canvas.background === 'parking' && (component.kind === 'servo' || component.kind === 'infraredBarrier') && previewScene.devices.filter(device => device.kind === component.kind).length >= (component.kind === 'servo' ? 2 : 4);
+                    const gardenLimitBlocked = previewScene.canvas.background === 'greenhouse' && gardenSlots.some(slot => slot.kind === component.kind) && previewScene.devices.filter(device => device.kind === component.kind).length >= gardenSlots.filter(slot => slot.kind === component.kind).length;
                     const reason = visualBlocked
                       ? `No disponible: ya usás ${visualOutput?.name}`
                       : messagesBlocked
@@ -1188,8 +1199,9 @@ function SceneBuilderSession({
                             ? 'No disponible: los cuatro lugares están ocupados'
                         : railLimitBlocked ? 'No disponible: los lugares de este componente en el paso a nivel están ocupados'
                         : parkingLimitBlocked ? 'No disponible: los lugares de este componente en el estacionamiento están ocupados'
+                        : gardenLimitBlocked ? 'No disponible: los lugares de este componente en la huerta están ocupados'
                         : component.childFriendlyControl;
-                    const componentBlocked = visualBlocked || messagesBlocked || trafficSceneBlocked || trafficLimitBlocked || railLimitBlocked || parkingLimitBlocked;
+                    const componentBlocked = visualBlocked || messagesBlocked || trafficSceneBlocked || trafficLimitBlocked || railLimitBlocked || parkingLimitBlocked || gardenLimitBlocked;
                     return <div className="component-palette-card" key={component.kind}>
                       <button type="button" className="component-add-button" disabled={componentBlocked} onClick={() => addComponent(component.kind)} title={componentBlocked ? reason : component.description} aria-label={`Agregar ${component.name}. ${reason}`}>
                         <span aria-hidden="true">{component.icon}</span><span><strong>{component.name}</strong><small>{reason}</small></span><b aria-hidden="true">{componentBlocked ? '🔒' : '＋'}</b>
@@ -1332,7 +1344,7 @@ function SceneBuilderSession({
                       max="330"
                       step="30"
                       value={selected.rotation}
-                      disabled={(previewScene.canvas.background === 'parking' && !!nearestParkingSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'railCrossing' && !!nearestRailSlot(selected.kind, selected.position, railTrackCount(previewScene)))}
+                      disabled={(previewScene.canvas.background === 'greenhouse' && !!nearestGardenSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'parking' && !!nearestParkingSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'railCrossing' && !!nearestRailSlot(selected.kind, selected.position, railTrackCount(previewScene)))}
                       onChange={(event) =>
                         updateSelectedDraft((device) => ({
                           ...device,
@@ -1479,6 +1491,7 @@ function SceneBuilderSession({
                       </label>
                     </div>
                   )}
+                  {previewScene.canvas.background === 'greenhouse' && nearestGardenSlot(selected.kind, selected.position) && <p className="scene-inline-notice">Función: {nearestGardenSlot(selected.kind, selected.position)?.name}. {selected.kind === 'powerSwitch' ? 'Riego por salida de potencia: 0% apagado, 100% máximo. Requiere módulo de potencia, no conectar bomba al GPIO.' : selected.kind === 'servo' ? 'Ventana: 0° cerrada, 90° abierta. Ventila hacia la temperatura exterior.' : 'Lectura automática del mundo virtual. Cambiá el clima, no el sensor. Los ajustes manuales del componente no reemplazan esa lectura.'}</p>}
                   {previewScene.canvas.background === 'parking' && nearestParkingSlot(selected.kind, selected.position) && <p className="scene-inline-notice">
                     Función: {nearestParkingSlot(selected.kind, selected.position)?.name}.
                     {selected.kind === 'servo' ? ' 0°: cerrada; 90° o más: abierta. Recorrido de 1,2 s, sin bloquear el programa.' : ' Entrada automática de los autos virtuales. Esperá haz interrumpido y después libre para contar un paso completo, una sola vez. No es una lectura física.'}

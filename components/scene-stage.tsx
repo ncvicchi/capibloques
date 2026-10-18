@@ -4,6 +4,8 @@ import { LedMatrixPreview } from '@/components/led-matrix-preview';
 import SceneViewport from '@/components/scene-viewport';
 import RailCrossingWorld from '@/components/rail-crossing-world';
 import ParkingWorld from '@/components/parking-world';
+import GardenWorld from '@/components/garden-world';
+import { nearestGardenSlot, type GardenWorldState } from '@/lib/garden-world';
 import { nearestParkingSlot, type ParkingWorldState } from '@/lib/parking-world';
 import { nearestRailSlot, railTrackCount, type RailWorldState } from '@/lib/rail-world';
 import { trafficColorLabel } from '@/lib/editor-ergonomics';
@@ -75,6 +77,7 @@ export type RuntimeVisualDevice = {
 interface SceneStageProps {
   railWorld?: RailWorldState;
   parkingWorld?: ParkingWorldState;
+  gardenWorld?: GardenWorldState;
   activeDeviceId?: string;
   activeDeviceMessage?: string;
   scene: SceneDefinition;
@@ -257,6 +260,7 @@ function SceneBackdrop({
   scene,
   railWorld,
   parkingWorld,
+  gardenWorld,
   runtimeDevices,
   simulationSpeed,
   simulationRunning,
@@ -264,6 +268,7 @@ function SceneBackdrop({
   scene: SceneDefinition;
   railWorld?: RailWorldState;
   parkingWorld?: ParkingWorldState;
+  gardenWorld?: GardenWorldState;
   runtimeDevices: Record<string, RuntimeVisualDevice>;
   simulationSpeed: number;
   simulationRunning: boolean;
@@ -301,6 +306,7 @@ function SceneBackdrop({
   const background = scene.canvas.background;
   if (background === 'railCrossing') return <RailCrossingWorld scene={scene} state={railWorld} />;
   if (background === 'parking') return <ParkingWorld scene={scene} state={parkingWorld} />;
+  if (background === 'greenhouse') return <GardenWorld scene={scene} state={gardenWorld} />;
   return (
     <div className={`scene-world scene-world-${background}`}>
       <svg viewBox="0 0 960 540" preserveAspectRatio="none" aria-hidden="true">
@@ -589,6 +595,7 @@ function DeviceVisual({
 export default function SceneStage({
   railWorld,
   parkingWorld,
+  gardenWorld,
   activeDeviceId,
   activeDeviceMessage,
   scene,
@@ -842,6 +849,7 @@ export default function SceneStage({
         scene={scene}
         railWorld={railWorld}
         parkingWorld={parkingWorld}
+        gardenWorld={gardenWorld}
         runtimeDevices={runtimeDevices}
         simulationSpeed={safeSimulationSpeed}
         simulationRunning={simulationRunning}
@@ -921,7 +929,8 @@ export default function SceneStage({
               : device.rotation + device.config.heading
             : device.rotation;
         const parkingAnchor = scene.canvas.background === 'parking' && nearestParkingSlot(device.kind, device.position);
-        const railAnchor = !!parkingAnchor || (scene.canvas.background === 'railCrossing' && !!nearestRailSlot(device.kind, device.position, railTrackCount(scene)));
+        const gardenAnchor = scene.canvas.background === 'greenhouse' && nearestGardenSlot(device.kind, device.position);
+        const railAnchor = !!gardenAnchor || !!parkingAnchor || (scene.canvas.background === 'railCrossing' && !!nearestRailSlot(device.kind, device.position, railTrackCount(scene)));
         const size = railAnchor ? { width: 40, height: 40 } : sceneItemSize(device);
         const labelSide = sceneItemLabelSide(scene, device.id);
         const style = {
@@ -937,10 +946,10 @@ export default function SceneStage({
         };
         const contents = (
           <>
-            {parkingAnchor ? <span className="rail-component-anchor" title={parkingAnchor.name}>{device.kind === 'servo' ? '⚙' : '↕'}</span> : scene.canvas.background === 'railCrossing' && nearestRailSlot(device.kind, device.position, railTrackCount(scene))
+            {gardenAnchor ? <span className="rail-component-anchor" title={gardenAnchor.name}>{device.kind === 'servo' ? '⚙' : device.kind === 'powerSwitch' ? '💧' : '◉'}</span> : parkingAnchor ? <span className="rail-component-anchor" title={parkingAnchor.name}>{device.kind === 'servo' ? '⚙' : '↕'}</span> : scene.canvas.background === 'railCrossing' && nearestRailSlot(device.kind, device.position, railTrackCount(scene))
               ? <span className="rail-component-anchor" title={nearestRailSlot(device.kind, device.position, railTrackCount(scene))?.name}>{device.kind === 'servo' ? '⚙' : '↕'}</span>
               : <DeviceVisual device={device} runtime={runtime} matrixPreviewPattern={matrixPreviewPattern} sceneDevices={scene.devices} runtimeDevices={runtimeDevices} dashboardModes={dashboardModes} onDashboardAction={onDashboardAction} />}
-            {!parkingAnchor && !(scene.canvas.background === 'railCrossing' && railTrackCount(scene) > 1 && device.kind === 'infraredBarrier') && <span className={`scene-device-name label-${labelSide}`} title={device.name}>{device.name}</span>}
+            {!gardenAnchor && !(scene.canvas.background === 'greenhouse' && device.kind === 'display') && !parkingAnchor && !(scene.canvas.background === 'railCrossing' && railTrackCount(scene) > 1 && device.kind === 'infraredBarrier') && <span className={`scene-device-name label-${labelSide}`} title={device.name}>{device.name}</span>}
           </>
         );
         if (!editing) {

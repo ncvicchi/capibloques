@@ -1,5 +1,27 @@
 # CapiBloques — contexto para continuar
 
+### Entrega vigente: fase 49 — Huerta e invernadero, sólo dev1
+
+Autorización explícita tras acordar disposición/reglas. Rama
+`codex/fase-49-huerta-invernadero` desde origin/dev1 `821cc1c` (fase 48 integrada).
+[Guía completa](FASE_49_HUERTA_INVERNADERO.md). Dos canteros con riegos independientes,
+sensores automáticos de suelo/clima/luz, ventana servo; estrés y recuperación,
+sin riego automático oculto. Condiciones ambientales iniciales guardables y
+controles de prueba transitorios. Un reloj worker, pausa/paso/velocidad/reset.
+Dos ejemplos completos: riego directo de ambos canteros con ventana fija abierta,
+y control con seis procedimientos/cuatro pestañas que regula ventana por temperatura.
+La antigua smartGarden se conserva. JSON aditivo gardenEnvironment opcional y
+validadores alineados; sin migraciones, toolchain, firmware ni ABI. Se arregló
+allowlist de capi_power_switch y selección de datos de módulos educativos.
+Verificado localmente: tipos/lint, smoke completo, ambos workspaces a 1×/4×,
+modelo de agua/clima/plantas, JSON real frontend→Django, trece contratos backend
+y tres recorridos Chromium, con capturas inspeccionadas; build con diez rutas
+estáticas. Rótulos separados y lecturas de tierra a 1%/clima a 0,1. Sin espera CI.
+Commit/push y comando instalado sólo dev1; el propietario integra/actualiza.
+No se opera servidor/main/dev2. Maqueta física, Waveshare y aceptación humana
+pendientes; fases 50–55 no iniciadas. Las menciones inferiores a fase 48 como
+última entrega o a 49 sin autorización son históricas.
+
 ### Entrega vigente: fase 48 — Estacionamiento, sólo dev1
 
 Autorizada e implementada en rama `codex/fase-48-estacionamiento` desde
