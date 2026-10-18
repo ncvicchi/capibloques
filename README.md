@@ -2,6 +2,12 @@
 
 Para colaborar: [flujo obligatorio de ramas, integración y actualización DEV](docs/FLUJO_RAMA_INTEGRACION_DEV.md).
 
+Ambientes activos: [nuestro dev1](https://capibloques.dev1.nvicchi.com),
+[dev2 del otro desarrollador](https://capibloques.dev2.nvicchi.com) y
+[main integrado actual](https://capibloques.dev.nvicchi.com). Copia inicial
+autorizada con mismos usuarios/contraseñas; datos separados desde entonces.
+No volver a instalar bootstrap ni crear cuentas administradoras iniciales.
+
 En capi-dev, después del instalador explícito: `~/.local/bin/capi-dev --env dev1 --branch codex/mi-tarea` integra y actualiza sólo nuestro ambiente; el otro desarrollador usa dev2. Sólo `--promote dev1`/dev2 integra la revisión instalada en main y actualiza el endpoint actual. Tres APIs/bases independientes, un bloqueo de actualización y un slot pesado compartido. `--commit SHA40` fija la entrega; ocupado responde 75, sin cola. El modo normal no espera GitHub Actions. Instalación, DNS/TLS y límites en la [guía compartida](docs/FLUJO_RAMA_INTEGRACION_DEV.md); publicación de código no implica endpoints activos.
 Cada tarea va en `codex/<tarea>`; main sólo recibe integraciones. No desarrollar
 en el checkout operativo ni cambiar la rama de otra persona.

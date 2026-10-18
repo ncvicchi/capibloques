@@ -1,5 +1,12 @@
 # Backlog de CapiBloques
 
+**Cierre operativo transversal (17/18 de octubre):** dev1/dev2 instalados,
+HTTPS/DNS/servicios activos, copia inicial autorizada y verificada con mismos
+usuarios/contraseñas/colegio/proyectos del original. Main intacto; sin promoción.
+Instalación ya no pendiente. Restan aceptación humana, compilación avanzada,
+recursos sostenidos/reboot y promoción sólo cuando se pida. Contexto vivo y
+guía compartida conservan evidencia, recuperación y comandos.
+
 **Infraestructura transversal autorizada — tres ambientes en capi-dev.** Main
 conserva endpoint actual; dev1 para nosotros, dev2 para el otro desarrollador,
 con API/PG/secretos/proyectos/colas aislados. Actualizaciones por ambiente,

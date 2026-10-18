@@ -24,9 +24,40 @@ def load(name, path):
 
 
 manager = load('environment_manager', 'ops/environments/manage.py')
+seeder = load('environment_seeder', 'ops/environments/seed.py')
 
 
 class EnvironmentTests(unittest.TestCase):
+    def test_fixture_comparison_normalizes_only_zero_timestamp_not_program_text(self):
+        a = [{'model': 'projects.project', 'pk': 'id', 'fields': {
+            'created_at': '2026-10-18T00:00:00.000Z', 'document': {'text': 'data.000Z'}}}]
+        b = json.loads(json.dumps(a))
+        b[0]['fields']['created_at'] = '2026-10-18T00:00:00Z'
+        self.assertEqual(seeder.comparable(json.dumps(a)), seeder.comparable(json.dumps(b)))
+        b[0]['fields']['document']['text'] = 'dataZ'
+        self.assertNotEqual(seeder.comparable(json.dumps(a)), seeder.comparable(json.dumps(b)))
+
+    def test_seed_checks_schema_not_unrelated_scene_validation_changes(self):
+        runtime = Mock()
+        runtime.git.return_value = 'same'
+        seeder.check_schema(runtime, 'target')
+        paths = [call.args[1] for call in runtime.git.call_args_list]
+        self.assertIn('HEAD:backend/projects/models.py', paths)
+        self.assertIn('target:backend/projects/migrations', paths)
+        self.assertNotIn('HEAD:backend/projects/validation.py', paths)
+        runtime.git.side_effect = ['old', 'new']
+        with self.assertRaisesRegex(RuntimeError, 'compatibilidad'):
+            seeder.check_schema(runtime, 'target')
+
+    def test_seed_contains_only_application_data_never_sessions_or_jobs(self):
+        fixture = json.dumps([{'model': 'accounts.user', 'pk': 'uuid', 'fields': {}},
+                              {'model': 'projects.project', 'pk': 'uuid', 'fields': {}}])
+        self.assertEqual(seeder.validate_fixture(fixture), {'accounts.user': 1, 'projects.project': 1})
+        for forbidden in ('sessions.session', 'compiler.build', 'compiler.compilerconfig'):
+            with self.assertRaises(ValueError):
+                seeder.validate_fixture(json.dumps([{'model': forbidden}]))
+        self.assertIn('REPEATABLE READ, READ ONLY', seeder.SNAPSHOT_CODE)
+
     def test_layout_is_disjoint_and_main_is_never_accepted(self):
         a, b = manager.layout('dev1'), manager.layout('dev2')
         for key in ('project', 'fqdn', 'port', 'local', 'subnet', 'web', 'api', 'directory', 'data'):

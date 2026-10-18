@@ -1,5 +1,12 @@
 # Nuevas fases de CapiBloques
 
+Cierre operativo de los tres ambientes (17/18 de octubre): dev1/dev2 activos
+por HTTPS y como servicios, datos de aplicación copiados inicialmente por pedido
+del propietario, independientes a partir de ahí. Main sin cambios de endpoint,
+contenedores ni datos. Sin promoción ni producción; instalación/DNS/TLS ya no
+pendientes. Aceptación humana/compilación avanzada/reboot quedan explícitas en
+el contexto vivo y la guía de operación compartida.
+
 Infraestructura transversal autorizada (17 de octubre): tres endpoints en capi-dev,
 main actual y ambientes aislados dev1/dev2; cada persona prueba en su ambiente y
 promueve sólo por pedido explícito. Implementación en `codex/ambientes-dev1-dev2`,
