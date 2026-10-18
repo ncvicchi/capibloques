@@ -117,6 +117,8 @@ import ComponentHelpDialog from '@/components/component-help';
 import type { FirmwareJob } from '@/lib/usb-firmware';
 import { projectFingerprint } from '@/lib/project-library';
 import { educationalModuleSpecs, isEducationalModuleKind } from '@/lib/educational-modules';
+import GardenControls from '@/components/garden-controls';
+import { defaultGardenEnvironment, gardenBindings } from '@/lib/garden-world';
 
 const SceneBuilder = lazy(() => import('@/components/scene-builder'));
 const WiringGuide = lazy(() => import('@/components/wiring-guide'));
@@ -1539,6 +1541,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                   runtimeDevices={sim.devices}
                   railWorld={sim.railWorld}
                   parkingWorld={sim.parkingWorld}
+                  gardenWorld={sim.gardenWorld}
                   counter={sim.counter}
                   simulationSpeed={speed}
                   simulationRunning={sim.status === 'running'}
@@ -1578,15 +1581,17 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                   </button>
                 </div>
               )}
-              {(inputDevices.length > 0 ||
+              {(scene.canvas.background === 'greenhouse' || inputDevices.length > 0 ||
                 scene.devices.some((device) => device.kind === 'wifiNode')) && (
                 <div className="input-lab">
                   <h3>Entradas para probar</h3>
+                  {scene.canvas.background === 'greenhouse' && <GardenControls value={sim.gardenWorld?.environment ?? scene.canvas.gardenEnvironment ?? defaultGardenEnvironment} disabled={physicalMirrorActive} onChange={value => postToWorker({ type: 'SET_INPUT', name: 'gardenEnvironment', value })} />}
                   {inputDevices.map((device) => {
                     const runtime = sim.devices[device.id];
                     if (isEducationalModuleKind(device.kind)) {
                       const moduleDevice = device as EducationalModuleDevice;
                       const spec = educationalModuleSpecs[device.kind];
+                      if (Object.entries(gardenBindings(scene)).some(([role, id]) => ['outsideSoil', 'insideSoil', 'climate'].includes(role) && id === device.id)) return <div className="message-test-panel" key={device.id}><strong>{device.name}</strong>{spec.values.map(value => <span key={value.key}>{value.label}: {Number(runtime?.kind === 'educationalModule' ? runtime.values[value.key] : moduleDevice.config.values[value.key]).toFixed(1)} {value.unit}</span>)}<small>Automático: lo genera la huerta virtual. No es una lectura de la placa.</small></div>;
                       return <div className="message-test-panel" key={device.id}><strong>{spec.icon} {device.name}</strong>{spec.values.map(valueSpec => {
                         const current = runtime?.kind === 'educationalModule' ? runtime.values[valueSpec.key] : moduleDevice.config.values[valueSpec.key];
                         if (valueSpec.type === 'boolean') return <div className="message-test-buttons" key={valueSpec.key}><span>{valueSpec.label}</span><button type="button" aria-pressed={!current} onClick={() => setDeviceInput(device.id, false, valueSpec.key)}>No</button><button type="button" aria-pressed={Boolean(current)} onClick={() => setDeviceInput(device.id, true, valueSpec.key)}>Sí</button></div>;
@@ -1687,6 +1692,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                       const distance = runtime?.kind === 'otto' ? runtime.distance : 30;
                       return <div className="range-row" key={device.id}><span>📏 {device.name} <b>{Math.round(distance)} cm</b></span><Slider aria-label={`Distancia simulada de ${device.name}`} min={0} max={500} step={1} value={[distance]} onValueChange={(values) => setDeviceInput(device.id, Array.isArray(values) ? values[0] : values)} /></div>;
                     }
+                    if (gardenBindings(scene).light === device.id) return <p key={device.id}>{device.name}: {Math.round(sim.gardenWorld?.light ?? 60)}% · automático del sol virtual</p>;
                     const value =
                       runtime?.kind === 'lightSensor' ||
                       runtime?.kind === 'potentiometer'

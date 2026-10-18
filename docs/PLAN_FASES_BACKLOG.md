@@ -72,7 +72,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 46 | Peatones del cruce escolar · simulación web | Mundos interactivos, 17 de octubre | Carteles y mundo de tránsito existentes |
 | 47 | Paso a nivel | Mundos interactivos | Servo, detectores y luces/buzzer; nueva autorización |
 | 48 | Estacionamiento | Mundos interactivos | Implementado en rama desde dev1; dos ejemplos completos; integración dev1/aceptación pendientes; ver guía de fase 48 |
-| 49 | Huerta e invernadero | Mundos interactivos | Sensores y salidas existentes; nueva autorización |
+| 49 | Huerta e invernadero | Mundos interactivos | Software web en rama desde dev1; dos ejemplos completos; actualización/aceptación pendientes; ver guía de fase 49 |
 | 50 | Casa inteligente y entrada segura | Mundos interactivos | Ambiente, puertas/acceso; nueva autorización |
 | 51 | Taller y cinta transportadora | Mundos interactivos | Motor, detector y desvío; nueva autorización |
 | 52 | Pista de robots interactiva | Mundos interactivos | Obstáculos/estaciones y lecturas espaciales; nueva autorización |
@@ -830,7 +830,7 @@ Complementan la presentación de fase 45 con reglas del mundo, sin duplicarla.
 | 46 | Peatones del cruce escolar | Software web implementado; DEV, usuarios y Waveshare pendientes; [guía](FASE_46_PEATONES.md) |
 | 47 | Paso a nivel | Autorizada; implementada en rama, integración/DEV/físico pendientes; [reglas y guía](FASE_47_PASO_A_NIVEL.md) |
 | 48 | Estacionamiento | Software web implementado en rama desde dev1; 4/8/12 plazas y dos ejemplos completos; [reglas y entrega](FASE_48_ESTACIONAMIENTO.md); DEV/usuarios/Waveshare/físico pendientes |
-| 49 | Huerta e invernadero | Planificada; sensores/salidas existentes y modelo acotado de agua/plantas |
+| 49 | Huerta e invernadero | Software web en rama desde dev1; dos ejemplos completos; [reglas y entrega](FASE_49_HUERTA_INVERNADERO.md); actualización/aceptación/Waveshare/físico pendientes |
 | 50 | Casa inteligente y entrada segura | Planificada; visitantes, día/noche, puertas, luz y acceso |
 | 51 | Taller y cinta transportadora | Planificada; motor, detector, servo, paquetes, clasificación/atasco |
 | 52 | Pista de robots | Planificada; obstáculos, estaciones y sensores ligados a posición |
@@ -839,7 +839,7 @@ Complementan la presentación de fase 45 con reglas del mundo, sin duplicarla.
 | 55 | Variantes parque/laguna y aeropuerto | Sólo análisis; actividad y valor pedagógico antes de implementar |
 
 Fase 47 autorizada el 17 de octubre tras aprobar disposición y reglas; no
-iniciar las fases 49–55 sin autorización. Fase 48 autorizada después y documentada
+iniciar las fases 50–55 sin autorización. Fases 48 y 49 autorizadas después y documentadas
 en su guía de entrega. Mantener escena libre. Cada mundo
 debe declarar límites, vínculo componente/lugar, entradas/salidas, consecuencias,
 pausa/velocidad/reinicio, persistencia y alcance web/Waveshare. La fase 46 no

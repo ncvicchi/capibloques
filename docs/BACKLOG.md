@@ -1,5 +1,13 @@
 # Backlog de CapiBloques
 
+**Fase 49 — Huerta e invernadero:** autorizada e implementada en rama
+`codex/fase-49-huerta-invernadero`, desde dev1. Dos canteros/riegos, tierra,
+clima, ventana, plantas con estrés/recuperación y condiciones ambientales.
+Dos ejemplos completos: directo y seis procedimientos/cuatro pestañas.
+[Reglas, alcance y entrega](FASE_49_HUERTA_INVERNADERO.md).
+Integración/actualización sólo dev1 por propietario; main/dev2 intactos.
+Aceptación humana, Waveshare y maqueta pendientes. Fases 50–55 no iniciadas.
+
 **Fase 48 — Estacionamiento:** autorizada e implementada en
 `codex/fase-48-estacionamiento`, desde dev1. Dos accesos, dos servos, cuatro
 detectores automáticos, 4/8/12 plazas, conteo programado, cartel, atasco y

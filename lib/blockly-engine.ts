@@ -164,14 +164,14 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
     case 'capi_sensor_value':
       return ['lightSensor', 'potentiometer'];
     case 'capi_component_number':
-      return ['led', 'motor', 'servo', 'lightSensor', 'potentiometer', 'otto'];
+      return ['led', 'motor', 'servo', 'lightSensor', 'potentiometer', 'otto', ...Object.values(educationalModuleSpecs).filter(spec => spec.values.some(value => value.type === 'number')).map(spec => spec.kind)];
     case 'capi_component_text':
-      return ['trafficLight', 'robot', 'otto', 'wifiNode', 'messages'];
+      return ['trafficLight', 'robot', 'otto', 'wifiNode', 'messages', ...Object.values(educationalModuleSpecs).filter(spec => spec.values.some(value => value.type === 'text')).map(spec => spec.kind)];
     case 'capi_traffic_color':
     case 'capi_traffic_is':
       return ['trafficLight'];
     case 'capi_component_boolean':
-      return ['button', 'infraredBarrier', 'wifiNode'];
+      return ['button', 'infraredBarrier', 'wifiNode', ...Object.values(educationalModuleSpecs).filter(spec => spec.values.some(value => value.type === 'boolean')).map(spec => spec.kind)];
     case 'capi_wifi_message_send':
     case 'capi_wifi_message_receive':
       return ['wifiNode'];

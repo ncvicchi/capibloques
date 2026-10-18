@@ -40,6 +40,8 @@ import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 import { advanceRailWorld, createRailWorldState, railBindings, railTrackCount } from './rail-world.ts';
 // @ts-expect-error Node strip-types runner.
 import { advanceParkingWorld, createParkingWorldState, parkingBindings, parkingCapacity } from './parking-world.ts';
+// @ts-expect-error Node strip-types runner.
+import { advanceGardenWorld, createGardenWorldState, gardenBindings, validGardenEnvironment } from './garden-world.ts';
 
 type Pending =
   | { kind: 'wait'; startedAt: number; until: number; blockId: string }
@@ -467,6 +469,7 @@ function freshState(): SimulatorState {
   return {
     ...(scene.canvas.background === 'railCrossing' ? { railWorld: createRailWorldState(initialAngle(bindings.northGate), initialAngle(bindings.southGate), railTrackCount(scene)) } : {}),
     ...(scene.canvas.background === 'parking' ? { parkingWorld: createParkingWorldState(parkingCapacity(scene), initialAngle(parking.entryGate), initialAngle(parking.exitGate)) } : {}),
+    ...(scene.canvas.background === 'greenhouse' ? { gardenWorld: createGardenWorldState(scene.canvas.gardenEnvironment, initialAngle(gardenBindings(scene).window)) } : {}),
     now: 0,
     status: 'idle',
     devices,
@@ -825,6 +828,7 @@ function resetExecution(
   applyInputOverrides();
   updateRailPhysics(0);
   updateParkingPhysics(0);
+  updateGardenPhysics(0);
   state.status = status;
   virtualNow = 0;
   schedulerDebtMs = 0;
@@ -2564,10 +2568,25 @@ function updateParkingPhysics(deltaMs: number) {
   }
 }
 
+function updateGardenPhysics(deltaMs: number) {
+  if (!state.gardenWorld) return;
+  const bindings = gardenBindings(scene);
+  const power = (id?: string) => id && state.devices[id]?.kind === 'educationalModule' ? Number(state.devices[id].values.power ?? 0) : 0;
+  const window = bindings.window ? state.devices[bindings.window] : undefined;
+  state.gardenWorld = advanceGardenWorld(state.gardenWorld, { outsidePower: power(bindings.outsidePump), insidePower: power(bindings.insidePump), windowAngle: window?.kind === 'servo' ? window.angle : 0 }, deltaMs);
+  const world = state.gardenWorld;
+  for (const [role, values] of [['outsideSoil', { moisture: Math.round(world.outside.moisture) }], ['insideSoil', { moisture: Math.round(world.inside.moisture) }], ['climate', { temperature: Math.round(world.temperature * 10) / 10, humidity: Math.round(world.humidity * 10) / 10, pressure: 1013 }]] as const) {
+    const id = bindings[role], device = id && state.devices[id];
+    if (device && device.kind === 'educationalModule') Object.assign(device.values, values);
+  }
+  if (bindings.light) applyInputValue(bindings.light, Math.round(world.light / 100 * 4095));
+}
+
 function updatePhysics(deltaMs: number) {
   if (state.status !== 'done' && state.status !== 'stopped') {
     updateRailPhysics(deltaMs);
     updateParkingPhysics(deltaMs);
+    updateGardenPhysics(deltaMs);
   }
   updateVisualAnimations();
   for (const timer of Object.values(state.timers)) {
@@ -2805,6 +2824,7 @@ function stopOutputs() {
 }
 
 function setInputById(deviceId: string, value: unknown) {
+  if (Object.entries(gardenBindings(scene)).some(([role, id]) => ['outsideSoil', 'insideSoil', 'climate', 'light'].includes(role) && id === deviceId)) return;
   if (Object.entries(parkingBindings(scene)).some(([role, id]) => !role.endsWith('Gate') && id === deviceId)) return;
   const bindings = railBindings(scene);
   if (Object.entries(bindings).some(([role, id]) => role.includes('Detector') && id === deviceId)) return;
@@ -2866,6 +2886,10 @@ function setInputById(deviceId: string, value: unknown) {
 }
 
 function setLegacyInput(name: unknown, value: unknown) {
+  if (name === 'gardenEnvironment') {
+    if (state.gardenWorld && validGardenEnvironment(value)) state.gardenWorld.environment = { ...value };
+    return;
+  }
   if (name === 'wifiAvailable') {
     wifiAvailableOverride = Boolean(value);
     state.wifiAvailable = wifiAvailableOverride;

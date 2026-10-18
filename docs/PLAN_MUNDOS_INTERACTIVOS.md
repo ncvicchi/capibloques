@@ -1,5 +1,12 @@
 # Mundos interactivos: escenas con comportamiento
 
+Estado vigente: fase 49 autorizada e implementada en simulación web, en rama
+`codex/fase-49-huerta-invernadero` desde dev1. Reglas aprobadas y dos ejemplos
+completos en [FASE_49_HUERTA_INVERNADERO.md](FASE_49_HUERTA_INVERNADERO.md).
+Integración/aceptación dev1 y Waveshare/físico pendientes. No se modifica main/dev2
+ni firmware. Las fases 50–55 siguen planificadas; referencias inferiores a 49
+sin autorización son históricas.
+
 Actualización vigente: **fase 48 autorizada e implementada en simulación web**,
 en `codex/fase-48-estacionamiento` desde dev1. Reglas aprobadas, disposición,
 dos ejemplos completos y alcance en [FASE_48_ESTACIONAMIENTO.md](FASE_48_ESTACIONAMIENTO.md).

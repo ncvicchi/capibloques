@@ -13,6 +13,8 @@ import BlocklyWorkspace, {
   type BlocklyWorkspaceHandle,
 } from '@/components/blockly-workspace';
 import SceneStage from '@/components/scene-stage';
+import GardenControls from '@/components/garden-controls';
+import { defaultGardenEnvironment, gardenBindings } from '@/lib/garden-world';
 import ExecutionPanel from '@/components/execution-panel';
 import { Button } from '@/components/ui/button';
 import {
@@ -307,6 +309,7 @@ export default function ReviewSimulation({
           runtimeDevices={state?.devices}
           railWorld={state?.railWorld}
           parkingWorld={state?.parkingWorld}
+          gardenWorld={state?.gardenWorld}
           counter={state?.counter}
           simulationSpeed={speed}
           simulationRunning={state?.status === 'running'}
@@ -314,8 +317,10 @@ export default function ReviewSimulation({
         />
         <fieldset className="review-inputs" disabled={!program}>
           <legend>Sensores simulados</legend>
+          {project.scene.canvas.background === 'greenhouse' && <GardenControls value={state?.gardenWorld?.environment ?? project.scene.canvas.gardenEnvironment ?? defaultGardenEnvironment} onChange={value => worker.current?.postMessage({ type: 'SET_INPUT', name: 'gardenEnvironment', value })} />}
           {project.scene.devices.map((device) => {
             const runtime = state?.devices[device.id];
+            if (Object.entries(gardenBindings(project.scene)).some(([role, id]) => ['outsideSoil', 'insideSoil', 'climate', 'light'].includes(role) && id === device.id)) return <p key={device.id}>{device.name} · lectura automática de la huerta virtual</p>;
             if (device.kind === 'button')
               return (
                 <label key={device.id}>
