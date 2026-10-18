@@ -48,6 +48,17 @@ def validate_fixture(payload):
     return dict(counts)
 
 
+def check_schema(runtime, deployed):
+    # Source/main may lack newer scene validation/tests without having a
+    # different schema. Do not equate all backend source to data compatibility.
+    paths = ['backend/requirements.txt']
+    for application in APPLICATIONS:
+        paths += [f'backend/{application}/models.py', f'backend/{application}/migrations']
+    for path in paths:
+        if runtime.git('rev-parse', 'HEAD:'+path) != runtime.git('rev-parse', deployed+':'+path):
+            raise RuntimeError('Modelos, migraciones o dependencias difieren en '+path+'; revisar compatibilidad antes de importar.')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('environment', choices=('dev1', 'dev2'))
@@ -70,8 +81,7 @@ def main():
     if (spec['directory']/'pending.json').exists():
         raise RuntimeError('Resolver la actualización pendiente antes de copiar datos.')
     deployed = (spec['directory']/'deployed').read_text().strip()
-    if runtime.git('rev-parse', 'HEAD:backend') != runtime.git('rev-parse', deployed+':backend'):
-        raise RuntimeError('Los backends difieren; revisar compatibilidad de la copia antes de importar.')
+    check_schema(runtime, deployed)
     before = json.loads(runtime.manage(spec, 'shell', '-c', COUNTS_CODE, capture=True).strip().splitlines()[-1])
     if before.get('accounts.user', 0) or any(count for model, count in before.items() if model.startswith(('projects.', 'courses.'))):
         raise RuntimeError('El destino ya tiene usuarios/cursos/proyectos. NO se sobrescribirá.')

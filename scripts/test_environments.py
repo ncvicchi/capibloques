@@ -28,6 +28,18 @@ seeder = load('environment_seeder', 'ops/environments/seed.py')
 
 
 class EnvironmentTests(unittest.TestCase):
+    def test_seed_checks_schema_not_unrelated_scene_validation_changes(self):
+        runtime = Mock()
+        runtime.git.return_value = 'same'
+        seeder.check_schema(runtime, 'target')
+        paths = [call.args[1] for call in runtime.git.call_args_list]
+        self.assertIn('HEAD:backend/projects/models.py', paths)
+        self.assertIn('target:backend/projects/migrations', paths)
+        self.assertNotIn('HEAD:backend/projects/validation.py', paths)
+        runtime.git.side_effect = ['old', 'new']
+        with self.assertRaisesRegex(RuntimeError, 'compatibilidad'):
+            seeder.check_schema(runtime, 'target')
+
     def test_seed_contains_only_application_data_never_sessions_or_jobs(self):
         fixture = json.dumps([{'model': 'accounts.user', 'pk': 'uuid', 'fields': {}},
                               {'model': 'projects.project', 'pk': 'uuid', 'fields': {}}])
