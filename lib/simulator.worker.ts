@@ -42,6 +42,8 @@ import { advanceRailWorld, createRailWorldState, railBindings, railTrackCount } 
 import { advanceParkingWorld, createParkingWorldState, parkingBindings, parkingCapacity } from './parking-world.ts';
 // @ts-expect-error Node strip-types runner.
 import { advanceGardenWorld, createGardenWorldState, gardenBindings, validGardenEnvironment } from './garden-world.ts';
+// @ts-expect-error Node strip-types runner.
+import { advanceHouseWorld, createHouseWorldState, houseBindings, houseInputRoles, validHouseEnvironment } from './house-world.ts';
 
 type Pending =
   | { kind: 'wait'; startedAt: number; until: number; blockId: string }
@@ -150,7 +152,7 @@ type SensorRuntimeState = Extract<RuntimeDeviceState, { value: number }>;
 
 type WorkerInboundMessage =
   | { type: 'ASSESS_CHALLENGE'; challenge: unknown; program: CompiledProgram }
-  | { type: 'LOAD'; program: unknown; scene?: unknown; boardProfile?: unknown }
+  | { type: 'LOAD'; program: unknown; scene?: unknown; boardProfile?: unknown; preserveWorldTrials?: boolean }
   | { type: 'SYNC_SCENE'; scene: unknown; boardProfile?: unknown }
   | { type: 'RUN' | 'PAUSE' | 'STOP' | 'RESET' | 'STEP' }
   | { type: 'SET_SPEED'; speed: unknown }
@@ -470,6 +472,7 @@ function freshState(): SimulatorState {
     ...(scene.canvas.background === 'railCrossing' ? { railWorld: createRailWorldState(initialAngle(bindings.northGate), initialAngle(bindings.southGate), railTrackCount(scene)) } : {}),
     ...(scene.canvas.background === 'parking' ? { parkingWorld: createParkingWorldState(parkingCapacity(scene), initialAngle(parking.entryGate), initialAngle(parking.exitGate)) } : {}),
     ...(scene.canvas.background === 'greenhouse' ? { gardenWorld: createGardenWorldState(scene.canvas.gardenEnvironment, initialAngle(gardenBindings(scene).window)) } : {}),
+    ...(scene.canvas.background === 'smartHouse' ? { houseWorld: createHouseWorldState(scene.canvas.houseEnvironment, initialAngle(houseBindings(scene).door)) } : {}),
     now: 0,
     status: 'idle',
     devices,
@@ -798,6 +801,7 @@ function applyInputOverrides() {
 function resetExecution(
   status: SimulatorState['status'] = 'idle',
   preserveDashboardManual = false,
+  emitSnapshot = true,
 ) {
   const manualDevices = preserveDashboardManual
     ? new Map(
@@ -829,6 +833,7 @@ function resetExecution(
   updateRailPhysics(0);
   updateParkingPhysics(0);
   updateGardenPhysics(0);
+  updateHousePhysics(0);
   state.status = status;
   virtualNow = 0;
   schedulerDebtMs = 0;
@@ -854,7 +859,7 @@ function resetExecution(
   visualAnimations.clear();
   ottoOwners.clear();
   clearBlockActivity();
-  emit();
+  if (emitSnapshot) emit();
 }
 
 const numberOperators = {
@@ -2582,11 +2587,25 @@ function updateGardenPhysics(deltaMs: number) {
   if (bindings.light) applyInputValue(bindings.light, Math.round(world.light / 100 * 4095));
 }
 
+function updateHousePhysics(deltaMs: number) {
+  if (!state.houseWorld) return;
+  const bindings = houseBindings(scene);
+  const output = (role: 'door' | 'outsideLight' | 'insideLight') => { const id = bindings[role], device = id ? state.devices[id] : undefined; return device?.kind === 'servo' ? device.angle : device?.kind === 'led' ? device.brightness : 0; };
+  state.houseWorld = advanceHouseWorld(state.houseWorld, { doorAngle: output('door'), outsideLight: output('outsideLight'), insideLight: output('insideLight') }, deltaMs);
+  const w = state.houseWorld;
+  for (const [role, value] of [['bell', w.bellMs > 0], ['exitButton', w.exitPressed], ['passage', w.passage], ['insideLux', w.insideLux], ['outsideLux', w.outsideLux]] as const) { const id = bindings[role]; if (id) applyInputValue(id, value); }
+  for (const [role, values] of [['outsideMotion', { motion: w.outsidePresence }], ['insideMotion', { motion: w.insidePresence }], ['reader', { card: w.card, present: w.cardPresent }]] as const) {
+    const id = bindings[role], device = id ? state.devices[id] : undefined;
+    if (device?.kind === 'educationalModule') Object.assign(device.values, values);
+  }
+}
+
 function updatePhysics(deltaMs: number) {
   if (state.status !== 'done' && state.status !== 'stopped') {
     updateRailPhysics(deltaMs);
     updateParkingPhysics(deltaMs);
     updateGardenPhysics(deltaMs);
+    updateHousePhysics(deltaMs);
   }
   updateVisualAnimations();
   for (const timer of Object.values(state.timers)) {
@@ -2824,6 +2843,7 @@ function stopOutputs() {
 }
 
 function setInputById(deviceId: string, value: unknown) {
+  if (houseInputRoles.some(role => houseBindings(scene)[role] === deviceId)) return;
   if (Object.entries(gardenBindings(scene)).some(([role, id]) => ['outsideSoil', 'insideSoil', 'climate', 'light'].includes(role) && id === deviceId)) return;
   if (Object.entries(parkingBindings(scene)).some(([role, id]) => !role.endsWith('Gate') && id === deviceId)) return;
   const bindings = railBindings(scene);
@@ -2886,6 +2906,8 @@ function setInputById(deviceId: string, value: unknown) {
 }
 
 function setLegacyInput(name: unknown, value: unknown) {
+  if (name === 'houseEnvironment') { if (state.houseWorld && validHouseEnvironment(value)) state.houseWorld.environment = { ...value }; return; }
+  if (name === 'houseVisitor') { if (state.houseWorld && ['known', 'unknown', 'none'].includes(String(value)) && typeof value === 'string' && !state.houseWorld.pendingVisitor) state.houseWorld.pendingVisitor = value as 'known' | 'unknown' | 'none'; return; }
   if (name === 'gardenEnvironment') {
     if (state.gardenWorld && validGardenEnvironment(value)) state.gardenWorld.environment = { ...value };
     return;
@@ -2931,6 +2953,9 @@ scope.addEventListener('message', (event) => {
     case 'LOAD': {
       const invalidScene =
         message.scene !== undefined && !isSceneDefinition(message.scene);
+      const preserveTrials = message.preserveWorldTrials === true && isSceneDefinition(message.scene) && scene.id === message.scene.id && scene.canvas.background === message.scene.canvas.background;
+      const houseTrial = preserveTrials && state.houseWorld ? { environment: { ...state.houseWorld.environment }, pendingVisitor: state.houseWorld.pendingVisitor } : null;
+      const gardenTrial = preserveTrials && state.gardenWorld ? { ...state.gardenWorld.environment } : null;
       try {
         currentBoardProfile = isBoardProfileId(message.boardProfile)
           ? message.boardProfile
@@ -2939,7 +2964,10 @@ scope.addEventListener('message', (event) => {
           ? cloneScene(message.scene)
           : inferSceneForProgram(message.program);
         program = normalizeCompiledProgram(message.program, scene);
-        resetExecution('idle', true);
+        resetExecution('idle', true, false);
+        if (houseTrial && state.houseWorld) { state.houseWorld.environment = houseTrial.environment; state.houseWorld.pendingVisitor = houseTrial.pendingVisitor; }
+        if (gardenTrial && state.gardenWorld) state.gardenWorld.environment = gardenTrial;
+        emit();
         refreshDiagnostics(
           invalidScene
             ? [

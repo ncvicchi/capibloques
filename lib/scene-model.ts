@@ -20,6 +20,8 @@ import { nearestRailSlot, railSlots, railSlotsFor, railTrackCount, type RailTrac
 import { nearestParkingSlot, parkingSlots, type ParkingCapacity } from './parking-world.ts';
 // @ts-expect-error Node strip-types runner.
 import { nearestGardenSlot, gardenSlots, validGardenEnvironment, defaultGardenEnvironment, type GardenEnvironment } from './garden-world.ts';
+// @ts-expect-error Node strip-types runner.
+import { nearestHouseSlot, houseSlots, houseBindings, houseFreeRoles, validHouseEnvironment, defaultHouseEnvironment, type HouseEnvironment, type HouseFreeRole } from './house-world.ts';
 
 export const SCENE_SCHEMA_VERSION = 1 as const;
 
@@ -36,6 +38,7 @@ export const legacySceneIds = [
   'railCrossing',
   'parking',
   'greenhouse',
+  'smartHouse',
 ] as const;
 
 export type LegacySceneId = (typeof legacySceneIds)[number];
@@ -75,6 +78,7 @@ export const sceneBackgrounds = [
   'railCrossing',
   'parking',
   'greenhouse',
+  'smartHouse',
   'blank',
 ] as const;
 export type SceneBackground = (typeof sceneBackgrounds)[number];
@@ -106,6 +110,8 @@ export interface SceneCanvas {
   /** Ausente: ocho plazas. Los autos y sus cuadros no se guardan en JSON. */
   parkingCapacity?: ParkingCapacity;
   gardenEnvironment?: GardenEnvironment;
+  houseEnvironment?: HouseEnvironment;
+  houseAssignments?: Partial<Record<HouseFreeRole, string>>;
   /** Identificadores de atrás hacia adelante; ausente en proyectos anteriores. */
   itemOrder?: string[];
 }
@@ -149,6 +155,13 @@ export function constrainSceneItemPosition(
   item: Pick<SceneDevice | SceneWidget, 'id' | 'kind'>,
   position: ScenePosition,
 ): ScenePosition {
+  if (scene.canvas.background === 'smartHouse') {
+    const slot = nearestHouseSlot(item.kind, position);
+    if (slot) {
+      if (scene.devices.some(device => device.id !== item.id && nearestHouseSlot(device.kind, device.position)?.role === slot.role)) return scene.devices.find(device => device.id === item.id)?.position ?? position;
+      return { x: slot.x, y: slot.y };
+    }
+  }
   if (scene.canvas.background === 'greenhouse') {
     const slot = nearestGardenSlot(item.kind, position);
     if (slot) {
@@ -237,6 +250,17 @@ export function arrangeGardenDevices(source: SceneDefinition) {
     occupied.add(slot.role);
     return { ...device, position: { x: slot.x, y: slot.y }, rotation: 0 };
   });
+  return scene;
+}
+
+export function arrangeHouseDevices(source: SceneDefinition) {
+  const scene = cloneScene(source), occupied = new Set<string>();
+  scene.devices = scene.devices.map(device => {
+    const slot = houseSlots.find(candidate => candidate.kind === device.kind && !occupied.has(candidate.role));
+    if (!slot) return device;
+    occupied.add(slot.role); return { ...device, position: { x: slot.x, y: slot.y }, rotation: 0 };
+  });
+  scene.canvas.houseAssignments = Object.fromEntries(houseFreeRoles.flatMap(role => { const slot = houseSlots.find(s => s.role === role)!; const d = scene.devices.find(d => d.kind === slot.kind && d.position.x === slot.x && d.position.y === slot.y); return d ? [[role, d.id]] : []; }));
   return scene;
 }
 
@@ -1334,6 +1358,7 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
   if (source.canvas.background === 'railCrossing' && (kind === 'servo' || kind === 'infraredBarrier') && source.devices.filter(device => device.kind === kind).length >= (kind === 'servo' ? 2 : 2 * railTrackCount(source))) throw new Error('Los lugares de este componente ya están ocupados: dos barreras y dos detectores por vía.');
   if (source.canvas.background === 'parking' && parkingSlots.some(slot => slot.kind === kind) && source.devices.filter(device => device.kind === kind).length >= (kind === 'servo' ? 2 : 4)) throw new Error('El estacionamiento tiene dos lugares para barreras y cuatro para detectores.');
   if (source.canvas.background === 'greenhouse' && gardenSlots.some(slot => slot.kind === kind) && source.devices.filter(device => device.kind === kind).length >= gardenSlots.filter(slot => slot.kind === kind).length) throw new Error('Los lugares de este componente en la huerta e invernadero están ocupados.');
+  if (source.canvas.background === 'smartHouse' && kind !== 'led' && kind !== 'button' && houseSlots.some(slot => slot.kind === kind) && source.devices.filter(device => device.kind === kind).length >= houseSlots.filter(slot => slot.kind === kind).length) throw new Error('Los lugares de este componente en la casa están ocupados.');
   if (kind === 'messages' && scene.devices.filter(device => device.kind === 'messages').length >= 2) throw new Error('La placa admite hasta dos componentes Mensajes.');
   if (kind === 'trafficLight') {
     if (scene.canvas.background !== 'crossroads') {
@@ -1360,6 +1385,16 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
     ...((kind === 'display' || kind === 'ledMatrix') && !options.position ? { position: { x: scene.canvas.width * 0.7, y: scene.canvas.height * 0.55 } } : {}),
     id: options.id ?? createStableDeviceId(kind, reservedIds),
   });
+  if (scene.canvas.background === 'smartHouse') {
+    if (kind === 'led' || kind === 'button') {
+      const bindings = houseBindings(scene);
+      scene.canvas.houseAssignments = Object.fromEntries(houseFreeRoles.flatMap(role => bindings[role] ? [[role, bindings[role]]] : []));
+      const free = houseSlots.find(slot => slot.kind === kind && !bindings[slot.role]);
+      if (free) { scene.canvas.houseAssignments[free.role as HouseFreeRole] = device.id; device.position = { x: free.x, y: free.y }; }
+    }
+    const slot = houseSlots.find(candidate => candidate.kind === kind && !scene.devices.some(item => nearestHouseSlot(item.kind, item.position)?.role === candidate.role));
+    if (slot && kind !== 'led' && kind !== 'button') { device.position = { x: slot.x, y: slot.y }; device.rotation = 0; }
+  }
   if (scene.canvas.background === 'greenhouse') {
     const slot = gardenSlots.find(candidate => candidate.kind === kind && !scene.devices.some(item => nearestGardenSlot(item.kind, item.position)?.role === candidate.role));
     if (slot) { device.position = { x: slot.x, y: slot.y }; device.rotation = 0; }
@@ -1448,6 +1483,7 @@ export function removeDeviceFromScene(
   const scene = cloneScene(source);
   const removed = scene.devices.find((device) => device.id === deviceId);
   scene.devices = scene.devices.filter((device) => device.id !== deviceId);
+  if (scene.canvas.houseAssignments) scene.canvas.houseAssignments = Object.fromEntries(Object.entries(scene.canvas.houseAssignments).filter(([, id]) => id !== deviceId));
   if (scene.canvas.itemOrder) {
     scene.canvas.itemOrder = scene.canvas.itemOrder.filter(id => id !== deviceId);
   }
@@ -1759,6 +1795,17 @@ greenhouseTemplate.devices.push(templateDevice('display', greenhouseTemplate.dev
   config: displayConfig('lcd1602'), pins: { sda: 25, scl: 23 },
 }));
 
+const houseTemplate = createEmptyScene('Casa inteligente y entrada segura', { id: 'scene-smart-house', description: 'Atendé visitantes, tarjetas y salidas. Iluminá según presencia y oscuridad, sin permisos ocultos.', canvas: { background: 'smartHouse', houseEnvironment: { ...defaultHouseEnvironment } } });
+houseTemplate.sourceTemplate = 'smartHouse';
+houseTemplate.canvas.houseAssignments = Object.fromEntries(houseFreeRoles.map(role => [role, `house-${role}`]));
+for (const [i, slot] of houseSlots.entries()) houseTemplate.devices.push(templateDevice(slot.kind, houseTemplate.devices, {
+  id: `house-${slot.role}`, name: slot.name, position: { x: slot.x, y: slot.y },
+  pins: slot.kind === 'cardReader' ? { sda: 18, scl: 19 } : { signal: [14, 4, 13, 34, 35, 16, 36, 39, 26, 27][i] },
+  ...(slot.kind === 'servo' ? { config: { angle: 0 } } : {}),
+}));
+houseTemplate.devices.push(templateDevice('display', houseTemplate.devices, { id: 'house-display', name: 'Mensajes de la casa', position: { x: 730, y: 475 }, config: displayConfig('lcd1602'), pins: { sda: 25, scl: 23 } }));
+houseTemplate.devices.push(templateDevice('activeBuzzer', houseTemplate.devices, { id: 'house-alarm', name: 'Aviso de entrada', position: { x: 235, y: 465 }, pins: { signal: 17 } }));
+
 export const sceneTemplates: Readonly<Record<LegacySceneId, SceneDefinition>> =
   {
     traffic: trafficTemplate,
@@ -1773,6 +1820,7 @@ export const sceneTemplates: Readonly<Record<LegacySceneId, SceneDefinition>> =
     railCrossing: railTemplate,
     parking: parkingTemplate,
     greenhouse: greenhouseTemplate,
+    smartHouse: houseTemplate,
   };
 
 export function createSceneFromTemplate(templateId: LegacySceneId) {
@@ -1803,7 +1851,7 @@ export function appendTemplateToScene(
   const offset = options.offset ?? { x: 40, y: 40 };
   const addedDeviceIds: string[] = [];
   const warnings: string[] = [];
-  if (templateId === 'railCrossing' || templateId === 'parking' || templateId === 'greenhouse') {
+  if (templateId === 'railCrossing' || templateId === 'parking' || templateId === 'greenhouse' || templateId === 'smartHouse') {
     if (scene.devices.length || scene.widgets.length) return { scene, warnings: ['Este mundo se agrega sobre una escena vacía para no reasignar componentes existentes.'], addedDeviceIds };
     const replacement = cloneScene(scene);
     replacement.canvas = structuredClone(template.canvas);
@@ -1815,6 +1863,7 @@ export function appendTemplateToScene(
         pins: Object.fromEntries(Object.keys(item.pins).map(key => [key, null])),
       } as SceneDevice);
     }
+    if (templateId === 'smartHouse') replacement.canvas.houseAssignments = Object.fromEntries(houseFreeRoles.map(role => [role, replacement.devices[template.devices.findIndex(d => d.id === template.canvas.houseAssignments?.[role])].id]));
     const assigned = assignSafePins(replacement, { boardProfile: options.boardProfile });
     return { ...assigned, addedDeviceIds: replacement.devices.map(device => device.id) };
   }
@@ -2005,6 +2054,9 @@ export type SceneValidationIssueCode =
   | 'garden-slot-position'
   | 'garden-slot-conflict'
   | 'garden-slot-missing'
+  | 'house-slot-position'
+  | 'house-slot-conflict'
+  | 'house-slot-missing'
   | 'missing-pin'
   | 'unsupported-pin'
   | 'pin-conflict'
@@ -2164,6 +2216,16 @@ export function validateScene(
       if (slot && (device.position.x !== slot.x || device.position.y !== slot.y)) issues.push({ code: 'garden-slot-position', severity: 'error', deviceId: device.id, message: `${device.name}: elegí un lugar marcado de la huerta e invernadero.` });
     }
     for (const slot of gardenSlots) if (!roles.includes(slot.role)) issues.push({ code: 'garden-slot-missing', severity: 'warning', message: `Falta ${slot.name.toLowerCase()}. Sin salida no actúa; sin sensor el programa no recibe esa lectura.` });
+  }
+  if (scene.canvas.background === 'smartHouse') {
+    if (scene.canvas.width !== 960 || scene.canvas.height !== 540) issues.push({ code: 'house-slot-position', severity: 'error', message: 'La casa utiliza un lienzo de 960 × 540.' });
+    const roles = Object.keys(houseBindings(scene));
+    if (new Set(roles).size !== roles.length) issues.push({ code: 'house-slot-conflict', severity: 'error', message: 'Cada componente de la casa necesita un lugar diferente.' });
+    for (const device of scene.devices) {
+      const slot = nearestHouseSlot(device.kind, device.position);
+      if (slot && (device.position.x !== slot.x || device.position.y !== slot.y)) issues.push({ code: 'house-slot-position', severity: 'error', deviceId: device.id, message: `${device.name}: elegí un lugar marcado de la casa.` });
+    }
+    for (const slot of houseSlots) if (!roles.includes(slot.role)) issues.push({ code: 'house-slot-missing', severity: 'warning', message: `Falta ${slot.name.toLowerCase()}. Sin salida no actúa; sin sensor el programa no recibe esa señal.` });
   }
   if (trafficLights.length && scene.canvas.background !== 'crossroads') {
     issues.push({
@@ -2766,6 +2828,8 @@ export function isSceneDefinition(value: unknown, incompleteDisplayLayout = fals
       'railTracks',
       'parkingCapacity',
       'gardenEnvironment',
+      'houseEnvironment',
+      'houseAssignments',
       'itemOrder',
     ]) &&
     hasFiniteNumber(canvas, 'width') &&
@@ -2782,6 +2846,8 @@ export function isSceneDefinition(value: unknown, incompleteDisplayLayout = fals
     (canvas.railTracks === undefined || [1, 2, 4].includes(canvas.railTracks as number)) &&
     (canvas.parkingCapacity === undefined || [4, 8, 12].includes(canvas.parkingCapacity as number)) &&
     (canvas.gardenEnvironment === undefined || validGardenEnvironment(canvas.gardenEnvironment)) &&
+    (canvas.houseEnvironment === undefined || validHouseEnvironment(canvas.houseEnvironment)) &&
+    (canvas.houseAssignments === undefined || (isRecord(canvas.houseAssignments) && Object.entries(canvas.houseAssignments).every(([role, id]) => houseFreeRoles.includes(role as HouseFreeRole) && typeof id === 'string' && Array.isArray(devices) && devices.some(d => isRecord(d) && d.id === id && d.kind === houseSlots.find(s => s.role === role)?.kind)) && new Set(Object.values(canvas.houseAssignments)).size === Object.keys(canvas.houseAssignments).length)) &&
     (canvas.trafficDirections === undefined ||
       (Array.isArray(canvas.trafficDirections) &&
         canvas.trafficDirections.length <= trafficDirections.length &&

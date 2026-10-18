@@ -118,6 +118,8 @@ import type { FirmwareJob } from '@/lib/usb-firmware';
 import { projectFingerprint } from '@/lib/project-library';
 import { educationalModuleSpecs, isEducationalModuleKind } from '@/lib/educational-modules';
 import GardenControls from '@/components/garden-controls';
+import HouseControls from '@/components/house-controls';
+import { defaultHouseEnvironment, houseBindings, houseInputRoles } from '@/lib/house-world';
 import { defaultGardenEnvironment, gardenBindings } from '@/lib/garden-world';
 
 const SceneBuilder = lazy(() => import('@/components/scene-builder'));
@@ -763,7 +765,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       return;
     }
     playbackSourceRef.current = JSON.stringify(editorRef.current?.save());
-    postToWorker({ type: 'LOAD', program, scene, boardProfile: projectTarget.boardProfile });
+    postToWorker({ type: 'LOAD', program, scene, boardProfile: projectTarget.boardProfile, preserveWorldTrials: true });
     postToWorker({ type: 'SET_SPEED', speed });
     postToWorker({ type: 'RUN' });
     setNotice(
@@ -863,7 +865,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
         return;
       }
       playbackSourceRef.current = JSON.stringify(editorRef.current?.save());
-      postToWorker({ type: 'LOAD', program, scene, boardProfile: projectTarget.boardProfile });
+      postToWorker({ type: 'LOAD', program, scene, boardProfile: projectTarget.boardProfile, preserveWorldTrials: true });
       postToWorker({ type: 'SET_SPEED', speed });
     }
     postToWorker({ type: 'STEP' });
@@ -1542,6 +1544,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                   railWorld={sim.railWorld}
                   parkingWorld={sim.parkingWorld}
                   gardenWorld={sim.gardenWorld}
+                  houseWorld={sim.houseWorld}
                   counter={sim.counter}
                   simulationSpeed={speed}
                   simulationRunning={sim.status === 'running'}
@@ -1581,13 +1584,15 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                   </button>
                 </div>
               )}
-              {(scene.canvas.background === 'greenhouse' || inputDevices.length > 0 ||
+              {(scene.canvas.background === 'smartHouse' || scene.canvas.background === 'greenhouse' || inputDevices.length > 0 ||
                 scene.devices.some((device) => device.kind === 'wifiNode')) && (
                 <div className="input-lab">
                   <h3>Entradas para probar</h3>
+                  {scene.canvas.background === 'smartHouse' && <HouseControls value={sim.houseWorld?.environment ?? scene.canvas.houseEnvironment ?? defaultHouseEnvironment} pending={!!sim.houseWorld?.pendingVisitor} disabled={physicalMirrorActive} onChange={value => postToWorker({ type: 'SET_INPUT', name: 'houseEnvironment', value })} onSend={() => postToWorker({ type: 'SET_INPUT', name: 'houseVisitor', value: sim.houseWorld?.environment.nextVisitor ?? scene.canvas.houseEnvironment?.nextVisitor ?? 'known' })} />}
                   {scene.canvas.background === 'greenhouse' && <GardenControls value={sim.gardenWorld?.environment ?? scene.canvas.gardenEnvironment ?? defaultGardenEnvironment} disabled={physicalMirrorActive} onChange={value => postToWorker({ type: 'SET_INPUT', name: 'gardenEnvironment', value })} />}
                   {inputDevices.map((device) => {
                     const runtime = sim.devices[device.id];
+                    if (houseInputRoles.some(role => houseBindings(scene)[role] === device.id)) return <div className="message-test-panel" key={device.id}><strong>{device.name}</strong><span>{runtime?.kind === 'educationalModule' ? Object.values(runtime.values).map(v => typeof v === 'boolean' ? v ? 'sí' : 'no' : String(v)).join(' · ') : runtime?.kind === 'button' ? runtime.pressed ? 'Presionado' : 'Sin presionar' : runtime?.kind === 'infraredBarrier' ? runtime.interrupted ? 'Paso ocupado' : 'Paso libre' : runtime?.kind === 'lightSensor' ? String(runtime.value) : 'Lectura del mundo'}</span><small>Automático: lo genera la casa virtual. No es una lectura de la placa.</small></div>;
                     if (isEducationalModuleKind(device.kind)) {
                       const moduleDevice = device as EducationalModuleDevice;
                       const spec = educationalModuleSpecs[device.kind];
