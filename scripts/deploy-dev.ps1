@@ -41,9 +41,9 @@ try {
 
     $capiMode = if ($Full) { ' --full' } else { ' --fast' }
     if ($CheckOnly) { $capiMode += ' --check-only' }
-    # Carga siempre el actualizador desde origin/main. Así también funciona si
-    # el checkout remoto todavía conserva una versión vieja del propio script.
-    $capiCommand = "cd /home/capi/capibloques && if find .git ! -user capi -print -quit | grep -q . || test ! -w .git/index; then sudo chown -R capi:capi .git; fi && git fetch --quiet origin main && git show origin/main:scripts/update-dev.sh | bash -s -- --$capiMode"
+    # El actualizador instalado toma el bloqueo antes de reparar permisos o
+    # hacer Git. La instalación inicial del flujo nuevo se hace una sola vez.
+    $capiCommand = "cd /home/capi/capibloques && bash scripts/update-dev.sh$capiMode"
     $capiArgs = @(
         '-F', (Resolve-Path -LiteralPath $SshConfig).Path,
         '-tt', '-a', '-x',

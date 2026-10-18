@@ -1,118 +1,111 @@
 # Flujo compartido: ramas, integración y actualización DEV
 
-Acuerdo del propietario del 17 de octubre de 2026. Aplica a todas las personas
-y sesiones de IA. Sustituye para trabajo nuevo las instrucciones históricas que
-publicaban tareas directamente en main. No modifica los scripts existentes.
+Acuerdo del 17 de octubre de 2026. Obligatorio para todas las personas y sesiones
+de IA. Reemplaza desarrollo directo en main y el bloque largo manual de integración.
 
 ## 1. Desarrollar sin pisarse
 
-- `main`: línea integrada; no editar ni hacer commits de tareas directamente.
-- Una rama `codex/<nombre-de-tarea>` por trabajo. No compartir rama entre tareas
-  independientes. Los commits se publican en esa rama, sin force-push.
-- Antes de empezar: leer AGENTS/contexto, revisar `git status`, actualizar refs
-  con `git fetch origin` y crear la rama desde `origin/main`. Si hay trabajo
-  pendiente, conservarlo; no cambiarle la rama ni hacer stash automáticamente.
-- Personas/IA simultáneas: clones o worktrees distintos. Dos ramas no aíslan
-  ediciones si se alternan sobre la misma carpeta física.
-- No usar `/home/capi/capibloques` para desarrollar: es el checkout operativo.
-  En DEV, usar un worktree/copia de desarrollo aparte con rama propia; sin
-  instalar ni arrancar servicios que reemplacen el runtime público.
-- Llevar a la rama los cambios recientes de main antes de entregar y verificar
-  lo afectado. Preferir merge de `origin/main` para ramas ya compartidas; no
-  reescribir commits publicados sin coordinación.
-- Conservar las verificaciones proporcionales al cambio. `--fast` no espera
-  GitHub Actions; `--full` es opcional. No quitar guardas de datos o cableado
-  para integrar más rápido.
+- Crear una rama `codex/<tarea>` desde `origin/main` actualizado; nunca editar
+  directamente main ni compartir rama entre tareas independientes.
+- Usar clones/worktrees distintos para trabajo simultáneo. Alternar ramas en
+  una carpeta no aísla las ediciones de dos personas.
+- Conservar trabajo ajeno; no stash/reset/checkout forzado automático ni
+  force-push. Si main avanza, integrarlo en la rama propia y verificar.
+- `/home/capi/capibloques` es el checkout operativo de DEV, **no** un lugar para
+  desarrollar. No adelantar su HEAD con pull/merge/switch antes de actualizar:
+  el orquestador calcula mantenimiento desde ese HEAD.
+- Commit/push de rama, documentación/contexto, pruebas y pendientes viajan
+  juntos. Integrar no demuestra que DEV esté actualizado ni aceptación física.
+- El propietario ejecuta la actualización salvo autorización expresa distinta.
 
-## 2. Entrega de cada tarea
+## 2. Un único comando
 
-Publicar rama y dar al propietario: nombre, SHA exacto, alcance, pruebas,
-pendientes y comando listo para ejecutar en DEV que incluya integración y
-actualización. La documentación/contexto viajan en la misma rama.
-
-Una rama publicada no significa integrada; un merge publicado no significa
-DEV actualizado; sólo la confirmación final del actualizador acredita la
-activación. No declarar aceptaciones físicas/humanas por pruebas locales.
-
-## 3. Integrar antes de actualizar, pero fuera del checkout operativo
-
-El propietario ejecuta el comando. Debe comprobar que su checkout operativo
-está limpio y en main, traer main y la rama, verificar el SHA anunciado,
-mezclar en un worktree separado, publicar el resultado y después invocar
-`update-dev.sh`. Las integraciones/actualizaciones DEV se hacen de a una.
-
-**No ejecutar `git merge`, `git pull` ni `git switch` para adelantar el checkout
-operativo antes de actualizar.** `deploy-dev-remote.sh` usa su HEAD como base
-del diff que detecta migraciones, dependencias y cambios del compilador. Hacer
-el merge allí primero puede ocultarle ese mantenimiento. Un worktree aparte
-permite integrar sin cambiar el HEAD ni los archivos que usa ese cálculo.
-
-Plantilla de comando para Ubuntu, usuario capi, sin sudo global. Reemplazar
-`rama` y `revision` con los valores exactos de la entrega; no ejecutar esos
-marcadores literalmente. El asistente debe entregarla ya completada, no pedir
-al propietario que adivine nombres o hashes:
+Una vez instalada esta versión, usuario capi en capi-dev:
 
 ```bash
-bash <<'BASH'
-set -euo pipefail
-rama='codex/NOMBRE-DE-LA-TAREA'
-revision='SHA-COMPLETO-DE-LA-ENTREGA'
-repo=/home/capi/capibloques
-[[ $(hostname) == capi-dev && $(id -un) == capi ]] || { echo 'Usar capi en capi-dev'; exit 1; }
-cd "$repo"
-[[ $(git branch --show-current) == main ]] || { echo 'El checkout operativo no está en main; no se cambió'; exit 1; }
-[[ -z $(git status --porcelain) ]] || { git status --short; echo 'Hay trabajo local; no se cambió'; exit 1; }
-for estado in MERGE_HEAD CHERRY_PICK_HEAD REVERT_HEAD rebase-merge rebase-apply; do
-  [[ ! -e $(git rev-parse --git-path "$estado") ]] || { echo "Operación Git pendiente: $estado"; exit 1; }
-done
-git fetch origin
-[[ $(git rev-parse --verify "refs/remotes/origin/$rama^{commit}") == "$revision" ]] || { echo 'La rama no coincide con la entrega; revisar'; exit 1; }
-git merge-base --is-ancestor HEAD origin/main || { echo 'main local diverge; revisar sin reset'; exit 1; }
-git config user.name >/dev/null
-git config user.email >/dev/null
-integracion=$(mktemp -d /home/capi/capibloques-integracion-XXXXXX)
-printf 'Copia de integración: %s/worktree\n' "$integracion"
-git worktree add --detach "$integracion/worktree" origin/main
-git -C "$integracion/worktree" merge --no-ff --no-edit "$revision"
-git -C "$integracion/worktree" push origin HEAD:refs/heads/main
-git worktree remove "$integracion/worktree"
-rmdir "$integracion"
-git fetch --quiet origin main
-git show origin/main:scripts/update-dev.sh | bash -s -- --fast
-BASH
+cd /home/capi/capibloques
+./scripts/update-dev.sh --branch codex/mi-tarea
 ```
 
-El actualizador conserva su propia comprobación de limpieza/identidad y avanza
-el checkout operativo mediante fast-forward cuando corresponde. Si sólo se
-modificó documentación, el propietario puede integrar sin ejecutar el último
-comando: no se requiere reconstruir la aplicación por documentación.
+Obtiene la punta remota de esa rama, la integra en una copia separada, publica
+main sin force-push y actualiza DEV. No adelanta el checkout operativo antes
+del orquestador. Si ya estaba integrada, no crea otro merge y continúa la
+actualización: sirve repetir tras un fallo de runtime.
 
-## 4. Si algo falla
+Las entregas deben fijar el SHA exacto para no integrar cambios publicados en
+esa rama después de la entrega:
 
-- **Cambios locales:** listar archivos y coordinar con su autor. No descartar,
-  incorporar cambios ajenos, guardarlos en stash ni hacer commits por sorpresa.
-- **Operación Git pendiente:** resolver o cancelar deliberadamente en la copia
-  correspondiente antes de continuar. No saltar el bloqueo del actualizador.
-- **Conflicto de merge:** el bloque se detiene antes de publicar o actualizar.
-  La ruta impresa conserva el worktree para resolución. No se borra al fallar;
-  no resolver con `ours`/`theirs` automáticamente.
-- **Push rechazado:** pudo avanzar main en otra sesión. No force-push; revisar
-  lo nuevo, integrar y verificar de nuevo. El runtime no fue adelantado.
-- **Merge publicado y actualización fallida:** main puede contener la tarea,
-  pero la aplicación todavía no estar activada. Corregir según el error y
-  reintentar el actualizador habitual, sin borrar su estado de mantenimiento.
-- No restaurar un stash sin examinar qué contiene y quién lo creó.
-- No borrar ramas compartidas ni worktrees con trabajo pendiente. La plantilla
-  sólo retira la copia temporal después de merge y push satisfactorios.
+```bash
+./scripts/update-dev.sh --branch codex/mi-tarea --commit SHA_COMPLETO_DE_40_CARACTERES
+```
 
-La plantilla tiene las comprobaciones descritas, no es un nuevo comando ya
-instalado. El script actual por sí solo sigue tomando origin/main y **no hace
-merge de ramas**. Si se automatiza esta plantilla en un script futuro, conservar
-estas guardas y probar conflictos, concurrencia y fallos antes de publicarlo.
+Marcador ilustrativo: la entrega lo proporciona reemplazado. `--commit` es
+opcional para uso humano y exige --branch. La rama debe existir en origin;
+no puede ser main ni una expresión de revisión arbitraria.
 
-## Estado de esta entrega documental
+- Normal/`--fast`: actualización directa, **sin esperar GitHub Actions**.
+- `--full`: solicita y espera CI completa antes de modificar el runtime.
+  La integración en main ya puede haberse publicado si esa CI falla.
+- Sin --branch: actualiza origin/main, sin integrar otra rama.
+- `--check-only`: audita main con el mecanismo existente; no admite --branch
+  para no mezclar auditoría con publicación.
+- `--help`: uso y opciones.
 
-Publicada inicialmente en `codex/flujo-compartido-ramas`. No se integró a main
-ni se operó DEV desde esta sesión. Hasta integrarla, las otras personas deben
-consultar esta rama/documento explícitamente; no suponer que su AGENTS local
-ya contiene el acuerdo.
+La primera instalación requiere cargar el actualizador nuevo desde la rama
+de esta entrega: el viejo aún no conoce --branch. Se entrega un comando concreto
+que lo ejecuta desde un archivo temporal. Hacerlo una vez y sin otro operador
+actualizando durante esa transición. Después no repetir fetch/chown/pipelines
+manuales antes del comando habitual. Windows `deploy-dev.ps1` también invoca
+el actualizador instalado: reparación Git y fetch remoto quedan dentro del lock.
+
+## 3. Exclusión mutua
+
+`update-dev.sh` toma un `flock` no bloqueante **antes** de reparar permisos,
+consultar/modificar el checkout, hacer fetch, integrar, push o actualizar.
+Lo mantiene hasta terminar, incluso durante --full/--check-only. Integración
+y actualización directa comparten el mismo bloqueo:
+
+`/home/capi/.local/state/capibloques/dev-operation.lock`
+
+Si otro proceso lo tiene, el segundo termina con código **75**, **DEV OCUPADO**,
+PID, inicio y rama cuando están disponibles. No modifica el repositorio ni
+ejecuta sudo ni se encola; repetir al terminar el primero. Esos datos son sólo
+informativos: el archivo de información no decide si está ocupado.
+
+**No borrar el .lock ni usar sudo para desbloquearlo.** El archivo es persistente;
+el bloqueo vive en el descriptor del proceso y se libera al cerrarse. Eliminar
+el archivo permitiría bloquear otro inode mientras el primero sigue activo.
+No hay bandera stale basada sólo en PID ni unlock forzado.
+
+Es exclusión local de quienes usan este script en DEV, no un bloqueo distribuido
+de GitHub. Comandos manuales, el orquestador interno ejecutado a mano, scripts
+viejos y pushes desde otro equipo no quedan serializados: todos deben adoptar
+el flujo nuevo. Un push externo concurrente se rechaza o detecta; nunca se
+resuelve con force-push. Tras corte/muerte forzada revisar procesos supervivientes
+y mantenimiento antes de repetir; el lock no sustituye la recuperación de
+`/var/lib/capibloques/dev-deploy.state`.
+
+## 4. Fallos y recuperación
+
+- Checkout sucio, otra rama local, operación Git pendiente, divergencia o SHA
+  distinto: detener y conservar trabajo. No auto-stash/reset/rebase/switch.
+- Conflicto: conserva el worktree temporal e imprime su ruta. Main/runtime no
+  se publican/actualizan por ese intento. Resolver con el autor.
+- Push rechazado: conserva la copia, no fuerza ni adelanta el runtime.
+- Merge/push correctos, actualización fallida: informa que main ya se publicó
+  y DEV no quedó confirmado. Repetir el comando; no deshacer el merge ni borrar
+  el estado de mantenimiento para ocultar el fallo.
+- Sólo tras push correcto retira su copia con `git worktree remove` sin force
+  y `rmdir` de su directorio vacío. No borra ramas ni trabajo pendiente.
+- No prometer ETA de build/CI: la hora de inicio del lock no predice el final.
+
+## 5. Verificación y estado
+
+`python scripts/test_update_dev.py -v` prueba el script real con Git temporal y
+dos procesos; sustituye identidad/host/sudo por dobles locales. No conecta a
+DEV ni ejecuta Docker. Cubre merge/push conservando HEAD operativo, reintento
+ya integrado, SHA incorrecto, trabajo local, conflicto, rechazo de push, fallo
+después de publicar, opciones/guardas y exclusión entre integrar/actualizar.
+
+Implementación en `codex/integracion-dev-bloqueada`. Publicación no equivale a
+instalación: la primera ejecución real queda a cargo del propietario.

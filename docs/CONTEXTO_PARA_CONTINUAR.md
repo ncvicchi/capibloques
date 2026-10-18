@@ -2,6 +2,32 @@
 
 Documento vivo iniciado en **fase 11**. Actualización: **17 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
 
+### Integración y actualización DEV con un comando y bloqueo (17 de octubre)
+
+Pedido autorizado: reemplazar el bloque largo por script genérico y admitir
+una sola operación DEV a la vez. Rama `codex/integracion-dev-bloqueada` desde
+origin/main 094c846 (multivía integrada). update-dev.sh recibe --branch RAMA
+[--commit SHA40], integra en worktree separado, publica main y actualiza sin
+adelantar HEAD operativo. Rama ya integrada se salta para reintentar runtime.
+--fast sin CI; --full opcional; --check-only no admite rama. Guardas conservadas.
+
+flock compartido en /home/capi/.local/state/capibloques/dev-operation.lock antes
+de Git/sudo; ocupado sale 75 con PID/inicio/rama, sin cola ni cambios del repo.
+No borrar el archivo persistente ni desbloquear por PID: manda el descriptor.
+No protege comandos manuales/scripts antiguos/pushes fuera de DEV; todos deben
+adoptar el flujo nuevo. Windows invoca el script instalado sin chown/fetch
+remoto previo. Primera instalación mediante bootstrap concreto de la entrega.
+Guía FLUJO_RAMA_INTEGRACION_DEV.md actualizada para todas las personas/IA.
+
+Pruebas con Git real temporal y procesos concurrentes, sin SSH/sudo/Docker ni
+servidor. No se operó DEV ni se publicó main; el propietario integra e instala.
+Sin cambios de infraestructura, firmware, compilador ni dependencias.
+
+Verificación: seis pruebas operativas con Git y concurrencia, once contratos
+de public-dev y sintaxis Bash/PowerShell aprobados. No se ejecutó CI, build SDK
+ni despliegue remoto. La primera instalación y aceptación en Linux/DEV siguen
+a cargo del propietario; las pruebas locales se ejecutaron con Bash/flock MSYS.
+
 ### Paso a nivel multivía — ampliación autorizada (17 de octubre)
 
 Rama `codex/paso-nivel-multivia`, desde origin/main 4460854 (integra el ejemplo

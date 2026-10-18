@@ -9,6 +9,79 @@ BASELINE_CHECK_ID=0
 TARGET_LABEL=desconocido
 DEPLOY_CONFIRMED=0
 REMOTE_SCRIPT=
+INTEGRATE_BRANCH=
+EXPECTED_BRANCH_COMMIT=
+INTEGRATION_DIR=
+MAIN_PUBLISHED=0
+LOCK_ACQUIRED=0
+LOCK_BUSY=0
+LOCK_DIRECTORY=/home/capi/.local/state/capibloques
+
+usage() {
+  echo "Uso: $0 [--branch RAMA [--commit SHA]] [--fast|--full]"
+  echo "     $0 [--fast|--full] --check-only"
+  echo "Integra la rama en un worktree separado, publica main y actualiza DEV."
+  echo "Sin --branch sólo actualiza main. Otra operación activa impide iniciar (código 75)."
+}
+
+acquire_dev_lock() {
+  command -v flock >/dev/null || { echo 'ERROR: falta flock (util-linux).' >&2; return 1; }
+  umask 077
+  mkdir -p "$LOCK_DIRECTORY"
+  # No truncar ni eliminar este archivo: todos deben bloquear el mismo inode.
+  exec 9>>"$LOCK_DIRECTORY/dev-operation.lock"
+  if ! flock -n 9; then
+    LOCK_BUSY=1
+    echo 'DEV OCUPADO: otra integración o actualización sigue ejecutándose.' >&2
+    [[ ! -r $LOCK_DIRECTORY/dev-operation.info ]] || cat "$LOCK_DIRECTORY/dev-operation.info" >&2
+    echo 'No se modificó nada ni se puso en cola. Repetí al terminar la otra operación.' >&2
+    return 75
+  fi
+  LOCK_ACQUIRED=1
+  printf 'PID: %s\nInicio: %s\nRama: %s\nModo: %s\n' "$$" "$(date -Is)" "${INTEGRATE_BRANCH:-main (sólo actualizar)}" "$CI_MODE" >"$LOCK_DIRECTORY/dev-operation.info"
+}
+
+integrate_branch() {
+  local branch_commit integration_commit
+  branch_commit=$(git rev-parse --verify "refs/remotes/origin/$INTEGRATE_BRANCH^{commit}") || {
+    echo "ERROR: no existe la rama remota $INTEGRATE_BRANCH." >&2; return 1;
+  }
+  [[ -z $EXPECTED_BRANCH_COMMIT || $branch_commit == "$EXPECTED_BRANCH_COMMIT" ]] || {
+    echo 'ERROR: la rama cambió respecto del commit solicitado; no se integró ni actualizó DEV.' >&2; return 1;
+  }
+  echo "Rama: $INTEGRATE_BRANCH · commit: ${branch_commit:0:12}"
+  TARGET_LABEL=${branch_commit:0:12}
+  if git merge-base --is-ancestor "$branch_commit" origin/main; then
+    echo 'La rama ya está integrada; se continúa con la actualización.'
+    return
+  fi
+  git config user.name >/dev/null && git config user.email >/dev/null || {
+    echo 'ERROR: configurá user.name y user.email de Git para crear el merge.' >&2; return 1;
+  }
+  INTEGRATION_DIR=$(mktemp -d /home/capi/capibloques-integracion-XXXXXX)
+  echo "Integración aislada: $INTEGRATION_DIR/worktree"
+  git worktree add --quiet --detach "$INTEGRATION_DIR/worktree" origin/main
+  if ! git -C "$INTEGRATION_DIR/worktree" merge --no-ff --no-edit "$branch_commit"; then
+    echo 'ERROR: conflicto o fallo de merge; se conserva la copia para revisarla. No se publicó main ni se actualizó DEV.' >&2
+    return 1
+  fi
+  integration_commit=$(git -C "$INTEGRATION_DIR/worktree" rev-parse HEAD)
+  if ! git -C "$INTEGRATION_DIR/worktree" push origin HEAD:refs/heads/main; then
+    echo 'ERROR: GitHub rechazó el push; no se fuerza ni se actualiza DEV. Revisá la copia de integración.' >&2
+    return 1
+  fi
+  MAIN_PUBLISHED=1
+  TARGET_LABEL=${integration_commit:0:12}
+  git worktree remove "$INTEGRATION_DIR/worktree"
+  rmdir "$INTEGRATION_DIR"
+  INTEGRATION_DIR=
+  git fetch --quiet origin main
+  [[ $(git rev-parse origin/main) == "$integration_commit" ]] || {
+    echo 'ERROR: main avanzó desde otra sesión después del push; no se actualizó DEV. Revisá y repetí.' >&2; return 1;
+  }
+  echo "Integración publicada en main: ${integration_commit:0:12}"
+}
+
 final_report() {
   local status=$?
   if ((status == 0 && !CHECK_ONLY && !DEPLOY_CONFIRMED)); then
@@ -21,7 +94,12 @@ final_report() {
   if [[ -n $REMOTE_SCRIPT ]]; then
     rm -f "$REMOTE_SCRIPT"
   fi
-  if ((status == 0)); then
+  if ((LOCK_ACQUIRED)); then
+    rm -f -- "$LOCK_DIRECTORY/dev-operation.info"
+  fi
+  if ((LOCK_BUSY)); then
+    printf '\nRESULTADO: DEV OCUPADO; no se inició esta operación.\n' >&2
+  elif ((status == 0)); then
     printf '\n============================================================\n'
     if ((CHECK_ONLY)); then
       printf 'RESULTADO: VERIFICACIÓN DEV COMPLETADA\n'
@@ -41,23 +119,40 @@ final_report() {
     printf 'Commit objetivo: %s\nModo: %s\nCódigo de salida: %s\nRevisá el último mensaje ERROR mostrado arriba.\n' "$TARGET_LABEL" "$CI_MODE" "$status" >&2
     printf '============================================================\n' >&2
   fi
+  if ((status != 0 && !LOCK_BUSY)); then
+    (( !MAIN_PUBLISHED )) || echo 'La integración ya se publicó en main; la actualización DEV no quedó confirmada. Repetí sin deshacer el merge.' >&2
+    [[ -z $INTEGRATION_DIR ]] || echo "Copia conservada para revisión: $INTEGRATION_DIR/worktree" >&2
+  fi
   trap - EXIT
   exit "$status"
 }
 trap final_report EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 129' HUP
 
 while (($#)); do
   case "$1" in
+    --branch|--commit)
+      [[ $# -ge 2 && -n $2 && $2 != --* ]] || { usage >&2; exit 2; }
+      if [[ $1 == --branch ]]; then INTEGRATE_BRANCH=$2; else EXPECTED_BRANCH_COMMIT=$2; fi
+      shift
+      ;;
+    --help|-h) usage; trap - EXIT; exit 0 ;;
     --check-only) CHECK_ONLY=1 ;;
     --fast) CI_MODE=fast ;;
     --full) CI_MODE=full ;;
-    *) echo "Uso: $0 [--fast|--full] [--check-only]" >&2; exit 2 ;;
+    *) usage >&2; exit 2 ;;
   esac
   shift
 done
+[[ -z $EXPECTED_BRANCH_COMMIT || ( -n $INTEGRATE_BRANCH && $EXPECTED_BRANCH_COMMIT =~ ^[0-9a-f]{40}$ ) ]] || { echo 'ERROR: --commit requiere --branch y un SHA completo de 40 caracteres.' >&2; exit 2; }
+[[ -z $INTEGRATE_BRANCH || ( $CHECK_ONLY == 0 && $INTEGRATE_BRANCH != main ) ]] || { echo 'ERROR: --branch no admite main ni --check-only; para auditar main omití --branch.' >&2; exit 2; }
 [[ $(id -un) == capi ]] || { echo "Ejecutá esta orden como el usuario capi, sin sudo." >&2; exit 1; }
 [[ $(hostname) == capi-dev ]] || { echo "Esta orden sólo funciona en capi-dev." >&2; exit 1; }
 
+acquire_dev_lock
+[[ -z $INTEGRATE_BRANCH ]] || git check-ref-format "refs/heads/$INTEGRATE_BRANCH" >/dev/null || { echo 'ERROR: nombre de rama inválido.' >&2; exit 2; }
 cd "$REPOSITORY"
 if find .git ! -user capi -print -quit | grep -q . || [[ ! -w .git/index ]]; then
   echo "Reparando propietario de los metadatos Git del checkout DEV."
@@ -65,7 +160,22 @@ if find .git ! -user capi -print -quit | grep -q . || [[ ! -w .git/index ]]; the
 fi
 [[ -r .git/index && -w .git/index ]] || { echo "No se pudo recuperar .git/index para el usuario capi." >&2; exit 1; }
 [[ -z $(git status --porcelain) ]] || { echo "El checkout tiene cambios locales; no se actualizó." >&2; exit 1; }
-git fetch --quiet origin main
+[[ $(git branch --show-current) == main ]] || { echo 'ERROR: el checkout operativo debe estar en main; no se cambió de rama.' >&2; exit 1; }
+for pending_operation in MERGE_HEAD CHERRY_PICK_HEAD REVERT_HEAD rebase-merge rebase-apply; do
+  [[ ! -e $(git rev-parse --git-path "$pending_operation") ]] || { echo "ERROR: operación Git pendiente: $pending_operation" >&2; exit 1; }
+done
+if [[ -n $INTEGRATE_BRANCH ]]; then
+  if ! git fetch --quiet origin "refs/heads/main:refs/remotes/origin/main" "refs/heads/$INTEGRATE_BRANCH:refs/remotes/origin/$INTEGRATE_BRANCH"; then
+    echo 'ERROR: no se pudieron traer main y la rama solicitada. Revisá nombre, conexión y acceso Git; no se integró ni actualizó DEV.' >&2
+    exit 1
+  fi
+else
+  git fetch --quiet origin main
+fi
+git merge-base --is-ancestor HEAD origin/main || { echo 'ERROR: main local diverge; se conserva sin reset.' >&2; exit 1; }
+if [[ -n $INTEGRATE_BRANCH ]]; then
+  integrate_branch
+fi
 target=$(git rev-parse origin/main)
 TARGET_LABEL=${target:0:12}
 git cat-file -e "$target:scripts/deploy-dev-remote.sh"

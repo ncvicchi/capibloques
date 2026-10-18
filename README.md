@@ -1,6 +1,8 @@
 # CapiBloques para Wemos D1 R32 y DIYmall ESP32-S3 N16R8
 
 Para colaborar: [flujo obligatorio de ramas, integración y actualización DEV](docs/FLUJO_RAMA_INTEGRACION_DEV.md).
+
+En DEV, una vez instalado el flujo nuevo: `./scripts/update-dev.sh --branch codex/mi-tarea` integra y actualiza con bloqueo exclusivo. Las entregas incluyen `--commit SHA40`; si otro operador está ejecutándolo, responde DEV OCUPADO sin modificar el repositorio. Sin --branch sólo actualiza main; --full es opcional y el modo normal no espera GitHub Actions.
 Cada tarea va en `codex/<tarea>`; main sólo recibe integraciones. No desarrollar
 en el checkout operativo ni cambiar la rama de otra persona.
 
