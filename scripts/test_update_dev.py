@@ -40,6 +40,7 @@ class UpdateDevTests(unittest.TestCase):
         self.base = self.git(self.seed, "rev-parse", "HEAD")
         self.git(self.seed, "remote", "add", "origin", str(self.remote))
         self.git(self.seed, "push", "-qu", "origin", "main")
+        self.git(self.seed, "push", "-q", "origin", "main:dev1", "main:dev2")
         self.git(self.root, "clone", "-q", "-b", "main", str(self.remote), str(self.repo))
         self.identity(self.repo)
         self.git(self.seed, "switch", "-qc", "codex/task")
@@ -63,9 +64,16 @@ class UpdateDevTests(unittest.TestCase):
             '  if [[ ${TEST_REJECT_PUSH:-0} == 1 && " $* " == *" push "* ]]; then return 1; fi\n'
             f'  "{Path(GIT).as_posix()}" "$@"\n'
             '}\n'
-            'sudo(){ [[ $1 == bash ]] || return 90; shift; bash "$@"; }\n', encoding="utf-8")
+            'sudo(){\n'
+            ' if [[ $1 == python3 ]]; then\n'
+            '   if [[ $3 == deployed ]]; then printf "%s\\n" "${TEST_DEPLOYED:-invalid}"; return; fi\n'
+            '   [[ $3 == deploy ]] || return 90\n'
+            '   bash "$TEST_HELPER"; return\n'
+            ' fi\n'
+            ' [[ $1 == bash ]] || return 90; shift; bash "$@"; }\n', encoding="utf-8")
         self.env = dict(os.environ, BASH_ENV=self.bootstrap.as_posix(), TEST_REPO=self.repo.as_posix(),
                         TEST_MARKER=self.marker.as_posix(), TEST_RELEASE=self.release.as_posix(),
+                        TEST_HELPER=(self.seed / "scripts/deploy-dev-remote.sh").as_posix(),
                         GIT_TERMINAL_PROMPT="0", LC_ALL="C.UTF-8")
 
     def git(self, cwd, *args):
@@ -80,7 +88,7 @@ class UpdateDevTests(unittest.TestCase):
                               encoding="utf-8", errors="replace", capture_output=True, timeout=30)
 
     def merge_args(self):
-        return ("--branch", "codex/task", "--commit", self.feature, "--fast")
+        return ("--env", "dev1", "--branch", "codex/task", "--commit", self.feature, "--fast")
 
     def test_merge_push_and_update_without_advancing_operational_head(self):
         result = self.run_update(*self.merge_args())
@@ -88,17 +96,19 @@ class UpdateDevTests(unittest.TestCase):
         self.assertIn("ACTUALIZACIÓN DEV COMPLETADA", result.stdout)
         self.assertEqual(self.marker.read_text().strip(), self.base, "runtime must audit from the old HEAD")
         self.assertEqual(self.git(self.repo, "rev-parse", "HEAD"), self.base)
-        merged = self.git(self.remote, "rev-parse", "main")
+        merged = self.git(self.remote, "rev-parse", "dev1")
+        self.assertEqual(self.git(self.remote, "rev-parse", "main"), self.base)
+        self.assertEqual(self.git(self.remote, "rev-parse", "dev2"), self.base)
         self.git(self.remote, "merge-base", "--is-ancestor", self.feature, merged)
         self.assertFalse(list(self.root.glob("integration-*")))
         self.assertFalse((self.lock / "dev-operation.info").exists())
         retry = self.run_update(*self.merge_args())
         self.assertEqual(retry.returncode, 0, retry.stdout + retry.stderr)
         self.assertIn("ya está integrada", retry.stdout)
-        self.assertEqual(self.git(self.remote, "rev-parse", "main"), merged)
+        self.assertEqual(self.git(self.remote, "rev-parse", "dev1"), merged)
 
     def test_wrong_sha_and_dirty_checkout_do_not_publish_or_call_runtime(self):
-        result = self.run_update("--branch", "codex/task", "--commit", "0" * 40)
+        result = self.run_update("--env", "dev1", "--branch", "codex/task", "--commit", "0" * 40)
         self.assertNotEqual(result.returncode, 0)
         (self.repo / "private-work").write_text("preserve this")
         dirty = self.run_update(*self.merge_args())
@@ -118,11 +128,12 @@ class UpdateDevTests(unittest.TestCase):
         self.git(self.seed, "add", ".")
         self.git(self.seed, "commit", "-qm", "main conflict")
         main = self.git(self.seed, "rev-parse", "HEAD")
-        self.git(self.seed, "push", "-q", "origin", "main")
-        result = self.run_update("--branch", "codex/task", "--commit", feature)
+        self.git(self.seed, "push", "-q", "origin", "main:dev1")
+        result = self.run_update("--env", "dev1", "--branch", "codex/task", "--commit", feature)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Copia conservada", result.stderr)
-        self.assertEqual(self.git(self.remote, "rev-parse", "main"), main)
+        self.assertEqual(self.git(self.remote, "rev-parse", "dev1"), main)
+        self.assertEqual(self.git(self.remote, "rev-parse", "main"), self.base)
         self.assertEqual(self.git(self.repo, "rev-parse", "HEAD"), self.base)
         self.assertEqual(self.git(self.repo, "status", "--porcelain"), "")
         self.assertTrue(list(self.root.glob("integration-*/worktree/shared")))
@@ -135,9 +146,10 @@ class UpdateDevTests(unittest.TestCase):
         self.assertFalse(self.marker.exists())
         failed = self.run_update(*self.merge_args(), TEST_DEPLOY_EXIT="7")
         self.assertEqual(failed.returncode, 7)
-        self.assertIn("ya se publicó en main", failed.stderr)
+        self.assertIn("ya se publicó en dev1", failed.stderr)
         self.assertIn("ACTUALIZACIÓN DEV FALLÓ", failed.stderr)
-        self.assertNotEqual(self.git(self.remote, "rev-parse", "main"), self.base)
+        self.assertNotEqual(self.git(self.remote, "rev-parse", "dev1"), self.base)
+        self.assertEqual(self.git(self.remote, "rev-parse", "main"), self.base)
 
     def test_second_operation_is_rejected_until_the_first_finishes(self):
         first = subprocess.Popen([BASH, str(self.script), *self.merge_args()], env=dict(self.env, TEST_HOLD="1"),
@@ -170,7 +182,7 @@ class UpdateDevTests(unittest.TestCase):
                      ("--branch", "codex/task", "--check-only"), ("--branch", "bad..ref")):
             result = self.run_update(*args)
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
-        missing = self.run_update("--branch", "codex/missing")
+        missing = self.run_update("--env", "dev1", "--branch", "codex/missing")
         self.assertNotEqual(missing.returncode, 0)
         self.git(self.repo, "switch", "-qc", "codex/local")
         branch = self.run_update()
@@ -183,6 +195,20 @@ class UpdateDevTests(unittest.TestCase):
         self.assertIn("operación Git pendiente", pending.stderr)
         self.assertFalse(self.marker.exists())
         self.assertEqual(self.git(self.remote, "rev-parse", "main"), self.base)
+
+    def test_promotion_requires_healthy_installed_tip_and_is_explicit(self):
+        result = self.run_update(*self.merge_args())
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        installed = self.git(self.remote, "rev-parse", "dev1")
+        self.assertEqual(self.git(self.remote, "rev-parse", "main"), self.base)
+        rejected = self.run_update("--promote", "dev1", TEST_DEPLOYED=self.base)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertEqual(self.git(self.remote, "rev-parse", "main"), self.base)
+        promoted = self.run_update("--promote", "dev1", "--commit", installed, TEST_DEPLOYED=installed)
+        self.assertEqual(promoted.returncode, 0, promoted.stdout + promoted.stderr)
+        self.git(self.remote, "merge-base", "--is-ancestor", installed, "main")
+        self.assertEqual(self.git(self.repo, "rev-parse", "HEAD"), self.base)
+        self.assertEqual(self.git(self.remote, "rev-parse", "dev2"), self.base)
 
 
 if __name__ == "__main__":

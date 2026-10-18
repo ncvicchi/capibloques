@@ -16,12 +16,16 @@ MAIN_PUBLISHED=0
 LOCK_ACQUIRED=0
 LOCK_BUSY=0
 LOCK_DIRECTORY=/home/capi/.local/state/capibloques
+ENVIRONMENT=main
+PROMOTE=
+DESTINATION=main
 
 usage() {
-  echo "Uso: $0 [--branch RAMA [--commit SHA]] [--fast|--full]"
+  echo "Uso: $0 --env dev1|dev2 [--branch RAMA [--commit SHA]] [--fast|--full]"
+  echo "     $0 --promote dev1|dev2 [--commit SHA] [--fast|--full]"
   echo "     $0 [--fast|--full] --check-only"
-  echo "Integra la rama en un worktree separado, publica main y actualiza DEV."
-  echo "Sin --branch sólo actualiza main. Otra operación activa impide iniciar (código 75)."
+  echo "--branch integra sólo en el ambiente indicado. --promote es la única integración en main."
+  echo "Sin opciones sólo actualiza main. Otra operación activa sale 75 (sin cola)."
 }
 
 acquire_dev_lock() {
@@ -38,7 +42,7 @@ acquire_dev_lock() {
     return 75
   fi
   LOCK_ACQUIRED=1
-  printf 'PID: %s\nInicio: %s\nRama: %s\nModo: %s\n' "$$" "$(date -Is)" "${INTEGRATE_BRANCH:-main (sólo actualizar)}" "$CI_MODE" >"$LOCK_DIRECTORY/dev-operation.info"
+  printf 'PID: %s\nInicio: %s\nAmbiente: %s\nRama: %s\nModo: %s\n' "$$" "$(date -Is)" "$DESTINATION" "${INTEGRATE_BRANCH:-$DESTINATION}" "$CI_MODE" >"$LOCK_DIRECTORY/dev-operation.info"
 }
 
 integrate_branch() {
@@ -51,7 +55,7 @@ integrate_branch() {
   }
   echo "Rama: $INTEGRATE_BRANCH · commit: ${branch_commit:0:12}"
   TARGET_LABEL=${branch_commit:0:12}
-  if git merge-base --is-ancestor "$branch_commit" origin/main; then
+  if git merge-base --is-ancestor "$branch_commit" "origin/$DESTINATION"; then
     echo 'La rama ya está integrada; se continúa con la actualización.'
     return
   fi
@@ -60,13 +64,13 @@ integrate_branch() {
   }
   INTEGRATION_DIR=$(mktemp -d /home/capi/capibloques-integracion-XXXXXX)
   echo "Integración aislada: $INTEGRATION_DIR/worktree"
-  git worktree add --quiet --detach "$INTEGRATION_DIR/worktree" origin/main
+  git worktree add --quiet --detach "$INTEGRATION_DIR/worktree" "origin/$DESTINATION"
   if ! git -C "$INTEGRATION_DIR/worktree" merge --no-ff --no-edit "$branch_commit"; then
-    echo 'ERROR: conflicto o fallo de merge; se conserva la copia para revisarla. No se publicó main ni se actualizó DEV.' >&2
+    echo "ERROR: conflicto o fallo de merge; se conserva la copia. No se publicó $DESTINATION ni se actualizó su ambiente." >&2
     return 1
   fi
   integration_commit=$(git -C "$INTEGRATION_DIR/worktree" rev-parse HEAD)
-  if ! git -C "$INTEGRATION_DIR/worktree" push origin HEAD:refs/heads/main; then
+  if ! git -C "$INTEGRATION_DIR/worktree" push origin "HEAD:refs/heads/$DESTINATION"; then
     echo 'ERROR: GitHub rechazó el push; no se fuerza ni se actualiza DEV. Revisá la copia de integración.' >&2
     return 1
   fi
@@ -75,11 +79,11 @@ integrate_branch() {
   git worktree remove "$INTEGRATION_DIR/worktree"
   rmdir "$INTEGRATION_DIR"
   INTEGRATION_DIR=
-  git fetch --quiet origin main
-  [[ $(git rev-parse origin/main) == "$integration_commit" ]] || {
-    echo 'ERROR: main avanzó desde otra sesión después del push; no se actualizó DEV. Revisá y repetí.' >&2; return 1;
+  git fetch --quiet origin "$DESTINATION"
+  [[ $(git rev-parse "origin/$DESTINATION") == "$integration_commit" ]] || {
+    echo "ERROR: $DESTINATION avanzó desde otra sesión después del push; no se actualizó. Revisá y repetí." >&2; return 1;
   }
-  echo "Integración publicada en main: ${integration_commit:0:12}"
+  echo "Integración publicada en $DESTINATION: ${integration_commit:0:12}"
 }
 
 final_report() {
@@ -106,7 +110,7 @@ final_report() {
       printf 'Commit: %s\nEstado: auditoría correcta; no se hicieron cambios\n' "$TARGET_LABEL"
     else
       printf 'RESULTADO: ACTUALIZACIÓN DEV COMPLETADA\n'
-      printf 'Commit: %s\nModo: %s\nEstado: listo para usar\n' "$TARGET_LABEL" "$CI_MODE"
+      printf 'Ambiente: %s\nCommit: %s\nModo: %s\nEstado: listo para usar\n' "$DESTINATION" "$TARGET_LABEL" "$CI_MODE"
     fi
     printf '============================================================\n'
   else
@@ -120,7 +124,7 @@ final_report() {
     printf '============================================================\n' >&2
   fi
   if ((status != 0 && !LOCK_BUSY)); then
-    (( !MAIN_PUBLISHED )) || echo 'La integración ya se publicó en main; la actualización DEV no quedó confirmada. Repetí sin deshacer el merge.' >&2
+    (( !MAIN_PUBLISHED )) || echo "La integración ya se publicó en $DESTINATION; la actualización no quedó confirmada. Repetí sin deshacer el merge." >&2
     [[ -z $INTEGRATION_DIR ]] || echo "Copia conservada para revisión: $INTEGRATION_DIR/worktree" >&2
   fi
   trap - EXIT
@@ -133,9 +137,14 @@ trap 'exit 129' HUP
 
 while (($#)); do
   case "$1" in
-    --branch|--commit)
+    --branch|--commit|--env|--promote)
       [[ $# -ge 2 && -n $2 && $2 != --* ]] || { usage >&2; exit 2; }
-      if [[ $1 == --branch ]]; then INTEGRATE_BRANCH=$2; else EXPECTED_BRANCH_COMMIT=$2; fi
+      case "$1" in
+        --branch) INTEGRATE_BRANCH=$2 ;;
+        --commit) EXPECTED_BRANCH_COMMIT=$2 ;;
+        --env) ENVIRONMENT=$2 ;;
+        --promote) PROMOTE=$2 ;;
+      esac
       shift
       ;;
     --help|-h) usage; trap - EXIT; exit 0 ;;
@@ -146,7 +155,15 @@ while (($#)); do
   esac
   shift
 done
-[[ -z $EXPECTED_BRANCH_COMMIT || ( -n $INTEGRATE_BRANCH && $EXPECTED_BRANCH_COMMIT =~ ^[0-9a-f]{40}$ ) ]] || { echo 'ERROR: --commit requiere --branch y un SHA completo de 40 caracteres.' >&2; exit 2; }
+[[ $ENVIRONMENT == main || $ENVIRONMENT == dev1 || $ENVIRONMENT == dev2 ]] || { echo 'ERROR: ambiente inválido.' >&2; exit 2; }
+if [[ -n $PROMOTE ]]; then
+  [[ ( $PROMOTE == dev1 || $PROMOTE == dev2 ) && $ENVIRONMENT == main && -z $INTEGRATE_BRANCH && $CHECK_ONLY == 0 ]] || { echo 'ERROR: --promote sólo acepta dev1/dev2 y no admite --env, --branch ni --check-only.' >&2; exit 2; }
+  INTEGRATE_BRANCH=$PROMOTE
+elif [[ -n $INTEGRATE_BRANCH && $ENVIRONMENT == main ]]; then
+  echo 'ERROR: --branch requiere --env dev1 o --env dev2; para main usá --promote.' >&2; exit 2
+fi
+DESTINATION=$ENVIRONMENT
+[[ -z $EXPECTED_BRANCH_COMMIT || ( -n $INTEGRATE_BRANCH && $EXPECTED_BRANCH_COMMIT =~ ^[0-9a-f]{40}$ ) ]] || { echo 'ERROR: --commit requiere --branch/--promote y un SHA completo.' >&2; exit 2; }
 [[ -z $INTEGRATE_BRANCH || ( $CHECK_ONLY == 0 && $INTEGRATE_BRANCH != main ) ]] || { echo 'ERROR: --branch no admite main ni --check-only; para auditar main omití --branch.' >&2; exit 2; }
 [[ $(id -un) == capi ]] || { echo "Ejecutá esta orden como el usuario capi, sin sudo." >&2; exit 1; }
 [[ $(hostname) == capi-dev ]] || { echo "Esta orden sólo funciona en capi-dev." >&2; exit 1; }
@@ -166,19 +183,27 @@ for pending_operation in MERGE_HEAD CHERRY_PICK_HEAD REVERT_HEAD rebase-merge re
 done
 if [[ -n $INTEGRATE_BRANCH ]]; then
   if ! git fetch --quiet origin "refs/heads/main:refs/remotes/origin/main" "refs/heads/$INTEGRATE_BRANCH:refs/remotes/origin/$INTEGRATE_BRANCH"; then
-    echo 'ERROR: no se pudieron traer main y la rama solicitada. Revisá nombre, conexión y acceso Git; no se integró ni actualizó DEV.' >&2
+    echo 'ERROR: no se pudieron traer main y la rama solicitada.' >&2
     exit 1
   fi
 else
   git fetch --quiet origin main
 fi
+if [[ $DESTINATION != main ]]; then
+  git fetch --quiet origin "refs/heads/$DESTINATION:refs/remotes/origin/$DESTINATION"
+fi
 git merge-base --is-ancestor HEAD origin/main || { echo 'ERROR: main local diverge; se conserva sin reset.' >&2; exit 1; }
+if [[ -n $PROMOTE ]]; then
+  deployed=$(sudo python3 /opt/capibloques-environments/manage.py deployed "$PROMOTE")
+  [[ $deployed =~ ^[0-9a-f]{40}$ && ( -z $EXPECTED_BRANCH_COMMIT || $EXPECTED_BRANCH_COMMIT == "$deployed" ) ]] || { echo 'ERROR: revisión instalada distinta a la solicitada.' >&2; exit 1; }
+  EXPECTED_BRANCH_COMMIT=$deployed
+fi
 if [[ -n $INTEGRATE_BRANCH ]]; then
   integrate_branch
 fi
-target=$(git rev-parse origin/main)
+target=$(git rev-parse "origin/$DESTINATION")
 TARGET_LABEL=${target:0:12}
-git cat-file -e "$target:scripts/deploy-dev-remote.sh"
+if [[ $DESTINATION == main ]]; then git cat-file -e "$target:scripts/deploy-dev-remote.sh"; fi
 
 if [[ $CI_MODE == fast ]]; then
   echo "Modo DEV directo: no se espera GitHub Actions. Las pruebas se hacen en DEV."
@@ -333,11 +358,25 @@ fi
 
 mode=()
 ((CHECK_ONLY)) && mode+=(--check-only)
+if [[ $DESTINATION != main ]]; then
+  if ((CHECK_ONLY)); then
+    installed=$(sudo python3 /opt/capibloques-environments/manage.py deployed "$DESTINATION")
+    [[ $installed == "$target" ]] || { echo "ERROR: $DESTINATION está saludable pero no tiene la revisión remota solicitada ($installed)." >&2; exit 1; }
+  else
+    sudo python3 /opt/capibloques-environments/manage.py deploy "$DESTINATION" --commit "$target" </dev/null
+  fi
+  DEPLOY_CONFIRMED=1
+  exit 0
+fi
 # El orquestador no se ejecuta desde stdin: varias herramientas de Docker
 # aceptan entrada aunque no la necesiten y podrían consumir silenciosamente el
 # resto del propio script, terminándolo con código cero antes del despliegue.
 umask 077
 REMOTE_SCRIPT=$(mktemp /tmp/capibloques-dev-deploy.XXXXXX)
 git show "$target:scripts/deploy-dev-remote.sh" >"$REMOTE_SCRIPT"
-sudo bash "$REMOTE_SCRIPT" --expected-commit "$target" "${mode[@]}" </dev/null
+if [[ -f /opt/capibloques-environments/manage.py ]] && ! ((CHECK_ONLY)) && ! grep -q '/run/capibloques-build.lock' "$REMOTE_SCRIPT"; then
+  sudo python3 /opt/capibloques-environments/manage.py main-update --commit "$target" </dev/null
+else
+  sudo bash "$REMOTE_SCRIPT" --expected-commit "$target" "${mode[@]}" </dev/null
+fi
 DEPLOY_CONFIRMED=1

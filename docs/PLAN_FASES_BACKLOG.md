@@ -1,5 +1,13 @@
 # Nuevas fases de CapiBloques
 
+Infraestructura transversal autorizada (17 de octubre): tres endpoints en capi-dev,
+main actual y ambientes aislados dev1/dev2; cada persona prueba en su ambiente y
+promueve sólo por pedido explícito. Implementación en `codex/ambientes-dev1-dev2`,
+instalación/DNS/TLS/aceptación pendientes. No renumera fases ni habilita producción.
+Operación, límites de VM, bootstrap, respaldos y recuperación:
+[flujo compartido vigente](FLUJO_RAMA_INTEGRACION_DEV.md). Sustituye integrar una
+tarea directamente a main para probar. El propietario crea DNS y opera instalación.
+
 Actualización vigente, 14 de octubre de 2026: **fase 21 entregada en software**,
 con DEV y aceptación humana pendientes. El estado histórico inferior que la
 incluye en 21–22 pendientes queda sustituido por este cierre. Evidencia y

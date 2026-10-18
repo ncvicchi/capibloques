@@ -2,7 +2,52 @@
 
 Documento vivo iniciado en **fase 11**. Actualización: **17 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
 
-### Integración y actualización DEV con un comando y bloqueo (17 de octubre)
+### Tres endpoints aislados — acuerdo vigente (17 de octubre)
+
+Rama `codex/ambientes-dev1-dev2`, parte de origin/main 094c846 e incorpora
+3d060c1 (bloqueo previo). Usuario autorizó main/dev1/dev2 en la misma VM;
+crea él los DNS. Main conserva capibloques.dev.nvicchi.com; nuevos dominios
+capibloques.dev1.nvicchi.com y capibloques.dev2.nvicchi.com. Guía completa y
+bootstrap: `FLUJO_RAMA_INTEGRACION_DEV.md`, obligatoria para ambos desarrolladores.
+
+`setup-environments.sh` instala comando `~/.local/bin/capi-dev` y gestor raíz,
+servicios persistentes e inicializa ramas dev1/dev2 sólo si no existen. No
+publica main ni cambia web/API/base actuales; drena y reemplaza sólo runner
+compatible, restaura admisión original. Actualizar dev1/dev2 crea API/PG/editor,
+volúmenes, secretos/sesiones/redes/artefactos independientes, sin copiar main.
+Release inmutable por SHA y API sin bind de código cambiante. PG 128 MiB por
+ambiente, API 256, editor 64; medir consumo real y swap en esta VM limitada.
+
+Tareas desde origin/dev1 (nosotros) u origin/dev2 (otro), ramas codex únicas y
+clones separados. `capi-dev --env dev1 --branch codex/tarea --commit SHA40` NO
+toca main. Sólo `--promote dev1`/dev2 integra punta instalada y saludable a
+main y actualiza endpoint actual. Rechaza avance remoto no instalado, conflicto,
+push rechazado, revisión incorrecta, mantenimiento pendiente o imagen vieja.
+Promoción sólo de código; no mueve usuarios/proyectos/bases. El acuerdo humano
+de pruebas no se inventa como aprobación automática de UI.
+
+El flock de operaciones sigue común (ocupado 75). Otro flock raíz serializa
+builders/compilaciones de las tres colas. Runner etiqueta/reconcilia sólo sus
+propios intentos; main legacy sin etiqueta sigue siendo main. SDK/base compartidos
+con generador por revisión; firmware sin cambios reutiliza bundles verificados;
+caché de intérprete nueva separada de outputs de main. Pines de imágenes
+protegen recetas dev1/dev2 frente al script de limpieza viejo; limpieza nueva
+conserva también imágenes de recuperación. No se borra caché ESP-IDF ni volúmenes.
+
+Gestor conserva respaldo PG verificado y pending.json ante fallo; reintentar
+mismo objetivo, no borrar marcadores ni regenerar secretos faltantes. Cuentas
+administradoras se crean interactivamente por ambiente; colas nacen pausadas.
+Vhosts edge propios con instalador HTTP/HTTPS, certificados propios y rollback
+acotado. No cambia gateway, Proxmox, PRD ni certificados/vhosts ajenos.
+
+Verificación local: 7 escenarios Git reales/concurrencia, 9 contratos de ambientes,
+5 aislamiento del compilador, 11 contratos public-dev, sintaxis Bash/Python y
+PowerShell. Sin CI ni SDK/build Docker ni SSH. **Pendientes:** instalar en Linux,
+DNS/Nginx/TLS, cuentas, aceptación UI/datos/compilación/reboot/recursos y promoción
+real. No se operó servidor ni se publicó main. Las instrucciones inferiores
+de --branch sin ambiente son históricas y quedan sustituidas por este acuerdo.
+
+### Integración y actualización DEV anterior (17 de octubre, sustituida)
 
 Pedido autorizado: reemplazar el bloque largo por script genérico y admitir
 una sola operación DEV a la vez. Rama `codex/integracion-dev-bloqueada` desde

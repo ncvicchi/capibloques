@@ -1,5 +1,14 @@
 # Backlog de CapiBloques
 
+**Infraestructura transversal autorizada — tres ambientes en capi-dev.** Main
+conserva endpoint actual; dev1 para nosotros, dev2 para el otro desarrollador,
+con API/PG/secretos/proyectos/colas aislados. Actualizaciones por ambiente,
+promoción a main sólo explícita, bloqueo global y compilación pesada serializada.
+Software en rama `codex/ambientes-dev1-dev2`; pendientes instalación Linux,
+DNS por propietario, Nginx/certificados, cuentas y aceptación de los tres sitios,
+compilación/recursos/reboot/promoción. No equivale a endpoints desplegados ni
+cambia fases funcionales/producción. [Guía y comandos](FLUJO_RAMA_INTEGRACION_DEV.md).
+
 Ampliación autorizada de fase 47 en `codex/paso-nivel-multivia`: 1/2/4 vías,
 trenes simultáneos por vías independientes, dos detectores por vía y cierre
 común hasta salir todos. Ejemplos previos conservados y nuevos 2/4 con tareas,

@@ -92,7 +92,17 @@ while IFS= read -r file; do
     backend/compiler/migrations/0002_build_board_profile.py|backend/accounts/migrations/0005_challenge_progress.py|backend/courses/migrations/0002_challenge_library.py)
       RUN_MIGRATIONS=1
       ;;
-    ops/compiler/Dockerfile|ops/compiler/archive.py|ops/compiler/entry.py|ops/compiler/runner.py)
+    ops/compiler/runner.py)
+      if [[ -f /opt/capibloques-environments/manage.py ]]; then
+        [[ $(repo_git rev-parse "$TARGET_COMMIT:$file") == $(repo_git hash-object /opt/capibloques-compiler/runner.py) ]] || \
+          fail 'runner modificado: reinstalar explícitamente setup-environments.sh antes de promover'
+        # setup already drained/installed the compatible host runner. It is
+        # NOT part of the SDK image; no toolchain rebuild for this file alone.
+      else
+        REBUILD_COMPILER=1
+      fi
+      ;;
+    ops/compiler/Dockerfile|ops/compiler/archive.py|ops/compiler/entry.py)
       REBUILD_COMPILER=1
       ;;
     ops/public-dev/test_contracts.py)
@@ -292,6 +302,12 @@ while :; do
 done
 
 systemctl stop capibloques-compiler.service
+# All three queues share one physical build slot, without sharing data.
+exec 8>>/run/capibloques-build.lock
+echo 'Esperando el recurso de construcción compartido (máximo 15 minutos).'
+flock -w 900 8 || fail 'otra construcción sigue activa; repetir sin borrar el estado'
+[[ -z $(docker ps -q --filter label=com.capibloques.compiler=1) ]] || \
+  fail 'hay un compilador sin bloqueo; su runner debe reconciliarlo antes de construir'
 [[ $(systemctl is-active capibloques-compiler.service || true) == inactive ]] || fail "no se pudo detener el planificador"
 
 compose_dev() {

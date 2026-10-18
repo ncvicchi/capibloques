@@ -35,6 +35,26 @@ done < <(docker ps -q)
 remember_image "$COMPILER_IMAGE"
 remember_image node:22.23.2-bookworm-slim
 remember_image python:3.12-slim-bookworm
+# Idle sibling queues still require their immutable recipes and recovery images.
+for environment in dev1 dev2; do
+  while IFS= read -r reference; do
+    [[ -z $reference ]] || remember_image "$reference"
+  done < <(python3 - "$environment" <<'PY'
+import json, pathlib, sys
+root = pathlib.Path('/etc/capibloques/environments') / sys.argv[1]
+for name in ('compiler.json', 'compose.json', 'previous-compose.json'):
+    path = root / name
+    if path.exists():
+        info = json.loads(path.read_text())
+        if name == 'compiler.json':
+            print(info['image'])
+        else:
+            for service in info['services'].values():
+                if service.get('image'):
+                    print(service['image'])
+PY
+  )
+done
 
 [[ ${#keep[@]} -ge 4 ]] || {
   echo "ERROR: no se identificaron todas las imágenes indispensables de DEV." >&2

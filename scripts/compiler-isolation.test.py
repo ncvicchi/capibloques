@@ -24,6 +24,21 @@ import runner
 
 
 class FirmwareIsolationTests(unittest.TestCase):
+    def test_busy_global_slot_never_claims_a_job(self):
+        rounds = []
+        def dispatch(_config, action, data=None):
+            self.assertEqual(action, 'inspect')
+            return {'active': [], 'artifacts': []}
+        with patch.object(runner, 'CONFIG') as config, \
+             patch.object(runner, 'STOP', SimpleNamespace(is_set=lambda: bool(rounds), wait=lambda _: rounds.append(1))), \
+             patch.object(runner, 'dispatch', side_effect=dispatch), \
+             patch.object(runner, 'inventory', return_value={}), patch.object(runner, 'cleanup'), \
+             patch.object(runner, 'open', create=True), \
+             patch.object(runner, 'fcntl', SimpleNamespace(LOCK_EX=1, LOCK_NB=2, LOCK_UN=4, flock=Mock(side_effect=BlockingIOError))):
+            config.read_text.return_value = json.dumps({'image': 'sha256:'+'a'*64})
+            runner.main()
+        self.assertTrue(rounds)
+
     def test_completed_attempt_does_not_remain_in_idle_loop_locals(self):
         attempt = str(uuid.uuid4())
         job = {"id": str(uuid.uuid4()), "attempt": attempt, "recipe": "a" * 64,
@@ -48,6 +63,8 @@ class FirmwareIsolationTests(unittest.TestCase):
              patch.object(runner, "docker", return_value=b""), \
              patch.object(runner, "terminate", return_value={"ExitCode": 0, "OOMKilled": False}), \
              patch.object(runner, "cleanup"), patch.object(runner, "publish", return_value="b" * 64), \
+             patch.object(runner, "open", create=True), \
+             patch.object(runner, "fcntl", SimpleNamespace(LOCK_EX=1, LOCK_NB=2, LOCK_UN=4, flock=Mock())), \
              patch.object(runner.subprocess, "Popen", return_value=process), \
              patch.object(runner.threading, "Thread", side_effect=lambda target, args, **_: SimpleNamespace(start=lambda: target(*args))):
             config.read_text.return_value = json.dumps({"image": "sha256:" + "a" * 64})

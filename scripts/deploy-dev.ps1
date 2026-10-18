@@ -1,4 +1,7 @@
 param(
+    [ValidateSet('main', 'dev1', 'dev2')][string]$Environment = 'main',
+    [ValidateSet('dev1', 'dev2')][string]$Promote,
+    [string]$Branch,
     [switch]$CheckOnly,
     [switch]$Fast,
     [switch]$Full,
@@ -8,6 +11,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 if ($Fast -and $Full) { throw 'Elegí -Fast o -Full, no ambos.' }
+if ($Promote -and ($Environment -ne 'main' -or $Branch -or $CheckOnly)) { throw '-Promote no admite -Environment, -Branch ni -CheckOnly.' }
+if ($Branch -and ($Environment -eq 'main' -or $CheckOnly -or $Branch -notmatch '^[A-Za-z0-9][A-Za-z0-9._/-]*$')) { throw '-Branch requiere -Environment dev1/dev2, nombre de rama válido y no -CheckOnly.' }
 $capiRepo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $capiRemoteScript = Join-Path $PSScriptRoot 'deploy-dev-remote.sh'
 if (-not (Test-Path -LiteralPath $SshConfig -PathType Leaf)) {
@@ -25,25 +30,29 @@ $capiSsh = Get-Command ssh -CommandType Application -ErrorAction Stop |
 Push-Location $capiRepo
 try {
     $capiBranch = (& $capiGit branch --show-current).Trim()
-    if ($LASTEXITCODE -ne 0 -or $capiBranch -ne 'main') {
-        throw 'El despliegue de DEV sólo admite la rama main.'
+    if ($LASTEXITCODE -ne 0 -or (-not $Promote -and $Environment -eq 'main' -and $capiBranch -ne 'main')) {
+        throw 'Actualizar main requiere checkout main; para una tarea elegí -Environment dev1/dev2 -Branch.'
     }
     if ((& $capiGit status --porcelain)) {
         throw 'El checkout local tiene cambios; commit y push antes de desplegar.'
     }
-    & $capiGit fetch --quiet origin main
+    $capiReference = if ($Branch) { $Branch } else { $Environment }
+    & $capiGit fetch --quiet origin $capiReference
     if ($LASTEXITCODE -ne 0) { throw 'No se pudo actualizar origin/main.' }
     $capiCommit = (& $capiGit rev-parse HEAD).Trim()
-    $capiOrigin = (& $capiGit rev-parse origin/main).Trim()
-    if ($capiCommit -ne $capiOrigin) {
-        throw 'HEAD no coincide con origin/main; falta push o actualización local.'
+    $capiOrigin = (& $capiGit rev-parse "origin/$capiReference").Trim()
+    if (-not $Promote -and ($Branch -or $Environment -eq 'main') -and $capiCommit -ne $capiOrigin) {
+        throw 'HEAD no coincide con la rama remota solicitada; falta push o actualización local.'
     }
 
     $capiMode = if ($Full) { ' --full' } else { ' --fast' }
     if ($CheckOnly) { $capiMode += ' --check-only' }
+    if ($Promote) { $capiMode += " --promote $Promote" }
+    else { $capiMode += " --env $Environment" }
+    if ($Branch) { $capiMode += " --branch '$Branch' --commit $capiCommit" }
     # El actualizador instalado toma el bloqueo antes de reparar permisos o
     # hacer Git. La instalación inicial del flujo nuevo se hace una sola vez.
-    $capiCommand = "cd /home/capi/capibloques && bash scripts/update-dev.sh$capiMode"
+    $capiCommand = "/home/capi/.local/bin/capi-dev$capiMode"
     $capiArgs = @(
         '-F', (Resolve-Path -LiteralPath $SshConfig).Path,
         '-tt', '-a', '-x',
@@ -56,12 +65,10 @@ try {
     }
     $capiArgs += @('capibloques-dev', $capiCommand)
 
-    if ($Full) {
-        Write-Host "DEV objetivo: $capiCommit. Modo completo: esperará la CI de GitHub."
-    }
-    else {
-        Write-Host "DEV objetivo: $capiCommit. Modo directo: actualizará DEV sin esperar GitHub Actions."
-    }
+    if ($Promote) { Write-Host "Promoción explícita de $Promote a main; se validará su revisión instalada en el servidor." }
+    else { Write-Host "Ambiente: $Environment. Rama: $capiReference. No integra otros ambientes." }
+    if ($Full) { Write-Host 'Modo completo: esperará la CI de GitHub.' }
+    else { Write-Host 'Modo directo: sin esperar GitHub Actions.' }
     Write-Host 'SSH y sudo pueden solicitar la contraseña de la VM. No se guarda ni se pasa como argumento.'
     & $capiSsh @capiArgs
     if ($LASTEXITCODE -ne 0) {
