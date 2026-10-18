@@ -185,11 +185,14 @@ sudo python3 ops/environments/install_edge.py http --acme-root /RUTA_ACME_EXISTE
 ```
 
 Admite únicamente la VM con IP 192.168.1.38. Instala dos archivos propios en
-`/etc/nginx/conf.d/capibloques-dev1.conf`/dev2; rechaza dominios definidos en otros
+`/etc/nginx/sites-enabled/zz-capibloques-dev1.conf`/dev2; rechaza dominios definidos en otros
 archivos. Conserva main y certificados ajenos, respalda sólo sus archivos,
 valida `nginx -t` y restaura ante fallo de prueba/reload. Usa HTTP 80 / HTTPS
 interno 8443, configurables si la instalación real difiere. Imprime comandos
 Certbot separados; después de emitirlos ejecutar el mismo comando con `https`.
+Se cargan después de los sitios anteriores para conservar el servidor TLS por
+defecto. La versión inicial usó conf.d; la migración automática admite sólo
+sus dos archivos con contenido idéntico, respaldados y sin sobrescribir otros.
 No pide ni acepta un certificado de otro dominio. DNS/ACME deben funcionar
 antes de esa segunda etapa. Verificar externamente ambos login, cookies,
 guardado independiente y que main sigue respondiendo antes de darlo por activo.

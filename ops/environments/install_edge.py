@@ -55,7 +55,9 @@ def main():
             current_file = line.removeprefix('# configuration file ').rstrip(':')
         if line.strip().startswith('server_name '):
             for number in (1, 2):
-                if f'capibloques.dev{number}.nvicchi.com' in line and current_file != f'/etc/nginx/conf.d/capibloques-dev{number}.conf':
+                allowed = {f'/etc/nginx/sites-enabled/zz-capibloques-dev{number}.conf',
+                           f'/etc/nginx/conf.d/capibloques-dev{number}.conf'}
+                if f'capibloques.dev{number}.nvicchi.com' in line and current_file not in allowed:
                     raise RuntimeError('Ya existe ese dominio en otro archivo: '+current_file)
     with tempfile.TemporaryDirectory(prefix='capibloques-edge-') as temporary:
         candidates = []
@@ -72,7 +74,16 @@ def main():
                 run('openssl', 'x509', '-in', certificate, '-noout', '-checkhost', fqdn, '-checkend', '86400')
                 command += ['--upstream', f'192.168.1.77:{3080+number}', '--certificate', str(certificate), '--certificate-key', str(key)]
             run(*command)
-            candidates.append((Path('/etc/nginx/conf.d')/output.name, output.read_bytes()))
+            content = output.read_bytes()
+            # conf.d is loaded BEFORE existing sites: a new first listener
+            # would accidentally become the default TLS vhost. Append only
+            # our zz- sites, preserving existing default servers/protocol order.
+            candidates.append((Path('/etc/nginx/sites-enabled')/('zz-'+output.name), content))
+            legacy = Path('/etc/nginx/conf.d')/output.name
+            if legacy.exists():
+                if legacy.is_symlink() or legacy.read_bytes() != content:
+                    raise RuntimeError('Revisar el vhost anterior modificado; no se moverá: '+str(legacy))
+                candidates.append((legacy, None))
         # Back up/restore only our two exact files. Never change unrelated
         # certificates, vhosts, default server, gateway, router or PRD.
         backups = {}
@@ -86,8 +97,11 @@ def main():
                 shutil.copy2(path, backup_root/path.name)
         try:
             for path, content in candidates:
-                path.write_bytes(content)
-                os.chmod(path, 0o644)
+                if content is None:
+                    path.unlink(missing_ok=True)
+                else:
+                    path.write_bytes(content)
+                    os.chmod(path, 0o644)
             run('nginx', '-t')
             run('systemctl', 'reload', 'nginx')
         except Exception:

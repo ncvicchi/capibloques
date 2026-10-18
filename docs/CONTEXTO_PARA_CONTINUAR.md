@@ -37,7 +37,10 @@ registrado de la otra persona; no se alteró ni borró ese trabajo.
 
 Edge real 192.168.1.38, ACME /var/www/certbot, HTTP 80 / HTTPS interno 8443.
 Certificados nuevos válidos hasta 15/01/2027, renovación webroot y hook global
-reload-nginx existente. Sólo dos archivos nuevos en conf.d; nginx -t correcto,
+reload-nginx existente. Sólo dos archivos nuevos sites-enabled/zz-capibloques-dev1.conf
+y zz-capibloques-dev2.conf; nginx -t correcto. Se movieron de la posición inicial
+en conf.d para conservar el servidor TLS por defecto y orden de protocolos original;
+ningún vhost ajeno cambiado. Migración validada contra contenido idéntico, con
 respaldos propios /var/backups/capibloques-edge/. Advertencias previas de opciones
 de protocolo compartidas no se corrigieron: fuera del alcance, no errores.
 
