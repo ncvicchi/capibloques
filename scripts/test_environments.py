@@ -28,6 +28,15 @@ seeder = load('environment_seeder', 'ops/environments/seed.py')
 
 
 class EnvironmentTests(unittest.TestCase):
+    def test_fixture_comparison_normalizes_only_zero_timestamp_not_program_text(self):
+        a = [{'model': 'projects.project', 'pk': 'id', 'fields': {
+            'created_at': '2026-10-18T00:00:00.000Z', 'document': {'text': 'data.000Z'}}}]
+        b = json.loads(json.dumps(a))
+        b[0]['fields']['created_at'] = '2026-10-18T00:00:00Z'
+        self.assertEqual(seeder.comparable(json.dumps(a)), seeder.comparable(json.dumps(b)))
+        b[0]['fields']['document']['text'] = 'dataZ'
+        self.assertNotEqual(seeder.comparable(json.dumps(a)), seeder.comparable(json.dumps(b)))
+
     def test_seed_checks_schema_not_unrelated_scene_validation_changes(self):
         runtime = Mock()
         runtime.git.return_value = 'same'

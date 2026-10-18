@@ -59,11 +59,28 @@ def check_schema(runtime, deployed):
             raise RuntimeError('Modelos, migraciones o dependencias difieren en '+path+'; revisar compatibilidad antes de importar.')
 
 
+def comparable(payload):
+    records = json.loads(payload)
+    result = {}
+    for record in records:
+        fields = dict(record['fields'])
+        for field, value in fields.items():
+            # Django encodes .000Z if the original has sub-millisecond digits,
+            # but Z after its own fixture roundtrip truncates those digits.
+            # Treat these equivalent representations equally ONLY in timestamp
+            # fields, never inside program documents, passwords or text.
+            if (field.endswith('_at') or field == 'last_login') and isinstance(value, str) and value.endswith('.000Z'):
+                fields[field] = value[:-5]+'Z'
+        result[(record['model'], str(record['pk']))] = fields
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('environment', choices=('dev1', 'dev2'))
     parser.add_argument('--copy-main-data', action='store_true', required=True)
     parser.add_argument('--snapshot', type=Path, help='Reutilizar el snapshot privado de la primera copia, no otro archivo.')
+    parser.add_argument('--verify-existing', action='store_true', help='Sólo verificar una copia interrumpida; nunca volver a importar.')
     args = parser.parse_args()
     if os.getuid() != 0 or socket.gethostname() != 'capi-dev':
         parser.error('Sólo sudo en capi-dev, con autorización explícita para copiar datos.')
@@ -83,7 +100,9 @@ def main():
     deployed = (spec['directory']/'deployed').read_text().strip()
     check_schema(runtime, deployed)
     before = json.loads(runtime.manage(spec, 'shell', '-c', COUNTS_CODE, capture=True).strip().splitlines()[-1])
-    if before.get('accounts.user', 0) or any(count for model, count in before.items() if model.startswith(('projects.', 'courses.'))):
+    if args.verify_existing and not args.snapshot:
+        parser.error('--verify-existing requiere el snapshot privado original.')
+    if not args.verify_existing and (before.get('accounts.user', 0) or any(count for model, count in before.items() if model.startswith(('projects.', 'courses.')))):
         raise RuntimeError('El destino ya tiene usuarios/cursos/proyectos. NO se sobrescribirá.')
     root = Path('/var/lib/capibloques-environments/seeds')
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -99,13 +118,14 @@ def main():
         runtime.atomic(snapshot, payload)
     expected = validate_fixture(payload)
     # stdout only reports counts; never echo serialized users, hashes or images.
-    runtime.manage(spec, 'loaddata', '--format', 'json', '-', data=payload)
+    if not args.verify_existing:
+        runtime.manage(spec, 'loaddata', '--format', 'json', '-', data=payload)
     after = json.loads(runtime.manage(spec, 'shell', '-c', COUNTS_CODE, capture=True).strip().splitlines()[-1])
     for model, count in expected.items():
         if model != 'auth.group' and after.get(model) != count:
             raise RuntimeError('La copia no coincide en '+model+'; no se marca como completada.')
     imported = runtime.manage(spec, 'shell', '-c', SNAPSHOT_CODE, capture=True).strip().splitlines()[-1]
-    if json.loads(imported) != json.loads(payload):
+    if comparable(imported) != comparable(payload):
         raise RuntimeError('La verificación de contenido no coincide; revisar sin volver a sobrescribir.')
     runtime.atomic(marker, json.dumps(dict(snapshot=str(snapshot), sha256=hashlib.sha256(payload.encode()).hexdigest(),
                                           sourceRevision=runtime.git('rev-parse', 'HEAD'), counts=after)))
