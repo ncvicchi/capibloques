@@ -94,6 +94,9 @@ def main():
     for model, count in expected.items():
         if model != 'auth.group' and after.get(model) != count:
             raise RuntimeError('La copia no coincide en '+model+'; no se marca como completada.')
+    imported = runtime.manage(spec, 'shell', '-c', SNAPSHOT_CODE, capture=True).strip().splitlines()[-1]
+    if json.loads(imported) != json.loads(payload):
+        raise RuntimeError('La verificación de contenido no coincide; revisar sin volver a sobrescribir.')
     runtime.atomic(marker, json.dumps(dict(snapshot=str(snapshot), sha256=hashlib.sha256(payload.encode()).hexdigest(),
                                           sourceRevision=runtime.git('rev-parse', 'HEAD'), counts=after)))
     print(json.dumps(dict(environment=args.environment, status='copiado y verificado', counts=after, snapshot=str(snapshot))))
