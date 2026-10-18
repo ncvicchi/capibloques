@@ -327,8 +327,15 @@ def deploy(spec, commit):
             if git('rev-parse', commit+':'+path) != git('rev-parse', 'HEAD:'+path):
                 raise RuntimeError('Cambió la toolchain; requiere instalación explícita, no se reutilizará una receta distinta.')
         image_tag = f'capibloques-compiler-{spec["env"]}:{commit[:12]}'
-        run('docker', 'build', '--build-arg', 'CAPI_COMPILER_BASE=capibloques-compiler-dev:phase9',
-            '-t', image_tag, '-f', '/opt/capibloques-environments/compiler.Dockerfile', release)
+        # Compose uses its embedded BuildKit client even on this VM without
+        # buildx. Plain `docker build` falls back to the legacy builder, which
+        # re-exports the huge SDK parent at every COPY (minutes per tiny file).
+        compiler_config = spec['directory']/'compiler-build.json'
+        atomic(compiler_config, json.dumps(dict(name=spec['project'], services={
+            'compiler-image': dict(image=image_tag, build=dict(context=str(release),
+                dockerfile='/opt/capibloques-environments/compiler.Dockerfile',
+                args=dict(CAPI_COMPILER_BASE='capibloques-compiler-dev:phase9')))})))
+        compose(spec, 'build', 'compiler-image', config=compiler_config)
         image = run('docker', 'image', 'inspect', image_tag, '--format', '{{.Id}}', capture=True).strip()
         # The CURRENT main cleanup predates environments. A stopped, scoped pin
         # protects this idle recipe even before the new cleanup reaches main;
