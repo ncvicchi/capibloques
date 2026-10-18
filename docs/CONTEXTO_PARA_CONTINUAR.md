@@ -2,6 +2,60 @@
 
 Documento vivo iniciado en **fase 11**. Actualización: **17 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
 
+### Activación real dev1/dev2 y copia inicial — 17/18 de octubre
+
+El propietario creó los DNS y autorizó explícitamente instalar/configurar todo
+remotamente sin tocar el endpoint actual; después pidió «copia todo tal cual».
+Los comandos anteriores NO los había ejecutado. Se instaló el bootstrap y los
+dos ambientes, HTTP/HTTPS y certificados independientes en el edge, sin operar
+gateway/Proxmox/router/PRD ni cambiar vhost/certificado del endpoint original.
+
+URLs activas: https://capibloques.dev1.nvicchi.com y
+https://capibloques.dev2.nvicchi.com. Mismo alias/contraseña que en el original:
+copiados 542 registros desde un único snapshot consistente, incluyendo 30 usuarios,
+13 proyectos y 53 versiones, colegio/logo, curso y auditorías. Comparación completa
+de contenido y claves hash sin imprimirlas; se acepta equivalencia ISO Z/.000Z
+en timestamps de Django, nunca se normaliza texto de programas. Datos propios
+de cada ambiente desde esa copia; NO sincronización posterior. Secretos, sesiones,
+colas/recetas/artefactos privados NO se copiaron. Colas nuevas siguen pausadas.
+
+Snapshot y marcadores fuera de Git, root 0600 en
+/var/lib/capibloques-environments/seeds/ y
+/etc/capibloques/environments/<env>/seeded-from-main.json. `seed.py` es explícito,
+rechaza destinos con datos y comprueba modelos/migraciones/dependencias; cambios
+de validación de escenas sin cambio de esquema no impiden la copia. Si importó
+y falló sólo su verificación, --verify-existing con snapshot original no reimporta
+ni sobrescribe: valida y marca. No usar bootstrap_admin después de esta copia.
+
+Main sigue en HEAD servidor 44608549494130784df8fa57b610eec07f946547, contenedores
+editor 0433b3d3cd8d / API 42d9432cab71 / DB 6200aed63c86 intactos. SHA de config
+main 206d6264478a9bae9f801297716bc6e51b110022e8f9471cadc30d1af850fcf9 y vhost
+7a270a96c3248c8757ce2bf1b203072acc55458b23fc883296b126d1a12a3c14 iguales antes/después.
+Sólo cambió runner compartido compatible, drenado y con admisión restaurada.
+Se agregó exclusión LOCAL /.worktrees/ en .git/info/exclude: contiene worktree
+registrado de la otra persona; no se alteró ni borró ese trabajo.
+
+Edge real 192.168.1.38, ACME /var/www/certbot, HTTP 80 / HTTPS interno 8443.
+Certificados nuevos válidos hasta 15/01/2027, renovación webroot y hook global
+reload-nginx existente. Sólo dos archivos nuevos en conf.d; nginx -t correcto,
+respaldos propios /var/backups/capibloques-edge/. Advertencias previas de opciones
+de protocolo compartidas no se corrigieron: fuera del alcance, no errores.
+
+La primera imagen de generador usó accidentalmente Docker legacy (minutos por
+COPY de una base enorme). Corregido y probado en DEV con Compose/BuildKit:
+exportación del overlay dev2 0,4 segundos, sin SDK nuevo ni recompilación ESP32.
+Gestor raíz actualizado atómicamente bajo el bloqueo; código en la rama de tarea.
+Los tres sitios dieron login 200, health ok y sesión anónima independiente;
+configuración pública de colegio idéntica. Servicios nuevos activos y habilitados
+para arranque; imágenes/revisiones verificadas por el actualizador. Sin CI ni
+compilación de programa/SDK, sin reboot ni prueba física ni contraseña humana
+introducida. No atribuir esas aceptaciones al smoke HTTP o la copia de hashes.
+
+Operación diaria: ~/.local/bin/capi-dev --env dev1|dev2; tarea nueva con --branch
+y SHA de entrega, sólo --promote pasa a main cuando lo pida el propietario.
+Guía FLUJO_RAMA_INTEGRACION_DEV.md vigente; referencias inferiores a «sin instalar»
+son históricas. No hay promoción de main ni copia continua de bases.
+
 ### Tres endpoints aislados — acuerdo vigente (17 de octubre)
 
 Rama `codex/ambientes-dev1-dev2`, parte de origin/main 094c846 e incorpora

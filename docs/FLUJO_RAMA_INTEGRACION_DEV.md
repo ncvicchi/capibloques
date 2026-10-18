@@ -4,6 +4,14 @@ Acuerdo vigente del 17 de octubre de 2026. **Sustituye** el flujo anterior en
 el que `--branch` publicaba main directamente. Obligatorio para ambas personas
 y cualquier IA. Implementación: rama `codex/ambientes-dev1-dev2`.
 
+**Instalado y verificado en DEV (17/18 de octubre):** ambos dominios HTTPS
+activos, servicios habilitados, copia inicial autorizada de los 542 registros
+de aplicación (30 usuarios / 13 proyectos / 53 versiones), mismos accesos del
+original. No volver a ejecutar el bootstrap ni crear administradores iniciales.
+No hubo integración en main ni cambios en sus contenedores/configuración/vhost.
+Evidencia detallada en el contexto vivo; los apartados de instalación se conservan
+para recuperación, no son tareas todavía pendientes en estos dos ambientes.
+
 ## Ambientes en capi-dev
 
 | Ambiente | Rama permanente | URL HTTPS | Recuperación local | LAN, sólo edge |
@@ -56,6 +64,27 @@ Contraseña interactiva, nunca argumento ni Git. Las colas nuevas nacen
 **pausadas**, igual que la instalación original: el administrador las habilita
 cuando corresponda. Reglas/firmware intérprete no requieren abrir la cola.
 Reutilizar nombres no comparte identidad/cuentas entre sitios.
+
+### Copia inicial autorizada de los datos actuales
+
+El propietario autorizó después copiar **todos los datos de la aplicación**
+a ambos ambientes: colegio/logo, usuarios con sus claves actuales, cursos,
+proyectos, versiones y devoluciones. Es una copia inicial, no sincronización.
+La excepción no copia secretos, sesiones, recetas, colas ni binarios privados.
+
+```bash
+sudo python3 /home/capi/capibloques-setup/ops/environments/seed.py dev1 --copy-main-data
+sudo python3 /home/capi/capibloques-setup/ops/environments/seed.py dev2 --copy-main-data --snapshot /var/lib/capibloques-environments/seeds/ARCHIVO_DE_LA_PRIMERA_COPIA.json
+```
+
+El primer comando informa sólo conteos y la ruta privada, nunca usuarios,
+hashes ni proyectos. Reutilizar ese snapshot para que ambos partan del mismo
+punto. Verifica modelos/migraciones/dependencias compatibles, destino sin usuarios/cursos/proyectos y toma
+el bloqueo común. Snapshot consistente `REPEATABLE READ, READ ONLY`, archivo
+root 0600 fuera de Git, importación transaccional y conteos contrastados.
+Guarda `seeded-from-main.json`; una repetición no vuelve a sobrescribir.
+Un destino con datos propios se rechaza, no se vacía ni se mezclan sus usuarios.
+Los administradores copiados evitan tener que ejecutar `bootstrap_admin`.
 
 ## Trabajar en ramas de tarea
 
@@ -174,7 +203,8 @@ regenerados, revisión/imágenes activas, reutilización de firmware, despacho y
 reconciliación de colas; aislamiento previo del compilador y contratos public-dev.
 No equivalen a instalar/testear Docker/systemd/iptables/TLS en la VM.
 
-**Pendiente:** instalación Linux por el propietario, DNS, Nginx/certificados,
-crear administradores, probar UI/aislamiento de datos, compilación por ambiente,
-memoria/disco/reboot y promoción real controlada. No se operó ningún servidor,
-no se publicó main ni se afirma que los nuevos endpoints estén disponibles.
+**Instalación real posterior autorizada:** Linux, DNS, Nginx/certificados,
+servicios y copia inicial completados; HTTP login/health y contenido copiado
+verificados. No se publicó main. Quedan aceptación humana del editor/login,
+compilación avanzada por ambiente, medición sostenida, reboot y promoción real
+controlada; no confundir esas aceptaciones con los chequeos HTTP realizados.
