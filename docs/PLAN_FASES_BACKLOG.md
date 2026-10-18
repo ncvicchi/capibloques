@@ -841,6 +841,13 @@ sin modificar el original. Ambas soluciones completas comparten lógica y
 tiempos comprobados. No inicia otra fase ni cambia firmware; DEV y aceptación
 humana de esta ampliación pendientes.
 
+Nueva ampliación autorizada de fase 47 en `codex/paso-nivel-multivia`: selector
+1/2/4 vías y trenes simultáneos en vías independientes; dos detectores por vía,
+dos barreras comunes y conteo cooperativo hasta el último tren. Conserva ambos
+ejemplos de una vía y agrega ejemplos completos para 2/4. JSON opcional y
+guardado/cancelar/deshacer en el borrador. Guía de fase 47 actualizada;
+integración/DEV y aceptación humana/física/Waveshare pendientes, sin nuevo SDK.
+
 ## Fase final — Producción y piloto, postergada
 
 Es la antigua fase 11, renombrada por decisión del propietario. No se ejecuta como consecuencia de terminar una fase del backlog.

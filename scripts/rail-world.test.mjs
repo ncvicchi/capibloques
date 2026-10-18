@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import './rail-examples.test.mjs';
-import { advanceRailWorld, createRailWorldState, railBindings, railSlots, railTrainBounds } from '../lib/rail-world.ts';
+import { advanceRailWorld, createRailWorldState, railBindings, railSlots, railTrainBounds, railTrackY, railDetectorRole } from '../lib/rail-world.ts';
 import { addDeviceToScene, appendTemplateToScene, constrainSceneItemPosition, createEmptyScene, createSceneFromTemplate, isSceneDefinition, validateScene } from '../lib/scene-model.ts';
 import { decodeProject, examples, makeProject } from '../lib/capiblocks.ts';
 
@@ -80,3 +80,31 @@ const normal = advanceRailWorld(initial, open, 100), fast = advanceRailWorld(ini
 assert.equal(initial.nextTrainInMs - fast.nextTrainInMs, 4 * (initial.nextTrainInMs - normal.nextTrainInMs));
 assert.deepEqual(advanceRailWorld(initial, open, 500), advanceRailWorld(initial, open, 500), 'azar reproducible');
 console.log('Paso a nivel: modelo, sensores, barreras, colisiones, reloj y proyecto portable aprobados.');
+for (const count of [2, 4]) {
+  let world = createRailWorldState(0, 0, count);
+  let maximum = 0;
+  const usedTracks = new Set();
+  for (let i = 0; i < 5000; i++) {
+    world = advanceRailWorld(world, closed, 50);
+    assert.equal(world.collision, null);
+    maximum = Math.max(maximum, world.trains.length);
+    assert.ok(world.trains.length <= count && world.cars.length <= 12);
+    assert.equal(new Set(world.trains.map(train => train.track)).size, world.trains.length);
+    for (const train of world.trains) {
+      usedTracks.add(train.track);
+      assert.equal(train.direction, train.track % 2 === 0 ? 1 : -1);
+      const bounds = railTrainBounds(train);
+      for (const west of [true, false]) {
+        const x = west ? 140 : 820;
+        assert.equal(world.detectors[railDetectorRole(train.track, west)], bounds.left <= x && bounds.right >= x);
+      }
+    }
+  }
+  assert.equal(maximum, count);
+  assert.equal(usedTracks.size, count);
+  const unsafe = { ...createRailWorldState(90, 90, count), trains: [{ id: 99, track: count - 1, front: 500, length: 220, direction: 1 }], cars: [{ id: 7, lane: 'southbound', y: railTrackY(count, count - 1) }] };
+  const crashed = advanceRailWorld(unsafe, open, 16);
+  assert.deepEqual(crashed.collision, { trainId: 99, carId: 7 });
+  assert.deepEqual(advanceRailWorld(crashed, open, 1000), crashed);
+}
+console.log('Múltiples trenes: concurrencia 2/4, sentidos, detectores por vía, límites y choque en la última vía aprobados.');

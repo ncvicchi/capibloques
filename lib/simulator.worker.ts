@@ -37,7 +37,7 @@ import { decodeChallenge, variantScene, compareChallenge, challengeExpectations 
 // @ts-expect-error Node's type-stripping smoke runner needs the explicit suffix.
 import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 // @ts-expect-error Node strip-types runner.
-import { advanceRailWorld, createRailWorldState, railBindings } from './rail-world.ts';
+import { advanceRailWorld, createRailWorldState, railBindings, railTrackCount } from './rail-world.ts';
 
 type Pending =
   | { kind: 'wait'; startedAt: number; until: number; blockId: string }
@@ -462,7 +462,7 @@ function freshState(): SimulatorState {
     if (devices[id])
       dashboardProgramStates.set(id, structuredClone(devices[id]));
   return {
-    ...(scene.canvas.background === 'railCrossing' ? { railWorld: createRailWorldState(initialAngle(bindings.northGate), initialAngle(bindings.southGate)) } : {}),
+    ...(scene.canvas.background === 'railCrossing' ? { railWorld: createRailWorldState(initialAngle(bindings.northGate), initialAngle(bindings.southGate), railTrackCount(scene)) } : {}),
     now: 0,
     status: 'idle',
     devices,
@@ -2542,9 +2542,8 @@ function updateRailPhysics(deltaMs: number) {
   const bindings = railBindings(scene);
   const angle = (id: string | undefined) => id && state.devices[id]?.kind === 'servo' ? state.devices[id].angle : 0;
   state.railWorld = advanceRailWorld(state.railWorld, { northGate: angle(bindings.northGate), southGate: angle(bindings.southGate) }, deltaMs);
-  for (const role of ['westDetector', 'eastDetector'] as const) {
-    const id = bindings[role];
-    if (id) applyInputValue(id, state.railWorld.detectors[role]);
+  for (const [role, id] of Object.entries(bindings)) {
+    if (id && role.includes('Detector')) applyInputValue(id, state.railWorld.detectors[role as keyof typeof bindings] ?? false);
   }
 }
 
@@ -2787,7 +2786,7 @@ function stopOutputs() {
 
 function setInputById(deviceId: string, value: unknown) {
   const bindings = railBindings(scene);
-  if (deviceId === bindings.westDetector || deviceId === bindings.eastDetector) return;
+  if (Object.entries(bindings).some(([role, id]) => role.includes('Detector') && id === deviceId)) return;
   const device = state.devices[deviceId];
   if (
     device?.kind === 'educationalModule' &&

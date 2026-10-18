@@ -4,6 +4,8 @@ import { examples, decodeProject, makeProject, expandProgramRoutines, validatePr
 import { registerBlocks, workspaceDevices, compileWorkspace } from '../lib/blockly-engine.ts';
 import { normalizeWorkspaceTabs } from '../lib/workspace-tabs.ts';
 import { createCapiRules } from '../lib/capi-rules.ts';
+import { configureRailTracks, isSceneDefinition, validateScene } from '../lib/scene-model.ts';
+import { railBindings, railSlotsFor } from '../lib/rail-world.ts';
 
 registerBlocks(Blockly);
 const direct = examples.find(item => item.id === 'railCrossing');
@@ -49,3 +51,32 @@ for (const generated of [generateEsp32CodeResult(modularProgram, modular.title, 
 }
 assert.ok(createCapiRules(modularProgram, modular.scene, 'wemos-d1-r32').instructionCount > 0);
 console.log('Ejemplos del tren: original conservado, 9 tareas anidadas, 5 pestañas, JSON, equivalencia, generadores y reglas aprobados.');
+for (const count of [2, 4]) {
+  const example = examples.find(item => item.id === `railCrossing${count}`);
+  const scene = example.scene;
+  assert.equal(scene.canvas.railTracks, count);
+  assert.equal(isSceneDefinition(scene), true);
+  assert.deepEqual(validateScene(scene).issues.filter(item => item.severity === 'error'), []);
+  assert.equal(Object.keys(railBindings(scene)).length, 2 + count * 2);
+  assert.equal(scene.devices.filter(item => item.kind === 'infraredBarrier').length, count * 2);
+  const project = makeProject(example.title, scene, example.workspace);
+  assert.deepEqual(decodeProject(JSON.parse(JSON.stringify(project))).project.workspace, example.workspace);
+  assert.equal(normalizeWorkspaceTabs(example.workspace).tabs.length, 5);
+  const program = compile(example);
+  for (const generated of [generateEsp32CodeResult(program, example.title, scene), generateEspIdfCodeResult(program, example.title, scene)]) assert.deepEqual(generated.diagnostics.filter(item => item.severity === 'error'), []);
+  assert.ok(createCapiRules(program, scene, 'wemos-d1-r32').instructionCount > 0);
+  const one = configureRailTracks(scene, 1);
+  assert.equal(one.devices.filter(item => item.kind === 'infraredBarrier').length, 2);
+  assert.ok(one.retiredDeviceIds.length >= 2 * count - 2);
+  const again = configureRailTracks(one, count);
+  assert.equal(isSceneDefinition(again), true);
+  assert.ok(again.devices.every(item => !one.retiredDeviceIds.includes(item.id)));
+  for (const slot of railSlotsFor(count)) assert.ok(again.devices.some(item => item.position.x === slot.x && item.position.y === slot.y && item.kind === slot.kind));
+  assert.equal(direct.scene.canvas.railTracks, undefined, 'el ejemplo de una vía no cambia');
+}
+for (const invalid of [0, 3, 8, '2', null]) {
+  const scene = structuredClone(direct.scene);
+  scene.canvas.railTracks = invalid;
+  assert.equal(isSceneDefinition(scene), false);
+}
+console.log('Multivía: 2/4 vías, sensores independientes, JSON, pines, tareas/reglas y cambios con identidades retiradas aprobados.');

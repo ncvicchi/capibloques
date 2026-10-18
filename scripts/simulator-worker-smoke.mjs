@@ -514,14 +514,13 @@ assert.deepEqual(latestState().devices[matrix.id].rows, Array(8).fill(2));
 assert.equal(latestState().devices[matrix.id].scrolling, false);
 // Paso a nivel: las condiciones leen la ocupación automática del tren, no
 // eventos mágicos ni entradas manuales que compitan con el mundo.
-const { createSceneFromTemplate } = await import('../lib/scene-model.ts');
-const railwayScene = createSceneFromTemplate('railCrossing');
 // Compilar los bloques que abre el usuario, no una solución de test distinta.
 const Blockly = await import('blockly');
 const { registerBlocks, workspaceDevices, compileWorkspace } = await import('../lib/blockly-engine.ts');
 const { examples, validateProgramForScene } = await import('../lib/capiblocks.ts');
 registerBlocks(Blockly);
-for (const railwayExampleId of ['railCrossing', 'railCrossingProcedures']) {
+for (const [railwayExampleId, railwaySpeed] of ['railCrossing', 'railCrossingProcedures', 'railCrossing2', 'railCrossing4'].flatMap(id => [[id, 1], [id, 4]])) {
+const railwayScene = examples.find(example => example.id === railwayExampleId).scene;
 const railwayWorkspace = new Blockly.Workspace();
 workspaceDevices.set(railwayWorkspace, railwayScene.devices);
 Blockly.serialization.workspaces.load(structuredClone(examples.find(example => example.id === railwayExampleId).workspace), railwayWorkspace);
@@ -532,15 +531,26 @@ send({ type: 'LOAD', scene: railwayScene, program: railwayProgram });
 assert.ok(latestState().railWorld);
 send({ type: 'SET_INPUT', deviceId: 'rail-westDetector', value: true });
 assert.equal(latestState().devices['rail-westDetector'].interrupted, false, 'el detector vinculado no admite entrada manual');
-send({ type: 'SET_SPEED', speed: 1 });
+send({ type: 'SET_SPEED', speed: railwaySpeed });
 send({ type: 'RUN' });
 let railDetected = false, railClosed = false, railReopened = false;
 const railDirections = new Set();
 let railLights = false, railAlarm = false;
-for (let i = 0; i < 12000; i++) {
+let simultaneous = 0, pendingMax = 0, departuresWithOthers = 0, lastPending = 0;
+for (let i = 0; i < 12000 / railwaySpeed; i++) {
   advance(16);
   const current = latestState();
-  if (current.railWorld.train) railDirections.add(current.railWorld.train.direction);
+  current.railWorld.trains.forEach(train => railDirections.add(train.direction));
+  simultaneous = Math.max(simultaneous, current.railWorld.trains.length);
+  const pending = Number(current.variables['rail-pending-trains'] ?? 0);
+  pendingMax = Math.max(pendingMax, pending);
+  if (lastPending > pending && pending > 0) {
+    departuresWithOthers++;
+    assert.equal(current.devices['rail-northGate'].angle, 0, 'no abrir al salir un tren si quedan otros');
+    assert.equal(current.devices['rail-southGate'].angle, 0);
+  }
+  assert.ok(pending >= 0 && pending <= current.railWorld.trackCount, 'conteo de entradas y salidas acotado');
+  lastPending = pending;
   if ([1, 2].every(index => current.devices[`rail-warning-${index}`].brightness === 100)) railLights = true;
   if (current.devices['rail-alarm'].playing) railAlarm = true;
   if (current.devices['rail-westDetector'].interrupted || current.devices['rail-eastDetector'].interrupted) railDetected = true;
@@ -551,6 +561,10 @@ for (let i = 0; i < 12000; i++) {
 assert.ok(railDetected && railClosed && railReopened, 'el circuito sensor → programa → servo → mundo funciona');
 assert.deepEqual([...railDirections].sort(), [-1, 1], 'el ejemplo resuelve ambos sentidos');
 assert.ok(railLights && railAlarm, 'el ejemplo usa las dos luces y el buzzer');
+if (currentTrackCount(railwayScene) > 1) {
+  assert.equal(simultaneous, currentTrackCount(railwayScene));
+  assert.ok(pendingMax >= 2 && departuresWithOthers > 0, 'concurrencia real con salida parcial sin reapertura');
+}
 send({ type: 'PAUSE' });
 const pausedRail = structuredClone(latestState().railWorld);
 advance(100);
@@ -568,3 +582,4 @@ send({ type: 'STOP' });
 resetMessages();
 }
 console.log('Simulator worker smoke checks passed, including automatic railway inputs and cooperative gates.');
+function currentTrackCount(scene) { return scene.canvas.railTracks ?? 1; }

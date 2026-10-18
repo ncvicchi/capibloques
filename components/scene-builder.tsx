@@ -3,7 +3,7 @@ import { DisplayProperties } from '@/components/display-properties';
 import { LedMatrixProperties } from '@/components/led-matrix-properties';
 import ComponentHelpDialog from '@/components/component-help';
 import { crossingNames } from '@/lib/pedestrian-world';
-import { nearestRailSlot } from '@/lib/rail-world';
+import { nearestRailSlot, railTrackCount, type RailTrackCount } from '@/lib/rail-world';
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { InspectorDraft, SceneDraft } from '@/lib/scene-recovery';
@@ -37,6 +37,7 @@ import {
   appendTemplateToScene,
   arrangeCrossroadsTrafficLights,
   arrangeRailDevices,
+  configureRailTracks,
   assignSafePins,
   cloneScene,
   constrainSceneItemPosition,
@@ -958,7 +959,7 @@ function SceneBuilderSession({
                 </small>
               )}
               {previewScene.canvas.background === 'railCrossing' && <small>
-                Una vía horizontal y calle de doble mano. Dos servos y dos barreras infrarrojas se encajan en lugares identificados.
+                Vías horizontales y calle de doble mano. Dos servos comunes y dos detectores por vía se encajan en lugares identificados.
                 Los detectores leen el tren virtual; las luces y el sonido avisan, pero no detienen autos.
               </small>}
               {previewScene.canvas.background === 'robotTrack' && (
@@ -968,6 +969,20 @@ function SceneBuilderSession({
                 </small>
               )}
             </label>
+            {previewScene.canvas.background === 'railCrossing' && <label htmlFor="rail-track-count">
+              Vías del tren
+              <NativeSelect id="rail-track-count" aria-label="Cantidad de vías" value={railTrackCount(previewScene)} onChange={event => {
+                if (!requireSettledInspector('cambiar la cantidad de vías')) return;
+                const count = Number(event.target.value) as RailTrackCount;
+                if (count < railTrackCount(previewScene) && !window.confirm('Se retirarán los detectores de las vías que quitás. Sus bloques quedarán sin componente: revisá el programa. Podés deshacerlo o cancelar la escena. ¿Continuar?')) return;
+                commitScene(configureRailTracks(previewScene, count, draftBoardProfile), 'Vías actualizadas en el borrador. Revisá el programa: los ejemplos de 2 y 4 vías incluyen control de trenes simultáneos.');
+              }}>
+                <NativeSelectOption value={1}>1 vía · ambos sentidos</NativeSelectOption>
+                <NativeSelectOption value={2}>2 vías · una por sentido</NativeSelectOption>
+                <NativeSelectOption value={4}>4 vías · dos por sentido</NativeSelectOption>
+              </NativeSelect>
+              <small>Un tren por vía, simultáneamente. No abrir hasta que hayan salido todos. Cambiar la escena no reemplaza tus bloques.</small>
+            </label>}
             {previewScene.canvas.background === 'crossroads' && (
               <fieldset className="traffic-directions-control">
                 <legend>Autos en la escena</legend>
@@ -1145,7 +1160,7 @@ function SceneBuilderSession({
                       previewScene.devices.filter(device => device.kind === 'trafficLight').length >= 4;
                     const railLimitBlocked = previewScene.canvas.background === 'railCrossing' &&
                       (component.kind === 'servo' || component.kind === 'infraredBarrier') &&
-                      previewScene.devices.filter(device => device.kind === component.kind).length >= 2;
+                      previewScene.devices.filter(device => device.kind === component.kind).length >= (component.kind === 'servo' ? 2 : railTrackCount(previewScene) * 2);
                     const reason = visualBlocked
                       ? `No disponible: ya usás ${visualOutput?.name}`
                       : messagesBlocked
@@ -1154,7 +1169,7 @@ function SceneBuilderSession({
                           ? 'Disponible sólo en Cruce con tránsito'
                           : trafficLimitBlocked
                             ? 'No disponible: los cuatro lugares están ocupados'
-                        : railLimitBlocked ? 'No disponible: los dos lugares del paso a nivel están ocupados'
+                        : railLimitBlocked ? 'No disponible: los lugares de este componente en el paso a nivel están ocupados'
                         : component.childFriendlyControl;
                     const componentBlocked = visualBlocked || messagesBlocked || trafficSceneBlocked || trafficLimitBlocked || railLimitBlocked;
                     return <div className="component-palette-card" key={component.kind}>
@@ -1299,7 +1314,7 @@ function SceneBuilderSession({
                       max="330"
                       step="30"
                       value={selected.rotation}
-                      disabled={previewScene.canvas.background === 'railCrossing' && !!nearestRailSlot(selected.kind, selected.position)}
+                      disabled={previewScene.canvas.background === 'railCrossing' && !!nearestRailSlot(selected.kind, selected.position, railTrackCount(previewScene))}
                       onChange={(event) =>
                         updateSelectedDraft((device) => ({
                           ...device,
@@ -1446,8 +1461,8 @@ function SceneBuilderSession({
                       </label>
                     </div>
                   )}
-                  {previewScene.canvas.background === 'railCrossing' && nearestRailSlot(selected.kind, selected.position) && <p className="scene-inline-notice">
-                    Función: {nearestRailSlot(selected.kind, selected.position)?.name}.
+                  {previewScene.canvas.background === 'railCrossing' && nearestRailSlot(selected.kind, selected.position, railTrackCount(previewScene)) && <p className="scene-inline-notice">
+                    Función: {nearestRailSlot(selected.kind, selected.position, railTrackCount(previewScene))?.name}.
                     {selected.kind === 'servo' ? ' 0°: cerrada; 90° o más: abierta. Movimiento de 1,2 s; los autos esperan hasta la apertura completa.' : ' Haz interrumpido mientras cualquier parte del tren ocupa este punto. Entrada automática del mundo virtual, no lectura física.'}
                   </p>}
                   {selected.kind === 'infraredBarrier' && (

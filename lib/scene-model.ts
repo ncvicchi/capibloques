@@ -15,7 +15,7 @@ import { boardProfile, WAVESHARE_TOUCH_LCD_5_PROFILE_ID, type BoardPinDefinition
 // @ts-expect-error Node strip-types tests import the source extension.
 import { educationalModuleKinds, educationalModulePins, educationalModuleSpecs, isEducationalModuleKind, validEducationalModuleConfig, type EducationalModuleKind } from './educational-modules.ts';
 // @ts-expect-error Node strip-types runner.
-import { nearestRailSlot, railSlots } from './rail-world.ts';
+import { nearestRailSlot, railSlots, railSlotsFor, railTrackCount, type RailTrackCount } from './rail-world.ts';
 
 export const SCENE_SCHEMA_VERSION = 1 as const;
 
@@ -93,6 +93,8 @@ export interface SceneCanvas {
   gridSize: number;
   snapToGrid: boolean;
   trafficDirections?: TrafficDirection[];
+  /** Ausente en proyectos anteriores: una vía bidireccional. */
+  railTracks?: RailTrackCount;
   /** Identificadores de atrás hacia adelante; ausente en proyectos anteriores. */
   itemOrder?: string[];
 }
@@ -137,9 +139,9 @@ export function constrainSceneItemPosition(
   position: ScenePosition,
 ): ScenePosition {
   if (scene.canvas.background === 'railCrossing') {
-    const slot = nearestRailSlot(item.kind, position);
+    const slot = nearestRailSlot(item.kind, position, railTrackCount(scene));
     if (slot) {
-      const occupied = scene.devices.some(device => device.id !== item.id && nearestRailSlot(device.kind, device.position)?.role === slot.role);
+      const occupied = scene.devices.some(device => device.id !== item.id && nearestRailSlot(device.kind, device.position, railTrackCount(scene))?.role === slot.role);
       if (occupied) return scene.devices.find(device => device.id === item.id)?.position ?? position;
       return { x: slot.x, y: slot.y };
     }
@@ -182,11 +184,35 @@ export function arrangeRailDevices(source: SceneDefinition) {
   const scene = cloneScene(source);
   const occupied = new Set<string>();
   scene.devices = scene.devices.map(device => {
-    const slot = railSlots.find(candidate => candidate.kind === device.kind && !occupied.has(candidate.role));
+    const slot = railSlotsFor(railTrackCount(scene)).find(candidate => candidate.kind === device.kind && !occupied.has(candidate.role));
     if (!slot) return device;
     occupied.add(slot.role);
     return { ...device, position: { x: slot.x, y: slot.y }, rotation: 0 };
   });
+  return scene;
+}
+
+/** Cambia sólo el borrador: conserva identidades existentes y retira sensores sobrantes. */
+export function configureRailTracks(source: SceneDefinition, count: RailTrackCount, boardProfile?: BoardProfileId) {
+  if (source.canvas.background !== 'railCrossing' || ![1, 2, 4].includes(count)) throw new Error('Elegí 1, 2 o 4 vías en una escena Paso a nivel.');
+  let scene = cloneScene(source);
+  const previous = railTrackCount(source);
+  const oldSlots = railSlotsFor(previous);
+  const slots = railSlotsFor(count);
+  const removed = scene.devices.filter(device => {
+    const role = nearestRailSlot(device.kind, device.position, previous)?.role;
+    return role && !slots.some(slot => slot.role === role);
+  }).map(device => device.id);
+  for (const id of removed) scene = removeDeviceFromScene(scene, id);
+  scene.canvas.railTracks = count;
+  scene.devices = scene.devices.map(device => {
+    const old = nearestRailSlot(device.kind, device.position, previous);
+    const slot = old && slots.find(candidate => candidate.role === old.role);
+    return slot ? { ...device, name: device.name === old?.name ? slot.name : device.name, position: { x: slot.x, y: slot.y } } : device;
+  });
+  for (const slot of slots.filter(slot => slot.kind === 'infraredBarrier' && !oldSlots.some(old => old.role === slot.role))) {
+    scene = addDeviceToScene(scene, 'infraredBarrier', { name: slot.name, position: { x: slot.x, y: slot.y }, boardProfile }).scene;
+  }
   return scene;
 }
 
@@ -1257,7 +1283,7 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
     );
   }
   if ((kind === 'display' || kind === 'ledMatrix') && scene.devices.some(device => device.kind === 'display' || device.kind === 'ledMatrix')) throw new Error('Cada proyecto admite una sola pantalla o matriz. Configurá la existente.');
-  if (source.canvas.background === 'railCrossing' && (kind === 'servo' || kind === 'infraredBarrier') && source.devices.filter(device => device.kind === kind).length >= 2) throw new Error('El paso a nivel admite dos barreras con servo y dos detectores infrarrojos. Los lugares de este componente ya están ocupados.');
+  if (source.canvas.background === 'railCrossing' && (kind === 'servo' || kind === 'infraredBarrier') && source.devices.filter(device => device.kind === kind).length >= (kind === 'servo' ? 2 : 2 * railTrackCount(source))) throw new Error('Los lugares de este componente ya están ocupados: dos barreras y dos detectores por vía.');
   if (kind === 'messages' && scene.devices.filter(device => device.kind === 'messages').length >= 2) throw new Error('La placa admite hasta dos componentes Mensajes.');
   if (kind === 'trafficLight') {
     if (scene.canvas.background !== 'crossroads') {
@@ -1285,7 +1311,7 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
     id: options.id ?? createStableDeviceId(kind, reservedIds),
   });
   if (scene.canvas.background === 'railCrossing') {
-    const slot = railSlots.find(candidate => candidate.kind === kind && !scene.devices.some(item => nearestRailSlot(item.kind, item.position)?.role === candidate.role));
+    const slot = railSlotsFor(railTrackCount(scene)).find(candidate => candidate.kind === kind && !scene.devices.some(item => nearestRailSlot(item.kind, item.position, railTrackCount(scene))?.role === candidate.role));
     if (slot) device.position = { x: slot.x, y: slot.y };
   }
   if (kind === 'trafficLight' && scene.canvas.background === 'crossroads') {
@@ -2016,12 +2042,12 @@ export function validateScene(
   if (scene.canvas.background === 'railCrossing') {
     if (scene.canvas.width !== 960 || scene.canvas.height !== 540) issues.push({ code: 'rail-slot-position', severity: 'error', message: 'El paso a nivel utiliza un lienzo de 960 × 540.' });
     for (const device of scene.devices) {
-      const slot = nearestRailSlot(device.kind, device.position);
+      const slot = nearestRailSlot(device.kind, device.position, railTrackCount(scene));
       if (slot && (device.position.x !== slot.x || device.position.y !== slot.y)) issues.push({ code: 'rail-slot-position', severity: 'error', deviceId: device.id, message: `${device.name}: elegí uno de los lugares marcados del paso a nivel.` });
     }
-    const roles = scene.devices.map(device => nearestRailSlot(device.kind, device.position)?.role).filter(Boolean);
+    const roles = scene.devices.map(device => nearestRailSlot(device.kind, device.position, railTrackCount(scene))?.role).filter(Boolean);
     if (new Set(roles).size !== roles.length) issues.push({ code: 'rail-slot-conflict', severity: 'error', message: 'Cada barrera y detector debe ocupar un lugar diferente del paso a nivel.' });
-    for (const slot of railSlots) if (!roles.includes(slot.role)) issues.push({ code: 'rail-slot-missing', severity: 'warning', message: `Falta ${slot.name.toLowerCase()} en el paso a nivel. Una barrera ausente mantiene detenido su acceso.` });
+    for (const slot of railSlotsFor(railTrackCount(scene))) if (!roles.includes(slot.role)) issues.push({ code: 'rail-slot-missing', severity: 'warning', message: `Falta ${slot.name.toLowerCase()} en el paso a nivel. Una barrera ausente mantiene detenido su acceso.` });
   }
   if (trafficLights.length && scene.canvas.background !== 'crossroads') {
     issues.push({
@@ -2621,6 +2647,7 @@ export function isSceneDefinition(value: unknown, incompleteDisplayLayout = fals
       'gridSize',
       'snapToGrid',
       'trafficDirections',
+      'railTracks',
       'itemOrder',
     ]) &&
     hasFiniteNumber(canvas, 'width') &&
@@ -2634,6 +2661,7 @@ export function isSceneDefinition(value: unknown, incompleteDisplayLayout = fals
     Number(canvas.gridSize) > 0 &&
     Number(canvas.gridSize) <= 512 &&
     typeof canvas.snapToGrid === 'boolean' &&
+    (canvas.railTracks === undefined || [1, 2, 4].includes(canvas.railTracks as number)) &&
     (canvas.trafficDirections === undefined ||
       (Array.isArray(canvas.trafficDirections) &&
         canvas.trafficDirections.length <= trafficDirections.length &&
