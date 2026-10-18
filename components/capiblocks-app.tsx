@@ -1538,6 +1538,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                   scene={scene}
                   runtimeDevices={sim.devices}
                   railWorld={sim.railWorld}
+                  parkingWorld={sim.parkingWorld}
                   counter={sim.counter}
                   simulationSpeed={speed}
                   simulationRunning={sim.status === 'running'}
@@ -1667,9 +1668,9 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                       const interrupted = runtime?.kind === 'infraredBarrier'
                         ? runtime.interrupted
                         : device.config.interrupted;
-                      if (scene.canvas.background === 'railCrossing') return <div className="message-test-panel" key={device.id}>
+                      if (scene.canvas.background === 'railCrossing' || scene.canvas.background === 'parking') return <div className="message-test-panel" key={device.id}>
                         <span>{device.name} · {interrupted ? 'Haz interrumpido' : 'Haz libre'}</span>
-                        <small>Automático: lo activa el tren virtual. No es una lectura de la placa.</small>
+                        <small>Automático: lo activa {scene.canvas.background === 'parking' ? 'el auto virtual' : 'el tren virtual'}. No es una lectura de la placa.</small>
                       </div>;
                       return (
                         <div className="message-test-panel" key={device.id}>

@@ -301,7 +301,7 @@ export interface ProjectDecodeResult {
   diagnostics: CapiDiagnostic[];
 }
 
-export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4';
+export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4' | 'parkingProcedures';
 export interface ExampleDefinition {
   id: ExampleId;
   title: string;
@@ -411,6 +411,7 @@ export interface ExecutionTaskState {
 export interface SimulatorState {
   /** Estado virtual transitorio; nunca forma parte del proyecto portable. */
   railWorld?: import('./rail-world').RailWorldState;
+  parkingWorld?: import('./parking-world').ParkingWorldState;
   execution?: {
     mode: 'normal' | 'guided';
     awaitingFrame: number | null;
@@ -893,6 +894,86 @@ const messageReceiver = (expected: string, equal: Record<string, unknown>, diffe
   } } },
 });
 
+function parkingExample(modular: boolean): ExampleDefinition {
+  const occupied = 'parking-occupied', capacity = 'parking-capacity';
+  const sequence = (...blocks: Record<string, unknown>[]) => {
+    const copies = structuredClone(blocks);
+    for (let index = 0; index < copies.length - 1; index++) {
+      let tail = copies[index];
+      while (tail.next) tail = (tail.next as { block: Record<string, unknown> }).block;
+      tail.next = { block: copies[index + 1] };
+    }
+    return copies[0];
+  };
+  let next = 0;
+  const id = (name: string) => `parking-${modular ? 'mod' : 'direct'}-${name}-${next++}`;
+  const num = (value: number) => ({ type: 'capi_value_number', id: id('number'), fields: { VALUE: value } });
+  const read = (variable: string) => ({ type: 'capi_variable_get_number', id: id('read'), fields: { VAR: { id: variable } } });
+  const compare = (operator: string, left: Record<string, unknown>, right: Record<string, unknown>) => ({ type: 'capi_value_compare', id: id('compare'), fields: { OPERATOR: operator }, inputs: { LEFT: { block: left }, RIGHT: { block: right } } });
+  const detector = (role: string, state = 'INTERRUPTED') => ({ type: 'capi_barrier_state', id: id('read-detector'), fields: { DEVICE_ID: `parking-${role}`, STATE: state } });
+  const gate = (entry: boolean, angle: number) => ({ type: 'capi_servo', id: id('gate'), fields: { DEVICE_ID: `parking-${entry ? 'entry' : 'exit'}Gate`, ANGLE: angle } });
+  const wait = () => ({ type: 'capi_wait', id: id('yield'), fields: { SECONDS: 0.05 } });
+  const until = (condition: Record<string, unknown>) => ({ type: 'capi_while', id: id('until'), fields: { MODE: 'UNTIL' }, inputs: { CONDITION: { block: condition }, DO: { block: wait() } } });
+  const change = (delta: number) => ({ type: 'capi_variable_change', id: id('count'), fields: { VAR: { id: occupied } }, inputs: { DELTA: { block: num(delta) } } });
+  const writes = () => ({ type: 'capi_if', id: id('display-if'), inputs: {
+    CONDITION: { block: compare('GTE', read(occupied), read(capacity)) },
+    DO: { block: { type: 'capi_display_write', id: id('full'), fields: { DEVICE_ID: 'parking-display', AREA_ID: 'screen', TEXT: 'Completo' } } },
+    ELSE: { block: { type: 'capi_display_write', id: id('free'), fields: { DEVICE_ID: 'parking-display', AREA_ID: 'screen', TEXT: 'Libres: ' }, inputs: { DYNAMIC: { block: {
+      type: 'capi_number_math', id: id('subtract'), fields: { OPERATOR: 'SUBTRACT' }, inputs: { LEFT: { block: read(capacity) }, RIGHT: { block: read(occupied) } },
+    } } } } },
+  } });
+  const passage = (entry: boolean) => sequence(
+    gate(entry, 90),
+    until(detector(entry ? 'entryPassed' : 'exitPassed')),
+    until(detector(entry ? 'entryPassed' : 'exitPassed', 'CLEAR')),
+    gate(entry, 0), change(entry ? 1 : -1),
+  );
+  const call = (name: string) => ({ type: 'capi_procedure_call', id: id('call'), fields: { ROUTINE: { id: `parking-task-${name}` } } });
+  const service = (entry: boolean) => sequence(
+    until(detector(entry ? 'entryArrival' : 'exitArrival')),
+    ...(entry ? [until(compare('LT', read(occupied), read(capacity)))] : []),
+    ...(modular ? [call(entry ? 'enter' : 'exit')] : [passage(entry)]), wait(),
+  );
+  const forever = (body: Record<string, unknown>) => ({ type: 'capi_forever', id: id('loop'), inputs: { DO: { block: body } } });
+  const start = startWorkspace(sequence(
+    gate(true, 0), gate(false, 0),
+    ...[occupied, capacity].map((variable, index) => ({ type: 'capi_variable_set_number', id: id('set'), fields: { VAR: { id: variable } }, inputs: { VALUE: { block: num(index ? 8 : 0) } } })),
+    { type: 'capi_parallel', id: id('parallel'), extraState: { branches: 3 }, inputs: {
+      BRANCH0: { block: modular ? call('entryControl') : forever(service(true)) },
+      BRANCH1: { block: modular ? call('exitControl') : forever(service(false)) },
+      BRANCH2: { block: forever(sequence(modular ? call('display') : writes(), { type: 'capi_wait', id: id('display-tick'), fields: { SECONDS: 0.2 } })) },
+    } },
+  ));
+  const routines = [
+    { key: 'entryControl', name: 'Gestionar entrada', body: () => forever(service(true)) },
+    { key: 'exitControl', name: 'Gestionar salida', body: () => forever(service(false)) },
+    { key: 'enter', name: 'Dejar entrar y contar', body: () => passage(true) },
+    { key: 'exit', name: 'Dejar salir y contar', body: () => passage(false) },
+    { key: 'display', name: 'Actualizar cartel', body: writes },
+  ];
+  const definitions = modular ? routines.map((routine, index) => ({ type: 'capi_procedure_def', id: `parking-def-${routine.key}`, x: 48, y: 48 + index * 600,
+    fields: { ROUTINE: { id: `parking-task-${routine.key}` }, P1_TYPE: 'none', P2_TYPE: 'none', P3_TYPE: 'none' }, inputs: { BODY: { block: routine.body() } },
+  })) : [];
+  return {
+    id: modular ? 'parkingProcedures' : 'parking', title: modular ? 'Estacionamiento con procedimientos' : 'Estacionamiento', icon: modular ? '🧩' : '🅿️', level: 'Intermedio',
+    mission: 'Entrada y salida independientes: admití autos sólo si quedan plazas y contá cada paso completo.',
+    description: 'Solución completa de 8 plazas con cuatro detectores, dos barreras y cartel. Al cambiar las plazas, ajustá también la variable Capacidad del programa.',
+    scene: createSceneFromTemplate('parking'),
+    workspace: { ...start, variables: [
+      { id: occupied, name: 'Ocupados', type: 'Number' }, { id: capacity, name: 'Capacidad', type: 'Number' },
+      ...(modular ? routines.map(routine => ({ id: `parking-task-${routine.key}`, name: routine.name, type: 'Procedure' })) : []),
+    ], blocks: { ...start.blocks, blocks: [...start.blocks.blocks, ...definitions] },
+    capiTabs: { version: 1, tabs: [
+      { id: 'main', name: 'Principal', rootBlockIds: ['start-main'] },
+      ...(modular ? [
+        { id: 'tab-parking-control', name: 'Accesos', rootBlockIds: ['parking-def-entryControl', 'parking-def-exitControl'] },
+        { id: 'tab-parking-passages', name: 'Paso completo', rootBlockIds: ['parking-def-enter', 'parking-def-exit'] },
+        { id: 'tab-parking-sign', name: 'Cartel', rootBlockIds: ['parking-def-display'] },
+      ] : []),
+    ] } },
+  };
+}
+
 export const examples: ExampleDefinition[] = [
   {
     id: 'traffic',
@@ -1004,6 +1085,8 @@ export const examples: ExampleDefinition[] = [
   },
   multitrackExample(2),
   multitrackExample(4),
+  parkingExample(false),
+  parkingExample(true),
   {
     id: 'display', title: 'Mensajes para la plaza', icon: '📺', level: 'Inicial',
     mission: 'Escribí en la pantalla, esperá para leer y borrá el mensaje. La consola es otro destino.',

@@ -3,6 +3,8 @@ import { DisplayPreview } from '@/components/display-preview';
 import { LedMatrixPreview } from '@/components/led-matrix-preview';
 import SceneViewport from '@/components/scene-viewport';
 import RailCrossingWorld from '@/components/rail-crossing-world';
+import ParkingWorld from '@/components/parking-world';
+import { nearestParkingSlot, type ParkingWorldState } from '@/lib/parking-world';
 import { nearestRailSlot, railTrackCount, type RailWorldState } from '@/lib/rail-world';
 import { trafficColorLabel } from '@/lib/editor-ergonomics';
 
@@ -72,6 +74,7 @@ export type RuntimeVisualDevice = {
 
 interface SceneStageProps {
   railWorld?: RailWorldState;
+  parkingWorld?: ParkingWorldState;
   activeDeviceId?: string;
   activeDeviceMessage?: string;
   scene: SceneDefinition;
@@ -253,12 +256,14 @@ function TrafficActors({
 function SceneBackdrop({
   scene,
   railWorld,
+  parkingWorld,
   runtimeDevices,
   simulationSpeed,
   simulationRunning,
 }: {
   scene: SceneDefinition;
   railWorld?: RailWorldState;
+  parkingWorld?: ParkingWorldState;
   runtimeDevices: Record<string, RuntimeVisualDevice>;
   simulationSpeed: number;
   simulationRunning: boolean;
@@ -295,6 +300,7 @@ function SceneBackdrop({
 
   const background = scene.canvas.background;
   if (background === 'railCrossing') return <RailCrossingWorld scene={scene} state={railWorld} />;
+  if (background === 'parking') return <ParkingWorld scene={scene} state={parkingWorld} />;
   return (
     <div className={`scene-world scene-world-${background}`}>
       <svg viewBox="0 0 960 540" preserveAspectRatio="none" aria-hidden="true">
@@ -582,6 +588,7 @@ function DeviceVisual({
 
 export default function SceneStage({
   railWorld,
+  parkingWorld,
   activeDeviceId,
   activeDeviceMessage,
   scene,
@@ -834,6 +841,7 @@ export default function SceneStage({
         key={`scene-world:${scene.id}:${simulationEpoch}`}
         scene={scene}
         railWorld={railWorld}
+        parkingWorld={parkingWorld}
         runtimeDevices={runtimeDevices}
         simulationSpeed={safeSimulationSpeed}
         simulationRunning={simulationRunning}
@@ -912,7 +920,8 @@ export default function SceneStage({
               ? runtime.angle
               : device.rotation + device.config.heading
             : device.rotation;
-        const railAnchor = scene.canvas.background === 'railCrossing' && !!nearestRailSlot(device.kind, device.position, railTrackCount(scene));
+        const parkingAnchor = scene.canvas.background === 'parking' && nearestParkingSlot(device.kind, device.position);
+        const railAnchor = !!parkingAnchor || (scene.canvas.background === 'railCrossing' && !!nearestRailSlot(device.kind, device.position, railTrackCount(scene)));
         const size = railAnchor ? { width: 40, height: 40 } : sceneItemSize(device);
         const labelSide = sceneItemLabelSide(scene, device.id);
         const style = {
@@ -928,10 +937,10 @@ export default function SceneStage({
         };
         const contents = (
           <>
-            {scene.canvas.background === 'railCrossing' && nearestRailSlot(device.kind, device.position, railTrackCount(scene))
+            {parkingAnchor ? <span className="rail-component-anchor" title={parkingAnchor.name}>{device.kind === 'servo' ? '⚙' : '↕'}</span> : scene.canvas.background === 'railCrossing' && nearestRailSlot(device.kind, device.position, railTrackCount(scene))
               ? <span className="rail-component-anchor" title={nearestRailSlot(device.kind, device.position, railTrackCount(scene))?.name}>{device.kind === 'servo' ? '⚙' : '↕'}</span>
               : <DeviceVisual device={device} runtime={runtime} matrixPreviewPattern={matrixPreviewPattern} sceneDevices={scene.devices} runtimeDevices={runtimeDevices} dashboardModes={dashboardModes} onDashboardAction={onDashboardAction} />}
-            {!(scene.canvas.background === 'railCrossing' && railTrackCount(scene) > 1 && device.kind === 'infraredBarrier') && <span className={`scene-device-name label-${labelSide}`} title={device.name}>{device.name}</span>}
+            {!parkingAnchor && !(scene.canvas.background === 'railCrossing' && railTrackCount(scene) > 1 && device.kind === 'infraredBarrier') && <span className={`scene-device-name label-${labelSide}`} title={device.name}>{device.name}</span>}
           </>
         );
         if (!editing) {

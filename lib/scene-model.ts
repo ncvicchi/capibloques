@@ -16,6 +16,8 @@ import { boardProfile, WAVESHARE_TOUCH_LCD_5_PROFILE_ID, type BoardPinDefinition
 import { educationalModuleKinds, educationalModulePins, educationalModuleSpecs, isEducationalModuleKind, validEducationalModuleConfig, type EducationalModuleKind } from './educational-modules.ts';
 // @ts-expect-error Node strip-types runner.
 import { nearestRailSlot, railSlots, railSlotsFor, railTrackCount, type RailTrackCount } from './rail-world.ts';
+// @ts-expect-error Node strip-types runner.
+import { nearestParkingSlot, parkingSlots, type ParkingCapacity } from './parking-world.ts';
 
 export const SCENE_SCHEMA_VERSION = 1 as const;
 
@@ -30,6 +32,7 @@ export const legacySceneIds = [
   'securityGate',
   'weatherStation',
   'railCrossing',
+  'parking',
 ] as const;
 
 export type LegacySceneId = (typeof legacySceneIds)[number];
@@ -67,6 +70,7 @@ export const sceneBackgrounds = [
   'schoolGate',
   'weatherYard',
   'railCrossing',
+  'parking',
   'blank',
 ] as const;
 export type SceneBackground = (typeof sceneBackgrounds)[number];
@@ -95,6 +99,8 @@ export interface SceneCanvas {
   trafficDirections?: TrafficDirection[];
   /** Ausente en proyectos anteriores: una vía bidireccional. */
   railTracks?: RailTrackCount;
+  /** Ausente: ocho plazas. Los autos y sus cuadros no se guardan en JSON. */
+  parkingCapacity?: ParkingCapacity;
   /** Identificadores de atrás hacia adelante; ausente en proyectos anteriores. */
   itemOrder?: string[];
 }
@@ -138,6 +144,13 @@ export function constrainSceneItemPosition(
   item: Pick<SceneDevice | SceneWidget, 'id' | 'kind'>,
   position: ScenePosition,
 ): ScenePosition {
+  if (scene.canvas.background === 'parking') {
+    const slot = nearestParkingSlot(item.kind, position);
+    if (slot) {
+      if (scene.devices.some(device => device.id !== item.id && nearestParkingSlot(device.kind, device.position)?.role === slot.role)) return scene.devices.find(device => device.id === item.id)?.position ?? position;
+      return { x: slot.x, y: slot.y };
+    }
+  }
   if (scene.canvas.background === 'railCrossing') {
     const slot = nearestRailSlot(item.kind, position, railTrackCount(scene));
     if (slot) {
@@ -185,6 +198,18 @@ export function arrangeRailDevices(source: SceneDefinition) {
   const occupied = new Set<string>();
   scene.devices = scene.devices.map(device => {
     const slot = railSlotsFor(railTrackCount(scene)).find(candidate => candidate.kind === device.kind && !occupied.has(candidate.role));
+    if (!slot) return device;
+    occupied.add(slot.role);
+    return { ...device, position: { x: slot.x, y: slot.y }, rotation: 0 };
+  });
+  return scene;
+}
+
+export function arrangeParkingDevices(source: SceneDefinition) {
+  const scene = cloneScene(source);
+  const occupied = new Set<string>();
+  scene.devices = scene.devices.map(device => {
+    const slot = parkingSlots.find(candidate => candidate.kind === device.kind && !occupied.has(candidate.role));
     if (!slot) return device;
     occupied.add(slot.role);
     return { ...device, position: { x: slot.x, y: slot.y }, rotation: 0 };
@@ -1284,6 +1309,7 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
   }
   if ((kind === 'display' || kind === 'ledMatrix') && scene.devices.some(device => device.kind === 'display' || device.kind === 'ledMatrix')) throw new Error('Cada proyecto admite una sola pantalla o matriz. Configurá la existente.');
   if (source.canvas.background === 'railCrossing' && (kind === 'servo' || kind === 'infraredBarrier') && source.devices.filter(device => device.kind === kind).length >= (kind === 'servo' ? 2 : 2 * railTrackCount(source))) throw new Error('Los lugares de este componente ya están ocupados: dos barreras y dos detectores por vía.');
+  if (source.canvas.background === 'parking' && parkingSlots.some(slot => slot.kind === kind) && source.devices.filter(device => device.kind === kind).length >= (kind === 'servo' ? 2 : 4)) throw new Error('El estacionamiento tiene dos lugares para barreras y cuatro para detectores.');
   if (kind === 'messages' && scene.devices.filter(device => device.kind === 'messages').length >= 2) throw new Error('La placa admite hasta dos componentes Mensajes.');
   if (kind === 'trafficLight') {
     if (scene.canvas.background !== 'crossroads') {
@@ -1310,6 +1336,10 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
     ...((kind === 'display' || kind === 'ledMatrix') && !options.position ? { position: { x: scene.canvas.width * 0.7, y: scene.canvas.height * 0.55 } } : {}),
     id: options.id ?? createStableDeviceId(kind, reservedIds),
   });
+  if (scene.canvas.background === 'parking') {
+    const slot = parkingSlots.find(candidate => candidate.kind === kind && !scene.devices.some(item => nearestParkingSlot(item.kind, item.position)?.role === candidate.role));
+    if (slot) { device.position = { x: slot.x, y: slot.y }; device.rotation = 0; }
+  }
   if (scene.canvas.background === 'railCrossing') {
     const slot = railSlotsFor(railTrackCount(scene)).find(candidate => candidate.kind === kind && !scene.devices.some(item => nearestRailSlot(item.kind, item.position, railTrackCount(scene))?.role === candidate.role));
     if (slot) device.position = { x: slot.x, y: slot.y };
@@ -1671,6 +1701,21 @@ railTemplate.devices.push(templateDevice('activeBuzzer', railTemplate.devices, {
   id: 'rail-alarm', name: 'Aviso sonoro', position: { x: 720, y: 110 }, pins: { signal: 13 },
 }));
 
+const parkingTemplate = createEmptyScene('Estacionamiento', {
+  id: 'scene-parking', description: 'Controlá entrada, salida y plazas libres. Los autos activan cuatro detectores; tu programa lleva la cuenta.',
+  canvas: { background: 'parking', parkingCapacity: 8 },
+});
+parkingTemplate.sourceTemplate = 'parking';
+for (const [index, slot] of parkingSlots.entries()) parkingTemplate.devices.push(templateDevice(slot.kind, parkingTemplate.devices, {
+  id: `parking-${slot.role}`, name: slot.name, position: { x: slot.x, y: slot.y },
+  pins: { signal: [14, 27, 34, 35, 36, 39][index] },
+  config: slot.kind === 'servo' ? { angle: 0 } : { interrupted: false, interruptedLevel: 'LOW' },
+}));
+parkingTemplate.devices.push(templateDevice('display', parkingTemplate.devices, {
+  id: 'parking-display', name: 'Plazas disponibles', position: { x: 480, y: 465 },
+  config: displayConfig('lcd1602'), pins: { sda: 26, scl: 25 },
+}));
+
 export const sceneTemplates: Readonly<Record<LegacySceneId, SceneDefinition>> =
   {
     traffic: trafficTemplate,
@@ -1683,6 +1728,7 @@ export const sceneTemplates: Readonly<Record<LegacySceneId, SceneDefinition>> =
     securityGate: securityGateTemplate,
     weatherStation: weatherStationTemplate,
     railCrossing: railTemplate,
+    parking: parkingTemplate,
   };
 
 export function createSceneFromTemplate(templateId: LegacySceneId) {
@@ -1713,13 +1759,13 @@ export function appendTemplateToScene(
   const offset = options.offset ?? { x: 40, y: 40 };
   const addedDeviceIds: string[] = [];
   const warnings: string[] = [];
-  if (templateId === 'railCrossing') {
-    if (scene.devices.length || scene.widgets.length) return { scene, warnings: ['El paso a nivel se agrega sobre una escena vacía para no reasignar componentes existentes.'], addedDeviceIds };
+  if (templateId === 'railCrossing' || templateId === 'parking') {
+    if (scene.devices.length || scene.widgets.length) return { scene, warnings: ['Este mundo se agrega sobre una escena vacía para no reasignar componentes existentes.'], addedDeviceIds };
     const replacement = cloneScene(scene);
-    replacement.canvas = structuredClone(railTemplate.canvas);
-    replacement.sourceTemplate = 'railCrossing';
-    replacement.description = railTemplate.description;
-    for (const item of railTemplate.devices) {
+    replacement.canvas = structuredClone(template.canvas);
+    replacement.sourceTemplate = templateId;
+    replacement.description = template.description;
+    for (const item of template.devices) {
       replacement.devices.push({ ...structuredClone(item),
         id: createStableDeviceId(item.kind, [...replacement.devices.map(device => device.id), ...(replacement.retiredDeviceIds ?? [])]),
         pins: Object.fromEntries(Object.keys(item.pins).map(key => [key, null])),
@@ -1909,6 +1955,9 @@ export type SceneValidationIssueCode =
   | 'rail-slot-conflict'
   | 'rail-slot-missing'
   | 'rail-slot-position'
+  | 'parking-slot-position'
+  | 'parking-slot-conflict'
+  | 'parking-slot-missing'
   | 'missing-pin'
   | 'unsupported-pin'
   | 'pin-conflict'
@@ -2048,6 +2097,16 @@ export function validateScene(
     const roles = scene.devices.map(device => nearestRailSlot(device.kind, device.position, railTrackCount(scene))?.role).filter(Boolean);
     if (new Set(roles).size !== roles.length) issues.push({ code: 'rail-slot-conflict', severity: 'error', message: 'Cada barrera y detector debe ocupar un lugar diferente del paso a nivel.' });
     for (const slot of railSlotsFor(railTrackCount(scene))) if (!roles.includes(slot.role)) issues.push({ code: 'rail-slot-missing', severity: 'warning', message: `Falta ${slot.name.toLowerCase()} en el paso a nivel. Una barrera ausente mantiene detenido su acceso.` });
+  }
+  if (scene.canvas.background === 'parking') {
+    if (scene.canvas.width !== 960 || scene.canvas.height !== 540) issues.push({ code: 'parking-slot-position', severity: 'error', message: 'El estacionamiento utiliza un lienzo de 960 × 540.' });
+    const roles = scene.devices.map(device => nearestParkingSlot(device.kind, device.position)?.role).filter(Boolean);
+    if (new Set(roles).size !== roles.length) issues.push({ code: 'parking-slot-conflict', severity: 'error', message: 'Cada barrera y detector necesita un lugar diferente del estacionamiento.' });
+    for (const device of scene.devices) {
+      const slot = nearestParkingSlot(device.kind, device.position);
+      if (slot && (device.position.x !== slot.x || device.position.y !== slot.y)) issues.push({ code: 'parking-slot-position', severity: 'error', deviceId: device.id, message: `${device.name}: elegí un lugar marcado del estacionamiento.` });
+    }
+    for (const slot of parkingSlots) if (!roles.includes(slot.role)) issues.push({ code: 'parking-slot-missing', severity: 'warning', message: `Falta ${slot.name.toLowerCase()}. Sin barrera, ese acceso permanece cerrado; sin detector, el programa no recibe esa señal.` });
   }
   if (trafficLights.length && scene.canvas.background !== 'crossroads') {
     issues.push({
@@ -2648,6 +2707,7 @@ export function isSceneDefinition(value: unknown, incompleteDisplayLayout = fals
       'snapToGrid',
       'trafficDirections',
       'railTracks',
+      'parkingCapacity',
       'itemOrder',
     ]) &&
     hasFiniteNumber(canvas, 'width') &&
@@ -2662,6 +2722,7 @@ export function isSceneDefinition(value: unknown, incompleteDisplayLayout = fals
     Number(canvas.gridSize) <= 512 &&
     typeof canvas.snapToGrid === 'boolean' &&
     (canvas.railTracks === undefined || [1, 2, 4].includes(canvas.railTracks as number)) &&
+    (canvas.parkingCapacity === undefined || [4, 8, 12].includes(canvas.parkingCapacity as number)) &&
     (canvas.trafficDirections === undefined ||
       (Array.isArray(canvas.trafficDirections) &&
         canvas.trafficDirections.length <= trafficDirections.length &&

@@ -583,3 +583,53 @@ resetMessages();
 }
 console.log('Simulator worker smoke checks passed, including automatic railway inputs and cooperative gates.');
 function currentTrackCount(scene) { return scene.canvas.railTracks ?? 1; }
+
+// Execute both actual parking workspaces, not a hand-written controller.
+for (const exampleId of ['parking', 'parkingProcedures']) for (const capacity of [4, 8, 12]) for (const speed of [1, 4]) {
+  const example = examples.find(item => item.id === exampleId);
+  const parkingScene = structuredClone(example.scene);
+  parkingScene.canvas.parkingCapacity = capacity;
+  for (const device of parkingScene.devices) if (device.kind === 'infraredBarrier') device.config.interrupted = true;
+  const serialized = structuredClone(example.workspace);
+  const setCapacity = value => {
+    if (!value || typeof value !== 'object') return;
+    if (value.type === 'capi_variable_set_number' && value.fields.VAR.id === 'parking-capacity') value.inputs.VALUE.block.fields.VALUE = capacity;
+    Object.values(value).forEach(setCapacity);
+  };
+  setCapacity(serialized);
+  const workspace = new Blockly.Workspace();
+  workspaceDevices.set(workspace, parkingScene.devices);
+  Blockly.serialization.workspaces.load(serialized, workspace);
+  const parkingProgram = compileWorkspace(workspace); workspace.dispose();
+  send({ type: 'LOAD', scene: parkingScene, program: parkingProgram });
+  assert.ok(parkingScene.devices.filter(device => device.kind === 'infraredBarrier').every(device => latestState().devices[device.id].interrupted === false), 'al cargar manda el mundo vacío, no el ajuste manual del sensor');
+  send({ type: 'SET_INPUT', deviceId: 'parking-entryArrival', value: true });
+  assert.equal(latestState().devices['parking-entryArrival'].interrupted, false, 'no entrada manual competidora');
+  send({ type: 'SET_SPEED', speed }); send({ type: 'RUN' });
+  let entered = 0, exited = 0, seenFull = false;
+  for (let i = 0; i < 10000 / speed; i++) {
+    advance(20);
+    const current = latestState();
+    const world = current.parkingWorld;
+    assert.ok(world, `${exampleId}: el mundo se conserva en el worker`);
+    assert.equal(world.jammed, false, `${exampleId}/${capacity}/${speed}: no admitir si no hay plaza`);
+    const count = Number(current.variables['parking-occupied']);
+    assert.ok(count >= 0 && count <= capacity, 'contador sin duplicados ni valores negativos');
+    // Snapshot can fall between sensor clear and the following count statement.
+    assert.ok(Math.abs(count - (world.entries - world.exits)) <= 2, `cuenta propia sigue pasos completos: ${JSON.stringify({ exampleId, capacity, speed, now: current.now, count, entries: world.entries, exits: world.exits, cars: world.cars, variables: current.variables })}`);
+    entered = world.entries; exited = world.exits; seenFull ||= count === capacity;
+    if (i % 500 === 0) { const last = messages.findLast(message => message.type === 'SNAPSHOT'); resetMessages(); if (last) messages.push(last); }
+  }
+  assert.ok(entered >= 8 && exited >= 3, `${exampleId}/${capacity}/${speed}: entradas y salidas continúan (${entered}/${exited})`);
+  if (capacity === 4) assert.ok(seenFull, 'se ejercita la espera por estacionamiento completo');
+  send({ type: 'PAUSE' }); const before = structuredClone(latestState().parkingWorld);
+  advance(200); assert.deepEqual(latestState().parkingWorld, before);
+  send({ type: 'RESET' });
+  assert.equal(latestState().parkingWorld.cars.length, 0);
+  assert.equal(latestState().parkingWorld.jammed, false);
+  assert.equal(latestState().parkingWorld.entries, 0);
+  assert.ok(Object.values(latestState().parkingWorld.detectors).every(value => value === false));
+  send({ type: 'STEP' }); assert.ok(latestState().parkingWorld.nextArrivalMs < 800);
+  send({ type: 'STOP' }); resetMessages();
+}
+console.log('Estacionamiento: ambos ejemplos ejecutados con 4/8/12 plazas a 1×/4×, cola, conteo, pausa, paso y reinicio aprobados.');

@@ -1,5 +1,26 @@
 # CapiBloques — contexto para continuar
 
+### Entrega vigente: fase 48 — Estacionamiento, sólo dev1
+
+Autorizada e implementada en rama `codex/fase-48-estacionamiento` desde
+`origin/dev1` (`73dc00f890c82de4094680c2dbae3daa810d6f1f`). Reglas, arquitectura,
+pruebas y límites: [FASE_48_ESTACIONAMIENTO.md](FASE_48_ESTACIONAMIENTO.md).
+Dos barreras, cuatro infrarrojos, capacidad 4/8/12, autos automáticos y atasco
+recuperable si se admite sin plaza. El contador es del programa, no del mundo.
+Dos ejemplos completos de 8 plazas: directo y cinco procedimientos/cuatro tabs.
+Cambiar capacidad física no reescribe bloques: ajustar también variable Capacidad.
+Un reloj worker para autos/sensores/programa. Guardar/Cancelar/undo/redo del armador.
+JSON aditivo con parkingCapacity opcional; validación frontend/Django alineada.
+Verificado localmente: tipos/lint, build y diez rutas estáticas, smoke completo, ejecución real de ambos
+workspaces 4/8/12 a 1×/4×, nueve contratos backend, ambos JSON frontend→Django y
+tres recorridos Chromium (simulación, pausa/reinicio, capacidad/undo/redo/guardar/
+cancelar confirmado). Captura inspeccionada. Sin esperas de GitHub Actions.
+Sin SDK, firmware/ABI, migraciones ni nuevas dependencias. Renderer Waveshare,
+maqueta física y aceptación humana siguen pendientes; fases 49–55 no iniciadas.
+Integración/actualización dev1 a cargo del propietario con `~/.local/bin/capi-dev
+--env dev1 --branch codex/fase-48-estacionamiento --commit SHA40`. No se opera
+el servidor en esta entrega, no se integra main ni dev2 ni se promociona nada.
+
 Documento vivo iniciado en **fase 11**. Actualización: **17 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
 
 ### Activación real dev1/dev2 y copia inicial — 17/18 de octubre

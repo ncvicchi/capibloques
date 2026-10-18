@@ -1,5 +1,13 @@
 # Backlog de CapiBloques
 
+**Fase 48 — Estacionamiento:** autorizada e implementada en
+`codex/fase-48-estacionamiento`, desde dev1. Dos accesos, dos servos, cuatro
+detectores automáticos, 4/8/12 plazas, conteo programado, cartel, atasco y
+recuperación. Dos ejemplos completos: directo y procedimientos con pestañas.
+[Reglas, uso, pruebas y límites](FASE_48_ESTACIONAMIENTO.md).
+Integración/actualización sólo dev1 por el propietario; main/dev2 intactos.
+Waveshare y aceptación física/humana pendientes; fases 49–55 no iniciadas.
+
 **Cierre operativo transversal (17/18 de octubre):** dev1/dev2 instalados,
 HTTPS/DNS/servicios activos, copia inicial autorizada y verificada con mismos
 usuarios/contraseñas/colegio/proyectos del original. Main intacto; sin promoción.
@@ -35,7 +43,8 @@ nueve tareas anidadas y cinco pestañas; mantiene la versión directa. Vía
 ocupada/libre agrupan barreras y avisos; equivalencia de ambas soluciones y
 ejecución en worker verificadas. Detalle en la misma guía de fase 47.
 Ultrasonido, switch o Hall/reed no se incorporaron como perfiles intercambiables.
-Portado Waveshare y maqueta física quedan pendientes. No iniciar fase 48 aún.
+Portado Waveshare y maqueta física quedan pendientes. Fase 48 autorizada después,
+según la actualización al comienzo de este backlog.
 
 ## Mundos interactivos — pedido del 17 de octubre de 2026
 

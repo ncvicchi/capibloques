@@ -1,5 +1,12 @@
 # Mundos interactivos: escenas con comportamiento
 
+Actualización vigente: **fase 48 autorizada e implementada en simulación web**,
+en `codex/fase-48-estacionamiento` desde dev1. Reglas aprobadas, disposición,
+dos ejemplos completos y alcance en [FASE_48_ESTACIONAMIENTO.md](FASE_48_ESTACIONAMIENTO.md).
+Integración dev1/aceptación pendientes; no se modifica main/dev2 ni firmware.
+Las menciones históricas inferiores a 48 sin autorización quedan sustituidas;
+49–55 continúan planificadas, no iniciadas. Waveshare y maqueta son aceptación aparte.
+
 Pedido y autorización: 17 de octubre de 2026. Documentar el inventario y la
 propuesta completa, asignar fases y empezar por peatones. Sólo la fase 46 queda
 autorizada para implementar; las siguientes se planifican, no se inician.
