@@ -76,9 +76,10 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 50 | Casa inteligente y entrada segura | Mundos interactivos | Software web en rama desde dev1; dos ejemplos completos; actualización/aceptación pendientes; ver guía de fase 50 |
 | 51 | Taller y cinta transportadora | Mundos interactivos | Software web en rama desde dev1; dos ejemplos completos; ver guía de fase 51; actualización/aceptación pendientes |
 | 52 | Pista de robots interactiva | Mundos interactivos | Software web en rama desde dev1; dos ejemplos completos; ver guía de fase 52; actualización/aceptación pendientes |
-| 53 | Estación meteorológica interactiva | Mundos interactivos | Fenómenos y lecturas; nueva autorización |
+| 53 | Estación meteorológica interactiva | Mundos interactivos | Software web en rama desde dev1; dos ejemplos completos; ver guía de fase 53; actualización/aceptación pendientes |
 | 54 | Escenario de Otto | Mundos interactivos | Público y peticiones; nueva autorización |
 | 55 | Parque, laguna y aeropuerto | Mundos interactivos | Sólo análisis de actividades y valor nuevo |
+| 56 | Vehículo seguidor de línea | Pedido del propietario, 18 de octubre | Circuitos predefinidos/dibujados, reflectivos y control de ruedas; [propuesta](FASE_56_SEGUIDOR_LINEA.md), reglas/alcance por acordar |
 | Final | Producción, HTTPS, respaldos y piloto | Antigua fase 11 | Postergada hasta autorización explícita y validaciones de salida |
 
 Primero se asegura la continuidad desde otra cuenta sin depender de este chat; después se atienden los problemas cotidianos del editor y se vuelve DEV accesible desde fuera mediante un servicio controlado. TX/RX se incorpora antes de las placas nuevas para tener un contrato de comportamiento que luego se valide en cada destino. Separar DevKit, Waveshare y display interactivo permite comprobar por separado placa, pantalla y aplicación gráfica: no son el mismo soporte. Los desafíos aprovechan esas funciones como recorrido educativo propio. Las fases 20–26 separan flujos de compilación, pulido de edición, motivación, periféricos, control local, intercambio e identidad de aula para no mezclar permisos o hardware distintos en una entrega inmanejable.
@@ -834,12 +835,13 @@ Complementan la presentación de fase 45 con reglas del mundo, sin duplicarla.
 | 50 | Casa inteligente y entrada segura | Software web en rama desde dev1; dos ejemplos completos; [reglas y entrega](FASE_50_CASA_ENTRADA_SEGURA.md); actualización/aceptación/Waveshare/físico pendientes |
 | 51 | Taller y cinta transportadora | Software web en rama desde dev1; dos ejemplos completos; [reglas y entrega](FASE_51_TALLER_CINTA.md); actualización/aceptación/Waveshare/físico pendientes |
 | 52 | Pista de robots | Software web en rama desde dev1; dos ejemplos completos; [reglas y entrega](FASE_52_PISTA_ROBOTS.md); actualización/aceptación/Waveshare/físico pendientes |
-| 53 | Estación meteorológica interactiva | Planificada; fenómenos y lecturas coherentes, protección programada |
+| 53 | Estación meteorológica interactiva | Software web en rama desde dev1; clima, detector residual, techo y dos ejemplos completos; [reglas y entrega](FASE_53_ESTACION_METEOROLOGICA.md); actualización/aceptación/Waveshare/físico pendientes |
 | 54 | Escenario de Otto | Planificada; público/pedidos y reacciones programadas |
 | 55 | Variantes parque/laguna y aeropuerto | Sólo análisis; actividad y valor pedagógico antes de implementar |
+| 56 | Vehículo seguidor de línea | Planificada; circuitos propios/predefinidos, sensores reflectivos y posibilidades didácticas; [plan](FASE_56_SEGUIDOR_LINEA.md). No implementada ni autorizada para implementar |
 
 Fase 47 autorizada el 17 de octubre tras aprobar disposición y reglas; no
-iniciar las fases 53–55 sin autorización. Fases 48–52 autorizadas después y documentadas
+iniciar las fases 54–56 sin autorización. Fases 48–53 autorizadas después y documentadas
 en su guía de entrega. Mantener escena libre. Cada mundo
 debe declarar límites, vínculo componente/lugar, entradas/salidas, consecuencias,
 pausa/velocidad/reinicio, persistencia y alcance web/Waveshare. La fase 46 no

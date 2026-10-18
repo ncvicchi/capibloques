@@ -301,7 +301,7 @@ export interface ProjectDecodeResult {
   diagnostics: CapiDiagnostic[];
 }
 
-export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4' | 'parkingProcedures' | 'greenhouseProcedures' | 'smartHouseProcedures' | 'conveyorProcedures' | 'robotArenaProcedures';
+export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4' | 'parkingProcedures' | 'greenhouseProcedures' | 'smartHouseProcedures' | 'conveyorProcedures' | 'robotArenaProcedures' | 'weatherLabProcedures';
 export interface ExampleDefinition {
   id: ExampleId;
   title: string;
@@ -416,6 +416,7 @@ export interface SimulatorState {
   houseWorld?: import('./house-world').HouseWorldState;
   conveyorWorld?: import('./conveyor-world').ConveyorWorldState;
   arenaWorld?: import('./robot-arena').ArenaWorldState;
+  weatherWorld?: import('./weather-world').WeatherWorldState;
   execution?: {
     mode: 'normal' | 'guided';
     awaitingFrame: number | null;
@@ -1163,6 +1164,51 @@ function arenaExample(modular: boolean): ExampleDefinition {
       ] : [])] } } };
 }
 
+function weatherLabExample(modular: boolean): ExampleDefinition {
+  let n = 0;
+  const id = () => `weather-${modular ? 'mod' : 'direct'}-${n++}`;
+  const sequence = (...blocks: Record<string, unknown>[]) => { const copies = structuredClone(blocks); for (let i = 0; i < copies.length - 1; i++) { let tail = copies[i]; while (tail.next) tail = (tail.next as { block: Record<string, unknown> }).block; tail.next = { block: copies[i + 1] }; } return copies[0]; };
+  const wait = (seconds: number) => ({ type: 'capi_wait', id: id(), fields: { SECONDS: seconds } });
+  const loop = (body: Record<string, unknown>) => ({ type: 'capi_forever', id: id(), inputs: { DO: { block: body } } });
+  const call = (routine: string) => ({ type: 'capi_procedure_call', id: id(), fields: { ROUTINE: { id: `weather-task-${routine}` } } });
+  const read = (role: string, property: string) => ({ type: 'capi_component_number', id: id(), fields: { DEVICE_ID: `weather-${role}`, PROPERTY: property } });
+  const test = (role: string, property: string, operator: string, value: number) => ({ type: 'capi_value_compare', id: id(), fields: { OPERATOR: operator }, inputs: { LEFT: { block: read(role, property) }, RIGHT: { block: { type: 'capi_value_number', id: id(), fields: { VALUE: value } } } } });
+  const when = (condition: Record<string, unknown>, body: Record<string, unknown>, otherwise?: Record<string, unknown>) => ({ type: 'capi_if', id: id(), inputs: { CONDITION: { block: condition }, DO: { block: body }, ...(otherwise ? { ELSE: { block: otherwise } } : {}) } });
+  const led = (role: string, brightness: number) => ({ type: 'capi_led', id: id(), fields: { DEVICE_ID: `weather-${role}-light`, BRIGHTNESS: brightness } });
+  const roof = (angle: number) => ({ type: 'capi_servo', id: id(), fields: { DEVICE_ID: 'weather-roof', ANGLE: angle } });
+  const show = (text: string, role?: string, property?: string) => ({ type: 'capi_display_write', id: id(), fields: { DEVICE_ID: 'weather-display', AREA_ID: 'screen', TEXT: text }, ...(role && property ? { inputs: { DYNAMIC: { block: read(role, property) } } } : {}) });
+  const rainfall = () => when(test('rain', 'level', 'GT', 20), sequence(show('Detector mojado'), ...(modular ? [] : [led('alert', 100)])), sequence(show('Detector seco'), ...(modular ? [] : [led('alert', 0)])));
+  const lights = () => modular ? sequence(when(test('light', 'value', 'LT', 1200), led('night', 80)), when(test('light', 'value', 'GT', 1800), led('night', 0))) : when(test('light', 'value', 'LT', 1200), led('night', 80), led('night', 0));
+  const protect = () => sequence(when(test('rain', 'level', 'GT', 35), roof(0)), when(test('rain', 'level', 'LT', 10), roof(90)));
+  const alarm = () => sequence(when(test('rain', 'level', 'GT', 35), sequence(led('alert', 100), { type: 'capi_buzzer', id: id(), fields: { DEVICE_ID: 'weather-buzzer', KIND: 'ACTIVE', DURATION: 400, FREQUENCY: 660 } }, { type: 'capi_while', id: id(), fields: { MODE: 'UNTIL' }, inputs: { CONDITION: { block: test('rain', 'level', 'LT', 10) }, DO: { block: wait(0.2) } } }, led('alert', 0))), wait(0.2));
+  const report = () => sequence(modular ? call('temperature') : show('Temp C: ', 'climate', 'temperature'), wait(1), modular ? call('humidity') : show('Humedad %: ', 'climate', 'humidity'), wait(1), modular ? call('pressure') : show('Presion hPa: ', 'climate', 'pressure'), wait(1), modular ? call('rain') : rainfall(), wait(1));
+  const routines = [
+    { key: 'report', name: 'Actualizar informe', body: () => loop(report()) },
+    { key: 'temperature', name: 'Mostrar temperatura', body: () => show('Temp C: ', 'climate', 'temperature') },
+    { key: 'humidity', name: 'Mostrar humedad', body: () => show('Humedad %: ', 'climate', 'humidity') },
+    { key: 'pressure', name: 'Mostrar presion', body: () => show('Presion hPa: ', 'climate', 'pressure') },
+    { key: 'rain', name: 'Informar detector', body: rainfall },
+    { key: 'roof', name: 'Proteger el puesto', body: () => loop(sequence(protect(), wait(0.2))) },
+    { key: 'light', name: 'Regular luz', body: () => loop(sequence(lights(), wait(0.2))) },
+    { key: 'alarm', name: 'Avisar una vez', body: () => loop(alarm()) },
+  ];
+  const start = startWorkspace(sequence(roof(90), led('night', 0), led('alert', 0), modular ? {
+    type: 'capi_parallel', id: id(), extraState: { branches: 4 }, inputs: Object.fromEntries(['report', 'roof', 'light', 'alarm'].map((key, i) => [`BRANCH${i}`, { block: call(key) }])),
+  } : loop(sequence(report(), lights()))));
+  const definitions = modular ? routines.map((r, i) => ({ type: 'capi_procedure_def', id: `weather-def-${r.key}`, x: 48, y: 48 + (i % 2) * 650, fields: { ROUTINE: { id: `weather-task-${r.key}` }, P1_TYPE: 'none', P2_TYPE: 'none', P3_TYPE: 'none' }, inputs: { BODY: { block: r.body() } } })) : [];
+  const scene = createSceneFromTemplate('weatherLab'); scene.canvas.weatherEnvironment = { condition: 'sunny', night: false, automatic: true };
+  return { id: modular ? 'weatherLabProcedures' : 'weatherLab', title: modular ? 'Puesto protegido con procedimientos' : 'Estación que informa', icon: '🌦️', level: 'Intermedio',
+    mission: modular ? 'Mostrá el clima, protegé la mesa, regulá luz y avisá una vez por episodio húmedo.' : 'Informá temperatura, humedad, presión y detector; observá qué pasa con la mesa si el techo queda abierto.',
+    description: modular ? 'Solución completa con cuatro procesos, ocho procedimientos y cinco pestañas. Techo cierra >35% y abre <10%; luz enciende <1200 y apaga >1800.' : 'Solución secuencial completa: muestra mediciones alternadas, avisa detector mojado y regula una luz. No cierra el techo. Secuencia de clima de prueba incluida.',
+    scene, workspace: { ...start, ...(modular ? { variables: routines.map(r => ({ id: `weather-task-${r.key}`, name: r.name, type: 'Procedure' })) } : {}),
+      blocks: { ...start.blocks, blocks: [...start.blocks.blocks, ...definitions] }, capiTabs: { version: 1, tabs: [{ id: 'main', name: 'Principal', rootBlockIds: ['start-main'] }, ...(modular ? [
+        { id: 'tab-weather-report', name: 'Informe', rootBlockIds: ['weather-def-report', 'weather-def-rain'] },
+        { id: 'tab-weather-measures', name: 'Mediciones', rootBlockIds: ['weather-def-temperature', 'weather-def-humidity'] },
+        { id: 'tab-weather-roof', name: 'Protección', rootBlockIds: ['weather-def-roof', 'weather-def-pressure'] },
+        { id: 'tab-weather-alerts', name: 'Luces y avisos', rootBlockIds: ['weather-def-light', 'weather-def-alarm'] },
+      ] : [])] } } };
+}
+
 export const examples: ExampleDefinition[] = [
   {
     id: 'traffic',
@@ -1284,6 +1330,8 @@ export const examples: ExampleDefinition[] = [
   conveyorExample(true),
   arenaExample(false),
   arenaExample(true),
+  weatherLabExample(false),
+  weatherLabExample(true),
   {
     id: 'display', title: 'Mensajes para la plaza', icon: '📺', level: 'Inicial',
     mission: 'Escribí en la pantalla, esperá para leer y borrá el mensaje. La consola es otro destino.',

@@ -1,10 +1,10 @@
 # Mundos interactivos: escenas con comportamiento
 
-Actualización vigente: fase 52 autorizada e implementada en simulación web,
-en rama `codex/fase-52-pista-robots` desde dev1. Reglas aprobadas y dos
-ejemplos completos: [FASE_52_PISTA_ROBOTS.md](FASE_52_PISTA_ROBOTS.md).
+Actualización vigente: fase 53 autorizada e implementada en simulación web,
+en rama `codex/fase-53-estacion-meteorologica` desde dev1. Reglas aprobadas y dos
+ejemplos completos: [FASE_53_ESTACION_METEOROLOGICA.md](FASE_53_ESTACION_METEOROLOGICA.md).
 Pendientes integración/aceptación dev1 y Waveshare/físico; main/dev2 intactos.
-Fases 53–55 no iniciadas; referencias inferiores a 52 sin autorización históricas.
+Fases 54–56 no implementadas; 56 tiene plan propio. Referencias inferiores a 53 sin autorización históricas.
 
 Estado vigente: fase 49 autorizada e implementada en simulación web, en rama
 `codex/fase-49-huerta-invernadero` desde dev1. Reglas aprobadas y dos ejemplos
@@ -81,15 +81,16 @@ ordena seguir la línea; huerta no equivale todavía a balance de agua/plantas.
 | 50 | Casa y entrada segura | Luz, movimiento, LED, botón, servo, buzzer, teclado/identificación | Día/noche, visitantes, puerta con paso efectivo, acceso, iluminación y avisos |
 | 51 | Taller y cinta transportadora | Motor, infrarrojo, color, servo, contador y balanza | Software web entregado; dos ejemplos completos y [reglas de lectura, desvío y atasco](FASE_51_TALLER_CINTA.md); actualización/aceptación/Waveshare/físico pendientes |
 | 52 | Pista de robots | Robot de dos motores, distancia/color montados, meta, luces y buzzer | Software web entregado; dos ejemplos completos y [reglas](FASE_52_PISTA_ROBOTS.md); contactos recuperables sin piloto automático; actualización/aceptación/Waveshare/físico pendientes |
-| 53 | Estación meteorológica | Ambiente, lluvia/viento según perfiles, display y luces | Clima cambiante, lecturas coherentes y efectos de protecciones programadas |
+| 53 | Estación meteorológica | Ambiente, lluvia, luz, servo, pantalla, luces/buzzer; sin anemómetro | Software web entregado; clima gradual, detector residual, techo/mesa y dos ejemplos; [reglas](FASE_53_ESTACION_METEOROLOGICA.md); actualización/aceptación/Waveshare/físico pendientes |
 | 54 | Escenario de Otto | Otto, botones, distancia, matriz y buzzer | Público que se aproxima o pide actuación; movimientos/caras/sonidos programados |
 | 55 | Análisis de variantes | Parque, laguna y posible aeropuerto | No inventar dinámicas para rellenar fondos: evaluar actividades y valor nuevo antes de implementar |
+| 56 | Vehículo seguidor de línea | Robot diferencial y nuevo sensor reflectivo de suelo, perfil por definir | Circuitos predefinidos o dibujados, pérdida/recuperación y actividades; [propuesta pendiente de acordar](FASE_56_SEGUIDOR_LINEA.md), sin implementación autorizada |
 
 Estado de la primera entrega: fase 46 implementada en simulación web; uso,
 evidencia y límites en [FASE_46_PEATONES.md](FASE_46_PEATONES.md). DEV/usuarios
-y renderer de peatones Waveshare pendientes. Fases 47–52 autorizadas y entregadas
+y renderer de peatones Waveshare pendientes. Fases 47–53 autorizadas y entregadas
 posteriormente en software web; consultar sus guías y contexto vigente. Fases
-53–55 no iniciadas.
+54–56 no implementadas; 56 planificada.
 
 El orden recomendado prioriza 46 → 47 → 48 → 49 → 51. Las demás pueden
 reordenarse con autorización sin cambiar números. Aeropuerto se posterga: al

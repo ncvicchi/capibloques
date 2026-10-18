@@ -382,3 +382,5 @@ console.log('Mundos de escena: plantillas, carriles y límites validados.');
 await import('./conveyor-world.test.mjs');
 
 await import('./robot-arena.test.mjs');
+
+await import('./weather-world.test.mjs');

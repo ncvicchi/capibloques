@@ -1,4 +1,6 @@
 // @ts-expect-error Node strip-types runner.
+import { advanceWeatherWorld, createWeatherWorldState, weatherBindings, validWeatherEnvironment } from './weather-world.ts';
+// @ts-expect-error Node strip-types runner.
 import { advanceArenaWorld, createArenaWorldState, arenaBindings, arenaPose, defaultArenaEnvironment } from './robot-arena.ts';
 // @ts-expect-error Node strip-types runner.
 import { advanceConveyorWorld, createConveyorWorldState, conveyorBindings, conveyorInputRoles, validConveyorEnvironment } from './conveyor-world.ts';
@@ -476,6 +478,7 @@ function freshState(): SimulatorState {
     ...(scene.canvas.background === 'railCrossing' ? { railWorld: createRailWorldState(initialAngle(bindings.northGate), initialAngle(bindings.southGate), railTrackCount(scene)) } : {}),
     ...(scene.canvas.background === 'parking' ? { parkingWorld: createParkingWorldState(parkingCapacity(scene), initialAngle(parking.entryGate), initialAngle(parking.exitGate)) } : {}),
     ...(scene.canvas.background === 'greenhouse' ? { gardenWorld: createGardenWorldState(scene.canvas.gardenEnvironment, initialAngle(gardenBindings(scene).window)) } : {}),
+    ...(scene.canvas.background === 'weatherLab' ? { weatherWorld: createWeatherWorldState(scene.canvas.weatherEnvironment, weatherBindings(scene).roof ? initialAngle(weatherBindings(scene).roof) : 90) } : {}),
     ...(scene.canvas.background === 'robotArena' ? { arenaWorld: createArenaWorldState(arenaPose(scene).position, arenaPose(scene).angle) } : {}),
     ...(scene.canvas.background === 'conveyor' ? { conveyorWorld: createConveyorWorldState(scene.canvas.conveyorEnvironment, initialAngle(conveyorBindings(scene).gate)) } : {}),
     ...(scene.canvas.background === 'smartHouse' ? { houseWorld: createHouseWorldState(scene.canvas.houseEnvironment, initialAngle(houseBindings(scene).door)) } : {}),
@@ -839,6 +842,7 @@ function resetExecution(
   updateRailPhysics(0);
   updateParkingPhysics(0);
   updateGardenPhysics(0);
+  updateWeatherPhysics(0);
   updateHousePhysics(0);
   updateConveyorPhysics(0);
   updateArenaPhysics(0);
@@ -2581,6 +2585,19 @@ function updateParkingPhysics(deltaMs: number) {
   }
 }
 
+function updateWeatherPhysics(deltaMs: number) {
+  if (!state.weatherWorld) return;
+  const b = weatherBindings(scene), roof = b.roof ? state.devices[b.roof] : undefined;
+  const rainSpec = scene.devices.find(d => d.id === b.rain);
+  const wetThreshold = rainSpec?.kind === 'waterSensor' ? Number(rainSpec.config.settings.threshold) : 20;
+  const w = state.weatherWorld = advanceWeatherWorld(state.weatherWorld, roof?.kind === 'servo' ? roof.angle : 90, deltaMs);
+  for (const [role, values] of [['climate', { temperature: Math.round(w.temperature * 10) / 10, humidity: Math.round(w.humidity * 10) / 10, pressure: Math.round(w.pressure * 10) / 10 }], ['rain', { level: Math.round(w.detectorWater), wet: w.detectorWater >= wetThreshold }]] as const) {
+    const d = b[role] ? state.devices[b[role]!] : undefined;
+    if (d?.kind === 'educationalModule') Object.assign(d.values, values);
+  }
+  if (b.light) applyInputValue(b.light, Math.round(w.light));
+}
+
 function updateGardenPhysics(deltaMs: number) {
   if (!state.gardenWorld) return;
   const bindings = gardenBindings(scene);
@@ -2636,6 +2653,7 @@ function updatePhysics(deltaMs: number) {
     updateRailPhysics(deltaMs);
     updateParkingPhysics(deltaMs);
     updateGardenPhysics(deltaMs);
+    updateWeatherPhysics(deltaMs);
     updateHousePhysics(deltaMs);
     updateConveyorPhysics(deltaMs);
     updateArenaPhysics(deltaMs);
@@ -2877,6 +2895,7 @@ function stopOutputs() {
 
 function setInputById(deviceId: string, value: unknown) {
   if (['distanceSensor', 'colorSensor', 'infraredBarrier'].some(kind => arenaBindings(scene)[kind as 'distanceSensor' | 'colorSensor' | 'infraredBarrier'] === deviceId)) return;
+  if (['climate', 'rain', 'light'].some(role => weatherBindings(scene)[role as 'climate' | 'rain' | 'light'] === deviceId)) return;
   if (conveyorInputRoles.some(role => conveyorBindings(scene)[role] === deviceId)) return;
   if (houseInputRoles.some(role => houseBindings(scene)[role] === deviceId)) return;
   if (Object.entries(gardenBindings(scene)).some(([role, id]) => ['outsideSoil', 'insideSoil', 'climate', 'light'].includes(role) && id === deviceId)) return;
@@ -2945,6 +2964,10 @@ function setLegacyInput(name: unknown, value: unknown) {
   if (name === 'conveyorPackage') { const w = state.conveyorWorld; if (w && !w.pendingPackage && !w.jammed && validConveyorEnvironment(value)) w.pendingPackage = { color: value.color, weight: value.weight }; return; }
   if (name === 'houseEnvironment') { if (state.houseWorld && validHouseEnvironment(value)) state.houseWorld.environment = { ...value }; return; }
   if (name === 'houseVisitor') { if (state.houseWorld && ['known', 'unknown', 'none'].includes(String(value)) && typeof value === 'string' && !state.houseWorld.pendingVisitor) state.houseWorld.pendingVisitor = value as 'known' | 'unknown' | 'none'; return; }
+  if (name === 'weatherEnvironment') {
+    if (state.weatherWorld && validWeatherEnvironment(value)) { state.weatherWorld.environment = { ...value }; const fresh = createWeatherWorldState(value); state.weatherWorld.phaseMs = 0; state.weatherWorld.phaseIndex = fresh.phaseIndex; }
+    return;
+  }
   if (name === 'gardenEnvironment') {
     if (state.gardenWorld && validGardenEnvironment(value)) state.gardenWorld.environment = { ...value };
     return;
@@ -2993,6 +3016,7 @@ scope.addEventListener('message', (event) => {
       const preserveTrials = message.preserveWorldTrials === true && isSceneDefinition(message.scene) && scene.id === message.scene.id && scene.canvas.background === message.scene.canvas.background;
       const conveyorTrial = preserveTrials && state.conveyorWorld ? { environment: { ...state.conveyorWorld.environment }, pendingPackage: state.conveyorWorld.pendingPackage } : null;
       const houseTrial = preserveTrials && state.houseWorld ? { environment: { ...state.houseWorld.environment }, pendingVisitor: state.houseWorld.pendingVisitor } : null;
+      const weatherTrial = preserveTrials && state.weatherWorld ? { ...state.weatherWorld.environment } : null;
       const gardenTrial = preserveTrials && state.gardenWorld ? { ...state.gardenWorld.environment } : null;
       try {
         currentBoardProfile = isBoardProfileId(message.boardProfile)
@@ -3005,6 +3029,7 @@ scope.addEventListener('message', (event) => {
         resetExecution('idle', true, false);
         if (conveyorTrial && state.conveyorWorld) { state.conveyorWorld.environment = conveyorTrial.environment; state.conveyorWorld.pendingPackage = conveyorTrial.pendingPackage; }
         if (houseTrial && state.houseWorld) { state.houseWorld.environment = houseTrial.environment; state.houseWorld.pendingVisitor = houseTrial.pendingVisitor; }
+        if (weatherTrial && state.weatherWorld) { state.weatherWorld.environment = weatherTrial; state.weatherWorld.phaseIndex = createWeatherWorldState(weatherTrial).phaseIndex; }
         if (gardenTrial && state.gardenWorld) state.gardenWorld.environment = gardenTrial;
         emit();
         refreshDiagnostics(
