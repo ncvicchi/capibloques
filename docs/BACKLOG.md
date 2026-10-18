@@ -1,5 +1,13 @@
 # Backlog de CapiBloques
 
+**Fase 56 — Vehículo seguidor de línea (planificada):** escena con circuitos
+predefinidos y trazado propio, sensores reflectivos montados y control real
+del algoritmo, sin piloto automático. [Propuesta y actividades posibles](FASE_56_SEGUIDOR_LINEA.md):
+curvas, recuperación, vueltas/checkpoints, bifurcaciones, estaciones, obstáculos,
+velocidad adaptativa y calibración. Sensores/perfiles y alcance a acordar antes
+de implementar; no confundir reflectivos con barrera infrarroja. Sin cambios
+de software ni autorización para implementar; números 53–55 conservados.
+
 **Fase 52 — Pista de robots:** software web en rama
 `codex/fase-52-pista-robots`, desde dev1. Robot, sensores montados, estaciones,
 obstáculos y contactos recuperables; dos ejemplos completos (secuencial y ocho

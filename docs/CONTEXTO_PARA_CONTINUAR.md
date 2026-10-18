@@ -1,5 +1,17 @@
 # CapiBloques — contexto para continuar
 
+### Agregado de planificación: fase 56 — Vehículo seguidor de línea
+
+Pedido posterior a fase 52: documentar una escena con circuitos predefinidos
+o dibujados por el usuario y pensar qué actividades agregar. **Sólo backlog/
+planificación**, sin implementar ni empezar fase 53. [Propuesta](FASE_56_SEGUIDOR_LINEA.md)
+incluye editor modal, sensores reflectivos (no barrera IR/color), control
+independiente de ruedas a evaluar, recuperación, vueltas/checkpoints, cruces,
+estaciones y variantes avanzadas. Priorizar y acordar reglas antes de autorizar.
+No renumerar 53–55; fase 56 puede reordenarse después por pedido del propietario.
+Rama documental desde dev1: `codex/plan-fase-56-seguidor-linea`.
+Sin operación remota/main/dev2 ni cambios de runtime/firmware.
+
 ### Entrega vigente: fase 52 — Pista de exploración y reparto, sólo dev1
 
 Autorizada tras aprobar disposición/reglas; rama `codex/fase-52-pista-robots`

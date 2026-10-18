@@ -79,6 +79,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 53 | Estación meteorológica interactiva | Mundos interactivos | Fenómenos y lecturas; nueva autorización |
 | 54 | Escenario de Otto | Mundos interactivos | Público y peticiones; nueva autorización |
 | 55 | Parque, laguna y aeropuerto | Mundos interactivos | Sólo análisis de actividades y valor nuevo |
+| 56 | Vehículo seguidor de línea | Pedido del propietario, 18 de octubre | Circuitos predefinidos/dibujados, reflectivos y control de ruedas; [propuesta](FASE_56_SEGUIDOR_LINEA.md), reglas/alcance por acordar |
 | Final | Producción, HTTPS, respaldos y piloto | Antigua fase 11 | Postergada hasta autorización explícita y validaciones de salida |
 
 Primero se asegura la continuidad desde otra cuenta sin depender de este chat; después se atienden los problemas cotidianos del editor y se vuelve DEV accesible desde fuera mediante un servicio controlado. TX/RX se incorpora antes de las placas nuevas para tener un contrato de comportamiento que luego se valide en cada destino. Separar DevKit, Waveshare y display interactivo permite comprobar por separado placa, pantalla y aplicación gráfica: no son el mismo soporte. Los desafíos aprovechan esas funciones como recorrido educativo propio. Las fases 20–26 separan flujos de compilación, pulido de edición, motivación, periféricos, control local, intercambio e identidad de aula para no mezclar permisos o hardware distintos en una entrega inmanejable.
@@ -837,6 +838,7 @@ Complementan la presentación de fase 45 con reglas del mundo, sin duplicarla.
 | 53 | Estación meteorológica interactiva | Planificada; fenómenos y lecturas coherentes, protección programada |
 | 54 | Escenario de Otto | Planificada; público/pedidos y reacciones programadas |
 | 55 | Variantes parque/laguna y aeropuerto | Sólo análisis; actividad y valor pedagógico antes de implementar |
+| 56 | Vehículo seguidor de línea | Planificada; circuitos propios/predefinidos, sensores reflectivos y posibilidades didácticas; [plan](FASE_56_SEGUIDOR_LINEA.md). No implementada ni autorizada para implementar |
 
 Fase 47 autorizada el 17 de octubre tras aprobar disposición y reglas; no
 iniciar las fases 53–55 sin autorización. Fases 48–52 autorizadas después y documentadas

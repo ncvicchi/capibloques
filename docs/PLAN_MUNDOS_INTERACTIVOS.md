@@ -84,6 +84,7 @@ ordena seguir la línea; huerta no equivale todavía a balance de agua/plantas.
 | 53 | Estación meteorológica | Ambiente, lluvia/viento según perfiles, display y luces | Clima cambiante, lecturas coherentes y efectos de protecciones programadas |
 | 54 | Escenario de Otto | Otto, botones, distancia, matriz y buzzer | Público que se aproxima o pide actuación; movimientos/caras/sonidos programados |
 | 55 | Análisis de variantes | Parque, laguna y posible aeropuerto | No inventar dinámicas para rellenar fondos: evaluar actividades y valor nuevo antes de implementar |
+| 56 | Vehículo seguidor de línea | Robot diferencial y nuevo sensor reflectivo de suelo, perfil por definir | Circuitos predefinidos o dibujados, pérdida/recuperación y actividades; [propuesta pendiente de acordar](FASE_56_SEGUIDOR_LINEA.md), sin implementación autorizada |
 
 Estado de la primera entrega: fase 46 implementada en simulación web; uso,
 evidencia y límites en [FASE_46_PEATONES.md](FASE_46_PEATONES.md). DEV/usuarios
