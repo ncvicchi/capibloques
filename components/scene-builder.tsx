@@ -4,6 +4,7 @@ import { LedMatrixProperties } from '@/components/led-matrix-properties';
 import ComponentHelpDialog from '@/components/component-help';
 import { crossingNames } from '@/lib/pedestrian-world';
 import { nearestRailSlot, railTrackCount, type RailTrackCount } from '@/lib/rail-world';
+import { nearestParkingSlot, parkingCapacity, type ParkingCapacity } from '@/lib/parking-world';
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { InspectorDraft, SceneDraft } from '@/lib/scene-recovery';
@@ -37,6 +38,7 @@ import {
   appendTemplateToScene,
   arrangeCrossroadsTrafficLights,
   arrangeRailDevices,
+  arrangeParkingDevices,
   configureRailTracks,
   assignSafePins,
   cloneScene,
@@ -107,6 +109,7 @@ const backgrounds: { value: SceneBackground; label: string; icon: string }[] = [
   { value: 'pond', label: 'Laguna', icon: '🪷' },
   { value: 'crossroads', label: 'Cruce con tránsito', icon: '🚗' },
   { value: 'railCrossing', label: 'Paso a nivel', icon: '🚂' },
+  { value: 'parking', label: 'Estacionamiento', icon: '🅿️' },
   { value: 'robotTrack', label: 'Pista de robots', icon: '🛣️' },
   { value: 'garden', label: 'Huerta', icon: '🌱' },
   { value: 'schoolGate', label: 'Entrada de la escuela', icon: '🏫' },
@@ -141,6 +144,7 @@ const quickTemplates: {
   { id: 'securityGate', name: 'Entrada', icon: '🚧', detail: 'sensor + barrera' },
   { id: 'weatherStation', name: 'Clima', icon: '🌦️', detail: 'ambiente + lluvia' },
   { id: 'railCrossing', name: 'Paso a nivel', icon: '🚂', detail: 'barreras + detectores' },
+  { id: 'parking', name: 'Estacionamiento', icon: '🅿️', detail: 'entrada + salida + plazas' },
 ];
 
 const sceneItems = (scene: SceneDefinition): SceneItem[] => [
@@ -933,6 +937,8 @@ function SceneBuilderSession({
                       ? arrangeCrossroadsTrafficLights(changed)
                       : changed.canvas.background === 'railCrossing'
                       ? arrangeRailDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
+                      : changed.canvas.background === 'parking'
+                      ? arrangeParkingDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
                       : changed,
                   );
                 }}
@@ -969,6 +975,16 @@ function SceneBuilderSession({
                 </small>
               )}
             </label>
+            {previewScene.canvas.background === 'parking' && <label htmlFor="parking-capacity">
+              Plazas del estacionamiento
+              <NativeSelect id="parking-capacity" aria-label="Plazas del estacionamiento" value={parkingCapacity(previewScene)} onChange={event => {
+                if (!requireSettledInspector('cambiar las plazas')) return;
+                commitScene({ ...previewScene, canvas: { ...previewScene.canvas, parkingCapacity: Number(event.target.value) as ParkingCapacity } }, 'Plazas actualizadas en el borrador. Ajustá también la variable Capacidad del programa: cambiar el mundo no reescribe tus bloques.');
+              }}>
+                {[4, 8, 12].map(capacity => <NativeSelectOption key={capacity} value={capacity}>{capacity} plazas</NativeSelectOption>)}
+              </NativeSelect>
+              <small>Dos barreras (0° cerrada, 90° abierta) y cuatro detectores automáticos de autos. El programa lleva su cuenta: ajustá su variable Capacidad si cambiás las plazas. Sin lugar, un auto admitido atasca la entrada hasta que se libera una plaza.</small>
+            </label>}
             {previewScene.canvas.background === 'railCrossing' && <label htmlFor="rail-track-count">
               Vías del tren
               <NativeSelect id="rail-track-count" aria-label="Cantidad de vías" value={railTrackCount(previewScene)} onChange={event => {
@@ -1109,7 +1125,7 @@ function SceneBuilderSession({
                       type="button"
                       key={template.id}
                       disabled={
-                        (template.id === 'railCrossing' && objectCount > 0) ||
+                        ((template.id === 'railCrossing' || template.id === 'parking') && objectCount > 0) ||
                         (template.id === 'traffic' || template.id === 'intersection') &&
                         previewScene.canvas.background !== 'crossroads' &&
                         objectCount > 0
@@ -1117,8 +1133,8 @@ function SceneBuilderSession({
                       onClick={() => addTemplate(template.id)}
                       aria-label={`Agregar aventura ${template.name}: ${template.detail}`}
                       title={
-                        template.id === 'railCrossing' && objectCount > 0
-                          ? 'El paso a nivel completo se agrega a una escena vacía; no reemplaza componentes existentes.'
+                        (template.id === 'railCrossing' || template.id === 'parking') && objectCount > 0
+                          ? 'Este mundo completo se agrega a una escena vacía; no reemplaza componentes existentes.'
                           : (template.id === 'traffic' || template.id === 'intersection') &&
                         previewScene.canvas.background !== 'crossroads' &&
                         objectCount > 0
@@ -1161,6 +1177,7 @@ function SceneBuilderSession({
                     const railLimitBlocked = previewScene.canvas.background === 'railCrossing' &&
                       (component.kind === 'servo' || component.kind === 'infraredBarrier') &&
                       previewScene.devices.filter(device => device.kind === component.kind).length >= (component.kind === 'servo' ? 2 : railTrackCount(previewScene) * 2);
+                    const parkingLimitBlocked = previewScene.canvas.background === 'parking' && (component.kind === 'servo' || component.kind === 'infraredBarrier') && previewScene.devices.filter(device => device.kind === component.kind).length >= (component.kind === 'servo' ? 2 : 4);
                     const reason = visualBlocked
                       ? `No disponible: ya usás ${visualOutput?.name}`
                       : messagesBlocked
@@ -1170,8 +1187,9 @@ function SceneBuilderSession({
                           : trafficLimitBlocked
                             ? 'No disponible: los cuatro lugares están ocupados'
                         : railLimitBlocked ? 'No disponible: los lugares de este componente en el paso a nivel están ocupados'
+                        : parkingLimitBlocked ? 'No disponible: los lugares de este componente en el estacionamiento están ocupados'
                         : component.childFriendlyControl;
-                    const componentBlocked = visualBlocked || messagesBlocked || trafficSceneBlocked || trafficLimitBlocked || railLimitBlocked;
+                    const componentBlocked = visualBlocked || messagesBlocked || trafficSceneBlocked || trafficLimitBlocked || railLimitBlocked || parkingLimitBlocked;
                     return <div className="component-palette-card" key={component.kind}>
                       <button type="button" className="component-add-button" disabled={componentBlocked} onClick={() => addComponent(component.kind)} title={componentBlocked ? reason : component.description} aria-label={`Agregar ${component.name}. ${reason}`}>
                         <span aria-hidden="true">{component.icon}</span><span><strong>{component.name}</strong><small>{reason}</small></span><b aria-hidden="true">{componentBlocked ? '🔒' : '＋'}</b>
@@ -1314,7 +1332,7 @@ function SceneBuilderSession({
                       max="330"
                       step="30"
                       value={selected.rotation}
-                      disabled={previewScene.canvas.background === 'railCrossing' && !!nearestRailSlot(selected.kind, selected.position, railTrackCount(previewScene))}
+                      disabled={(previewScene.canvas.background === 'parking' && !!nearestParkingSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'railCrossing' && !!nearestRailSlot(selected.kind, selected.position, railTrackCount(previewScene)))}
                       onChange={(event) =>
                         updateSelectedDraft((device) => ({
                           ...device,
@@ -1461,6 +1479,10 @@ function SceneBuilderSession({
                       </label>
                     </div>
                   )}
+                  {previewScene.canvas.background === 'parking' && nearestParkingSlot(selected.kind, selected.position) && <p className="scene-inline-notice">
+                    Función: {nearestParkingSlot(selected.kind, selected.position)?.name}.
+                    {selected.kind === 'servo' ? ' 0°: cerrada; 90° o más: abierta. Recorrido de 1,2 s, sin bloquear el programa.' : ' Entrada automática de los autos virtuales. Esperá haz interrumpido y después libre para contar un paso completo, una sola vez. No es una lectura física.'}
+                  </p>}
                   {previewScene.canvas.background === 'railCrossing' && nearestRailSlot(selected.kind, selected.position, railTrackCount(previewScene)) && <p className="scene-inline-notice">
                     Función: {nearestRailSlot(selected.kind, selected.position, railTrackCount(previewScene))?.name}.
                     {selected.kind === 'servo' ? ' 0°: cerrada; 90° o más: abierta. Movimiento de 1,2 s; los autos esperan hasta la apertura completa.' : ' Haz interrumpido mientras cualquier parte del tren ocupa este punto. Entrada automática del mundo virtual, no lectura física.'}

@@ -38,6 +38,8 @@ import { decodeChallenge, variantScene, compareChallenge, challengeExpectations 
 import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 // @ts-expect-error Node strip-types runner.
 import { advanceRailWorld, createRailWorldState, railBindings, railTrackCount } from './rail-world.ts';
+// @ts-expect-error Node strip-types runner.
+import { advanceParkingWorld, createParkingWorldState, parkingBindings, parkingCapacity } from './parking-world.ts';
 
 type Pending =
   | { kind: 'wait'; startedAt: number; until: number; blockId: string }
@@ -455,6 +457,7 @@ function defaultRobot() {
 function freshState(): SimulatorState {
   const devices = createDeviceState();
   const bindings = railBindings(scene);
+  const parking = parkingBindings(scene);
   const initialAngle = (id: string | undefined) => id && devices[id]?.kind === 'servo' ? devices[id].angle : 0;
   dashboardManual.clear();
   dashboardProgramStates.clear();
@@ -463,6 +466,7 @@ function freshState(): SimulatorState {
       dashboardProgramStates.set(id, structuredClone(devices[id]));
   return {
     ...(scene.canvas.background === 'railCrossing' ? { railWorld: createRailWorldState(initialAngle(bindings.northGate), initialAngle(bindings.southGate), railTrackCount(scene)) } : {}),
+    ...(scene.canvas.background === 'parking' ? { parkingWorld: createParkingWorldState(parkingCapacity(scene), initialAngle(parking.entryGate), initialAngle(parking.exitGate)) } : {}),
     now: 0,
     status: 'idle',
     devices,
@@ -820,6 +824,7 @@ function resetExecution(
   }
   applyInputOverrides();
   updateRailPhysics(0);
+  updateParkingPhysics(0);
   state.status = status;
   virtualNow = 0;
   schedulerDebtMs = 0;
@@ -2547,8 +2552,23 @@ function updateRailPhysics(deltaMs: number) {
   }
 }
 
+function updateParkingPhysics(deltaMs: number) {
+  if (state.parkingWorld) {
+    const bindings = parkingBindings(scene);
+    const angle = (id: string | undefined) => id && state.devices[id]?.kind === 'servo' ? state.devices[id].angle : 0;
+    state.parkingWorld = advanceParkingWorld(state.parkingWorld, { entryGate: angle(bindings.entryGate), exitGate: angle(bindings.exitGate) }, deltaMs);
+    for (const role of ['entryArrival', 'entryPassed', 'exitArrival', 'exitPassed'] as const) {
+      const id = bindings[role];
+      if (id) applyInputValue(id, state.parkingWorld.detectors[role]);
+    }
+  }
+}
+
 function updatePhysics(deltaMs: number) {
-  if (state.status !== 'done' && state.status !== 'stopped') updateRailPhysics(deltaMs);
+  if (state.status !== 'done' && state.status !== 'stopped') {
+    updateRailPhysics(deltaMs);
+    updateParkingPhysics(deltaMs);
+  }
   updateVisualAnimations();
   for (const timer of Object.values(state.timers)) {
     if (timer.status !== 'running' || timer.durationMs <= 0 || deltaMs <= 0)
@@ -2785,6 +2805,7 @@ function stopOutputs() {
 }
 
 function setInputById(deviceId: string, value: unknown) {
+  if (Object.entries(parkingBindings(scene)).some(([role, id]) => !role.endsWith('Gate') && id === deviceId)) return;
   const bindings = railBindings(scene);
   if (Object.entries(bindings).some(([role, id]) => role.includes('Detector') && id === deviceId)) return;
   const device = state.devices[deviceId];

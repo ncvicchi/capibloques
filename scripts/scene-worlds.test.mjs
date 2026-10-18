@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import './pedestrian-world.test.mjs';
 import './rail-world.test.mjs';
+import './parking-world.test.mjs';
 import { readFileSync } from 'node:fs';
 import {
   addDeviceToScene,
