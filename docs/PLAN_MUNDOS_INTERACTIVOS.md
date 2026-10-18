@@ -1,5 +1,11 @@
 # Mundos interactivos: escenas con comportamiento
 
+Actualización vigente: fase 50 autorizada e implementada en simulación web,
+en rama `codex/fase-50-casa-entrada-segura` desde dev1. Reglas aprobadas y dos
+ejemplos completos: [FASE_50_CASA_ENTRADA_SEGURA.md](FASE_50_CASA_ENTRADA_SEGURA.md).
+Pendientes integración/aceptación dev1 y Waveshare/físico; main/dev2 intactos.
+Fases 51–55 no iniciadas; referencias inferiores a 50 sin autorización históricas.
+
 Estado vigente: fase 49 autorizada e implementada en simulación web, en rama
 `codex/fase-49-huerta-invernadero` desde dev1. Reglas aprobadas y dos ejemplos
 completos en [FASE_49_HUERTA_INVERNADERO.md](FASE_49_HUERTA_INVERNADERO.md).

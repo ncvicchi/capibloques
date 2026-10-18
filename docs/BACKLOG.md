@@ -1,5 +1,13 @@
 # Backlog de CapiBloques
 
+**Fase 50 — Casa inteligente y entrada segura:** software web en rama
+`codex/fase-50-casa-entrada-segura`, desde dev1. Visitantes, tarjetas, timbre,
+salidas, puerta con paso efectivo y luces por presencia/oscuridad. Dos ejemplos
+completos: directo sin identidad y modular que compara tarjetas. Reglas y
+entrega: [FASE_50_CASA_ENTRADA_SEGURA.md](FASE_50_CASA_ENTRADA_SEGURA.md).
+Integración/actualización sólo dev1 por propietario; main/dev2 intactos.
+Aceptación humana, Waveshare y maqueta pendientes; fases 51–55 no iniciadas.
+
 **Fase 49 — Huerta e invernadero:** autorizada e implementada en rama
 `codex/fase-49-huerta-invernadero`, desde dev1. Dos canteros/riegos, tierra,
 clima, ventana, plantas con estrés/recuperación y condiciones ambientales.

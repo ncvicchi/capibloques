@@ -1,5 +1,34 @@
 # CapiBloques — contexto para continuar
 
+### Entrega vigente: fase 50 — Casa inteligente y entrada segura, sólo dev1
+
+Autorizada tras aprobar reglas; rama `codex/fase-50-casa-entrada-segura` desde
+origin/dev1 `73ac1b7` (fase 49 integrada). [Reglas y guía](FASE_50_CASA_ENTRADA_SEGURA.md).
+Un acceso compartido, visitantes acotados, timbre/tarjetas/paso/presencia/salida
+automáticos; puerta sólo obedece al programa y permite terminar a quien cruza.
+Comparación de tarjeta es del alumno, no permiso oculto del mundo. Luces PWM
+según presencia/oscuridad con luminosidad interior realimentada. Botones/luces
+pueden moverse sin cambiar función, mediante canvas.houseAssignments validado.
+Sensores/lector/puerta anclados. Estado y revisión: condiciones virtuales y envío
+manual predefinido, sin controles manuales competidores; prueba transitoria.
+Armador guarda condiciones iniciales con undo/redo/guardar/cancelar. Un reloj
+worker para algoritmo/mundo, pausa/paso/velocidad/reset, sin temporizador React.
+Dos ejemplos completos: directo atiende cualquier timbre; modular acepta azul,
+rechaza roja/sin tarjeta y atiende salidas sin tarjeta. Seis procedimientos y
+cuatro pestañas. JSON opcional houseEnvironment/houseAssignments; sin migración,
+SDK, dependencias, firmware ni ABI nuevos. Versiones antiguas Casa/Entrada intactas.
+Verificado localmente: tipos/lint, smoke completo, ambos workspaces con tres
+tipos de visitante a 1×/4×, diecisiete contratos backend, ambos JSON frontend→Django
+y tres recorridos Chromium (envío antes de Simular, luz, acceso, pausa/reset,
+condiciones iniciales con undo/redo/guardar/cancelar), capturas inspeccionadas.
+Build con diez páginas estáticas. Arranque Simular/Paso conserva ensayos y
+visitante pendiente en el worker, sin depender de snapshots React ni preservar
+actores al cargar. Reset/otro proyecto no heredan ensayo; huerta conserva también
+sus condiciones de prueba al iniciar. Es sólo protocolo interno web, no firmware.
+El propietario integra/actualiza sólo dev1 con comando instalado; no se opera
+servidor/main/dev2. Waveshare, maqueta y aceptación humana pendientes. Fases
+51–55 no iniciadas. Las referencias inferiores a 49 como última entrega son históricas.
+
 ### Entrega vigente: fase 49 — Huerta e invernadero, sólo dev1
 
 Autorización explícita tras acordar disposición/reglas. Rama

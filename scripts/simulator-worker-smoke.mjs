@@ -668,3 +668,35 @@ for (const exampleId of ['greenhouse', 'greenhouseProcedures']) for (const speed
   send({ type: 'STOP' }); resetMessages();
 }
 console.log('Huerta: workspaces reales directo/modular, histéresis, sensores, ventilación, pausa, paso y reset a 1×/4× aprobados.');
+
+for (const exampleId of ['smartHouse', 'smartHouseProcedures']) for (const kind of ['known', 'unknown', 'none']) for (const speed of [1, 4]) {
+  const e = examples.find(e => e.id === exampleId), scene = structuredClone(e.scene);
+  scene.canvas.houseEnvironment = { night: false, automaticDay: false, automaticArrivals: false, nextVisitor: kind };
+  const workspace = new Blockly.Workspace(); workspaceDevices.set(workspace, scene.devices); Blockly.serialization.workspaces.load(structuredClone(e.workspace), workspace);
+  const program = compileWorkspace(workspace); workspace.dispose();
+  send({ type: 'LOAD', scene, program });
+  send({ type: 'SET_INPUT', deviceId: 'house-bell', value: true }); assert.equal(latestState().devices['house-bell'].pressed, false);
+  send({ type: 'SET_INPUT', name: 'houseEnvironment', value: { ...scene.canvas.houseEnvironment, night: true } });
+  send({ type: 'SET_INPUT', name: 'houseVisitor', value: kind });
+  send({ type: 'LOAD', scene, program, preserveWorldTrials: true });
+  assert.equal(latestState().houseWorld.pendingVisitor, kind, 'compilar al iniciar no pierde el visitante enviado antes de Simular');
+  assert.equal(latestState().houseWorld.environment.night, true, 'conserva el ensayo, no cambia el JSON inicial');
+  send({ type: 'SET_SPEED', speed }); send({ type: 'RUN' });
+  let insideLit = false, outsideLit = false;
+  for (let i = 0; i < 4000 / speed; i++) {
+    advance(20); const state = latestState();
+    insideLit ||= state.devices['house-insideLight'].brightness > 0; outsideLit ||= state.devices['house-outsideLight'].brightness > 0;
+    assert.equal(state.houseWorld.closeWarnings, 0, 'los ejemplos esperan paso completo');
+    if (i % 500 === 0) { const last = messages.findLast(m => m.type === 'SNAPSHOT'); resetMessages(); if (last) messages.push(last); }
+  }
+  const state = latestState(), admitted = exampleId === 'smartHouse' || kind === 'known';
+  assert.equal(Object.values(state.houseWorld.entries).reduce((a, b) => a + b, 0), admitted ? 1 : 0, `${exampleId}/${kind}/${speed}: política del programa`);
+  assert.equal(state.houseWorld.exits, admitted ? 1 : 0, 'salida independiente de tarjeta');
+  assert.equal(state.houseWorld.abandoned, admitted ? 0 : 1);
+  assert.equal(insideLit, admitted); assert.ok(outsideLit);
+  assert.equal(state.devices['house-insideLight'].brightness, 0, 'apagar al quedar vacía');
+  send({ type: 'PAUSE' }); const before = structuredClone(latestState().houseWorld); advance(200); assert.deepEqual(latestState().houseWorld, before);
+  send({ type: 'RESET' }); assert.equal(latestState().houseWorld.people.length, 0); assert.equal(latestState().houseWorld.closeWarnings, 0); assert.equal(latestState().houseWorld.environment.night, false);
+  send({ type: 'STEP' }); assert.ok(latestState().houseWorld.nextArrivalMs < 1500); send({ type: 'STOP' }); resetMessages();
+}
+console.log('Casa: ambos workspaces con tarjeta azul/roja/sin tarjeta a 1×/4×, entradas/salidas, luces, pausa/paso/reset aprobados.');
