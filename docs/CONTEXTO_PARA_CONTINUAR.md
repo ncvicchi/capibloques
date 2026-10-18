@@ -1,5 +1,59 @@
 # CapiBloques — contexto para continuar
 
+### Entrega vigente: fase 54 — Teatro interactivo de Otto, sólo dev1
+
+Rama `codex/fase-54-teatro-otto`, desde origin/dev1 `6c9a985`.
+[Reglas, dos ejemplos, firmware y guía](FASE_54_TEATRO_OTTO.md).
+Software implementado; propietario integra/actualiza sólo dev1. Sin operación
+remota ni merge a main/dev2. Las secciones inferiores son historial.
+
+- Mundo `ottoTheater`: escenario fijo, un Otto y petición, grupo de 1–4
+  espectadores, distancia frontal por perfil, pulso de 2 s y retirada aunque
+  nadie actúe. Automático reproducible o pruebas manuales; sin coreografía oculta.
+- Condiciones iniciales con guardar/cancelar/undo/redo; ensayos transitorios
+  conservados al LOAD de Simular/Paso. Un reloj, pausa/paso/velocidad/reset.
+  Cambios de cercanía/permanencia afectan al próximo grupo, no al actual.
+- Ejemplos: Otto: saludar y actuar; Teatro de Otto con procedimientos.
+  Seis tareas/cuatro pestañas, atención y una luz en paralelo. Una actuación
+  por grupo por lógica del programa, no por el renderer. Wemos tiene conexiones
+  válidas con una luz PWM y botón en GPIO4, sin inventar pines para otra luz.
+- FIFO corporal también para HOME/brazos, sin preempción; cara/sonido independientes.
+  Header C++ acotado a32 compartido exports/intérprete y cola equivalente worker.
+  Runtime mínimo **1.9.1**, ABI1; actualizar firmware antes de enviar reglas.
+  Empaquetado/orquestadores versionados juntos, sin borrar cachés/objetos del SDK.
+- No hay migraciones/dependencias nuevas. Backend acepta JSON opcional estricto.
+
+Evidencia local: smoke completo, tipos/lint y tres recorridos Chromium aprobados;
+ambos workspaces reales a1×/4× con automático/manual, una actuación por grupo,
+luces, pausa/reset y FIFO sin preempción. Cola compilada/ejecutada en g++ host
+con warnings como errores. Doce contratos Django (teatro/clima/pista), los dos
+JSON reales frontend→Django y26
+contratos de entornos/empaquetado/reanudación/caché incremental aprobados.
+Capturas inspeccionadas: se separó el nombre de Otto del estado de su cuerpo.
+Build aprobado con10 páginas estáticas; advertencia existente de chunk grande,
+sin fallo. Sintaxis Bash y contratos de versión por release aprobados. No se
+inició compilación SDK completa ni operación remota.
+
+Pendientes explícitos: actualización por propietario, SDK ESP-IDF completo1.9.1,
+servos/sonar/matriz reales, aceptación humana y renderer/dinámica del público en
+Waveshare. La ausencia de eco física puede ser0cm, frente a400cm del mundo;
+adaptación de ese caso pendiente en la aceptación física de los ejemplos.
+No confundir cola C++ probada en host/generación con firmware completo compilado.
+
+Orden como capi, con SHA40 de la entrega (también `git rev-parse origin/codex/fase-54-teatro-otto`):
+
+```bash
+cd /home/capi/capibloques
+git fetch --quiet origin codex/fase-54-teatro-otto &&
+git show origin/codex/fase-54-teatro-otto:scripts/update-dev.sh | bash -s -- --env dev1 --branch codex/fase-54-teatro-otto --commit SHA40
+```
+
+Usar el script nuevo de la rama: ejecuta el manager exacto de la release, no
+la copia instalada que tenía fija1.9.0. No reinstala herramientas compartidas.
+Manager lee versión de cada main.cpp para no renombrar firmware viejo de dev2.
+No espera Actions; reconstruye incrementalmente intérprete una vez. Sin --promote.
+Fases55–56 no autorizadas para implementar. No avanzar sin pedido nuevo.
+
 ### Entrega vigente: fase 53 — Estación meteorológica y puesto protegido, sólo dev1
 
 Autorizada tras aprobar disposición/reglas; rama `codex/fase-53-estacion-meteorologica`

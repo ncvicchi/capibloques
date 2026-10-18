@@ -1,4 +1,6 @@
 # Reglas de trabajo de CapiBloques
+- Fase 54 autorizada e implementada: `codex/fase-54-teatro-otto` desde origin/dev1; reglas en `docs/FASE_54_TEATRO_OTTO.md`. Teatro fijo, un Otto/botón y grupo frontal 1–4, solicitud de 2 s, público independiente del programa. Perfiles conservan capacidades; sin navegación/equilibrio. Dos ejemplos completos (directo y seis tareas/cuatro tabs, luz paralela con cuerpo único). Turnos FIFO también para HOME/brazos en simulador/exports/intérprete; runtime mínimo 1.9.1, ABI 1, actualizar versiones de empaquetado/entornos juntas. No borrar objetos ESP-IDF. Configuración inicial con undo/redo/guardar/cancelar y ensayos transitorios. SDK completo/placa/Waveshare/aceptación pendientes, detalle en contexto. Commit/push y comando sólo dev1; no operar servidor/main/dev2. Fases 55–56 no autorizadas para implementar. Sustituye menciones históricas inferiores a fase 54 sin autorización.
+
 
 ## Fases y autorización
 

@@ -221,6 +221,11 @@ def create_config(spec, release, commit):
 
 
 def firmware(release, commit):
+    # A sibling may be older: derive its own version, never relabel its binary.
+    versions = re.findall(r'^#define CAPI_FIRMWARE_VERSION "([0-9]+\.[0-9]+\.[0-9]+)"$', (release/'interpreter/main/main.cpp').read_text(), re.MULTILINE)
+    if len(versions) != 1:
+        raise RuntimeError('No se pudo determinar la versión del intérprete de la release.')
+    version = versions[0]
     revision = git('rev-parse', commit+':interpreter')
     destination = release/'public/interpreter'
     destination.mkdir(parents=True, exist_ok=True)
@@ -230,7 +235,7 @@ def firmware(release, commit):
             for profile in PROFILES:
                 info = json.loads((root/(profile+'.json')).read_text())
                 bundle = root/info['bundle']
-                assert bundle.parent == root and info['sourceRevision'] == revision and info['version'] == '1.9.0'
+                assert bundle.parent == root and info['sourceRevision'] == revision and info['version'] == version
                 assert bundle.stat().st_size == info['bytes']
                 assert hashlib.sha256(bundle.read_bytes()).hexdigest() == info['sha256']
             return True
@@ -252,7 +257,7 @@ def firmware(release, commit):
         '--entrypoint', '/bin/bash', '--user', '1000:1000', '-e', 'HOME=/tmp/capi-idf', '-e', 'IDF_PY_BUILD_JOBS=2',
         '-e', 'CAPI_INTERPRETER_TOOLCHAIN_KEY='+image, '-v', str(release)+':/project',
         '-v', str(cache)+':/project/outputs', '-w', '/project', image,
-        '-lc', '. "$IDF_PATH/export.sh" >/dev/null && bash scripts/build-interpreter-firmware.sh 1.9.0 /project/public/interpreter '+revision)
+        '-lc', '. "$IDF_PATH/export.sh" >/dev/null && bash scripts/build-interpreter-firmware.sh '+version+' /project/public/interpreter '+revision)
     if not valid(destination):
         raise RuntimeError('Firmware incompleto o de otra revisión; no se publicará.')
 

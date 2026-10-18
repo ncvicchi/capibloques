@@ -1,4 +1,6 @@
 'use client';
+import TheaterWorld from '@/components/theater-world';
+import type { TheaterWorldState } from '@/lib/theater-world';
 import WeatherWorld from '@/components/weather-world';
 import { nearestWeatherSlot, type WeatherWorldState } from '@/lib/weather-world';
 import ArenaWorld from '@/components/arena-world';
@@ -90,6 +92,7 @@ interface SceneStageProps {
   conveyorWorld?: ConveyorWorldState;
   arenaWorld?: ArenaWorldState;
   weatherWorld?: WeatherWorldState;
+  theaterWorld?: TheaterWorldState;
   activeDeviceId?: string;
   activeDeviceMessage?: string;
   scene: SceneDefinition;
@@ -277,6 +280,7 @@ function SceneBackdrop({
   conveyorWorld,
   arenaWorld,
   weatherWorld,
+  theaterWorld,
   runtimeDevices,
   simulationSpeed,
   simulationRunning,
@@ -289,6 +293,7 @@ function SceneBackdrop({
   conveyorWorld?: ConveyorWorldState;
   arenaWorld?: ArenaWorldState;
   weatherWorld?: WeatherWorldState;
+  theaterWorld?: TheaterWorldState;
   runtimeDevices: Record<string, RuntimeVisualDevice>;
   simulationSpeed: number;
   simulationRunning: boolean;
@@ -327,6 +332,7 @@ function SceneBackdrop({
   if (background === 'railCrossing') return <RailCrossingWorld scene={scene} state={railWorld} />;
   if (background === 'parking') return <ParkingWorld scene={scene} state={parkingWorld} />;
   if (background === 'greenhouse') return <GardenWorld scene={scene} state={gardenWorld} />;
+  if (background === 'ottoTheater') return <TheaterWorld scene={scene} state={theaterWorld} />;
   if (background === 'weatherLab') return <WeatherWorld scene={scene} state={weatherWorld} />;
   if (background === 'robotArena') return <ArenaWorld scene={scene} state={arenaWorld} />;
   if (background === 'conveyor') return <ConveyorWorld scene={scene} state={conveyorWorld} />;
@@ -528,6 +534,7 @@ function DeviceVisual({
       <span
         className={`stage-otto${moving ? ' moving' : ''}${humanoid ? ' humanoid' : ''}`}
         data-profile={device.config.profile}
+        data-otto-motion={runtime?.motion ?? 'HOME'}
         aria-hidden="true"
         style={{ '--otto-tilt': `${moving ? ((runtime?.phase ?? 0) % 2 ? 6 : -6) : 0}deg` } as CSSProperties}
       >
@@ -624,6 +631,7 @@ export default function SceneStage({
   conveyorWorld,
   arenaWorld,
   weatherWorld,
+  theaterWorld,
   activeDeviceId,
   activeDeviceMessage,
   scene,
@@ -882,6 +890,7 @@ export default function SceneStage({
         conveyorWorld={conveyorWorld}
         arenaWorld={arenaWorld}
         weatherWorld={weatherWorld}
+        theaterWorld={theaterWorld}
         runtimeDevices={runtimeDevices}
         simulationSpeed={safeSimulationSpeed}
         simulationRunning={simulationRunning}
@@ -969,7 +978,7 @@ export default function SceneStage({
         const arenaAnchor = scene.canvas.background === 'robotArena' && (device.kind === 'robot' || device.kind === 'infraredBarrier');
         const railAnchor = !!weatherAnchor || arenaAnchor || !!conveyorAnchor || !!houseAnchor || !!gardenAnchor || !!parkingAnchor || (scene.canvas.background === 'railCrossing' && !!nearestRailSlot(device.kind, device.position, railTrackCount(scene)));
         const size = railAnchor ? { width: 40, height: 40 } : sceneItemSize(device);
-        const labelSide = ((scene.canvas.background === 'smartHouse' && (device.kind === 'led' || device.kind === 'button')) || (scene.canvas.background === 'weatherLab' && !weatherAnchor)) ? 'bottom' : sceneItemLabelSide(scene, device.id);
+        const labelSide = (scene.canvas.background === 'ottoTheater' || ((scene.canvas.background === 'smartHouse' && (device.kind === 'led' || device.kind === 'button')) || (scene.canvas.background === 'weatherLab' && !weatherAnchor))) ? 'bottom' : sceneItemLabelSide(scene, device.id);
         const style = {
           left: `${(position.x / scene.canvas.width) * 100}%`,
           top: `${(position.y / scene.canvas.height) * 100}%`,

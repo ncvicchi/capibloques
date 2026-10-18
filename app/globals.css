@@ -2751,6 +2751,13 @@ select:focus-visible {
   transform: translateX(-50%);
   text-align: center;
 }
+.scene-background-ottoTheater .scene-device-otto .scene-device-name {
+  bottom: -24px;
+  padding: 2px 5px;
+  border-radius: 5px;
+  background: #fff0bf;
+  color: #303951;
+}
 .scene-widget {
   position: absolute;
   z-index: 1;

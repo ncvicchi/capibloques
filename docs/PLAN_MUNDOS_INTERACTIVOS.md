@@ -1,4 +1,6 @@
 # Mundos interactivos: escenas con comportamiento
+Actualización vigente: fase 54 implementada en rama desde dev1. [Teatro de Otto: reglas y entrega](FASE_54_TEATRO_OTTO.md), público acotado y dos ejemplos completos. Runtime 1.9.1 por FIFO corporal, no nuevo ABI. Integración/aceptación dev1, SDK completo, hardware y Waveshare pendientes. Main/dev2 intactos; fases 55–56 sin autorización. Las menciones inferiores a fase 54 no implementada son históricas.
+
 
 Actualización vigente: fase 53 autorizada e implementada en simulación web,
 en rama `codex/fase-53-estacion-meteorologica` desde dev1. Reglas aprobadas y dos
@@ -82,7 +84,7 @@ ordena seguir la línea; huerta no equivale todavía a balance de agua/plantas.
 | 51 | Taller y cinta transportadora | Motor, infrarrojo, color, servo, contador y balanza | Software web entregado; dos ejemplos completos y [reglas de lectura, desvío y atasco](FASE_51_TALLER_CINTA.md); actualización/aceptación/Waveshare/físico pendientes |
 | 52 | Pista de robots | Robot de dos motores, distancia/color montados, meta, luces y buzzer | Software web entregado; dos ejemplos completos y [reglas](FASE_52_PISTA_ROBOTS.md); contactos recuperables sin piloto automático; actualización/aceptación/Waveshare/físico pendientes |
 | 53 | Estación meteorológica | Ambiente, lluvia, luz, servo, pantalla, luces/buzzer; sin anemómetro | Software web entregado; clima gradual, detector residual, techo/mesa y dos ejemplos; [reglas](FASE_53_ESTACION_METEOROLOGICA.md); actualización/aceptación/Waveshare/físico pendientes |
-| 54 | Escenario de Otto | Otto, botones, distancia, matriz y buzzer | Público que se aproxima o pide actuación; movimientos/caras/sonidos programados |
+| 54 | Escenario de Otto | Otto, botón, distancia, matriz, buzzer y luz | Software en rama desde dev1; público, dos ejemplos completos y FIFO corporal 1.9.1; [reglas](FASE_54_TEATRO_OTTO.md); aceptación/SDK/Waveshare/físico pendientes |
 | 55 | Análisis de variantes | Parque, laguna y posible aeropuerto | No inventar dinámicas para rellenar fondos: evaluar actividades y valor nuevo antes de implementar |
 | 56 | Vehículo seguidor de línea | Robot diferencial y nuevo sensor reflectivo de suelo, perfil por definir | Circuitos predefinidos o dibujados, pérdida/recuperación y actividades; [propuesta pendiente de acordar](FASE_56_SEGUIDOR_LINEA.md), sin implementación autorizada |
 
