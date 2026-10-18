@@ -24,9 +24,19 @@ def load(name, path):
 
 
 manager = load('environment_manager', 'ops/environments/manage.py')
+seeder = load('environment_seeder', 'ops/environments/seed.py')
 
 
 class EnvironmentTests(unittest.TestCase):
+    def test_seed_contains_only_application_data_never_sessions_or_jobs(self):
+        fixture = json.dumps([{'model': 'accounts.user', 'pk': 'uuid', 'fields': {}},
+                              {'model': 'projects.project', 'pk': 'uuid', 'fields': {}}])
+        self.assertEqual(seeder.validate_fixture(fixture), {'accounts.user': 1, 'projects.project': 1})
+        for forbidden in ('sessions.session', 'compiler.build', 'compiler.compilerconfig'):
+            with self.assertRaises(ValueError):
+                seeder.validate_fixture(json.dumps([{'model': forbidden}]))
+        self.assertIn('REPEATABLE READ, READ ONLY', seeder.SNAPSHOT_CODE)
+
     def test_layout_is_disjoint_and_main_is_never_accepted(self):
         a, b = manager.layout('dev1'), manager.layout('dev2')
         for key in ('project', 'fqdn', 'port', 'local', 'subnet', 'web', 'api', 'directory', 'data'):
