@@ -1,4 +1,6 @@
 'use client';
+import WeatherWorld from '@/components/weather-world';
+import { nearestWeatherSlot, type WeatherWorldState } from '@/lib/weather-world';
 import ArenaWorld from '@/components/arena-world';
 import { type ArenaWorldState } from '@/lib/robot-arena';
 import ConveyorWorld from '@/components/conveyor-world';
@@ -87,6 +89,7 @@ interface SceneStageProps {
   houseWorld?: HouseWorldState;
   conveyorWorld?: ConveyorWorldState;
   arenaWorld?: ArenaWorldState;
+  weatherWorld?: WeatherWorldState;
   activeDeviceId?: string;
   activeDeviceMessage?: string;
   scene: SceneDefinition;
@@ -273,6 +276,7 @@ function SceneBackdrop({
   houseWorld,
   conveyorWorld,
   arenaWorld,
+  weatherWorld,
   runtimeDevices,
   simulationSpeed,
   simulationRunning,
@@ -284,6 +288,7 @@ function SceneBackdrop({
   houseWorld?: HouseWorldState;
   conveyorWorld?: ConveyorWorldState;
   arenaWorld?: ArenaWorldState;
+  weatherWorld?: WeatherWorldState;
   runtimeDevices: Record<string, RuntimeVisualDevice>;
   simulationSpeed: number;
   simulationRunning: boolean;
@@ -322,6 +327,7 @@ function SceneBackdrop({
   if (background === 'railCrossing') return <RailCrossingWorld scene={scene} state={railWorld} />;
   if (background === 'parking') return <ParkingWorld scene={scene} state={parkingWorld} />;
   if (background === 'greenhouse') return <GardenWorld scene={scene} state={gardenWorld} />;
+  if (background === 'weatherLab') return <WeatherWorld scene={scene} state={weatherWorld} />;
   if (background === 'robotArena') return <ArenaWorld scene={scene} state={arenaWorld} />;
   if (background === 'conveyor') return <ConveyorWorld scene={scene} state={conveyorWorld} />;
   if (background === 'smartHouse') return <HouseWorld scene={scene} state={houseWorld} />;
@@ -617,6 +623,7 @@ export default function SceneStage({
   houseWorld,
   conveyorWorld,
   arenaWorld,
+  weatherWorld,
   activeDeviceId,
   activeDeviceMessage,
   scene,
@@ -874,6 +881,7 @@ export default function SceneStage({
         houseWorld={houseWorld}
         conveyorWorld={conveyorWorld}
         arenaWorld={arenaWorld}
+        weatherWorld={weatherWorld}
         runtimeDevices={runtimeDevices}
         simulationSpeed={safeSimulationSpeed}
         simulationRunning={simulationRunning}
@@ -957,10 +965,11 @@ export default function SceneStage({
         const gardenAnchor = scene.canvas.background === 'greenhouse' && nearestGardenSlot(device.kind, device.position);
         const conveyorAnchor = scene.canvas.background === 'conveyor' && nearestConveyorSlot(device.kind, device.position);
         const houseAnchor = scene.canvas.background === 'smartHouse' && nearestHouseSlot(device.kind, device.position);
+        const weatherAnchor = scene.canvas.background === 'weatherLab' && nearestWeatherSlot(device.kind, device.position);
         const arenaAnchor = scene.canvas.background === 'robotArena' && (device.kind === 'robot' || device.kind === 'infraredBarrier');
-        const railAnchor = arenaAnchor || !!conveyorAnchor || !!houseAnchor || !!gardenAnchor || !!parkingAnchor || (scene.canvas.background === 'railCrossing' && !!nearestRailSlot(device.kind, device.position, railTrackCount(scene)));
+        const railAnchor = !!weatherAnchor || arenaAnchor || !!conveyorAnchor || !!houseAnchor || !!gardenAnchor || !!parkingAnchor || (scene.canvas.background === 'railCrossing' && !!nearestRailSlot(device.kind, device.position, railTrackCount(scene)));
         const size = railAnchor ? { width: 40, height: 40 } : sceneItemSize(device);
-        const labelSide = scene.canvas.background === 'smartHouse' && (device.kind === 'led' || device.kind === 'button') ? 'bottom' : sceneItemLabelSide(scene, device.id);
+        const labelSide = ((scene.canvas.background === 'smartHouse' && (device.kind === 'led' || device.kind === 'button')) || (scene.canvas.background === 'weatherLab' && !weatherAnchor)) ? 'bottom' : sceneItemLabelSide(scene, device.id);
         const style = {
           left: `${(position.x / scene.canvas.width) * 100}%`,
           top: `${(position.y / scene.canvas.height) * 100}%`,
@@ -974,10 +983,10 @@ export default function SceneStage({
         };
         const contents = (
           <>
-            {arenaAnchor ? device.kind === 'robot' ? <svg viewBox="0 0 44 44" aria-label="Robot visto desde arriba, frente hacia la flecha"><rect x="7" y="2" width="25" height="40" rx="9" fill="#52acc7" stroke="#356075" strokeWidth="2" /><path d="M9 3H27M9 41H27" stroke="#43535d" strokeWidth="5" /><path d="M27 14l12 8-12 8Z" fill="#fff0b8" /><circle cx="21" cy="22" r="5" fill="#daeaf0" /></svg> : <span className="rail-component-anchor" title={device.name}>↕</span> : conveyorAnchor ? <span className="rail-component-anchor" title={conveyorAnchor.name}>{device.kind === 'motor' ? '⚙' : device.kind === 'servo' ? '↗' : '◉'}</span> : houseAnchor ? <span className="rail-component-anchor" title={houseAnchor.name}>{device.kind === 'servo' ? '⚙' : device.kind === 'led' ? '💡' : '◉'}</span> : gardenAnchor ? <span className="rail-component-anchor" title={gardenAnchor.name}>{device.kind === 'servo' ? '⚙' : device.kind === 'powerSwitch' ? '💧' : '◉'}</span> : parkingAnchor ? <span className="rail-component-anchor" title={parkingAnchor.name}>{device.kind === 'servo' ? '⚙' : '↕'}</span> : scene.canvas.background === 'railCrossing' && nearestRailSlot(device.kind, device.position, railTrackCount(scene))
+            {weatherAnchor ? <span className="rail-component-anchor" title={weatherAnchor.name}>{device.kind === 'servo' ? '⚙' : device.kind === 'waterSensor' ? '💧' : '◉'}</span> : arenaAnchor ? device.kind === 'robot' ? <svg viewBox="0 0 44 44" aria-label="Robot visto desde arriba, frente hacia la flecha"><rect x="7" y="2" width="25" height="40" rx="9" fill="#52acc7" stroke="#356075" strokeWidth="2" /><path d="M9 3H27M9 41H27" stroke="#43535d" strokeWidth="5" /><path d="M27 14l12 8-12 8Z" fill="#fff0b8" /><circle cx="21" cy="22" r="5" fill="#daeaf0" /></svg> : <span className="rail-component-anchor" title={device.name}>↕</span> : conveyorAnchor ? <span className="rail-component-anchor" title={conveyorAnchor.name}>{device.kind === 'motor' ? '⚙' : device.kind === 'servo' ? '↗' : '◉'}</span> : houseAnchor ? <span className="rail-component-anchor" title={houseAnchor.name}>{device.kind === 'servo' ? '⚙' : device.kind === 'led' ? '💡' : '◉'}</span> : gardenAnchor ? <span className="rail-component-anchor" title={gardenAnchor.name}>{device.kind === 'servo' ? '⚙' : device.kind === 'powerSwitch' ? '💧' : '◉'}</span> : parkingAnchor ? <span className="rail-component-anchor" title={parkingAnchor.name}>{device.kind === 'servo' ? '⚙' : '↕'}</span> : scene.canvas.background === 'railCrossing' && nearestRailSlot(device.kind, device.position, railTrackCount(scene))
               ? <span className="rail-component-anchor" title={nearestRailSlot(device.kind, device.position, railTrackCount(scene))?.name}>{device.kind === 'servo' ? '⚙' : '↕'}</span>
               : <DeviceVisual device={device} runtime={runtime} matrixPreviewPattern={matrixPreviewPattern} sceneDevices={scene.devices} runtimeDevices={runtimeDevices} dashboardModes={dashboardModes} onDashboardAction={onDashboardAction} />}
-            {!arenaAnchor && !conveyorAnchor && !houseAnchor && !gardenAnchor && !(scene.canvas.background === 'greenhouse' && device.kind === 'display') && !parkingAnchor && !(scene.canvas.background === 'railCrossing' && railTrackCount(scene) > 1 && device.kind === 'infraredBarrier') && <span className={`scene-device-name label-${labelSide}`} title={device.name}>{device.name}</span>}
+            {!weatherAnchor && !arenaAnchor && !conveyorAnchor && !houseAnchor && !gardenAnchor && !(scene.canvas.background === 'greenhouse' && device.kind === 'display') && !parkingAnchor && !(scene.canvas.background === 'railCrossing' && railTrackCount(scene) > 1 && device.kind === 'infraredBarrier') && <span className={`scene-device-name label-${labelSide}`} title={device.name}>{device.name}</span>}
           </>
         );
         if (!editing) {

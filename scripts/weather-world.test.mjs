@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+import * as Blockly from 'blockly';
+import { advanceWeatherWorld, createWeatherWorldState, defaultWeatherEnvironment, validWeatherEnvironment } from '../lib/weather-world.ts';
+import { createSceneFromTemplate, createEmptyScene, appendTemplateToScene, addDeviceToScene, removeDeviceFromScene, validateScene, isSceneDefinition } from '../lib/scene-model.ts';
+import { examples, makeProject, decodeProject, validateProgramForScene, generateEsp32CodeResult, generateEspIdfCodeResult } from '../lib/capiblocks.ts';
+import { registerBlocks, compileWorkspace, workspaceDevices } from '../lib/blockly-engine.ts';
+import { normalizeWorkspaceTabs } from '../lib/workspace-tabs.ts';
+import { createCapiRules } from '../lib/capi-rules.ts';
+const run = (w, angle, seconds) => { for (let i = 0; i < seconds * 10; i++) w = advanceWeatherWorld(w, angle, 100); return w; };
+const initial = createWeatherWorldState(), copy = structuredClone(initial);
+const changed = { ...initial, environment: { condition: 'heavyRain', night: true, automatic: false } };
+const quick = run(changed, 90, 1); assert.ok(quick.temperature > 25); assert.ok(quick.light < 2000); assert.ok(quick.detectorWater > 0);
+const exposed = run(changed, 90, 20), covered = run(changed, 0, 20);
+assert.equal(exposed.detectorWater, covered.detectorWater); assert.ok(exposed.tableWater > covered.tableWater + 50);
+const alreadyWet = { ...exposed, roofAngle: 0 }; const retained = run(alreadyWet, 0, 2); assert.equal(retained.tableWater, exposed.tableWater);
+const dry = { ...exposed, environment: { ...defaultWeatherEnvironment } }; const drying = run(dry, 0, 1); assert.ok(drying.detectorWater > 90); assert.ok(drying.tableWater > 90);
+assert.deepEqual(initial, copy); assert.equal(run(dry, 0, 50).detectorWater, 0);
+const auto = () => run(createWeatherWorldState({ ...defaultWeatherEnvironment, automatic: true }), 90, 240);
+assert.deepEqual(auto(), auto());
+for (const bad of [null, {}, { ...defaultWeatherEnvironment, night: 1 }, { ...defaultWeatherEnvironment, condition: 'wind' }, { ...defaultWeatherEnvironment, extra: true }]) assert.equal(validWeatherEnvironment(bad), false);
+const scene = createSceneFromTemplate('weatherLab'); assert.equal(isSceneDefinition(scene), true); assert.deepEqual(validateScene(scene).issues.filter(i => i.severity === 'error'), []);
+assert.throws(() => addDeviceToScene(scene, 'servo')); assert.equal(isSceneDefinition(appendTemplateToScene(createEmptyScene(), 'weatherLab').scene), true);
+assert.ok(validateScene(removeDeviceFromScene(scene, 'weather-rain')).issues.some(i => i.code === 'weather-layout' && i.severity === 'warning'));
+registerBlocks(Blockly);
+for (const e of examples.filter(e => e.id.startsWith('weatherLab'))) {
+  const ws = new Blockly.Workspace(); workspaceDevices.set(ws, e.scene.devices); Blockly.serialization.workspaces.load(structuredClone(e.workspace), ws); const p = compileWorkspace(ws); ws.dispose();
+  assert.deepEqual(validateProgramForScene(p, e.scene).filter(i => i.severity === 'error'), []);
+  assert.equal(normalizeWorkspaceTabs(e.workspace).tabs.length, e.id === 'weatherLab' ? 1 : 5);
+  assert.deepEqual(decodeProject(JSON.parse(JSON.stringify(makeProject(e.title, e.scene, e.workspace)))).project.workspace, e.workspace);
+  for (const result of [generateEsp32CodeResult(p, e.title, e.scene), generateEspIdfCodeResult(p, e.title, e.scene)]) assert.deepEqual(result.diagnostics.filter(i => i.severity === 'error'), []);
+  assert.ok(createCapiRules(p, e.scene, 'wemos-d1-r32').instructionCount > 0);
+}
+console.log('Meteorología: transiciones graduales, exposición independiente, humedad residual, mesa/techo, determinismo, JSON y dos ejemplos/generadores/reglas aprobados.');

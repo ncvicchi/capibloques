@@ -1,4 +1,6 @@
 'use client';
+import WeatherControls from '@/components/weather-controls';
+import { weatherSlots, nearestWeatherSlot, defaultWeatherEnvironment } from '@/lib/weather-world';
 import ArenaControls from '@/components/arena-controls';
 import { arenaKinds, arenaStartAllowed, defaultArenaEnvironment } from '@/lib/robot-arena';
 import ConveyorControls from '@/components/conveyor-controls';
@@ -50,6 +52,7 @@ import {
   arrangeGardenDevices,
   arrangeHouseDevices,
   arrangeConveyorDevices,
+  arrangeWeatherDevices,
   configureRailTracks,
   assignSafePins,
   cloneScene,
@@ -122,6 +125,7 @@ const backgrounds: { value: SceneBackground; label: string; icon: string }[] = [
   { value: 'railCrossing', label: 'Paso a nivel', icon: '🚂' },
   { value: 'parking', label: 'Estacionamiento', icon: '🅿️' },
   { value: 'greenhouse', label: 'Huerta e invernadero', icon: '🌱' },
+  { value: 'weatherLab', label: 'Estación meteorológica y puesto', icon: '🌦️' },
   { value: 'robotArena', label: 'Pista de exploración y reparto', icon: '🤖' },
   { value: 'conveyor', label: 'Taller y cinta transportadora', icon: '📦' },
   { value: 'smartHouse', label: 'Casa inteligente y entrada segura', icon: '🏠' },
@@ -161,6 +165,7 @@ const quickTemplates: {
   { id: 'railCrossing', name: 'Paso a nivel', icon: '🚂', detail: 'barreras + detectores' },
   { id: 'parking', name: 'Estacionamiento', icon: '🅿️', detail: 'entrada + salida + plazas' },
   { id: 'greenhouse', name: 'Huerta e invernadero', icon: '🌱', detail: 'dos canteros + riego + ventana' },
+  { id: 'weatherLab', name: 'Puesto meteorológico', icon: '🌦️', detail: 'clima + lluvia + techo móvil' },
   { id: 'robotArena', name: 'Pista de exploración', icon: '🤖', detail: 'robot + sensores montados + estaciones' },
   { id: 'conveyor', name: 'Taller y cinta', icon: '📦', detail: 'motor + sensores + clasificación' },
   { id: 'smartHouse', name: 'Casa inteligente', icon: '🏠', detail: 'visitantes + puerta + luces' },
@@ -960,6 +965,8 @@ function SceneBuilderSession({
                       ? arrangeParkingDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
                       : changed.canvas.background === 'greenhouse'
                       ? arrangeGardenDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
+                      : changed.canvas.background === 'weatherLab'
+                      ? arrangeWeatherDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
                       : changed.canvas.background === 'robotArena'
                       ? { ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } }
                       : changed.canvas.background === 'conveyor'
@@ -1002,6 +1009,7 @@ function SceneBuilderSession({
                 </small>
               )}
             </label>
+            {previewScene.canvas.background === 'weatherLab' && <details><summary>Clima al comenzar</summary><WeatherControls value={previewScene.canvas.weatherEnvironment ?? defaultWeatherEnvironment} onChange={value => { if (requireSettledInspector('cambiar el clima inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, weatherEnvironment: value } }, 'Clima inicial actualizado en el borrador.'); }} /></details>}
             {previewScene.canvas.background === 'robotArena' && <details><summary>Pista al comenzar</summary><ArenaControls value={previewScene.canvas.arenaEnvironment ?? defaultArenaEnvironment} onChange={value => { const robot = previewScene.devices.find(d => d.kind === 'robot'); if (robot && !arenaStartAllowed(robot.position, value)) { setMessage('El obstáculo no puede superponerse al robot.'); return; } if (requireSettledInspector('cambiar la pista inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, arenaEnvironment: value } }, 'Pista inicial actualizada en el borrador.'); }} /></details>}
             {previewScene.canvas.background === 'conveyor' && <details><summary>Taller al comenzar</summary><ConveyorControls value={previewScene.canvas.conveyorEnvironment ?? defaultConveyorEnvironment} onChange={value => { if (requireSettledInspector('cambiar el taller inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, conveyorEnvironment: value } }, 'Taller inicial actualizado en el borrador.'); }} /></details>}
             {previewScene.canvas.background === 'smartHouse' && <details><summary>Casa al comenzar</summary><HouseControls value={previewScene.canvas.houseEnvironment ?? defaultHouseEnvironment} onChange={value => {
@@ -1160,7 +1168,7 @@ function SceneBuilderSession({
                       type="button"
                       key={template.id}
                       disabled={
-                        ((template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor' || template.id === 'robotArena') && objectCount > 0) ||
+                        ((template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor' || template.id === 'robotArena' || template.id === 'weatherLab') && objectCount > 0) ||
                         (template.id === 'traffic' || template.id === 'intersection') &&
                         previewScene.canvas.background !== 'crossroads' &&
                         objectCount > 0
@@ -1168,7 +1176,7 @@ function SceneBuilderSession({
                       onClick={() => addTemplate(template.id)}
                       aria-label={`Agregar aventura ${template.name}: ${template.detail}`}
                       title={
-                        (template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor' || template.id === 'robotArena') && objectCount > 0
+                        (template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor' || template.id === 'robotArena' || template.id === 'weatherLab') && objectCount > 0
                           ? 'Este mundo completo se agrega a una escena vacía; no reemplaza componentes existentes.'
                           : (template.id === 'traffic' || template.id === 'intersection') &&
                         previewScene.canvas.background !== 'crossroads' &&
@@ -1214,6 +1222,7 @@ function SceneBuilderSession({
                       previewScene.devices.filter(device => device.kind === component.kind).length >= (component.kind === 'servo' ? 2 : railTrackCount(previewScene) * 2);
                     const parkingLimitBlocked = previewScene.canvas.background === 'parking' && (component.kind === 'servo' || component.kind === 'infraredBarrier') && previewScene.devices.filter(device => device.kind === component.kind).length >= (component.kind === 'servo' ? 2 : 4);
                     const gardenLimitBlocked = previewScene.canvas.background === 'greenhouse' && gardenSlots.some(slot => slot.kind === component.kind) && previewScene.devices.filter(device => device.kind === component.kind).length >= gardenSlots.filter(slot => slot.kind === component.kind).length;
+                    const weatherLimitBlocked = previewScene.canvas.background === 'weatherLab' && weatherSlots.some(s => s.kind === component.kind) && previewScene.devices.some(d => d.kind === component.kind);
                     const arenaLimitBlocked = previewScene.canvas.background === 'robotArena' && arenaKinds.includes(component.kind as typeof arenaKinds[number]) && previewScene.devices.some(d => d.kind === component.kind);
                     const conveyorLimitBlocked = previewScene.canvas.background === 'conveyor' && conveyorSlots.some(slot => slot.kind === component.kind) && previewScene.devices.filter(d => d.kind === component.kind).length >= conveyorSlots.filter(s => s.kind === component.kind).length;
                     const houseLimitBlocked = previewScene.canvas.background === 'smartHouse' && component.kind !== 'led' && component.kind !== 'button' && houseSlots.some(slot => slot.kind === component.kind) && previewScene.devices.filter(device => device.kind === component.kind).length >= houseSlots.filter(slot => slot.kind === component.kind).length;
@@ -1228,11 +1237,12 @@ function SceneBuilderSession({
                         : railLimitBlocked ? 'No disponible: los lugares de este componente en el paso a nivel están ocupados'
                         : parkingLimitBlocked ? 'No disponible: los lugares de este componente en el estacionamiento están ocupados'
                         : gardenLimitBlocked ? 'No disponible: los lugares de este componente en la huerta están ocupados'
+                        : weatherLimitBlocked ? 'No disponible: el puesto tiene un lugar por sensor y un techo'
                         : arenaLimitBlocked ? 'No disponible: la pista admite un robot y un sensor de cada tipo; los sensores van montados'
                         : conveyorLimitBlocked ? 'No disponible: los lugares de este componente en el taller están ocupados'
                         : houseLimitBlocked ? 'No disponible: los lugares de este componente en la casa están ocupados'
                         : component.childFriendlyControl;
-                    const componentBlocked = visualBlocked || messagesBlocked || trafficSceneBlocked || trafficLimitBlocked || railLimitBlocked || parkingLimitBlocked || gardenLimitBlocked || houseLimitBlocked || conveyorLimitBlocked || arenaLimitBlocked;
+                    const componentBlocked = visualBlocked || messagesBlocked || trafficSceneBlocked || trafficLimitBlocked || railLimitBlocked || parkingLimitBlocked || gardenLimitBlocked || houseLimitBlocked || conveyorLimitBlocked || arenaLimitBlocked || weatherLimitBlocked;
                     return <div className="component-palette-card" key={component.kind}>
                       <button type="button" className="component-add-button" disabled={componentBlocked} onClick={() => addComponent(component.kind)} title={componentBlocked ? reason : component.description} aria-label={`Agregar ${component.name}. ${reason}`}>
                         <span aria-hidden="true">{component.icon}</span><span><strong>{component.name}</strong><small>{reason}</small></span><b aria-hidden="true">{componentBlocked ? '🔒' : '＋'}</b>
@@ -1375,7 +1385,7 @@ function SceneBuilderSession({
                       max="330"
                       step="30"
                       value={selected.rotation}
-                      disabled={(previewScene.canvas.background === 'robotArena' && ['distanceSensor', 'colorSensor', 'infraredBarrier'].includes(selected.kind)) || (previewScene.canvas.background === 'conveyor' && !!nearestConveyorSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'smartHouse' && !!nearestHouseSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'greenhouse' && !!nearestGardenSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'parking' && !!nearestParkingSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'railCrossing' && !!nearestRailSlot(selected.kind, selected.position, railTrackCount(previewScene)))}
+                      disabled={(previewScene.canvas.background === 'weatherLab' && !!nearestWeatherSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'robotArena' && ['distanceSensor', 'colorSensor', 'infraredBarrier'].includes(selected.kind)) || (previewScene.canvas.background === 'conveyor' && !!nearestConveyorSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'smartHouse' && !!nearestHouseSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'greenhouse' && !!nearestGardenSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'parking' && !!nearestParkingSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'railCrossing' && !!nearestRailSlot(selected.kind, selected.position, railTrackCount(previewScene)))}
                       onChange={(event) =>
                         updateSelectedDraft((device) => ({
                           ...device,
@@ -1523,6 +1533,7 @@ function SceneBuilderSession({
                     </div>
                   )}
                   {previewScene.canvas.background === 'greenhouse' && nearestGardenSlot(selected.kind, selected.position) && <p className="scene-inline-notice">Función: {nearestGardenSlot(selected.kind, selected.position)?.name}. {selected.kind === 'powerSwitch' ? 'Riego por salida de potencia: 0% apagado, 100% máximo. Requiere módulo de potencia, no conectar bomba al GPIO.' : selected.kind === 'servo' ? 'Ventana: 0° cerrada, 90° abierta. Ventila hacia la temperatura exterior.' : 'Lectura automática del mundo virtual. Cambiá el clima, no el sensor. Los ajustes manuales del componente no reemplazan esa lectura.'}</p>}
+                  {previewScene.canvas.background === 'weatherLab' && nearestWeatherSlot(selected.kind, selected.position) && <p className="scene-inline-notice">Función: {nearestWeatherSlot(selected.kind, selected.position)?.name}. {selected.kind === 'servo' ? '0° cerrado, 90° abierto. Protege la mesa gradualmente, no seca lo mojado ni cubre los sensores.' : 'Sensor exterior siempre expuesto, con lectura automática del mundo. El detector de lluvia mide su humedad residual, no milímetros ni intensidad de precipitación.'}</p>}
                   {previewScene.canvas.background === 'robotArena' && arenaKinds.includes(selected.kind as typeof arenaKinds[number]) && <p className="scene-inline-notice">{selected.kind === 'robot' ? 'Mové y orientá el robot al comenzar. El camino no lo guía; puede salir y recuperar contactos retrocediendo o girando.' : selected.kind === 'infraredBarrier' ? 'Barrera fija en la meta; queda interrumpida mientras cruza el cuerpo del robot.' : 'Sensor montado sobre el único robot. Se mueve y gira con él; cambiale nombre o pines aquí, no su posición. Su lectura es automática.'}</p>}
                   {previewScene.canvas.background === 'conveyor' && nearestConveyorSlot(selected.kind, selected.position) && <p className="scene-inline-notice">Función: {nearestConveyorSlot(selected.kind, selected.position)?.name}. Lecturas automáticas del paquete en esta zona. Detené la cinta 0,6 s para pesar; desviador 0° A / 90° B. Si llega un paquete mientras gira, se atasca. Marcha atrás no disponible en este taller.</p>}
                   {previewScene.canvas.background === 'smartHouse' && nearestHouseSlot(selected.kind, selected.position) && <p className="scene-inline-notice">Función: {nearestHouseSlot(selected.kind, selected.position)?.name}. {selected.kind === 'servo' ? '0° cerrada, 90° abierta. Una puerta abierta deja pasar a quien espera; el programa decide por qué abrir.' : selected.kind === 'led' ? 'Luz regulable. La luz interior modifica la luminosidad medida dentro.' : 'Entrada automática de visitantes/ambiente. No se reemplaza con controles manuales. Un PIR real detecta movimiento; la presencia continua es una simplificación educativa.'}</p>}
@@ -1702,8 +1713,8 @@ function SceneBuilderSession({
                       type="button"
                       variant="outline"
                       onClick={duplicateSelected}
-                      disabled={selected.kind === 'display' || selected.kind === 'ledMatrix' || (previewScene.canvas.background === 'robotArena' && arenaKinds.includes(selected.kind as typeof arenaKinds[number]))}
-                      title={previewScene.canvas.background === 'robotArena' && arenaKinds.includes(selected.kind as typeof arenaKinds[number]) ? 'Un robot y un sensor de cada tipo en esta pista' : selected.kind === 'display' || selected.kind === 'ledMatrix' ? 'Una sola pantalla o matriz por proyecto' : undefined}
+                      disabled={(previewScene.canvas.background === 'weatherLab' && !!nearestWeatherSlot(selected.kind, selected.position)) || selected.kind === 'display' || selected.kind === 'ledMatrix' || (previewScene.canvas.background === 'robotArena' && arenaKinds.includes(selected.kind as typeof arenaKinds[number]))}
+                      title={previewScene.canvas.background === 'weatherLab' && nearestWeatherSlot(selected.kind, selected.position) ? 'Un sensor por lugar y un techo en este puesto' : previewScene.canvas.background === 'robotArena' && arenaKinds.includes(selected.kind as typeof arenaKinds[number]) ? 'Un robot y un sensor de cada tipo en esta pista' : selected.kind === 'display' || selected.kind === 'ledMatrix' ? 'Una sola pantalla o matriz por proyecto' : undefined}
                     >
                       📄 Duplicar
                     </Button>

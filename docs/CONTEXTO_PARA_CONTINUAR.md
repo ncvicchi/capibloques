@@ -1,5 +1,44 @@
 # CapiBloques — contexto para continuar
 
+### Entrega vigente: fase 53 — Estación meteorológica y puesto protegido, sólo dev1
+
+Autorizada tras aprobar disposición/reglas; rama `codex/fase-53-estacion-meteorologica`
+desde origin/dev1 `b079ca1` (fase52 integrada). Se incorporó por fast-forward el
+commit documental `0017839` de la fase56 ya publicado, aún ausente en dev1:
+no perder ese backlog ni implementarlo. [Reglas y guía](FASE_53_ESTACION_METEOROLOGICA.md).
+Nuevo fondo weatherLab, sin cambiar antigua weatherStation/weatherYard.
+Mástil/clima/luz/detector siempre exteriores; techo0° cerrado/90° abierto y mesa
+mojable como consecuencia visual, no variable física inventada. Sin viento
+medido ni pronóstico por presión. Lluvia moja detector gradualmente y deja
+humedad residual al terminar. Techo no altera medidas ni seca instantáneamente.
+Un reloj worker para programa, clima, servo y dibujo; pausa/paso/velocidad/reset.
+Cuatro condiciones, día/noche y secuencia automática reproducible cada20s.
+Editor guarda condiciones con undo/redo/guardar/cancelar; Estado y revisión
+ofrecen ensayos transitorios conservados al LOAD interno de Simular/Paso.
+Sin sliders manuales competidores ni SET_INPUT por IDs de sensores ligados.
+Controles transitorios mantienen selección pendiente hasta ACK del worker para
+que dos cambios rápidos no se pisen; clave escena/época limpia pendientes al
+reiniciar/cambiar. Borrador del armador sigue controlado por su guardado normal.
+Dos ejemplos completos: Estación que informa, secuencial y techo abierto;
+Puesto protegido con procedimientos, cuatro procesos/ocho procedimientos/cinco
+pestañas. Techo cierra>35% y abre<10%; luz enciende<1200 y apaga>1800; buzzer
+una vez por episodio y se rearma al secarse<10%, sin bloquear los otros hilos.
+Contrato opcional weatherEnvironment estricto frontend/backend, sin migración,
+dependencias, firmware, SDK ni ABI. Exportación y reglas con componentes existentes.
+Verificado: tipos/lint (también renderer/controles nuevos), smoke completo, modelo
+puro y ambos workspaces reales a1×/4×, dos ciclos automáticos y avisos por
+episodio; veinticuatro contratos backend de seis mundos y ambos documentos
+frontend→Django aceptados. Tres recorridos Chromium aprobados: cambio rápido
+de lluvia+noche previo a Simular, sensores, techo, pausa/reset y editor con
+undo/redo/guardar/cancelar. Capturas inspeccionadas; luego mejorado contraste
+nocturno y techo abierto para que no se recorte. Build con diez páginas
+estáticas aprobado; advertencia de chunk grande ya existente. No SDK ni remoto.
+Actualizar únicamente dev1 mediante comando instalado con rama/SHA40;
+propietario integra y actualiza. Main/dev2 intactos. Aceptación humana, sensores/
+servo/pantalla reales y renderer/dinámica Waveshare pendientes.
+Fases54–56 sin autorización para implementar; 56 conserva planificación.
+Las referencias inferiores a fase52 como entrega vigente son históricas.
+
 ### Agregado de planificación: fase 56 — Vehículo seguidor de línea
 
 Pedido posterior a fase 52: documentar una escena con circuitos predefinidos
