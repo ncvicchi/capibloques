@@ -121,6 +121,8 @@ import GardenControls from '@/components/garden-controls';
 import HouseControls from '@/components/house-controls';
 import ConveyorControls from '@/components/conveyor-controls';
 import { arenaBindings } from '@/lib/robot-arena';
+import PondControls from '@/components/pond-controls';
+import {pondBindings,defaultPondEnvironment} from '@/lib/pond-world';
 import WeatherControls from '@/components/weather-controls';
 import TheaterControls from '@/components/theater-controls';
 import { theaterBindings, defaultTheaterEnvironment } from '@/lib/theater-world';
@@ -1555,7 +1557,9 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                   conveyorWorld={sim.conveyorWorld}
                   arenaWorld={sim.arenaWorld}
                   weatherWorld={sim.weatherWorld}
+                  pondWorld={sim.pondWorld}
                   theaterWorld={sim.theaterWorld}
+                  lineWorld={sim.lineWorld}
                   counter={sim.counter}
                   simulationSpeed={speed}
                   simulationRunning={sim.status === 'running'}
@@ -1595,10 +1599,11 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                   </button>
                 </div>
               )}
-              {(scene.canvas.background === 'ottoTheater' || scene.canvas.background === 'weatherLab' || scene.canvas.background === 'conveyor' || scene.canvas.background === 'smartHouse' || scene.canvas.background === 'greenhouse' || inputDevices.length > 0 ||
+              {(scene.canvas.background === 'pondLab' || scene.canvas.background === 'ottoTheater' || scene.canvas.background === 'weatherLab' || scene.canvas.background === 'conveyor' || scene.canvas.background === 'smartHouse' || scene.canvas.background === 'greenhouse' || inputDevices.length > 0 ||
                 scene.devices.some((device) => device.kind === 'wifiNode')) && (
                 <div className="input-lab">
                   <h3>Entradas para probar</h3>
+                  {scene.canvas.background==='pondLab'&&<PondControls key={`${scene.id}:${simulationEpoch}`} value={sim.pondWorld?.environment??scene.canvas.pondEnvironment??defaultPondEnvironment} disabled={physicalMirrorActive} onChange={value=>postToWorker({type:'SET_INPUT',name:'pondEnvironment',value})} onRefill={()=>postToWorker({type:'SET_INPUT',name:'pondRefill',value:true})}/>}
                   {scene.canvas.background === 'ottoTheater' && <TheaterControls value={sim.theaterWorld?.environment ?? scene.canvas.theaterEnvironment ?? defaultTheaterEnvironment} state={sim.theaterWorld} disabled={physicalMirrorActive} onChange={value => postToWorker({ type: 'SET_INPUT', name: 'theaterEnvironment', value })} onAction={value => postToWorker({ type: 'SET_INPUT', name: 'theaterAction', value })} />}
                   {scene.canvas.background === 'weatherLab' && <WeatherControls key={`${scene.id}:${simulationEpoch}`} optimistic value={sim.weatherWorld?.environment ?? scene.canvas.weatherEnvironment ?? defaultWeatherEnvironment} disabled={physicalMirrorActive} onChange={value => postToWorker({ type: 'SET_INPUT', name: 'weatherEnvironment', value })} />}
                   {scene.canvas.background === 'conveyor' && <ConveyorControls value={sim.conveyorWorld?.environment ?? scene.canvas.conveyorEnvironment ?? defaultConveyorEnvironment} pending={!!sim.conveyorWorld?.pendingPackage || !!sim.conveyorWorld?.jammed} disabled={physicalMirrorActive} onChange={value => postToWorker({ type: 'SET_INPUT', name: 'conveyorEnvironment', value })} onSend={() => postToWorker({ type: 'SET_INPUT', name: 'conveyorPackage', value: sim.conveyorWorld?.environment ?? scene.canvas.conveyorEnvironment ?? defaultConveyorEnvironment })} />}
@@ -1606,6 +1611,8 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                   {scene.canvas.background === 'greenhouse' && <GardenControls value={sim.gardenWorld?.environment ?? scene.canvas.gardenEnvironment ?? defaultGardenEnvironment} disabled={physicalMirrorActive} onChange={value => postToWorker({ type: 'SET_INPUT', name: 'gardenEnvironment', value })} />}
                   {inputDevices.map((device) => {
                     const runtime = sim.devices[device.id];
+                    if(Object.entries(pondBindings(scene)).some(([role,id])=>role.endsWith('Sensor')&&id===device.id))return <div className="message-test-panel" key={device.id}><strong>{device.name}</strong><span>{runtime?.kind==='educationalModule'?Object.entries(runtime.values).map(([k,v])=>`${k}: ${typeof v==='boolean'?(v?'sí':'no'):v}`).join(' · '):'Automático'}</span><small>Lectura automática del agua virtual, no del hardware. Distancia inversa al nivel; el detector mide humedad en la bandeja.</small></div>;
+                    if(scene.canvas.background==='lineTrack'&&device.kind==='lineSensors')return <div className="message-test-panel" key={device.id}><strong>{device.name}</strong>{['left','center','right'].map((key,i)=><span key={key}>{['Izquierdo','Central','Derecho'][i]}: {runtime?.kind==='educationalModule'&&runtime.values[key]?'sobre línea':'fuera de línea'}</span>)}<small>Automático según el suelo bajo el robot; no es una lectura de la placa.</small></div>;
                     if (Object.values(theaterBindings(scene)).includes(device.id)) return <div className="message-test-panel" key={device.id}><strong>{device.name}</strong><span>{runtime?.kind === 'otto' ? 'Distancia según público y perfil del robot' : runtime?.kind === 'button' ? runtime.pressed ? 'Petición activa' : 'Sin petición' : 'Automático'}</span><small>Entrada del teatro virtual, no del hardware. Usá los botones del público, no un valor manual de sensor.</small></div>;
                     if (['climate', 'rain', 'light'].some(role => weatherBindings(scene)[role as 'climate' | 'rain' | 'light'] === device.id)) return <div className="message-test-panel" key={device.id}><strong>{device.name}</strong><span>{runtime?.kind === 'educationalModule' ? Object.entries(runtime.values).map(([key, value]) => `${key}: ${typeof value === 'boolean' ? value ? 'sí' : 'no' : value}`).join(' · ') : runtime?.kind === 'lightSensor' ? `${runtime.value} / 4095` : 'Automático'}</span><small>Lectura del clima virtual, no del hardware. El detector tarda en secarse; cerrar el techo no cubre los sensores.</small></div>;
                     if (['distanceSensor', 'colorSensor', 'infraredBarrier'].some(kind => arenaBindings(scene)[kind as 'distanceSensor' | 'colorSensor' | 'infraredBarrier'] === device.id)) return <div className="message-test-panel" key={device.id}><strong>{device.name}</strong><span>{runtime?.kind === 'educationalModule' ? Object.entries(runtime.values).map(([k, v]) => `${k}: ${v}`).join(' · ') : runtime?.kind === 'infraredBarrier' ? runtime.interrupted ? 'Meta ocupada' : 'Meta libre' : 'Automático'}</span><small>Lectura de la pista virtual, no del hardware. Distancia y color viajan montados sobre el robot; la meta queda fija.</small></div>;

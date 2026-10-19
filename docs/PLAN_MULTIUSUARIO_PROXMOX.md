@@ -1,4 +1,12 @@
 # Plan de CapiBloques: multiusuario, enseñanza y programación de Wemos
+
+**Fase 57 — Laguna, depósito y bombeo (19/10):** software en rama `codex/fase-57-laguna-bombeo` desde dev1. [Reglas aprobadas y entrega](FASE_57_LAGUNA_DEPOSITO_BOMBEO.md): balance de agua, dos distancias, bomba/compuerta, derrame y secado residual, ensayos y dos ejemplos completos (directo/modular). Sin firmware/ABI/SDK/migraciones; actualización dev1, aceptación humana/física y mundo Waveshare pendientes. Fase56 ya actualizada en dev1 por confirmación del propietario. Sustituye estados históricos de laguna sólo propuesta; no habilita otra fase ni cambios main/dev2.
+
+**Estado vigente19/10: fase56 implementada en rama dev1.** [Reglas y entrega](FASE_56_SEGUIDOR_LINEA.md), software de seguidor con editor y dos ejemplos completos. Runtime1.10.0 ABI1; actualización/SDK completo/aceptación física y Waveshare pendientes. Main/dev2 no operados; análisis55 conservado. No ampliar fases por inferencia.
+
+
+**19/10: fase55 terminada como análisis documental.** [Parque, laguna y aeropuerto](FASE_55_ANALISIS_VARIANTES_ESCENAS.md): candidatos y límites, ninguna variante implementada. Recomendada fase56 tras acordar reglas; nuevas implementaciones requieren autorización. Fase54 en DEV original por confirmación del propietario, no aceptación física/SDK/Waveshare. Estados inferiores son históricos.
+
 **Estado vigente: fase 54 entregada en software en rama desde dev1.** [Reglas y evidencia del teatro de Otto](FASE_54_TEATRO_OTTO.md). Dos ejemplos completos; runtime 1.9.1, ABI 1; actualización/aceptación dev1, SDK completo, físico y Waveshare pendientes. No tocar main/dev2 ni iniciar 55–56. Estados inferiores conservados como historia, no instrucciones de fase actual.
 
 

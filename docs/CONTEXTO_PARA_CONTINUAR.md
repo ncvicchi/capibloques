@@ -1,5 +1,150 @@
 # CapiBloques — contexto para continuar
 
+### Entrega vigente 19/10: fase57 — Laguna, depósito y bombeo
+
+Rama `codex/fase-57-laguna-bombeo` desde origin/dev1 `86e6cfe`.
+[Reglas aprobadas y guía](FASE_57_LAGUNA_DEPOSITO_BOMBEO.md). Fase56 actualizada
+en dev1 según confirmación del propietario; Git remoto contiene su integración.
+No es aceptación de SDK, hardware o renderer Waveshare.
+
+- Nuevo pondLab, independiente de pond/counter históricos. Reserva300L/laguna100L,
+  bomba2L/s, servo/desagüe3L/s/1,2s; balance explícito, lluvia/fuga/evaporación,
+  derrame acumulado y humedad residual con secado15s. No apagar órdenes ni
+  proteger automáticamente por el alumno. Integración worker determinista20ms.
+- Dos distancias automáticas inversas120–20cm, bandeja con threshold del sensor.
+  Lugares y cantidades fijos, falta/quitar/reponer sin inventar lecturas;
+  control de potencia MOSFET proporcional y relé binario. Nombres configurados.
+- Condiciones guardables y ensayos transitorios lluvia/fuga/recarga, sin sliders
+  competidores para sensores. Recarga acotada al avanzar reloj; LOAD previo a
+  Simular/Paso preserva ensayos del mismo mundo; Reiniciar borra todo estado.
+  Mismo mundo en editor, simulación y revisión; espejo físico no controla ensayos.
+- Dos ejemplos completos en catálogo: Laguna con nivel automático (40–70%, directo)
+  y Laguna protegida con procedimientos (6tareas/4pestañas/3procesos). Protección
+  de reserva, timeout25s de bombeo enclavado hasta reset, desagüe90–80%,
+  luz/buzzer por episodio e informe. Responsables únicos por actuador.
+- Sin migraciones, dependencias, ABI, nuevo firmware ni SDK; capacidades existentes.
+  Actualizador debe reutilizar firmware1.10.0/caché, no borrar outputs.
+  No se operaron servidores, main ni dev2. Propietario integra/actualiza sólo dev1.
+
+Pruebas: balance/conservación, límites, reserva seca sin autoapagado, humedad,
+slots, frontend/backend, JSON portable, CapiRules y fuentes Arduino/IDF; ambos
+workspaces reales a1×/4×, regulación, reserva/recarga, desagüe, timeout, pausa/reset
+y bloqueo de controles competidores. Smoke completo y7 pruebas Django(57/53)
+aprobados; los dos JSON reales frontend→Django aceptados. Chromium3 recorridos
+(ambos ejemplos/pausa/reset y edición guardar/cancelar/undo/redo), capturas
+inspeccionadas, build10páginas, tipos/lint y lint de componentes nuevos aprobados.
+Advertencia existente de chunk grande conservada; no es un error de build.
+La revisión de navegador detectó IDs de pestaña sin prefijo y nombre de variable
+>32caracteres; corregidos y agregadas aserciones de normalización/límite.
+
+Pendientes: actualización/aceptación dev1 por propietario, uso infantil/docente,
+maqueta física. Mundo específico Waveshare no implementado (no confundir con
+simple prueba de pantalla pendiente). SDK/hardware del runtime1.10.0 anterior
+siguen pendientes; no reconstruidos por este mundo. Fixture HAL previo de56
+sigue documentado, no se altera ni se declara suite HAL completa aprobada.
+
+
+### Entrega vigente19/10: fase56 — Vehículo seguidor de línea
+
+Rama `codex/fase-56-seguidor-linea` creada desde origin/dev1
+`e9158e1949e8739a63c6e16418a7d30d83bebd38`. Incluye por avance rápido42ff720
+(documentación55 todavía no integrada); no pierde ese análisis ni lo implementa.
+[Reglas aprobadas y guía](FASE_56_SEGUIDOR_LINEA.md).
+
+- Mundo nuevo lineTrack: robot diferencial, barra lineSensors genérica DIGITAL_3,
+  sensores frontales izquierdo/central/derecho, geometría común con polilínea.
+  Motor izquierdo/derecho −100..100, sin corrección oculta, contacto recuperable.
+  Un reloj, pausa/Paso/velocidad/reset; métricas y traza acotadas.
+- Recta, óvalo, curvas y S. Modal de circuito con lápiz/recta/curva de3clics,
+  seleccionar/mover/borrar, ancho12–24,64 trazos/256 puntos por trazo/512 totales;
+  undo/redo60, guardar al borrador, guardar/cancelar escena, JSON frontend/backend.
+  Abrir el armador detiene ejecución; sin edición concurrente.
+- Dos ejemplos completos: Seguidor de línea básico y Seguidor con búsqueda y
+  procedimientos. Cinco tareas/tres pestañas, memoria del último lado y máximo
+  2s de búsqueda; si vence, aviso y motores detenidos hasta reinicio. Probado
+  recuperar salida a90°; no garantía universal para todo dibujo/cruce.
+- Nuevo op robotWheels y capacidades robot-wheels/line-sensors; intérprete
+  **1.10.0**, ABI/formato1. Arduino/IDF y firmware leen salidas digitales con
+  polaridad configurable. Pines de Wemos34/35/36 sin pull-up interno supuesto.
+  Nuevos bloque/valores/configuración/ayuda, sin dependencias ni migraciones.
+- Se corrigió la allowlist portable que omitía capi_timer_compare ya existente,
+  necesario para importar/guardar el ejemplo. No cambiar código del alumno.
+- Actualizador de la revisión lee versión por release y conserva objetos SDK.
+  Sin promoción, operación remota ni cambios en main/dev2.
+
+Evidencia local: ambos workspaces reales a1×/4× en óvalo prolongado y los otros
+3predefinidos; pérdida con parada/búsqueda limitada, recuperación de salida
+girada, posiciones coincidentes mundo/componente, pausa/Paso/reset y entradas
+competidoras bloqueadas. JSON/generadores/reglas y8 contratos Django (56/54),
+los2 JSON reales frontend→Django y26 contratos de empaquetado/entornos/
+reanudación/caché aprobados. Chromium3 recorridos (ambos ejemplos y dibujo/
+mover/borrar/undo/redo/guardar/cancelar), capturas inspeccionadas. Casos C++ HAL
+nuevos line-true/line-false compilados y ejecutados con warnings como errores.
+Tipos/lint, smoke completo y build con10 páginas estáticas aprobados.
+Advertencia existente de chunk grande, sin fallo. El dibujo y recorrido nuevos
+se inspeccionaron en capturas; esquema de escena y ejecución comparten geometría.
+
+Límite de prueba encontrado: corrida integral scripts/idf-driver.test.mjs se
+detiene en su fixture runtime con salida3, antes de casos nuevos. Comparación
+de fuentes generadas para ese fixture contra origin/dev1: idénticas byte por
+byte; no generado por esta fase. Queda diagnóstico separado, NO afirmar toda
+esa suite aprobada. Se añadió filtro CAPI_IDF_CASE para correr casos concretos;
+sin filtro conserva la corrida completa y sus fallos, no se ocultaron.
+
+Pendientes: actualización por propietario en dev1, SDK completo1.10.0 y placa
+real con módulos digitales exactos/chasis/driver. Mundo y sensores dinámicos en
+renderer Waveshare requieren trabajo/aceptación aparte, no inferirlo de la web.
+No afirmar aceptación física ni SDK por aprobar g++ con HAL de escritorio.
+Ampliaciones PID/ruido/competición/bifurcaciones/obstáculos conservadas como
+posibilidades del plan original, no autorizadas. No iniciar otra fase.
+
+Comando como capi en capi-dev, reemplazando SHA40 por la entrega:
+
+```bash
+cd /home/capi/capibloques &&
+git fetch --quiet origin codex/fase-56-seguidor-linea &&
+git show origin/codex/fase-56-seguidor-linea:scripts/update-dev.sh |
+bash -s -- --env dev1 --branch codex/fase-56-seguidor-linea --commit SHA40
+```
+
+Primera actualización construye intérprete incremental1.10.0 una vez; no
+espera Actions ni requiere borrar cachés. Sin --promote. Servidor no inspeccionado.
+
+
+### Entrega vigente19/10: fase55 — análisis de variantes, sin código
+
+Rama `codex/fase-55-analisis-escenas`, desde origin/dev1
+`e9158e1949e8739a63c6e16418a7d30d83bebd38`.
+[Informe y candidatos retenidos](FASE_55_ANALISIS_VARIANTES_ESCENAS.md).
+Fase55 autorizada para analizar/documentar y cerrada en ese alcance, no como
+mundos construidos. No se tocó código ejecutable ni se operó el servidor.
+
+- Parque de luces/riego repite casa/huerta: reutilizar actividades, no duplicar
+  motores. Fuente coreografiada retenida para definir aporte propio.
+- Laguna con depósito: principal candidato, balance de agua, distancia inversa
+  al nivel, bombeo, reserva y derrame. Agua/lluvia mide superficie, no nivel
+  omnisciente del tanque. Sin química/oxígeno ni hardware certificado inventado.
+- Aeropuerto: sólo justificar si enseña solicitudes/turnos de recurso único;
+  variante distribuida depende del canal de fase34. Señales/barreras solas repiten
+  tren/tránsito. Puente/barcos también postergado por solapamiento.
+- Todas las alternativas, incluidas las postergadas, quedan trazadas dentro de
+  fase55; no se crean números nuevos ni se autoriza implementar por documentarlas.
+- Siguiente recomendada56: acordar disposición, sensores y reglas del seguidor
+  de línea antes de implementar. No empezar código sin autorización explícita.
+
+Verificación proporcional: fuentes de catálogo/modelo/render y guías49–54,
+enlaces relativos del informe y diff. Sin build, SDK ni pruebas largas por
+documentación. Commit/push sólo a la rama de tarea; integración por propietario.
+No hace falta actualizar el sitio para leer el análisis en GitHub.
+
+Confirmación de fase54: propietario dijo «ya quedó en dev» después de recibir
+`--promote dev1`. Git remoto leído19/10: origin/dev1=e9158e1 y
+origin/main=fe230bb, ambos contienen 7ac3585 (entrega54). Se registra DEV original
+actualizado por confirmación operativa, **no** por inspección remota independiente.
+No afirmar SDK completo1.9.1, hardware, aceptación infantil o paridad Waveshare
+aprobados por esa promoción. Las secciones inferiores conservan el historial.
+
+
 ### Entrega vigente: fase 54 — Teatro interactivo de Otto, sólo dev1
 
 Rama `codex/fase-54-teatro-otto`, desde origin/dev1 `6c9a985`.

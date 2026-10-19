@@ -1,6 +1,8 @@
 'use client';
 import TheaterControls from '@/components/theater-controls';
 import { theaterBindings, defaultTheaterEnvironment } from '@/lib/theater-world';
+import PondControls from '@/components/pond-controls';
+import {pondBindings,defaultPondEnvironment} from '@/lib/pond-world';
 import WeatherControls from '@/components/weather-controls';
 import { weatherBindings, defaultWeatherEnvironment } from '@/lib/weather-world';
 import { arenaBindings } from '@/lib/robot-arena';
@@ -323,7 +325,9 @@ export default function ReviewSimulation({
           conveyorWorld={state?.conveyorWorld}
           arenaWorld={state?.arenaWorld}
           weatherWorld={state?.weatherWorld}
+          pondWorld={state?.pondWorld}
           theaterWorld={state?.theaterWorld}
+          lineWorld={state?.lineWorld}
           counter={state?.counter}
           simulationSpeed={speed}
           simulationRunning={state?.status === 'running'}
@@ -331,6 +335,7 @@ export default function ReviewSimulation({
         />
         <fieldset className="review-inputs" disabled={!program}>
           <legend>Sensores simulados</legend>
+          {project.scene.canvas.background==='pondLab'&&<PondControls key={`${project.scene.id}:${simulationEpoch}`} value={state?.pondWorld?.environment??project.scene.canvas.pondEnvironment??defaultPondEnvironment} onChange={value=>worker.current?.postMessage({type:'SET_INPUT',name:'pondEnvironment',value})} onRefill={()=>worker.current?.postMessage({type:'SET_INPUT',name:'pondRefill',value:true})}/>}
           {project.scene.canvas.background === 'ottoTheater' && <TheaterControls value={state?.theaterWorld?.environment ?? project.scene.canvas.theaterEnvironment ?? defaultTheaterEnvironment} state={state?.theaterWorld} onChange={value => worker.current?.postMessage({ type: 'SET_INPUT', name: 'theaterEnvironment', value })} onAction={value => worker.current?.postMessage({ type: 'SET_INPUT', name: 'theaterAction', value })} />}
           {project.scene.canvas.background === 'weatherLab' && <WeatherControls key={`${project.scene.id}:${simulationEpoch}`} optimistic value={state?.weatherWorld?.environment ?? project.scene.canvas.weatherEnvironment ?? defaultWeatherEnvironment} onChange={value => worker.current?.postMessage({ type: 'SET_INPUT', name: 'weatherEnvironment', value })} />}
           {project.scene.canvas.background === 'conveyor' && <ConveyorControls value={state?.conveyorWorld?.environment ?? project.scene.canvas.conveyorEnvironment ?? defaultConveyorEnvironment} pending={!!state?.conveyorWorld?.pendingPackage || !!state?.conveyorWorld?.jammed} onChange={value => worker.current?.postMessage({ type: 'SET_INPUT', name: 'conveyorEnvironment', value })} onSend={() => worker.current?.postMessage({ type: 'SET_INPUT', name: 'conveyorPackage', value: state?.conveyorWorld?.environment ?? project.scene.canvas.conveyorEnvironment ?? defaultConveyorEnvironment })} />}
@@ -338,6 +343,8 @@ export default function ReviewSimulation({
           {project.scene.canvas.background === 'greenhouse' && <GardenControls value={state?.gardenWorld?.environment ?? project.scene.canvas.gardenEnvironment ?? defaultGardenEnvironment} onChange={value => worker.current?.postMessage({ type: 'SET_INPUT', name: 'gardenEnvironment', value })} />}
           {project.scene.devices.map((device) => {
             const runtime = state?.devices[device.id];
+            if(Object.entries(pondBindings(project.scene)).some(([role,id])=>role.endsWith('Sensor')&&id===device.id))return <p key={device.id}>{device.name} · lectura automática del agua virtual</p>;
+            if(project.scene.canvas.background==='lineTrack'&&device.kind==='lineSensors')return <p key={device.id}>{device.name}: lectura automática bajo el robot, no editable.</p>;
             if (Object.values(theaterBindings(project.scene)).includes(device.id)) return <p key={device.id}>{device.name} · entrada automática del público</p>;
             if (['climate', 'rain', 'light'].some(role => weatherBindings(project.scene)[role as 'climate' | 'rain' | 'light'] === device.id)) return <p key={device.id}>{device.name} · lectura automática del clima exterior</p>;
             if (['distanceSensor', 'colorSensor', 'infraredBarrier'].some(kind => arenaBindings(project.scene)[kind as 'distanceSensor' | 'colorSensor' | 'infraredBarrier'] === device.id)) return <p key={device.id}>{device.name} · lectura automática de la pista</p>;

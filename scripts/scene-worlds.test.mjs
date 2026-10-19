@@ -387,3 +387,9 @@ await import('./weather-world.test.mjs');
 
 await import('./theater-world.test.mjs');
 await import('./otto-queue.test.mjs');
+
+await import('./line-world.test.mjs');
+await import('node:child_process').then(({execFileSync})=>execFileSync(process.execPath,['--experimental-strip-types','scripts/line-worker.test.mjs'],{stdio:'inherit'}));
+
+await import('./pond-world.test.mjs');
+await import('node:child_process').then(({execFileSync})=>execFileSync(process.execPath,['--experimental-strip-types','scripts/pond-worker.test.mjs'],{stdio:'inherit'}));
