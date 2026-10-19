@@ -3,6 +3,7 @@ import LineCircuitEditor from '@/components/line-circuit-editor';
 import { defaultLineCircuit } from '@/lib/line-world';
 import TheaterControls from '@/components/theater-controls';
 import { theaterSlots, defaultTheaterEnvironment } from '@/lib/theater-world';
+import GorillaProperties from '@/components/gorilla-properties';
 import PondControls from '@/components/pond-controls';
 import { pondSlots, nearestPondSlot, defaultPondEnvironment } from '@/lib/pond-world';
 import WeatherControls from '@/components/weather-controls';
@@ -135,6 +136,7 @@ const backgrounds: { value: SceneBackground; label: string; icon: string }[] = [
   { value: 'greenhouse', label: 'Huerta e invernadero', icon: '🌱' },
   { value:'lineTrack',label:'Vehículo seguidor de línea',icon:'〰️' },
   { value: 'ottoTheater', label: 'Teatro interactivo de Otto', icon: '🎭' },
+  {value:'gorillaBench',label:'Banco de pruebas GorillaBot',icon:'🦍'},
   { value:'pondLab',label:'Laguna, depósito y bombeo',icon:'💧' },
   { value: 'weatherLab', label: 'Estación meteorológica y puesto', icon: '🌦️' },
   { value: 'robotArena', label: 'Pista de exploración y reparto', icon: '🤖' },
@@ -178,6 +180,7 @@ const quickTemplates: {
   { id: 'greenhouse', name: 'Huerta e invernadero', icon: '🌱', detail: 'dos canteros + riego + ventana' },
   { id:'lineTrack',name:'Seguidor de línea',icon:'〰️',detail:'tres sensores + motores independientes' },
   { id: 'ottoTheater', name: 'Teatro de Otto', icon: '🎭', detail: 'público + petición + coreografías' },
+  {id:'gorillaBench',name:'Banco GorillaBot',icon:'🦍',detail:'8 servos + calibración + una pata'},
   {id:'pondLab',name:'Laguna y reserva',icon:'💧',detail:'agua + bomba + desagüe'},
   { id: 'weatherLab', name: 'Puesto meteorológico', icon: '🌦️', detail: 'clima + lluvia + techo móvil' },
   { id: 'robotArena', name: 'Pista de exploración', icon: '🤖', detail: 'robot + sensores montados + estaciones' },
@@ -1192,7 +1195,7 @@ function SceneBuilderSession({
                       type="button"
                       key={template.id}
                       disabled={
-                        ((template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor' || template.id === 'robotArena' || template.id === 'weatherLab' || template.id === 'ottoTheater' || template.id === 'lineTrack' || template.id === 'pondLab') && objectCount > 0) ||
+                        ((template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor' || template.id === 'robotArena' || template.id === 'weatherLab' || template.id === 'ottoTheater' || template.id === 'lineTrack' || template.id === 'pondLab' || template.id === 'gorillaBench') && objectCount > 0) ||
                         (template.id === 'traffic' || template.id === 'intersection') &&
                         previewScene.canvas.background !== 'crossroads' &&
                         objectCount > 0
@@ -1200,7 +1203,7 @@ function SceneBuilderSession({
                       onClick={() => addTemplate(template.id)}
                       aria-label={`Agregar aventura ${template.name}: ${template.detail}`}
                       title={
-                        (template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor' || template.id === 'robotArena' || template.id === 'weatherLab' || template.id === 'ottoTheater' || template.id === 'lineTrack' || template.id === 'pondLab') && objectCount > 0
+                        (template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor' || template.id === 'robotArena' || template.id === 'weatherLab' || template.id === 'ottoTheater' || template.id === 'lineTrack' || template.id === 'pondLab' || template.id === 'gorillaBench') && objectCount > 0
                           ? 'Este mundo completo se agrega a una escena vacía; no reemplaza componentes existentes.'
                           : (template.id === 'traffic' || template.id === 'intersection') &&
                         previewScene.canvas.background !== 'crossroads' &&
@@ -1253,7 +1256,7 @@ function SceneBuilderSession({
                     const arenaLimitBlocked = previewScene.canvas.background === 'robotArena' && arenaKinds.includes(component.kind as typeof arenaKinds[number]) && previewScene.devices.some(d => d.kind === component.kind);
                     const conveyorLimitBlocked = previewScene.canvas.background === 'conveyor' && conveyorSlots.some(slot => slot.kind === component.kind) && previewScene.devices.filter(d => d.kind === component.kind).length >= conveyorSlots.filter(s => s.kind === component.kind).length;
                     const houseLimitBlocked = previewScene.canvas.background === 'smartHouse' && component.kind !== 'led' && component.kind !== 'button' && houseSlots.some(slot => slot.kind === component.kind) && previewScene.devices.filter(device => device.kind === component.kind).length >= houseSlots.filter(slot => slot.kind === component.kind).length;
-                    const reason = visualBlocked
+                    const reason = component.kind==='gorilla'&&previewScene.devices.some(d=>d.kind==='gorilla')?'No disponible: un GorillaBot por proyecto':visualBlocked
                       ? `No disponible: ya usás ${visualOutput?.name}`
                       : messagesBlocked
                         ? 'No disponible: máximo dos por proyecto'
@@ -1270,7 +1273,7 @@ function SceneBuilderSession({
                         : conveyorLimitBlocked ? 'No disponible: los lugares de este componente en el taller están ocupados'
                         : houseLimitBlocked ? 'No disponible: los lugares de este componente en la casa están ocupados'
                         : component.childFriendlyControl;
-                    const componentBlocked = visualBlocked || messagesBlocked || trafficSceneBlocked || trafficLimitBlocked || railLimitBlocked || parkingLimitBlocked || gardenLimitBlocked || houseLimitBlocked || conveyorLimitBlocked || arenaLimitBlocked || pondLimitBlocked || weatherLimitBlocked || theaterLimitBlocked || lineLimitBlocked;
+                    const componentBlocked = (component.kind==='gorilla'&&previewScene.devices.some(d=>d.kind==='gorilla')) || visualBlocked || messagesBlocked || trafficSceneBlocked || trafficLimitBlocked || railLimitBlocked || parkingLimitBlocked || gardenLimitBlocked || houseLimitBlocked || conveyorLimitBlocked || arenaLimitBlocked || pondLimitBlocked || weatherLimitBlocked || theaterLimitBlocked || lineLimitBlocked;
                     return <div className="component-palette-card" key={component.kind}>
                       <button type="button" className="component-add-button" disabled={componentBlocked} onClick={() => addComponent(component.kind)} title={componentBlocked ? reason : component.description} aria-label={`Agregar ${component.name}. ${reason}`}>
                         <span aria-hidden="true">{component.icon}</span><span><strong>{component.name}</strong><small>{reason}</small></span><b aria-hidden="true">{componentBlocked ? '🔒' : '＋'}</b>
@@ -1457,7 +1460,8 @@ function SceneBuilderSession({
                       </label>}
                     </div>
                   )}
-                  {isEducationalModuleKind(selected.kind) && (() => {
+                  {selected.kind==='gorilla'&&<GorillaProperties settings={selected.config.settings} onChange={settings=>updateSelectedDraft(device=>device.kind==='gorilla'?{...device,config:{...device.config,settings}}:device)}/>}
+                  {selected.kind!=='gorilla'&&isEducationalModuleKind(selected.kind) && (() => {
                     const spec = educationalModuleSpecs[selected.kind];
                     const moduleDevice = selected as EducationalModuleDevice;
                     return <div className="messages-properties">

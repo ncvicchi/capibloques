@@ -57,6 +57,9 @@ import { advanceGardenWorld, createGardenWorldState, gardenBindings, validGarden
 // @ts-expect-error Node strip-types runner.
 import { advanceHouseWorld, createHouseWorldState, houseBindings, houseInputRoles, validHouseEnvironment } from './house-world.ts';
 
+// @ts-expect-error Node strip-types runner.
+import {gorillaTargets,gorillaMove,advanceGorilla,type GorillaMove} from './gorilla-model.ts';
+const gorillaJobs=new Map<string,GorillaMove>();
 type Pending =
   | { kind: 'wait'; startedAt: number; until: number; blockId: string }
   | {
@@ -885,6 +888,7 @@ function resetExecution(
   wifiMessageSequence = 0;
   lastReceivedMessages.clear();
   visualAnimations.clear();
+  gorillaJobs.clear();
   ottoOwners.clear();
   ottoQueues.clear();
   clearBlockActivity();
@@ -1599,6 +1603,20 @@ function executeInstruction(
     execution.pending = null;
     delete state.activeBlockIds[execution.thread.id];
     return 'done';
+  }
+  if(node.op==='gorilla'){
+    const d=state.devices[node.deviceId],spec=scene.devices.find(x=>x.id===node.deviceId);
+    if(d?.kind!=='educationalModule'||spec?.kind!=='gorilla'){execution.pc++;return 'action';}
+    if(gorillaJobs.has(node.deviceId))return 'wait';
+    if(node.action==='prepare'){d.values.ready=true;d.values.error=false;execution.pc++;appendConsole(`${deviceName(node.deviceId)}: preparado, sin mover motores`);return 'action';}
+    const current=Array.from({length:8},(_,i)=>Number(d.values[`j${i}`]));
+    const targets=gorillaTargets(spec.config.settings,current,node.index,node.a,node.b,node.action==='pair');
+    if(!d.values.ready||!targets){d.values.error=true;appendConsole(`${deviceName(node.deviceId)}: orden rechazada; prepará el robot y revisá límites`);execution.pc++;return 'action';}
+    const mask=node.action==='pair'?3<<(node.index*2):1<<node.index;
+    const job=gorillaMove(current,targets,node.durationMs,mask);gorillaJobs.set(node.deviceId,job);d.values.moving=true;d.values.error=false;
+    execution.pending={kind:'wait',startedAt:virtualNow,until:virtualNow+job.duration,blockId:node.blockId};
+    appendConsole(`${deviceName(node.deviceId)}: ${node.action==='pair'?'pata '+(node.index+1):'motor '+(Math.floor(node.index/2)+1)+(node.index%2?'B':'A')} → ${node.a}°${node.action==='pair'?' / '+node.b+'°':''}`);
+    return 'wait';
   }
   if (node.op === 'wait') {
     execution.pending = {
@@ -2701,6 +2719,7 @@ function updateHousePhysics(deltaMs: number) {
 }
 
 function updatePhysics(deltaMs: number) {
+  for(const [id,job]of gorillaJobs){const next=advanceGorilla(job,deltaMs),d=state.devices[id];if(d?.kind==='educationalModule'){next.angles.forEach((a,i)=>d.values[`j${i}`]=Math.sign(a)*Math.round(Math.abs(a)));d.values.moving=next.moving;}if(next.moving)gorillaJobs.set(id,next.move);else gorillaJobs.delete(id);}
   if (state.status !== 'done' && state.status !== 'stopped') {
     updateRailPhysics(deltaMs);
     updateParkingPhysics(deltaMs);
@@ -2954,6 +2973,7 @@ function setInputById(deviceId: string, value: unknown) {
   if (Object.values(theaterBindings(scene)).includes(deviceId)) return;
   if (['climate', 'rain', 'light'].some(role => weatherBindings(scene)[role as 'climate' | 'rain' | 'light'] === deviceId)) return;
   const pond=pondBindings(scene);if([pond.reserveSensor,pond.lagoonSensor,pond.spillSensor].includes(deviceId))return;
+  if(scene.devices.some(d=>d.id===deviceId&&d.kind==='gorilla'))return;
   if (conveyorInputRoles.some(role => conveyorBindings(scene)[role] === deviceId)) return;
   if (houseInputRoles.some(role => houseBindings(scene)[role] === deviceId)) return;
   if (Object.entries(gardenBindings(scene)).some(([role, id]) => ['outsideSoil', 'insideSoil', 'climate', 'light'].includes(role) && id === deviceId)) return;
@@ -3162,6 +3182,7 @@ scope.addEventListener('message', (event) => {
       emit();
       break;
     case 'STOP':
+      gorillaJobs.clear();for(const d of Object.values(state.devices))if(d.kind==='educationalModule'&&d.deviceKind==='gorilla')d.values.moving=false;
       ottoQueues.clear(); ottoOwners.clear();
       running = false;
       state.status = 'stopped';

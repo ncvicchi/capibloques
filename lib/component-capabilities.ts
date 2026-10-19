@@ -33,7 +33,7 @@ const common: Partial<Record<SceneDeviceKind, ComponentValueCapability[]>> = {
 };
 
 export function componentValueCapabilities(device: SceneDevice): ComponentValueCapability[] {
-  if (isEducationalModuleKind(device.kind)) return educationalModuleSpecs[device.kind].values.map(value => ({ key: value.key, label: value.label, type: value.type, source: ['powerSwitch','stepper'].includes(device.kind) ? 'ordered' : 'measured', help: value.help }));
+  if (isEducationalModuleKind(device.kind)) return educationalModuleSpecs[device.kind].values.map(value => ({ key: value.key, label: value.label, type: value.type, source: ['gorilla','powerSwitch','stepper'].includes(device.kind) ? 'ordered' : 'measured', help: value.help }));
   const values = (common[device.kind] ?? []).map(value => ({ ...value,
     ...(device.kind === 'trafficLight' && value.key === 'color' ? { choices: ['OFF', 'RED', 'YELLOW', 'GREEN'] } : {}),
     ...(device.kind === 'robot' && value.key === 'motion' ? { choices: ['STOP', 'FORWARD', 'BACKWARD', 'LEFT', 'RIGHT', 'WHEELS'] } : {}),

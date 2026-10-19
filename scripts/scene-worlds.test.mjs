@@ -393,3 +393,6 @@ await import('node:child_process').then(({execFileSync})=>execFileSync(process.e
 
 await import('./pond-world.test.mjs');
 await import('node:child_process').then(({execFileSync})=>execFileSync(process.execPath,['--experimental-strip-types','scripts/pond-worker.test.mjs'],{stdio:'inherit'}));
+
+await import('./gorilla.test.mjs');
+await import('node:child_process').then(({execFileSync})=>{for(const file of ['gorilla-worker','gorilla-driver'])execFileSync(process.execPath,['--experimental-strip-types',`scripts/${file}.test.mjs`],{stdio:'inherit'});});

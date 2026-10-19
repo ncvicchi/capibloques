@@ -1,5 +1,59 @@
 # CapiBloques — contexto para continuar
 
+### Entrega vigente19/10 — Fase58: GorillaBot, banco y una pata
+
+Rama `codex/fase-58-gorillabot-banco` desde origin/dev1
+`481854cf239f3cc41fc247be8ffc1804646743f1`. [Plan evolutivo58–64](PLAN_GORILLABOT_EVOLUTIVO.md)
+y [alcance58](FASE_58_GORILLABOT_BANCO.md). Sólo58 autorizada/implementada.
+Fase57 confirmada por el propietario en dev1; pidió comando de promoción, pero
+no confirmó ejecutarlo. No se operaron servidores, main ni dev2.
+
+- Componente gorilla/perfil GORILLA_PCA9685: 8servos, patas DI/DD/TI/TD y motores
+  A/B. Wemos o DevKitS3, bus I2C1 dedicado/PCA9685; ningún LEDC para esos8canales.
+  Preparar sin centrar ocho motores, movimientos relativos −20..20°, límites
+  calibrados, máximo30°/s,200–10000ms; espera del camino y otros siguen.
+- Banco nuevo gorillaBench, robot/pares articulados y vista ampliada seleccionable.
+  Ilustración propia de mecanismo5barras, no geometría real/IK ni equilibrio.
+  Una pata aquí es un par A/B explícito. Coordenadas/posturas medidas en59;
+  marcha60, autonomía61, web/celular62, mandoESP3263 y Waveshare64 pendientes.
+- Inspector dedicado: canales únicos, centros/inversión/límites, dirección I2C,
+  preview local sin USB, guardar/cancelar objeto/escena, undo/redo existentes.
+  Calibración nace sin verificar; una persona adulta revisa antes de reglas o
+  fuentes para hardware. Esa confirmación no es un certificado/permiso de rol
+  ni enlaza automáticamente la calibración con el hardwareID de otra unidad.
+- Estados j0..7 ordenados (enteros, no realimentación), ready/moving/error
+  consultables. Dos ejemplos completos: conocer un motor y una pata con
+  procedimientos (3tareas/2tabs). Simulación1×/4×, pausa/Paso/reset/STOP, sin
+  sensores manuales competidores ni ocho servo-componentes sueltos.
+- Intérprete **1.11.0**, ABI1/capacidad gorilla-bench. Rechazo de perfil/calibración/
+  pines/órdenes inválidos también en firmware. Núcleo C++ idéntico entre exports
+  Arduino/IDF e intérprete; I2C acotado5ms. Mantener último pulso al detener, no
+  desenergizar y hacer caer. Actualizar firmware al probar esta capacidad.
+- Sin dependencias ni migraciones. Hay cambios de aplicación de firmware y
+  generador; usar caché incremental existente, no borrar outputs/SDK.
+  Banco Waveshare no implementado y capacidad no se anuncia en esa placa.
+
+Evidencia local: smoke completo aprobado (incluye pruebas GorillaBot); ambos
+workspaces reales con JSON portable, pestañas normalizadas y valores/capacidades,
+reglas y generadores; preparación necesaria, sólo motores elegidos, límite/
+inversión, movimiento cooperativo, pausa/Paso/reset/STOP. C++Arduino/IDF compilado/
+ejecutado con HAL y -Wall/-Wextra/-Werror, núcleo idéntico al header de intérprete;
+funciones reales nuevas de intérprete extraídas/compiladas y ejecutadas con HAL,
+validación/calibración/pines, I2C, pausa y parada. No equivale a compilar todo SDK.
+6pruebas Django(58/57), los2proyectos reales frontend→Django,26contratos de
+empaquetado/entornos/reanudación/caché aprobados. Chromium3recorridos (dos ejemplos
+y calibración preview/guardar/cancelar), repetición del modular tras ajuste
+visual y capturas inspeccionadas. Tipos/lint, lint de nuevos componentes y build
+10páginas aprobados; warning existente de chunk grande, no error.
+
+Pendientes: integrar/actualizar sólo dev1 por propietario; SDK completo en la
+actualización y prueba mecánica/eléctrica de robot/PCA9685 reales. No hubo acceso
+a un GorillaBot físico. Banco no simula equilibrio ni autoriza caminar.
+No iniciar59 sin validar medidas, montaje/rama y recorridos reales.
+La incidencia HAL previa de56 sigue documentada; no se afirma suite HAL antigua
+completa aprobada ni se modificó para ocultarla.
+
+
 ### Entrega vigente 19/10: fase57 — Laguna, depósito y bombeo
 
 Rama `codex/fase-57-laguna-bombeo` desde origin/dev1 `86e6cfe`.
