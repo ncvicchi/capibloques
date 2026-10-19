@@ -32,6 +32,8 @@ import { weatherSlots, nearestWeatherSlot, defaultWeatherEnvironment, validWeath
 // @ts-expect-error Node strip-types runner.
 import { theaterSlots, defaultTheaterEnvironment, validTheaterEnvironment, type TheaterEnvironment } from './theater-world.ts';
 
+// @ts-expect-error Node strip-types runner.
+import { validLineCircuit, defaultLineCircuit, lineStartAllowed, type LineCircuit } from './line-world.ts';
 export const SCENE_SCHEMA_VERSION = 1 as const;
 
 // @ts-expect-error Node strip-types runner.
@@ -55,6 +57,7 @@ export const legacySceneIds = [
   'robotArena',
   'weatherLab',
   'ottoTheater',
+  'lineTrack',
 ] as const;
 
 export type LegacySceneId = (typeof legacySceneIds)[number];
@@ -99,6 +102,7 @@ export const sceneBackgrounds = [
   'robotArena',
   'weatherLab',
   'ottoTheater',
+  'lineTrack',
   'blank',
 ] as const;
 export type SceneBackground = (typeof sceneBackgrounds)[number];
@@ -134,6 +138,7 @@ export interface SceneCanvas {
   conveyorEnvironment?: ConveyorEnvironment;
   arenaEnvironment?: ArenaEnvironment;
   weatherEnvironment?: WeatherEnvironment;
+  lineCircuit?: LineCircuit;
   theaterEnvironment?: TheaterEnvironment;
   houseAssignments?: Partial<Record<HouseFreeRole, string>>;
   /** Identificadores de atrás hacia adelante; ausente en proyectos anteriores. */
@@ -179,6 +184,10 @@ export function constrainSceneItemPosition(
   item: Pick<SceneDevice | SceneWidget, 'id' | 'kind'>,
   position: ScenePosition,
 ): ScenePosition {
+  if (scene.canvas.background === 'lineTrack') {
+    if(item.kind==='lineSensors')return {x:165,y:420};
+    if(item.kind==='robot'&&!lineStartAllowed(position))return scene.devices.find(d=>d.id===item.id)?.position??position;
+  }
   if (scene.canvas.background === 'ottoTheater') { const slot = theaterSlots.find(s => s.kind === item.kind); if (slot) return { x: slot.x, y: slot.y }; }
   if (scene.canvas.background === 'weatherLab') {
     const slot = nearestWeatherSlot(item.kind, position);
@@ -510,6 +519,7 @@ export type EducationalModuleDevice<K extends EducationalModuleKind = Educationa
 >;
 
 export interface SceneDeviceByKind {
+  lineSensors: EducationalModuleDevice<'lineSensors'>;
   display: DisplayDevice;
   ledMatrix: LedMatrixDevice;
   trafficLight: TrafficLightDevice;
@@ -1412,6 +1422,7 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
   if (source.canvas.background === 'railCrossing' && (kind === 'servo' || kind === 'infraredBarrier') && source.devices.filter(device => device.kind === kind).length >= (kind === 'servo' ? 2 : 2 * railTrackCount(source))) throw new Error('Los lugares de este componente ya están ocupados: dos barreras y dos detectores por vía.');
   if (source.canvas.background === 'parking' && parkingSlots.some(slot => slot.kind === kind) && source.devices.filter(device => device.kind === kind).length >= (kind === 'servo' ? 2 : 4)) throw new Error('El estacionamiento tiene dos lugares para barreras y cuatro para detectores.');
   if (source.canvas.background === 'greenhouse' && gardenSlots.some(slot => slot.kind === kind) && source.devices.filter(device => device.kind === kind).length >= gardenSlots.filter(slot => slot.kind === kind).length) throw new Error('Los lugares de este componente en la huerta e invernadero están ocupados.');
+  if (source.canvas.background === 'lineTrack' && (kind === 'robot' || kind === 'lineSensors') && source.devices.some(d => d.kind === kind)) throw new Error('La pista admite un robot y una barra de tres sensores.');
   if (source.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === kind) && source.devices.some(d => d.kind === kind)) throw new Error('El teatro tiene un Otto y un botón de petición.');
   if (source.canvas.background === 'weatherLab' && weatherSlots.some(s => s.kind === kind) && source.devices.some(d => d.kind === kind)) throw new Error('Este puesto admite un sensor de cada tipo y un techo.');
   if (source.canvas.background === 'robotArena' && arenaKinds.includes(kind as typeof arenaKinds[number]) && source.devices.some(d => d.kind === kind)) throw new Error('La pista admite un robot y un sensor de cada tipo, montados sobre él; una barrera fija de meta.');
@@ -1447,6 +1458,7 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
     const slot = conveyorSlots.find(s => s.kind === kind && !scene.devices.some(d => nearestConveyorSlot(d.kind, d.position)?.role === s.role));
     if (slot) { device.position = { x: slot.x, y: slot.y }; device.rotation = 0; }
   }
+  if (scene.canvas.background === 'lineTrack' && kind === 'lineSensors') device.position={x:165,y:420};
   if (scene.canvas.background === 'robotArena' && ['distanceSensor', 'colorSensor', 'infraredBarrier'].includes(kind)) device.position = kind === 'infraredBarrier' ? { x: 800, y: 110 } : kind === 'distanceSensor' ? { x: 165, y: 420 } : { x: 120, y: 465 };
   if (scene.canvas.background === 'weatherLab') { const slot = nearestWeatherSlot(kind, device.position); if (slot) { device.position = { x: slot.x, y: slot.y }; device.rotation = 0; } }
   if (scene.canvas.background === 'ottoTheater') { const slot = theaterSlots.find(s => s.kind === kind); if (slot) device.position = { x: slot.x, y: slot.y }; }
@@ -1507,6 +1519,7 @@ export function duplicateSceneDevice(
   const original = source.devices.find((device) => device.id === deviceId);
   if (!original) return null;
   if (original.kind === 'display' || original.kind === 'ledMatrix') return null;
+  if (source.canvas.background === 'lineTrack' && ['robot','lineSensors'].includes(original.kind)) return null;
   if (source.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === original.kind)) return null;
   if (source.canvas.background === 'weatherLab' && weatherSlots.some(s => s.kind === original.kind)) return null;
   if (source.canvas.background === 'robotArena' && arenaKinds.includes(original.kind as typeof arenaKinds[number])) return null;
@@ -1905,6 +1918,11 @@ weatherLabTemplate.devices.push(templateDevice('led', weatherLabTemplate.devices
 weatherLabTemplate.devices.push(templateDevice('led', weatherLabTemplate.devices, { id: 'weather-alert-light', name: 'Aviso de lluvia', position: { x: 510, y: 335 }, pins: { signal: 27 }, config: { brightness: 0, color: '#ef7b54' } }));
 weatherLabTemplate.devices.push(templateDevice('activeBuzzer', weatherLabTemplate.devices, { id: 'weather-buzzer', name: 'Aviso sonoro', position: { x: 870, y: 290 }, pins: { signal: 17 } }));
 
+const lineTemplate = createEmptyScene('Vehículo seguidor de línea', { id:'scene-line-track', description:'Tu programa lee tres sensores de suelo y controla cada motor.', canvas:{background:'lineTrack',lineCircuit:structuredClone(defaultLineCircuit)} });
+lineTemplate.sourceTemplate='lineTrack';
+lineTemplate.devices.push(templateDevice('robot',lineTemplate.devices,{id:'line-robot',name:'Seguidor de línea',position:{x:300,y:390},pins:{leftIn1:17,leftIn2:16,rightIn1:23,rightIn2:19},config:{speed:0,heading:0,color:'#38bdf8'}}));
+lineTemplate.devices.push(templateDevice('lineSensors',lineTemplate.devices,{id:'line-sensors',name:'Sensores del suelo',position:{x:165,y:420},pins:{left:34,center:35,right:36}}));
+lineTemplate.devices.push(templateDevice('led',lineTemplate.devices,{id:'line-alert',name:'Aviso de línea perdida',position:{x:870,y:100},pins:{signal:27},config:{brightness:0,color:'#ed885a'}}));
 const theaterTemplate = createEmptyScene('Teatro interactivo de Otto', { id: 'scene-otto-theater', description: 'Saludá al público, atendé peticiones y coordiná movimiento, caras, sonidos y luces.', canvas: { background: 'ottoTheater', theaterEnvironment: { ...defaultTheaterEnvironment } } });
 theaterTemplate.sourceTemplate = 'ottoTheater';
 theaterTemplate.devices.push(templateDevice('otto', theaterTemplate.devices, {
@@ -1934,6 +1952,7 @@ export const sceneTemplates: Readonly<Record<LegacySceneId, SceneDefinition>> =
     robotArena: arenaTemplate,
     weatherLab: weatherLabTemplate,
     ottoTheater: theaterTemplate,
+    lineTrack: lineTemplate,
   };
 
 export function createSceneFromTemplate(templateId: LegacySceneId) {
@@ -1964,7 +1983,7 @@ export function appendTemplateToScene(
   const offset = options.offset ?? { x: 40, y: 40 };
   const addedDeviceIds: string[] = [];
   const warnings: string[] = [];
-  if (templateId === 'railCrossing' || templateId === 'parking' || templateId === 'greenhouse' || templateId === 'smartHouse' || templateId === 'conveyor' || templateId === 'robotArena' || templateId === 'weatherLab' || templateId === 'ottoTheater') {
+  if (templateId === 'railCrossing' || templateId === 'parking' || templateId === 'greenhouse' || templateId === 'smartHouse' || templateId === 'conveyor' || templateId === 'robotArena' || templateId === 'weatherLab' || templateId === 'ottoTheater' || templateId === 'lineTrack') {
     if (scene.devices.length || scene.widgets.length) return { scene, warnings: ['Este mundo se agrega sobre una escena vacía para no reasignar componentes existentes.'], addedDeviceIds };
     const replacement = cloneScene(scene);
     replacement.canvas = structuredClone(template.canvas);
@@ -2168,6 +2187,7 @@ export type SceneValidationIssueCode =
   | 'garden-slot-conflict'
   | 'garden-slot-missing'
   | 'house-slot-position'
+  | 'line-layout'
   | 'theater-layout'
   | 'weather-layout'
   | 'arena-layout'
@@ -2335,6 +2355,10 @@ export function validateScene(
       if (slot && (device.position.x !== slot.x || device.position.y !== slot.y)) issues.push({ code: 'garden-slot-position', severity: 'error', deviceId: device.id, message: `${device.name}: elegí un lugar marcado de la huerta e invernadero.` });
     }
     for (const slot of gardenSlots) if (!roles.includes(slot.role)) issues.push({ code: 'garden-slot-missing', severity: 'warning', message: `Falta ${slot.name.toLowerCase()}. Sin salida no actúa; sin sensor el programa no recibe esa lectura.` });
+  }
+  if (scene.canvas.background === 'lineTrack') {
+    if(scene.canvas.width!==960||scene.canvas.height!==540||scene.devices.filter(d=>d.kind==='robot').length>1||scene.devices.filter(d=>d.kind==='lineSensors').length>1) issues.push({code:'line-layout',severity:'error',message:'La pista usa 960 × 540, un robot y una barra de sensores.'});
+    const robot=scene.devices.find(d=>d.kind==='robot'); if(robot&&!lineStartAllowed(robot.position))issues.push({code:'theater-layout',severity:'error',message:'La posición inicial del robot debe quedar dentro de la mesa.'});
   }
   if (scene.canvas.background === 'ottoTheater') {
     if (scene.canvas.width !== 960 || scene.canvas.height !== 540) issues.push({ code: 'theater-layout', severity: 'error', message: 'El teatro utiliza un lienzo de 960 × 540.' });
@@ -2983,6 +3007,7 @@ export function isSceneDefinition(value: unknown, incompleteDisplayLayout = fals
       'arenaEnvironment',
       'weatherEnvironment',
       'theaterEnvironment',
+      'lineCircuit',
       'houseAssignments',
       'itemOrder',
     ]) &&
@@ -3000,6 +3025,7 @@ export function isSceneDefinition(value: unknown, incompleteDisplayLayout = fals
     (canvas.railTracks === undefined || [1, 2, 4].includes(canvas.railTracks as number)) &&
     (canvas.parkingCapacity === undefined || [4, 8, 12].includes(canvas.parkingCapacity as number)) &&
     (canvas.gardenEnvironment === undefined || validGardenEnvironment(canvas.gardenEnvironment)) &&
+    (canvas.lineCircuit === undefined || validLineCircuit(canvas.lineCircuit)) &&
     (canvas.theaterEnvironment === undefined || validTheaterEnvironment(canvas.theaterEnvironment)) &&
     (canvas.weatherEnvironment === undefined || validWeatherEnvironment(canvas.weatherEnvironment)) &&
     (canvas.arenaEnvironment === undefined || validArenaEnvironment(canvas.arenaEnvironment)) &&

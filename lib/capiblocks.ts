@@ -125,6 +125,7 @@ export type Condition =
   | { kind: 'boolean'; value: boolean };
 
 export type ProgramNode =
+  | { op: 'robotWheels'; deviceId: string; left: number; right: number; blockId: string }
   | { op: 'wait'; ms: number; blockId: string }
   | {
       op: 'traffic';
@@ -303,7 +304,7 @@ export interface ProjectDecodeResult {
   diagnostics: CapiDiagnostic[];
 }
 
-export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4' | 'parkingProcedures' | 'greenhouseProcedures' | 'smartHouseProcedures' | 'conveyorProcedures' | 'robotArenaProcedures' | 'weatherLabProcedures' | 'ottoTheaterProcedures';
+export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4' | 'parkingProcedures' | 'greenhouseProcedures' | 'smartHouseProcedures' | 'conveyorProcedures' | 'robotArenaProcedures' | 'weatherLabProcedures' | 'ottoTheaterProcedures' | 'lineTrackProcedures';
 export interface ExampleDefinition {
   id: ExampleId;
   title: string;
@@ -418,6 +419,7 @@ export interface SimulatorState {
   houseWorld?: import('./house-world').HouseWorldState;
   conveyorWorld?: import('./conveyor-world').ConveyorWorldState;
   arenaWorld?: import('./robot-arena').ArenaWorldState;
+  lineWorld?: import('./line-world').LineWorldState;
   weatherWorld?: import('./weather-world').WeatherWorldState;
   theaterWorld?: import('./theater-world').TheaterWorldState;
   execution?: {
@@ -1257,7 +1259,11 @@ function theaterExample(modular: boolean): ExampleDefinition {
       ] : [])] } } };
 }
 
+// @ts-expect-error Node strip-types runner.
+import { lineExample } from './line-examples.ts';
 export const examples: ExampleDefinition[] = [
+  lineExample(false),
+  lineExample(true),
   {
     id: 'traffic',
     title: 'Semáforo de la plaza',
@@ -1550,6 +1556,7 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_timer_wait',
   'capi_timer_elapsed',
   'capi_timer_remaining',
+  'capi_timer_compare',
   'capi_procedure_def',
   'capi_function_def_number',
   'capi_function_def_text',
@@ -1593,6 +1600,7 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_rgb_animation',
   'capi_pin_write',
   'capi_robot',
+  'capi_robot_wheels',
   'capi_otto',
   'capi_otto_sound',
   'capi_otto_expression',
@@ -2088,6 +2096,7 @@ const blockKind = (block: Record<string, unknown>): SceneDeviceKind | null => {
     case 'capi_rgb_animation':
       return 'smartLights';
     case 'capi_robot':
+    case 'capi_robot_wheels':
       return 'robot';
     case 'capi_otto':
     case 'capi_otto_sound':
@@ -2479,6 +2488,8 @@ const compatibleKindsForNode = (
       return ['smartLights'];
     case 'robot':
       return ['robot'];
+    case 'robotWheels':
+      return ['robot'];
     case 'otto':
     case 'ottoSound':
     case 'ottoExpression':
@@ -2741,6 +2752,9 @@ function normalizeNodes(
           value: Boolean(node.value),
           blockId,
         });
+        break;
+      case 'robotWheels':
+        result.push({op:'robotWheels',deviceId,left:Math.max(-100,Math.min(100,finiteNumber(node.left,0))),right:Math.max(-100,Math.min(100,finiteNumber(node.right,0))),blockId});
         break;
       case 'robot':
         result.push({
@@ -4105,6 +4119,10 @@ function instructionToCpp(
       return `${comment}\n        pinMode(${instruction.pin}, OUTPUT);\n        digitalWrite(${instruction.pin}, ${instruction.value ? 'HIGH' : 'LOW'});\n        ${pc} = ${nextPc};\n        break;`;
     case 'wait':
       return `${comment}\n        if (!${waiting}) { ${waitStarted} = now; ${waiting} = true; return; }\n        if ((uint32_t)(now - ${waitStarted}) < ${Math.max(0, Math.round(instruction.ms))}U) return;\n        ${waiting} = false;\n        ${pc} = ${nextPc};\n        break;`;
+    case 'robotWheels': {
+      const left=Math.max(-100,Math.min(100,Math.round(instruction.left))),right=Math.max(-100,Math.min(100,Math.round(instruction.right)));
+      return `${comment}\n        ${logical ? '// Componente virtual: sin GPIO.' : `driveRobot(DEV_${deviceSymbol(context,instruction.deviceId)}, ${left}, ${right});`}\n        capiAssignText(${componentStateSymbol(instruction.deviceId,'motion')}, "${left===right?(left===0?'STOP':left>0?'FORWARD':'BACKWARD'):(left===-right?(left<right?'LEFT':'RIGHT'):'WHEELS')}");\n        ${pc} = ${nextPc};\n        break;`;
+    }
     case 'robot': {
       const speed = Math.max(0, Math.min(100, Math.round(instruction.speed)));
       const motorPairs = {
@@ -4765,6 +4783,7 @@ function serviceEducationalLines(scene: SceneDefinition, symbols: Map<string, st
     const state = (key: string) => componentStateSymbol(device.id, key);
     const pin = (key: string) => `PIN_${symbol}_${cppIdentifier(key)}`;
     switch (device.kind) {
+      case 'lineSensors': return ['left','center','right'].map(key=>`  ${state(key)} = ${readDigital}(${pin(key)}) == ${device.config.settings.activeLow ? 0 : 1};`);
       case 'pirSensor': return [`  ${state('motion')} = ${readDigital}(${pin('signal')}) != 0;`];
       case 'joystick': return [`  ${state('x')} = ${readAnalog}(${pin('x')});`, `  ${state('y')} = ${readAnalog}(${pin('y')});`, `  ${state('pressed')} = ${readDigital}(${pin('button')}) == 0;`];
       case 'soilMoisture': { const dry = Number(device.config.settings.dry), wet = Number(device.config.settings.wet), clamp = framework === 'esp-idf' ? 'std::clamp' : 'constrain'; return [`  ${state('moisture')} = ${clamp}(100.0 * (${dry} - ${readAnalog}(${pin('signal')})) / (${dry - wet || 1}), 0.0, 100.0);`]; }

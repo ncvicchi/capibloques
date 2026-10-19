@@ -1,4 +1,6 @@
 'use client';
+import LineWorld from '@/components/line-world';
+import type { LineWorldState } from '@/lib/line-world';
 import TheaterWorld from '@/components/theater-world';
 import type { TheaterWorldState } from '@/lib/theater-world';
 import WeatherWorld from '@/components/weather-world';
@@ -93,6 +95,7 @@ interface SceneStageProps {
   arenaWorld?: ArenaWorldState;
   weatherWorld?: WeatherWorldState;
   theaterWorld?: TheaterWorldState;
+  lineWorld?: LineWorldState;
   activeDeviceId?: string;
   activeDeviceMessage?: string;
   scene: SceneDefinition;
@@ -281,6 +284,7 @@ function SceneBackdrop({
   arenaWorld,
   weatherWorld,
   theaterWorld,
+  lineWorld,
   runtimeDevices,
   simulationSpeed,
   simulationRunning,
@@ -294,6 +298,7 @@ function SceneBackdrop({
   arenaWorld?: ArenaWorldState;
   weatherWorld?: WeatherWorldState;
   theaterWorld?: TheaterWorldState;
+  lineWorld?: LineWorldState;
   runtimeDevices: Record<string, RuntimeVisualDevice>;
   simulationSpeed: number;
   simulationRunning: boolean;
@@ -332,6 +337,7 @@ function SceneBackdrop({
   if (background === 'railCrossing') return <RailCrossingWorld scene={scene} state={railWorld} />;
   if (background === 'parking') return <ParkingWorld scene={scene} state={parkingWorld} />;
   if (background === 'greenhouse') return <GardenWorld scene={scene} state={gardenWorld} />;
+  if (background === 'lineTrack') return <LineWorld scene={scene} state={lineWorld} />;
   if (background === 'ottoTheater') return <TheaterWorld scene={scene} state={theaterWorld} />;
   if (background === 'weatherLab') return <WeatherWorld scene={scene} state={weatherWorld} />;
   if (background === 'robotArena') return <ArenaWorld scene={scene} state={arenaWorld} />;
@@ -632,6 +638,7 @@ export default function SceneStage({
   arenaWorld,
   weatherWorld,
   theaterWorld,
+  lineWorld,
   activeDeviceId,
   activeDeviceMessage,
   scene,
@@ -891,6 +898,7 @@ export default function SceneStage({
         arenaWorld={arenaWorld}
         weatherWorld={weatherWorld}
         theaterWorld={theaterWorld}
+        lineWorld={lineWorld}
         runtimeDevices={runtimeDevices}
         simulationSpeed={safeSimulationSpeed}
         simulationRunning={simulationRunning}
@@ -950,6 +958,7 @@ export default function SceneStage({
         );
       })}
       {scene.devices.map((device) => {
+        if (scene.canvas.background === 'lineTrack' && device.kind === 'lineSensors') return null;
         if (scene.canvas.background === 'robotArena' && (device.kind === 'distanceSensor' || device.kind === 'colorSensor')) return null;
         const runtime = runtimeDevices[device.id];
         const runtimeX = device.kind === 'robot' ? runtime?.x : undefined;
@@ -975,7 +984,7 @@ export default function SceneStage({
         const conveyorAnchor = scene.canvas.background === 'conveyor' && nearestConveyorSlot(device.kind, device.position);
         const houseAnchor = scene.canvas.background === 'smartHouse' && nearestHouseSlot(device.kind, device.position);
         const weatherAnchor = scene.canvas.background === 'weatherLab' && nearestWeatherSlot(device.kind, device.position);
-        const arenaAnchor = scene.canvas.background === 'robotArena' && (device.kind === 'robot' || device.kind === 'infraredBarrier');
+        const arenaAnchor = (scene.canvas.background === 'lineTrack' && device.kind === 'robot') || scene.canvas.background === 'robotArena' && (device.kind === 'robot' || device.kind === 'infraredBarrier');
         const railAnchor = !!weatherAnchor || arenaAnchor || !!conveyorAnchor || !!houseAnchor || !!gardenAnchor || !!parkingAnchor || (scene.canvas.background === 'railCrossing' && !!nearestRailSlot(device.kind, device.position, railTrackCount(scene)));
         const size = railAnchor ? { width: 40, height: 40 } : sceneItemSize(device);
         const labelSide = (scene.canvas.background === 'ottoTheater' || ((scene.canvas.background === 'smartHouse' && (device.kind === 'led' || device.kind === 'button')) || (scene.canvas.background === 'weatherLab' && !weatherAnchor))) ? 'bottom' : sceneItemLabelSide(scene, device.id);

@@ -1,4 +1,10 @@
 # Plan de CapiBloques: multiusuario, enseñanza y programación de Wemos
+
+**Estado vigente19/10: fase56 implementada en rama dev1.** [Reglas y entrega](FASE_56_SEGUIDOR_LINEA.md), software de seguidor con editor y dos ejemplos completos. Runtime1.10.0 ABI1; actualización/SDK completo/aceptación física y Waveshare pendientes. Main/dev2 no operados; análisis55 conservado. No ampliar fases por inferencia.
+
+
+**19/10: fase55 terminada como análisis documental.** [Parque, laguna y aeropuerto](FASE_55_ANALISIS_VARIANTES_ESCENAS.md): candidatos y límites, ninguna variante implementada. Recomendada fase56 tras acordar reglas; nuevas implementaciones requieren autorización. Fase54 en DEV original por confirmación del propietario, no aceptación física/SDK/Waveshare. Estados inferiores son históricos.
+
 **Estado vigente: fase 54 entregada en software en rama desde dev1.** [Reglas y evidencia del teatro de Otto](FASE_54_TEATRO_OTTO.md). Dos ejemplos completos; runtime 1.9.1, ABI 1; actualización/aceptación dev1, SDK completo, físico y Waveshare pendientes. No tocar main/dev2 ni iniciar 55–56. Estados inferiores conservados como historia, no instrucciones de fase actual.
 
 

@@ -1,4 +1,12 @@
 # Backlog de CapiBloques
+
+**Fase56 — Seguidor de línea, software en rama desde dev1:** [reglas y entrega](FASE_56_SEGUIDOR_LINEA.md). Tres reflectivos digitales, control independiente de ruedas, circuitos predefinidos/propios y editor amplio con undo/redo/guardar/cancelar. Dos ejemplos completos: corrección básica y búsqueda limitada con cinco tareas/tres pestañas. Runtime1.10.0 ABI1; actualización dev1, SDK completo, aceptación de sensores/chasis y mundo Waveshare pendientes. Inventario avanzado del plan conservado, no autorizado por esta entrega. Incluye documentación55 aún no integrada; main/dev2 intactos.
+
+
+**Fase 55 — Análisis cerrado (19/10):** [parque, laguna y aeropuerto](FASE_55_ANALISIS_VARIANTES_ESCENAS.md). Parque reutiliza casa/huerta; laguna con depósito, nivel y bombeo es el candidato de mayor novedad; aeropuerto se retiene para arbitraje de pista/pedidos, no sólo otro tránsito. Fuente coreografiada, puente/barcos y variantes de parque quedan evaluadas en la misma entrada, sin perder pendientes ni crear fases implícitas. Ninguna variante implementada/autorizada. Recomendación: acordar primero fase56 (seguidor de línea); después definir laguna si interesa.
+
+**Confirmación operativa de fase54:** el propietario informó que ya quedó en DEV original; su entrega está integrada en las ramas remotas dev1/main. Esto no verifica remotamente SDK, hardware ni renderer Waveshare. Las menciones inferiores a actualización pendiente son históricas.
+
 **Fase 54 — Teatro interactivo de Otto:** software en rama `codex/fase-54-teatro-otto` desde dev1. Público frontal, peticiones y dos ejemplos completos, directo y modular; [reglas/evidencia](FASE_54_TEATRO_OTTO.md). Coordinación corporal FIFO sin preempción, runtime 1.9.1 / ABI 1. Actualización dev1, SDK completo, aceptación y paridad Waveshare/físico pendientes. No se tocaron main/dev2. Fases 55–56 sólo planificadas; estados históricos inferiores no revocan esta autorización.
 
 
