@@ -36,7 +36,7 @@ export function componentValueCapabilities(device: SceneDevice): ComponentValueC
   if (isEducationalModuleKind(device.kind)) return educationalModuleSpecs[device.kind].values.map(value => ({ key: value.key, label: value.label, type: value.type, source: ['powerSwitch','stepper'].includes(device.kind) ? 'ordered' : 'measured', help: value.help }));
   const values = (common[device.kind] ?? []).map(value => ({ ...value,
     ...(device.kind === 'trafficLight' && value.key === 'color' ? { choices: ['OFF', 'RED', 'YELLOW', 'GREEN'] } : {}),
-    ...(device.kind === 'robot' && value.key === 'motion' ? { choices: ['STOP', 'FORWARD', 'BACKWARD', 'LEFT', 'RIGHT'] } : {}),
+    ...(device.kind === 'robot' && value.key === 'motion' ? { choices: ['STOP', 'FORWARD', 'BACKWARD', 'LEFT', 'RIGHT', 'WHEELS'] } : {}),
     ...(device.kind === 'wifiNode' && value.key === 'status' ? { choices: ['desconectado', 'conectando', 'conectado', 'error'] } : {}),
   }));
   if (device.kind === 'otto' && !['biped4-explorer','biped4-expressive','humanoid6-expressive'].includes(device.config.profile)) return values.filter(item => item.key !== 'distance' && item.key !== 'expression');

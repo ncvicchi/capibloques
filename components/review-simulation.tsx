@@ -324,6 +324,7 @@ export default function ReviewSimulation({
           arenaWorld={state?.arenaWorld}
           weatherWorld={state?.weatherWorld}
           theaterWorld={state?.theaterWorld}
+          lineWorld={state?.lineWorld}
           counter={state?.counter}
           simulationSpeed={speed}
           simulationRunning={state?.status === 'running'}
@@ -338,6 +339,7 @@ export default function ReviewSimulation({
           {project.scene.canvas.background === 'greenhouse' && <GardenControls value={state?.gardenWorld?.environment ?? project.scene.canvas.gardenEnvironment ?? defaultGardenEnvironment} onChange={value => worker.current?.postMessage({ type: 'SET_INPUT', name: 'gardenEnvironment', value })} />}
           {project.scene.devices.map((device) => {
             const runtime = state?.devices[device.id];
+            if(project.scene.canvas.background==='lineTrack'&&device.kind==='lineSensors')return <p key={device.id}>{device.name}: lectura automática bajo el robot, no editable.</p>;
             if (Object.values(theaterBindings(project.scene)).includes(device.id)) return <p key={device.id}>{device.name} · entrada automática del público</p>;
             if (['climate', 'rain', 'light'].some(role => weatherBindings(project.scene)[role as 'climate' | 'rain' | 'light'] === device.id)) return <p key={device.id}>{device.name} · lectura automática del clima exterior</p>;
             if (['distanceSensor', 'colorSensor', 'infraredBarrier'].some(kind => arenaBindings(project.scene)[kind as 'distanceSensor' | 'colorSensor' | 'infraredBarrier'] === device.id)) return <p key={device.id}>{device.name} · lectura automática de la pista</p>;

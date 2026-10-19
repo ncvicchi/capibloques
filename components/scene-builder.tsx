@@ -1,4 +1,6 @@
 'use client';
+import LineCircuitEditor from '@/components/line-circuit-editor';
+import { defaultLineCircuit } from '@/lib/line-world';
 import TheaterControls from '@/components/theater-controls';
 import { theaterSlots, defaultTheaterEnvironment } from '@/lib/theater-world';
 import WeatherControls from '@/components/weather-controls';
@@ -128,6 +130,7 @@ const backgrounds: { value: SceneBackground; label: string; icon: string }[] = [
   { value: 'railCrossing', label: 'Paso a nivel', icon: '🚂' },
   { value: 'parking', label: 'Estacionamiento', icon: '🅿️' },
   { value: 'greenhouse', label: 'Huerta e invernadero', icon: '🌱' },
+  { value:'lineTrack',label:'Vehículo seguidor de línea',icon:'〰️' },
   { value: 'ottoTheater', label: 'Teatro interactivo de Otto', icon: '🎭' },
   { value: 'weatherLab', label: 'Estación meteorológica y puesto', icon: '🌦️' },
   { value: 'robotArena', label: 'Pista de exploración y reparto', icon: '🤖' },
@@ -169,6 +172,7 @@ const quickTemplates: {
   { id: 'railCrossing', name: 'Paso a nivel', icon: '🚂', detail: 'barreras + detectores' },
   { id: 'parking', name: 'Estacionamiento', icon: '🅿️', detail: 'entrada + salida + plazas' },
   { id: 'greenhouse', name: 'Huerta e invernadero', icon: '🌱', detail: 'dos canteros + riego + ventana' },
+  { id:'lineTrack',name:'Seguidor de línea',icon:'〰️',detail:'tres sensores + motores independientes' },
   { id: 'ottoTheater', name: 'Teatro de Otto', icon: '🎭', detail: 'público + petición + coreografías' },
   { id: 'weatherLab', name: 'Puesto meteorológico', icon: '🌦️', detail: 'clima + lluvia + techo móvil' },
   { id: 'robotArena', name: 'Pista de exploración', icon: '🤖', detail: 'robot + sensores montados + estaciones' },
@@ -316,6 +320,7 @@ function SceneBuilderSession({
   const [pendingSelectionId, setPendingSelectionId] = useState<string | null>(
     null,
   );
+  const [lineEditorOpen,setLineEditorOpen]=useState(false);
   const [discardSceneOpen, setDiscardSceneOpen] = useState(false);
   const [pendingBoardProfile, setPendingBoardProfile] = useState<BoardProfileId | null>(null);
   const [matrixPreviewPattern, setMatrixPreviewPattern] = useState<{ deviceId: string; patternId: string } | null>(null);
@@ -970,6 +975,8 @@ function SceneBuilderSession({
                       ? arrangeParkingDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
                       : changed.canvas.background === 'greenhouse'
                       ? arrangeGardenDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
+                      : changed.canvas.background === 'lineTrack'
+                      ? {...changed,canvas:{...changed.canvas,width:960,height:540},devices:changed.devices.map(d=>d.kind==='lineSensors'?{...d,position:{x:165,y:420}}:d)}
                       : changed.canvas.background === 'ottoTheater'
                       ? arrangeTheaterDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
                       : changed.canvas.background === 'weatherLab'
@@ -1016,6 +1023,7 @@ function SceneBuilderSession({
                 </small>
               )}
             </label>
+            {previewScene.canvas.background === 'lineTrack' && <div className="scene-inline-notice"><button type="button" onClick={()=>{if(requireSettledInspector('editar el circuito'))setLineEditorOpen(true);}}>Editar circuito</button><small>Mové y orientá el robot antes de correr. La barra de sensores va montada al frente. No hay piloto automático.</small></div>}
             {previewScene.canvas.background === 'ottoTheater' && <details><summary>Público al comenzar</summary><TheaterControls value={previewScene.canvas.theaterEnvironment ?? defaultTheaterEnvironment} onChange={value => { if (requireSettledInspector('cambiar el público inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, theaterEnvironment: value } }, 'Público inicial actualizado en el borrador.'); }} /></details>}
             {previewScene.canvas.background === 'weatherLab' && <details><summary>Clima al comenzar</summary><WeatherControls value={previewScene.canvas.weatherEnvironment ?? defaultWeatherEnvironment} onChange={value => { if (requireSettledInspector('cambiar el clima inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, weatherEnvironment: value } }, 'Clima inicial actualizado en el borrador.'); }} /></details>}
             {previewScene.canvas.background === 'robotArena' && <details><summary>Pista al comenzar</summary><ArenaControls value={previewScene.canvas.arenaEnvironment ?? defaultArenaEnvironment} onChange={value => { const robot = previewScene.devices.find(d => d.kind === 'robot'); if (robot && !arenaStartAllowed(robot.position, value)) { setMessage('El obstáculo no puede superponerse al robot.'); return; } if (requireSettledInspector('cambiar la pista inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, arenaEnvironment: value } }, 'Pista inicial actualizada en el borrador.'); }} /></details>}
@@ -1176,7 +1184,7 @@ function SceneBuilderSession({
                       type="button"
                       key={template.id}
                       disabled={
-                        ((template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor' || template.id === 'robotArena' || template.id === 'weatherLab' || template.id === 'ottoTheater') && objectCount > 0) ||
+                        ((template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor' || template.id === 'robotArena' || template.id === 'weatherLab' || template.id === 'ottoTheater' || template.id === 'lineTrack') && objectCount > 0) ||
                         (template.id === 'traffic' || template.id === 'intersection') &&
                         previewScene.canvas.background !== 'crossroads' &&
                         objectCount > 0
@@ -1184,7 +1192,7 @@ function SceneBuilderSession({
                       onClick={() => addTemplate(template.id)}
                       aria-label={`Agregar aventura ${template.name}: ${template.detail}`}
                       title={
-                        (template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor' || template.id === 'robotArena' || template.id === 'weatherLab' || template.id === 'ottoTheater') && objectCount > 0
+                        (template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor' || template.id === 'robotArena' || template.id === 'weatherLab' || template.id === 'ottoTheater' || template.id === 'lineTrack') && objectCount > 0
                           ? 'Este mundo completo se agrega a una escena vacía; no reemplaza componentes existentes.'
                           : (template.id === 'traffic' || template.id === 'intersection') &&
                         previewScene.canvas.background !== 'crossroads' &&
@@ -1230,6 +1238,7 @@ function SceneBuilderSession({
                       previewScene.devices.filter(device => device.kind === component.kind).length >= (component.kind === 'servo' ? 2 : railTrackCount(previewScene) * 2);
                     const parkingLimitBlocked = previewScene.canvas.background === 'parking' && (component.kind === 'servo' || component.kind === 'infraredBarrier') && previewScene.devices.filter(device => device.kind === component.kind).length >= (component.kind === 'servo' ? 2 : 4);
                     const gardenLimitBlocked = previewScene.canvas.background === 'greenhouse' && gardenSlots.some(slot => slot.kind === component.kind) && previewScene.devices.filter(device => device.kind === component.kind).length >= gardenSlots.filter(slot => slot.kind === component.kind).length;
+                    const lineLimitBlocked = previewScene.canvas.background==='lineTrack' && (component.kind==='robot'||component.kind==='lineSensors') && previewScene.devices.some(d=>d.kind===component.kind);
                     const theaterLimitBlocked = previewScene.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === component.kind) && previewScene.devices.some(d => d.kind === component.kind);
                     const weatherLimitBlocked = previewScene.canvas.background === 'weatherLab' && weatherSlots.some(s => s.kind === component.kind) && previewScene.devices.some(d => d.kind === component.kind);
                     const arenaLimitBlocked = previewScene.canvas.background === 'robotArena' && arenaKinds.includes(component.kind as typeof arenaKinds[number]) && previewScene.devices.some(d => d.kind === component.kind);
@@ -1246,13 +1255,13 @@ function SceneBuilderSession({
                         : railLimitBlocked ? 'No disponible: los lugares de este componente en el paso a nivel están ocupados'
                         : parkingLimitBlocked ? 'No disponible: los lugares de este componente en el estacionamiento están ocupados'
                         : gardenLimitBlocked ? 'No disponible: los lugares de este componente en la huerta están ocupados'
-                        : theaterLimitBlocked ? 'No disponible: el teatro admite un Otto y un botón de petición'
+                        : lineLimitBlocked ? 'No disponible: un robot y una barra de sensores en esta mesa' : theaterLimitBlocked ? 'No disponible: el teatro admite un Otto y un botón de petición'
                         : weatherLimitBlocked ? 'No disponible: el puesto tiene un lugar por sensor y un techo'
                         : arenaLimitBlocked ? 'No disponible: la pista admite un robot y un sensor de cada tipo; los sensores van montados'
                         : conveyorLimitBlocked ? 'No disponible: los lugares de este componente en el taller están ocupados'
                         : houseLimitBlocked ? 'No disponible: los lugares de este componente en la casa están ocupados'
                         : component.childFriendlyControl;
-                    const componentBlocked = visualBlocked || messagesBlocked || trafficSceneBlocked || trafficLimitBlocked || railLimitBlocked || parkingLimitBlocked || gardenLimitBlocked || houseLimitBlocked || conveyorLimitBlocked || arenaLimitBlocked || weatherLimitBlocked || theaterLimitBlocked;
+                    const componentBlocked = visualBlocked || messagesBlocked || trafficSceneBlocked || trafficLimitBlocked || railLimitBlocked || parkingLimitBlocked || gardenLimitBlocked || houseLimitBlocked || conveyorLimitBlocked || arenaLimitBlocked || weatherLimitBlocked || theaterLimitBlocked || lineLimitBlocked;
                     return <div className="component-palette-card" key={component.kind}>
                       <button type="button" className="component-add-button" disabled={componentBlocked} onClick={() => addComponent(component.kind)} title={componentBlocked ? reason : component.description} aria-label={`Agregar ${component.name}. ${reason}`}>
                         <span aria-hidden="true">{component.icon}</span><span><strong>{component.name}</strong><small>{reason}</small></span><b aria-hidden="true">{componentBlocked ? '🔒' : '＋'}</b>
@@ -1395,7 +1404,7 @@ function SceneBuilderSession({
                       max="330"
                       step="30"
                       value={selected.rotation}
-                      disabled={(previewScene.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === selected.kind)) || (previewScene.canvas.background === 'weatherLab' && !!nearestWeatherSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'robotArena' && ['distanceSensor', 'colorSensor', 'infraredBarrier'].includes(selected.kind)) || (previewScene.canvas.background === 'conveyor' && !!nearestConveyorSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'smartHouse' && !!nearestHouseSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'greenhouse' && !!nearestGardenSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'parking' && !!nearestParkingSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'railCrossing' && !!nearestRailSlot(selected.kind, selected.position, railTrackCount(previewScene)))}
+                      disabled={(previewScene.canvas.background==='lineTrack' && selected.kind==='lineSensors') || (previewScene.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === selected.kind)) || (previewScene.canvas.background === 'weatherLab' && !!nearestWeatherSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'robotArena' && ['distanceSensor', 'colorSensor', 'infraredBarrier'].includes(selected.kind)) || (previewScene.canvas.background === 'conveyor' && !!nearestConveyorSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'smartHouse' && !!nearestHouseSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'greenhouse' && !!nearestGardenSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'parking' && !!nearestParkingSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'railCrossing' && !!nearestRailSlot(selected.kind, selected.position, railTrackCount(previewScene)))}
                       onChange={(event) =>
                         updateSelectedDraft((device) => ({
                           ...device,
@@ -1445,7 +1454,7 @@ function SceneBuilderSession({
                     return <div className="messages-properties">
                       <label><span>Modelo</span><NativeSelect value={moduleDevice.config.profile} onChange={event => updateSelectedDraft(device => isEducationalModuleKind(device.kind) ? { ...(device as EducationalModuleDevice), config: { ...(device as EducationalModuleDevice).config, profile: event.target.value } } as SceneDevice : device)}>{spec.profiles.map(profile => <NativeSelectOption key={profile.id} value={profile.id}>{profile.label}</NativeSelectOption>)}</NativeSelect></label>
                       <small>{spec.description}</small>
-                      {Object.entries(moduleDevice.config.settings).map(([key, value]) => <label key={key}><span>{key === 'threshold' ? 'Umbral' : key === 'speed' ? 'Velocidad' : key === 'baudRate' ? 'Velocidad de comunicación' : key === 'deadZone' ? 'Zona central' : key === 'maxDistance' ? 'Distancia máxima' : key}</span>{typeof value === 'boolean' ? <input type="checkbox" checked={value} onChange={event => updateSelectedDraft(device => { if (!isEducationalModuleKind(device.kind)) return device; const current = device as EducationalModuleDevice; return { ...current, config: { ...current.config, settings: { ...current.config.settings, [key]: event.target.checked } } } as SceneDevice; })} /> : <Input type={typeof value === 'number' ? 'number' : 'text'} value={String(value)} onChange={event => updateSelectedDraft(device => { if (!isEducationalModuleKind(device.kind)) return device; const current = device as EducationalModuleDevice; return { ...current, config: { ...current.config, settings: { ...current.config.settings, [key]: typeof value === 'number' ? Number(event.target.value) : event.target.value } } } as SceneDevice; })} />}</label>)}
+                      {Object.entries(moduleDevice.config.settings).map(([key, value]) => <label key={key}><span>{key === 'activeLow' ? 'La salida es LOW sobre la línea' : key === 'threshold' ? 'Umbral' : key === 'speed' ? 'Velocidad' : key === 'baudRate' ? 'Velocidad de comunicación' : key === 'deadZone' ? 'Zona central' : key === 'maxDistance' ? 'Distancia máxima' : key}</span>{typeof value === 'boolean' ? <input type="checkbox" checked={value} onChange={event => updateSelectedDraft(device => { if (!isEducationalModuleKind(device.kind)) return device; const current = device as EducationalModuleDevice; return { ...current, config: { ...current.config, settings: { ...current.config.settings, [key]: event.target.checked } } } as SceneDevice; })} /> : <Input type={typeof value === 'number' ? 'number' : 'text'} value={String(value)} onChange={event => updateSelectedDraft(device => { if (!isEducationalModuleKind(device.kind)) return device; const current = device as EducationalModuleDevice; return { ...current, config: { ...current.config, settings: { ...current.config.settings, [key]: typeof value === 'number' ? Number(event.target.value) : event.target.value } } } as SceneDevice; })} />}</label>)}
                     </div>;
                   })()}
                   {selected.kind === 'smartLights' && (
@@ -1724,8 +1733,8 @@ function SceneBuilderSession({
                       type="button"
                       variant="outline"
                       onClick={duplicateSelected}
-                      disabled={(previewScene.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === selected.kind)) || (previewScene.canvas.background === 'weatherLab' && !!nearestWeatherSlot(selected.kind, selected.position)) || selected.kind === 'display' || selected.kind === 'ledMatrix' || (previewScene.canvas.background === 'robotArena' && arenaKinds.includes(selected.kind as typeof arenaKinds[number]))}
-                      title={previewScene.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === selected.kind) ? 'Un Otto y una petición en este teatro' : previewScene.canvas.background === 'weatherLab' && nearestWeatherSlot(selected.kind, selected.position) ? 'Un sensor por lugar y un techo en este puesto' : previewScene.canvas.background === 'robotArena' && arenaKinds.includes(selected.kind as typeof arenaKinds[number]) ? 'Un robot y un sensor de cada tipo en esta pista' : selected.kind === 'display' || selected.kind === 'ledMatrix' ? 'Una sola pantalla o matriz por proyecto' : undefined}
+                      disabled={(previewScene.canvas.background==='lineTrack' && ['robot','lineSensors'].includes(selected.kind)) || (previewScene.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === selected.kind)) || (previewScene.canvas.background === 'weatherLab' && !!nearestWeatherSlot(selected.kind, selected.position)) || selected.kind === 'display' || selected.kind === 'ledMatrix' || (previewScene.canvas.background === 'robotArena' && arenaKinds.includes(selected.kind as typeof arenaKinds[number]))}
+                      title={previewScene.canvas.background==='lineTrack' && ['robot','lineSensors'].includes(selected.kind) ? 'Un robot y una barra de sensores en esta mesa' : previewScene.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === selected.kind) ? 'Un Otto y una petición en este teatro' : previewScene.canvas.background === 'weatherLab' && nearestWeatherSlot(selected.kind, selected.position) ? 'Un sensor por lugar y un techo en este puesto' : previewScene.canvas.background === 'robotArena' && arenaKinds.includes(selected.kind as typeof arenaKinds[number]) ? 'Un robot y un sensor de cada tipo en esta pista' : selected.kind === 'display' || selected.kind === 'ledMatrix' ? 'Una sola pantalla o matriz por proyecto' : undefined}
                     >
                       📄 Duplicar
                     </Button>
@@ -2003,6 +2012,7 @@ function SceneBuilderSession({
           </AlertDialogContent>
         </AlertDialog>
       </Dialog>
+      {lineEditorOpen && <LineCircuitEditor value={previewScene.canvas.lineCircuit??defaultLineCircuit} onCancel={()=>setLineEditorOpen(false)} onSave={value=>{commitScene({...previewScene,canvas:{...previewScene.canvas,lineCircuit:value}},'Circuito actualizado en el borrador.');setLineEditorOpen(false);}} />}
       {helpTarget && <ComponentHelpDialog open onOpenChange={next => !next && setHelpTarget(null)} kind={helpTarget.kind} device={helpTarget.device} boardProfileId={draftBoardProfile} />}
     </>
   );

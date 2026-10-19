@@ -1,4 +1,6 @@
 // @ts-expect-error Node strip-types runner.
+import { createLineWorld, advanceLineWorld, lineBindings, defaultLineCircuit } from './line-world.ts';
+// @ts-expect-error Node strip-types runner.
 import { createTheaterWorldState, advanceTheaterWorld, theaterBindings, theaterHasDistance, validTheaterEnvironment } from './theater-world.ts';
 // @ts-expect-error Node strip-types runner.
 import { advanceWeatherWorld, createWeatherWorldState, weatherBindings, validWeatherEnvironment } from './weather-world.ts';
@@ -485,6 +487,7 @@ function freshState(): SimulatorState {
     ...(scene.canvas.background === 'greenhouse' ? { gardenWorld: createGardenWorldState(scene.canvas.gardenEnvironment, initialAngle(gardenBindings(scene).window)) } : {}),
     ...(scene.canvas.background === 'ottoTheater' ? { theaterWorld: createTheaterWorldState(scene.canvas.theaterEnvironment) } : {}),
     ...(scene.canvas.background === 'weatherLab' ? { weatherWorld: createWeatherWorldState(scene.canvas.weatherEnvironment, weatherBindings(scene).roof ? initialAngle(weatherBindings(scene).roof) : 90) } : {}),
+    ...(scene.canvas.background === 'lineTrack' ? { lineWorld: createLineWorld(arenaPose(scene).position, arenaPose(scene).angle) } : {}),
     ...(scene.canvas.background === 'robotArena' ? { arenaWorld: createArenaWorldState(arenaPose(scene).position, arenaPose(scene).angle) } : {}),
     ...(scene.canvas.background === 'conveyor' ? { conveyorWorld: createConveyorWorldState(scene.canvas.conveyorEnvironment, initialAngle(conveyorBindings(scene).gate)) } : {}),
     ...(scene.canvas.background === 'smartHouse' ? { houseWorld: createHouseWorldState(scene.canvas.houseEnvironment, initialAngle(houseBindings(scene).door)) } : {}),
@@ -854,6 +857,7 @@ function resetExecution(
   updateHousePhysics(0);
   updateConveyorPhysics(0);
   updateArenaPhysics(0);
+  updateLinePhysics(0);
   state.status = status;
   virtualNow = 0;
   schedulerDebtMs = 0;
@@ -989,8 +993,8 @@ function evaluateValue(expression: ValueExpression): number | string | boolean {
         return device.brightness;
       if (device.kind === 'robot' && expression.property === 'motion') {
         if (device.left === 0 && device.right === 0) return 'STOP';
-        if (device.left > 0 && device.right > 0) return 'FORWARD';
-        if (device.left < 0 && device.right < 0) return 'BACKWARD';
+        if (device.left === device.right) return device.left > 0 ? 'FORWARD' : 'BACKWARD';
+        if (device.left !== -device.right) return 'WHEELS';
         return device.left < device.right ? 'LEFT' : 'RIGHT';
       }
       if (device.kind === 'motor' && expression.property === 'power')
@@ -2074,6 +2078,9 @@ function executeInstruction(
         `GPIO ${node.pin}: ${node.value ? 'encendido' : 'apagado'}`,
       );
       break;
+    case 'robotWheels': {
+      const device=programDevice(node.deviceId);if(device?.kind==='robot'){device.left=Math.max(-100,Math.min(100,node.left));device.right=Math.max(-100,Math.min(100,node.right));appendConsole(`${deviceName(node.deviceId)}: motor izquierdo ${device.left}%, derecho ${device.right}%`);}break;
+    }
     case 'robot': {
       const device = programDevice(node.deviceId);
       if (device?.kind === 'robot') {
@@ -2633,6 +2640,12 @@ function updateGardenPhysics(deltaMs: number) {
   if (bindings.light) applyInputValue(bindings.light, Math.round(world.light / 100 * 4095));
 }
 
+function updateLinePhysics(deltaMs:number) {
+  if(!state.lineWorld)return;const b=lineBindings(scene),robot=b.robot?state.devices[b.robot]:undefined;
+  const w=state.lineWorld=advanceLineWorld(state.lineWorld,scene.canvas.lineCircuit??defaultLineCircuit,robot?.kind==='robot'?robot.left:0,robot?.kind==='robot'?robot.right:0,deltaMs);
+  if(robot?.kind==='robot'){robot.x=w.x/scene.canvas.width*100;robot.y=w.y/scene.canvas.height*100;robot.angle=w.angle;}
+  const sensors=b.sensors?state.devices[b.sensors]:undefined;if(sensors?.kind==='educationalModule')Object.assign(sensors.values,{left:w.left,center:w.center,right:w.right});
+}
 function updateArenaPhysics(deltaMs: number) {
   if (!state.arenaWorld) return;
   const b = arenaBindings(scene), robot = b.robot ? state.devices[b.robot] : undefined;
@@ -2679,6 +2692,7 @@ function updatePhysics(deltaMs: number) {
     updateHousePhysics(deltaMs);
     updateConveyorPhysics(deltaMs);
     updateArenaPhysics(deltaMs);
+    updateLinePhysics(deltaMs);
   }
   updateVisualAnimations();
   for (const timer of Object.values(state.timers)) {
@@ -2705,7 +2719,7 @@ function updatePhysics(deltaMs: number) {
       remainder === 0 ? timer.durationMs : timer.durationMs - remainder;
   }
   for (const [deviceId, device] of Object.entries(state.devices)) {
-    if (device.kind === 'robot' && scene.canvas.background !== 'robotArena') {
+    if (device.kind === 'robot' && scene.canvas.background !== 'robotArena' && scene.canvas.background !== 'lineTrack') {
       const average = (device.left + device.right) / 2;
       const turn = (device.right - device.left) * 0.0012 * deltaMs;
       device.angle += turn;
@@ -2916,6 +2930,7 @@ function stopOutputs() {
 }
 
 function setInputById(deviceId: string, value: unknown) {
+  if(lineBindings(scene).sensors===deviceId)return;
   if (['distanceSensor', 'colorSensor', 'infraredBarrier'].some(kind => arenaBindings(scene)[kind as 'distanceSensor' | 'colorSensor' | 'infraredBarrier'] === deviceId)) return;
   if (Object.values(theaterBindings(scene)).includes(deviceId)) return;
   if (['climate', 'rain', 'light'].some(role => weatherBindings(scene)[role as 'climate' | 'rain' | 'light'] === deviceId)) return;

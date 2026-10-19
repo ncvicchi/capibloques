@@ -133,6 +133,7 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
     case 'capi_rgb_pattern':
     case 'capi_rgb_animation':
       return ['smartLights'];
+    case 'capi_robot_wheels':
     case 'capi_robot':
       return ['robot'];
     case 'capi_otto':
@@ -865,6 +866,7 @@ const toolbox = {
       colour: '#328BDD',
       contents: [
         { kind: 'block', type: 'capi_robot' },
+        { kind: 'block', type: 'capi_robot_wheels' },
         { kind: 'block', type: 'capi_otto' },
         { kind: 'block', type: 'capi_otto_arms' },
         { kind: 'block', type: 'capi_otto_sound' },
@@ -2244,6 +2246,9 @@ function registerBlocks(Blockly: BlocklyApi) {
       colour: '#0D8A75',
       tooltip: 'Control avanzado de una salida digital.',
       extensions: [BOARD_PIN_EXTENSION],
+    },
+    {
+      type:'capi_robot_wheels',message0:'🤖 %1: motor izquierdo %2 %% · derecho %3 %%',args0:[deviceField('⚠️ agrega un robot'),{type:'field_number',name:'LEFT',value:40,min:-100,max:100,precision:1},{type:'field_number',name:'RIGHT',value:40,min:-100,max:100,precision:1}],previousStatement:null,nextStatement:null,colour:'#328BDD',tooltip:'Cada motor: positivo avanza, negativo retrocede, cero detiene. Conserva su orden hasta otra orden.',extensions:[DEVICE_EXTENSION],
     },
     {
       type: 'capi_robot',
@@ -3801,6 +3806,8 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           blockId,
         });
         break;
+      case 'capi_robot_wheels':
+        result.push({op:'robotWheels',deviceId:selectedDeviceId(block),left:numberField(block,'LEFT',40),right:numberField(block,'RIGHT',40),blockId});break;
       case 'capi_robot':
         result.push({
           op: 'robot',

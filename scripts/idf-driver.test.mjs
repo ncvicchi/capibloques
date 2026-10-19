@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { generateEspIdfCodeResult } from '../lib/capiblocks.ts';
 import { firmwareFixture } from './firmware-fixtures.mjs';
 import { displayConfig, displayProfiles } from '../lib/display-model.ts';
-import { addDeviceToScene, createEmptyScene } from '../lib/scene-model.ts';
+import { addDeviceToScene, createEmptyScene, createSceneFromTemplate } from '../lib/scene-model.ts';
 
 const directory = resolve('work/idf-driver-test');
 const stub = `#pragma once
@@ -142,6 +142,7 @@ for (const header of ['freertos/FreeRTOS.h','freertos/task.h','freertos/queue.h'
   await writeFile(path, '#pragma once\n#include "hal.h"\n');
 }
 async function run(name, code, checks, args = [[]]) {
+  if(process.env.CAPI_IDF_CASE && !name.startsWith(process.env.CAPI_IDF_CASE))return;
   const input = resolve(directory, `${name}.cpp`), output = resolve(directory, `${name}${process.platform === 'win32' ? '.exe' : ''}`);
   await writeFile(input, `${code}\n${checks}`);
   const compile = spawnSync('g++', ['-std=c++17', '-Wall', '-Wextra', '-Werror', '-Wno-unused-parameter', '-I', directory, input, '-o', output], { encoding:'utf8', timeout:60000 });
@@ -276,4 +277,31 @@ int main(int argc, char**) {
   ${i2c ? '' : 'assert(capiDisplayTransaction.tx_buffer==pending.tx_buffer && capiDisplayTransaction.length==pending.length); assert(memcmp(saved,capiDisplayTransferBytes,1536)==0);'}`}
 }
 `, parallel ? [[]] : [[], ['missing']]);
+}
+
+
+// Phase56: actual generated scheduler, digital polarities and wheel opcode.
+for (const activeLow of [true,false]) {
+  const scene=createSceneFromTemplate('lineTrack');scene.devices.find(d=>d.kind==='lineSensors').config.settings.activeLow=activeLow;
+  const program={version:2,threads:[{id:'main',startBlockId:'start',nodes:[{op:'robotWheels',deviceId:'line-robot',left:-30,right:45,blockId:'drive'},{op:'wait',ms:500,blockId:'wait'}]}]};
+  const out=generateEspIdfCodeResult(program,'Line HAL',scene);assert.ok(!out.diagnostics.some(d=>d.severity==='error'));
+  const state=key=>out.code.match(new RegExp('bool (STATE_.*_'+key.toUpperCase()+'_[A-Z0-9]+) = false;'))[1];
+  const motion=out.code.match(/char (STATE_.*_MOTION_[A-Z0-9]+)\[121\]/)[1];
+  await run('line-'+activeLow,out.code,`
+int main(){
+  levels[34]=0;levels[35]=1;levels[36]=0;stopAtMicros=60000;
+  try{app_main();}catch(const TestStop&){}
+  assert(configurations[34]>0 && configurations[35]>0 && configurations[36]>0);
+  assert(pullups[34]==0 && pullups[35]==0 && pullups[36]==0);
+  assert(${state('left')}==${activeLow?'true':'false'});
+  assert(${state('center')}==${activeLow?'false':'true'});
+  assert(${state('right')}==${activeLow?'true':'false'});
+  assert(!strcmp(${motion},"WHEELS"));
+  for(const auto& pwm:capiPwm){
+    if(pwm.pin==17 || pwm.pin==19)assert(duties[pwm.bank][pwm.channel]==0);
+    if(pwm.pin==16)assert(duties[pwm.bank][pwm.channel]==(30U*255U+50U)/100U);
+    if(pwm.pin==23)assert(duties[pwm.bank][pwm.channel]==(45U*255U+50U)/100U);
+  }
+}
+`);
 }
