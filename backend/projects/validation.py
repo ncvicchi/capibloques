@@ -30,6 +30,7 @@ BLOCKS.add("capi_switch")
 BLOCKS.add("capi_while")
 BLOCKS.add("capi_power_switch")
 BLOCKS.add("capi_stepper")
+BLOCKS.update(("capi_gorilla_prepare","capi_gorilla_joint","capi_gorilla_pair"))
 BLOCKS.update(("capi_display_write", "capi_display_clear", "capi_display_animate_text", "capi_display_artwork", "capi_display_button_pressed", "capi_visual_wait"))
 BLOCKS.update(("capi_message_send", "capi_message_receive"))
 BLOCKS.update(("capi_matrix_clear", "capi_matrix_pixel", "capi_matrix_pattern", "capi_matrix_scroll"))
@@ -59,6 +60,7 @@ PINS["messages"] = ["tx", "rx"]
 PINS["ledMatrix"] = ["din", "clk", "cs"]
 CONFIGS["messages"] = {"mode": ["send", "receive", "both"], "baudRate": [9600, 19200, 38400, 57600, 115200]}
 MODULES = {
+    'gorilla':(['sda','scl'],['GORILLA_PCA9685'],{**{f'j{i}':(int,float) for i in range(8)},'ready':bool,'moving':bool,'error':bool}),
     "lineSensors": (["left","center","right"], ["DIGITAL_3"], {"left":bool,"center":bool,"right":bool}),
     "distanceSensor": (["trigger", "echo"], ["HC-SR04", "VL53L0X"], {"distance": (int, float)}),
     "pirSensor": (["signal"], ["HC-SR501"], {"motion": bool}),
@@ -280,7 +282,7 @@ def scene(value, board_profile="wemos-d1-r32"):
     exact(value, ("schemaVersion", "id", "name", "description", "canvas", "devices", "widgets"), ("retiredDeviceIds", "sourceTemplate"))
     require(type(value["schemaVersion"]) is int and value["schemaVersion"] == 1 and identifier(value["id"]))
     require(text(value["name"], 60, 1) and value["name"].strip() and isinstance(value["description"], str))
-    require("sourceTemplate" not in value or value["sourceTemplate"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor", "robotArena", "weatherLab", "ottoTheater", "lineTrack", "pondLab"))
+    require("sourceTemplate" not in value or value["sourceTemplate"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor", "robotArena", "weatherLab", "ottoTheater", "lineTrack", "pondLab", "gorillaBench"))
     canvas = value["canvas"]
     exact(canvas, ("width", "height", "background", "gridSize", "snapToGrid"), ("trafficDirections", "itemOrder", "railTracks", "parkingCapacity", "gardenEnvironment", "houseEnvironment", "houseAssignments", "conveyorEnvironment", "arenaEnvironment", "weatherEnvironment", "theaterEnvironment", "lineCircuit", "pondEnvironment"))
     if "lineCircuit" in canvas:
@@ -332,7 +334,7 @@ def scene(value, board_profile="wemos-d1-r32"):
     require("parkingCapacity" not in canvas or type(canvas["parkingCapacity"]) is int and canvas["parkingCapacity"] in (4, 8, 12))
     require("railTracks" not in canvas or type(canvas["railTracks"]) is int and canvas["railTracks"] in (1, 2, 4))
     require(number(canvas["width"], 0.01, 4096) and number(canvas["height"], 0.01, 4096) and number(canvas["gridSize"], 0.01, 512))
-    require(canvas["background"] in ("park", "workshop", "home", "pond", "crossroads", "robotTrack", "garden", "schoolGate", "weatherYard", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor", "robotArena", "weatherLab", "ottoTheater", "lineTrack", "pondLab", "blank") and type(canvas["snapToGrid"]) is bool)
+    require(canvas["background"] in ("park", "workshop", "home", "pond", "crossroads", "robotTrack", "garden", "schoolGate", "weatherYard", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor", "robotArena", "weatherLab", "ottoTheater", "lineTrack", "pondLab", "gorillaBench", "blank") and type(canvas["snapToGrid"]) is bool)
     traffic_directions = canvas.get("trafficDirections", [])
     require(isinstance(traffic_directions, list) and len(traffic_directions) <= 4 and len(set(traffic_directions)) == len(traffic_directions))
     require(all(direction in ("eastbound", "westbound", "southbound", "northbound") for direction in traffic_directions))
@@ -378,6 +380,16 @@ def scene(value, board_profile="wemos-d1-r32"):
                     require(config["profile"] in profiles and isinstance(config["values"], dict) and set(config["values"]) == set(value_types) and isinstance(config["settings"], dict))
                     require(all(type(config["values"][key]) in ((rule,) if isinstance(rule, type) else rule) for key, rule in value_types.items()))
                     require(all(isinstance(key, str) and isinstance(value, (str, int, float, bool)) for key, value in config["settings"].items()))
+                if kind == "gorilla":
+                    settings=config['settings']
+                    exact(settings,('address','verified',*(f'{key}{i}' for i in range(8) for key in ('channel','center','min','max','reversed'))))
+                    require(type(settings['verified']) is bool and type(settings['address']) is int and 64<=settings['address']<=119)
+                    channels=set()
+                    for i in range(8):
+                        ch,c,a,b=[settings[f'{key}{i}'] for key in ('channel','center','min','max')]
+                        require(all(type(v) is int for v in (ch,c,a,b)) and 0<=ch<=15 and ch not in channels and 50<=a<=c<=b<=130 and 70<=c<=110 and type(settings[f'reversed{i}']) is bool)
+                        channels.add(ch)
+                    require(all(value==0 if key.startswith('j') else value is False for key,value in config['values'].items()))
                 if kind == "lineSensors":
                     exact(config["settings"],("activeLow",))
                     require(type(config["settings"]["activeLow"]) is bool)
@@ -422,6 +434,7 @@ def scene(value, board_profile="wemos-d1-r32"):
                     exact(item["pins"], PINS[kind])
                 require(all(pin is None or (type(pin) is int and -2147483648 <= pin <= 2147483647) for pin in item["pins"].values()))
                 require(all(pin is None or pin in BOARD_PINS[board_profile] for pin in item["pins"].values()), "La escena usa un GPIO que no pertenece a la placa elegida.")
+    require(sum(item['kind']=='gorilla' for item in value['devices'])<=1)
     dashboard_kinds = {"trafficLight", "robot", "motor", "led", "servo"}
     if canvas["background"] == "railCrossing":
         require(canvas["width"] == 960 and canvas["height"] == 540, "El paso a nivel utiliza un lienzo de 960 × 540.")
@@ -563,7 +576,7 @@ def document(value):
     require(value["metadata"]["locale"] == "es-AR" and text(value["metadata"]["updatedAt"], 64, 1))
     require("migratedFrom" not in value["metadata"] or (type(value["metadata"]["migratedFrom"]) is int and value["metadata"]["migratedFrom"] == 1))
     exact(value["simulation"], ("scene", "speed"))
-    require(value["simulation"]["scene"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor", "robotArena", "weatherLab", "ottoTheater", "lineTrack", "pondLab") and number(value["simulation"]["speed"], 0.25, 4))
+    require(value["simulation"]["scene"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor", "robotArena", "weatherLab", "ottoTheater", "lineTrack", "pondLab", "gorillaBench") and number(value["simulation"]["speed"], 0.25, 4))
     scene(value["scene"], target["boardProfile"])
     workspace(value["workspace"])
     size = len(encoded(value))

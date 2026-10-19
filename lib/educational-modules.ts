@@ -1,6 +1,9 @@
 import type { PinCapability, PinNumber } from './scene-model.ts';
 
+// @ts-expect-error Node strip-types runner.
+import {gorillaSettings,gorillaValues,validGorillaSettings} from './gorilla-model.ts';
 export const educationalModuleKinds = [
+  'gorilla',
   'lineSensors', 'distanceSensor', 'pirSensor', 'joystick', 'powerSwitch', 'rotaryEncoder',
   'environmentSensor', 'soilMoisture', 'colorSensor', 'soundLevel', 'waterSensor',
   'motionSensor', 'cardReader', 'keypad',
@@ -12,7 +15,7 @@ export type ModuleValueType = 'number' | 'text' | 'boolean';
 export interface ModuleValueSpec { key: string; label: string; type: ModuleValueType; min?: number; max?: number; step?: number; unit?: string; choices?: string[]; help: string }
 export interface ModulePinSpec { key: string; label: string; capability: PinCapability; optional?: boolean }
 export interface EducationalModuleSpec {
-  kind: EducationalModuleKind; phase: 38 | 39 | 40 | 41 | 56; icon: string; name: string; description: string;
+  kind: EducationalModuleKind; phase: 38 | 39 | 40 | 41 | 56 | 58; icon: string; name: string; description: string;
   profiles: readonly { id: string; label: string }[]; pins: readonly ModulePinSpec[]; values: readonly ModuleValueSpec[];
   defaults: { profile: string; values: Record<string, number | string | boolean>; settings: Record<string, number | string | boolean> };
   needs: readonly string[]; cautions: readonly string[];
@@ -24,6 +27,8 @@ const t = (key: string, label: string, help: string, choices?: string[]): Module
 const pin = (key: string, label: string, capability: PinCapability, optional = false): ModulePinSpec => ({ key, label, capability, optional });
 
 export const educationalModuleSpecs: Record<EducationalModuleKind, EducationalModuleSpec> = {
+  gorilla:{kind:'gorilla',phase:58,icon:'🦍',name:'GorillaBot',description:'Cuadrúpedo de ocho servos: aprendé un motor y una pata en el banco.',profiles:[{id:'GORILLA_PCA9685',label:'GorillaBot · 8 servos + PCA9685'}],pins:[pin('sda','SDA · PCA9685','pwmOutput'),pin('scl','SCL · PCA9685','pwmOutput')],values:[...Array.from({length:8},(_,i)=>n(`j${i}`,`motor ${Math.floor(i/2)+1}${i%2?'B':'A'} · posición ordenada`,-20,20,'°','Desplazamiento respecto al centro; no es realimentación.')),b('ready','está preparado','El controlador aceptó la preparación.'),b('moving','movimiento pendiente','Interpolación ordenada en curso, no movimiento medido.'),b('error','orden rechazada','La orden excedió límites o falló comunicación.')],defaults:{profile:'GORILLA_PCA9685',values:gorillaValues(),settings:gorillaSettings()},needs:['Wemos D1 R32 o ESP32-S3 DevKit','PCA9685 y ocho servos','Fuente externa adecuada y masa común'],cautions:['Calibrá con una persona adulta, robot sostenido y mecanismos desacoplados si hace falta.','Preparar no mueve ni centra los ocho motores.','Ilustración de cinco barras, no geometría medida de tu montaje.']},
+
   lineSensors: {kind:'lineSensors',phase:56,icon:'⚫',name:'Sensores de línea',description:'Tres reflectivos miran el suelo bajo el frente del robot.',profiles:[{id:'DIGITAL_3',label:'Tres reflectivos digitales'}],pins:[pin('left','Izquierdo','digitalInput'),pin('center','Central','digitalInput'),pin('right','Derecho','digitalInput')],values:[b('left','izquierdo sobre línea','El sensor izquierdo ve la línea.'),b('center','central sobre línea','El sensor central ve la línea.'),b('right','derecho sobre línea','El sensor derecho ve la línea.')],defaults:{profile:'DIGITAL_3',values:{left:false,center:false,right:false},settings:{activeLow:true}},needs:['Tres módulos reflectivos con salida digital','Soporte frontal y controlador de motores'],cautions:['No es una barrera infrarroja. Ajustá altura y umbral en el módulo real.','Comprobá polaridad y compatibilidad de la salida con la placa; no se certifica un modelo comercial.']},
   distanceSensor: { kind:'distanceSensor', phase:38, icon:'📏', name:'Sensor de distancia', description:'Mide qué tan lejos está un objeto.', profiles:[{id:'HC-SR04',label:'HC-SR04 (ultrasonido)'},{id:'VL53L0X',label:'VL53L0X (láser seguro)'}], pins:[pin('trigger','TRIG / SDA','pwmOutput'),pin('echo','ECHO / SCL','digitalInput')], values:[n('distance','distancia',0,500,'cm','Distancia medida por el sensor.')], defaults:{profile:'HC-SR04',values:{distance:30},settings:{maxDistance:400}}, needs:['Sensor HC-SR04 o VL53L0X','Cables'], cautions:['No tapes el emisor ni el receptor.'] },
   pirSensor: { kind:'pirSensor', phase:38, icon:'👋', name:'Sensor de movimiento', description:'Detecta movimiento de personas con un PIR.', profiles:[{id:'HC-SR501',label:'HC-SR501'}], pins:[pin('signal','Señal','digitalInput')], values:[b('motion','hay movimiento','Indica si el PIR detectó movimiento.')], defaults:{profile:'HC-SR501',values:{motion:false},settings:{}}, needs:['Módulo PIR'], cautions:['Puede tardar unos segundos en estabilizarse.'] },
@@ -55,6 +60,7 @@ export function validEducationalModuleConfig(kind: EducationalModuleKind, value:
     const candidate = values[item.key];
     return item.type === 'number' ? typeof candidate !== 'number' || !Number.isFinite(candidate) || candidate < (item.min ?? -Infinity) || candidate > (item.max ?? Infinity) : typeof candidate !== (item.type === 'text' ? 'string' : 'boolean') || (item.choices && !item.choices.includes(String(candidate)));
   })) return false;
+  if(kind==='gorilla'&&(!validGorillaSettings(config.settings)||Object.entries(values).some(([k,v])=>k.startsWith('j')?v!==0:v!==false)))return false;
   if(kind==='lineSensors' && (Object.keys(config.settings).length!==1 || typeof (config.settings as Record<string,unknown>).activeLow!=='boolean'))return false;
   return Object.keys(config.settings as object).every(key => key in spec.defaults.settings);
 }

@@ -4,6 +4,7 @@ export type SceneLayoutItem = SceneDevice | SceneWidget;
 export type SceneBounds = ScenePosition & { width: number; height: number; left: number; right: number; top: number; bottom: number };
 
 const deviceSizes: Partial<Record<SceneDevice['kind'], readonly [number, number]>> = {
+  gorilla: [760, 350],
   trafficLight: [126, 112], robot: [96, 104], otto: [100, 122], display: [190, 122],
   ledMatrix: [190, 104], messages: [132, 94], smartLights: [128, 92], wifiNode: [112, 92],
 };

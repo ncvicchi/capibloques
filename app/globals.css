@@ -2672,6 +2672,14 @@ select:focus-visible {
   font-weight: 850;
   line-height: 1.2;
 }
+.gorilla-bench { width: 100%; min-width: 0; display: flex; flex-direction: column; align-items: stretch; color: #324a55; }
+.gorilla-bench svg { width: 100%; height: auto; max-height: 260px; }
+.gorilla-bench .scene-toolbar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; }
+.gorilla-bench button { min-width: 0; font-size: 11px; padding: 4px; white-space: normal; }
+.gorilla-bench button[aria-pressed="true"] { background: #d5edf0; border-color: #56aab6; }
+.gorilla-bench small { font-size: 11px; text-align: center; }
+.scene-device-gorilla { padding: 6px 6px 22px; }
+.scene-device-gorilla .gorilla-bench svg { max-height: 200px; }
 .stage-otto {
   --otto-tilt: 0deg;
   position: relative;

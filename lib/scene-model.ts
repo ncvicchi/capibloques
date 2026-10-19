@@ -61,6 +61,7 @@ export const legacySceneIds = [
   'ottoTheater',
   'lineTrack',
   'pondLab',
+  'gorillaBench',
 ] as const;
 
 export type LegacySceneId = (typeof legacySceneIds)[number];
@@ -107,6 +108,7 @@ export const sceneBackgrounds = [
   'ottoTheater',
   'lineTrack',
   'pondLab',
+  'gorillaBench',
   'blank',
 ] as const;
 export type SceneBackground = (typeof sceneBackgrounds)[number];
@@ -533,6 +535,7 @@ export type EducationalModuleDevice<K extends EducationalModuleKind = Educationa
 >;
 
 export interface SceneDeviceByKind {
+  gorilla: EducationalModuleDevice<'gorilla'>;
   lineSensors: EducationalModuleDevice<'lineSensors'>;
   display: DisplayDevice;
   ledMatrix: LedMatrixDevice;
@@ -1438,6 +1441,7 @@ export function addDeviceToScene<K extends SceneDeviceKind>(
   if (source.canvas.background === 'greenhouse' && gardenSlots.some(slot => slot.kind === kind) && source.devices.filter(device => device.kind === kind).length >= gardenSlots.filter(slot => slot.kind === kind).length) throw new Error('Los lugares de este componente en la huerta e invernadero están ocupados.');
   if (source.canvas.background === 'lineTrack' && (kind === 'robot' || kind === 'lineSensors') && source.devices.some(d => d.kind === kind)) throw new Error('La pista admite un robot y una barra de tres sensores.');
   if (source.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === kind) && source.devices.some(d => d.kind === kind)) throw new Error('El teatro tiene un Otto y un botón de petición.');
+  if(kind==='gorilla'&&scene.devices.some(d=>d.kind==='gorilla'))throw new Error('Por ahora el banco admite un GorillaBot por proyecto.');
   if (source.canvas.background === 'weatherLab' && weatherSlots.some(s => s.kind === kind) && source.devices.some(d => d.kind === kind)) throw new Error('Este puesto admite un sensor de cada tipo y un techo.');
   if(source.canvas.background==='pondLab'&&pondSlots.some(s=>s.kind===kind)&&source.devices.filter(d=>d.kind===kind).length>=pondSlots.filter(s=>s.kind===kind).length)throw new Error('Los lugares de este componente en la instalación de agua están ocupados.');
   if (source.canvas.background === 'robotArena' && arenaKinds.includes(kind as typeof arenaKinds[number]) && source.devices.some(d => d.kind === kind)) throw new Error('La pista admite un robot y un sensor de cada tipo, montados sobre él; una barrera fija de meta.');
@@ -1535,6 +1539,7 @@ export function duplicateSceneDevice(
   const original = source.devices.find((device) => device.id === deviceId);
   if (!original) return null;
   if (original.kind === 'display' || original.kind === 'ledMatrix') return null;
+  if(original.kind==='gorilla')return null;
   if (source.canvas.background === 'lineTrack' && ['robot','lineSensors'].includes(original.kind)) return null;
   if (source.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === original.kind)) return null;
   if (source.canvas.background === 'weatherLab' && weatherSlots.some(s => s.kind === original.kind)) return null;
@@ -1923,6 +1928,9 @@ for (const item of [
   { kind: 'activeBuzzer', id: 'arena-buzzer', name: 'Aviso de llegada', position: { x: 180, y: 160 }, pins: { signal: 14 } },
 ] as const) arenaTemplate.devices.push(templateDevice(item.kind, arenaTemplate.devices, item));
 
+const gorillaTemplate=createEmptyScene('Banco de pruebas GorillaBot',{id:'scene-gorilla-bench',description:'Prepará el controlador, calibrá y mové una articulación o una pata sin caminar todavía.',canvas:{background:'gorillaBench'}});
+gorillaTemplate.sourceTemplate='gorillaBench';
+gorillaTemplate.devices.push(templateDevice('gorilla',gorillaTemplate.devices,{id:'gorilla-robot',name:'Mi GorillaBot',position:{x:480,y:290},pins:{sda:18,scl:19}}));
 const pondTemplate = createEmptyScene('Laguna, depósito y bombeo',{id:'scene-pond-lab',description:'Medí distancias, regulá el agua y evitá derrames con tu programa.',canvas:{background:'pondLab',pondEnvironment:{...defaultPondEnvironment}}});
 pondTemplate.sourceTemplate='pondLab';
 for(const slot of pondSlots)pondTemplate.devices.push(templateDevice(slot.kind,pondTemplate.devices,{
@@ -1979,6 +1987,7 @@ export const sceneTemplates: Readonly<Record<LegacySceneId, SceneDefinition>> =
     robotArena: arenaTemplate,
     weatherLab: weatherLabTemplate,
     pondLab: pondTemplate,
+    gorillaBench: gorillaTemplate,
     ottoTheater: theaterTemplate,
     lineTrack: lineTemplate,
   };
@@ -2011,7 +2020,7 @@ export function appendTemplateToScene(
   const offset = options.offset ?? { x: 40, y: 40 };
   const addedDeviceIds: string[] = [];
   const warnings: string[] = [];
-  if (templateId === 'railCrossing' || templateId === 'parking' || templateId === 'greenhouse' || templateId === 'smartHouse' || templateId === 'conveyor' || templateId === 'robotArena' || templateId === 'weatherLab' || templateId === 'ottoTheater' || templateId === 'lineTrack' || templateId === 'pondLab') {
+  if (templateId === 'railCrossing' || templateId === 'parking' || templateId === 'greenhouse' || templateId === 'smartHouse' || templateId === 'conveyor' || templateId === 'robotArena' || templateId === 'weatherLab' || templateId === 'ottoTheater' || templateId === 'lineTrack' || templateId === 'pondLab' || templateId === 'gorillaBench') {
     if (scene.devices.length || scene.widgets.length) return { scene, warnings: ['Este mundo se agrega sobre una escena vacía para no reasignar componentes existentes.'], addedDeviceIds };
     const replacement = cloneScene(scene);
     replacement.canvas = structuredClone(template.canvas);
@@ -2219,6 +2228,7 @@ export type SceneValidationIssueCode =
   | 'theater-layout'
   | 'weather-layout'
   | 'pond-layout'
+  | 'gorilla-config'
   | 'arena-layout'
   | 'conveyor-size'
   | 'conveyor-slot'
@@ -2392,6 +2402,11 @@ export function validateScene(
   if (scene.canvas.background === 'ottoTheater') {
     if (scene.canvas.width !== 960 || scene.canvas.height !== 540) issues.push({ code: 'theater-layout', severity: 'error', message: 'El teatro utiliza un lienzo de 960 × 540.' });
     for (const slot of theaterSlots) { const devices = scene.devices.filter(d => d.kind === slot.kind); if (!devices.length) issues.push({ code: 'theater-layout', severity: 'warning', message: `Falta ${slot.name.toLowerCase()}.` }); if (devices.length > 1 || devices.some(d => d.position.x !== slot.x || d.position.y !== slot.y)) issues.push({ code: 'theater-layout', severity: 'error', message: `Usá el lugar marcado de ${slot.name === 'Otto artista' ? 'Otto' : 'la petición'}.` }); }
+  }
+  if(scene.devices.filter(d=>d.kind==='gorilla').length>1)issues.push({code:'gorilla-config',severity:'error',message:'Por ahora se admite un GorillaBot por proyecto.'});
+  for(const d of scene.devices.filter(d=>d.kind==='gorilla')){
+    if(d.config.settings.verified!==true)issues.push({code:'gorilla-config',severity:'warning',deviceId:d.id,message:'GorillaBot: calibración física pendiente. Podés simular; una persona adulta debe revisar el montaje antes de enviar reglas.'});
+    if(profileId==='waveshare-esp32-s3-touch-lcd-5-28117')issues.push({code:'gorilla-config',severity:'error',deviceId:d.id,message:'El banco GorillaBot funciona en la web y en Wemos/DevKit; renderer Waveshare pendiente.'});
   }
   if(scene.canvas.background==='pondLab'){
     const occupied=new Set<string>();

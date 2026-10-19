@@ -125,6 +125,7 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
       return ['powerSwitch'];
     case 'capi_stepper':
       return ['stepper'];
+    case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair':return ['gorilla'];
     case 'capi_rgb_fill':
     case 'capi_rgb_pixel':
     case 'capi_rgb_segment':
@@ -841,6 +842,7 @@ const toolbox = {
         { kind: 'block', type: 'capi_led' },
         { kind: 'block', type: 'capi_power_switch' },
         { kind: 'block', type: 'capi_stepper' },
+        ...['capi_gorilla_prepare','capi_gorilla_joint','capi_gorilla_pair'].map(type=>({kind:'block',type})),
         { kind: 'block', type: 'capi_rgb_fill' },
         { kind: 'block', type: 'capi_rgb_pixel' },
         { kind: 'block', type: 'capi_rgb_segment' },
@@ -1999,6 +2001,18 @@ function registerBlocks(Blockly: BlocklyApi) {
       tooltip: 'Controla una carga de baja tensión con MOSFET o relé.',
       extensions: [DEVICE_EXTENSION],
     },
+    {
+      type:'capi_gorilla_prepare',message0:'🦍 preparar %1 (sin mover motores)',args0:[deviceField('agregá GorillaBot')],previousStatement:null,nextStatement:null,colour:'#328BDD',tooltip:'Inicia el controlador. Después elegí qué motor mover. No centra ocho servos.',extensions:[DEVICE_EXTENSION],
+    },
+    ...(['joint','pair'] as const).map(mode=>({
+      type:`capi_gorilla_${mode}`,
+      message0:mode==='joint'?'🦍 %1 motor %2 desplazar %3 grados en %4 segundos':'🦍 %1 pata %2 motor A %3 grados motor B %4 grados en %5 segundos',
+      args0:[deviceField('agregá GorillaBot'),{type:'field_dropdown',name:'INDEX',options:mode==='joint'?['Delantera izquierda A','Delantera izquierda B','Delantera derecha A','Delantera derecha B','Trasera izquierda A','Trasera izquierda B','Trasera derecha A','Trasera derecha B'].map((name,i)=>[name,String(i)]):['Delantera izquierda','Delantera derecha','Trasera izquierda','Trasera derecha'].map((name,i)=>[name,String(i)])},
+      {type:'field_number',name:'A',value:0,min:-20,max:20,precision:1},
+      ...(mode==='pair'?[{type:'field_number',name:'B',value:0,min:-20,max:20,precision:1}]:[]),
+      {type:'field_number',name:'SECONDS',value:1,min:.2,max:10,precision:.1}],
+      previousStatement:null,nextStatement:null,colour:'#328BDD',tooltip:'Posición respecto al centro calibrado, no giro continuo. Mueve sólo el motor o par elegido; espera en este camino sin bloquear los demás. Respeta límites y 30°/s.',extensions:[DEVICE_EXTENSION],
+    })),
     {
       type: 'capi_stepper',
       message0: '⚙️ %1 mover %2 pasos a velocidad %3',
@@ -3720,6 +3734,9 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           brightness: numberField(block, 'POWER', 75),
           blockId,
         });
+        break;
+      case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair':
+        result.push({op:'gorilla',deviceId:selectedDeviceId(block),action:block.type==='capi_gorilla_prepare'?'prepare':block.type==='capi_gorilla_pair'?'pair':'joint',index:numberField(block,'INDEX',0),a:numberField(block,'A',0),b:numberField(block,'B',0),durationMs:numberField(block,'SECONDS',1)*1000,blockId});
         break;
       case 'capi_stepper':
         result.push({

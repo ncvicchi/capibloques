@@ -4,6 +4,7 @@ import type { LineWorldState } from '@/lib/line-world';
 import TheaterWorld from '@/components/theater-world';
 import type { TheaterWorldState } from '@/lib/theater-world';
 import WeatherWorld from '@/components/weather-world';
+import GorillaVisual from '@/components/gorilla-visual';
 import PondWorld from '@/components/pond-world';
 import { nearestPondSlot, type PondWorldState } from '@/lib/pond-world';
 import { nearestWeatherSlot, type WeatherWorldState } from '@/lib/weather-world';
@@ -56,6 +57,7 @@ import { trafficDisplayRows, type PedestrianDisplayValue, type VehicleDisplayVal
 import { crossingIds, crossingNames, crossingPaths, pedestrianPosition, type PedestrianSignals } from '@/lib/pedestrian-world';
 
 export type RuntimeVisualDevice = {
+  values?:Record<string,number|string|boolean>;
   texts?: Record<string, string[]>;
   artworkRows?: number[];
   rows?: number[];
@@ -344,6 +346,7 @@ function SceneBackdrop({
   if (background === 'greenhouse') return <GardenWorld scene={scene} state={gardenWorld} />;
   if (background === 'lineTrack') return <LineWorld scene={scene} state={lineWorld} />;
   if (background === 'ottoTheater') return <TheaterWorld scene={scene} state={theaterWorld} />;
+  if(background==='gorillaBench')return <div className="scene-world"><svg viewBox="0 0 960 540" preserveAspectRatio="none" aria-label="Banco de pruebas GorillaBot"><rect width="960" height="540" fill="#e5eff3"/><rect x="30" y="85" width="900" height="420" rx="25" fill="#f7efd9" stroke="#c7bda5" strokeWidth="6"/><text x="40" y="43" fontSize="25" fill="#385263" fontWeight="900">BANCO GORILLABOT · APRENDER UNA PATA</text><text x="40" y="72" fontSize="15" fill="#385263">Preparar → un motor → dos motores de una pata. Sin caminar todavía.</text></svg></div>;
   if(background==='pondLab')return <PondWorld scene={scene} state={pondWorld}/>;
   if (background === 'weatherLab') return <WeatherWorld scene={scene} state={weatherWorld} />;
   if (background === 'robotArena') return <ArenaWorld scene={scene} state={arenaWorld} />;
@@ -433,6 +436,7 @@ function TrafficMatrix({ value, audience }: { value: VehicleDisplayValue | Pedes
 }
 
 function DeviceVisual({
+  interactive,
   device,
   runtime,
   matrixPreviewPattern,
@@ -441,6 +445,7 @@ function DeviceVisual({
   dashboardModes,
   onDashboardAction,
 }: {
+  interactive?:boolean;
   device: SceneDevice;
   runtime?: RuntimeVisualDevice;
   matrixPreviewPattern?: { deviceId: string; patternId: string } | null;
@@ -560,6 +565,7 @@ function DeviceVisual({
       </span>
     );
   }
+  if(device.kind==='gorilla')return <GorillaVisual interactive={interactive} values={runtime?.kind==='educationalModule'&&runtime.values?runtime.values:device.config.values}/>;
   if (device.kind === 'motor') {
     return (
       <span
@@ -1012,7 +1018,7 @@ export default function SceneStage({
           <>
             {pondAnchor ? <span className="rail-component-anchor" title={pondAnchor.name}>{device.kind==='servo'?'⚙':device.kind==='powerSwitch'?'↗':'◉'}</span> : weatherAnchor ? <span className="rail-component-anchor" title={weatherAnchor.name}>{device.kind === 'servo' ? '⚙' : device.kind === 'waterSensor' ? '💧' : '◉'}</span> : arenaAnchor ? device.kind === 'robot' ? <svg viewBox="0 0 44 44" aria-label="Robot visto desde arriba, frente hacia la flecha"><rect x="7" y="2" width="25" height="40" rx="9" fill="#52acc7" stroke="#356075" strokeWidth="2" /><path d="M9 3H27M9 41H27" stroke="#43535d" strokeWidth="5" /><path d="M27 14l12 8-12 8Z" fill="#fff0b8" /><circle cx="21" cy="22" r="5" fill="#daeaf0" /></svg> : <span className="rail-component-anchor" title={device.name}>↕</span> : conveyorAnchor ? <span className="rail-component-anchor" title={conveyorAnchor.name}>{device.kind === 'motor' ? '⚙' : device.kind === 'servo' ? '↗' : '◉'}</span> : houseAnchor ? <span className="rail-component-anchor" title={houseAnchor.name}>{device.kind === 'servo' ? '⚙' : device.kind === 'led' ? '💡' : '◉'}</span> : gardenAnchor ? <span className="rail-component-anchor" title={gardenAnchor.name}>{device.kind === 'servo' ? '⚙' : device.kind === 'powerSwitch' ? '💧' : '◉'}</span> : parkingAnchor ? <span className="rail-component-anchor" title={parkingAnchor.name}>{device.kind === 'servo' ? '⚙' : '↕'}</span> : scene.canvas.background === 'railCrossing' && nearestRailSlot(device.kind, device.position, railTrackCount(scene))
               ? <span className="rail-component-anchor" title={nearestRailSlot(device.kind, device.position, railTrackCount(scene))?.name}>{device.kind === 'servo' ? '⚙' : '↕'}</span>
-              : <DeviceVisual device={device} runtime={runtime} matrixPreviewPattern={matrixPreviewPattern} sceneDevices={scene.devices} runtimeDevices={runtimeDevices} dashboardModes={dashboardModes} onDashboardAction={onDashboardAction} />}
+              : <DeviceVisual interactive={!editing} device={device} runtime={runtime} matrixPreviewPattern={matrixPreviewPattern} sceneDevices={scene.devices} runtimeDevices={runtimeDevices} dashboardModes={dashboardModes} onDashboardAction={onDashboardAction} />}
             {!pondAnchor && !weatherAnchor && !arenaAnchor && !conveyorAnchor && !houseAnchor && !gardenAnchor && !(scene.canvas.background === 'greenhouse' && device.kind === 'display') && !parkingAnchor && !(scene.canvas.background === 'railCrossing' && railTrackCount(scene) > 1 && device.kind === 'infraredBarrier') && <span className={`scene-device-name label-${labelSide}`} title={device.name}>{device.name}</span>}
           </>
         );

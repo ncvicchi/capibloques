@@ -21,6 +21,10 @@ import {
 
 // @ts-expect-error Node strip-types runner.
 import { pondExample } from './pond-examples.ts';
+// @ts-expect-error Node strip-types runner.
+import {gorillaFirmwareSupport} from './gorilla-firmware.ts';
+// @ts-expect-error Node strip-types runner.
+import {gorillaExample} from './gorilla-examples.ts';
 export type SceneId = LegacySceneId;
 // @ts-expect-error Node strip-types runner.
 import { ottoQueueSupport } from './otto-queue.ts';
@@ -127,6 +131,7 @@ export type Condition =
   | { kind: 'boolean'; value: boolean };
 
 export type ProgramNode =
+  | {op:'gorilla';deviceId:string;action:'prepare'|'joint'|'pair';index:number;a:number;b:number;durationMs:number;blockId:string}
   | { op: 'robotWheels'; deviceId: string; left: number; right: number; blockId: string }
   | { op: 'wait'; ms: number; blockId: string }
   | {
@@ -306,7 +311,7 @@ export interface ProjectDecodeResult {
   diagnostics: CapiDiagnostic[];
 }
 
-export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4' | 'parkingProcedures' | 'greenhouseProcedures' | 'smartHouseProcedures' | 'conveyorProcedures' | 'robotArenaProcedures' | 'weatherLabProcedures' | 'ottoTheaterProcedures' | 'lineTrackProcedures' | 'pondLabProcedures';
+export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4' | 'parkingProcedures' | 'greenhouseProcedures' | 'smartHouseProcedures' | 'conveyorProcedures' | 'robotArenaProcedures' | 'weatherLabProcedures' | 'ottoTheaterProcedures' | 'lineTrackProcedures' | 'pondLabProcedures' | 'gorillaBenchProcedures';
 export interface ExampleDefinition {
   id: ExampleId;
   title: string;
@@ -1387,6 +1392,8 @@ export const examples: ExampleDefinition[] = [
   conveyorExample(true),
   arenaExample(false),
   arenaExample(true),
+  gorillaExample(false),
+  gorillaExample(true),
   pondExample(false),
   pondExample(true),
   weatherLabExample(false),
@@ -1596,6 +1603,7 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_traffic_pedestrian_display',
   'capi_led',
   'capi_power_switch',
+  'capi_gorilla_prepare', 'capi_gorilla_joint', 'capi_gorilla_pair',
   'capi_rgb_fill',
   'capi_rgb_pixel',
   'capi_rgb_segment',
@@ -2092,6 +2100,7 @@ const blockKind = (block: Record<string, unknown>): SceneDeviceKind | null => {
       return 'led';
     case 'capi_power_switch': return 'powerSwitch';
     case 'capi_stepper': return 'stepper';
+    case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair': return 'gorilla';
     case 'capi_rgb_fill':
     case 'capi_rgb_pixel':
     case 'capi_rgb_segment':
@@ -2483,6 +2492,7 @@ const compatibleKindsForNode = (
     case 'led':
       return ['led', 'powerSwitch'];
     case 'stepper': return ['stepper'];
+    case 'gorilla': return ['gorilla'];
     case 'rgbFill':
     case 'rgbPixel':
     case 'rgbSegment':
@@ -2725,6 +2735,9 @@ function normalizeNodes(
           brightness: finiteNumber(node.brightness, 0),
           blockId,
         });
+        break;
+      case 'gorilla':
+        result.push({op:'gorilla',deviceId,action:node.action==='prepare'?'prepare':node.action==='pair'?'pair':'joint',index:Math.max(0,Math.min(node.action==='pair'?3:7,Math.trunc(finiteNumber(node.index,0)))),a:Math.max(-20,Math.min(20,Math.round(finiteNumber(node.a,0)))),b:Math.max(-20,Math.min(20,Math.round(finiteNumber(node.b,0)))),durationMs:Math.max(200,Math.min(10000,finiteNumber(node.durationMs,1000))),blockId});
         break;
       case 'stepper':
         result.push({ op:'stepper', deviceId, steps:Math.max(-100000, Math.min(100000, Math.trunc(finiteNumber(node.steps, 0)))), speed:Math.max(1, Math.min(1000, finiteNumber(node.speed, 300))), blockId });
@@ -4086,6 +4099,10 @@ function instructionToCpp(
       const relay = target?.kind === 'powerSwitch' && target.config.profile === 'RELAY_LOW_VOLTAGE';
       return `${comment}\n        ${logical ? '// Objeto lógico del tablero: sin salida GPIO.' : relay ? `${native ? 'capiDigitalWrite' : 'digitalWrite'}(${pinConstant(context, instruction.deviceId)}, ${instruction.brightness > 0 ? (native ? '1' : 'HIGH') : (native ? '0' : 'LOW')});` : `${pwmWrite}(${pinConstant(context, instruction.deviceId)}, ${duty});`}\n        ${componentStateSymbol(instruction.deviceId, property)} = ${Math.max(0, Math.min(100, Math.round(instruction.brightness)))};\n        ${pc} = ${nextPc};\n        break;`;
     }
+    case 'gorilla': {
+      const kind=instruction.action==='prepare'?0:instruction.action==='pair'?2:1;
+      return `${comment}\n        if (!${waiting}) { if(CAPI_GORILLA.busy)return; ${kind===0?'if(!capiGorillaPrepare())CAPI_GORILLA.error=true;':`CAPI_GORILLA.start(${kind},${instruction.index},${Math.round(instruction.a)},${Math.round(instruction.b)},${Math.round(instruction.durationMs)}U,now);`} ${waiting}=true;return;}\n        if(CAPI_GORILLA.busy)return;\n        ${waiting}=false;${pc}=${nextPc};break;`;
+    }
     case 'stepper':
       return `${comment}\n        capiStepperMove_${deviceSymbol(context, instruction.deviceId)}(${Math.trunc(instruction.steps)}, ${Math.round(instruction.speed)});\n        ${componentStateSymbol(instruction.deviceId, 'position')} += ${Math.trunc(instruction.steps)};\n        ${componentStateSymbol(instruction.deviceId, 'moving')} = ${Math.trunc(instruction.steps) !== 0 ? 'true' : 'false'};\n        ${pc} = ${nextPc};\n        break;`;
     case 'rgbFill': {
@@ -4834,6 +4851,7 @@ export function generateEsp32CodeResult(
   const programTimers = new Map((program.timers ?? []).map((timer, index) => [timer.id, index]));
   const profile = boardProfile(profileId);
   const diagnostics = validateProgramForScene(program, scene, profileId);
+  if(scene.devices.some(d=>d.kind==='gorilla'&&d.config.settings.verified!==true))diagnostics.push({severity:'error',code:'gorilla-calibration',message:'GorillaBot: una persona adulta debe revisar la calibración y el montaje antes de exportar para hardware.'});
   if (native && !allocateIdfPwm(scene, profileId)) diagnostics.push({ severity: 'error', code: 'idf-pwm-timer-limit', message: 'No hay una combinación de canales y temporizadores PWM disponible para esta escena. Reducí componentes PWM antes de exportar ESP-IDF.' });
   const { symbols, collisions } = createCppSymbols(scene);
   diagnostics.push(
@@ -4997,6 +5015,7 @@ ${matrixSupport}
 ${smartLightsSupport}
 
 ${stepperFirmwareSupport(scene, symbols, native)}
+${gorillaFirmwareSupport(scene,symbols,native,componentStateSymbol)}
 ${dashboardSupport}
 
 ${messageRuntimeSupport(scene, native)}
@@ -5213,6 +5232,7 @@ ${scene.devices.filter(device => device.kind === 'smartLights').map(device => {
     capiTimerService(now);
 ${serviceBuzzerLines(scene, symbols, framework)}
 ${serviceEducationalLines(scene, symbols, framework)}
+${scene.devices.some(d=>d.kind==='gorilla')?'capiGorillaService(now);':''}
 ${scene.devices.filter(device => device.kind === 'stepper').map(device => `    capiStepperService_${symbols.get(device.id) ?? cppIdentifier(device.id)}(now);`).join('\n')}
 ${displaySupport ? '    capiDisplayService(now);' : ''}
 ${dashboardSupport ? '    capiDashboardService(now);' : ''}
@@ -5240,6 +5260,7 @@ void loop() {
   capiTimerService(now);
 ${serviceBuzzerLines(scene, symbols)}
 ${serviceEducationalLines(scene, symbols, 'arduino')}
+${scene.devices.some(d=>d.kind==='gorilla')?'capiGorillaService(now);':''}
 ${scene.devices.filter(device => device.kind === 'stepper').map(device => `  capiStepperService_${symbols.get(device.id) ?? cppIdentifier(device.id)}(now);`).join('\n')}
 ${displaySupport ? '  capiDisplayService(now);' : ''}
 ${dashboardSupport ? '  capiDashboardService(now);' : ''}
