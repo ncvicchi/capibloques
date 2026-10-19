@@ -1,5 +1,7 @@
 # Fase 55 — Análisis de parque, laguna y aeropuerto
 
+**Seguimiento posterior19/10:** el propietario aprobó e indicó implementar laguna/depósito como [fase57](FASE_57_LAGUNA_DEPOSITO_BOMBEO.md), después de fase56 confirmada en dev1. Las propuestas sin aprobar que aparecen debajo son el estado histórico del análisis55; la guía57 contiene las reglas aprobadas y el alcance entregado, sin implementar las otras variantes.
+
 19 de octubre de 2026. **Entrega de análisis, no implementación de mundos.**
 Autorizada al aceptar revisar estas variantes después de fase 54. Rama
 `codex/fase-55-analisis-escenas`, desde origin/dev1

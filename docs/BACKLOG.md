@@ -1,5 +1,7 @@
 # Backlog de CapiBloques
 
+**Fase 57 — Laguna, depósito y bombeo (19/10):** software en rama `codex/fase-57-laguna-bombeo` desde dev1. [Reglas aprobadas y entrega](FASE_57_LAGUNA_DEPOSITO_BOMBEO.md): balance de agua, dos distancias, bomba/compuerta, derrame y secado residual, ensayos y dos ejemplos completos (directo/modular). Sin firmware/ABI/SDK/migraciones; actualización dev1, aceptación humana/física y mundo Waveshare pendientes. Fase56 ya actualizada en dev1 por confirmación del propietario. Sustituye estados históricos de laguna sólo propuesta; no habilita otra fase ni cambios main/dev2.
+
 **Fase56 — Seguidor de línea, software en rama desde dev1:** [reglas y entrega](FASE_56_SEGUIDOR_LINEA.md). Tres reflectivos digitales, control independiente de ruedas, circuitos predefinidos/propios y editor amplio con undo/redo/guardar/cancelar. Dos ejemplos completos: corrección básica y búsqueda limitada con cinco tareas/tres pestañas. Runtime1.10.0 ABI1; actualización dev1, SDK completo, aceptación de sensores/chasis y mundo Waveshare pendientes. Inventario avanzado del plan conservado, no autorizado por esta entrega. Incluye documentación55 aún no integrada; main/dev2 intactos.
 
 

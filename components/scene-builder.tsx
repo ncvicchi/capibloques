@@ -3,6 +3,8 @@ import LineCircuitEditor from '@/components/line-circuit-editor';
 import { defaultLineCircuit } from '@/lib/line-world';
 import TheaterControls from '@/components/theater-controls';
 import { theaterSlots, defaultTheaterEnvironment } from '@/lib/theater-world';
+import PondControls from '@/components/pond-controls';
+import { pondSlots, nearestPondSlot, defaultPondEnvironment } from '@/lib/pond-world';
 import WeatherControls from '@/components/weather-controls';
 import { weatherSlots, nearestWeatherSlot, defaultWeatherEnvironment } from '@/lib/weather-world';
 import ArenaControls from '@/components/arena-controls';
@@ -57,6 +59,7 @@ import {
   arrangeHouseDevices,
   arrangeConveyorDevices,
   arrangeWeatherDevices,
+  arrangePondDevices,
   arrangeTheaterDevices,
   configureRailTracks,
   assignSafePins,
@@ -132,6 +135,7 @@ const backgrounds: { value: SceneBackground; label: string; icon: string }[] = [
   { value: 'greenhouse', label: 'Huerta e invernadero', icon: '🌱' },
   { value:'lineTrack',label:'Vehículo seguidor de línea',icon:'〰️' },
   { value: 'ottoTheater', label: 'Teatro interactivo de Otto', icon: '🎭' },
+  { value:'pondLab',label:'Laguna, depósito y bombeo',icon:'💧' },
   { value: 'weatherLab', label: 'Estación meteorológica y puesto', icon: '🌦️' },
   { value: 'robotArena', label: 'Pista de exploración y reparto', icon: '🤖' },
   { value: 'conveyor', label: 'Taller y cinta transportadora', icon: '📦' },
@@ -174,6 +178,7 @@ const quickTemplates: {
   { id: 'greenhouse', name: 'Huerta e invernadero', icon: '🌱', detail: 'dos canteros + riego + ventana' },
   { id:'lineTrack',name:'Seguidor de línea',icon:'〰️',detail:'tres sensores + motores independientes' },
   { id: 'ottoTheater', name: 'Teatro de Otto', icon: '🎭', detail: 'público + petición + coreografías' },
+  {id:'pondLab',name:'Laguna y reserva',icon:'💧',detail:'agua + bomba + desagüe'},
   { id: 'weatherLab', name: 'Puesto meteorológico', icon: '🌦️', detail: 'clima + lluvia + techo móvil' },
   { id: 'robotArena', name: 'Pista de exploración', icon: '🤖', detail: 'robot + sensores montados + estaciones' },
   { id: 'conveyor', name: 'Taller y cinta', icon: '📦', detail: 'motor + sensores + clasificación' },
@@ -979,6 +984,8 @@ function SceneBuilderSession({
                       ? {...changed,canvas:{...changed.canvas,width:960,height:540},devices:changed.devices.map(d=>d.kind==='lineSensors'?{...d,position:{x:165,y:420}}:d)}
                       : changed.canvas.background === 'ottoTheater'
                       ? arrangeTheaterDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
+                      : changed.canvas.background === 'pondLab'
+                      ? arrangePondDevices({...changed,canvas:{...changed.canvas,width:960,height:540}})
                       : changed.canvas.background === 'weatherLab'
                       ? arrangeWeatherDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
                       : changed.canvas.background === 'robotArena'
@@ -1025,6 +1032,7 @@ function SceneBuilderSession({
             </label>
             {previewScene.canvas.background === 'lineTrack' && <div className="scene-inline-notice"><button type="button" onClick={()=>{if(requireSettledInspector('editar el circuito'))setLineEditorOpen(true);}}>Editar circuito</button><small>Mové y orientá el robot antes de correr. La barra de sensores va montada al frente. No hay piloto automático.</small></div>}
             {previewScene.canvas.background === 'ottoTheater' && <details><summary>Público al comenzar</summary><TheaterControls value={previewScene.canvas.theaterEnvironment ?? defaultTheaterEnvironment} onChange={value => { if (requireSettledInspector('cambiar el público inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, theaterEnvironment: value } }, 'Público inicial actualizado en el borrador.'); }} /></details>}
+            {previewScene.canvas.background==='pondLab'&&<details><summary>Agua al comenzar</summary><PondControls initial value={previewScene.canvas.pondEnvironment??defaultPondEnvironment} onChange={value=>{if(requireSettledInspector('cambiar el agua inicial'))commitScene({...previewScene,canvas:{...previewScene.canvas,pondEnvironment:value}},'Agua inicial actualizada en el borrador.');}}/></details>}
             {previewScene.canvas.background === 'weatherLab' && <details><summary>Clima al comenzar</summary><WeatherControls value={previewScene.canvas.weatherEnvironment ?? defaultWeatherEnvironment} onChange={value => { if (requireSettledInspector('cambiar el clima inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, weatherEnvironment: value } }, 'Clima inicial actualizado en el borrador.'); }} /></details>}
             {previewScene.canvas.background === 'robotArena' && <details><summary>Pista al comenzar</summary><ArenaControls value={previewScene.canvas.arenaEnvironment ?? defaultArenaEnvironment} onChange={value => { const robot = previewScene.devices.find(d => d.kind === 'robot'); if (robot && !arenaStartAllowed(robot.position, value)) { setMessage('El obstáculo no puede superponerse al robot.'); return; } if (requireSettledInspector('cambiar la pista inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, arenaEnvironment: value } }, 'Pista inicial actualizada en el borrador.'); }} /></details>}
             {previewScene.canvas.background === 'conveyor' && <details><summary>Taller al comenzar</summary><ConveyorControls value={previewScene.canvas.conveyorEnvironment ?? defaultConveyorEnvironment} onChange={value => { if (requireSettledInspector('cambiar el taller inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, conveyorEnvironment: value } }, 'Taller inicial actualizado en el borrador.'); }} /></details>}
@@ -1184,7 +1192,7 @@ function SceneBuilderSession({
                       type="button"
                       key={template.id}
                       disabled={
-                        ((template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor' || template.id === 'robotArena' || template.id === 'weatherLab' || template.id === 'ottoTheater' || template.id === 'lineTrack') && objectCount > 0) ||
+                        ((template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor' || template.id === 'robotArena' || template.id === 'weatherLab' || template.id === 'ottoTheater' || template.id === 'lineTrack' || template.id === 'pondLab') && objectCount > 0) ||
                         (template.id === 'traffic' || template.id === 'intersection') &&
                         previewScene.canvas.background !== 'crossroads' &&
                         objectCount > 0
@@ -1192,7 +1200,7 @@ function SceneBuilderSession({
                       onClick={() => addTemplate(template.id)}
                       aria-label={`Agregar aventura ${template.name}: ${template.detail}`}
                       title={
-                        (template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor' || template.id === 'robotArena' || template.id === 'weatherLab' || template.id === 'ottoTheater' || template.id === 'lineTrack') && objectCount > 0
+                        (template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor' || template.id === 'robotArena' || template.id === 'weatherLab' || template.id === 'ottoTheater' || template.id === 'lineTrack' || template.id === 'pondLab') && objectCount > 0
                           ? 'Este mundo completo se agrega a una escena vacía; no reemplaza componentes existentes.'
                           : (template.id === 'traffic' || template.id === 'intersection') &&
                         previewScene.canvas.background !== 'crossroads' &&
@@ -1240,6 +1248,7 @@ function SceneBuilderSession({
                     const gardenLimitBlocked = previewScene.canvas.background === 'greenhouse' && gardenSlots.some(slot => slot.kind === component.kind) && previewScene.devices.filter(device => device.kind === component.kind).length >= gardenSlots.filter(slot => slot.kind === component.kind).length;
                     const lineLimitBlocked = previewScene.canvas.background==='lineTrack' && (component.kind==='robot'||component.kind==='lineSensors') && previewScene.devices.some(d=>d.kind===component.kind);
                     const theaterLimitBlocked = previewScene.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === component.kind) && previewScene.devices.some(d => d.kind === component.kind);
+                    const pondLimitBlocked=previewScene.canvas.background==='pondLab'&&pondSlots.some(s=>s.kind===component.kind)&&previewScene.devices.filter(d=>d.kind===component.kind).length>=pondSlots.filter(s=>s.kind===component.kind).length;
                     const weatherLimitBlocked = previewScene.canvas.background === 'weatherLab' && weatherSlots.some(s => s.kind === component.kind) && previewScene.devices.some(d => d.kind === component.kind);
                     const arenaLimitBlocked = previewScene.canvas.background === 'robotArena' && arenaKinds.includes(component.kind as typeof arenaKinds[number]) && previewScene.devices.some(d => d.kind === component.kind);
                     const conveyorLimitBlocked = previewScene.canvas.background === 'conveyor' && conveyorSlots.some(slot => slot.kind === component.kind) && previewScene.devices.filter(d => d.kind === component.kind).length >= conveyorSlots.filter(s => s.kind === component.kind).length;
@@ -1256,12 +1265,12 @@ function SceneBuilderSession({
                         : parkingLimitBlocked ? 'No disponible: los lugares de este componente en el estacionamiento están ocupados'
                         : gardenLimitBlocked ? 'No disponible: los lugares de este componente en la huerta están ocupados'
                         : lineLimitBlocked ? 'No disponible: un robot y una barra de sensores en esta mesa' : theaterLimitBlocked ? 'No disponible: el teatro admite un Otto y un botón de petición'
-                        : weatherLimitBlocked ? 'No disponible: el puesto tiene un lugar por sensor y un techo'
+                        : pondLimitBlocked ? 'No disponible: los lugares de este componente de agua están ocupados' : weatherLimitBlocked ? 'No disponible: el puesto tiene un lugar por sensor y un techo'
                         : arenaLimitBlocked ? 'No disponible: la pista admite un robot y un sensor de cada tipo; los sensores van montados'
                         : conveyorLimitBlocked ? 'No disponible: los lugares de este componente en el taller están ocupados'
                         : houseLimitBlocked ? 'No disponible: los lugares de este componente en la casa están ocupados'
                         : component.childFriendlyControl;
-                    const componentBlocked = visualBlocked || messagesBlocked || trafficSceneBlocked || trafficLimitBlocked || railLimitBlocked || parkingLimitBlocked || gardenLimitBlocked || houseLimitBlocked || conveyorLimitBlocked || arenaLimitBlocked || weatherLimitBlocked || theaterLimitBlocked || lineLimitBlocked;
+                    const componentBlocked = visualBlocked || messagesBlocked || trafficSceneBlocked || trafficLimitBlocked || railLimitBlocked || parkingLimitBlocked || gardenLimitBlocked || houseLimitBlocked || conveyorLimitBlocked || arenaLimitBlocked || pondLimitBlocked || weatherLimitBlocked || theaterLimitBlocked || lineLimitBlocked;
                     return <div className="component-palette-card" key={component.kind}>
                       <button type="button" className="component-add-button" disabled={componentBlocked} onClick={() => addComponent(component.kind)} title={componentBlocked ? reason : component.description} aria-label={`Agregar ${component.name}. ${reason}`}>
                         <span aria-hidden="true">{component.icon}</span><span><strong>{component.name}</strong><small>{reason}</small></span><b aria-hidden="true">{componentBlocked ? '🔒' : '＋'}</b>
@@ -1404,7 +1413,7 @@ function SceneBuilderSession({
                       max="330"
                       step="30"
                       value={selected.rotation}
-                      disabled={(previewScene.canvas.background==='lineTrack' && selected.kind==='lineSensors') || (previewScene.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === selected.kind)) || (previewScene.canvas.background === 'weatherLab' && !!nearestWeatherSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'robotArena' && ['distanceSensor', 'colorSensor', 'infraredBarrier'].includes(selected.kind)) || (previewScene.canvas.background === 'conveyor' && !!nearestConveyorSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'smartHouse' && !!nearestHouseSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'greenhouse' && !!nearestGardenSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'parking' && !!nearestParkingSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'railCrossing' && !!nearestRailSlot(selected.kind, selected.position, railTrackCount(previewScene)))}
+                      disabled={(previewScene.canvas.background==='pondLab'&&!!nearestPondSlot(selected.kind,selected.position)) || (previewScene.canvas.background==='lineTrack' && selected.kind==='lineSensors') || (previewScene.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === selected.kind)) || (previewScene.canvas.background === 'weatherLab' && !!nearestWeatherSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'robotArena' && ['distanceSensor', 'colorSensor', 'infraredBarrier'].includes(selected.kind)) || (previewScene.canvas.background === 'conveyor' && !!nearestConveyorSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'smartHouse' && !!nearestHouseSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'greenhouse' && !!nearestGardenSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'parking' && !!nearestParkingSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'railCrossing' && !!nearestRailSlot(selected.kind, selected.position, railTrackCount(previewScene)))}
                       onChange={(event) =>
                         updateSelectedDraft((device) => ({
                           ...device,
@@ -1553,6 +1562,7 @@ function SceneBuilderSession({
                   )}
                   {previewScene.canvas.background === 'greenhouse' && nearestGardenSlot(selected.kind, selected.position) && <p className="scene-inline-notice">Función: {nearestGardenSlot(selected.kind, selected.position)?.name}. {selected.kind === 'powerSwitch' ? 'Riego por salida de potencia: 0% apagado, 100% máximo. Requiere módulo de potencia, no conectar bomba al GPIO.' : selected.kind === 'servo' ? 'Ventana: 0° cerrada, 90° abierta. Ventila hacia la temperatura exterior.' : 'Lectura automática del mundo virtual. Cambiá el clima, no el sensor. Los ajustes manuales del componente no reemplazan esa lectura.'}</p>}
                   {previewScene.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === selected.kind) && <p className="scene-inline-notice">{selected.kind === 'otto' ? 'Coreografía en escenario fijo. Los sensores/cara dependen del perfil. Un movimiento corporal a la vez; cara y sonido independientes. El ultrasonido representa al público frontal, no equilibrio ni orientación 3D.' : 'Petición del público: pulso de 2 s simulados. El programa decide si actúa y debe esperar su liberación.'}</p>}
+                  {previewScene.canvas.background==='pondLab'&&nearestPondSlot(selected.kind,selected.position)&&<p className="scene-inline-notice">Función: {nearestPondSlot(selected.kind,selected.position)?.name}. Más agua: menor distancia. Bomba: reserva → laguna; compuerta 0° cerrada y 90° abierta. El detector de derrame no mide el nivel del recipiente.</p>}
                   {previewScene.canvas.background === 'weatherLab' && nearestWeatherSlot(selected.kind, selected.position) && <p className="scene-inline-notice">Función: {nearestWeatherSlot(selected.kind, selected.position)?.name}. {selected.kind === 'servo' ? '0° cerrado, 90° abierto. Protege la mesa gradualmente, no seca lo mojado ni cubre los sensores.' : 'Sensor exterior siempre expuesto, con lectura automática del mundo. El detector de lluvia mide su humedad residual, no milímetros ni intensidad de precipitación.'}</p>}
                   {previewScene.canvas.background === 'robotArena' && arenaKinds.includes(selected.kind as typeof arenaKinds[number]) && <p className="scene-inline-notice">{selected.kind === 'robot' ? 'Mové y orientá el robot al comenzar. El camino no lo guía; puede salir y recuperar contactos retrocediendo o girando.' : selected.kind === 'infraredBarrier' ? 'Barrera fija en la meta; queda interrumpida mientras cruza el cuerpo del robot.' : 'Sensor montado sobre el único robot. Se mueve y gira con él; cambiale nombre o pines aquí, no su posición. Su lectura es automática.'}</p>}
                   {previewScene.canvas.background === 'conveyor' && nearestConveyorSlot(selected.kind, selected.position) && <p className="scene-inline-notice">Función: {nearestConveyorSlot(selected.kind, selected.position)?.name}. Lecturas automáticas del paquete en esta zona. Detené la cinta 0,6 s para pesar; desviador 0° A / 90° B. Si llega un paquete mientras gira, se atasca. Marcha atrás no disponible en este taller.</p>}
@@ -1733,8 +1743,8 @@ function SceneBuilderSession({
                       type="button"
                       variant="outline"
                       onClick={duplicateSelected}
-                      disabled={(previewScene.canvas.background==='lineTrack' && ['robot','lineSensors'].includes(selected.kind)) || (previewScene.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === selected.kind)) || (previewScene.canvas.background === 'weatherLab' && !!nearestWeatherSlot(selected.kind, selected.position)) || selected.kind === 'display' || selected.kind === 'ledMatrix' || (previewScene.canvas.background === 'robotArena' && arenaKinds.includes(selected.kind as typeof arenaKinds[number]))}
-                      title={previewScene.canvas.background==='lineTrack' && ['robot','lineSensors'].includes(selected.kind) ? 'Un robot y una barra de sensores en esta mesa' : previewScene.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === selected.kind) ? 'Un Otto y una petición en este teatro' : previewScene.canvas.background === 'weatherLab' && nearestWeatherSlot(selected.kind, selected.position) ? 'Un sensor por lugar y un techo en este puesto' : previewScene.canvas.background === 'robotArena' && arenaKinds.includes(selected.kind as typeof arenaKinds[number]) ? 'Un robot y un sensor de cada tipo en esta pista' : selected.kind === 'display' || selected.kind === 'ledMatrix' ? 'Una sola pantalla o matriz por proyecto' : undefined}
+                      disabled={(previewScene.canvas.background==='pondLab'&&!!nearestPondSlot(selected.kind,selected.position)) || (previewScene.canvas.background==='lineTrack' && ['robot','lineSensors'].includes(selected.kind)) || (previewScene.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === selected.kind)) || (previewScene.canvas.background === 'weatherLab' && !!nearestWeatherSlot(selected.kind, selected.position)) || selected.kind === 'display' || selected.kind === 'ledMatrix' || (previewScene.canvas.background === 'robotArena' && arenaKinds.includes(selected.kind as typeof arenaKinds[number]))}
+                      title={previewScene.canvas.background==='pondLab'&&nearestPondSlot(selected.kind,selected.position)?'Lugares hidráulicos fijos; agregá el segundo sensor desde el catálogo':previewScene.canvas.background==='lineTrack' && ['robot','lineSensors'].includes(selected.kind) ? 'Un robot y una barra de sensores en esta mesa' : previewScene.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === selected.kind) ? 'Un Otto y una petición en este teatro' : previewScene.canvas.background === 'weatherLab' && nearestWeatherSlot(selected.kind, selected.position) ? 'Un sensor por lugar y un techo en este puesto' : previewScene.canvas.background === 'robotArena' && arenaKinds.includes(selected.kind as typeof arenaKinds[number]) ? 'Un robot y un sensor de cada tipo en esta pista' : selected.kind === 'display' || selected.kind === 'ledMatrix' ? 'Una sola pantalla o matriz por proyecto' : undefined}
                     >
                       📄 Duplicar
                     </Button>

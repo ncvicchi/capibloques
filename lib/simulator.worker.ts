@@ -5,6 +5,8 @@ import { createTheaterWorldState, advanceTheaterWorld, theaterBindings, theaterH
 // @ts-expect-error Node strip-types runner.
 import { advanceWeatherWorld, createWeatherWorldState, weatherBindings, validWeatherEnvironment } from './weather-world.ts';
 // @ts-expect-error Node strip-types runner.
+import { advancePondWorld, createPondWorld, pondBindings, waterDistance, validPondEnvironment } from './pond-world.ts';
+// @ts-expect-error Node strip-types runner.
 import { advanceArenaWorld, createArenaWorldState, arenaBindings, arenaPose, defaultArenaEnvironment } from './robot-arena.ts';
 // @ts-expect-error Node strip-types runner.
 import { advanceConveyorWorld, createConveyorWorldState, conveyorBindings, conveyorInputRoles, validConveyorEnvironment } from './conveyor-world.ts';
@@ -487,6 +489,7 @@ function freshState(): SimulatorState {
     ...(scene.canvas.background === 'greenhouse' ? { gardenWorld: createGardenWorldState(scene.canvas.gardenEnvironment, initialAngle(gardenBindings(scene).window)) } : {}),
     ...(scene.canvas.background === 'ottoTheater' ? { theaterWorld: createTheaterWorldState(scene.canvas.theaterEnvironment) } : {}),
     ...(scene.canvas.background === 'weatherLab' ? { weatherWorld: createWeatherWorldState(scene.canvas.weatherEnvironment, weatherBindings(scene).roof ? initialAngle(weatherBindings(scene).roof) : 90) } : {}),
+    ...(scene.canvas.background==='pondLab'?{pondWorld:createPondWorld(scene.canvas.pondEnvironment,pondBindings(scene).drain?initialAngle(pondBindings(scene).drain):0)}:{}),
     ...(scene.canvas.background === 'lineTrack' ? { lineWorld: createLineWorld(arenaPose(scene).position, arenaPose(scene).angle) } : {}),
     ...(scene.canvas.background === 'robotArena' ? { arenaWorld: createArenaWorldState(arenaPose(scene).position, arenaPose(scene).angle) } : {}),
     ...(scene.canvas.background === 'conveyor' ? { conveyorWorld: createConveyorWorldState(scene.canvas.conveyorEnvironment, initialAngle(conveyorBindings(scene).gate)) } : {}),
@@ -853,6 +856,7 @@ function resetExecution(
   updateParkingPhysics(0);
   updateGardenPhysics(0);
   updateWeatherPhysics(0);
+  updatePondPhysics(0);
   updateTheaterPhysics(0);
   updateHousePhysics(0);
   updateConveyorPhysics(0);
@@ -2613,6 +2617,20 @@ function updateTheaterPhysics(deltaMs: number) {
   if (b.request) applyInputValue(b.request, w.requestMs > 0);
 }
 
+function updatePondPhysics(deltaMs:number){
+  if(!state.pondWorld)return;
+  const b=pondBindings(scene),pump=b.pump?state.devices[b.pump]:undefined,gate=b.drain?state.devices[b.drain]:undefined;
+  const pumpSpec=scene.devices.find(d=>d.id===b.pump);
+  const ordered=pump?.kind==='educationalModule'?Number(pump.values.power??0):0;
+  const power=pumpSpec?.kind==='powerSwitch'&&pumpSpec.config.profile==='RELAY_LOW_VOLTAGE'?(ordered>0?100:0):ordered;
+  const w=state.pondWorld=advancePondWorld(state.pondWorld,power,gate?.kind==='servo'?gate.angle:0,deltaMs);
+  for(const [role,volume,capacity]of [['reserveSensor',w.reserve,300],['lagoonSensor',w.lagoon,100]] as const){
+    const d=b[role]?state.devices[b[role]!]:undefined;
+    if(d?.kind==='educationalModule')d.values.distance=Math.round(waterDistance(volume,capacity)*100)/100;
+  }
+  const spill=b.spillSensor?state.devices[b.spillSensor]:undefined,spec=scene.devices.find(d=>d.id===b.spillSensor);
+  if(spill?.kind==='educationalModule')Object.assign(spill.values,{level:Math.round(w.wetness),wet:w.wetness>=(spec?.kind==='waterSensor'?Number(spec.config.settings.threshold):20)});
+}
 function updateWeatherPhysics(deltaMs: number) {
   if (!state.weatherWorld) return;
   const b = weatherBindings(scene), roof = b.roof ? state.devices[b.roof] : undefined;
@@ -2688,6 +2706,7 @@ function updatePhysics(deltaMs: number) {
     updateParkingPhysics(deltaMs);
     updateGardenPhysics(deltaMs);
     updateWeatherPhysics(deltaMs);
+    updatePondPhysics(deltaMs);
     updateTheaterPhysics(deltaMs);
     updateHousePhysics(deltaMs);
     updateConveyorPhysics(deltaMs);
@@ -2934,6 +2953,7 @@ function setInputById(deviceId: string, value: unknown) {
   if (['distanceSensor', 'colorSensor', 'infraredBarrier'].some(kind => arenaBindings(scene)[kind as 'distanceSensor' | 'colorSensor' | 'infraredBarrier'] === deviceId)) return;
   if (Object.values(theaterBindings(scene)).includes(deviceId)) return;
   if (['climate', 'rain', 'light'].some(role => weatherBindings(scene)[role as 'climate' | 'rain' | 'light'] === deviceId)) return;
+  const pond=pondBindings(scene);if([pond.reserveSensor,pond.lagoonSensor,pond.spillSensor].includes(deviceId))return;
   if (conveyorInputRoles.some(role => conveyorBindings(scene)[role] === deviceId)) return;
   if (houseInputRoles.some(role => houseBindings(scene)[role] === deviceId)) return;
   if (Object.entries(gardenBindings(scene)).some(([role, id]) => ['outsideSoil', 'insideSoil', 'climate', 'light'].includes(role) && id === deviceId)) return;
@@ -3008,6 +3028,8 @@ function setLegacyInput(name: unknown, value: unknown) {
     if (w) { if (value === 'arrive' && w.phase === 'empty') w.pendingArrival = true; if (value === 'leave' && w.phase !== 'empty') w.pendingDeparture = true; if (value === 'request' && w.phase === 'watching' && !w.requestMs) w.pendingRequest = true; }
     return;
   }
+  if(name==='pondEnvironment'){if(state.pondWorld&&validPondEnvironment(value))state.pondWorld.environment={...value};return;}
+  if(name==='pondRefill'){if(state.pondWorld&&value===true)state.pondWorld.pendingRefill=true;return;}
   if (name === 'weatherEnvironment') {
     if (state.weatherWorld && validWeatherEnvironment(value)) { state.weatherWorld.environment = { ...value }; const fresh = createWeatherWorldState(value); state.weatherWorld.phaseMs = 0; state.weatherWorld.phaseIndex = fresh.phaseIndex; }
     return;
@@ -3062,6 +3084,7 @@ scope.addEventListener('message', (event) => {
       const houseTrial = preserveTrials && state.houseWorld ? { environment: { ...state.houseWorld.environment }, pendingVisitor: state.houseWorld.pendingVisitor } : null;
       const theaterTrial = preserveTrials && state.theaterWorld ? { environment: { ...state.theaterWorld.environment }, pendingArrival: state.theaterWorld.pendingArrival } : null;
       const weatherTrial = preserveTrials && state.weatherWorld ? { ...state.weatherWorld.environment } : null;
+      const pondTrial=preserveTrials&&state.pondWorld?{environment:{...state.pondWorld.environment},pendingRefill:state.pondWorld.pendingRefill}:null;
       const gardenTrial = preserveTrials && state.gardenWorld ? { ...state.gardenWorld.environment } : null;
       try {
         currentBoardProfile = isBoardProfileId(message.boardProfile)
@@ -3077,6 +3100,7 @@ scope.addEventListener('message', (event) => {
         if (theaterTrial && state.theaterWorld) { state.theaterWorld.environment = theaterTrial.environment; state.theaterWorld.pendingArrival = theaterTrial.pendingArrival; }
         if (weatherTrial && state.weatherWorld) { state.weatherWorld.environment = weatherTrial; state.weatherWorld.phaseIndex = createWeatherWorldState(weatherTrial).phaseIndex; }
         if (gardenTrial && state.gardenWorld) state.gardenWorld.environment = gardenTrial;
+        if(pondTrial&&state.pondWorld){state.pondWorld.environment=pondTrial.environment;state.pondWorld.pendingRefill=pondTrial.pendingRefill;}
         emit();
         refreshDiagnostics(
           invalidScene

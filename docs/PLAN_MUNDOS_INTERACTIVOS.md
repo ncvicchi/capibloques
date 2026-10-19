@@ -1,5 +1,7 @@
 # Mundos interactivos: escenas con comportamiento
 
+**Fase 57 — Laguna, depósito y bombeo (19/10):** software en rama `codex/fase-57-laguna-bombeo` desde dev1. [Reglas aprobadas y entrega](FASE_57_LAGUNA_DEPOSITO_BOMBEO.md): balance de agua, dos distancias, bomba/compuerta, derrame y secado residual, ensayos y dos ejemplos completos (directo/modular). Sin firmware/ABI/SDK/migraciones; actualización dev1, aceptación humana/física y mundo Waveshare pendientes. Fase56 ya actualizada en dev1 por confirmación del propietario. Sustituye estados históricos de laguna sólo propuesta; no habilita otra fase ni cambios main/dev2.
+
 **Vigente19/10: fase56 implementada en rama desde dev1.** [Seguidor de línea](FASE_56_SEGUIDOR_LINEA.md): suelo detectado desde geometría real, tres reflectivos y motores independientes, editor y ejemplos básico/modular. No autopiloto ni modificación de pista52. Runtime1.10.0 ABI1; actualización/SDK completo/hardware y renderer Waveshare pendientes. Fase55 sigue análisis, no nuevos mundos autorizados. Estados inferiores previos a56 son históricos.
 
 
@@ -93,6 +95,8 @@ ordena seguir la línea; huerta no equivale todavía a balance de agua/plantas.
 | 54 | Escenario de Otto | Otto, botón, distancia, matriz, buzzer y luz | Software en rama desde dev1; público, dos ejemplos completos y FIFO corporal 1.9.1; [reglas](FASE_54_TEATRO_OTTO.md); aceptación/SDK/Waveshare/físico pendientes |
 | 55 | Análisis de variantes | Parque, laguna y posible aeropuerto | Análisis cerrado: [evaluación](FASE_55_ANALISIS_VARIANTES_ESCENAS.md); candidatos retenidos, sin nuevo software ni autorización de implementación |
 | 56 | Vehículo seguidor de línea | Robot diferencial y tres reflectivos digitales | Software en rama dev1; editor/circuitos y dos ejemplos completos, pérdida/búsqueda limitada; [reglas](FASE_56_SEGUIDOR_LINEA.md); DEV/SDK/físico/Waveshare pendientes |
+
+| 57 | Laguna, depósito y bombeo | Dos distancias, interruptor de potencia, servo, detector de agua y avisos | Software web con balance y dos ejemplos completos; [reglas](FASE_57_LAGUNA_DEPOSITO_BOMBEO.md); actualización dev1/aceptación/físico/Waveshare pendientes |
 
 Estado de la primera entrega: fase 46 implementada en simulación web; uso,
 evidencia y límites en [FASE_46_PEATONES.md](FASE_46_PEATONES.md). DEV/usuarios

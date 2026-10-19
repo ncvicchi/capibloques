@@ -19,6 +19,8 @@ import {
   // @ts-expect-error Node's type-stripping smoke runner needs the explicit suffix.
 } from './scene-model.ts';
 
+// @ts-expect-error Node strip-types runner.
+import { pondExample } from './pond-examples.ts';
 export type SceneId = LegacySceneId;
 // @ts-expect-error Node strip-types runner.
 import { ottoQueueSupport } from './otto-queue.ts';
@@ -304,7 +306,7 @@ export interface ProjectDecodeResult {
   diagnostics: CapiDiagnostic[];
 }
 
-export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4' | 'parkingProcedures' | 'greenhouseProcedures' | 'smartHouseProcedures' | 'conveyorProcedures' | 'robotArenaProcedures' | 'weatherLabProcedures' | 'ottoTheaterProcedures' | 'lineTrackProcedures';
+export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4' | 'parkingProcedures' | 'greenhouseProcedures' | 'smartHouseProcedures' | 'conveyorProcedures' | 'robotArenaProcedures' | 'weatherLabProcedures' | 'ottoTheaterProcedures' | 'lineTrackProcedures' | 'pondLabProcedures';
 export interface ExampleDefinition {
   id: ExampleId;
   title: string;
@@ -421,6 +423,7 @@ export interface SimulatorState {
   arenaWorld?: import('./robot-arena').ArenaWorldState;
   lineWorld?: import('./line-world').LineWorldState;
   weatherWorld?: import('./weather-world').WeatherWorldState;
+  pondWorld?: import('./pond-world').PondWorldState;
   theaterWorld?: import('./theater-world').TheaterWorldState;
   execution?: {
     mode: 'normal' | 'guided';
@@ -1384,6 +1387,8 @@ export const examples: ExampleDefinition[] = [
   conveyorExample(true),
   arenaExample(false),
   arenaExample(true),
+  pondExample(false),
+  pondExample(true),
   weatherLabExample(false),
   weatherLabExample(true),
   theaterExample(false),

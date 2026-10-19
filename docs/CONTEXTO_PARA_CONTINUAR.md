@@ -1,5 +1,49 @@
 # CapiBloques — contexto para continuar
 
+### Entrega vigente 19/10: fase57 — Laguna, depósito y bombeo
+
+Rama `codex/fase-57-laguna-bombeo` desde origin/dev1 `86e6cfe`.
+[Reglas aprobadas y guía](FASE_57_LAGUNA_DEPOSITO_BOMBEO.md). Fase56 actualizada
+en dev1 según confirmación del propietario; Git remoto contiene su integración.
+No es aceptación de SDK, hardware o renderer Waveshare.
+
+- Nuevo pondLab, independiente de pond/counter históricos. Reserva300L/laguna100L,
+  bomba2L/s, servo/desagüe3L/s/1,2s; balance explícito, lluvia/fuga/evaporación,
+  derrame acumulado y humedad residual con secado15s. No apagar órdenes ni
+  proteger automáticamente por el alumno. Integración worker determinista20ms.
+- Dos distancias automáticas inversas120–20cm, bandeja con threshold del sensor.
+  Lugares y cantidades fijos, falta/quitar/reponer sin inventar lecturas;
+  control de potencia MOSFET proporcional y relé binario. Nombres configurados.
+- Condiciones guardables y ensayos transitorios lluvia/fuga/recarga, sin sliders
+  competidores para sensores. Recarga acotada al avanzar reloj; LOAD previo a
+  Simular/Paso preserva ensayos del mismo mundo; Reiniciar borra todo estado.
+  Mismo mundo en editor, simulación y revisión; espejo físico no controla ensayos.
+- Dos ejemplos completos en catálogo: Laguna con nivel automático (40–70%, directo)
+  y Laguna protegida con procedimientos (6tareas/4pestañas/3procesos). Protección
+  de reserva, timeout25s de bombeo enclavado hasta reset, desagüe90–80%,
+  luz/buzzer por episodio e informe. Responsables únicos por actuador.
+- Sin migraciones, dependencias, ABI, nuevo firmware ni SDK; capacidades existentes.
+  Actualizador debe reutilizar firmware1.10.0/caché, no borrar outputs.
+  No se operaron servidores, main ni dev2. Propietario integra/actualiza sólo dev1.
+
+Pruebas: balance/conservación, límites, reserva seca sin autoapagado, humedad,
+slots, frontend/backend, JSON portable, CapiRules y fuentes Arduino/IDF; ambos
+workspaces reales a1×/4×, regulación, reserva/recarga, desagüe, timeout, pausa/reset
+y bloqueo de controles competidores. Smoke completo y7 pruebas Django(57/53)
+aprobados; los dos JSON reales frontend→Django aceptados. Chromium3 recorridos
+(ambos ejemplos/pausa/reset y edición guardar/cancelar/undo/redo), capturas
+inspeccionadas, build10páginas, tipos/lint y lint de componentes nuevos aprobados.
+Advertencia existente de chunk grande conservada; no es un error de build.
+La revisión de navegador detectó IDs de pestaña sin prefijo y nombre de variable
+>32caracteres; corregidos y agregadas aserciones de normalización/límite.
+
+Pendientes: actualización/aceptación dev1 por propietario, uso infantil/docente,
+maqueta física. Mundo específico Waveshare no implementado (no confundir con
+simple prueba de pantalla pendiente). SDK/hardware del runtime1.10.0 anterior
+siguen pendientes; no reconstruidos por este mundo. Fixture HAL previo de56
+sigue documentado, no se altera ni se declara suite HAL completa aprobada.
+
+
 ### Entrega vigente19/10: fase56 — Vehículo seguidor de línea
 
 Rama `codex/fase-56-seguidor-linea` creada desde origin/dev1
