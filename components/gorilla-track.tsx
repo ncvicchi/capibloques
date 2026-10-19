@@ -3,6 +3,7 @@ import type { SceneDefinition } from '@/lib/scene-model';
 import {
   createGorillaTrack,
   gorillaStations,
+  gorillaDistance, gorillaBindings,
   type GorillaTrackState,
 } from '@/lib/gorilla-track';
 export default function GorillaTrack({
@@ -19,6 +20,8 @@ export default function GorillaTrack({
       className="scene-world"
       data-gorilla-x={w.x.toFixed(2)}
       data-gorilla-y={w.y.toFixed(2)}
+      data-gorilla-distance={gorillaDistance(w,scene).distance}
+      data-gorilla-valid={gorillaDistance(w,scene).valid}
       data-gorilla-contact={w.contact}
       data-gorilla-visits={w.visited.join(',')}
     >
@@ -99,7 +102,7 @@ export default function GorillaTrack({
               </text>
             </g>
           ))}
-        {(scene.canvas.arenaEnvironment?.obstacles ?? []).map((o, i) => (
+        {(w.obstaclesRemoved?[]:scene.canvas.arenaEnvironment?.obstacles ?? []).map((o, i) => (
           <g key={i}>
             <circle
               cx={o.x}
@@ -149,6 +152,8 @@ export default function GorillaTrack({
           Visitas: {w.visited.join(' → ') || 'ninguna'} · Contactos:{' '}
           {w.contacts} · Las estaciones se registran al detenerse 0,5 s
         </text>
+        {gorillaBindings(scene).sensor&&<g transform={`translate(${w.x} ${w.y}) rotate(${w.angle})`}><circle cx="42" cy="0" r="5" fill={gorillaDistance(w,scene).valid?'#f3bc52':'#ed685f'}/><path d={`M42 0h${Math.min(250,gorillaDistance(w,scene).distance*40)}`} stroke="#d08b25" strokeWidth="2" strokeDasharray="5 5"/></g>}
+        {gorillaBindings(scene).sensor&&<text x="430" y="475" fontSize="13" fill="#35534a">{scene.devices.find(d=>d.id===gorillaBindings(scene).sensor)?.name}: {gorillaDistance(w,scene).valid?gorillaDistance(w,scene).distance+' cm virtuales':'lectura inválida / vencida'}</text>}
         <text x="35" y="527" fontSize="13" fill="#35534a">
           El camino no guía al robot. Sin sensores ni piloto automático.
           Reiniciar restablece toda la pista.

@@ -129,7 +129,7 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
       return ['powerSwitch'];
     case 'capi_stepper':
       return ['stepper'];
-    case 'capi_gorilla_gait': case 'capi_gorilla_settle': case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair': case 'capi_gorilla_posture': case 'capi_gorilla_foot': case 'capi_gorilla_path':return ['gorilla'];
+    case 'capi_gorilla_walk': case 'capi_gorilla_finish': case 'capi_gorilla_gait': case 'capi_gorilla_settle': case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair': case 'capi_gorilla_posture': case 'capi_gorilla_foot': case 'capi_gorilla_path':return ['gorilla'];
     case 'capi_rgb_fill':
     case 'capi_rgb_pixel':
     case 'capi_rgb_segment':
@@ -172,12 +172,12 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
     case 'capi_component_number':
       return ['led', 'motor', 'servo', 'lightSensor', 'potentiometer', 'otto', ...Object.values(educationalModuleSpecs).filter(spec => spec.values.some(value => value.type === 'number')).map(spec => spec.kind)];
     case 'capi_component_text':
-      return ['trafficLight', 'robot', 'otto', 'wifiNode', 'messages', ...Object.values(educationalModuleSpecs).filter(spec => spec.values.some(value => value.type === 'text')).map(spec => spec.kind)];
+      return ['gorilla','trafficLight', 'robot', 'otto', 'wifiNode', 'messages', ...Object.values(educationalModuleSpecs).filter(spec => spec.values.some(value => value.type === 'text')).map(spec => spec.kind)];
     case 'capi_traffic_color':
     case 'capi_traffic_is':
       return ['trafficLight'];
     case 'capi_component_boolean':
-      return ['button', 'infraredBarrier', 'wifiNode', ...Object.values(educationalModuleSpecs).filter(spec => spec.values.some(value => value.type === 'boolean')).map(spec => spec.kind)];
+      return ['distanceSensor','button', 'infraredBarrier', 'wifiNode', ...Object.values(educationalModuleSpecs).filter(spec => spec.values.some(value => value.type === 'boolean')).map(spec => spec.kind)];
     case 'capi_wifi_message_send':
     case 'capi_wifi_message_receive':
       return ['wifiNode'];
@@ -869,7 +869,7 @@ const toolbox = {
         { kind: 'block', type: 'capi_led' },
         { kind: 'block', type: 'capi_power_switch' },
         { kind: 'block', type: 'capi_stepper' },
-        ...['capi_gorilla_gait','capi_gorilla_settle','capi_gorilla_prepare','capi_gorilla_joint','capi_gorilla_pair','capi_gorilla_posture','capi_gorilla_foot','capi_gorilla_path'].map(type=>({kind:'block',type})),
+        ...['capi_gorilla_walk','capi_gorilla_finish','capi_gorilla_gait','capi_gorilla_settle','capi_gorilla_prepare','capi_gorilla_joint','capi_gorilla_pair','capi_gorilla_posture','capi_gorilla_foot','capi_gorilla_path'].map(type=>({kind:'block',type})),
         { kind: 'block', type: 'capi_rgb_fill' },
         { kind: 'block', type: 'capi_rgb_pixel' },
         { kind: 'block', type: 'capi_rgb_segment' },
@@ -2028,6 +2028,12 @@ function registerBlocks(Blockly: BlocklyApi) {
       colour: '#12AA8C',
       tooltip: 'Controla una carga de baja tensión con MOSFET o relé.',
       extensions: [DEVICE_EXTENSION],
+    },
+    {
+      type:'capi_gorilla_walk',message0:'🦍 %1 %2 hasta que %3 máximo %4 segundos',args0:[deviceField('agregá GorillaBot'),{type:'field_dropdown',name:'MODE',options:[['avanzar','0'],['retroceder','1']]},{type:'input_value',name:'CONDITION',check:'Boolean'},{type:'field_number',name:'LIMIT',value:30,min:1,max:120,precision:1}],previousStatement:null,nextStatement:null,colour:'#328BDD',tooltip:'Revisa tu condición durante la marcha y termina bajando los pies en su lugar. Sin sensores de suelo ni giro automático.',extensions:[DEVICE_EXTENSION],
+    },
+    {
+      type:'capi_gorilla_finish',message0:'🦍 %1 solicitar terminar marcha autónoma',args0:[deviceField('agregá GorillaBot')],previousStatement:null,nextStatement:null,colour:'#328BDD',tooltip:'Pide terminar el bloque avanzar hasta que, incluso desde otro hilo. No interrumpe los bloques de banco o N ciclos. Detener sigue siendo inmediato.',extensions:[DEVICE_EXTENSION],
     },
     {
       type:'capi_gorilla_gait',message0:'🦍 %1 %2 durante %3 ciclos',args0:[deviceField('agregá GorillaBot'),{type:'field_dropdown',name:'MODE',options:[['avanzar','0'],['retroceder','1'],['girar izquierda (experimental)','2'],['girar derecha (experimental)','3']]},{type:'field_number',name:'TIMES',value:1,min:1,max:20,precision:1}],previousStatement:null,nextStatement:null,colour:'#328BDD',tooltip:'Una coreografía para las cuatro patas. Longitud, altura y ritmo se configuran en la escena. El giro físico requiere verificación.',extensions:[DEVICE_EXTENSION],
@@ -3784,7 +3790,11 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           blockId,
         });
         break;
-      case 'capi_gorilla_gait': case 'capi_gorilla_settle': case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair': case 'capi_gorilla_posture': case 'capi_gorilla_foot': case 'capi_gorilla_path':
+      case 'capi_gorilla_walk': case 'capi_gorilla_finish': case 'capi_gorilla_gait': case 'capi_gorilla_settle': case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair': case 'capi_gorilla_posture': case 'capi_gorilla_foot': case 'capi_gorilla_path':
+        if(block.type==='capi_gorilla_walk'||block.type==='capi_gorilla_finish'){
+          const currentBlock=block,d=devicesForBlock(currentBlock).find(d=>d.id===selectedDeviceId(currentBlock)),g=d?.kind==='gorilla'?(d.config.gait??defaultGorillaGait):defaultGorillaGait;
+          result.push({op:'gorilla',action:block.type==='capi_gorilla_finish'?'finish':'walk',deviceId:selectedDeviceId(block),index:numberField(block,'MODE',0),a:g.stride,b:g.height,durationMs:g.phaseMs,...(block.type==='capi_gorilla_walk'?{condition:compileCondition(block.getInputTargetBlock('CONDITION')),timeoutMs:numberField(block,'LIMIT',30)*1000}:{}),blockId});break;
+        }
         if(block.type==='capi_gorilla_gait'||block.type==='capi_gorilla_settle'){
           const currentBlock=block,d=devicesForBlock(currentBlock).find(d=>d.id===selectedDeviceId(currentBlock)),g=d?.kind==='gorilla'?(d.config.gait??defaultGorillaGait):defaultGorillaGait;
           const node:ProgramNode={op:'gorilla',deviceId:selectedDeviceId(block),action:'gait',index:block.type==='capi_gorilla_settle'?4:numberField(block,'MODE',0),a:g.stride,b:g.height,durationMs:g.phaseMs,blockId};

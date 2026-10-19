@@ -1,7 +1,7 @@
 // @ts-expect-error Node strip-types runner.
-import {planGorillaGait,advanceGorillaGait,type GorillaGaitMove} from './gorilla-gait.ts';
+import {planGorillaGait,planGorillaSupport,advanceGorillaGait,type GorillaGaitMove} from './gorilla-gait.ts';
 // @ts-expect-error Node strip-types runner.
-import {createGorillaTrack,advanceGorillaTrack} from './gorilla-track.ts';
+import {createGorillaTrack,advanceGorillaTrack,gorillaBindings,gorillaDistance} from './gorilla-track.ts';
 // @ts-expect-error Node strip-types runner.
 import { createLineWorld, advanceLineWorld, lineBindings, defaultLineCircuit } from './line-world.ts';
 // @ts-expect-error Node strip-types runner.
@@ -66,6 +66,7 @@ import {gorillaPostureTargets,gorillaTargets,gorillaMove,advanceGorilla,type Gor
 // @ts-expect-error Node strip-types runner.
 import {planGorillaPath,advanceGorillaPath,type GorillaCartesianMove} from './gorilla-kinematics.ts';
 const gorillaJobs=new Map<string,GorillaMove|GorillaCartesianMove|GorillaGaitMove>();
+const gorillaWalks=new Map<string,{owner:string;block:string;started:number;finishing:boolean;requested:boolean;moved:boolean;outcome:string}>();
 const gorillaPositions=new Map<string,number[]>();
 type Pending =
   | { kind: 'wait'; startedAt: number; until: number; blockId: string }
@@ -485,6 +486,7 @@ function defaultRobot() {
 
 function freshState(): SimulatorState {
   const devices = createDeviceState();
+  for(const d of Object.values(devices)){if(d.kind==='educationalModule'&&d.deviceKind==='gorilla')d.values.walkOutcome='ninguno';if(d.kind==='educationalModule'&&d.deviceKind==='distanceSensor')d.values.valid=Number(d.values.distance)>=2;}
   const bindings = railBindings(scene);
   const parking = parkingBindings(scene);
   const initialAngle = (id: string | undefined) => id && devices[id]?.kind === 'servo' ? devices[id].angle : 0;
@@ -896,7 +898,7 @@ function resetExecution(
   wifiMessageSequence = 0;
   lastReceivedMessages.clear();
   visualAnimations.clear();
-  gorillaJobs.clear();gorillaPositions.clear();
+  gorillaJobs.clear();gorillaWalks.clear();gorillaPositions.clear();
   ottoOwners.clear();
   ottoQueues.clear();
   clearBlockActivity();
@@ -1615,7 +1617,33 @@ function executeInstruction(
   if(node.op==='gorilla'){
     const d=state.devices[node.deviceId],spec=scene.devices.find(x=>x.id===node.deviceId);
     if(d?.kind!=='educationalModule'||spec?.kind!=='gorilla'){execution.pc++;return 'action';}
-    if(gorillaJobs.has(node.deviceId))return 'wait';
+    if(node.action==='finish'){const w=gorillaWalks.get(node.deviceId);if(w)w.requested=true;execution.pc++;return 'action';}
+    if(node.action==='walk'){
+      let w=gorillaWalks.get(node.deviceId);
+      if(w&&(w.owner!==execution.thread.id||w.block!==node.blockId))return 'wait';
+      if(!w){if(gorillaJobs.has(node.deviceId))return 'wait';w={owner:execution.thread.id,block:node.blockId,started:virtualNow,finishing:false,requested:false,moved:false,outcome:'ninguno'};gorillaWalks.set(node.deviceId,w);d.values.walkOutcome='ninguno';}
+      const current=gorillaPositions.get(node.deviceId)??Array.from({length:8},(_,i)=>Number(d.values['j'+i]));
+      if(d.values.error||!d.values.ready){w.outcome='error';gorillaJobs.delete(node.deviceId);}
+      else if(w.finishing){if(gorillaJobs.has(node.deviceId))return 'wait';}
+      else {
+        const reason=w.requested?'solicitado':evaluate(node.condition!)?'condición':virtualNow-w.started>=(node.timeoutMs??30000)?'tiempo máximo':'';
+        if(reason){
+          w.outcome=reason;w.finishing=true;
+          if(w.moved){
+          const p=spec.config.kinematics?planGorillaSupport(spec.config.kinematics,spec.config.settings,current):{};
+          gorillaJobs.delete(node.deviceId);
+          if(p.move){gorillaJobs.set(node.deviceId,p.move);d.values.moving=true;return 'wait';}
+          d.values.error=true;w.outcome='error';}
+        }else{
+          if(!gorillaJobs.has(node.deviceId)){
+            const p=spec.config.kinematics?planGorillaGait(spec.config.kinematics,spec.config.settings,node.index,{stride:node.a,height:node.b,phaseMs:node.durationMs,turnsVerified:false},current):{};
+            if(!p.move){w.outcome='error';d.values.error=true;}else{w.moved=true;gorillaJobs.set(node.deviceId,p.move);d.values.moving=true;return 'wait';}
+          }else return 'wait';
+        }
+      }
+      d.values.moving=false;d.values.walkOutcome=w.outcome;gorillaWalks.delete(node.deviceId);execution.pc++;appendConsole(`${deviceName(node.deviceId)}: marcha terminada · ${w.outcome}`);return 'action';
+    }
+    if(gorillaWalks.has(node.deviceId)||gorillaJobs.has(node.deviceId))return 'wait';
     if(node.action==='prepare'){d.values.ready=true;d.values.error=false;execution.pc++;appendConsole(`${deviceName(node.deviceId)}: preparado, sin mover motores`);return 'action';}
     const current=gorillaPositions.get(node.deviceId)??Array.from({length:8},(_,i)=>Number(d.values[`j${i}`]));
     if(node.action==='gait'){
@@ -2754,6 +2782,9 @@ function updatePhysics(deltaMs: number) {
     updateLinePhysics(deltaMs);
   }
   if(state.gorillaWorld)state.gorillaWorld=advanceGorillaTrack(state.gorillaWorld,scene,0,0,state.gorillaWorld.swing,deltaMs,Array.from(gorillaJobs.values()).some(j=>'frames' in j));
+  if(state.gorillaWorld?.buttonPulseMs){state.gorillaWorld.buttonPulseMs=Math.max(0,state.gorillaWorld.buttonPulseMs-deltaMs);const id=gorillaBindings(scene).button;if(id)applyInputValue(id,state.gorillaWorld.buttonPulseMs>0);}
+  const front=gorillaBindings(scene).sensor,sonar=front?state.devices[front]:undefined;
+  if(sonar?.kind==='educationalModule'&&state.gorillaWorld){const reading=gorillaDistance(state.gorillaWorld,scene);sonar.values.distance=reading.valid?reading.distance:0;sonar.values.valid=reading.valid;}
   updateVisualAnimations();
   for (const timer of Object.values(state.timers)) {
     if (timer.status !== 'running' || timer.durationMs <= 0 || deltaMs <= 0)
@@ -2990,6 +3021,7 @@ function stopOutputs() {
 }
 
 function setInputById(deviceId: string, value: unknown) {
+  if(gorillaBindings(scene).sensor===deviceId)return;
   if(lineBindings(scene).sensors===deviceId)return;
   if (['distanceSensor', 'colorSensor', 'infraredBarrier'].some(kind => arenaBindings(scene)[kind as 'distanceSensor' | 'colorSensor' | 'infraredBarrier'] === deviceId)) return;
   if (Object.values(theaterBindings(scene)).includes(deviceId)) return;
@@ -3070,6 +3102,8 @@ function setLegacyInput(name: unknown, value: unknown) {
     if (w) { if (value === 'arrive' && w.phase === 'empty') w.pendingArrival = true; if (value === 'leave' && w.phase !== 'empty') w.pendingDeparture = true; if (value === 'request' && w.phase === 'watching' && !w.requestMs) w.pendingRequest = true; }
     return;
   }
+  if(name==='gorillaButtonPulse'){const id=gorillaBindings(scene).button;if(id&&state.gorillaWorld){state.gorillaWorld.buttonPulseMs=250;applyInputValue(id,true);}return;}
+  if(name==='gorillaTrial'){if(state.gorillaWorld&&value&&typeof value==='object'){const v=value as {sonarMode?:unknown;obstaclesRemoved?:unknown};if(['normal','missing','stale'].includes(String(v.sonarMode)))state.gorillaWorld.sonarMode=v.sonarMode as 'normal'|'missing'|'stale';if(typeof v.obstaclesRemoved==='boolean')state.gorillaWorld.obstaclesRemoved=v.obstaclesRemoved;}return;}
   if(name==='pondEnvironment'){if(state.pondWorld&&validPondEnvironment(value))state.pondWorld.environment={...value};return;}
   if(name==='pondRefill'){if(state.pondWorld&&value===true)state.pondWorld.pendingRefill=true;return;}
   if (name === 'weatherEnvironment') {
@@ -3126,6 +3160,7 @@ scope.addEventListener('message', (event) => {
       const houseTrial = preserveTrials && state.houseWorld ? { environment: { ...state.houseWorld.environment }, pendingVisitor: state.houseWorld.pendingVisitor } : null;
       const theaterTrial = preserveTrials && state.theaterWorld ? { environment: { ...state.theaterWorld.environment }, pendingArrival: state.theaterWorld.pendingArrival } : null;
       const weatherTrial = preserveTrials && state.weatherWorld ? { ...state.weatherWorld.environment } : null;
+      const gorillaTrial=preserveTrials&&state.gorillaWorld?{sonarMode:state.gorillaWorld.sonarMode,obstaclesRemoved:state.gorillaWorld.obstaclesRemoved}:null;
       const pondTrial=preserveTrials&&state.pondWorld?{environment:{...state.pondWorld.environment},pendingRefill:state.pondWorld.pendingRefill}:null;
       const gardenTrial = preserveTrials && state.gardenWorld ? { ...state.gardenWorld.environment } : null;
       try {
@@ -3142,6 +3177,7 @@ scope.addEventListener('message', (event) => {
         if (theaterTrial && state.theaterWorld) { state.theaterWorld.environment = theaterTrial.environment; state.theaterWorld.pendingArrival = theaterTrial.pendingArrival; }
         if (weatherTrial && state.weatherWorld) { state.weatherWorld.environment = weatherTrial; state.weatherWorld.phaseIndex = createWeatherWorldState(weatherTrial).phaseIndex; }
         if (gardenTrial && state.gardenWorld) state.gardenWorld.environment = gardenTrial;
+        if(gorillaTrial&&state.gorillaWorld)Object.assign(state.gorillaWorld,gorillaTrial);
         if(pondTrial&&state.pondWorld){state.pondWorld.environment=pondTrial.environment;state.pondWorld.pendingRefill=pondTrial.pendingRefill;}
         emit();
         refreshDiagnostics(
@@ -3204,7 +3240,7 @@ scope.addEventListener('message', (event) => {
       emit();
       break;
     case 'STOP':
-      gorillaJobs.clear();for(const d of Object.values(state.devices))if(d.kind==='educationalModule'&&d.deviceKind==='gorilla')d.values.moving=false;
+      gorillaWalks.clear();gorillaJobs.clear();for(const d of Object.values(state.devices))if(d.kind==='educationalModule'&&d.deviceKind==='gorilla')d.values.moving=false;
       ottoQueues.clear(); ottoOwners.clear();
       running = false;
       state.status = 'stopped';

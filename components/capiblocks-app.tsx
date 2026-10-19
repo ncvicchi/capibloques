@@ -1,4 +1,6 @@
 'use client';
+import GorillaAutonomyControls from '@/components/gorilla-autonomy-controls';
+import {gorillaBindings} from '@/lib/gorilla-track';
 
 import {
   lazy,
@@ -1569,6 +1571,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                   onDashboardAction={(deviceId, action) => postToWorker({ type: 'SET_DASHBOARD', deviceId, action })}
                 />
               </div>
+                  {scene.canvas.background==='gorillaTrack'&&gorillaBindings(scene).sensor&&<GorillaAutonomyControls onButton={()=>postToWorker({type:'SET_INPUT',name:'gorillaButtonPulse',value:true})} state={sim.gorillaWorld} disabled={physicalMirrorActive} onChange={value=>postToWorker({type:'SET_INPUT',name:'gorillaTrial',value})}/>}
             </TabsContent>
             <TabsContent value="state" className="sim-content state-content">
               {scene.devices.length || (lastProgram.variables?.length ?? 0) > 0 ? (
@@ -1611,6 +1614,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                   {scene.canvas.background === 'smartHouse' && <HouseControls value={sim.houseWorld?.environment ?? scene.canvas.houseEnvironment ?? defaultHouseEnvironment} pending={!!sim.houseWorld?.pendingVisitor} disabled={physicalMirrorActive} onChange={value => postToWorker({ type: 'SET_INPUT', name: 'houseEnvironment', value })} onSend={() => postToWorker({ type: 'SET_INPUT', name: 'houseVisitor', value: sim.houseWorld?.environment.nextVisitor ?? scene.canvas.houseEnvironment?.nextVisitor ?? 'known' })} />}
                   {scene.canvas.background === 'greenhouse' && <GardenControls value={sim.gardenWorld?.environment ?? scene.canvas.gardenEnvironment ?? defaultGardenEnvironment} disabled={physicalMirrorActive} onChange={value => postToWorker({ type: 'SET_INPUT', name: 'gardenEnvironment', value })} />}
                   {inputDevices.map((device) => {
+                    if(gorillaBindings(scene).sensor===device.id)return null;
                     const runtime = sim.devices[device.id];
                     if(Object.entries(pondBindings(scene)).some(([role,id])=>role.endsWith('Sensor')&&id===device.id))return <div className="message-test-panel" key={device.id}><strong>{device.name}</strong><span>{runtime?.kind==='educationalModule'?Object.entries(runtime.values).map(([k,v])=>`${k}: ${typeof v==='boolean'?(v?'sí':'no'):v}`).join(' · '):'Automático'}</span><small>Lectura automática del agua virtual, no del hardware. Distancia inversa al nivel; el detector mide humedad en la bandeja.</small></div>;
                     if(device.kind==='gorilla')return <div className="message-test-panel" key={device.id}><strong>{device.name}</strong><span>{runtime?.kind==='educationalModule'&&runtime.values.moving?'Movimiento ordenado en curso':'Listo para una orden'}</span><small>Actuador, no sensor. Preparación, posiciones y errores se consultan desde Estados y valores. No se puede forzar una lectura manual.</small></div>;
@@ -1693,6 +1697,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                           <span>🔘 {device.name}</span>
                           <Switch
                             aria-label={`Simular ${device.name}`}
+                            disabled={physicalMirrorActive&&gorillaBindings(scene).button===device.id}
                             checked={checked}
                             onCheckedChange={(value) =>
                               setDeviceInput(device.id, value)

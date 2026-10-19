@@ -6,7 +6,7 @@ import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 
 export const CAPI_RULES_FORMAT = 1;
 export const CAPI_INTERPRETER_ABI = 1;
-export const CAPI_INTERPRETER_VERSION = '1.14.0';
+export const CAPI_INTERPRETER_VERSION = '1.15.0';
 export const CAPI_RULES_MAX_BYTES = 32 * 1024;
 export const CAPI_RULES_MAX_INSTRUCTIONS = 2048;
 const HEADER_BYTES = 32;
@@ -53,6 +53,7 @@ const capabilityForOperation = (operation: string) => ({
 function instructionCapabilities(instruction: ExecutableTask['output'][number]) {
   const result = [capabilityForOperation(instruction.op)];
   if (instruction.op==='gorilla'&&instruction.action==='posture')result.push('gorilla-postures');
+  if(instruction.op==='gorilla'&&(instruction.action==='walk'||instruction.action==='finish'))result.push('gorilla-autonomy','sonar-hcsr04','component-state');
   if(instruction.op==='gorilla'&&instruction.action==='gait')result.push('gorilla-gait');
   if(instruction.op==='gorilla'&&(instruction.action==='foot'||instruction.action==='path'))result.push('gorilla-kinematics-v3');
   if (instruction.op === 'switchDispatch') result.push('expressions');

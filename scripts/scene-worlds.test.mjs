@@ -401,3 +401,8 @@ await import('./gorilla-kinematics.test.mjs');
 
 await import('./gorilla-gait.test.mjs');
 await import('node:child_process').then(({execFileSync})=>execFileSync(process.execPath,['--experimental-strip-types','scripts/gorilla-gait-worker.test.mjs'],{stdio:'inherit'}));
+
+await import('./gorilla-autonomy.test.mjs');
+await import('node:child_process').then(({execFileSync})=>execFileSync(process.execPath,['--experimental-strip-types','scripts/gorilla-autonomy-worker.test.mjs'],{stdio:'inherit'}));
+
+await import('./sonar-driver.test.mjs');

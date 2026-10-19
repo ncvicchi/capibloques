@@ -1,5 +1,7 @@
 # GorillaBot evolutivo — fases 58 a 64
 
+**Fase61 — alcance frontal y botón implementado en software (19/10).** [Reglas, ejemplos y pendientes](FASE_61_GORILLABOT_AUTONOMIA.md). HC-SR04 cooperativo con validez/frescura, marcha hasta condición con timeout y finalización en apoyo sin empuje, solicitud desde otro hilo y resultado consultable. Dos ejemplos completos: detener ante obstáculo y explorar con cinco procedimientos/tres pestañas, recuperación y un reintento. Runtime1.15.0/ABI1; sin dependencias/migraciones ni borrar cachés. Fase60 confirmada en dev1. SDK completo, hardware/aceptación dev1 y Waveshare pendientes. Suelo/borde, IMU/brújula y otros sensores se conservan pendientes dentro de61. Main/dev2/servidores no operados; no iniciar62–64 por inferencia.
+
 **Fase60 — marcha y pista GorillaBot, software en rama desde dev1 (19/10).** [Reglas y entrega](FASE_60_GORILLABOT_MARCHA_PISTA.md): cuatro tiempos coordinados, avanzar/retroceder/giro experimental, ritmo y amplitud, referencia de apoyo, pista nueva con estaciones/obstáculos/contactos recuperables y dos ejemplos completos (directo y tres procedimientos/dos pestañas). Runtime1.14.0/ABI1/cap gorilla-gait; guardas de calibración y giro físico, no odometría ni equilibrio certificado. Fase59 confirmada instalada en dev1. Actualización dev1, SDK completo, aceptación física y renderer Waveshare pendientes; main/dev2 no operados. Estados inferiores previos a60 son históricos; 61–64 siguen pendientes, sin autorización.
 
 19 de octubre de 2026. El propietario autorizó documentar toda la progresión y

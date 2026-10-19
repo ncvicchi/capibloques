@@ -1,5 +1,54 @@
 # CapiBloques — contexto para continuar
 
+### Entrega vigente19/10 — Fase61, alcance frontal/botón
+
+Rama `codex/fase-61-gorillabot-autonomia`, desde origin/dev1
+`0c71577f8acde9195a41a7081573dfef8fbd1ea7`.
+[Reglas, evidencia y pendientes](FASE_61_GORILLABOT_AUTONOMIA.md).
+Fase60 instalada en dev1 según propietario. No se operó main/dev2/servidores.
+
+- Nuevos bloques walk hasta condición y máximo1–120s / solicitar finish desde
+  otro hilo. Op gorilla walk/finish; condición y timeoutMs portables. Rutinas
+  sustituyen parámetros también dentro de la condición de walk. Un dueño;
+  CapiGorillaWalk C++ compartido con exportaciones e intérprete. Apoyo baja pies
+  en x actual, sin nuevos empujes; IK/rama/velocidad comunes59/60. Si se solicita
+  terminar antes del primer ciclo, ningún pulso de movimiento. Detener inmediato
+  no completa paso; STOP/RESET limpian controlador/solicitudes. Pausa congela
+  tiempos, no prometer STEP físico sin aceptación con procesos paralelos.
+- HC-SR04 único con Gorilla, no VL53 implícito. Nuevo sonar_core.h y adaptador
+  sonar-firmware.ts; eco por GPIO IRQ, no pulseIn. Intentos60ms/timeout30ms/
+  frescura250ms desde flanco recibido; atómicos entre ISR/servicio/tareas.
+  Consumidor tardío no rejuvenece un eco viejo. Datos derivados valid y
+  walkOutcome en capabilities, no config.values ni JSON guardado. Se conserva
+  estructura de proyectos y validadores backend, sin migraciones.
+- Mundo61 reusa gorillaTrack, rayo frontal ligado al cuerpo contra límites y
+  obstáculos, escala didáctica40unidades/cm. Campos transitorios sonarMode,
+  obstaclesRemoved/buttonPulseMs; LOAD del mismo borrador conserva ensayos,
+  RESET los quita. Control de pulso botón250ms visible bajo Escena y ensayos
+  plegados. No slider competidor ni controles inyectados en placa. Sensor se
+  edita desde lista de objetos, posición de tarjeta no determina montaje.
+- Dos ejemplos completos nuevos gorillaAutonomy/gorillaAutonomyProcedures.
+  Monitor explícito con ifs enclava flag ante invalidez, obstáculo o botón;
+  no política secreta del mundo. Básico avance40s; modular cinco tareas/tres
+  tabs, retroceso4s, espera5s con histéresis3/4cm virtuales y un reintento20s.
+  No giro automático ni sensor trasero ficticio. Reglas caben en32KiB original.
+- Runtime1.15.0/ABI1/caps gorilla-autonomy,sonar-hcsr04,component-state. Versiones
+  packaging/scripts/contratos actualizadas juntas, cachés SDK preservadas.
+  Placa necesita este firmware una vez; después reglas, sin compilar proyecto.
+- Evidencia: tipos/lint/smoke completo/build10páginas (warning previo chunk>500KB),
+  siete tests backendGorilla y packaging; dos workspaces worker a1×/4× en cinco
+  escenarios; core/apoyo TS=C++ y adaptador físico real con HAL/IRQ compilados
+  -Wall/-Wextra/-Werror. Dos recorridos Chromium pasaron con botón, pausa,
+  falta de eco, cierre y RESET. No se compiló SDK completo ni se probó hardware.
+  La primera prueba visual detectó controles escondidos en Estado; se movieron
+  bajo Escena, con ensayos plegados, y la verificación final pasó. Contratos de
+  integración exigen inicializar y servir HC-SR04 dentro de setup/loop Arduino
+  y app_main IDF, además de comprobar el adaptador con HAL.
+- Pendientes expresos61: suelo/borde según sensor/montaje, IMU/brújula específica,
+  sensores alternativos/traseros; SDK/aceptación física y renderer64. Fases62–64
+  no autorizadas. Actualización dev1 la ejecuta propietario con capi-dev fijando
+  SHA completo de esta entrega; no afirmar despliegue remoto.
+
 ### Entrega vigente19/10 — Fase60: marcha coordinada y pista
 
 Rama `codex/fase-60-gorillabot-marcha`, desde origin/dev1

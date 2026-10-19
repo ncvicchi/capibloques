@@ -185,3 +185,16 @@ export function advanceGorillaGait(move: GorillaGaitMove, ms: number) {
 export function gaitReference(k: GorillaKinematics, leg: number) {
   return gorillaForward(k, leg, 0, 0)?.foot;
 }
+
+export function planGorillaSupport(k:GorillaKinematics,s:GorillaSettings,current:number[]):{move?:GorillaGaitMove;error?:string}{
+  const feet:FootPoint[]=[],initialFeet:FootPoint[]=[];let duration=500,swing=-1;
+  for(let leg=0;leg<4;leg++){
+    const home=gorillaForward(k,leg,0,0),from=gorillaForward(k,leg,current[leg*2],current[leg*2+1]);
+    if(!home||!from)return {error:'Referencia de apoyo inválida.'};
+    const p=planGorillaPath(k,s,leg,[{forward:from.foot.x-home.foot.x,up:4,ms:500}],current);
+    if(!p.move)return {error:p.error};
+    initialFeet.push(from.foot);feet.push(p.move.segments[0].to);duration=Math.max(duration,p.move.duration);
+    if(from.foot.y<home.foot.y-4.1)swing=leg;
+  }
+  return {move:{frames:[{feet,duration,swing,travel:0,yaw:0}],initialFeet,k,settings:s,duration,elapsed:0,lastAngles:[...current]}};
+}

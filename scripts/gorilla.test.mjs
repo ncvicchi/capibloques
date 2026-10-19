@@ -118,6 +118,11 @@ for (const e of examples.filter((e) => e.id.startsWith('gorilla'))) {
       [],
     );
     assert.match(result.code, /capiGorillaPrepare/);
+    if(e.id.startsWith('gorillaAutonomy')){
+      assert.equal((result.code.match(/capiSonarBegin\(\);/g)??[]).length,1,'El programa debe inicializar el sensor en Arduino e IDF');
+      assert.match(result.code,/capiSonarService\(\);/);
+      assert.match(result.code,/CAPI_GORILLA_WALK.service/);
+    }
     if(e.id.startsWith('gorillaTrack'))assert.match(result.code,/CAPI_GORILLA.gait/);
     assert.match(result.code, /CAPI_GORILLA.start/);
     if (e.id.startsWith('gorillaPostures'))

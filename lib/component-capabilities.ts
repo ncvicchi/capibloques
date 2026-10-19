@@ -33,6 +33,8 @@ const common: Partial<Record<SceneDeviceKind, ComponentValueCapability[]>> = {
 };
 
 export function componentValueCapabilities(device: SceneDevice): ComponentValueCapability[] {
+  if(device.kind==='distanceSensor'&&device.config.profile==='HC-SR04')return [...educationalModuleSpecs.distanceSensor.values.map(value=>({key:value.key,label:value.label,type:value.type,source:'measured' as const,help:value.help})),{key:'valid',label:'lectura válida y reciente',type:'boolean',source:'measured',help:'Hay un eco válido reciente. Sin eco no significa camino libre.'}];
+  if(device.kind==='gorilla')return [...educationalModuleSpecs.gorilla.values.map(value=>({key:value.key,label:value.label,type:value.type,source:'ordered' as const,help:value.help})),{key:'walkOutcome',label:'resultado de la marcha autónoma',type:'text',source:'ordered',help:'ninguno, condición, tiempo máximo, solicitado o error.',choices:['ninguno','condición','tiempo máximo','solicitado','error']}];
   if (isEducationalModuleKind(device.kind)) return educationalModuleSpecs[device.kind].values.map(value => ({ key: value.key, label: value.label, type: value.type, source: ['gorilla','powerSwitch','stepper'].includes(device.kind) ? 'ordered' : 'measured', help: value.help }));
   const values = (common[device.kind] ?? []).map(value => ({ ...value,
     ...(device.kind === 'trafficLight' && value.key === 'color' ? { choices: ['OFF', 'RED', 'YELLOW', 'GREEN'] } : {}),

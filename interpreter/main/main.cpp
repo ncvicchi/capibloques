@@ -49,8 +49,10 @@
 #ifndef CAPI_BOARD_ID
 #define CAPI_BOARD_ID "wemos-d1-r32"
 #endif
-#define CAPI_FIRMWARE_VERSION "1.14.0"
+#define CAPI_FIRMWARE_VERSION "1.15.0"
 #include "gorilla_core.h"
+#include "sonar_core.h"
+#include "esp_rom_sys.h"
 static bool is_waveshare(){return !strcmp(CAPI_BOARD_ID,"waveshare-esp32-s3-touch-lcd-5-28117");}
 static constexpr uint16_t ABI = 1;
 static constexpr size_t MAX_RULES = 32 * 1024;
@@ -391,6 +393,8 @@ static bool gorilla_config_valid(cJSON *dev){
 static bool gorilla_instruction_valid(cJSON *node){
   auto integer=[](cJSON *o,const char *key,int low,int high){cJSON *v=cJSON_GetObjectItem(o,key);return cJSON_IsNumber(v)&&std::isfinite(v->valuedouble)&&v->valuedouble==v->valueint&&v->valueint>=low&&v->valueint<=high;};
   const char *action=text(node,"action");
+  if(!strcmp(action,"finish"))return true;
+  if(!strcmp(action,"walk"))return integer(node,"index",0,1)&&integer(node,"a",1,12)&&integer(node,"b",1,8)&&integer(node,"durationMs",200,2000)&&integer(node,"timeoutMs",1000,120000)&&supported_condition(cJSON_GetObjectItem(node,"condition"));
   if(!strcmp(action,"gait"))return integer(node,"index",0,4)&&integer(node,"a",1,12)&&integer(node,"b",1,8)&&integer(node,"durationMs",200,2000);
   bool pair=!strcmp(action,"pair");
   if(!strcmp(action,"foot")||!strcmp(action,"path")){
@@ -412,6 +416,11 @@ static bool gorilla_instruction_valid(cJSON *node){
   for(const char *key:{"index","a","b","durationMs"}){cJSON *v=cJSON_GetObjectItem(node,key);if(!cJSON_IsNumber(v)||!std::isfinite(v->valuedouble))return false;}
   return number(node,"index")>=0&&number(node,"index")<=(pair?3:7)&&number(node,"a")>=-20&&number(node,"a")<=20&&number(node,"b")>=-20&&number(node,"b")<=20&&number(node,"durationMs")>=200&&number(node,"durationMs")<=10000;
 }
+static bool gorilla_autonomy_resources_valid(cJSON *devices){
+  int count=0;cJSON *sensor=nullptr;
+  for(int i=0;i<cJSON_GetArraySize(devices);++i){cJSON *item=cJSON_GetArrayItem(devices,i);if(!strcmp(text(item,"kind"),"distanceSensor")){sensor=item;++count;}}
+  return count==1&&!strcmp(text(cJSON_GetObjectItem(sensor,"config"),"profile"),"HC-SR04")&&allowed_output_pin(pin(sensor,"trigger"))&&allowed_pin(pin(sensor,"echo"))&&pin(sensor,"trigger")!=pin(sensor,"echo");
+}
 static bool validate_rules(const std::vector<uint8_t> &bytes, cJSON **document) {
   if (bytes.size() < 32 || bytes.size() > MAX_RULES || memcmp(bytes.data(), "CAPIRULE", 8) || u16(&bytes[8]) != 1 || u16(&bytes[10]) != ABI || u32(&bytes[12]) != bytes.size() - 32 || u32(&bytes[16]) != crc32(&bytes[32], bytes.size() - 32)) return false;
   std::string payload((const char *)&bytes[32], bytes.size() - 32); cJSON *root = cJSON_ParseWithLength(payload.data(), payload.size());
@@ -419,7 +428,7 @@ static bool validate_rules(const std::vector<uint8_t> &bytes, cJSON **document) 
   if (!root || strcmp(text(root, "format"), "CapiRules") || strcmp(text(root, "board"), CAPI_BOARD_ID) || number(root, "abi") != ABI || !cJSON_IsArray(tasks) || cJSON_GetArraySize(tasks)>32 || !cJSON_IsArray(timers_json) || cJSON_GetArraySize(timers_json)>16 || !cJSON_IsArray(devices) || cJSON_GetArraySize(devices)>64 || u32(&bytes[20])>2048 || u32(&bytes[24])!=(uint32_t)cJSON_GetArraySize(devices) || u32(&bytes[28])!=(uint32_t)cJSON_GetArraySize(tasks)) { cJSON_Delete(root); return false; }
   cJSON *item,*pins,*pin_item,*task,*instruction;int message_devices=0,otto_devices=0,display_devices=0;cJSON_ArrayForEach(item,devices){pins=cJSON_GetObjectItem(item,"pins"); if(!cJSON_IsObject(pins)){cJSON_Delete(root);return false;} cJSON_ArrayForEach(pin_item,pins) if(cJSON_IsNumber(pin_item)&&!allowed_pin(pin_item->valueint)){cJSON_Delete(root);return false;}const char *kind=text(item,"kind");if(!strcmp(kind,"led")||!strcmp(kind,"smartLights")||!strcmp(kind,"trafficLight")||!strcmp(kind,"motor")||!strcmp(kind,"robot")||!strcmp(kind,"servo")||!strcmp(kind,"activeBuzzer")||!strcmp(kind,"passiveBuzzer")||!strcmp(kind,"ledMatrix"))cJSON_ArrayForEach(pin_item,pins)if(cJSON_IsNumber(pin_item)&&!allowed_output_pin(pin_item->valueint)){cJSON_Delete(root);return false;}if(!strcmp(kind,"otto")){++otto_devices;cJSON *echo=cJSON_GetObjectItem(pins,"echo");cJSON_ArrayForEach(pin_item,pins)if(cJSON_IsNumber(pin_item)&&pin_item!=echo&&!allowed_output_pin(pin_item->valueint)){cJSON_Delete(root);return false;}if(otto_devices>1||(cJSON_IsNumber(echo)&&!allowed_pin(echo->valueint))){cJSON_Delete(root);return false;}}if(!strcmp(kind,"display")){++display_devices;cJSON *config=cJSON_GetObjectItem(item,"config");const char *profile=text(config,"profile");bool parallel=!strcmp(profile,"lcd1602keypad"),i2c=!strcmp(profile,"lcd1602")||!strcmp(profile,"lcd2004")||!strcmp(profile,"ssd1306"),spi=!strcmp(profile,"ili9341")||!strcmp(profile,"ili9488");if(display_devices>1||(!parallel&&!i2c&&!spi)){cJSON_Delete(root);return false;}cJSON *keys=cJSON_GetObjectItem(pins,"keys");cJSON_ArrayForEach(pin_item,pins)if(cJSON_IsNumber(pin_item)&&pin_item!=keys&&!allowed_output_pin(pin_item->valueint)){cJSON_Delete(root);return false;}if(parallel&&(!cJSON_IsNumber(keys)||!allowed_pin(keys->valueint))){cJSON_Delete(root);return false;}}if(!strcmp(kind,"messages")){++message_devices;cJSON *tx=cJSON_GetObjectItem(pins,"tx"),*rx=cJSON_GetObjectItem(pins,"rx"),*config=cJSON_GetObjectItem(item,"config");const char *mode=text(config,"mode");int baud=number(config,"baudRate");if(message_devices>1||(!cJSON_IsNull(tx)&&(!cJSON_IsNumber(tx)||!allowed_output_pin(tx->valueint)))||(!cJSON_IsNull(rx)&&(!cJSON_IsNumber(rx)||!allowed_pin(rx->valueint)))||(strcmp(mode,"send")&&strcmp(mode,"receive")&&strcmp(mode,"both"))||(baud!=9600&&baud!=19200&&baud!=38400&&baud!=57600&&baud!=115200)){cJSON_Delete(root);return false;}}}
   int gorilla_count=0;cJSON *gorilla_device;cJSON_ArrayForEach(gorilla_device,devices)if(!strcmp(text(gorilla_device,"kind"),"gorilla")&&(!gorilla_config_valid(gorilla_device)||++gorilla_count>1)){cJSON_Delete(root);return false;}
-  uint32_t instructions=0; cJSON_ArrayForEach(task,tasks){cJSON *output=cJSON_GetObjectItem(task,"output");int output_size=cJSON_GetArraySize(output); if(!cJSON_IsArray(output)){cJSON_Delete(root);return false;} cJSON_ArrayForEach(instruction,output){const char *op=text(instruction,"op"),*device_id=text(instruction,"deviceId");bool target_ok=true;if(!strcmp(op,"jump"))target_ok=number(instruction,"target",-1)>=0&&number(instruction,"target")<output_size;else if(!strcmp(op,"repeatStart"))target_ok=number(instruction,"end",-1)>=0&&number(instruction,"end")<output_size;else if(!strcmp(op,"repeatNext"))target_ok=number(instruction,"target",-1)>=0&&number(instruction,"target")<output_size;else if(!strcmp(op,"jumpIfFalse"))target_ok=number(instruction,"target",-1)>=0&&number(instruction,"target")<output_size;else if(!strcmp(op,"switchDispatch"))target_ok=supported_switch(instruction,output_size);else if(!strcmp(op,"messageReceiveWait")||!strcmp(op,"wifiMessageReceiveWait"))target_ok=number(instruction,"equalTarget",-1)>=0&&number(instruction,"equalTarget")<output_size&&number(instruction,"differentTarget",-1)>=0&&number(instruction,"differentTarget")<output_size&&number(instruction,"timeoutTarget",-1)>=0&&number(instruction,"timeoutTarget")<=output_size&&number(instruction,"timeoutMs",0)>=100&&number(instruction,"timeoutMs",0)<=300000;else if(!strcmp(op,"pin"))target_ok=allowed_output_pin(number(instruction,"pin",-1));else if(!strcmp(op,"fork")||!strcmp(op,"join")){cJSON *children=cJSON_GetObjectItem(instruction,"children"),*child;target_ok=cJSON_IsArray(children);cJSON_ArrayForEach(child,children)if(!cJSON_IsNumber(child)||child->valueint<0||child->valueint>=cJSON_GetArraySize(tasks))target_ok=false;}if(++instructions>2048||!supported_operation(op)||(!strcmp(op,"gorilla")&&!gorilla_instruction_valid(instruction))||!target_ok||!operation_device_valid(devices,op,device_id)||(device_id[0]&&!contains_device(devices,device_id))||(!strcmp(op,"jumpIfFalse")&&!supported_condition(cJSON_GetObjectItem(instruction,"condition")))||(!strcmp(op,"variableSet")&&!supported_expression(cJSON_GetObjectItem(instruction,"value")))||(!strcmp(op,"variableChange")&&!supported_expression(cJSON_GetObjectItem(instruction,"delta")))||((!strcmp(op,"serial")||!strcmp(op,"messageSend")||!strcmp(op,"wifiMessageSend")||!strcmp(op,"displayWrite"))&&cJSON_HasObjectItem(instruction,"expression")&&!supported_expression(cJSON_GetObjectItem(instruction,"expression")))){cJSON_Delete(root);return false;}}}
+  uint32_t instructions=0; cJSON_ArrayForEach(task,tasks){cJSON *output=cJSON_GetObjectItem(task,"output");int output_size=cJSON_GetArraySize(output); if(!cJSON_IsArray(output)){cJSON_Delete(root);return false;} cJSON_ArrayForEach(instruction,output){const char *op=text(instruction,"op"),*device_id=text(instruction,"deviceId");bool target_ok=true;if(!strcmp(op,"gorilla")&&!strcmp(text(instruction,"action"),"walk"))target_ok=gorilla_autonomy_resources_valid(devices);else if(!strcmp(op,"jump"))target_ok=number(instruction,"target",-1)>=0&&number(instruction,"target")<output_size;else if(!strcmp(op,"repeatStart"))target_ok=number(instruction,"end",-1)>=0&&number(instruction,"end")<output_size;else if(!strcmp(op,"repeatNext"))target_ok=number(instruction,"target",-1)>=0&&number(instruction,"target")<output_size;else if(!strcmp(op,"jumpIfFalse"))target_ok=number(instruction,"target",-1)>=0&&number(instruction,"target")<output_size;else if(!strcmp(op,"switchDispatch"))target_ok=supported_switch(instruction,output_size);else if(!strcmp(op,"messageReceiveWait")||!strcmp(op,"wifiMessageReceiveWait"))target_ok=number(instruction,"equalTarget",-1)>=0&&number(instruction,"equalTarget")<output_size&&number(instruction,"differentTarget",-1)>=0&&number(instruction,"differentTarget")<output_size&&number(instruction,"timeoutTarget",-1)>=0&&number(instruction,"timeoutTarget")<=output_size&&number(instruction,"timeoutMs",0)>=100&&number(instruction,"timeoutMs",0)<=300000;else if(!strcmp(op,"pin"))target_ok=allowed_output_pin(number(instruction,"pin",-1));else if(!strcmp(op,"fork")||!strcmp(op,"join")){cJSON *children=cJSON_GetObjectItem(instruction,"children"),*child;target_ok=cJSON_IsArray(children);cJSON_ArrayForEach(child,children)if(!cJSON_IsNumber(child)||child->valueint<0||child->valueint>=cJSON_GetArraySize(tasks))target_ok=false;}if(++instructions>2048||!supported_operation(op)||(!strcmp(op,"gorilla")&&!gorilla_instruction_valid(instruction))||!target_ok||!operation_device_valid(devices,op,device_id)||(device_id[0]&&!contains_device(devices,device_id))||(!strcmp(op,"jumpIfFalse")&&!supported_condition(cJSON_GetObjectItem(instruction,"condition")))||(!strcmp(op,"variableSet")&&!supported_expression(cJSON_GetObjectItem(instruction,"value")))||(!strcmp(op,"variableChange")&&!supported_expression(cJSON_GetObjectItem(instruction,"delta")))||((!strcmp(op,"serial")||!strcmp(op,"messageSend")||!strcmp(op,"wifiMessageSend")||!strcmp(op,"displayWrite"))&&cJSON_HasObjectItem(instruction,"expression")&&!supported_expression(cJSON_GetObjectItem(instruction,"expression")))){cJSON_Delete(root);return false;}}}
   if(instructions!=u32(&bytes[20])){cJSON_Delete(root);return false;}
   cJSON *frame_device;
   cJSON_ArrayForEach(frame_device,devices){
@@ -449,6 +458,31 @@ return;}component_states.push_back({device_id,property,value});if(variables_mute
 #ifdef CONFIG_IDF_TARGET_ESP32S3
 waveshare_dirty=true;
 #endif
+}
+static CapiSonar front_sonar;
+static cJSON *front_sonar_device=nullptr;static int front_sonar_echo=-1;static bool front_sonar_ready=false;
+static void front_sonar_edge(void *argument){front_sonar.edge(gpio_get_level((gpio_num_t)(intptr_t)argument)!=0,(uint32_t)esp_timer_get_time());}
+static void front_sonar_begin(){
+  front_sonar_ready=false;
+  if(front_sonar_echo>=0)gpio_isr_handler_remove((gpio_num_t)front_sonar_echo);
+  front_sonar_echo=-1;front_sonar_device=nullptr;front_sonar.reset();
+  if(is_waveshare()||!active)return;
+  cJSON *devices=cJSON_GetObjectItem(cJSON_GetObjectItem(active,"resources"),"devices"),*d;int sensors=0,gorillas=0;
+  cJSON_ArrayForEach(d,devices){if(!strcmp(text(d,"kind"),"gorilla"))++gorillas;if(!strcmp(text(d,"kind"),"distanceSensor")){++sensors;front_sonar_device=d;}}
+  if(!gorillas||sensors!=1||strcmp(text(cJSON_GetObjectItem(front_sonar_device,"config"),"profile"),"HC-SR04")){front_sonar_device=nullptr;return;}
+  int trigger=pin(front_sonar_device,"trigger");front_sonar_echo=pin(front_sonar_device,"echo");
+  if(trigger<0||front_sonar_echo<0)return;
+  gpio_set_direction((gpio_num_t)trigger,GPIO_MODE_OUTPUT);gpio_set_level((gpio_num_t)trigger,0);gpio_set_direction((gpio_num_t)front_sonar_echo,GPIO_MODE_INPUT);
+  esp_err_t status=gpio_install_isr_service(0);if(status!=ESP_OK&&status!=ESP_ERR_INVALID_STATE)return;
+  if(gpio_set_intr_type((gpio_num_t)front_sonar_echo,GPIO_INTR_ANYEDGE)!=ESP_OK)return;
+  front_sonar_ready=gpio_isr_handler_add((gpio_num_t)front_sonar_echo,front_sonar_edge,(void*)(intptr_t)front_sonar_echo)==ESP_OK;
+}
+static void front_sonar_service(){
+  if(!running||!front_sonar_device)return;
+  uint32_t us=(uint32_t)esp_timer_get_time();
+  if(front_sonar_ready&&front_sonar.tick(us,std::clamp(number(cJSON_GetObjectItem(cJSON_GetObjectItem(front_sonar_device,"config"),"settings"),"maxDistance",400),2,400))){
+    int trigger=pin(front_sonar_device,"trigger");gpio_set_level((gpio_num_t)trigger,1);esp_rom_delay_us(10);gpio_set_level((gpio_num_t)trigger,0);
+  }
 }
 static RuntimeValue component_get(const char *device_id,const char *property){RuntimeValue out;bool found=false;if(variables_mutex)xSemaphoreTake(variables_mutex,portMAX_DELAY);for(const auto &state:component_states)if(state.device_id==device_id&&state.property==property){out=state.value;found=true;break;}if(variables_mutex)xSemaphoreGive(variables_mutex);if(!found){cJSON *dev=device(device_id);const char *kind=dev?text(dev,"kind"):"";if((!strcmp(kind,"trafficLight")&&!strcmp(property,"color"))||(!strcmp(kind,"robot")&&!strcmp(property,"motion"))||(!strcmp(kind,"otto")&&(!strcmp(property,"motion")||!strcmp(property,"expression")))){out.kind=RuntimeValue::TEXT;out.text=!strcmp(kind,"trafficLight")?"OFF":!strcmp(kind,"robot")?"STOP":!strcmp(property,"expression")?"SMILE":"HOME";}else if(!strcmp(kind,"servo")&&!strcmp(property,"angle"))out.number=number(cJSON_GetObjectItem(dev,"config"),"angle",90);}return out;}
 
@@ -657,6 +691,11 @@ static RuntimeValue evaluate(cJSON *expression){
       out.kind=RuntimeValue::BOOLEAN;int gpio=pin(dev,property);
       if(gpio>=0){gpio_set_direction((gpio_num_t)gpio,GPIO_MODE_INPUT);cJSON *config=cJSON_GetObjectItem(dev,"config"),*settings=config?cJSON_GetObjectItem(config,"settings"):nullptr;out.boolean=gpio_get_level((gpio_num_t)gpio)==(cJSON_IsTrue(settings?cJSON_GetObjectItem(settings,"activeLow"):nullptr)?0:1);}return out;
     }
+    if(!strcmp(device_kind,"distanceSensor")&&dev==front_sonar_device){
+      bool valid=front_sonar_ready&&front_sonar.fresh((uint32_t)esp_timer_get_time());
+      if(!strcmp(property,"valid")){out.kind=RuntimeValue::BOOLEAN;out.boolean=valid;}else out.number=valid?front_sonar.distance.load():0;
+      return out;
+    }
     if(!strcmp(device_kind,"otto")&&!strcmp(property,"distance")){out.number=otto.distance.load();return out;}
     if(!strcmp(device_kind,"wifiNode")&&!strcmp(property,"connected")){out.kind=RuntimeValue::BOOLEAN;out.boolean=wifi_connected.load();return out;}
     if(!strcmp(device_kind,"wifiNode")&&!strcmp(property,"status")){out.kind=RuntimeValue::TEXT;out.text=wifi_connected.load()?"conectado":wifi_started?"conectando":"desconectado";return out;}
@@ -705,6 +744,7 @@ static bool load_rules() {
 
 
 static CapiGorilla gorilla;
+static CapiGorillaWalk gorilla_walk;
 static i2c_master_bus_handle_t gorilla_bus=nullptr;
 static i2c_master_dev_handle_t gorilla_device_handle=nullptr;
 static SemaphoreHandle_t gorilla_mutex=nullptr;
@@ -720,7 +760,7 @@ static void gorilla_publish(){
   v.kind=RuntimeValue::BOOLEAN;v.boolean=gorilla.ready;component_set(id,"ready",v);v.boolean=gorilla.busy;component_set(id,"moving",v);v.boolean=gorilla.error;component_set(id,"error",v);
 }
 static void gorilla_reset(){
-  gorilla=CapiGorilla{};gorilla_owner=-1;gorilla_device=nullptr;
+  gorilla=CapiGorilla{};gorilla_walk=CapiGorillaWalk{};gorilla_owner=-1;gorilla_device=nullptr;
   if(gorilla_device_handle){i2c_master_bus_rm_device(gorilla_device_handle);gorilla_device_handle=nullptr;}
   if(gorilla_bus){i2c_del_master_bus(gorilla_bus);gorilla_bus=nullptr;}
 }
@@ -743,8 +783,8 @@ static bool gorilla_prepare(cJSON *dev){
 static void gorilla_service(){
   if(!gorilla_mutex||xSemaphoreTake(gorilla_mutex,0)!=pdTRUE)return;
   uint32_t now=(uint32_t)(esp_timer_get_time()/1000);
-  if(!running)gorilla.halt();
-  else if(paused&&step_owner!=gorilla_owner)gorilla.started+=now-gorilla_last;
+  if(!running){gorilla.halt();gorilla_walk.halt();}
+  else if(paused&&step_owner!=gorilla_owner){gorilla.started+=now-gorilla_last;gorilla_walk.started+=now-gorilla_last;}
   else gorilla.service(now);
   gorilla_last=now;gorilla_publish();xSemaphoreGive(gorilla_mutex);
 }
@@ -827,7 +867,20 @@ static void execute_task(void *parameter) {
     else if(!strcmp(op,"gorilla")){
       if(!gorilla_mutex||xSemaphoreTake(gorilla_mutex,pdMS_TO_TICKS(5))!=pdTRUE){cooperative_delay_ms(5);continue;}
       bool waiting=false;
-      if(gorilla_waiting){
+      if(!strcmp(text(instruction,"action"),"finish")){gorilla_walk.requested=true;}
+      else if(!strcmp(text(instruction,"action"),"walk")){
+        if(!gorilla_waiting){
+          if(gorilla.busy||gorilla_owner>=0)waiting=true;
+          else{gorilla_device=dev;gorilla_owner=task_index;gorilla_waiting=gorilla_walk.begin(number(instruction,"index"),number(instruction,"a"),number(instruction,"b"),number(instruction,"durationMs"),number(instruction,"timeoutMs"),(uint32_t)(esp_timer_get_time()/1000));}
+        }
+        if(gorilla_waiting){
+          RuntimeValue initial_outcome;initial_outcome.kind=RuntimeValue::TEXT;initial_outcome.text="ninguno";component_set(text(dev,"id"),"walkOutcome",initial_outcome);
+          waiting=gorilla_walk.service(gorilla,condition(cJSON_GetObjectItem(instruction,"condition")),(uint32_t)(esp_timer_get_time()/1000));
+          if(!waiting){gorilla_waiting=false;gorilla_owner=-1;RuntimeValue outcome;outcome.kind=RuntimeValue::TEXT;const char *labels[]={"ninguno","condición","tiempo máximo","solicitado","error"};outcome.text=labels[gorilla_walk.outcome];component_set(text(dev,"id"),"walkOutcome",outcome);}
+          gorilla_publish();
+        }
+      }
+      else if(gorilla_waiting){
         if(gorilla.busy)waiting=true;else{gorilla_owner=-1;gorilla_waiting=false;}
       }else if(gorilla.busy||gorilla_owner>=0)waiting=true;
       else if(!strcmp(text(instruction,"action"),"prepare")){if(!gorilla_prepare(dev)){gorilla.error=true;telemetry("warning",block,"GorillaBot: no se pudo preparar PCA9685.");}gorilla_publish();}
@@ -914,7 +967,7 @@ else if (!strcmp(op,"matrixClear")) {if(matrix_mutex)xSemaphoreTake(matrix_mutex
 #endif
   vTaskDelete(nullptr);
 }
-static bool start_program(bool start_paused=false) { if(!active||running||active_tasks>0)return false;for(auto &state:task_states)state=0;step_requested=false;step_owner=-1;counter_value=0;wifi_messages_reset();initialize_variables();initialize_component_states();gorilla_reset();if(timers_mutex)xSemaphoreTake(timers_mutex,portMAX_DELAY);initialize_timers();if(timers_mutex)xSemaphoreGive(timers_mutex);if(message_mutex)xSemaphoreTake(message_mutex,portMAX_DELAY);message_last.clear();bool messages_ready=message_begin();if(message_mutex)xSemaphoreGive(message_mutex);if(!messages_ready){telemetry("error",nullptr,"No se pudo iniciar el puerto de Mensajes.");return false;}traffic_matrix_begin();if(matrix_mutex)xSemaphoreTake(matrix_mutex,portMAX_DELAY);matrix_begin();if(matrix_mutex)xSemaphoreGive(matrix_mutex);if(otto_mutex)xSemaphoreTake(otto_mutex,portMAX_DELAY);otto_begin();if(otto_mutex)xSemaphoreGive(otto_mutex);if(display_mutex)xSemaphoreTake(display_mutex,portMAX_DELAY);bool display_ready=display_begin();if(display_mutex)xSemaphoreGive(display_mutex);if(!display_ready){telemetry("error",nullptr,"No se pudo iniciar la pantalla de texto.");return false;}if(smart_lights_mutex)xSemaphoreTake(smart_lights_mutex,portMAX_DELAY);bool smart_ready=smart_begin();if(smart_lights_mutex)xSemaphoreGive(smart_lights_mutex);if(!smart_ready){telemetry("error",nullptr,"No se pudieron iniciar las luces RGB inteligentes.");return false;}running=true;paused=start_paused;cJSON *tasks=cJSON_GetObjectItem(active,"tasks"),*task;int index=0,started=0;cJSON_ArrayForEach(task,tasks){if(cJSON_IsTrue(cJSON_GetObjectItem(task,"initial"))&&start_task(index))++started;++index;}if(!started){running=false;paused=false;return false;}
+static bool start_program(bool start_paused=false) { if(!active||running||active_tasks>0)return false;for(auto &state:task_states)state=0;step_requested=false;step_owner=-1;counter_value=0;wifi_messages_reset();initialize_variables();initialize_component_states();gorilla_reset();front_sonar_begin();if(timers_mutex)xSemaphoreTake(timers_mutex,portMAX_DELAY);initialize_timers();if(timers_mutex)xSemaphoreGive(timers_mutex);if(message_mutex)xSemaphoreTake(message_mutex,portMAX_DELAY);message_last.clear();bool messages_ready=message_begin();if(message_mutex)xSemaphoreGive(message_mutex);if(!messages_ready){telemetry("error",nullptr,"No se pudo iniciar el puerto de Mensajes.");return false;}traffic_matrix_begin();if(matrix_mutex)xSemaphoreTake(matrix_mutex,portMAX_DELAY);matrix_begin();if(matrix_mutex)xSemaphoreGive(matrix_mutex);if(otto_mutex)xSemaphoreTake(otto_mutex,portMAX_DELAY);otto_begin();if(otto_mutex)xSemaphoreGive(otto_mutex);if(display_mutex)xSemaphoreTake(display_mutex,portMAX_DELAY);bool display_ready=display_begin();if(display_mutex)xSemaphoreGive(display_mutex);if(!display_ready){telemetry("error",nullptr,"No se pudo iniciar la pantalla de texto.");return false;}if(smart_lights_mutex)xSemaphoreTake(smart_lights_mutex,portMAX_DELAY);bool smart_ready=smart_begin();if(smart_lights_mutex)xSemaphoreGive(smart_lights_mutex);if(!smart_ready){telemetry("error",nullptr,"No se pudieron iniciar las luces RGB inteligentes.");return false;}running=true;paused=start_paused;cJSON *tasks=cJSON_GetObjectItem(active,"tasks"),*task;int index=0,started=0;cJSON_ArrayForEach(task,tasks){if(cJSON_IsTrue(cJSON_GetObjectItem(task,"initial"))&&start_task(index))++started;++index;}if(!started){running=false;paused=false;return false;}
 #ifdef CONFIG_IDF_TARGET_ESP32S3
 waveshare_dirty=true;
 #endif
@@ -963,7 +1016,7 @@ static void command(cJSON *request) {
     for(const char *cap:{"line-sensors","robot-wheels","core","switch","conditional-loop","parallel","expressions","variables","timers","component-state","gpio","led","smart-lights","traffic","traffic-display","motor","robot","robotWheels","otto","servo","buzzer","matrix","display","display-lcd","display-lcd1602","display-lcd2004","display-lcd1602keypad","display-graphic","display-ssd1306","display-ili9341","display-ili9488","display-keypad","frame-animation","visual-wait","messages","wifi","wifi-messages","pairing","counter","serial","digital-input","analog-input","step"}){
       cJSON_AddItemToArray(caps,cJSON_CreateString(cap));
     }
-    if(!is_waveshare()){cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-bench"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-postures"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-kinematics-v3"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-gait"));}
+    if(!is_waveshare()){cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-bench"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-postures"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-kinematics-v3"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-gait"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-autonomy"));cJSON_AddItemToArray(caps,cJSON_CreateString("sonar-hcsr04"));}
     if(is_waveshare()){
       cJSON_AddItemToArray(caps,cJSON_CreateString("touch-inputs"));
       cJSON_AddItemToArray(caps,cJSON_CreateString("autonomous-controls"));
@@ -1015,6 +1068,7 @@ extern "C" void app_main() {
   if(load_rules()&&!wifi_creates_network()) start_program();
   std::string line; uint8_t byte;
   for(;;){
+    front_sonar_service();
     gorilla_service();
 #ifdef CONFIG_IDF_TARGET_ESP32S3
     int action=waveshare_action.exchange(0);if(action==1){const char *value=!running?"RUN":paused?"RESUME":"PAUSE";if(!running)start_program();else if(paused)resume_program();else pause_program();telemetry_state("control",nullptr,nullptr,value);}else if(action==2){if(step_program())telemetry_state("control",nullptr,nullptr,"STEP");}else if(action==3){stop_program();telemetry_state("control",nullptr,nullptr,"STOP");}else if(action==4){reset_program();telemetry_state("control",nullptr,nullptr,"RESET_PROGRAM");}

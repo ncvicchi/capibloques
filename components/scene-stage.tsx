@@ -1,5 +1,6 @@
 'use client';
 import GorillaTrack from '@/components/gorilla-track';
+import {gorillaBindings} from '@/lib/gorilla-track';
 import type {GorillaTrackState} from '@/lib/gorilla-track';
 
 import LineWorld from '@/components/line-world';
@@ -981,6 +982,7 @@ export default function SceneStage({
         );
       })}
       {scene.devices.map((device) => {
+        if(gorillaBindings(scene).sensor===device.id)return null;
         if (scene.canvas.background === 'lineTrack' && device.kind === 'lineSensors') return null;
         if (scene.canvas.background === 'robotArena' && (device.kind === 'distanceSensor' || device.kind === 'colorSensor')) return null;
         const runtime = runtimeDevices[device.id];

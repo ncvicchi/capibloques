@@ -153,6 +153,25 @@ struct CapiGorilla {
     if(total>180000){error=true;return false;}
     gait_count=count;duration=total;started=now;gait_active=true;path_active=false;mask=255;busy=true;return true;
   }
+  // Lower lifted feet at their current x. Never move the body forward to stop.
+  bool support(uint32_t now){
+    if(!ready||!kinematics_verified){error=true;return false;}
+    uint32_t effective=500;
+    for(int leg=0;leg<4;++leg){
+      Foot home,from;double previous[2],next[2];
+      if(!forward(leg,0,0,home)||!forward(leg,position[2*leg],position[2*leg+1],from)||!inverse(leg,from,previous)||std::abs(previous[0]-position[2*leg])>.001||std::abs(previous[1]-position[2*leg+1])>.001){error=true;return false;}
+      Foot to{from.x,home.y-4};int steps=std::max(16,(int)std::ceil(std::abs(to.y-from.y)/.25));double rate=0;
+      if(steps>256){error=true;return false;}
+      for(int step=1;step<=steps;++step){
+        double t=(double)step/steps;
+        if(!inverse(leg,{from.x,from.y+(to.y-from.y)*t},next)){error=true;return false;}
+        for(int j=0;j<2;++j){rate=std::max(rate,std::abs(next[j]-previous[j])*steps*1000/30);previous[j]=next[j];}
+      }
+      effective=std::max(effective,(uint32_t)std::ceil(rate*1.05));gait_initial[leg]=from;gait_frames[0].feet[leg]=to;
+    }
+    if(effective>30000){error=true;return false;}
+    gait_frames[0].ms=duration=effective;gait_count=1;started=now;path_active=false;gait_active=busy=true;return true;
+  }
   void gait_service(uint32_t now){
     uint32_t elapsed=now-started,left=std::min(elapsed,duration);int n=0;
     for(;n<gait_count-1&&left>gait_frames[n].ms;++n)left-=gait_frames[n].ms;
@@ -186,4 +205,29 @@ struct CapiGorilla {
   void halt(){busy=false;path_active=false;gait_active=false;}
 };
 
+
+struct CapiGorillaWalk {
+  bool active=false,finishing=false,requested=false,moved=false;int outcome=0,mode=0;
+  double stride=4,height=2;uint32_t phase=500,limit=30000,started=0;
+  bool begin(int direction,double step,double lift,uint32_t ms,uint32_t timeout,uint32_t now){
+    if(active||direction<0||direction>1||timeout<1000||timeout>120000)return false;
+    mode=direction;stride=step;height=lift;phase=ms;limit=timeout;started=now;outcome=0;finishing=requested=moved=false;active=true;return true;
+  }
+  bool service(CapiGorilla &robot,bool condition,uint32_t now){
+    if(!active)return false;
+    if(robot.error||!robot.ready){outcome=4;active=false;robot.halt();return false;}
+    if(finishing){if(!robot.busy)active=false;return active;}
+    int reason=requested?3:condition?1:(uint32_t)(now-started)>=limit?2:0;
+    if(reason){
+      outcome=reason;
+      if(!moved){active=false;return false;}
+      finishing=true;
+      if(!robot.support(now)){outcome=4;active=false;robot.halt();}
+      return active;
+    }
+    if(!robot.busy){if(!robot.gait(mode,stride,height,phase,now)){outcome=4;active=false;robot.halt();}else moved=true;}
+    return active;
+  }
+  void halt(){active=false;finishing=false;requested=false;}
+};
 `;

@@ -1,4 +1,8 @@
 // @ts-expect-error Node strip-types runner.
+import {sonarFirmwareSupport,frontSonar} from './sonar-firmware.ts';
+// @ts-expect-error Node strip-types runner.
+import {gorillaAutonomyExample} from './gorilla-autonomy-examples.ts';
+// @ts-expect-error Node strip-types runner.
 import {defaultGorillaGait,planGorillaGait} from './gorilla-gait.ts';
 // @ts-expect-error Node strip-types runner.
 import {gorillaGaitExample} from './gorilla-gait-examples.ts';
@@ -59,7 +63,7 @@ import { MAX_MATRIX_TEXT, normalizeMatrixText, validMatrixConfig } from './led-m
 // @ts-expect-error Node strip-types runner.
 import { matrixFirmwareSupport, normalizedMatrixTextLiteral } from './led-matrix-firmware.ts';
 // @ts-expect-error Node strip-types runner.
-import { componentValueCapability, type ComponentValueSource } from './component-capabilities.ts';
+import { componentValueCapabilities, componentValueCapability, type ComponentValueSource } from './component-capabilities.ts';
 // @ts-expect-error Node strip-types runner.
 import { boardProfile, isProjectTarget, portableProjectTarget, projectTargetForBoard, type BoardProfileId, type ProjectTarget } from './board-profiles.ts';
 // @ts-expect-error Node strip-types runner.
@@ -143,7 +147,7 @@ export type Condition =
   | { kind: 'boolean'; value: boolean };
 
 export type ProgramNode =
-  | {op:'gorilla';deviceId:string;action:'prepare'|'joint'|'pair'|'posture'|'foot'|'path'|'gait';points?:GorillaPoint[];trajectoryId?:string;trajectoryName?:string;postureId?:string;postureName?:string;angles?:number[];index:number;a:number;b:number;durationMs:number;blockId:string}
+  | {op:'gorilla';deviceId:string;action:'prepare'|'joint'|'pair'|'posture'|'foot'|'path'|'gait'|'walk'|'finish';condition?:Condition;timeoutMs?:number;points?:GorillaPoint[];trajectoryId?:string;trajectoryName?:string;postureId?:string;postureName?:string;angles?:number[];index:number;a:number;b:number;durationMs:number;blockId:string}
   | { op: 'robotWheels'; deviceId: string; left: number; right: number; blockId: string }
   | { op: 'wait'; ms: number; blockId: string }
   | {
@@ -323,7 +327,7 @@ export interface ProjectDecodeResult {
   diagnostics: CapiDiagnostic[];
 }
 
-export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4' | 'parkingProcedures' | 'greenhouseProcedures' | 'smartHouseProcedures' | 'conveyorProcedures' | 'robotArenaProcedures' | 'weatherLabProcedures' | 'ottoTheaterProcedures' | 'lineTrackProcedures' | 'pondLabProcedures' | 'gorillaBenchProcedures' | 'gorillaPostures' | 'gorillaPosturesProcedures' | 'gorillaTrajectories' | 'gorillaTrajectoriesProcedures' | 'gorillaTrackProcedures';
+export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4' | 'parkingProcedures' | 'greenhouseProcedures' | 'smartHouseProcedures' | 'conveyorProcedures' | 'robotArenaProcedures' | 'weatherLabProcedures' | 'ottoTheaterProcedures' | 'lineTrackProcedures' | 'pondLabProcedures' | 'gorillaBenchProcedures' | 'gorillaPostures' | 'gorillaPosturesProcedures' | 'gorillaTrajectories' | 'gorillaTrajectoriesProcedures' | 'gorillaTrackProcedures' | 'gorillaAutonomy' | 'gorillaAutonomyProcedures';
 export interface ExampleDefinition {
   id: ExampleId;
   title: string;
@@ -1413,6 +1417,8 @@ export const examples: ExampleDefinition[] = [
   gorillaPathExample(true),
   gorillaGaitExample(false),
   gorillaGaitExample(true),
+  gorillaAutonomyExample(false),
+  gorillaAutonomyExample(true),
   pondExample(false),
   pondExample(true),
   weatherLabExample(false),
@@ -1622,7 +1628,7 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_traffic_pedestrian_display',
   'capi_led',
   'capi_power_switch',
-  'capi_gorilla_gait', 'capi_gorilla_settle', 'capi_gorilla_prepare', 'capi_gorilla_joint', 'capi_gorilla_pair', 'capi_gorilla_posture', 'capi_gorilla_foot', 'capi_gorilla_path',
+  'capi_gorilla_walk', 'capi_gorilla_finish', 'capi_gorilla_gait', 'capi_gorilla_settle', 'capi_gorilla_prepare', 'capi_gorilla_joint', 'capi_gorilla_pair', 'capi_gorilla_posture', 'capi_gorilla_foot', 'capi_gorilla_path',
   'capi_rgb_fill',
   'capi_rgb_pixel',
   'capi_rgb_segment',
@@ -2119,7 +2125,7 @@ const blockKind = (block: Record<string, unknown>): SceneDeviceKind | null => {
       return 'led';
     case 'capi_power_switch': return 'powerSwitch';
     case 'capi_stepper': return 'stepper';
-    case 'capi_gorilla_gait': case 'capi_gorilla_settle': case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair': case 'capi_gorilla_posture': case 'capi_gorilla_foot': case 'capi_gorilla_path': return 'gorilla';
+    case 'capi_gorilla_walk': case 'capi_gorilla_finish': case 'capi_gorilla_gait': case 'capi_gorilla_settle': case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair': case 'capi_gorilla_posture': case 'capi_gorilla_foot': case 'capi_gorilla_path': return 'gorilla';
     case 'capi_rgb_fill':
     case 'capi_rgb_pixel':
     case 'capi_rgb_segment':
@@ -2756,7 +2762,7 @@ function normalizeNodes(
         });
         break;
       case 'gorilla':
-        result.push({op:'gorilla',deviceId,action:node.action==='gait'?'gait':node.action==='foot'?'foot':node.action==='path'?'path':node.action==='posture'?'posture':node.action==='prepare'?'prepare':node.action==='pair'?'pair':'joint',...(node.action==='foot'||node.action==='path'?{points:Array.isArray(node.points)?node.points:[],trajectoryId:typeof node.trajectoryId==='string'?node.trajectoryId:'',trajectoryName:typeof node.trajectoryName==='string'?node.trajectoryName:''}:{}),...(node.action==='posture'?{postureId:typeof node.postureId==='string'?node.postureId:'',postureName:typeof node.postureName==='string'?node.postureName:'',angles:Array.isArray(node.angles)?node.angles:[]}:{}),index:Math.max(0,Math.min(node.action==='gait'?4:node.action==='pair'||node.action==='foot'||node.action==='path'?3:7,Math.trunc(finiteNumber(node.index,0)))),a:Math.max(-20,Math.min(20,Math.round(finiteNumber(node.a,0)))),b:Math.max(-20,Math.min(20,Math.round(finiteNumber(node.b,0)))),durationMs:Math.max(200,Math.min(10000,Math.round(finiteNumber(node.durationMs,1000)))),blockId});
+        result.push({op:'gorilla',deviceId,action:node.action==='walk'?'walk':node.action==='finish'?'finish':node.action==='gait'?'gait':node.action==='foot'?'foot':node.action==='path'?'path':node.action==='posture'?'posture':node.action==='prepare'?'prepare':node.action==='pair'?'pair':'joint',...(node.action==='foot'||node.action==='path'?{points:Array.isArray(node.points)?node.points:[],trajectoryId:typeof node.trajectoryId==='string'?node.trajectoryId:'',trajectoryName:typeof node.trajectoryName==='string'?node.trajectoryName:''}:{}),...(node.action==='posture'?{postureId:typeof node.postureId==='string'?node.postureId:'',postureName:typeof node.postureName==='string'?node.postureName:'',angles:Array.isArray(node.angles)?node.angles:[]}:{}),...(node.action==='walk'?{condition:normalizeCondition(node.condition,scene),timeoutMs:finiteNumber(node.timeoutMs,30000)}:{}),index:Math.max(0,Math.min(node.action==='gait'?4:node.action==='pair'||node.action==='foot'||node.action==='path'?3:7,Math.trunc(finiteNumber(node.index,0)))),a:Math.max(-20,Math.min(20,Math.round(finiteNumber(node.a,0)))),b:Math.max(-20,Math.min(20,Math.round(finiteNumber(node.b,0)))),durationMs:Math.max(200,Math.min(10000,Math.round(finiteNumber(node.durationMs,1000)))),blockId});
         break;
       case 'stepper':
         result.push({ op:'stepper', deviceId, steps:Math.max(-100000, Math.min(100000, Math.trunc(finiteNumber(node.steps, 0)))), speed:Math.max(1, Math.min(1000, finiteNumber(node.speed, 300))), blockId });
@@ -3257,6 +3263,7 @@ export function expandProgramRoutines(input: CompiledProgram): CompiledProgram {
       return [{ op: 'wait', ms: 0, blockId: node.blockId } as ProgramNode, ...expandNodes(routine.body, nested, [...stack, routine.id]), { op: 'wait', ms: 0, blockId: node.blockId } as ProgramNode];
     }
     if (node.op === 'repeat') return [{ ...node, body: expandNodes(node.body, bindings, stack) }];
+    if(node.op==='gorilla'&&node.action==='walk')return [{...node,condition:substituteCondition(node.condition!,bindings,stack)}];
     if (node.op === 'while') return [{...node,condition:substituteCondition(node.condition,bindings,stack),body:expandNodes(node.body,bindings,stack)}];
     if (node.op === 'switch') return [{ ...node, value: substituteValue(node.value, bindings, stack), cases: node.cases.map(branch => ({ ...branch, body: expandNodes(branch.body, bindings, stack) })), otherwise: expandNodes(node.otherwise, bindings, stack) }];
     if (node.op === 'parallel') return [{ ...node, branches: node.branches.map(branch => expandNodes(branch, bindings, stack)) }];
@@ -3425,8 +3432,9 @@ export function validateProgramForScene(
   const foreverVisualDevices = new Set<string>();
   const visualWaitBlocks = new Map<string, string>();
   visitProgram(program, (node) => {
-    if(node.op==='gorilla'&&node.action==='gait'){
+    if(node.op==='gorilla'&&(node.action==='gait'||node.action==='walk')){
       const d=deviceMap.get(node.deviceId),g=d?.kind==='gorilla'?(d.config.gait??defaultGorillaGait):defaultGorillaGait;
+      if(node.action==='walk'&&(!frontSonar(scene)||![0,1].includes(node.index)||!Number.isInteger(node.timeoutMs)||node.timeoutMs!<1000||node.timeoutMs!>120000||!node.condition))diagnostics.push({severity:'error',code:'gorilla-walk',message:'Marcha autónoma: elegí avance/retroceso, condición, tiempo máximo y un HC-SR04 frontal.',blockId:node.blockId});
       if(d?.kind!=='gorilla'||!d.config.kinematics||node.a!==g.stride||node.b!==g.height||node.durationMs!==g.phaseMs||!planGorillaGait(d.config.kinematics,d.config.settings,node.index,g,Array(8).fill(0)).move)diagnostics.push({severity:'error',code:'gorilla-gait',message:'Marcha inválida. Revisá geometría, longitud, altura, ritmo y límites.',blockId:node.blockId,deviceId:node.deviceId});
     }
     if(node.op==='gorilla'&&(node.action==='foot'||node.action==='path')){
@@ -3456,8 +3464,8 @@ export function validateProgramForScene(
     if (node.op === 'variableChange') expressions.push(node.delta);
     if (node.op === 'procedureCall') expressions.push(...node.arguments);
     if ((node.op === 'serial' || node.op === 'messageSend' || node.op === 'wifiMessageSend' || node.op === 'displayWrite') && node.expression) expressions.push(node.expression);
-    if ((node.op === 'if'||node.op==='while') && node.condition.kind === 'value') expressions.push(node.condition.expression);
-    if ((node.op === 'if'||node.op==='while') && node.condition.kind === 'valueCompare') expressions.push(node.condition.left, node.condition.right);
+    if ((node.op === 'if'||node.op==='while'||(node.op==='gorilla'&&node.action==='walk')) && node.condition!.kind === 'value') expressions.push(node.condition!.expression);
+    if ((node.op === 'if'||node.op==='while'||(node.op==='gorilla'&&node.action==='walk')) && node.condition!.kind === 'valueCompare') expressions.push(node.condition!.left, node.condition!.right);
     for (const expression of expressions) visitValueExpression(expression, value => {
       if (value.kind === 'variable') {
         const variable = variables.get(value.variableId);
@@ -3542,10 +3550,10 @@ export function validateProgramForScene(
       if (!routine || routine.kind !== 'procedure') diagnostics.push({ severity: 'error', code: 'routine-missing', message: 'Elegí una tarea que todavía exista.', blockId: node.blockId });
       else if (routine.parameters.length !== node.arguments.length || routine.parameters.some((parameter, index) => valueExpressionType(node.arguments[index] ?? defaultValue(parameter.type)) !== parameter.type)) diagnostics.push({ severity: 'error', code: 'routine-arguments', message: `${routine.name}: revisá la cantidad y el tipo de sus datos de entrada.`, blockId: node.blockId });
     }
-    if ((node.op === 'if'||node.op==='while') && node.condition.kind === 'value' && valueExpressionType(node.condition.expression) !== 'boolean') diagnostics.push({ severity: 'error', code: 'condition-type', message: 'La condición necesita un valor de tipo sí/no.', blockId: node.blockId });
-    if ((node.op === 'if'||node.op==='while') && node.condition.kind === 'valueCompare') {
-      const leftType = valueExpressionType(node.condition.left), rightType = valueExpressionType(node.condition.right);
-      if (leftType !== rightType || ((node.condition.operator !== 'EQ' && node.condition.operator !== 'NEQ') && leftType !== 'number')) diagnostics.push({ severity: 'error', code: 'condition-type', message: 'Compará datos del mismo tipo; menor y mayor se usan solamente con números.', blockId: node.blockId });
+    if ((node.op === 'if'||node.op==='while'||(node.op==='gorilla'&&node.action==='walk')) && node.condition!.kind === 'value' && valueExpressionType(node.condition!.expression) !== 'boolean') diagnostics.push({ severity: 'error', code: 'condition-type', message: 'La condición necesita un valor de tipo sí/no.', blockId: node.blockId });
+    if ((node.op === 'if'||node.op==='while'||(node.op==='gorilla'&&node.action==='walk')) && node.condition!.kind === 'valueCompare') {
+      const leftType = valueExpressionType(node.condition!.left), rightType = valueExpressionType(node.condition!.right);
+      if (leftType !== rightType || ((node.condition!.operator !== 'EQ' && node.condition!.operator !== 'NEQ') && leftType !== 'number')) diagnostics.push({ severity: 'error', code: 'condition-type', message: 'Compará datos del mismo tipo; menor y mayor se usan solamente con números.', blockId: node.blockId });
     }
     if (node.op === 'displayAnimateText' || node.op === 'displayArtwork' || node.op === 'matrixScroll' || node.op === 'frameAnimation') {
       if (!Number.isInteger(node.repeatCount) || node.repeatCount < 0 || node.repeatCount > 100)
@@ -3688,9 +3696,9 @@ export function validateProgramForScene(
         });
       }
     }
-    if (node.op === 'if'||node.op==='while') {
+    if (node.op === 'if'||node.op==='while'||(node.op==='gorilla'&&node.action==='walk')) {
       validateConditionTarget(
-        node.condition,
+        node.condition!,
         node.blockId,
         deviceMap,
         diagnostics,
@@ -4132,6 +4140,11 @@ function instructionToCpp(
       return `${comment}\n        ${logical ? '// Objeto lógico del tablero: sin salida GPIO.' : relay ? `${native ? 'capiDigitalWrite' : 'digitalWrite'}(${pinConstant(context, instruction.deviceId)}, ${instruction.brightness > 0 ? (native ? '1' : 'HIGH') : (native ? '0' : 'LOW')});` : `${pwmWrite}(${pinConstant(context, instruction.deviceId)}, ${duty});`}\n        ${componentStateSymbol(instruction.deviceId, property)} = ${Math.max(0, Math.min(100, Math.round(instruction.brightness)))};\n        ${pc} = ${nextPc};\n        break;`;
     }
     case 'gorilla': {
+      if(instruction.action==='finish')return `${comment}\n        CAPI_GORILLA_WALK.requested=true;${pc}=${nextPc};break;`;
+      if(instruction.action==='walk')return `${comment}
+        if(!${waiting}){if(CAPI_GORILLA.busy||CAPI_GORILLA_OWNER>=0)return;CAPI_GORILLA_OWNER=${context.threadIndex};CAPI_GORILLA_WALK.begin(${instruction.index},${instruction.a},${instruction.b},${instruction.durationMs}U,${instruction.timeoutMs??30000}U,now);capiGorillaOutcome();${waiting}=true;}
+        if(CAPI_GORILLA_WALK.service(CAPI_GORILLA,${conditionToCpp(instruction.condition!,context)},now))return;
+        capiGorillaOutcome();CAPI_GORILLA_OWNER=-1;${waiting}=false;${pc}=${nextPc};break;`;
       const kind=instruction.action==='prepare'?0:instruction.action==='pair'?2:1;
       const movement=instruction.action==='gait'?`CAPI_GORILLA.gait(${instruction.index},${instruction.a},${instruction.b},${instruction.durationMs}U,now);`:instruction.action==='foot'||instruction.action==='path'?`{const double points[][3]={${(instruction.points??[]).map(p=>`{${p.forward},${p.up},${p.ms}}`).join(',')}};CAPI_GORILLA.path(${instruction.index},points,${instruction.points?.length??0},now);}`:instruction.action==='posture'?`{const int pose[8]={${(instruction.angles??[]).join(',')}};CAPI_GORILLA.posture(pose,${Math.round(instruction.durationMs)}U,now);}`:`CAPI_GORILLA.start(${kind},${instruction.index},${Math.round(instruction.a)},${Math.round(instruction.b)},${Math.round(instruction.durationMs)}U,now);`;
       return `${comment}\n        if (!${waiting}) { if(CAPI_GORILLA.busy||CAPI_GORILLA_OWNER>=0)return; CAPI_GORILLA_OWNER=${context.threadIndex}; ${kind===0&&instruction.action!=='posture'?'if(!capiGorillaPrepare())CAPI_GORILLA.error=true;':movement} ${waiting}=true;return;}\n        if(CAPI_GORILLA.busy)return;\n        CAPI_GORILLA_OWNER=-1;${waiting}=false;${pc}=${nextPc};break;`;
@@ -4360,7 +4373,7 @@ export function programUsesWifi(program: CompiledProgram) {
   let usesWifi = false;
   visitProgram(program, (node) => {
     if (node.op === 'wifi' || node.op === 'wifiMessageSend' || node.op === 'wifiMessageReceive') usesWifi = true;
-    if ((node.op === 'if'||node.op==='while') && node.condition.kind === 'wifiConnected') {
+    if ((node.op === 'if'||node.op==='while'||(node.op==='gorilla'&&node.action==='walk')) && node.condition!.kind === 'wifiConnected') {
       usesWifi = true;
     }
     const expressions: ValueExpression[] = [];
@@ -4368,8 +4381,8 @@ export function programUsesWifi(program: CompiledProgram) {
     if (node.op === 'variableSet') expressions.push(node.value);
     if (node.op === 'variableChange') expressions.push(node.delta);
     if ((node.op === 'serial' || node.op === 'messageSend' || node.op === 'wifiMessageSend' || node.op === 'displayWrite') && node.expression) expressions.push(node.expression);
-    if ((node.op === 'if'||node.op==='while') && node.condition.kind === 'value') expressions.push(node.condition.expression);
-    if ((node.op === 'if'||node.op==='while') && node.condition.kind === 'valueCompare') expressions.push(node.condition.left, node.condition.right);
+    if ((node.op === 'if'||node.op==='while'||(node.op==='gorilla'&&node.action==='walk')) && node.condition!.kind === 'value') expressions.push(node.condition!.expression);
+    if ((node.op === 'if'||node.op==='while'||(node.op==='gorilla'&&node.action==='walk')) && node.condition!.kind === 'valueCompare') expressions.push(node.condition!.left, node.condition!.right);
     expressions.forEach(expression => visitValueExpression(expression, value => { if (value.kind === 'wifiValue' || (value.kind === 'componentValue' && (value.property === 'connected' || value.property === 'status' || value.property.startsWith('lastWifi')))) usesWifi = true; }));
   });
   return usesWifi;
@@ -4420,8 +4433,8 @@ function deviceDeclarations(
 
 function componentStateDeclarations(scene: SceneDefinition) {
   return scene.devices.flatMap(device => {
-    if (isEducationalModuleKind(device.kind)) { const moduleDevice = device as EducationalModuleDevice; return educationalModuleSpecs[device.kind].values.map(value => {
-      const initial = moduleDevice.config.values[value.key];
+    if (isEducationalModuleKind(device.kind)) { const moduleDevice = device as EducationalModuleDevice; return componentValueCapabilities(device).map(value => {
+      const initial = moduleDevice.config.values[value.key]??(value.type==='text'?'ninguno':false);
       if (value.type === 'text') return `char ${componentStateSymbol(device.id, value.key)}[121] = ${cppString(String(initial))};`;
       if (value.type === 'boolean') return `bool ${componentStateSymbol(device.id, value.key)} = ${initial ? 'true' : 'false'};`;
       return `double ${componentStateSymbol(device.id, value.key)} = ${Number(initial)};`;
@@ -5050,6 +5063,7 @@ ${smartLightsSupport}
 
 ${stepperFirmwareSupport(scene, symbols, native)}
 ${gorillaFirmwareSupport(scene,symbols,native,componentStateSymbol)}
+${sonarFirmwareSupport(scene,native,componentStateSymbol)}
 ${dashboardSupport}
 
 ${messageRuntimeSupport(scene, native)}
@@ -5242,6 +5256,7 @@ ${threadFunctions}
 
 ${native ? `extern "C" void app_main() {
   capiHardwareBegin();
+${frontSonar(scene)?'capiSonarBegin();':''}
 ${messageSetupLines(scene, symbols, true)}
 ${scene.devices.filter(device => device.kind === 'trafficLight' && (device.config.vehicleDisplay || device.config.pedestrianDisplay)).map(device => {
   const symbol = symbols.get(device.id) ?? cppIdentifier(device.id);
@@ -5266,6 +5281,7 @@ ${scene.devices.filter(device => device.kind === 'smartLights').map(device => {
     capiTimerService(now);
 ${serviceBuzzerLines(scene, symbols, framework)}
 ${serviceEducationalLines(scene, symbols, framework)}
+${frontSonar(scene)?'capiSonarService();':''}
 ${scene.devices.some(d=>d.kind==='gorilla')?'capiGorillaService(now);':''}
 ${scene.devices.filter(device => device.kind === 'stepper').map(device => `    capiStepperService_${symbols.get(device.id) ?? cppIdentifier(device.id)}(now);`).join('\n')}
 ${displaySupport ? '    capiDisplayService(now);' : ''}
@@ -5283,6 +5299,7 @@ ${runThreads}
   Serial.begin(115200);
 ${profile.family === 'esp32-s3' ? '  if (!psramFound() || ESP.getPsramSize() < 8U * 1024U * 1024U) { Serial.println("CapiBloques: este perfil requiere 8 MB de PSRAM."); while (true) delay(1000); }' : ''}
 ${setupLines(scene, symbols, servoResolutionBits)}
+${frontSonar(scene)?'capiSonarBegin();':''}
 ${messageSetupLines(scene, symbols, false)}
 ${displaySupport ? '  capiDisplayBegin();' : ''}
 ${matrixSupport ? '  capiMatrixBegin();' : ''}
@@ -5294,6 +5311,7 @@ void loop() {
   capiTimerService(now);
 ${serviceBuzzerLines(scene, symbols)}
 ${serviceEducationalLines(scene, symbols, 'arduino')}
+${frontSonar(scene)?'capiSonarService();':''}
 ${scene.devices.some(d=>d.kind==='gorilla')?'capiGorillaService(now);':''}
 ${scene.devices.filter(device => device.kind === 'stepper').map(device => `  capiStepperService_${symbols.get(device.id) ?? cppIdentifier(device.id)}(now);`).join('\n')}
 ${displaySupport ? '  capiDisplayService(now);' : ''}

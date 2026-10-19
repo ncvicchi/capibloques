@@ -10,6 +10,9 @@ export const gorillaStations = [
   { id: 'B' as const, x: 680, y: 190 },
 ];
 export interface GorillaTrackState {
+  sonarMode?: 'normal'|'missing'|'stale';
+  obstaclesRemoved?:boolean;
+  buttonPulseMs?:number;
   x: number;
   y: number;
   angle: number;
@@ -98,7 +101,7 @@ export function advanceGorillaTrack(
       const angle = out.angle + yaw / steps,
         x = out.x + (Math.cos((angle * Math.PI) / 180) * travel * 4) / steps,
         y = out.y + (Math.sin((angle * Math.PI) / 180) * travel * 4) / steps;
-      if (gorillaTrackAllowed(scene, x, y)) {
+      if (gorillaTrackAllowed(w.obstaclesRemoved?{...scene,canvas:{...scene.canvas,arenaEnvironment:{guides:true,obstacles:[]}}}:scene, x, y)) {
         out.x = x;
         out.y = y;
         out.angle = angle;
@@ -128,4 +131,24 @@ export function advanceGorillaTrack(
   }
   out.visited = out.visited.slice(-32);
   return out;
+}
+
+export function gorillaBindings(scene:SceneDefinition){
+  if(scene.canvas.background!=='gorillaTrack'||!scene.devices.some(d=>d.kind==='gorilla'))return {};
+  const sensors=scene.devices.filter(d=>d.kind==='distanceSensor'),buttons=scene.devices.filter(d=>d.kind==='button');
+  return {sensor:sensors.length===1&&sensors[0].config.profile==='HC-SR04'?sensors[0].id:undefined,button:buttons.length===1?buttons[0].id:undefined};
+}
+export function gorillaDistance(w:GorillaTrackState,scene:SceneDefinition){
+  const dx=Math.cos(w.angle*Math.PI/180),dy=Math.sin(w.angle*Math.PI/180),sx=w.x+dx*42,sy=w.y+dy*42;
+  let nearest=16000;
+  for(const [p,d,low,high] of [[sx,dx,22,938],[sy,dy,65,503]]){
+    if(Math.abs(d)>.0001){const t=((d>0?high:low)-p)/d;if(t>=0)nearest=Math.min(nearest,t);}
+  }
+  for(const o of w.obstaclesRemoved?[]:scene.canvas.arenaEnvironment?.obstacles??[]){
+    const x=o.x-sx,y=o.y-sy,projection=x*dx+y*dy,offset=x*x+y*y-projection*projection;
+    if(projection>=0&&offset<=o.radius*o.radius)nearest=Math.min(nearest,Math.max(0,projection-Math.sqrt(o.radius*o.radius-offset)));
+  }
+  // Same didactic translation scale as phase60: 40 scene units per centimetre.
+  const distance=Math.round(nearest/40);
+  return {distance,valid:(w.sonarMode??'normal')==='normal'&&distance>=2&&distance<=400};
 }

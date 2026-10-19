@@ -61,3 +61,12 @@ class GorillaValidationTests(unittest.TestCase):
         with self.assertRaises(ValidationError):document(w)
         w=copy.deepcopy(v);w['scene']['devices'][0]['position']['x']=230;w['scene']['canvas']['arenaEnvironment']['obstacles']=[dict(x=230,y=355,radius=28)]
         with self.assertRaises(ValidationError):document(w)
+
+    def test_autonomy_workspace_and_derived_values(self):
+        v=self.sample();scene=v['scene']
+        scene['devices'].append(dict(schemaVersion=1,id='gorilla-sonar',kind='distanceSensor',name='Distancia frontal',position=dict(x=165,y=190),rotation=0,pins=dict(trigger=17,echo=34),config=dict(profile='HC-SR04',values=dict(distance=30),settings=dict(maxDistance=400))))
+        scene['devices'].append(dict(schemaVersion=1,id='gorilla-button',kind='button',name='Botón de misión',position=dict(x=800,y=420),rotation=0,pins=dict(signal=4),config=dict(pressed=False,pullup=True)))
+        v['workspace']={'blocks':{'languageVersion':0,'blocks':[{'type':'capi_start','id':'start-main','inputs':{'DO':{'block':{'type':'capi_gorilla_walk','id':'walk','fields':{'DEVICE_ID':'gorilla-robot','MODE':'0','LIMIT':30},'inputs':{'CONDITION':{'block':{'type':'capi_component_boolean','id':'valid','fields':{'DEVICE_ID':'gorilla-sonar','PROPERTY':'valid'}}}},'next':{'block':{'type':'capi_gorilla_finish','id':'finish','fields':{'DEVICE_ID':'gorilla-robot'}}}}}}}]}}
+        self.assertGreater(document(v),0)
+        invalid=copy.deepcopy(v);invalid['scene']['devices'][1]['config']['values']['valid']=True
+        with self.assertRaises(ValidationError):document(invalid)

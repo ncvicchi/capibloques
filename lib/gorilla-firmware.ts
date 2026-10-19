@@ -13,9 +13,11 @@ export function gorillaFirmwareSupport(
     symbol = symbols.get(d.id)!;
   return `
 #include <cmath>
+#include <cstdio>
 ${native ? '#include "driver/i2c_master.h"' : '#include <Wire.h>'}
 ${gorillaCore}
 CapiGorilla CAPI_GORILLA;
+CapiGorillaWalk CAPI_GORILLA_WALK;
 int CAPI_GORILLA_OWNER=-1;
 ${native ? 'i2c_master_bus_handle_t CAPI_G_BUS=nullptr; i2c_master_dev_handle_t CAPI_G_DEVICE=nullptr;' : 'TwoWire CAPI_G_BUS(1); bool CAPI_G_OPEN=false;'}
 bool capiGorillaTransfer(const uint8_t *bytes,size_t size){
@@ -39,6 +41,7 @@ bool capiGorillaPrepare(){
  ${Array.from({length:8},(_,i)=>`CAPI_GORILLA.zero_angles[${i}]=${d.config.kinematics?.zeroAngles[i]??90};`).join('')}
  CAPI_GORILLA.write=capiGorillaWrite;CAPI_GORILLA.start(0,0,0,0,0,0);return true;
 }
+void capiGorillaOutcome(){const char *result[]={"ninguno","condición","tiempo máximo","solicitado","error"};snprintf(${state(d.id,'walkOutcome')},121,"%s",result[CAPI_GORILLA_WALK.outcome]);}
 void capiGorillaService(uint32_t now){CAPI_GORILLA.service(now);${Array.from({ length: 8 }, (_, i) => `${state(d.id, `j${i}`)}=std::lround(CAPI_GORILLA.position[${i}]);`).join('')}${state(d.id, 'ready')}=CAPI_GORILLA.ready;${state(d.id, 'moving')}=CAPI_GORILLA.busy;${state(d.id, 'error')}=CAPI_GORILLA.error;}
 // Servo board exclusively owns I2C1. No pulses before an explicit movement.
 // Eight external channels consume no ESP32 LEDC channels.

@@ -31,6 +31,7 @@ int i2c_master_bus_add_device(void*,i2c_device_config_t*c,void**d){assert(c->dev
 int i2c_master_transmit(void*,const uint8_t*d,size_t n,int timeout){assert(timeout==5);writes.emplace_back(d,d+n);return ok?0:-1;}
 int pdMS_TO_TICKS(int n){return n;}void vTaskDelay(int){}
 struct TwoWire{explicit TwoWire(int n){assert(n==1);}bool begin(int a,int b,int rate){assert(a==18&&b==19&&rate==100000);return true;}void setTimeOut(int n){assert(n==5);}void beginTransmission(int a){assert(a==64);}void write(const uint8_t*d,size_t n){writes.emplace_back(d,d+n);}int endTransmission(){return ok?0:1;}};
+char S_walkOutcome[121]="ninguno";
 double S_j0=0,S_j1=0,S_j2=0,S_j3=0,S_j4=0,S_j5=0,S_j6=0,S_j7=0;bool S_ready=false,S_moving=false,S_error=false;
 `;
 await writeFile(`${dir}/Wire.h`, '#pragma once\n');
@@ -98,9 +99,11 @@ struct cJSON{enum{OBJECT,ARRAY,NUMBER,STRING,TRUE_VALUE,FALSE_VALUE}type=OBJECT;
 cJSON* cJSON_GetObjectItem(cJSON*o,const char*k){if(!o)return nullptr;auto it=o->children.find(k);return it==o->children.end()?nullptr:it->second;}
 bool cJSON_IsArray(cJSON*v){return v&&v->type==cJSON::ARRAY;}cJSON* cJSON_GetArrayItem(cJSON*v,int i){return cJSON_GetObjectItem(v,std::to_string(i).c_str());}
 bool cJSON_IsObject(cJSON*v){return v&&v->type==cJSON::OBJECT;}bool cJSON_IsNumber(cJSON*v){return v&&v->type==cJSON::NUMBER;}bool cJSON_IsTrue(cJSON*v){return v&&v->type==cJSON::TRUE_VALUE;}bool cJSON_IsFalse(cJSON*v){return v&&v->type==cJSON::FALSE_VALUE;}bool cJSON_IsBool(cJSON*v){return cJSON_IsTrue(v)||cJSON_IsFalse(v);}int cJSON_GetArraySize(cJSON*v){return v?(int)v->children.size():0;}
+bool supported_condition(cJSON*o){return cJSON_IsObject(o);}
 const char*text(cJSON*o,const char*k){auto v=cJSON_GetObjectItem(o,k);return v?v->str.c_str():"";}
 int number(cJSON*o,const char*k,int fallback=0){auto v=cJSON_GetObjectItem(o,k);return cJSON_IsNumber(v)?v->valueint:fallback;}
 int pin(cJSON*d,const char*k){return number(cJSON_GetObjectItem(d,"pins"),k,-1);}
+bool allowed_pin(int n){return n>=0&&n<=39;}
 bool wave=false;bool is_waveshare(){return wave;}bool allowed_output_pin(int n){return n>=0&&n<34;}
 using SemaphoreHandle_t=void*;constexpr int pdTRUE=1;int xSemaphoreTake(void*,int){return 1;}void xSemaphoreGive(void*){}
 bool running=true,paused=false;int step_owner=-1;uint32_t fake_now=0;int64_t esp_timer_get_time(){return (int64_t)fake_now*1000;}void cooperative_delay_ms(int){}
@@ -131,6 +134,8 @@ int main(){
  cJSON gait;gait.children["action"]=new cJSON("gait");gait.children["index"]=new cJSON(0);gait.children["a"]=new cJSON(4);gait.children["b"]=new cJSON(2);gait.children["durationMs"]=new cJSON(500);
  assert(gorilla_instruction_valid(&gait));gait.children["a"]=new cJSON(true);assert(!gorilla_instruction_valid(&gait));gait.children["a"]=new cJSON(4);gait.children["index"]=new cJSON(5);assert(!gorilla_instruction_valid(&gait));gait.children["index"]=new cJSON(4);assert(gorilla_instruction_valid(&gait));
  cJSON gc;gc.children["stride"]=new cJSON(4);gc.children["height"]=new cJSON(2);gc.children["phaseMs"]=new cJSON(500);gc.children["turnsVerified"]=new cJSON(false);config.children["gait"]=&gc;assert(gorilla_config_valid(&dev));gc.children["turnsVerified"]=new cJSON(1);assert(!gorilla_config_valid(&dev));gc.children["turnsVerified"]=new cJSON(false);
+ cJSON resources,sonar,sonar_config,sonar_pins;resources.type=cJSON::ARRAY;assert(!gorilla_autonomy_resources_valid(&resources));
+ resources.children["0"]=&sonar;sonar.children["kind"]=new cJSON("distanceSensor");sonar.children["config"]=&sonar_config;sonar.children["pins"]=&sonar_pins;sonar_config.children["profile"]=new cJSON("HC-SR04");sonar_pins.children["trigger"]=new cJSON(17);sonar_pins.children["echo"]=new cJSON(34);assert(gorilla_autonomy_resources_valid(&resources));sonar_pins.children["echo"]=new cJSON(17);assert(!gorilla_autonomy_resources_valid(&resources));sonar_pins.children["echo"]=new cJSON(34);resources.children["1"]=&sonar;assert(!gorilla_autonomy_resources_valid(&resources));resources.children.erase("1");
  cJSON pose,angles;angles.type=cJSON::ARRAY;
  pose.children["action"]=new cJSON("posture");pose.children["durationMs"]=new cJSON(1000);pose.children["angles"]=&angles;
  for(int i=0;i<8;i++)angles.children[std::to_string(i)]=new cJSON(i);
