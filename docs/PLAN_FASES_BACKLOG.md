@@ -1,5 +1,7 @@
 # Nuevas fases de CapiBloques
 
+**Fase 57 — Laguna, depósito y bombeo (19/10):** software en rama `codex/fase-57-laguna-bombeo` desde dev1. [Reglas aprobadas y entrega](FASE_57_LAGUNA_DEPOSITO_BOMBEO.md): balance de agua, dos distancias, bomba/compuerta, derrame y secado residual, ensayos y dos ejemplos completos (directo/modular). Sin firmware/ABI/SDK/migraciones; actualización dev1, aceptación humana/física y mundo Waveshare pendientes. Fase56 ya actualizada en dev1 por confirmación del propietario. Sustituye estados históricos de laguna sólo propuesta; no habilita otra fase ni cambios main/dev2.
+
 **19/10: fase56 implementada en software en rama desde dev1.** [Reglas, límites y evidencia](FASE_56_SEGUIDOR_LINEA.md): sensores digitales de suelo, ruedas independientes, editor y dos ejemplos completos. Runtime1.10.0, ABI1; DEV/SDK completo/hardware/Waveshare pendientes. No iniciar otra fase ni promover main. La documentación55 viaja incluida sin implementar sus variantes.
 
 
@@ -88,6 +90,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 54 | Escenario de Otto | Mundos interactivos | Software en rama dev1; público, dos ejemplos completos y runtime 1.9.1; ver guía de fase 54; aceptación pendiente |
 | 55 | Parque, laguna y aeropuerto | Mundos interactivos | Análisis cerrado; [candidatos, solapamientos y recomendación](FASE_55_ANALISIS_VARIANTES_ESCENAS.md); ninguna variante implementada |
 | 56 | Vehículo seguidor de línea | Pedido del propietario, 18 de octubre | Software en rama dev1; sensores, circuitos/editor, ruedas independientes y dos ejemplos; [reglas/evidencia](FASE_56_SEGUIDOR_LINEA.md); DEV/SDK/físico/Waveshare pendientes |
+| 57 | Laguna, depósito y bombeo | Variante de fase55 aprobada el19/10 | Software web con balance, sensores, control y dos ejemplos; [reglas/evidencia](FASE_57_LAGUNA_DEPOSITO_BOMBEO.md); dev1/aceptación/Waveshare pendientes |
 | Final | Producción, HTTPS, respaldos y piloto | Antigua fase 11 | Postergada hasta autorización explícita y validaciones de salida |
 
 Primero se asegura la continuidad desde otra cuenta sin depender de este chat; después se atienden los problemas cotidianos del editor y se vuelve DEV accesible desde fuera mediante un servicio controlado. TX/RX se incorpora antes de las placas nuevas para tener un contrato de comportamiento que luego se valide en cada destino. Separar DevKit, Waveshare y display interactivo permite comprobar por separado placa, pantalla y aplicación gráfica: no son el mismo soporte. Los desafíos aprovechan esas funciones como recorrido educativo propio. Las fases 20–26 separan flujos de compilación, pulido de edición, motivación, periféricos, control local, intercambio e identidad de aula para no mezclar permisos o hardware distintos en una entrega inmanejable.
