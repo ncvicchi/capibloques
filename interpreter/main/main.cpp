@@ -49,7 +49,7 @@
 #ifndef CAPI_BOARD_ID
 #define CAPI_BOARD_ID "wemos-d1-r32"
 #endif
-#define CAPI_FIRMWARE_VERSION "1.12.0"
+#define CAPI_FIRMWARE_VERSION "1.13.0"
 #include "gorilla_core.h"
 static bool is_waveshare(){return !strcmp(CAPI_BOARD_ID,"waveshare-esp32-s3-touch-lcd-5-28117");}
 static constexpr uint16_t ABI = 1;
@@ -366,6 +366,13 @@ static bool gorilla_config_valid(cJSON *dev){
   cJSON *config=cJSON_GetObjectItem(dev,"config"),*s=config?cJSON_GetObjectItem(config,"settings"):nullptr,*values=config?cJSON_GetObjectItem(config,"values"):nullptr;
   if(is_waveshare()||strcmp(text(config,"profile"),"GORILLA_PCA9685")||!cJSON_IsObject(s)||cJSON_GetArraySize(s)!=42||!cJSON_IsTrue(cJSON_GetObjectItem(s,"verified"))||!cJSON_IsObject(values)||cJSON_GetArraySize(values)!=11)return false;
   auto integer=[](cJSON *o,const char *key,int low,int high){cJSON *v=cJSON_GetObjectItem(o,key);return cJSON_IsNumber(v)&&std::isfinite(v->valuedouble)&&v->valuedouble==v->valueint&&v->valueint>=low&&v->valueint<=high;};
+  cJSON *kin=cJSON_GetObjectItem(config,"kinematics");
+  if(kin){
+    if(!cJSON_IsObject(kin)||cJSON_GetArraySize(kin)!=5||strcmp(text(kin,"profile"),"gorilla-v3-50-100-46")||!cJSON_IsTrue(cJSON_GetObjectItem(kin,"verified"))||!integer(kin,"pulseMinUs",500,1200)||!integer(kin,"pulseMaxUs",1800,2500))return false;
+    cJSON *zeros=cJSON_GetObjectItem(kin,"zeroAngles");
+    if(!cJSON_IsArray(zeros)||cJSON_GetArraySize(zeros)!=8)return false;
+    for(int i=0;i<8;++i){cJSON *a=cJSON_GetArrayItem(zeros,i);if(!cJSON_IsNumber(a)||!std::isfinite(a->valuedouble)||a->valuedouble!=a->valueint||a->valueint<45||a->valueint>135)return false;}
+  }
   if(!integer(s,"address",64,119)||pin(dev,"sda")==pin(dev,"scl")||!allowed_output_pin(pin(dev,"sda"))||!allowed_output_pin(pin(dev,"scl")))return false;
   unsigned channels=0;char key[20];
   for(int i=0;i<8;++i){
@@ -381,6 +388,15 @@ static bool gorilla_config_valid(cJSON *dev){
 }
 static bool gorilla_instruction_valid(cJSON *node){
   const char *action=text(node,"action");bool pair=!strcmp(action,"pair");
+  if(!strcmp(action,"foot")||!strcmp(action,"path")){
+    cJSON *points=cJSON_GetObjectItem(node,"points"),*leg=cJSON_GetObjectItem(node,"index");
+    int count=cJSON_GetArraySize(points);if(!cJSON_IsArray(points)||count<1||count>16||!cJSON_IsNumber(leg)||leg->valuedouble!=leg->valueint||leg->valueint<0||leg->valueint>3)return false;
+    int total=0;
+    for(int i=0;i<count;++i){cJSON *p=cJSON_GetArrayItem(points,i),*x=cJSON_GetObjectItem(p,"forward"),*y=cJSON_GetObjectItem(p,"up"),*ms=cJSON_GetObjectItem(p,"ms");
+      if(!cJSON_IsObject(p)||cJSON_GetArraySize(p)!=3||!cJSON_IsNumber(x)||!cJSON_IsNumber(y)||!cJSON_IsNumber(ms)||!std::isfinite(x->valuedouble)||!std::isfinite(y->valuedouble)||!std::isfinite(ms->valuedouble)||std::abs(x->valuedouble)>50||std::abs(y->valuedouble)>30||ms->valuedouble!=ms->valueint||ms->valueint<200||ms->valueint>10000)return false;
+      total+=ms->valueint;
+    }return total<=120000;
+  }
   if(!strcmp(action,"posture")){
     cJSON *angles=cJSON_GetObjectItem(node,"angles"),*ms=cJSON_GetObjectItem(node,"durationMs");
     if(!cJSON_IsArray(angles)||cJSON_GetArraySize(angles)!=8||!cJSON_IsNumber(ms)||ms->valuedouble!=ms->valueint||ms->valueint<200||ms->valueint>10000)return false;
@@ -691,7 +707,7 @@ static cJSON *gorilla_device=nullptr;
 static int gorilla_owner=-1;
 static uint32_t gorilla_last=0;
 static bool gorilla_transfer(const uint8_t *data,size_t size){return gorilla_device_handle&&i2c_master_transmit(gorilla_device_handle,data,size,5)==ESP_OK;}
-static bool gorilla_write(int channel,int angle){uint16_t ticks=(uint16_t)std::lround((1000.0+angle*1000.0/180.0)*4096.0/20000.0);uint8_t bytes[]={(uint8_t)(6+channel*4),0,0,(uint8_t)(ticks&255),(uint8_t)(ticks>>8)};return gorilla_transfer(bytes,sizeof(bytes));}
+static bool gorilla_write(int channel,double angle){uint16_t ticks=(uint16_t)std::lround((gorilla.pulse_min+angle*(gorilla.pulse_max-gorilla.pulse_min)/180.0)*4096.0/20000.0);uint8_t bytes[]={(uint8_t)(6+channel*4),0,0,(uint8_t)(ticks&255),(uint8_t)(ticks>>8)};return gorilla_transfer(bytes,sizeof(bytes));}
 static void gorilla_publish(){
   if(!gorilla_device)return;
   const char *id=text(gorilla_device,"id");RuntimeValue v;char key[12];
@@ -713,6 +729,10 @@ static bool gorilla_prepare(cJSON *dev){
   if(!gorilla_transfer(sleep,2)||!gorilla_transfer(pre,2)||!gorilla_transfer(wake,2))return false;
   cooperative_delay_ms(2);char key[20];
   for(int i=0;i<8;++i){snprintf(key,sizeof(key),"center%d",i);gorilla.center[i]=number(s,key);snprintf(key,sizeof(key),"min%d",i);gorilla.low[i]=number(s,key);snprintf(key,sizeof(key),"max%d",i);gorilla.high[i]=number(s,key);snprintf(key,sizeof(key),"channel%d",i);gorilla.channel[i]=number(s,key);snprintf(key,sizeof(key),"reversed%d",i);gorilla.reversed[i]=cJSON_IsTrue(cJSON_GetObjectItem(s,key));}
+  cJSON *kin=cJSON_GetObjectItem(cJSON_GetObjectItem(dev,"config"),"kinematics");
+  gorilla.kinematics_verified=kin&&cJSON_IsTrue(cJSON_GetObjectItem(kin,"verified"));
+  gorilla.pulse_min=kin?number(kin,"pulseMinUs",1000):1000;gorilla.pulse_max=kin?number(kin,"pulseMaxUs",2000):2000;
+  for(int i=0;i<8;++i){cJSON *a=kin?cJSON_GetArrayItem(cJSON_GetObjectItem(kin,"zeroAngles"),i):nullptr;gorilla.zero_angles[i]=a?a->valuedouble:90;}
   gorilla.write=gorilla_write;gorilla_last=(uint32_t)(esp_timer_get_time()/1000);return gorilla.start(0,0,0,0,0,gorilla_last);
 }
 static void gorilla_service(){
@@ -809,7 +829,11 @@ static void execute_task(void *parameter) {
       else{
         gorilla_device=dev;
         bool accepted=false;
-        if(!strcmp(text(instruction,"action"),"posture")){
+        if(!strcmp(text(instruction,"action"),"foot")||!strcmp(text(instruction,"action"),"path")){
+          double points[16][3];cJSON *list=cJSON_GetObjectItem(instruction,"points");int count=cJSON_GetArraySize(list);
+          for(int i=0;i<count;++i){cJSON *p=cJSON_GetArrayItem(list,i);points[i][0]=cJSON_GetObjectItem(p,"forward")->valuedouble;points[i][1]=cJSON_GetObjectItem(p,"up")->valuedouble;points[i][2]=number(p,"ms");}
+          accepted=gorilla.path(number(instruction,"index"),points,count,(uint32_t)(esp_timer_get_time()/1000));
+        }else if(!strcmp(text(instruction,"action"),"posture")){
           int angles[8];cJSON *list=cJSON_GetObjectItem(instruction,"angles");
           for(int i=0;i<8;++i)angles[i]=cJSON_GetArrayItem(list,i)->valueint;
           accepted=gorilla.posture(angles,number(instruction,"durationMs"),(uint32_t)(esp_timer_get_time()/1000));
@@ -929,7 +953,7 @@ static void command(cJSON *request) {
     for(const char *cap:{"line-sensors","robot-wheels","core","switch","conditional-loop","parallel","expressions","variables","timers","component-state","gpio","led","smart-lights","traffic","traffic-display","motor","robot","robotWheels","otto","servo","buzzer","matrix","display","display-lcd","display-lcd1602","display-lcd2004","display-lcd1602keypad","display-graphic","display-ssd1306","display-ili9341","display-ili9488","display-keypad","frame-animation","visual-wait","messages","wifi","wifi-messages","pairing","counter","serial","digital-input","analog-input","step"}){
       cJSON_AddItemToArray(caps,cJSON_CreateString(cap));
     }
-    if(!is_waveshare()){cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-bench"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-postures"));}
+    if(!is_waveshare()){cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-bench"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-postures"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-kinematics-v3"));}
     if(is_waveshare()){
       cJSON_AddItemToArray(caps,cJSON_CreateString("touch-inputs"));
       cJSON_AddItemToArray(caps,cJSON_CreateString("autonomous-controls"));

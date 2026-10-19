@@ -1,4 +1,8 @@
 'use client';
+import {
+  gorillaForward,
+  type GorillaKinematics,
+} from '@/lib/gorilla-kinematics';
 import { useState } from 'react';
 import {
   gorillaLegDiagram,
@@ -8,11 +12,13 @@ import {
 export default function GorillaVisual({
   values,
   postures,
+  kinematics,
   preview = false,
   selectedLeg,
   onSelectLeg,
   interactive = true,
 }: {
+  kinematics?: GorillaKinematics;
   postures?: GorillaPosture[];
   values: Record<string, number | string | boolean>;
   interactive?: boolean;
@@ -32,7 +38,9 @@ export default function GorillaVisual({
       : undefined;
   const a = Number(values[`j${selected * 2}`] ?? 0),
     b = Number(values[`j${selected * 2 + 1}`] ?? 0),
-    p = gorillaLegDiagram(a, b);
+    p = kinematics
+      ? gorillaForward(kinematics, selected, a, b)
+      : gorillaLegDiagram(a, b);
   const line = (
     u: { x: number; y: number },
     v: { x: number; y: number },
@@ -105,12 +113,21 @@ export default function GorillaVisual({
           fill="none"
         />
         {gorillaLegNames.map((name, i) => {
-          const d = gorillaLegDiagram(
-              Number(values[`j${2 * i}`] ?? 0),
-              Number(values[`j${2 * i + 1}`] ?? 0),
-            ),
+          const aa = Number(values[`j${2 * i}`] ?? 0),
+            bb = Number(values[`j${2 * i + 1}`] ?? 0);
+          const d = kinematics
+              ? gorillaForward(kinematics, i, aa, bb)
+              : gorillaLegDiagram(aa, bb),
             x = i % 2 ? 265 : 85,
             y = i < 2 ? 110 : 190;
+          if (!d)
+            return (
+              <g key={name}>
+                <text x={x} y={y} fill="#b83248">
+                  !
+                </text>
+              </g>
+            );
           return (
             <g
               key={name}
@@ -138,22 +155,24 @@ export default function GorillaVisual({
         <text x="175" y="285" textAnchor="middle" fontSize="14" fill="#3e5260">
           Banco: sostenido, sin marcha ni equilibrio simulado
         </text>
-        <g transform="translate(455 65)">
-          <path d="M-50 0H50" stroke="#596571" strokeWidth="8" />
-          {line(p.A, p.E, '#ec9855')}
-          {line(p.B, p.F, '#56aab6')}
-          {line(p.E, p.foot, '#98765f')}
-          {line(p.F, p.foot, '#98765f')}
-          <circle cx={p.A.x} cy="0" r="9" fill="#ec9855" />
-          <circle cx={p.B.x} cy="0" r="9" fill="#56aab6" />
-          <circle cx={p.foot.x} cy={p.foot.y} r="8" fill="#594a44" />
-          <text x="-44" y="-15" fontSize="16">
-            A
-          </text>
-          <text x="24" y="-15" fontSize="16">
-            B
-          </text>
-        </g>
+        {p && (
+          <g transform="translate(455 65)">
+            <path d="M-50 0H50" stroke="#596571" strokeWidth="8" />
+            {line(p.A, p.E, '#ec9855')}
+            {line(p.B, p.F, '#56aab6')}
+            {line(p.E, p.foot, '#98765f')}
+            {line(p.F, p.foot, '#98765f')}
+            <circle cx={p.A.x} cy="0" r="9" fill="#ec9855" />
+            <circle cx={p.B.x} cy="0" r="9" fill="#56aab6" />
+            <circle cx={p.foot.x} cy={p.foot.y} r="8" fill="#594a44" />
+            <text x={p.A.x - 10} y="-15" fontSize="16">
+              A
+            </text>
+            <text x={p.B.x + 8} y="-15" fontSize="16">
+              B
+            </text>
+          </g>
+        )}
         <text x="455" y="235" textAnchor="middle" fontSize="16" fill="#324a55">
           Motor A: {a.toFixed(1)}° · B: {b.toFixed(1)}°
         </text>
@@ -161,9 +180,12 @@ export default function GorillaVisual({
           Respecto al centro · posiciones ordenadas
         </text>
         <text x="455" y="280" textAnchor="middle" fontSize="12" fill="#324a55">
-          Mecanismo ilustrativo, no medidas reales
+          {kinematics
+            ? 'Geometría v3 · 50/100/46 mm'
+            : 'Mecanismo ilustrativo, no medidas reales'}
         </text>
       </svg>
+      {!p && <small>Ángulos fuera de la rama geométrica admitida.</small>}
       <small>
         {preview
           ? 'Vista previa local · no mueve la placa'

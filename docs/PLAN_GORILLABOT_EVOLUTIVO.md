@@ -61,6 +61,8 @@ ilustrativo explica cómo se combinan; la cinemática medida queda en59.
 
 ### 59 — Posturas, recorridos y cinemática
 
+**Entrega posterior19/10:** el propietario aportó STL/3MF/manual y confirmó MG90S v3. [Cinemática y trayectorias](FASE_59_GORILLABOT_CINEMATICA.md) implementadas en software, medidas nominales50/100/46mm y herramienta de medición propia. Runtime1.13.0. Sustituye el bloqueo por medidas de la decisión inicial inferior. Mantiene pendientes calibración/aceptación física y SDK completo; no autoriza marcha60.
+
 **Decisión19/10:** implementar primero [posturas por ángulos](FASE_59_GORILLABOT_POSTURAS.md), con transiciones coordinadas y dos ejemplos. Trayectorias físicas por coordenadas/IK quedan pendientes hasta disponer de medidas reales. No publicar de pie/agachado/saludo con ángulos arbitrarios ni usar la geometría ilustrativa58 para motores reales. Esta entrega no cierra todo59.
 
 - Confirmar longitudes, distancia entre ejes, montaje/espejos y rama de ensamblaje.

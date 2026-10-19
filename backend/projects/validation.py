@@ -7,6 +7,7 @@ import json
 import math
 import re
 import unicodedata
+from .gorilla import geometry_valid
 
 from django.core.exceptions import ValidationError
 
@@ -30,7 +31,7 @@ BLOCKS.add("capi_switch")
 BLOCKS.add("capi_while")
 BLOCKS.add("capi_power_switch")
 BLOCKS.add("capi_stepper")
-BLOCKS.update(("capi_gorilla_prepare","capi_gorilla_joint","capi_gorilla_pair","capi_gorilla_posture"))
+BLOCKS.update(("capi_gorilla_prepare","capi_gorilla_joint","capi_gorilla_pair","capi_gorilla_posture","capi_gorilla_foot","capi_gorilla_path"))
 BLOCKS.update(("capi_display_write", "capi_display_clear", "capi_display_animate_text", "capi_display_artwork", "capi_display_button_pressed", "capi_visual_wait"))
 BLOCKS.update(("capi_message_send", "capi_message_receive"))
 BLOCKS.update(("capi_matrix_clear", "capi_matrix_pixel", "capi_matrix_pattern", "capi_matrix_scroll"))
@@ -376,7 +377,7 @@ def scene(value, board_profile="wemos-d1-r32"):
             else:
                 if kind in MODULES:
                     module_pins, profiles, value_types = MODULES[kind]
-                    exact(config, ("profile", "values", "settings", "postures") if kind=="gorilla" and "postures" in config else ("profile", "values", "settings"))
+                    exact(config, ("profile", "values", "settings", *(key for key in ("postures","kinematics","trajectories") if key in config)) if kind=="gorilla" else ("profile", "values", "settings"))
                     require(config["profile"] in profiles and isinstance(config["values"], dict) and set(config["values"]) == set(value_types) and isinstance(config["settings"], dict))
                     require(all(type(config["values"][key]) in ((rule,) if isinstance(rule, type) else rule) for key, rule in value_types.items()))
                     require(all(isinstance(key, str) and isinstance(value, (str, int, float, bool)) for key, value in config["settings"].items()))
@@ -389,6 +390,7 @@ def scene(value, board_profile="wemos-d1-r32"):
                         ch,c,a,b=[settings[f'{key}{i}'] for key in ('channel','center','min','max')]
                         require(all(type(v) is int for v in (ch,c,a,b)) and 0<=ch<=15 and ch not in channels and 50<=a<=c<=b<=130 and 70<=c<=110 and type(settings[f'reversed{i}']) is bool)
                         channels.add(ch)
+                    require(geometry_valid(config,settings))
                     if 'postures' in config:
                         poses=config['postures']
                         require(isinstance(poses,list) and len(poses)<=16)

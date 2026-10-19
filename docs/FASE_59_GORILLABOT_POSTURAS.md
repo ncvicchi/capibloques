@@ -1,5 +1,7 @@
 # Fase 59 — Posturas por ángulos de GorillaBot
 
+**Ampliación posterior autorizada:** recibidos STL/3MF y confirmada v3; [cinemática y trayectorias59](FASE_59_GORILLABOT_CINEMATICA.md) implementadas en software con runtime1.13.0. Los límites de alcance y pendientes por falta de medidas de este documento describen la entrega inicial, no el estado actual. Aceptación física sigue pendiente.
+
 ## Alcance acordado
 
 El propietario aprobó primero posturas por ángulos. Las trayectorias físicas

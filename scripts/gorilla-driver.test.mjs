@@ -132,7 +132,12 @@ int main(){
  pose.children["action"]=new cJSON("posture");pose.children["durationMs"]=new cJSON(1000);pose.children["angles"]=&angles;
  for(int i=0;i<8;i++)angles.children[std::to_string(i)]=new cJSON(i);
  assert(gorilla_instruction_valid(&pose));angles.children["7"]=new cJSON(21);assert(!gorilla_instruction_valid(&pose));angles.children.erase("7");assert(!gorilla_instruction_valid(&pose));
- gorilla_mutex=(void*)1;gorilla_reset();assert(gorilla_prepare(&dev));assert(writes.size()==3);gorilla_owner=0;assert(gorilla.start(1,0,10,0,1000,0));fake_now=500;gorilla_service();assert(gorilla.position[0]==5);
+ cJSON kin,zeros;zeros.type=cJSON::ARRAY;
+ kin.children["profile"]=new cJSON("gorilla-v3-50-100-46");kin.children["verified"]=new cJSON(true);kin.children["pulseMinUs"]=new cJSON(544);kin.children["pulseMaxUs"]=new cJSON(2400);kin.children["zeroAngles"]=&zeros;for(int i=0;i<8;i++)zeros.children[std::to_string(i)]=new cJSON(90);
+ config.children["kinematics"]=&kin;assert(gorilla_config_valid(&dev));kin.children["verified"]=new cJSON(false);assert(!gorilla_config_valid(&dev));kin.children["verified"]=new cJSON(true);
+ cJSON pathInstruction,pathPoints,pathPoint;pathInstruction.children["action"]=new cJSON("path");pathInstruction.children["index"]=new cJSON(0);pathInstruction.children["points"]=&pathPoints;pathPoints.type=cJSON::ARRAY;pathPoints.children["0"]=&pathPoint;
+ pathPoint.children["forward"]=new cJSON(0);pathPoint.children["up"]=new cJSON(4);pathPoint.children["ms"]=new cJSON(1000);assert(gorilla_instruction_valid(&pathInstruction));pathPoint.children["ms"]=new cJSON(true);assert(!gorilla_instruction_valid(&pathInstruction));pathPoint.children["ms"]=new cJSON(1000);
+ gorilla_mutex=(void*)1;gorilla_reset();assert(gorilla_prepare(&dev));assert(writes.size()==3);assert(gorilla.kinematics_verified&&gorilla.pulse_min==544&&gorilla.pulse_max==2400);gorilla_owner=0;assert(gorilla.start(1,0,10,0,1000,0));fake_now=500;gorilla_service();assert(gorilla.position[0]==5);
  paused=true;fake_now=1500;gorilla_service();assert(gorilla.position[0]==5);paused=false;fake_now=2000;gorilla_service();assert(!gorilla.busy&&gorilla.position[0]==10);
  assert(gorilla.start(1,0,-10,0,1000,2000));running=false;fake_now=2100;gorilla_service();assert(!gorilla.busy&&gorilla.position[0]==10);gorilla_reset();
 }

@@ -59,7 +59,10 @@ import { advanceHouseWorld, createHouseWorldState, houseBindings, houseInputRole
 
 // @ts-expect-error Node strip-types runner.
 import {gorillaPostureTargets,gorillaTargets,gorillaMove,advanceGorilla,type GorillaMove} from './gorilla-model.ts';
-const gorillaJobs=new Map<string,GorillaMove>();
+// @ts-expect-error Node strip-types runner.
+import {planGorillaPath,advanceGorillaPath,type GorillaCartesianMove} from './gorilla-kinematics.ts';
+const gorillaJobs=new Map<string,GorillaMove|GorillaCartesianMove>();
+const gorillaPositions=new Map<string,number[]>();
 type Pending =
   | { kind: 'wait'; startedAt: number; until: number; blockId: string }
   | {
@@ -888,7 +891,7 @@ function resetExecution(
   wifiMessageSequence = 0;
   lastReceivedMessages.clear();
   visualAnimations.clear();
-  gorillaJobs.clear();
+  gorillaJobs.clear();gorillaPositions.clear();
   ottoOwners.clear();
   ottoQueues.clear();
   clearBlockActivity();
@@ -1609,7 +1612,12 @@ function executeInstruction(
     if(d?.kind!=='educationalModule'||spec?.kind!=='gorilla'){execution.pc++;return 'action';}
     if(gorillaJobs.has(node.deviceId))return 'wait';
     if(node.action==='prepare'){d.values.ready=true;d.values.error=false;execution.pc++;appendConsole(`${deviceName(node.deviceId)}: preparado, sin mover motores`);return 'action';}
-    const current=Array.from({length:8},(_,i)=>Number(d.values[`j${i}`]));
+    const current=gorillaPositions.get(node.deviceId)??Array.from({length:8},(_,i)=>Number(d.values[`j${i}`]));
+    if(node.action==='foot'||node.action==='path'){
+      const planned=spec.config.kinematics?planGorillaPath(spec.config.kinematics,spec.config.settings,node.index,node.points??[],current):{error:'Configurá geometría v3.'};
+      if(!d.values.ready||!planned.move){d.values.error=true;appendConsole(`${deviceName(node.deviceId)}: ${planned.error??'Prepará el controlador.'}`);execution.pc++;return 'action';}
+      const job=planned.move;gorillaJobs.set(node.deviceId,job);d.values.moving=true;d.values.error=false;execution.pending={kind:'wait',startedAt:virtualNow,until:virtualNow+job.duration,blockId:node.blockId};appendConsole(`${deviceName(node.deviceId)}: ${node.action==='path'?'trayectoria '+node.trajectoryName:'mover pie '+(node.index+1)} · ${(job.duration/1000).toFixed(2)} s`);return 'wait';
+    }
     const targets=node.action==='posture'?gorillaPostureTargets(spec.config.settings,node.angles):gorillaTargets(spec.config.settings,current,node.index,node.a,node.b,node.action==='pair');
     if(!d.values.ready||!targets){d.values.error=true;appendConsole(`${deviceName(node.deviceId)}: orden rechazada; prepará el robot y revisá límites`);execution.pc++;return 'action';}
     const mask=node.action==='posture'?255:node.action==='pair'?3<<(node.index*2):1<<node.index;
@@ -2720,7 +2728,7 @@ function updateHousePhysics(deltaMs: number) {
 }
 
 function updatePhysics(deltaMs: number) {
-  for(const [id,job]of gorillaJobs){const next=advanceGorilla(job,deltaMs),d=state.devices[id];if(d?.kind==='educationalModule'){next.angles.forEach((a,i)=>d.values[`j${i}`]=Math.sign(a)*Math.round(Math.abs(a)));d.values.moving=next.moving;}if(next.moving)gorillaJobs.set(id,next.move);else gorillaJobs.delete(id);}
+  for(const [id,job]of gorillaJobs){const next='segments' in job?advanceGorillaPath(job,deltaMs):advanceGorilla(job,deltaMs),d=state.devices[id];gorillaPositions.set(id,next.angles);if(d?.kind==='educationalModule'){next.angles.forEach((a,i)=>d.values[`j${i}`]=(Math.sign(a)*Math.round(Math.abs(a))||0));d.values.moving=next.moving;if('error' in next&&next.error)d.values.error=true;}if(next.moving)gorillaJobs.set(id,next.move);else gorillaJobs.delete(id);}
   if (state.status !== 'done' && state.status !== 'stopped') {
     updateRailPhysics(deltaMs);
     updateParkingPhysics(deltaMs);

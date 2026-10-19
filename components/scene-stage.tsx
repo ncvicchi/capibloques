@@ -565,7 +565,7 @@ function DeviceVisual({
       </span>
     );
   }
-  if(device.kind==='gorilla')return <GorillaVisual postures={device.config.postures} interactive={interactive} values={runtime?.kind==='educationalModule'&&runtime.values?runtime.values:device.config.values}/>;
+  if(device.kind==='gorilla')return <GorillaVisual kinematics={device.config.kinematics} postures={device.config.postures} interactive={interactive} values={runtime?.kind==='educationalModule'&&runtime.values?runtime.values:device.config.values}/>;
   if (device.kind === 'motor') {
     return (
       <span

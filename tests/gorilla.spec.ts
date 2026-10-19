@@ -1,20 +1,29 @@
 import { test, expect, type Page } from '@playwright/test';
 import { mockEditorSession } from './editor-fixture';
 import { examples, makeProject } from '../lib/capiblocks';
-async function openGorilla(page: Page, modular = false, postures = false) {
+async function openGorilla(
+  page: Page,
+  modular = false,
+  postures = false,
+  paths = false,
+) {
   await mockEditorSession(page);
   await page.goto('/');
   await expect(page.locator('.blocklySvg')).toBeVisible();
   const e = examples.find(
     (e) =>
       e.id ===
-      (postures
+      (paths
         ? modular
-          ? 'gorillaPosturesProcedures'
-          : 'gorillaPostures'
-        : modular
-          ? 'gorillaBenchProcedures'
-          : 'gorillaBench'),
+          ? 'gorillaTrajectoriesProcedures'
+          : 'gorillaTrajectories'
+        : postures
+          ? modular
+            ? 'gorillaPosturesProcedures'
+            : 'gorillaPostures'
+          : modular
+            ? 'gorillaBenchProcedures'
+            : 'gorillaBench'),
   )!;
   await page.locator('input[type=file]').setInputFiles({
     name: 'gorilla.json',
@@ -221,4 +230,125 @@ test('editor de posturas: alta, preview, undo/redo, guardar, reabrir y cancelar'
     .getByRole('button', { name: 'Cancelar posturas', exact: true })
     .click();
   await scene.getByRole('button', { name: 'Cancelar', exact: true }).click();
+});
+
+for (const modular of [false, true])
+  test(`trayectorias ${modular ? 'modulares' : 'directas'}: una pata, pausa y reset`, async ({
+    page,
+  }) => {
+    await openGorilla(page, modular, false, true);
+    const robot = page.locator('[data-gorilla-ready]');
+    await page.getByRole('button', { name: 'Simular', exact: true }).click();
+    await expect
+      .poll(async () => Number(await robot.getAttribute('data-gorilla-a')))
+      .toBeLessThan(-2);
+    await page.getByRole('button', { name: 'Pausar', exact: true }).click();
+    const held = await robot.getAttribute('data-gorilla-a');
+    await page.waitForTimeout(150);
+    expect(await robot.getAttribute('data-gorilla-a')).toBe(held);
+    await page
+      .getByRole('button', { name: 'Más herramientas', exact: true })
+      .click();
+    await page
+      .getByRole('menuitem', { name: 'Reiniciar programa y escena' })
+      .click();
+    await expect(robot).toHaveAttribute('data-gorilla-ready', 'false');
+  });
+test('editor de trayectorias: presets, puntos, undo, preview, guardar y reabrir', async ({
+  page,
+}, info) => {
+  await openGorilla(page, false, false, true);
+  await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  const scene = page.getByRole('dialog', {
+    name: 'Editor de escenas',
+    exact: true,
+  });
+  await scene
+    .getByRole('button', {
+      name: 'Editar trayectorias de una pata',
+      exact: true,
+    })
+    .click();
+  const editor = page.getByRole('dialog', {
+    name: 'Trayectorias de una pata',
+    exact: true,
+  });
+  await expect(
+    editor.getByLabel(
+      'Plano del recorrido: adelante horizontal, arriba vertical',
+    ),
+  ).toBeVisible();
+  await editor.getByLabel('Tipo de recorrido inicial').selectOption('arc');
+  await editor
+    .getByRole('button', { name: 'Nueva trayectoria', exact: true })
+    .click();
+  await editor.getByLabel('Nombre del recorrido').fill('Mi arco');
+  await editor
+    .getByRole('button', { name: 'Probar recorrido', exact: true })
+    .click();
+  await expect(
+    editor.getByRole('button', { name: 'Pausar recorrido', exact: true }),
+  ).toBeVisible();
+  await editor
+    .getByRole('button', { name: 'Pausar recorrido', exact: true })
+    .click();
+  await page.screenshot({ path: info.outputPath('gorilla-trayectorias.png') });
+  const plane=editor.getByLabel('Plano del recorrido: adelante horizontal, arriba vertical');
+  const dot=plane.locator('g circle').nth(2),beforeDrag=await editor.getByLabel('Punto 3 forward',{exact:true}).inputValue(),box=await dot.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.move(box!.x+box!.width/2,box!.y+box!.height/2);await page.mouse.down();await page.mouse.move(box!.x+box!.width/2+8,box!.y+box!.height/2-2,{steps:3});await page.mouse.up();
+  await expect(editor.getByLabel('Punto 3 forward',{exact:true})).not.toHaveValue(beforeDrag);
+  await editor.getByRole('button',{name:'Deshacer recorrido',exact:true}).click();
+  await expect(editor.getByLabel('Punto 3 forward',{exact:true})).toHaveValue(beforeDrag);
+  const point = editor.getByLabel('Punto 3 up', { exact: true });
+  await point.fill('30');
+  await expect(
+    editor.getByRole('button', { name: 'Guardar trayectorias', exact: true }),
+  ).toBeDisabled();
+  await editor
+    .getByRole('button', { name: 'Deshacer recorrido', exact: true })
+    .click();
+  await expect(
+    editor.getByRole('button', { name: 'Guardar trayectorias', exact: true }),
+  ).toBeEnabled();
+  await editor
+    .getByRole('button', { name: 'Guardar trayectorias', exact: true })
+    .click();
+  await scene.getByRole('button', { name: /Guardar cambios/ }).click();
+  await scene
+    .getByRole('button', { name: 'Guardar escena', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  await scene
+    .getByRole('button', {
+      name: 'Editar trayectorias de una pata',
+      exact: true,
+    })
+    .click();
+  await editor
+    .getByLabel('Trayectoria a editar')
+    .selectOption({ label: 'Mi arco' });
+  await expect(editor.getByLabel('Nombre del recorrido')).toHaveValue(
+    'Mi arco',
+  );
+  await editor
+    .getByRole('button', { name: 'Cancelar trayectorias', exact: true })
+    .click();
+  await scene.getByRole('button', { name: 'Cancelar', exact: true }).click();
+});
+
+test('editar un recorrido actualiza los bloques sin recargar la página',async({page})=>{
+  await openGorilla(page,false,false,true);
+  await page.getByRole('button',{name:'Armar escena',exact:true}).click();
+  const scene=page.getByRole('dialog',{name:'Editor de escenas',exact:true});
+  await scene.getByRole('button',{name:'Editar trayectorias de una pata',exact:true}).click();
+  const editor=page.getByRole('dialog',{name:'Trayectorias de una pata',exact:true});
+  await editor.getByLabel('Trayectoria a editar').selectOption('lift');
+  await editor.getByLabel('Punto 2 up',{exact:true}).fill('3');
+  await editor.getByRole('button',{name:'Guardar trayectorias',exact:true}).click();
+  await scene.getByRole('button',{name:/Guardar cambios/}).click();
+  await scene.getByRole('button',{name:'Guardar escena',exact:true}).click();
+  await page.getByRole('button',{name:'Simular',exact:true}).click();
+  await expect(page.locator('[data-gorilla-ready]')).toHaveAttribute('data-gorilla-ready','true');
+  await expect.poll(async()=>Number(await page.locator('[data-gorilla-a]').getAttribute('data-gorilla-a'))).toBeLessThan(-2);
 });
