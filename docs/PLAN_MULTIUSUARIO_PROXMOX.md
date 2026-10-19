@@ -1,4 +1,6 @@
 # Plan de CapiBloques: multiusuario, enseñanza y programación de Wemos
+**Estado vigente: fase 54 entregada en software en rama desde dev1.** [Reglas y evidencia del teatro de Otto](FASE_54_TEATRO_OTTO.md). Dos ejemplos completos; runtime 1.9.1, ABI 1; actualización/aceptación dev1, SDK completo, físico y Waveshare pendientes. No tocar main/dev2 ni iniciar 55–56. Estados inferiores conservados como historia, no instrucciones de fase actual.
+
 
 **17 de octubre: fase 47 autorizada e implementada en rama.**
 [Paso a nivel: reglas, sensores y aceptación](FASE_47_PASO_A_NIVEL.md).

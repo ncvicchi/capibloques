@@ -1,4 +1,6 @@
 // @ts-expect-error Node strip-types runner.
+import { createTheaterWorldState, advanceTheaterWorld, theaterBindings, theaterHasDistance, validTheaterEnvironment } from './theater-world.ts';
+// @ts-expect-error Node strip-types runner.
 import { advanceWeatherWorld, createWeatherWorldState, weatherBindings, validWeatherEnvironment } from './weather-world.ts';
 // @ts-expect-error Node strip-types runner.
 import { advanceArenaWorld, createArenaWorldState, arenaBindings, arenaPose, defaultArenaEnvironment } from './robot-arena.ts';
@@ -260,6 +262,9 @@ let wifiMessageSequence = 0;
 const lastReceivedMessages = new Map<string, string>();
 const visualAnimations = new Map<string, VisualAnimation>();
 const ottoOwners = new Map<string, string>();
+const ottoQueues = new Map<string, string[]>();
+function ottoTurn(deviceId: string, threadId: string) { const queue = ottoQueues.get(deviceId) ?? []; if (!queue.includes(threadId)) queue.push(threadId); ottoQueues.set(deviceId, queue); return queue[0] === threadId; }
+function releaseOttoTurn(deviceId: string, threadId: string) { ottoQueues.set(deviceId, (ottoQueues.get(deviceId) ?? []).filter(id => id !== threadId)); }
 let wifiAvailableOverride: boolean | undefined;
 let diagnostics: CapiDiagnostic[] = [];
 let simulationBlocked = false;
@@ -478,6 +483,7 @@ function freshState(): SimulatorState {
     ...(scene.canvas.background === 'railCrossing' ? { railWorld: createRailWorldState(initialAngle(bindings.northGate), initialAngle(bindings.southGate), railTrackCount(scene)) } : {}),
     ...(scene.canvas.background === 'parking' ? { parkingWorld: createParkingWorldState(parkingCapacity(scene), initialAngle(parking.entryGate), initialAngle(parking.exitGate)) } : {}),
     ...(scene.canvas.background === 'greenhouse' ? { gardenWorld: createGardenWorldState(scene.canvas.gardenEnvironment, initialAngle(gardenBindings(scene).window)) } : {}),
+    ...(scene.canvas.background === 'ottoTheater' ? { theaterWorld: createTheaterWorldState(scene.canvas.theaterEnvironment) } : {}),
     ...(scene.canvas.background === 'weatherLab' ? { weatherWorld: createWeatherWorldState(scene.canvas.weatherEnvironment, weatherBindings(scene).roof ? initialAngle(weatherBindings(scene).roof) : 90) } : {}),
     ...(scene.canvas.background === 'robotArena' ? { arenaWorld: createArenaWorldState(arenaPose(scene).position, arenaPose(scene).angle) } : {}),
     ...(scene.canvas.background === 'conveyor' ? { conveyorWorld: createConveyorWorldState(scene.canvas.conveyorEnvironment, initialAngle(conveyorBindings(scene).gate)) } : {}),
@@ -665,7 +671,7 @@ function executionTaskState(execution: ThreadExecution): ExecutionTaskState {
     ? 'inactive'
     : execution.done
       ? 'done'
-      : execution.pending
+      : execution.pending || [...ottoQueues.values()].some(q => q.includes(execution.thread.id) && q[0] !== execution.thread.id)
         ? 'waiting'
         : node?.op === 'join'
           ? 'joining'
@@ -720,6 +726,7 @@ function executionTaskState(execution: ThreadExecution): ExecutionTaskState {
     );
     task.detail = latest?.message ?? 'Ejecutando';
   }
+  if ([...ottoQueues.values()].some(q => q.includes(execution.thread.id) && q[0] !== execution.thread.id)) task.detail = 'Esperando su turno para mover a Otto';
   const activeLoop = execution.loopCounters.findLastIndex((value) => value > 0);
   if (activeLoop >= 0 && execution.loopTotals[activeLoop] > 0) {
     task.totalIterations = execution.loopTotals[activeLoop];
@@ -843,6 +850,7 @@ function resetExecution(
   updateParkingPhysics(0);
   updateGardenPhysics(0);
   updateWeatherPhysics(0);
+  updateTheaterPhysics(0);
   updateHousePhysics(0);
   updateConveyorPhysics(0);
   updateArenaPhysics(0);
@@ -870,6 +878,7 @@ function resetExecution(
   lastReceivedMessages.clear();
   visualAnimations.clear();
   ottoOwners.clear();
+  ottoQueues.clear();
   clearBlockActivity();
   if (emitSnapshot) emit();
 }
@@ -1374,6 +1383,7 @@ function resolvePending(
       device.speed = 0;
     }
     ottoOwners.delete(pending.deviceId);
+    releaseOttoTurn(pending.deviceId, execution.thread.id);
     execution.pending = null;
     execution.pc += 1;
     return 'advanced';
@@ -1517,6 +1527,7 @@ function executeInstruction(
     delete state.activeBlockIds[execution.thread.id];
     return 'done';
   }
+  if ((node.op === 'otto' || node.op === 'ottoArms') && !ottoTurn(node.deviceId, execution.thread.id)) return 'wait';
   markBlockActive(execution.thread.id, node.blockId);
 
   if (node.op === 'fork') {
@@ -1594,6 +1605,7 @@ function executeInstruction(
     const device = state.devices[node.deviceId];
     if (node.action === 'HOME') {
       ottoOwners.delete(node.deviceId);
+      releaseOttoTurn(node.deviceId, execution.thread.id);
       if (device?.kind === 'otto') {
         device.motion = 'HOME';
         device.phase = 0;
@@ -2145,6 +2157,7 @@ function executeInstruction(
       break;
     }
     case 'ottoArms': {
+      releaseOttoTurn(node.deviceId, execution.thread.id);
       const device = state.devices[node.deviceId];
       if (device?.kind === 'otto') {
         device.arms = node.pose;
@@ -2585,6 +2598,14 @@ function updateParkingPhysics(deltaMs: number) {
   }
 }
 
+function updateTheaterPhysics(deltaMs: number) {
+  if (!state.theaterWorld) return;
+  const b = theaterBindings(scene), w = state.theaterWorld = advanceTheaterWorld(state.theaterWorld, deltaMs);
+  const otto = b.otto ? state.devices[b.otto] : undefined;
+  if (otto?.kind === 'otto' && theaterHasDistance(scene)) otto.distance = Math.round(w.distance);
+  if (b.request) applyInputValue(b.request, w.requestMs > 0);
+}
+
 function updateWeatherPhysics(deltaMs: number) {
   if (!state.weatherWorld) return;
   const b = weatherBindings(scene), roof = b.roof ? state.devices[b.roof] : undefined;
@@ -2654,6 +2675,7 @@ function updatePhysics(deltaMs: number) {
     updateParkingPhysics(deltaMs);
     updateGardenPhysics(deltaMs);
     updateWeatherPhysics(deltaMs);
+    updateTheaterPhysics(deltaMs);
     updateHousePhysics(deltaMs);
     updateConveyorPhysics(deltaMs);
     updateArenaPhysics(deltaMs);
@@ -2895,6 +2917,7 @@ function stopOutputs() {
 
 function setInputById(deviceId: string, value: unknown) {
   if (['distanceSensor', 'colorSensor', 'infraredBarrier'].some(kind => arenaBindings(scene)[kind as 'distanceSensor' | 'colorSensor' | 'infraredBarrier'] === deviceId)) return;
+  if (Object.values(theaterBindings(scene)).includes(deviceId)) return;
   if (['climate', 'rain', 'light'].some(role => weatherBindings(scene)[role as 'climate' | 'rain' | 'light'] === deviceId)) return;
   if (conveyorInputRoles.some(role => conveyorBindings(scene)[role] === deviceId)) return;
   if (houseInputRoles.some(role => houseBindings(scene)[role] === deviceId)) return;
@@ -2964,6 +2987,12 @@ function setLegacyInput(name: unknown, value: unknown) {
   if (name === 'conveyorPackage') { const w = state.conveyorWorld; if (w && !w.pendingPackage && !w.jammed && validConveyorEnvironment(value)) w.pendingPackage = { color: value.color, weight: value.weight }; return; }
   if (name === 'houseEnvironment') { if (state.houseWorld && validHouseEnvironment(value)) state.houseWorld.environment = { ...value }; return; }
   if (name === 'houseVisitor') { if (state.houseWorld && ['known', 'unknown', 'none'].includes(String(value)) && typeof value === 'string' && !state.houseWorld.pendingVisitor) state.houseWorld.pendingVisitor = value as 'known' | 'unknown' | 'none'; return; }
+  if (name === 'theaterEnvironment') { if (state.theaterWorld && validTheaterEnvironment(value)) state.theaterWorld.environment = { ...value }; return; }
+  if (name === 'theaterAction') {
+    const w = state.theaterWorld;
+    if (w) { if (value === 'arrive' && w.phase === 'empty') w.pendingArrival = true; if (value === 'leave' && w.phase !== 'empty') w.pendingDeparture = true; if (value === 'request' && w.phase === 'watching' && !w.requestMs) w.pendingRequest = true; }
+    return;
+  }
   if (name === 'weatherEnvironment') {
     if (state.weatherWorld && validWeatherEnvironment(value)) { state.weatherWorld.environment = { ...value }; const fresh = createWeatherWorldState(value); state.weatherWorld.phaseMs = 0; state.weatherWorld.phaseIndex = fresh.phaseIndex; }
     return;
@@ -3016,6 +3045,7 @@ scope.addEventListener('message', (event) => {
       const preserveTrials = message.preserveWorldTrials === true && isSceneDefinition(message.scene) && scene.id === message.scene.id && scene.canvas.background === message.scene.canvas.background;
       const conveyorTrial = preserveTrials && state.conveyorWorld ? { environment: { ...state.conveyorWorld.environment }, pendingPackage: state.conveyorWorld.pendingPackage } : null;
       const houseTrial = preserveTrials && state.houseWorld ? { environment: { ...state.houseWorld.environment }, pendingVisitor: state.houseWorld.pendingVisitor } : null;
+      const theaterTrial = preserveTrials && state.theaterWorld ? { environment: { ...state.theaterWorld.environment }, pendingArrival: state.theaterWorld.pendingArrival } : null;
       const weatherTrial = preserveTrials && state.weatherWorld ? { ...state.weatherWorld.environment } : null;
       const gardenTrial = preserveTrials && state.gardenWorld ? { ...state.gardenWorld.environment } : null;
       try {
@@ -3029,6 +3059,7 @@ scope.addEventListener('message', (event) => {
         resetExecution('idle', true, false);
         if (conveyorTrial && state.conveyorWorld) { state.conveyorWorld.environment = conveyorTrial.environment; state.conveyorWorld.pendingPackage = conveyorTrial.pendingPackage; }
         if (houseTrial && state.houseWorld) { state.houseWorld.environment = houseTrial.environment; state.houseWorld.pendingVisitor = houseTrial.pendingVisitor; }
+        if (theaterTrial && state.theaterWorld) { state.theaterWorld.environment = theaterTrial.environment; state.theaterWorld.pendingArrival = theaterTrial.pendingArrival; }
         if (weatherTrial && state.weatherWorld) { state.weatherWorld.environment = weatherTrial; state.weatherWorld.phaseIndex = createWeatherWorldState(weatherTrial).phaseIndex; }
         if (gardenTrial && state.gardenWorld) state.gardenWorld.environment = gardenTrial;
         emit();
@@ -3092,6 +3123,7 @@ scope.addEventListener('message', (event) => {
       emit();
       break;
     case 'STOP':
+      ottoQueues.clear(); ottoOwners.clear();
       running = false;
       state.status = 'stopped';
       stopSounds();

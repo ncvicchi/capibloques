@@ -122,6 +122,8 @@ import HouseControls from '@/components/house-controls';
 import ConveyorControls from '@/components/conveyor-controls';
 import { arenaBindings } from '@/lib/robot-arena';
 import WeatherControls from '@/components/weather-controls';
+import TheaterControls from '@/components/theater-controls';
+import { theaterBindings, defaultTheaterEnvironment } from '@/lib/theater-world';
 import { weatherBindings, defaultWeatherEnvironment } from '@/lib/weather-world';
 import { conveyorBindings, conveyorInputRoles, defaultConveyorEnvironment } from '@/lib/conveyor-world';
 import { defaultHouseEnvironment, houseBindings, houseInputRoles } from '@/lib/house-world';
@@ -1553,6 +1555,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                   conveyorWorld={sim.conveyorWorld}
                   arenaWorld={sim.arenaWorld}
                   weatherWorld={sim.weatherWorld}
+                  theaterWorld={sim.theaterWorld}
                   counter={sim.counter}
                   simulationSpeed={speed}
                   simulationRunning={sim.status === 'running'}
@@ -1592,16 +1595,18 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                   </button>
                 </div>
               )}
-              {(scene.canvas.background === 'weatherLab' || scene.canvas.background === 'conveyor' || scene.canvas.background === 'smartHouse' || scene.canvas.background === 'greenhouse' || inputDevices.length > 0 ||
+              {(scene.canvas.background === 'ottoTheater' || scene.canvas.background === 'weatherLab' || scene.canvas.background === 'conveyor' || scene.canvas.background === 'smartHouse' || scene.canvas.background === 'greenhouse' || inputDevices.length > 0 ||
                 scene.devices.some((device) => device.kind === 'wifiNode')) && (
                 <div className="input-lab">
                   <h3>Entradas para probar</h3>
+                  {scene.canvas.background === 'ottoTheater' && <TheaterControls value={sim.theaterWorld?.environment ?? scene.canvas.theaterEnvironment ?? defaultTheaterEnvironment} state={sim.theaterWorld} disabled={physicalMirrorActive} onChange={value => postToWorker({ type: 'SET_INPUT', name: 'theaterEnvironment', value })} onAction={value => postToWorker({ type: 'SET_INPUT', name: 'theaterAction', value })} />}
                   {scene.canvas.background === 'weatherLab' && <WeatherControls key={`${scene.id}:${simulationEpoch}`} optimistic value={sim.weatherWorld?.environment ?? scene.canvas.weatherEnvironment ?? defaultWeatherEnvironment} disabled={physicalMirrorActive} onChange={value => postToWorker({ type: 'SET_INPUT', name: 'weatherEnvironment', value })} />}
                   {scene.canvas.background === 'conveyor' && <ConveyorControls value={sim.conveyorWorld?.environment ?? scene.canvas.conveyorEnvironment ?? defaultConveyorEnvironment} pending={!!sim.conveyorWorld?.pendingPackage || !!sim.conveyorWorld?.jammed} disabled={physicalMirrorActive} onChange={value => postToWorker({ type: 'SET_INPUT', name: 'conveyorEnvironment', value })} onSend={() => postToWorker({ type: 'SET_INPUT', name: 'conveyorPackage', value: sim.conveyorWorld?.environment ?? scene.canvas.conveyorEnvironment ?? defaultConveyorEnvironment })} />}
                   {scene.canvas.background === 'smartHouse' && <HouseControls value={sim.houseWorld?.environment ?? scene.canvas.houseEnvironment ?? defaultHouseEnvironment} pending={!!sim.houseWorld?.pendingVisitor} disabled={physicalMirrorActive} onChange={value => postToWorker({ type: 'SET_INPUT', name: 'houseEnvironment', value })} onSend={() => postToWorker({ type: 'SET_INPUT', name: 'houseVisitor', value: sim.houseWorld?.environment.nextVisitor ?? scene.canvas.houseEnvironment?.nextVisitor ?? 'known' })} />}
                   {scene.canvas.background === 'greenhouse' && <GardenControls value={sim.gardenWorld?.environment ?? scene.canvas.gardenEnvironment ?? defaultGardenEnvironment} disabled={physicalMirrorActive} onChange={value => postToWorker({ type: 'SET_INPUT', name: 'gardenEnvironment', value })} />}
                   {inputDevices.map((device) => {
                     const runtime = sim.devices[device.id];
+                    if (Object.values(theaterBindings(scene)).includes(device.id)) return <div className="message-test-panel" key={device.id}><strong>{device.name}</strong><span>{runtime?.kind === 'otto' ? 'Distancia según público y perfil del robot' : runtime?.kind === 'button' ? runtime.pressed ? 'Petición activa' : 'Sin petición' : 'Automático'}</span><small>Entrada del teatro virtual, no del hardware. Usá los botones del público, no un valor manual de sensor.</small></div>;
                     if (['climate', 'rain', 'light'].some(role => weatherBindings(scene)[role as 'climate' | 'rain' | 'light'] === device.id)) return <div className="message-test-panel" key={device.id}><strong>{device.name}</strong><span>{runtime?.kind === 'educationalModule' ? Object.entries(runtime.values).map(([key, value]) => `${key}: ${typeof value === 'boolean' ? value ? 'sí' : 'no' : value}`).join(' · ') : runtime?.kind === 'lightSensor' ? `${runtime.value} / 4095` : 'Automático'}</span><small>Lectura del clima virtual, no del hardware. El detector tarda en secarse; cerrar el techo no cubre los sensores.</small></div>;
                     if (['distanceSensor', 'colorSensor', 'infraredBarrier'].some(kind => arenaBindings(scene)[kind as 'distanceSensor' | 'colorSensor' | 'infraredBarrier'] === device.id)) return <div className="message-test-panel" key={device.id}><strong>{device.name}</strong><span>{runtime?.kind === 'educationalModule' ? Object.entries(runtime.values).map(([k, v]) => `${k}: ${v}`).join(' · ') : runtime?.kind === 'infraredBarrier' ? runtime.interrupted ? 'Meta ocupada' : 'Meta libre' : 'Automático'}</span><small>Lectura de la pista virtual, no del hardware. Distancia y color viajan montados sobre el robot; la meta queda fija.</small></div>;
                     if (conveyorInputRoles.some(role => conveyorBindings(scene)[role] === device.id)) return <div className="message-test-panel" key={device.id}><strong>{device.name}</strong><span>{device.kind === 'scale' ? sim.conveyorWorld?.readingValid ? `${sim.conveyorWorld.weight} g · válido` : 'Sin lectura válida' : runtime?.kind === 'educationalModule' ? Object.entries(runtime.values).map(([key, value]) => `${key}: ${value}`).join(' · ') : runtime?.kind === 'infraredBarrier' ? runtime.interrupted ? 'Ocupado' : 'Libre' : 'Automático'}</span><small>Entrada del taller virtual, no lectura física. Para comparar peso: presencia, detener y esperar al menos 0,6 s.</small></div>;

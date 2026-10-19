@@ -1,4 +1,6 @@
 # Backlog de CapiBloques
+**Fase 54 — Teatro interactivo de Otto:** software en rama `codex/fase-54-teatro-otto` desde dev1. Público frontal, peticiones y dos ejemplos completos, directo y modular; [reglas/evidencia](FASE_54_TEATRO_OTTO.md). Coordinación corporal FIFO sin preempción, runtime 1.9.1 / ABI 1. Actualización dev1, SDK completo, aceptación y paridad Waveshare/físico pendientes. No se tocaron main/dev2. Fases 55–56 sólo planificadas; estados históricos inferiores no revocan esta autorización.
+
 
 **Fase 53 — Estación meteorológica:** software web en rama
 `codex/fase-53-estacion-meteorologica`, desde dev1. Clima gradual, mediciones

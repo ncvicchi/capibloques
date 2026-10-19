@@ -363,7 +363,12 @@ if [[ $DESTINATION != main ]]; then
     installed=$(sudo python3 /opt/capibloques-environments/manage.py deployed "$DESTINATION")
     [[ $installed == "$target" ]] || { echo "ERROR: $DESTINATION está saludable pero no tiene la revisión remota solicitada ($installed)." >&2; exit 1; }
   else
-    sudo python3 /opt/capibloques-environments/manage.py deploy "$DESTINATION" --commit "$target" </dev/null
+    # Run the manager from the exact release, not an installed older copy with
+    # another firmware version. Keep shared services and installed tools intact.
+    umask 077
+    REMOTE_SCRIPT=$(mktemp /tmp/capibloques-env-deploy.XXXXXX.py)
+    git show "$target:ops/environments/manage.py" >"$REMOTE_SCRIPT"
+    sudo python3 "$REMOTE_SCRIPT" deploy "$DESTINATION" --commit "$target" </dev/null
   fi
   DEPLOY_CONFIRMED=1
   exit 0
