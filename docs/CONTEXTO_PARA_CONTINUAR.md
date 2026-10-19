@@ -1,5 +1,45 @@
 # CapiBloques — contexto para continuar
 
+### Entrega vigente19/10 — Fase59: posturas por ángulos
+
+Rama `codex/fase-59-gorillabot-posturas` desde origin/dev1
+`d8f33ed9ac36da7a4ea67db5cd67479f369110a3`.
+[Guía59](FASE_59_GORILLABOT_POSTURAS.md), [plan58–64](PLAN_GORILLABOT_EVOLUTIVO.md).
+El propietario confirmó58 instalada en dev1. No se operaron servidores/main/dev2.
+
+- Alcance explícito: posturas por ángulos. Trayectorias físicas XY/IK59 pendientes
+  hasta medidas/CAD reales; no inventar geometría ni iniciar60.
+- config.postures opcional del gorilla, hasta16, ID estable/nombre único/8ángulos
+  enteros −20..20 y dentro de límites calibrados. Legacy58 sin biblioteca ofrece
+  Referencia; [] explícito conserva biblioteca vacía. Modelo/JSON/backend estrictos.
+- Modal Editar posturas desde inspector: alta/duplicación/nombre/baja confirmada,
+  8campos por pata, preview local sin USB, pausa/continuación/progreso,60undo/redo,
+  Guardar/Cancelar y confirmación de cierre. Guardar sólo aplica al borrador:
+  después Guardar cambios y Guardar escena. No convierte preview en estado inicial.
+- Bloque ir a postura por ID; rename conserva referencia y baja produce error,
+  sin sustitución silenciosa. Ocho motores con tiempo común,200–10000ms y30°/s,
+  sin dos movimientos compitiendo. No FIFO prometido entre procesos.
+- Intérprete1.12.0/ABI1/cap gorilla-postures; sharedcore idéntico Arduino/IDF/
+  intérprete, límites revalidados y arrays estrictos. Se conservan acciones58.
+  Guardas de hardware/pines/verified y bloqueo Waveshare vigentes.
+- Ejemplos completos nuevos explorar posturas y posturas con procedimientos:
+  Referencia/A+8°/B−8°, tres ciclos; modular4tareas/3tabs. No son de pie/agachado
+  certificados ni marcha. Dos ejemplos58 intactos.
+- Sin dependencias/migraciones. Conservar SDK/cache incremental; sólo recompilar
+  aplicación al actualizar. La primera posición física sigue desconocida:
+  sostener montaje/calibración adulta. Órdenes y postura mostrada no son sensores.
+- Pruebas locales: smoke completo, tipos/lint/build10páginas,4tests backend,
+  modelo/JSON/reglas/generadores y worker1×/4×, driver C++ HAL con warnings como
+  errores y validación real del intérprete. Navegador:6recorridos Chromium aprobados
+  (4ejecuciones58/59 y2editores; dos regresiones corregidas y repetidas).
+  SDK completo y robot físico NO probados; aceptación dev1 pendiente del propietario.
+- Entrega: commit/push sólo rama. Actualizar con capi-dev --env dev1 --branch
+  codex/fase-59-gorillabot-posturas --commit SHA40 publicado. Telemetría de placa
+  describe preparar/motor/par/postura por nombre; editor mantiene acciones visibles. No promover main.
+
+Los apartados inferiores son históricos; no revocan el alcance59 acordado.
+
+
 ### Entrega vigente19/10 — Fase58: GorillaBot, banco y una pata
 
 Rama `codex/fase-58-gorillabot-banco` desde origin/dev1

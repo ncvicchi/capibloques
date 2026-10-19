@@ -531,7 +531,7 @@ export type LedMatrixDevice = SceneDeviceBase<
 export type EducationalModuleDevice<K extends EducationalModuleKind = EducationalModuleKind> = SceneDeviceBase<
   K,
   Record<string, PinNumber>,
-  { profile: string; values: Record<string, number | string | boolean>; settings: Record<string, number | string | boolean> }
+  { postures?: import('./gorilla-model').GorillaPosture[]; profile: string; values: Record<string, number | string | boolean>; settings: Record<string, number | string | boolean> }
 >;
 
 export interface SceneDeviceByKind {

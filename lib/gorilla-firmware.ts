@@ -16,6 +16,7 @@ export function gorillaFirmwareSupport(
 ${native ? '#include "driver/i2c_master.h"' : '#include <Wire.h>'}
 ${gorillaCore}
 CapiGorilla CAPI_GORILLA;
+int CAPI_GORILLA_OWNER=-1;
 ${native ? 'i2c_master_bus_handle_t CAPI_G_BUS=nullptr; i2c_master_dev_handle_t CAPI_G_DEVICE=nullptr;' : 'TwoWire CAPI_G_BUS(1); bool CAPI_G_OPEN=false;'}
 bool capiGorillaTransfer(const uint8_t *bytes,size_t size){
  ${native ? 'return CAPI_G_DEVICE&&i2c_master_transmit(CAPI_G_DEVICE,bytes,size,5)==ESP_OK;' : `CAPI_G_BUS.beginTransmission(${Number(s.address)});CAPI_G_BUS.write(bytes,size);return CAPI_G_BUS.endTransmission()==0;`}

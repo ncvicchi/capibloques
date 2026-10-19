@@ -1460,7 +1460,7 @@ function SceneBuilderSession({
                       </label>}
                     </div>
                   )}
-                  {selected.kind==='gorilla'&&<GorillaProperties settings={selected.config.settings} onChange={settings=>updateSelectedDraft(device=>device.kind==='gorilla'?{...device,config:{...device.config,settings}}:device)}/>}
+                  {selected.kind==='gorilla'&&<GorillaProperties postures={selected.config.postures} onPostures={postures=>updateSelectedDraft(device=>device.kind==='gorilla'?{...device,config:{...device.config,postures}}:device)} settings={selected.config.settings} onChange={settings=>updateSelectedDraft(device=>device.kind==='gorilla'?{...device,config:{...device.config,settings}}:device)}/>}
                   {selected.kind!=='gorilla'&&isEducationalModuleKind(selected.kind) && (() => {
                     const spec = educationalModuleSpecs[selected.kind];
                     const moduleDevice = selected as EducationalModuleDevice;

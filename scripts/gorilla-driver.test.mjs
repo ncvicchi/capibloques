@@ -52,6 +52,12 @@ int main(){
  capiGorillaService(500);assert(S_j0==5&&S_moving);assert(writes.back()[0]==6); // only channel0
  capiGorillaService(1000);assert(S_j0==10&&!S_moving);
  assert(CAPI_GORILLA.start(2,0,-10,10,1000,1000));capiGorillaService(2000);assert(S_j0==-10&&S_j1==10);for(int i=2;i<8;i++)assert(CAPI_GORILLA.position[i]==0);
+ int full[8]={0,10,5,-5,8,-8,3,-3};
+ assert(CAPI_GORILLA.posture(full,1000,2000));assert(CAPI_GORILLA.mask==255);
+ capiGorillaService(2500);assert(S_j0==-5&&S_j1==10&&S_j4==4&&S_j7==-2);
+ capiGorillaService(3000);for(int i=0;i<8;i++)assert(CAPI_GORILLA.position[i]==full[i]);
+ full[7]=21;assert(!CAPI_GORILLA.posture(full,1000,3000));assert(!CAPI_GORILLA.busy);
+ CAPI_GORILLA.position[0]=-10;
  CAPI_GORILLA.low[0]=85;assert(!CAPI_GORILLA.start(1,0,-20,0,1000,2000));assert(CAPI_GORILLA.error);
  CAPI_GORILLA.low[0]=70;assert(CAPI_GORILLA.start(1,0,20,0,200,UINT32_MAX-100));capiGorillaService(899);assert(!S_moving&&S_j0==20); // wrap-safe and rate limited
  assert(CAPI_GORILLA.start(1,0,0,0,1000,1000));ok=false;capiGorillaService(1100);assert(S_error&&!S_ready&&!S_moving);
@@ -88,8 +94,9 @@ const mock = `
 #include <string>
 #include <cstring>
 #include <cstdio>
-struct cJSON{enum{OBJECT,NUMBER,STRING,TRUE_VALUE,FALSE_VALUE}type=OBJECT;int valueint=0;double valuedouble=0;std::string str;std::map<std::string,cJSON*> children;cJSON(){}explicit cJSON(int n):type(NUMBER),valueint(n),valuedouble(n){}explicit cJSON(bool b):type(b?TRUE_VALUE:FALSE_VALUE){}explicit cJSON(const char*s):type(STRING),str(s){}};
+struct cJSON{enum{OBJECT,ARRAY,NUMBER,STRING,TRUE_VALUE,FALSE_VALUE}type=OBJECT;int valueint=0;double valuedouble=0;std::string str;std::map<std::string,cJSON*> children;cJSON(){}explicit cJSON(int n):type(NUMBER),valueint(n),valuedouble(n){}explicit cJSON(bool b):type(b?TRUE_VALUE:FALSE_VALUE){}explicit cJSON(const char*s):type(STRING),str(s){}};
 cJSON* cJSON_GetObjectItem(cJSON*o,const char*k){if(!o)return nullptr;auto it=o->children.find(k);return it==o->children.end()?nullptr:it->second;}
+bool cJSON_IsArray(cJSON*v){return v&&v->type==cJSON::ARRAY;}cJSON* cJSON_GetArrayItem(cJSON*v,int i){return cJSON_GetObjectItem(v,std::to_string(i).c_str());}
 bool cJSON_IsObject(cJSON*v){return v&&v->type==cJSON::OBJECT;}bool cJSON_IsNumber(cJSON*v){return v&&v->type==cJSON::NUMBER;}bool cJSON_IsTrue(cJSON*v){return v&&v->type==cJSON::TRUE_VALUE;}bool cJSON_IsFalse(cJSON*v){return v&&v->type==cJSON::FALSE_VALUE;}bool cJSON_IsBool(cJSON*v){return cJSON_IsTrue(v)||cJSON_IsFalse(v);}int cJSON_GetArraySize(cJSON*v){return v?(int)v->children.size():0;}
 const char*text(cJSON*o,const char*k){auto v=cJSON_GetObjectItem(o,k);return v?v->str.c_str():"";}
 int number(cJSON*o,const char*k,int fallback=0){auto v=cJSON_GetObjectItem(o,k);return cJSON_IsNumber(v)?v->valueint:fallback;}
@@ -121,6 +128,10 @@ int main(){
  assert(gorilla_config_valid(&dev));wave=true;assert(!gorilla_config_valid(&dev));wave=false;
  s.children["verified"]=new cJSON(false);assert(!gorilla_config_valid(&dev));s.children["verified"]=new cJSON(true);
  cJSON instruction;instruction.children["action"]=new cJSON("joint");for(const char*k:{"index","a","b"})instruction.children[k]=new cJSON(0);instruction.children["durationMs"]=new cJSON(1000);assert(gorilla_instruction_valid(&instruction));instruction.children["index"]=new cJSON(8);assert(!gorilla_instruction_valid(&instruction));
+ cJSON pose,angles;angles.type=cJSON::ARRAY;
+ pose.children["action"]=new cJSON("posture");pose.children["durationMs"]=new cJSON(1000);pose.children["angles"]=&angles;
+ for(int i=0;i<8;i++)angles.children[std::to_string(i)]=new cJSON(i);
+ assert(gorilla_instruction_valid(&pose));angles.children["7"]=new cJSON(21);assert(!gorilla_instruction_valid(&pose));angles.children.erase("7");assert(!gorilla_instruction_valid(&pose));
  gorilla_mutex=(void*)1;gorilla_reset();assert(gorilla_prepare(&dev));assert(writes.size()==3);gorilla_owner=0;assert(gorilla.start(1,0,10,0,1000,0));fake_now=500;gorilla_service();assert(gorilla.position[0]==5);
  paused=true;fake_now=1500;gorilla_service();assert(gorilla.position[0]==5);paused=false;fake_now=2000;gorilla_service();assert(!gorilla.busy&&gorilla.position[0]==10);
  assert(gorilla.start(1,0,-10,0,1000,2000));running=false;fake_now=2100;gorilla_service();assert(!gorilla.busy&&gorilla.position[0]==10);gorilla_reset();

@@ -127,7 +127,113 @@ for (const e of examples.filter((e) => e.id.startsWith('gorillaBench'))) {
   for (let i = 0; i < 40; i++) advance(20);
   assert.equal(state.counter, 7);
   assert.equal(state.devices['gorilla-robot'].values.moving, true);
-  send({type:'STOP'});const held=state.devices['gorilla-robot'].values.j0;advance(2000);assert.equal(state.devices['gorilla-robot'].values.moving,false);assert.equal(state.devices['gorilla-robot'].values.j0,held);
+  send({ type: 'STOP' });
+  const held = state.devices['gorilla-robot'].values.j0;
+  advance(2000);
+  assert.equal(state.devices['gorilla-robot'].values.moving, false);
+  assert.equal(state.devices['gorilla-robot'].values.j0, held);
+}
+for (const e of examples.filter((e) => e.id.startsWith('gorillaPostures'))) {
+  const ws = new B.Workspace();
+  workspaceDevices.set(ws, e.scene.devices);
+  B.serialization.workspaces.load(structuredClone(e.workspace), ws);
+  const program = compileWorkspace(ws);
+  ws.dispose();
+  for (const speed of [1, 4]) {
+    send({ type: 'LOAD', scene: e.scene, program });
+    send({ type: 'SET_SPEED', speed });
+    send({ type: 'RUN' });
+    let seenA = false,
+      seenB = false;
+    for (let t = 0; t < 26000 / speed; t += 20) {
+      advance(20);
+      const v = state.devices['gorilla-robot'].values;
+      for (let leg = 1; leg < 4; leg++) {
+        assert.equal(v['j' + leg * 2], v.j0);
+        assert.equal(v['j' + (leg * 2 + 1)], v.j1);
+      }
+      seenA ||= v.j0 === 8;
+      seenB ||= v.j1 === -8;
+    }
+    assert.ok(seenA && seenB, e.id);
+    assert.equal(state.status, 'done');
+    const v = state.devices['gorilla-robot'].values;
+    for (let i = 0; i < 8; i++) assert.equal(v['j' + i], 0);
+    assert.ok(state.console.some((l) => String(l).includes('postura')));
+  }
+}
+// Postures serialize with other movement orders; unrelated work remains cooperative.
+{
+  const e = examples.find((e) => e.id === 'gorillaPostures'),
+    scene = e.scene;
+  const node = {
+    op: 'gorilla',
+    deviceId: 'gorilla-robot',
+    action: 'posture',
+    postureId: 'a',
+    postureName: 'Motores A +8°',
+    angles: [8, 0, 8, 0, 8, 0, 8, 0],
+    index: 0,
+    a: 0,
+    b: 0,
+    durationMs: 2000,
+    blockId: 'pose-test',
+  };
+  const program = (nodes) => ({
+    version: 2,
+    threads: [{ id: 'main', startBlockId: 's', nodes }],
+  });
+  send({
+    type: 'LOAD',
+    scene,
+    program: program([
+      { ...node, action: 'prepare' },
+      {
+        op: 'parallel',
+        blockId: 'parallel-pose',
+        branches: [
+          [node],
+          [
+            { op: 'wait', ms: 200, blockId: 'wait-pose' },
+            { op: 'counterSet', value: 7, blockId: 'counter-pose' },
+            {
+              ...node,
+              postureId: 'reference',
+              postureName: 'Referencia',
+              angles: Array(8).fill(0),
+            },
+          ],
+        ],
+      },
+    ]),
+  });
+  send({ type: 'SET_SPEED', speed: 1 });
+  send({ type: 'RUN' });
+  for (let t = 0; t < 500; t += 20) advance(20);
+  assert.equal(state.counter, 7);
+  assert.equal(state.devices['gorilla-robot'].values.moving, true);
+  send({ type: 'PAUSE' });
+  const held = structuredClone(state.devices['gorilla-robot']);
+  advance(1000);
+  assert.deepEqual(state.devices['gorilla-robot'], held);
+  send({ type: 'RUN' });
+  for (let t = 0; t < 5000; t += 20) advance(20);
+  assert.equal(state.status, 'done');
+  for (let i = 0; i < 8; i++)
+    assert.equal(state.devices['gorilla-robot'].values['j' + i], 0);
+  send({
+    type: 'LOAD',
+    scene,
+    program: program([
+      { ...node, action: 'prepare' },
+      { ...node, angles: [8, 0, 8, 0, 8, 0, 8, 21] },
+    ]),
+  });
+  send({ type: 'RUN' });
+  for (let t = 0; t < 200; t += 20) advance(20);
+  assert.notEqual(state.status, 'running');
+  for (let i = 0; i < 8; i++)
+    assert.equal(state.devices['gorilla-robot'].values['j' + i], 0);
 }
 console.log(
   'GorillaBot worker: ejemplos 1×/4×, pares, sólo canales elegidos, preparación, pausa/paso/reset y cooperación aprobados.',

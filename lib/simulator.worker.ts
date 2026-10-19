@@ -58,7 +58,7 @@ import { advanceGardenWorld, createGardenWorldState, gardenBindings, validGarden
 import { advanceHouseWorld, createHouseWorldState, houseBindings, houseInputRoles, validHouseEnvironment } from './house-world.ts';
 
 // @ts-expect-error Node strip-types runner.
-import {gorillaTargets,gorillaMove,advanceGorilla,type GorillaMove} from './gorilla-model.ts';
+import {gorillaPostureTargets,gorillaTargets,gorillaMove,advanceGorilla,type GorillaMove} from './gorilla-model.ts';
 const gorillaJobs=new Map<string,GorillaMove>();
 type Pending =
   | { kind: 'wait'; startedAt: number; until: number; blockId: string }
@@ -1610,12 +1610,13 @@ function executeInstruction(
     if(gorillaJobs.has(node.deviceId))return 'wait';
     if(node.action==='prepare'){d.values.ready=true;d.values.error=false;execution.pc++;appendConsole(`${deviceName(node.deviceId)}: preparado, sin mover motores`);return 'action';}
     const current=Array.from({length:8},(_,i)=>Number(d.values[`j${i}`]));
-    const targets=gorillaTargets(spec.config.settings,current,node.index,node.a,node.b,node.action==='pair');
+    const targets=node.action==='posture'?gorillaPostureTargets(spec.config.settings,node.angles):gorillaTargets(spec.config.settings,current,node.index,node.a,node.b,node.action==='pair');
     if(!d.values.ready||!targets){d.values.error=true;appendConsole(`${deviceName(node.deviceId)}: orden rechazada; prepará el robot y revisá límites`);execution.pc++;return 'action';}
-    const mask=node.action==='pair'?3<<(node.index*2):1<<node.index;
+    const mask=node.action==='posture'?255:node.action==='pair'?3<<(node.index*2):1<<node.index;
     const job=gorillaMove(current,targets,node.durationMs,mask);gorillaJobs.set(node.deviceId,job);d.values.moving=true;d.values.error=false;
     execution.pending={kind:'wait',startedAt:virtualNow,until:virtualNow+job.duration,blockId:node.blockId};
-    appendConsole(`${deviceName(node.deviceId)}: ${node.action==='pair'?'pata '+(node.index+1):'motor '+(Math.floor(node.index/2)+1)+(node.index%2?'B':'A')} → ${node.a}°${node.action==='pair'?' / '+node.b+'°':''}`);
+    if(node.action==='posture')appendConsole(`${deviceName(node.deviceId)}: postura ${node.postureName}`);
+    else appendConsole(`${deviceName(node.deviceId)}: ${node.action==='pair'?'pata '+(node.index+1):'motor '+(Math.floor(node.index/2)+1)+(node.index%2?'B':'A')} → ${node.a}°${node.action==='pair'?' / '+node.b+'°':''}`);
     return 'wait';
   }
   if (node.op === 'wait') {

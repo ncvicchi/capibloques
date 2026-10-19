@@ -6,7 +6,7 @@ import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 
 export const CAPI_RULES_FORMAT = 1;
 export const CAPI_INTERPRETER_ABI = 1;
-export const CAPI_INTERPRETER_VERSION = '1.11.0';
+export const CAPI_INTERPRETER_VERSION = '1.12.0';
 export const CAPI_RULES_MAX_BYTES = 32 * 1024;
 export const CAPI_RULES_MAX_INSTRUCTIONS = 2048;
 const HEADER_BYTES = 32;
@@ -52,6 +52,7 @@ const capabilityForOperation = (operation: string) => ({
 
 function instructionCapabilities(instruction: ExecutableTask['output'][number]) {
   const result = [capabilityForOperation(instruction.op)];
+  if (instruction.op==='gorilla'&&instruction.action==='posture')result.push('gorilla-postures');
   if (instruction.op === 'switchDispatch') result.push('expressions');
   const encodedInstruction = JSON.stringify(instruction);
   if (instruction.op === 'variableSet' || instruction.op === 'variableChange' || (instruction.op === 'serial' && instruction.expression)) result.push('expressions');
