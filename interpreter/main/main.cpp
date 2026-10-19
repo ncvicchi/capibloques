@@ -49,7 +49,7 @@
 #ifndef CAPI_BOARD_ID
 #define CAPI_BOARD_ID "wemos-d1-r32"
 #endif
-#define CAPI_FIRMWARE_VERSION "1.13.0"
+#define CAPI_FIRMWARE_VERSION "1.14.0"
 #include "gorilla_core.h"
 static bool is_waveshare(){return !strcmp(CAPI_BOARD_ID,"waveshare-esp32-s3-touch-lcd-5-28117");}
 static constexpr uint16_t ABI = 1;
@@ -366,6 +366,8 @@ static bool gorilla_config_valid(cJSON *dev){
   cJSON *config=cJSON_GetObjectItem(dev,"config"),*s=config?cJSON_GetObjectItem(config,"settings"):nullptr,*values=config?cJSON_GetObjectItem(config,"values"):nullptr;
   if(is_waveshare()||strcmp(text(config,"profile"),"GORILLA_PCA9685")||!cJSON_IsObject(s)||cJSON_GetArraySize(s)!=42||!cJSON_IsTrue(cJSON_GetObjectItem(s,"verified"))||!cJSON_IsObject(values)||cJSON_GetArraySize(values)!=11)return false;
   auto integer=[](cJSON *o,const char *key,int low,int high){cJSON *v=cJSON_GetObjectItem(o,key);return cJSON_IsNumber(v)&&std::isfinite(v->valuedouble)&&v->valuedouble==v->valueint&&v->valueint>=low&&v->valueint<=high;};
+  cJSON *gait_config=cJSON_GetObjectItem(config,"gait");
+  if(gait_config&&(!cJSON_IsObject(gait_config)||cJSON_GetArraySize(gait_config)!=4||!integer(gait_config,"stride",1,12)||!integer(gait_config,"height",1,8)||!integer(gait_config,"phaseMs",200,2000)||!cJSON_IsBool(cJSON_GetObjectItem(gait_config,"turnsVerified"))))return false;
   cJSON *kin=cJSON_GetObjectItem(config,"kinematics");
   if(kin){
     if(!cJSON_IsObject(kin)||cJSON_GetArraySize(kin)!=5||strcmp(text(kin,"profile"),"gorilla-v3-50-100-46")||!cJSON_IsTrue(cJSON_GetObjectItem(kin,"verified"))||!integer(kin,"pulseMinUs",500,1200)||!integer(kin,"pulseMaxUs",1800,2500))return false;
@@ -387,7 +389,10 @@ static bool gorilla_config_valid(cJSON *dev){
   return true;
 }
 static bool gorilla_instruction_valid(cJSON *node){
-  const char *action=text(node,"action");bool pair=!strcmp(action,"pair");
+  auto integer=[](cJSON *o,const char *key,int low,int high){cJSON *v=cJSON_GetObjectItem(o,key);return cJSON_IsNumber(v)&&std::isfinite(v->valuedouble)&&v->valuedouble==v->valueint&&v->valueint>=low&&v->valueint<=high;};
+  const char *action=text(node,"action");
+  if(!strcmp(action,"gait"))return integer(node,"index",0,4)&&integer(node,"a",1,12)&&integer(node,"b",1,8)&&integer(node,"durationMs",200,2000);
+  bool pair=!strcmp(action,"pair");
   if(!strcmp(action,"foot")||!strcmp(action,"path")){
     cJSON *points=cJSON_GetObjectItem(node,"points"),*leg=cJSON_GetObjectItem(node,"index");
     int count=cJSON_GetArraySize(points);if(!cJSON_IsArray(points)||count<1||count>16||!cJSON_IsNumber(leg)||leg->valuedouble!=leg->valueint||leg->valueint<0||leg->valueint>3)return false;
@@ -829,7 +834,12 @@ static void execute_task(void *parameter) {
       else{
         gorilla_device=dev;
         bool accepted=false;
-        if(!strcmp(text(instruction,"action"),"foot")||!strcmp(text(instruction,"action"),"path")){
+        if(!strcmp(text(instruction,"action"),"gait")){
+          cJSON *g=cJSON_GetObjectItem(cJSON_GetObjectItem(dev,"config"),"gait");
+          int mode=number(instruction,"index");
+          if(mode<2||mode==4||cJSON_IsTrue(g?cJSON_GetObjectItem(g,"turnsVerified"):nullptr))
+            accepted=gorilla.gait(mode,number(instruction,"a"),number(instruction,"b"),number(instruction,"durationMs"),(uint32_t)(esp_timer_get_time()/1000));
+        }else if(!strcmp(text(instruction,"action"),"foot")||!strcmp(text(instruction,"action"),"path")){
           double points[16][3];cJSON *list=cJSON_GetObjectItem(instruction,"points");int count=cJSON_GetArraySize(list);
           for(int i=0;i<count;++i){cJSON *p=cJSON_GetArrayItem(list,i);points[i][0]=cJSON_GetObjectItem(p,"forward")->valuedouble;points[i][1]=cJSON_GetObjectItem(p,"up")->valuedouble;points[i][2]=number(p,"ms");}
           accepted=gorilla.path(number(instruction,"index"),points,count,(uint32_t)(esp_timer_get_time()/1000));
@@ -953,7 +963,7 @@ static void command(cJSON *request) {
     for(const char *cap:{"line-sensors","robot-wheels","core","switch","conditional-loop","parallel","expressions","variables","timers","component-state","gpio","led","smart-lights","traffic","traffic-display","motor","robot","robotWheels","otto","servo","buzzer","matrix","display","display-lcd","display-lcd1602","display-lcd2004","display-lcd1602keypad","display-graphic","display-ssd1306","display-ili9341","display-ili9488","display-keypad","frame-animation","visual-wait","messages","wifi","wifi-messages","pairing","counter","serial","digital-input","analog-input","step"}){
       cJSON_AddItemToArray(caps,cJSON_CreateString(cap));
     }
-    if(!is_waveshare()){cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-bench"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-postures"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-kinematics-v3"));}
+    if(!is_waveshare()){cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-bench"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-postures"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-kinematics-v3"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-gait"));}
     if(is_waveshare()){
       cJSON_AddItemToArray(caps,cJSON_CreateString("touch-inputs"));
       cJSON_AddItemToArray(caps,cJSON_CreateString("autonomous-controls"));

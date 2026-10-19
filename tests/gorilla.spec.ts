@@ -132,6 +132,7 @@ for (const modular of [false, true])
       .poll(async () => Number(await robot.getAttribute('data-gorilla-a')))
       .toBeGreaterThan(3);
     await page.getByRole('button', { name: 'Pausar', exact: true }).click();
+    await expect(page.getByRole('button',{name:'Reanudar',exact:true})).toBeVisible();
     const held = await robot.getAttribute('data-gorilla-a');
     await page.waitForTimeout(200);
     expect(await robot.getAttribute('data-gorilla-a')).toBe(held);

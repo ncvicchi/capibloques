@@ -1,4 +1,7 @@
 'use client';
+import {defaultGorillaGait,planGorillaGait} from '@/lib/gorilla-gait';
+import {gorillaTrackAllowed} from '@/lib/gorilla-track';
+
 import LineCircuitEditor from '@/components/line-circuit-editor';
 import { defaultLineCircuit } from '@/lib/line-world';
 import TheaterControls from '@/components/theater-controls';
@@ -136,6 +139,7 @@ const backgrounds: { value: SceneBackground; label: string; icon: string }[] = [
   { value: 'greenhouse', label: 'Huerta e invernadero', icon: '🌱' },
   { value:'lineTrack',label:'Vehículo seguidor de línea',icon:'〰️' },
   { value: 'ottoTheater', label: 'Teatro interactivo de Otto', icon: '🎭' },
+  {value:'gorillaTrack',label:'Pista GorillaBot',icon:'🦍'},
   {value:'gorillaBench',label:'Banco de pruebas GorillaBot',icon:'🦍'},
   { value:'pondLab',label:'Laguna, depósito y bombeo',icon:'💧' },
   { value: 'weatherLab', label: 'Estación meteorológica y puesto', icon: '🌦️' },
@@ -180,6 +184,7 @@ const quickTemplates: {
   { id: 'greenhouse', name: 'Huerta e invernadero', icon: '🌱', detail: 'dos canteros + riego + ventana' },
   { id:'lineTrack',name:'Seguidor de línea',icon:'〰️',detail:'tres sensores + motores independientes' },
   { id: 'ottoTheater', name: 'Teatro de Otto', icon: '🎭', detail: 'público + petición + coreografías' },
+  {id:'gorillaTrack',name:'Pista GorillaBot',icon:'🦍',detail:'Marcha coordinada + ida y vuelta'},
   {id:'gorillaBench',name:'Banco GorillaBot',icon:'🦍',detail:'8 servos + calibración + una pata'},
   {id:'pondLab',name:'Laguna y reserva',icon:'💧',detail:'agua + bomba + desagüe'},
   { id: 'weatherLab', name: 'Puesto meteorológico', icon: '🌦️', detail: 'clima + lluvia + techo móvil' },
@@ -676,7 +681,7 @@ function SceneBuilderSession({
       const groupBounds = groupIds
         .map(id => findSceneItem(next, id))
         .filter((item): item is SceneItem => Boolean(item))
-        .map(sceneItemBounds);
+        .map(item=>sceneItemBounds(item,next));
       delta = {
         x: Math.max(-Math.min(...groupBounds.map(box => box.left)), Math.min(delta.x, next.canvas.width - Math.max(...groupBounds.map(box => box.right)))),
         y: Math.max(-Math.min(...groupBounds.map(box => box.top)), Math.min(delta.y, next.canvas.height - Math.max(...groupBounds.map(box => box.bottom)))),
@@ -983,6 +988,8 @@ function SceneBuilderSession({
                       ? arrangeParkingDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
                       : changed.canvas.background === 'greenhouse'
                       ? arrangeGardenDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
+                      : changed.canvas.background==='gorillaTrack'
+                      ? {...changed,canvas:{...changed.canvas,width:960,height:540},devices:changed.devices.map(d=>d.kind==='gorilla'?{...d,position:{x:120,y:355}}:d)}
                       : changed.canvas.background === 'lineTrack'
                       ? {...changed,canvas:{...changed.canvas,width:960,height:540},devices:changed.devices.map(d=>d.kind==='lineSensors'?{...d,position:{x:165,y:420}}:d)}
                       : changed.canvas.background === 'ottoTheater'
@@ -1037,6 +1044,7 @@ function SceneBuilderSession({
             {previewScene.canvas.background === 'ottoTheater' && <details><summary>Público al comenzar</summary><TheaterControls value={previewScene.canvas.theaterEnvironment ?? defaultTheaterEnvironment} onChange={value => { if (requireSettledInspector('cambiar el público inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, theaterEnvironment: value } }, 'Público inicial actualizado en el borrador.'); }} /></details>}
             {previewScene.canvas.background==='pondLab'&&<details><summary>Agua al comenzar</summary><PondControls initial value={previewScene.canvas.pondEnvironment??defaultPondEnvironment} onChange={value=>{if(requireSettledInspector('cambiar el agua inicial'))commitScene({...previewScene,canvas:{...previewScene.canvas,pondEnvironment:value}},'Agua inicial actualizada en el borrador.');}}/></details>}
             {previewScene.canvas.background === 'weatherLab' && <details><summary>Clima al comenzar</summary><WeatherControls value={previewScene.canvas.weatherEnvironment ?? defaultWeatherEnvironment} onChange={value => { if (requireSettledInspector('cambiar el clima inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, weatherEnvironment: value } }, 'Clima inicial actualizado en el borrador.'); }} /></details>}
+            {previewScene.canvas.background==='gorillaTrack'&&<details><summary>Pista GorillaBot al comenzar</summary><label>Recorrido <select value={previewScene.canvas.gorillaTrack??'straight'} onChange={e=>{if(requireSettledInspector('cambiar la pista'))commitScene({...previewScene,canvas:{...previewScene.canvas,gorillaTrack:e.target.value as 'straight'|'maneuvers'}},'Recorrido actualizado.');}}><option value="straight">Ida y vuelta</option><option value="maneuvers">Circuito de maniobras</option></select></label><ArenaControls gorilla value={previewScene.canvas.arenaEnvironment??defaultArenaEnvironment} onChange={value=>{const next={...previewScene,canvas:{...previewScene.canvas,arenaEnvironment:value}},robot=next.devices.find(d=>d.kind==='gorilla');if(robot&&!gorillaTrackAllowed(next,robot.position.x,robot.position.y)){setMessage('El obstáculo se superpone al robot.');return;}if(requireSettledInspector('cambiar la pista'))commitScene(next,'Pista actualizada en el borrador.');}}/><small>La huella es conservadora, no CAD. El camino no guía al robot ni los contactos detienen el programa.</small></details>}
             {previewScene.canvas.background === 'robotArena' && <details><summary>Pista al comenzar</summary><ArenaControls value={previewScene.canvas.arenaEnvironment ?? defaultArenaEnvironment} onChange={value => { const robot = previewScene.devices.find(d => d.kind === 'robot'); if (robot && !arenaStartAllowed(robot.position, value)) { setMessage('El obstáculo no puede superponerse al robot.'); return; } if (requireSettledInspector('cambiar la pista inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, arenaEnvironment: value } }, 'Pista inicial actualizada en el borrador.'); }} /></details>}
             {previewScene.canvas.background === 'conveyor' && <details><summary>Taller al comenzar</summary><ConveyorControls value={previewScene.canvas.conveyorEnvironment ?? defaultConveyorEnvironment} onChange={value => { if (requireSettledInspector('cambiar el taller inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, conveyorEnvironment: value } }, 'Taller inicial actualizado en el borrador.'); }} /></details>}
             {previewScene.canvas.background === 'smartHouse' && <details><summary>Casa al comenzar</summary><HouseControls value={previewScene.canvas.houseEnvironment ?? defaultHouseEnvironment} onChange={value => {
@@ -1195,7 +1203,7 @@ function SceneBuilderSession({
                       type="button"
                       key={template.id}
                       disabled={
-                        ((template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor' || template.id === 'robotArena' || template.id === 'weatherLab' || template.id === 'ottoTheater' || template.id === 'lineTrack' || template.id === 'pondLab' || template.id === 'gorillaBench') && objectCount > 0) ||
+                        ((template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor' || template.id === 'robotArena' || template.id === 'weatherLab' || template.id === 'ottoTheater' || template.id === 'lineTrack' || template.id === 'pondLab' || template.id === 'gorillaBench' || template.id === 'gorillaTrack') && objectCount > 0) ||
                         (template.id === 'traffic' || template.id === 'intersection') &&
                         previewScene.canvas.background !== 'crossroads' &&
                         objectCount > 0
@@ -1203,7 +1211,7 @@ function SceneBuilderSession({
                       onClick={() => addTemplate(template.id)}
                       aria-label={`Agregar aventura ${template.name}: ${template.detail}`}
                       title={
-                        (template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor' || template.id === 'robotArena' || template.id === 'weatherLab' || template.id === 'ottoTheater' || template.id === 'lineTrack' || template.id === 'pondLab' || template.id === 'gorillaBench') && objectCount > 0
+                        (template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor' || template.id === 'robotArena' || template.id === 'weatherLab' || template.id === 'ottoTheater' || template.id === 'lineTrack' || template.id === 'pondLab' || template.id === 'gorillaBench' || template.id === 'gorillaTrack') && objectCount > 0
                           ? 'Este mundo completo se agrega a una escena vacía; no reemplaza componentes existentes.'
                           : (template.id === 'traffic' || template.id === 'intersection') &&
                         previewScene.canvas.background !== 'crossroads' &&
@@ -1460,7 +1468,8 @@ function SceneBuilderSession({
                       </label>}
                     </div>
                   )}
-                  {selected.kind==='gorilla'&&<GorillaProperties kinematics={selected.config.kinematics} trajectories={selected.config.trajectories} onGeometry={(kinematics,trajectories)=>updateSelectedDraft(device=>device.kind==='gorilla'?{...device,config:{...device.config,kinematics,trajectories,settings:{...device.config.settings,verified:device.config.kinematics?.pulseMinUs===kinematics.pulseMinUs&&device.config.kinematics?.pulseMaxUs===kinematics.pulseMaxUs?device.config.settings.verified:false}}}:device)} postures={selected.config.postures} onPostures={postures=>updateSelectedDraft(device=>device.kind==='gorilla'?{...device,config:{...device.config,postures}}:device)} settings={selected.config.settings} onChange={settings=>updateSelectedDraft(device=>device.kind==='gorilla'?{...device,config:{...device.config,settings,...(device.config.kinematics&&Object.keys(settings).some(key=>key!=='verified'&&settings[key]!==device.config.settings[key])?{kinematics:{...device.config.kinematics,verified:false}}:{})}}:device)}/>}
+                  {selected.kind==='gorilla'&&<><fieldset><legend>Marcha coordinada</legend>{(['stride','height','phaseMs'] as const).map(key=><label key={key}>{({stride:'Longitud del paso (mm)',height:'Elevación adicional (mm)',phaseMs:'Tiempo por fase (ms)'})[key]}<input type="number" min={key==='phaseMs'?200:1} max={key==='phaseMs'?2000:key==='stride'?12:8} step={1} value={(selected.config.gait??defaultGorillaGait)[key]} onChange={e=>updateSelectedDraft(d=>d.kind==='gorilla'?{...d,config:{...d.config,gait:{...(d.config.gait??defaultGorillaGait),[key]:Number(e.target.value),turnsVerified:false}}}:d)}/></label>)}<label><input type="checkbox" checked={selected.config.gait?.turnsVerified??false} onChange={e=>updateSelectedDraft(d=>d.kind==='gorilla'?{...d,config:{...d.config,gait:{...(d.config.gait??defaultGorillaGait),turnsVerified:e.target.checked}}}:d)}/>Una persona adulta probó los giros físicos (experimentales, sin ángulo garantizado)</label><p>Apoyo de referencia: 4 mm arriba. Un ciclo recupera las cuatro patas. Ritmo común limitado a 30°/s.</p><details><summary>Ver coreografía del ciclo</summary><p>Trasera izquierda → delantera izquierda → trasera derecha → delantera derecha.</p><ol><li>Entrar en la referencia de apoyo, sin avanzar.</li><li>Elevar una pata; las otras tres conservan el apoyo previsto.</li><li>Recuperarla hacia adelante y bajarla.</li><li>Empujar con los cuatro apoyos: el cuerpo avanza un cuarto del paso.</li><li>Repetir con la siguiente pata. Al terminar las cuatro, el ciclo vuelve a su referencia.</li></ol><small>Retroceder invierte el recorrido longitudinal. Girar usa recorridos opuestos por lado; el ángulo del simulador es aproximado.</small></details>{selected.config.kinematics&&(()=>{const p=planGorillaGait(selected.config.kinematics,selected.config.settings,0,selected.config.gait??defaultGorillaGait,Array(8).fill(0));return <output>{p.move?'Ciclo validado · '+(p.move.duration/1000).toFixed(2)+' s. No certifica equilibrio.':p.error}</output>;})()}</fieldset></>}
+                  {selected.kind==='gorilla'&&<GorillaProperties kinematics={selected.config.kinematics} trajectories={selected.config.trajectories} onGeometry={(kinematics,trajectories)=>updateSelectedDraft(device=>device.kind==='gorilla'?{...device,config:{...device.config,...(device.config.gait?{gait:{...device.config.gait,turnsVerified:false}}:{}),kinematics,trajectories,settings:{...device.config.settings,verified:device.config.kinematics?.pulseMinUs===kinematics.pulseMinUs&&device.config.kinematics?.pulseMaxUs===kinematics.pulseMaxUs?device.config.settings.verified:false}}}:device)} postures={selected.config.postures} onPostures={postures=>updateSelectedDraft(device=>device.kind==='gorilla'?{...device,config:{...device.config,postures}}:device)} settings={selected.config.settings} onChange={settings=>updateSelectedDraft(device=>device.kind==='gorilla'?{...device,config:{...device.config,...(device.config.gait?{gait:{...device.config.gait,turnsVerified:false}}:{}),settings,...(device.config.kinematics&&Object.keys(settings).some(key=>key!=='verified'&&settings[key]!==device.config.settings[key])?{kinematics:{...device.config.kinematics,verified:false}}:{})}}:device)}/>}
                   {selected.kind!=='gorilla'&&isEducationalModuleKind(selected.kind) && (() => {
                     const spec = educationalModuleSpecs[selected.kind];
                     const moduleDevice = selected as EducationalModuleDevice;

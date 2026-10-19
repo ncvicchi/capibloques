@@ -103,6 +103,7 @@ for (const e of examples.filter((e) => e.id.startsWith('gorilla'))) {
   if(scene.devices[0].config.kinematics)scene.devices[0].config.kinematics.verified=true;
   const rules = createCapiRules(p, scene, 'wemos-d1-r32');
   if(e.id.startsWith('gorillaTrajectories'))assert.ok(rules.requiredCapabilities.includes('gorilla-kinematics-v3'));
+  if(e.id.startsWith('gorillaTrack'))assert.ok(rules.requiredCapabilities.includes('gorilla-gait'));
   assert.ok(rules.requiredCapabilities.includes('gorilla-bench'));
   assert.ok(
     parseCapiRules(rules.bytes).requiredCapabilities.includes('gorilla-bench'),
@@ -117,6 +118,7 @@ for (const e of examples.filter((e) => e.id.startsWith('gorilla'))) {
       [],
     );
     assert.match(result.code, /capiGorillaPrepare/);
+    if(e.id.startsWith('gorillaTrack'))assert.match(result.code,/CAPI_GORILLA.gait/);
     assert.match(result.code, /CAPI_GORILLA.start/);
     if (e.id.startsWith('gorillaPostures'))
       assert.match(result.code, /CAPI_GORILLA.posture/);

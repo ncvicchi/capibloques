@@ -128,6 +128,9 @@ int main(){
  assert(gorilla_config_valid(&dev));wave=true;assert(!gorilla_config_valid(&dev));wave=false;
  s.children["verified"]=new cJSON(false);assert(!gorilla_config_valid(&dev));s.children["verified"]=new cJSON(true);
  cJSON instruction;instruction.children["action"]=new cJSON("joint");for(const char*k:{"index","a","b"})instruction.children[k]=new cJSON(0);instruction.children["durationMs"]=new cJSON(1000);assert(gorilla_instruction_valid(&instruction));instruction.children["index"]=new cJSON(8);assert(!gorilla_instruction_valid(&instruction));
+ cJSON gait;gait.children["action"]=new cJSON("gait");gait.children["index"]=new cJSON(0);gait.children["a"]=new cJSON(4);gait.children["b"]=new cJSON(2);gait.children["durationMs"]=new cJSON(500);
+ assert(gorilla_instruction_valid(&gait));gait.children["a"]=new cJSON(true);assert(!gorilla_instruction_valid(&gait));gait.children["a"]=new cJSON(4);gait.children["index"]=new cJSON(5);assert(!gorilla_instruction_valid(&gait));gait.children["index"]=new cJSON(4);assert(gorilla_instruction_valid(&gait));
+ cJSON gc;gc.children["stride"]=new cJSON(4);gc.children["height"]=new cJSON(2);gc.children["phaseMs"]=new cJSON(500);gc.children["turnsVerified"]=new cJSON(false);config.children["gait"]=&gc;assert(gorilla_config_valid(&dev));gc.children["turnsVerified"]=new cJSON(1);assert(!gorilla_config_valid(&dev));gc.children["turnsVerified"]=new cJSON(false);
  cJSON pose,angles;angles.type=cJSON::ARRAY;
  pose.children["action"]=new cJSON("posture");pose.children["durationMs"]=new cJSON(1000);pose.children["angles"]=&angles;
  for(int i=0;i<8;i++)angles.children[std::to_string(i)]=new cJSON(i);

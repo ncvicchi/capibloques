@@ -1,3 +1,5 @@
+// @ts-expect-error Node strip-types runner.
+import {defaultGorillaGait} from './gorilla-gait.ts';
 // Definitions, field normalization and compiler shared by browser and isolated server.
 // @ts-expect-error Node strip-types runner.
 import { displayArtworks, displayProfiles, displayTargets } from './display-model.ts';
@@ -127,7 +129,7 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
       return ['powerSwitch'];
     case 'capi_stepper':
       return ['stepper'];
-    case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair': case 'capi_gorilla_posture': case 'capi_gorilla_foot': case 'capi_gorilla_path':return ['gorilla'];
+    case 'capi_gorilla_gait': case 'capi_gorilla_settle': case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair': case 'capi_gorilla_posture': case 'capi_gorilla_foot': case 'capi_gorilla_path':return ['gorilla'];
     case 'capi_rgb_fill':
     case 'capi_rgb_pixel':
     case 'capi_rgb_segment':
@@ -867,7 +869,7 @@ const toolbox = {
         { kind: 'block', type: 'capi_led' },
         { kind: 'block', type: 'capi_power_switch' },
         { kind: 'block', type: 'capi_stepper' },
-        ...['capi_gorilla_prepare','capi_gorilla_joint','capi_gorilla_pair','capi_gorilla_posture','capi_gorilla_foot','capi_gorilla_path'].map(type=>({kind:'block',type})),
+        ...['capi_gorilla_gait','capi_gorilla_settle','capi_gorilla_prepare','capi_gorilla_joint','capi_gorilla_pair','capi_gorilla_posture','capi_gorilla_foot','capi_gorilla_path'].map(type=>({kind:'block',type})),
         { kind: 'block', type: 'capi_rgb_fill' },
         { kind: 'block', type: 'capi_rgb_pixel' },
         { kind: 'block', type: 'capi_rgb_segment' },
@@ -2026,6 +2028,12 @@ function registerBlocks(Blockly: BlocklyApi) {
       colour: '#12AA8C',
       tooltip: 'Controla una carga de baja tensión con MOSFET o relé.',
       extensions: [DEVICE_EXTENSION],
+    },
+    {
+      type:'capi_gorilla_gait',message0:'🦍 %1 %2 durante %3 ciclos',args0:[deviceField('agregá GorillaBot'),{type:'field_dropdown',name:'MODE',options:[['avanzar','0'],['retroceder','1'],['girar izquierda (experimental)','2'],['girar derecha (experimental)','3']]},{type:'field_number',name:'TIMES',value:1,min:1,max:20,precision:1}],previousStatement:null,nextStatement:null,colour:'#328BDD',tooltip:'Una coreografía para las cuatro patas. Longitud, altura y ritmo se configuran en la escena. El giro físico requiere verificación.',extensions:[DEVICE_EXTENSION],
+    },
+    {
+      type:'capi_gorilla_settle',message0:'🦍 %1 quedar apoyado',args0:[deviceField('agregá GorillaBot')],previousStatement:null,nextStatement:null,colour:'#328BDD',tooltip:'Lleva los cuatro pies a la referencia de marcha (4 mm arriba). No apaga servos ni certifica equilibrio.',extensions:[DEVICE_EXTENSION],
     },
     {
       type:'capi_gorilla_prepare',message0:'🦍 preparar %1 (sin mover motores)',args0:[deviceField('agregá GorillaBot')],previousStatement:null,nextStatement:null,colour:'#328BDD',tooltip:'Inicia el controlador. Después elegí qué motor mover. No centra ocho servos.',extensions:[DEVICE_EXTENSION],
@@ -3776,7 +3784,12 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           blockId,
         });
         break;
-      case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair': case 'capi_gorilla_posture': case 'capi_gorilla_foot': case 'capi_gorilla_path':
+      case 'capi_gorilla_gait': case 'capi_gorilla_settle': case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair': case 'capi_gorilla_posture': case 'capi_gorilla_foot': case 'capi_gorilla_path':
+        if(block.type==='capi_gorilla_gait'||block.type==='capi_gorilla_settle'){
+          const currentBlock=block,d=devicesForBlock(currentBlock).find(d=>d.id===selectedDeviceId(currentBlock)),g=d?.kind==='gorilla'?(d.config.gait??defaultGorillaGait):defaultGorillaGait;
+          const node:ProgramNode={op:'gorilla',deviceId:selectedDeviceId(block),action:'gait',index:block.type==='capi_gorilla_settle'?4:numberField(block,'MODE',0),a:g.stride,b:g.height,durationMs:g.phaseMs,blockId};
+          result.push(block.type==='capi_gorilla_settle'?node:{op:'repeat',count:numberField(block,'TIMES',1),body:[node],blockId});break;
+        }
         if(block.type==='capi_gorilla_foot'||block.type==='capi_gorilla_path'){
           const currentBlock=block,device=devicesForBlock(currentBlock).find(d=>d.id===selectedDeviceId(currentBlock)),path=device?.kind==='gorilla'?device.config.trajectories?.find(p=>p.id===currentBlock.getFieldValue('TRAJECTORY_ID')):undefined;
           const node:ProgramNode={op:'gorilla',deviceId:selectedDeviceId(block),action:block.type==='capi_gorilla_path'?'path':'foot',trajectoryId:path?.id??String(block.getFieldValue('TRAJECTORY_ID')??''),trajectoryName:path?.name??'Trayectoria retirada',index:block.type==='capi_gorilla_path'?path?.leg??0:numberField(block,'INDEX',0),points:block.type==='capi_gorilla_path'?path?.points??[]:[{forward:numberField(block,'FORWARD',0),up:numberField(block,'UP',3),ms:Math.round(numberField(block,'SECONDS',1)*1000)}],a:0,b:0,durationMs:1000,blockId};

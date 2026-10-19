@@ -45,3 +45,19 @@ class GorillaValidationTests(unittest.TestCase):
         w=copy.deepcopy(v);w['scene']['devices'][0]['config']['trajectories']*=2;bads.append(w)
         for bad in bads:
             with self.assertRaises(ValidationError):document(bad)
+
+    def test_gait_and_track(self):
+        v=self.sample();v['simulation']['scene']='gorillaTrack';scene=v['scene'];scene['sourceTemplate']='gorillaTrack';scene['canvas'].update(background='gorillaTrack',gorillaTrack='straight',arenaEnvironment=dict(guides=True,obstacles=[]))
+        scene['devices'][0]['position']=dict(x=120,y=355)
+        scene['devices'][0]['config']['gait']=dict(stride=4,height=2,phaseMs=500,turnsVerified=False)
+        self.assertGreater(document(v),0)
+        for key,value in [('stride',True),('stride',13),('height',0),('phaseMs',199),('turnsVerified',1),('extra',0)]:
+            w=copy.deepcopy(v);w['scene']['devices'][0]['config']['gait'][key]=value
+            with self.assertRaises(ValidationError):document(w)
+        for key,value in [('gorillaTrack','other'),('width',800)]:
+            w=copy.deepcopy(v);w['scene']['canvas'][key]=value
+            with self.assertRaises(ValidationError):document(w)
+        w=copy.deepcopy(v);w['scene']['devices'][0]['position']['x']=20
+        with self.assertRaises(ValidationError):document(w)
+        w=copy.deepcopy(v);w['scene']['devices'][0]['position']['x']=230;w['scene']['canvas']['arenaEnvironment']['obstacles']=[dict(x=230,y=355,radius=28)]
+        with self.assertRaises(ValidationError):document(w)

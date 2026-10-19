@@ -1555,6 +1555,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                   gardenWorld={sim.gardenWorld}
                   houseWorld={sim.houseWorld}
                   conveyorWorld={sim.conveyorWorld}
+                  gorillaWorld={sim.gorillaWorld}
                   arenaWorld={sim.arenaWorld}
                   weatherWorld={sim.weatherWorld}
                   pondWorld={sim.pondWorld}

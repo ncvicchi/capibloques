@@ -108,8 +108,71 @@ struct CapiGorilla {
     if(elapsed>=duration){busy=false;path_active=false;}
   }
 
+  struct GaitFrame {Foot feet[4];uint32_t ms;};
+  GaitFrame gait_frames[17];Foot gait_initial[4];int gait_count=0;bool gait_active=false;
+  bool gait(int mode,double stride,double height,uint32_t requested,uint32_t now){
+    if(busy)return false;
+    error=false;
+    if(!ready||!kinematics_verified||mode<0||mode>4||!std::isfinite(stride)||!std::isfinite(height)||stride<1||stride>12||stride!=std::floor(stride)||height<1||height>8||height!=std::floor(height)||requested<200||requested>2000){error=true;return false;}
+    Foot home[4],last[4];double x[4]={},up[4]={4,4,4,4};
+    for(int leg=0;leg<4;++leg){
+      double pair[2];
+      if(!forward(leg,0,0,home[leg])||!forward(leg,position[2*leg],position[2*leg+1],last[leg])||!inverse(leg,last[leg],pair)||std::abs(pair[0]-position[2*leg])>.001||std::abs(pair[1]-position[2*leg+1])>.001){error=true;return false;}
+      gait_initial[leg]=last[leg];
+    }
+    int count=0;uint32_t total=0;
+    auto add=[&]()->bool{
+      auto &f=gait_frames[count];uint32_t effective=requested;
+      for(int leg=0;leg<4;++leg){
+        Foot to{home[leg].x+x[leg],home[leg].y-up[leg]},from=last[leg];
+        int steps=std::max(16,(int)std::ceil(std::hypot(to.x-from.x,to.y-from.y)/.25));double previous[2],next[2],rate=0;
+        if(steps>256||!inverse(leg,from,previous))return false;
+        for(int step=1;step<=steps;++step){
+          double t=(double)step/steps;
+          if(!inverse(leg,{from.x+(to.x-from.x)*t,from.y+(to.y-from.y)*t},next))return false;
+          for(int j=0;j<2;++j){rate=std::max(rate,std::abs(next[j]-previous[j])*steps*1000/30);previous[j]=next[j];}
+        }
+        effective=std::max(effective,(uint32_t)std::ceil(rate*1.05));f.feet[leg]=to;
+      }
+      if(effective>30000)return false;
+      for(int leg=0;leg<4;++leg)last[leg]=f.feet[leg];
+      f.ms=effective;total+=effective;++count;return true;
+    };
+    if(!add()){error=true;return false;}
+    if(mode!=4){
+      const int order[4]={2,0,3,1};
+      auto step=[&](int leg){return mode<2?(mode==0?1:-1)*stride:(leg%2==0?-1:1)*(mode==2?1:-1)*stride/2;};
+      for(int leg:order){
+        up[leg]=4+height;if(!add()){error=true;return false;}
+        x[leg]+=step(leg);if(!add()){error=true;return false;}
+        up[leg]=4;if(!add()){error=true;return false;}
+        for(int j=0;j<4;++j)x[j]-=step(j)/4;
+        if(!add()){error=true;return false;}
+      }
+    }
+    if(total>180000){error=true;return false;}
+    gait_count=count;duration=total;started=now;gait_active=true;path_active=false;mask=255;busy=true;return true;
+  }
+  void gait_service(uint32_t now){
+    uint32_t elapsed=now-started,left=std::min(elapsed,duration);int n=0;
+    for(;n<gait_count-1&&left>gait_frames[n].ms;++n)left-=gait_frames[n].ms;
+    const auto &frame=gait_frames[n];double t=std::min(1.0,(double)left/frame.ms);
+    double angles[8];
+    for(int leg=0;leg<4;++leg){
+      Foot from=n?gait_frames[n-1].feet[leg]:gait_initial[leg],to=frame.feet[leg];double pair[2];
+      if(!inverse(leg,{from.x+(to.x-from.x)*t,from.y+(to.y-from.y)*t},pair)){error=true;busy=false;gait_active=false;return;}
+      angles[2*leg]=pair[0];angles[2*leg+1]=pair[1];
+    }
+    for(int i=0;i<8;++i){
+      double physical=center[i]+(reversed[i]?-angles[i]:angles[i]);
+      if(write&&!write(channel[i],physical)){error=true;ready=false;busy=false;gait_active=false;return;}
+      position[i]=angles[i];
+    }
+    if(elapsed>=duration){busy=false;gait_active=false;}
+  }
   void service(uint32_t now){
     if(!busy)return;
+    if(gait_active){gait_service(now);return;}
     if(path_active){path_service(now);return;}
     uint32_t elapsed=now-started;double t=std::min(1.0,(double)elapsed/duration);
     for(int i=0;i<8;++i)if(mask&(1U<<i)){
@@ -120,6 +183,6 @@ struct CapiGorilla {
     }
     if(elapsed>=duration)busy=false;
   }
-  void halt(){busy=false;path_active=false;}
+  void halt(){busy=false;path_active=false;gait_active=false;}
 };
 
