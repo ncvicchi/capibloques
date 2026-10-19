@@ -1,5 +1,39 @@
 # CapiBloques — contexto para continuar
 
+### Entrega vigente19/10: fase55 — análisis de variantes, sin código
+
+Rama `codex/fase-55-analisis-escenas`, desde origin/dev1
+`e9158e1949e8739a63c6e16418a7d30d83bebd38`.
+[Informe y candidatos retenidos](FASE_55_ANALISIS_VARIANTES_ESCENAS.md).
+Fase55 autorizada para analizar/documentar y cerrada en ese alcance, no como
+mundos construidos. No se tocó código ejecutable ni se operó el servidor.
+
+- Parque de luces/riego repite casa/huerta: reutilizar actividades, no duplicar
+  motores. Fuente coreografiada retenida para definir aporte propio.
+- Laguna con depósito: principal candidato, balance de agua, distancia inversa
+  al nivel, bombeo, reserva y derrame. Agua/lluvia mide superficie, no nivel
+  omnisciente del tanque. Sin química/oxígeno ni hardware certificado inventado.
+- Aeropuerto: sólo justificar si enseña solicitudes/turnos de recurso único;
+  variante distribuida depende del canal de fase34. Señales/barreras solas repiten
+  tren/tránsito. Puente/barcos también postergado por solapamiento.
+- Todas las alternativas, incluidas las postergadas, quedan trazadas dentro de
+  fase55; no se crean números nuevos ni se autoriza implementar por documentarlas.
+- Siguiente recomendada56: acordar disposición, sensores y reglas del seguidor
+  de línea antes de implementar. No empezar código sin autorización explícita.
+
+Verificación proporcional: fuentes de catálogo/modelo/render y guías49–54,
+enlaces relativos del informe y diff. Sin build, SDK ni pruebas largas por
+documentación. Commit/push sólo a la rama de tarea; integración por propietario.
+No hace falta actualizar el sitio para leer el análisis en GitHub.
+
+Confirmación de fase54: propietario dijo «ya quedó en dev» después de recibir
+`--promote dev1`. Git remoto leído19/10: origin/dev1=e9158e1 y
+origin/main=fe230bb, ambos contienen 7ac3585 (entrega54). Se registra DEV original
+actualizado por confirmación operativa, **no** por inspección remota independiente.
+No afirmar SDK completo1.9.1, hardware, aceptación infantil o paridad Waveshare
+aprobados por esa promoción. Las secciones inferiores conservan el historial.
+
+
 ### Entrega vigente: fase 54 — Teatro interactivo de Otto, sólo dev1
 
 Rama `codex/fase-54-teatro-otto`, desde origin/dev1 `6c9a985`.

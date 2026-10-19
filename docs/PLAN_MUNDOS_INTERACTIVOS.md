@@ -1,4 +1,7 @@
 # Mundos interactivos: escenas con comportamiento
+
+**Estado vigente19/10:** fase55 cerrada como análisis, [informe](FASE_55_ANALISIS_VARIANTES_ESCENAS.md). No añade mundos: propone reutilizar parque, retener laguna/depósito para control de nivel y postergar aeropuerto salvo arbitraje/pedidos. Primero se recomienda acordar fase56. Ninguna variante ni fase56 autorizadas para implementar. Fase54 promovida a DEV original según propietario, confirmada su integración Git, no SDK/hardware/Waveshare.
+
 Actualización vigente: fase 54 implementada en rama desde dev1. [Teatro de Otto: reglas y entrega](FASE_54_TEATRO_OTTO.md), público acotado y dos ejemplos completos. Runtime 1.9.1 por FIFO corporal, no nuevo ABI. Integración/aceptación dev1, SDK completo, hardware y Waveshare pendientes. Main/dev2 intactos; fases 55–56 sin autorización. Las menciones inferiores a fase 54 no implementada son históricas.
 
 
@@ -85,7 +88,7 @@ ordena seguir la línea; huerta no equivale todavía a balance de agua/plantas.
 | 52 | Pista de robots | Robot de dos motores, distancia/color montados, meta, luces y buzzer | Software web entregado; dos ejemplos completos y [reglas](FASE_52_PISTA_ROBOTS.md); contactos recuperables sin piloto automático; actualización/aceptación/Waveshare/físico pendientes |
 | 53 | Estación meteorológica | Ambiente, lluvia, luz, servo, pantalla, luces/buzzer; sin anemómetro | Software web entregado; clima gradual, detector residual, techo/mesa y dos ejemplos; [reglas](FASE_53_ESTACION_METEOROLOGICA.md); actualización/aceptación/Waveshare/físico pendientes |
 | 54 | Escenario de Otto | Otto, botón, distancia, matriz, buzzer y luz | Software en rama desde dev1; público, dos ejemplos completos y FIFO corporal 1.9.1; [reglas](FASE_54_TEATRO_OTTO.md); aceptación/SDK/Waveshare/físico pendientes |
-| 55 | Análisis de variantes | Parque, laguna y posible aeropuerto | No inventar dinámicas para rellenar fondos: evaluar actividades y valor nuevo antes de implementar |
+| 55 | Análisis de variantes | Parque, laguna y posible aeropuerto | Análisis cerrado: [evaluación](FASE_55_ANALISIS_VARIANTES_ESCENAS.md); candidatos retenidos, sin nuevo software ni autorización de implementación |
 | 56 | Vehículo seguidor de línea | Robot diferencial y nuevo sensor reflectivo de suelo, perfil por definir | Circuitos predefinidos o dibujados, pérdida/recuperación y actividades; [propuesta pendiente de acordar](FASE_56_SEGUIDOR_LINEA.md), sin implementación autorizada |
 
 Estado de la primera entrega: fase 46 implementada en simulación web; uso,

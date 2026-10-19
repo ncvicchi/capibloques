@@ -1,4 +1,7 @@
 # Nuevas fases de CapiBloques
+
+**19/10: fase55 cerrada como análisis**, sin implementar variantes. [Evaluación y candidatos retenidos](FASE_55_ANALISIS_VARIANTES_ESCENAS.md): parque reutilizable, laguna/depósito con realimentación como candidato principal y aeropuerto postergado hasta justificar arbitraje/mensajes. No se crean nuevas fases de implementación por este análisis. Siguiente recomendada56, con disposición/reglas por acordar antes de autorizar código. Fase54 en DEV original por confirmación del propietario; SDK/físico/Waveshare no se presumen aceptados.
+
 Actualización vigente: fase 54 implementada en rama desde dev1, con dos ejemplos completos y coordinación corporal Otto compartida (runtime 1.9.1, ABI 1). [Reglas y pendientes](FASE_54_TEATRO_OTTO.md). No operar main/dev2; SDK completo, hardware/Waveshare y aceptación DEV pendientes. Fases 55–56 no autorizadas para implementar.
 
 
@@ -80,7 +83,7 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 52 | Pista de robots interactiva | Mundos interactivos | Software web en rama desde dev1; dos ejemplos completos; ver guía de fase 52; actualización/aceptación pendientes |
 | 53 | Estación meteorológica interactiva | Mundos interactivos | Software web en rama desde dev1; dos ejemplos completos; ver guía de fase 53; actualización/aceptación pendientes |
 | 54 | Escenario de Otto | Mundos interactivos | Software en rama dev1; público, dos ejemplos completos y runtime 1.9.1; ver guía de fase 54; aceptación pendiente |
-| 55 | Parque, laguna y aeropuerto | Mundos interactivos | Sólo análisis de actividades y valor nuevo |
+| 55 | Parque, laguna y aeropuerto | Mundos interactivos | Análisis cerrado; [candidatos, solapamientos y recomendación](FASE_55_ANALISIS_VARIANTES_ESCENAS.md); ninguna variante implementada |
 | 56 | Vehículo seguidor de línea | Pedido del propietario, 18 de octubre | Circuitos predefinidos/dibujados, reflectivos y control de ruedas; [propuesta](FASE_56_SEGUIDOR_LINEA.md), reglas/alcance por acordar |
 | Final | Producción, HTTPS, respaldos y piloto | Antigua fase 11 | Postergada hasta autorización explícita y validaciones de salida |
 
@@ -839,7 +842,7 @@ Complementan la presentación de fase 45 con reglas del mundo, sin duplicarla.
 | 52 | Pista de robots | Software web en rama desde dev1; dos ejemplos completos; [reglas y entrega](FASE_52_PISTA_ROBOTS.md); actualización/aceptación/Waveshare/físico pendientes |
 | 53 | Estación meteorológica interactiva | Software web en rama desde dev1; clima, detector residual, techo y dos ejemplos completos; [reglas y entrega](FASE_53_ESTACION_METEOROLOGICA.md); actualización/aceptación/Waveshare/físico pendientes |
 | 54 | Escenario de Otto | Software en rama desde dev1; público/pedidos, dos ejemplos completos y FIFO corporal; [reglas](FASE_54_TEATRO_OTTO.md); aceptación/SDK/físico/Waveshare pendientes |
-| 55 | Variantes parque/laguna y aeropuerto | Sólo análisis; actividad y valor pedagógico antes de implementar |
+| 55 | Variantes parque/laguna y aeropuerto | Análisis cerrado; [informe](FASE_55_ANALISIS_VARIANTES_ESCENAS.md); laguna/depósito candidata, parque reutilizable y aeropuerto postergado; implementación no autorizada |
 | 56 | Vehículo seguidor de línea | Planificada; circuitos propios/predefinidos, sensores reflectivos y posibilidades didácticas; [plan](FASE_56_SEGUIDOR_LINEA.md). No implementada ni autorizada para implementar |
 
 Fase 47 autorizada el 17 de octubre tras aprobar disposición y reglas; no
