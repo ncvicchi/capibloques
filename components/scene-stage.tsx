@@ -1,4 +1,7 @@
 'use client';
+import GorillaTrack from '@/components/gorilla-track';
+import type {GorillaTrackState} from '@/lib/gorilla-track';
+
 import LineWorld from '@/components/line-world';
 import type { LineWorldState } from '@/lib/line-world';
 import TheaterWorld from '@/components/theater-world';
@@ -96,6 +99,7 @@ interface SceneStageProps {
   gardenWorld?: GardenWorldState;
   houseWorld?: HouseWorldState;
   conveyorWorld?: ConveyorWorldState;
+  gorillaWorld?: GorillaTrackState;
   arenaWorld?: ArenaWorldState;
   weatherWorld?: WeatherWorldState;
   pondWorld?: PondWorldState;
@@ -286,6 +290,7 @@ function SceneBackdrop({
   gardenWorld,
   houseWorld,
   conveyorWorld,
+  gorillaWorld,
   arenaWorld,
   weatherWorld,
   pondWorld,
@@ -301,6 +306,7 @@ function SceneBackdrop({
   gardenWorld?: GardenWorldState;
   houseWorld?: HouseWorldState;
   conveyorWorld?: ConveyorWorldState;
+  gorillaWorld?: GorillaTrackState;
   arenaWorld?: ArenaWorldState;
   weatherWorld?: WeatherWorldState;
   pondWorld?: PondWorldState;
@@ -344,6 +350,7 @@ function SceneBackdrop({
   if (background === 'railCrossing') return <RailCrossingWorld scene={scene} state={railWorld} />;
   if (background === 'parking') return <ParkingWorld scene={scene} state={parkingWorld} />;
   if (background === 'greenhouse') return <GardenWorld scene={scene} state={gardenWorld} />;
+  if(background==='gorillaTrack')return <GorillaTrack scene={scene} state={gorillaWorld}/>;
   if (background === 'lineTrack') return <LineWorld scene={scene} state={lineWorld} />;
   if (background === 'ottoTheater') return <TheaterWorld scene={scene} state={theaterWorld} />;
   if(background==='gorillaBench')return <div className="scene-world"><svg viewBox="0 0 960 540" preserveAspectRatio="none" aria-label="Banco de pruebas GorillaBot"><rect width="960" height="540" fill="#e5eff3"/><rect x="30" y="85" width="900" height="420" rx="25" fill="#f7efd9" stroke="#c7bda5" strokeWidth="6"/><text x="40" y="43" fontSize="25" fill="#385263" fontWeight="900">BANCO GORILLABOT · APRENDER UNA PATA</text><text x="40" y="72" fontSize="15" fill="#385263">Preparar → un motor → dos motores de una pata. Sin caminar todavía.</text></svg></div>;
@@ -647,6 +654,7 @@ export default function SceneStage({
   gardenWorld,
   houseWorld,
   conveyorWorld,
+  gorillaWorld,
   arenaWorld,
   weatherWorld,
   pondWorld,
@@ -908,6 +916,7 @@ export default function SceneStage({
         gardenWorld={gardenWorld}
         houseWorld={houseWorld}
         conveyorWorld={conveyorWorld}
+        gorillaWorld={gorillaWorld}
         arenaWorld={arenaWorld}
         weatherWorld={weatherWorld}
         pondWorld={pondWorld}
@@ -987,12 +996,13 @@ export default function SceneStage({
               ? (runtimeY / 100) * scene.canvas.height
               : device.position.y,
         };
+        if(device.kind==='gorilla'&&scene.canvas.background==='gorillaTrack'&&gorillaWorld&&!editing){position.x=gorillaWorld.x;position.y=gorillaWorld.y;}
         const rotation =
           device.kind === 'robot'
             ? typeof runtime?.angle === 'number'
               ? runtime.angle
               : device.rotation + device.config.heading
-            : device.rotation;
+            : device.kind==='gorilla'&&scene.canvas.background==='gorillaTrack'&&!editing?(gorillaWorld?.angle??device.rotation):device.rotation;
         const parkingAnchor = scene.canvas.background === 'parking' && nearestParkingSlot(device.kind, device.position);
         const gardenAnchor = scene.canvas.background === 'greenhouse' && nearestGardenSlot(device.kind, device.position);
         const conveyorAnchor = scene.canvas.background === 'conveyor' && nearestConveyorSlot(device.kind, device.position);
@@ -1001,7 +1011,8 @@ export default function SceneStage({
         const weatherAnchor = scene.canvas.background === 'weatherLab' && nearestWeatherSlot(device.kind, device.position);
         const arenaAnchor = (scene.canvas.background === 'lineTrack' && device.kind === 'robot') || scene.canvas.background === 'robotArena' && (device.kind === 'robot' || device.kind === 'infraredBarrier');
         const railAnchor = !!pondAnchor || !!weatherAnchor || arenaAnchor || !!conveyorAnchor || !!houseAnchor || !!gardenAnchor || !!parkingAnchor || (scene.canvas.background === 'railCrossing' && !!nearestRailSlot(device.kind, device.position, railTrackCount(scene)));
-        const size = railAnchor ? { width: 40, height: 40 } : sceneItemSize(device);
+        const gorillaAnchor=device.kind==='gorilla'&&scene.canvas.background==='gorillaTrack';
+        const size = gorillaAnchor?{width:84,height:76}:railAnchor ? { width: 40, height: 40 } : sceneItemSize(device);
         const labelSide = (scene.canvas.background === 'ottoTheater' || ((scene.canvas.background === 'smartHouse' && (device.kind === 'led' || device.kind === 'button')) || (scene.canvas.background === 'weatherLab' && !weatherAnchor))) ? 'bottom' : sceneItemLabelSide(scene, device.id);
         const style = {
           left: `${(position.x / scene.canvas.width) * 100}%`,
@@ -1016,7 +1027,7 @@ export default function SceneStage({
         };
         const contents = (
           <>
-            {pondAnchor ? <span className="rail-component-anchor" title={pondAnchor.name}>{device.kind==='servo'?'⚙':device.kind==='powerSwitch'?'↗':'◉'}</span> : weatherAnchor ? <span className="rail-component-anchor" title={weatherAnchor.name}>{device.kind === 'servo' ? '⚙' : device.kind === 'waterSensor' ? '💧' : '◉'}</span> : arenaAnchor ? device.kind === 'robot' ? <svg viewBox="0 0 44 44" aria-label="Robot visto desde arriba, frente hacia la flecha"><rect x="7" y="2" width="25" height="40" rx="9" fill="#52acc7" stroke="#356075" strokeWidth="2" /><path d="M9 3H27M9 41H27" stroke="#43535d" strokeWidth="5" /><path d="M27 14l12 8-12 8Z" fill="#fff0b8" /><circle cx="21" cy="22" r="5" fill="#daeaf0" /></svg> : <span className="rail-component-anchor" title={device.name}>↕</span> : conveyorAnchor ? <span className="rail-component-anchor" title={conveyorAnchor.name}>{device.kind === 'motor' ? '⚙' : device.kind === 'servo' ? '↗' : '◉'}</span> : houseAnchor ? <span className="rail-component-anchor" title={houseAnchor.name}>{device.kind === 'servo' ? '⚙' : device.kind === 'led' ? '💡' : '◉'}</span> : gardenAnchor ? <span className="rail-component-anchor" title={gardenAnchor.name}>{device.kind === 'servo' ? '⚙' : device.kind === 'powerSwitch' ? '💧' : '◉'}</span> : parkingAnchor ? <span className="rail-component-anchor" title={parkingAnchor.name}>{device.kind === 'servo' ? '⚙' : '↕'}</span> : scene.canvas.background === 'railCrossing' && nearestRailSlot(device.kind, device.position, railTrackCount(scene))
+            {gorillaAnchor?<svg viewBox="-48 -42 96 84" aria-label="GorillaBot visto desde arriba, frente a la derecha">{[0,1,2,3].map(leg=>{const front=leg<2,x=front?25:-25,y=leg%2===0?-1:1,values=runtime?.kind==='educationalModule'?runtime.values:undefined,a=Number(values?.['j'+(leg*2)]??0),swing=gorillaWorld?.swing===leg&&!editing;return <g key={leg} stroke={swing?'#ef9c41':'#536c7d'} strokeWidth="4" fill="none"><path d={`M${x} ${y*12}L${x+a/2} ${y*25}L${x-a/2} ${y*35}`}/><circle cx={x-a/2} cy={y*35} r={swing?5:3} fill={swing?'#ffc76d':'#536c7d'}/></g>;})}<rect x="-33" y="-17" width="66" height="34" rx="12" fill="#65aaa2" stroke="#35534a" strokeWidth="3"/><path d="M24 -8L40 0 24 8Z" fill="#fbe7a8"/><circle cx="8" cy="-7" r="3" fill="#fff"/><circle cx="8" cy="7" r="3" fill="#fff"/></svg>:pondAnchor ? <span className="rail-component-anchor" title={pondAnchor.name}>{device.kind==='servo'?'⚙':device.kind==='powerSwitch'?'↗':'◉'}</span> : weatherAnchor ? <span className="rail-component-anchor" title={weatherAnchor.name}>{device.kind === 'servo' ? '⚙' : device.kind === 'waterSensor' ? '💧' : '◉'}</span> : arenaAnchor ? device.kind === 'robot' ? <svg viewBox="0 0 44 44" aria-label="Robot visto desde arriba, frente hacia la flecha"><rect x="7" y="2" width="25" height="40" rx="9" fill="#52acc7" stroke="#356075" strokeWidth="2" /><path d="M9 3H27M9 41H27" stroke="#43535d" strokeWidth="5" /><path d="M27 14l12 8-12 8Z" fill="#fff0b8" /><circle cx="21" cy="22" r="5" fill="#daeaf0" /></svg> : <span className="rail-component-anchor" title={device.name}>↕</span> : conveyorAnchor ? <span className="rail-component-anchor" title={conveyorAnchor.name}>{device.kind === 'motor' ? '⚙' : device.kind === 'servo' ? '↗' : '◉'}</span> : houseAnchor ? <span className="rail-component-anchor" title={houseAnchor.name}>{device.kind === 'servo' ? '⚙' : device.kind === 'led' ? '💡' : '◉'}</span> : gardenAnchor ? <span className="rail-component-anchor" title={gardenAnchor.name}>{device.kind === 'servo' ? '⚙' : device.kind === 'powerSwitch' ? '💧' : '◉'}</span> : parkingAnchor ? <span className="rail-component-anchor" title={parkingAnchor.name}>{device.kind === 'servo' ? '⚙' : '↕'}</span> : scene.canvas.background === 'railCrossing' && nearestRailSlot(device.kind, device.position, railTrackCount(scene))
               ? <span className="rail-component-anchor" title={nearestRailSlot(device.kind, device.position, railTrackCount(scene))?.name}>{device.kind === 'servo' ? '⚙' : '↕'}</span>
               : <DeviceVisual interactive={!editing} device={device} runtime={runtime} matrixPreviewPattern={matrixPreviewPattern} sceneDevices={scene.devices} runtimeDevices={runtimeDevices} dashboardModes={dashboardModes} onDashboardAction={onDashboardAction} />}
             {!pondAnchor && !weatherAnchor && !arenaAnchor && !conveyorAnchor && !houseAnchor && !gardenAnchor && !(scene.canvas.background === 'greenhouse' && device.kind === 'display') && !parkingAnchor && !(scene.canvas.background === 'railCrossing' && railTrackCount(scene) > 1 && device.kind === 'infraredBarrier') && <span className={`scene-device-name label-${labelSide}`} title={device.name}>{device.name}</span>}

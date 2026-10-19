@@ -1,4 +1,8 @@
 // @ts-expect-error Node strip-types runner.
+import {planGorillaGait,advanceGorillaGait,type GorillaGaitMove} from './gorilla-gait.ts';
+// @ts-expect-error Node strip-types runner.
+import {createGorillaTrack,advanceGorillaTrack} from './gorilla-track.ts';
+// @ts-expect-error Node strip-types runner.
 import { createLineWorld, advanceLineWorld, lineBindings, defaultLineCircuit } from './line-world.ts';
 // @ts-expect-error Node strip-types runner.
 import { createTheaterWorldState, advanceTheaterWorld, theaterBindings, theaterHasDistance, validTheaterEnvironment } from './theater-world.ts';
@@ -61,7 +65,7 @@ import { advanceHouseWorld, createHouseWorldState, houseBindings, houseInputRole
 import {gorillaPostureTargets,gorillaTargets,gorillaMove,advanceGorilla,type GorillaMove} from './gorilla-model.ts';
 // @ts-expect-error Node strip-types runner.
 import {planGorillaPath,advanceGorillaPath,type GorillaCartesianMove} from './gorilla-kinematics.ts';
-const gorillaJobs=new Map<string,GorillaMove|GorillaCartesianMove>();
+const gorillaJobs=new Map<string,GorillaMove|GorillaCartesianMove|GorillaGaitMove>();
 const gorillaPositions=new Map<string,number[]>();
 type Pending =
   | { kind: 'wait'; startedAt: number; until: number; blockId: string }
@@ -496,6 +500,7 @@ function freshState(): SimulatorState {
     ...(scene.canvas.background === 'ottoTheater' ? { theaterWorld: createTheaterWorldState(scene.canvas.theaterEnvironment) } : {}),
     ...(scene.canvas.background === 'weatherLab' ? { weatherWorld: createWeatherWorldState(scene.canvas.weatherEnvironment, weatherBindings(scene).roof ? initialAngle(weatherBindings(scene).roof) : 90) } : {}),
     ...(scene.canvas.background==='pondLab'?{pondWorld:createPondWorld(scene.canvas.pondEnvironment,pondBindings(scene).drain?initialAngle(pondBindings(scene).drain):0)}:{}),
+    ...(scene.canvas.background === 'gorillaTrack' ? {gorillaWorld:createGorillaTrack(scene)} : {}),
     ...(scene.canvas.background === 'lineTrack' ? { lineWorld: createLineWorld(arenaPose(scene).position, arenaPose(scene).angle) } : {}),
     ...(scene.canvas.background === 'robotArena' ? { arenaWorld: createArenaWorldState(arenaPose(scene).position, arenaPose(scene).angle) } : {}),
     ...(scene.canvas.background === 'conveyor' ? { conveyorWorld: createConveyorWorldState(scene.canvas.conveyorEnvironment, initialAngle(conveyorBindings(scene).gate)) } : {}),
@@ -1613,6 +1618,13 @@ function executeInstruction(
     if(gorillaJobs.has(node.deviceId))return 'wait';
     if(node.action==='prepare'){d.values.ready=true;d.values.error=false;execution.pc++;appendConsole(`${deviceName(node.deviceId)}: preparado, sin mover motores`);return 'action';}
     const current=gorillaPositions.get(node.deviceId)??Array.from({length:8},(_,i)=>Number(d.values[`j${i}`]));
+    if(node.action==='gait'){
+      const planned=spec.config.kinematics?planGorillaGait(spec.config.kinematics,spec.config.settings,node.index,{stride:node.a,height:node.b,phaseMs:node.durationMs,turnsVerified:false},current):{error:'Configurá geometría v3.'};
+      if(!d.values.ready||!planned.move){d.values.error=true;appendConsole(`${deviceName(node.deviceId)}: ${planned.error??'Prepará el controlador.'}`);execution.pc++;return 'action';}
+      const job=planned.move;gorillaJobs.set(node.deviceId,job);d.values.moving=true;d.values.error=false;
+      execution.pending={kind:'wait',startedAt:virtualNow,until:virtualNow+job.duration,blockId:node.blockId};
+      appendConsole(`${deviceName(node.deviceId)}: ${['avanzar un ciclo','retroceder un ciclo','girar a izquierda (idealizado)','girar a derecha (idealizado)','quedar apoyado'][node.index]} · ${(job.duration/1000).toFixed(2)} s`);return 'wait';
+    }
     if(node.action==='foot'||node.action==='path'){
       const planned=spec.config.kinematics?planGorillaPath(spec.config.kinematics,spec.config.settings,node.index,node.points??[],current):{error:'Configurá geometría v3.'};
       if(!d.values.ready||!planned.move){d.values.error=true;appendConsole(`${deviceName(node.deviceId)}: ${planned.error??'Prepará el controlador.'}`);execution.pc++;return 'action';}
@@ -2728,7 +2740,7 @@ function updateHousePhysics(deltaMs: number) {
 }
 
 function updatePhysics(deltaMs: number) {
-  for(const [id,job]of gorillaJobs){const next='segments' in job?advanceGorillaPath(job,deltaMs):advanceGorilla(job,deltaMs),d=state.devices[id];gorillaPositions.set(id,next.angles);if(d?.kind==='educationalModule'){next.angles.forEach((a,i)=>d.values[`j${i}`]=(Math.sign(a)*Math.round(Math.abs(a))||0));d.values.moving=next.moving;if('error' in next&&next.error)d.values.error=true;}if(next.moving)gorillaJobs.set(id,next.move);else gorillaJobs.delete(id);}
+  for(const [id,job]of gorillaJobs){const next='frames' in job?advanceGorillaGait(job,deltaMs):'segments' in job?advanceGorillaPath(job,deltaMs):advanceGorilla(job,deltaMs),d=state.devices[id];if(state.gorillaWorld&&'travel' in next)state.gorillaWorld=advanceGorillaTrack(state.gorillaWorld,scene,next.travel,next.yaw,next.swing,0,next.moving);gorillaPositions.set(id,next.angles);if(d?.kind==='educationalModule'){next.angles.forEach((a,i)=>d.values[`j${i}`]=(Math.sign(a)*Math.round(Math.abs(a))||0));d.values.moving=next.moving;if('error' in next&&next.error)d.values.error=true;}if(next.moving)gorillaJobs.set(id,next.move);else gorillaJobs.delete(id);}
   if (state.status !== 'done' && state.status !== 'stopped') {
     updateRailPhysics(deltaMs);
     updateParkingPhysics(deltaMs);
@@ -2741,6 +2753,7 @@ function updatePhysics(deltaMs: number) {
     updateArenaPhysics(deltaMs);
     updateLinePhysics(deltaMs);
   }
+  if(state.gorillaWorld)state.gorillaWorld=advanceGorillaTrack(state.gorillaWorld,scene,0,0,state.gorillaWorld.swing,deltaMs,Array.from(gorillaJobs.values()).some(j=>'frames' in j));
   updateVisualAnimations();
   for (const timer of Object.values(state.timers)) {
     if (timer.status !== 'running' || timer.durationMs <= 0 || deltaMs <= 0)

@@ -1,5 +1,7 @@
 # GorillaBot evolutivo — fases 58 a 64
 
+**Fase60 — marcha y pista GorillaBot, software en rama desde dev1 (19/10).** [Reglas y entrega](FASE_60_GORILLABOT_MARCHA_PISTA.md): cuatro tiempos coordinados, avanzar/retroceder/giro experimental, ritmo y amplitud, referencia de apoyo, pista nueva con estaciones/obstáculos/contactos recuperables y dos ejemplos completos (directo y tres procedimientos/dos pestañas). Runtime1.14.0/ABI1/cap gorilla-gait; guardas de calibración y giro físico, no odometría ni equilibrio certificado. Fase59 confirmada instalada en dev1. Actualización dev1, SDK completo, aceptación física y renderer Waveshare pendientes; main/dev2 no operados. Estados inferiores previos a60 son históricos; 61–64 siguen pendientes, sin autorización.
+
 19 de octubre de 2026. El propietario autorizó documentar toda la progresión y
 **empezar sólo fase58**. No ejecutar las siguientes sin autorización propia.
 Base de fase58: origin/dev1 `481854cf239f3cc41fc247be8ffc1804646743f1`, rama

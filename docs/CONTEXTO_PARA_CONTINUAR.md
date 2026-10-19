@@ -1,5 +1,45 @@
 # CapiBloques — contexto para continuar
 
+### Entrega vigente19/10 — Fase60: marcha coordinada y pista
+
+Rama `codex/fase-60-gorillabot-marcha`, desde origin/dev1
+`7b65ae1bd28520801620aa21b0c1ba0161a42b32`. [Reglas completas](FASE_60_GORILLABOT_MARCHA_PISTA.md).
+Propietario confirmó fase59 instalada en dev1. No se operó ningún servidor,
+main ni dev2; entregar comando instalado fijado al SHA de esta rama.
+
+- Nuevo planGorillaGait TS y CapiGorilla::gait común C++: entrada y cuatro etapas
+  por pata, orden TI/DI/TD/DD, up4mm de referencia, elevar/recuperar/bajar/empujar.
+  Validación íntegra incluida entrada, rama IK59, tasa30°/s +5% y duración común;
+  no usar cuatro trayectorias independientes en paralelo. Detener mantiene PWM,
+  referencia explícita no preempta; pausa congela reloj. No certifica equilibrio.
+- Config.gait opcional stride/height/phaseMs/turnsVerified, escena960×540
+  gorillaTrack/straight|maneuvers, arenaEnvironment compartido estructuralmente
+  pero validación propia sin estaciones de la pista diferencial. Cuerpo idealizado,
+  huella42, 4unidades/mm didácticas, yaw virtual no medición; visitas al parar500ms,
+  contactos por episodio y marcha puede seguir patinando, retroceder sale.
+  Controles usan borrador y guardar/cancelar/undo existentes; cambiar parámetros,
+  geometría o calibración invalida verificación de giro.
+- Nuevos bloques gait/settle, op gorilla action=gait, index0avance/1retroceso/
+  2izquierda/3derecha/4apoyo; a=stride, b=height, durationMs=phaseMs.
+  1–20 ciclos como repeat común. Dos ejemplos nuevos completos: gorillaTrack y
+  gorillaTrackProcedures, preparar/8ciclosadelante/esperar/8atrás/esperar.
+  Modular3tareas2tabs; Main tres llamadas. Ejemplos anteriores intactos.
+- Runtime1.14.0 ABI1/cap gorilla-gait, firmware/packaging/deploy/testcontratos
+  actualizados. Giro físico bloqueado hasta confirmación adulta en escena,
+  tanto en exportaciones/reglas como en intérprete. Sin migraciones/deps.
+- Evidencia: tipos/lint, smoke completo (incluye mundos previos y Gorilla60),
+  build10páginas estáticas (aviso previo chunk>500KB), seis tests backendGorilla
+  y packaging. Core C++ bajo -Wall/-Wextra/-Werror, paridad TS, HAL intérprete y
+  ambas salidas; cinco modos y dos ejemplos worker a1×/4×, STOP/RESET/pausa.
+  Navegador: ambos ejemplos nuevos, configuración guardar/cancelar/undo/redo/
+  reabrir; regresión previa58/59. La primera corrida conjunta dio11/12:
+  el test antiguo de pausa leyó un snapshot anterior al ACK; se añadió espera
+  explícita de Reanudar antes de tomar posición estable (sin cambiar runtime).
+  Rerun final dirigido: 3/3 aprobados (dos nuevos + trayectoria modular), tras
+  11/12 iniciales; toda la cobertura ejecutada quedó aprobada. SDK completo,
+  robot físico y renderer Waveshare pendientes; no confundir C++/HAL con ellos.
+  Actualización dev1 corre por propietario. No comenzar61 ni mandos62–64.
+
 ### Entrega vigente19/10 — Resto59: cinemática v3 y trayectorias
 
 Rama `codex/fase-59-gorillabot-trayectorias` desde origin/dev1

@@ -6,7 +6,7 @@ import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 
 export const CAPI_RULES_FORMAT = 1;
 export const CAPI_INTERPRETER_ABI = 1;
-export const CAPI_INTERPRETER_VERSION = '1.13.0';
+export const CAPI_INTERPRETER_VERSION = '1.14.0';
 export const CAPI_RULES_MAX_BYTES = 32 * 1024;
 export const CAPI_RULES_MAX_INSTRUCTIONS = 2048;
 const HEADER_BYTES = 32;
@@ -53,6 +53,7 @@ const capabilityForOperation = (operation: string) => ({
 function instructionCapabilities(instruction: ExecutableTask['output'][number]) {
   const result = [capabilityForOperation(instruction.op)];
   if (instruction.op==='gorilla'&&instruction.action==='posture')result.push('gorilla-postures');
+  if(instruction.op==='gorilla'&&instruction.action==='gait')result.push('gorilla-gait');
   if(instruction.op==='gorilla'&&(instruction.action==='foot'||instruction.action==='path'))result.push('gorilla-kinematics-v3');
   if (instruction.op === 'switchDispatch') result.push('expressions');
   const encodedInstruction = JSON.stringify(instruction);
@@ -131,6 +132,12 @@ export function createCapiRules(programInput: CompiledProgram, scene: SceneDefin
   const errors = validateProgramForScene(program, scene, board).filter(item => item.severity === 'error');
   if (errors.length) throw new CapiRulesError(errors[0].message);
   const tasks = compileTaskGraph(program);
+  for(const instruction of tasks.flatMap(t=>t.output)){
+    if(instruction.op==='gorilla'&&instruction.action==='gait'&&[2,3].includes(instruction.index)){
+      const d=scene.devices.find(d=>d.id===instruction.deviceId);
+      if(d?.kind!=='gorilla'||!d.config.gait?.turnsVerified)throw new CapiRulesError('GorillaBot: el giro físico es experimental. Una persona adulta debe verificarlo en la escena; el giro del simulador es idealizado.');
+    }
+  }
   if (scene.devices.filter(device => device.kind === 'messages').length > 1)
     throw new CapiRulesError('El intérprete rápido admite un componente Mensajes por placa. El modo nativo conserva hasta dos.');
   if (scene.devices.filter(device => device.kind === 'otto').length > 1)

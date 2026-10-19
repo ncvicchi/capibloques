@@ -323,6 +323,7 @@ export default function ReviewSimulation({
           gardenWorld={state?.gardenWorld}
           houseWorld={state?.houseWorld}
           conveyorWorld={state?.conveyorWorld}
+          gorillaWorld={state?.gorillaWorld}
           arenaWorld={state?.arenaWorld}
           weatherWorld={state?.weatherWorld}
           pondWorld={state?.pondWorld}
