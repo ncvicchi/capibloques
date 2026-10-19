@@ -7,6 +7,7 @@ import json
 import math
 import re
 import unicodedata
+from .gorilla import geometry_valid
 
 from django.core.exceptions import ValidationError
 
@@ -30,6 +31,7 @@ BLOCKS.add("capi_switch")
 BLOCKS.add("capi_while")
 BLOCKS.add("capi_power_switch")
 BLOCKS.add("capi_stepper")
+BLOCKS.update(("capi_gorilla_gait","capi_gorilla_settle","capi_gorilla_prepare","capi_gorilla_joint","capi_gorilla_pair","capi_gorilla_posture","capi_gorilla_foot","capi_gorilla_path"))
 BLOCKS.update(("capi_display_write", "capi_display_clear", "capi_display_animate_text", "capi_display_artwork", "capi_display_button_pressed", "capi_visual_wait"))
 BLOCKS.update(("capi_message_send", "capi_message_receive"))
 BLOCKS.update(("capi_matrix_clear", "capi_matrix_pixel", "capi_matrix_pattern", "capi_matrix_scroll"))
@@ -59,6 +61,7 @@ PINS["messages"] = ["tx", "rx"]
 PINS["ledMatrix"] = ["din", "clk", "cs"]
 CONFIGS["messages"] = {"mode": ["send", "receive", "both"], "baudRate": [9600, 19200, 38400, 57600, 115200]}
 MODULES = {
+    'gorilla':(['sda','scl'],['GORILLA_PCA9685'],{**{f'j{i}':(int,float) for i in range(8)},'ready':bool,'moving':bool,'error':bool}),
     "lineSensors": (["left","center","right"], ["DIGITAL_3"], {"left":bool,"center":bool,"right":bool}),
     "distanceSensor": (["trigger", "echo"], ["HC-SR04", "VL53L0X"], {"distance": (int, float)}),
     "pirSensor": (["signal"], ["HC-SR501"], {"motion": bool}),
@@ -280,9 +283,9 @@ def scene(value, board_profile="wemos-d1-r32"):
     exact(value, ("schemaVersion", "id", "name", "description", "canvas", "devices", "widgets"), ("retiredDeviceIds", "sourceTemplate"))
     require(type(value["schemaVersion"]) is int and value["schemaVersion"] == 1 and identifier(value["id"]))
     require(text(value["name"], 60, 1) and value["name"].strip() and isinstance(value["description"], str))
-    require("sourceTemplate" not in value or value["sourceTemplate"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor", "robotArena", "weatherLab", "ottoTheater", "lineTrack", "pondLab"))
+    require("sourceTemplate" not in value or value["sourceTemplate"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor", "robotArena", "weatherLab", "ottoTheater", "lineTrack", "pondLab", "gorillaBench", "gorillaTrack"))
     canvas = value["canvas"]
-    exact(canvas, ("width", "height", "background", "gridSize", "snapToGrid"), ("trafficDirections", "itemOrder", "railTracks", "parkingCapacity", "gardenEnvironment", "houseEnvironment", "houseAssignments", "conveyorEnvironment", "arenaEnvironment", "weatherEnvironment", "theaterEnvironment", "lineCircuit", "pondEnvironment"))
+    exact(canvas, ("width", "height", "background", "gridSize", "snapToGrid"), ("trafficDirections", "itemOrder", "railTracks", "parkingCapacity", "gardenEnvironment", "houseEnvironment", "houseAssignments", "conveyorEnvironment", "arenaEnvironment", "gorillaTrack", "weatherEnvironment", "theaterEnvironment", "lineCircuit", "pondEnvironment"))
     if "lineCircuit" in canvas:
         c=canvas["lineCircuit"]
         exact(c,("width","strokes"))
@@ -314,7 +317,7 @@ def scene(value, board_profile="wemos-d1-r32"):
             exact(obstacle, ("x", "y", "radius"))
             x, y, r = obstacle["x"], obstacle["y"], obstacle["radius"]
             require(number(x, 210, 850) and number(y, 100, 460) and number(r, 20, 40))
-            require(all((x-sx)**2 + (y-sy)**2 >= (r+75)**2 for sx, sy in ((400,420), (400,180), (800,180))))
+            if canvas["background"]!="gorillaTrack": require(all((x-sx)**2 + (y-sy)**2 >= (r+75)**2 for sx, sy in ((400,420), (400,180), (800,180))))
             require(all((x-px)**2 + (y-py)**2 >= (r+pr+15)**2 for px, py, pr in placed))
             placed.append((x,y,r))
     if "conveyorEnvironment" in canvas:
@@ -332,7 +335,8 @@ def scene(value, board_profile="wemos-d1-r32"):
     require("parkingCapacity" not in canvas or type(canvas["parkingCapacity"]) is int and canvas["parkingCapacity"] in (4, 8, 12))
     require("railTracks" not in canvas or type(canvas["railTracks"]) is int and canvas["railTracks"] in (1, 2, 4))
     require(number(canvas["width"], 0.01, 4096) and number(canvas["height"], 0.01, 4096) and number(canvas["gridSize"], 0.01, 512))
-    require(canvas["background"] in ("park", "workshop", "home", "pond", "crossroads", "robotTrack", "garden", "schoolGate", "weatherYard", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor", "robotArena", "weatherLab", "ottoTheater", "lineTrack", "pondLab", "blank") and type(canvas["snapToGrid"]) is bool)
+    require("gorillaTrack" not in canvas or canvas["gorillaTrack"] in ("straight","maneuvers"))
+    require(canvas["background"] in ("park", "workshop", "home", "pond", "crossroads", "robotTrack", "garden", "schoolGate", "weatherYard", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor", "robotArena", "weatherLab", "ottoTheater", "lineTrack", "pondLab", "gorillaBench", "gorillaTrack", "blank") and type(canvas["snapToGrid"]) is bool)
     traffic_directions = canvas.get("trafficDirections", [])
     require(isinstance(traffic_directions, list) and len(traffic_directions) <= 4 and len(set(traffic_directions)) == len(traffic_directions))
     require(all(direction in ("eastbound", "westbound", "southbound", "northbound") for direction in traffic_directions))
@@ -374,10 +378,38 @@ def scene(value, board_profile="wemos-d1-r32"):
             else:
                 if kind in MODULES:
                     module_pins, profiles, value_types = MODULES[kind]
-                    exact(config, ("profile", "values", "settings"))
+                    exact(config, ("profile", "values", "settings", *(key for key in ("postures","kinematics","trajectories","gait") if key in config)) if kind=="gorilla" else ("profile", "values", "settings"))
                     require(config["profile"] in profiles and isinstance(config["values"], dict) and set(config["values"]) == set(value_types) and isinstance(config["settings"], dict))
                     require(all(type(config["values"][key]) in ((rule,) if isinstance(rule, type) else rule) for key, rule in value_types.items()))
                     require(all(isinstance(key, str) and isinstance(value, (str, int, float, bool)) for key, value in config["settings"].items()))
+                if kind == "gorilla":
+                    if "gait" in config:
+                        g=config["gait"]
+                        require(isinstance(g,dict) and set(g)=={"stride","height","phaseMs","turnsVerified"})
+                        require(type(g["stride"]) is int and 1<=g["stride"]<=12 and type(g["height"]) is int and 1<=g["height"]<=8 and type(g["phaseMs"]) is int and 200<=g["phaseMs"]<=2000 and type(g["turnsVerified"]) is bool)
+                    settings=config['settings']
+                    exact(settings,('address','verified',*(f'{key}{i}' for i in range(8) for key in ('channel','center','min','max','reversed'))))
+                    require(type(settings['verified']) is bool and type(settings['address']) is int and 64<=settings['address']<=119)
+                    channels=set()
+                    for i in range(8):
+                        ch,c,a,b=[settings[f'{key}{i}'] for key in ('channel','center','min','max')]
+                        require(all(type(v) is int for v in (ch,c,a,b)) and 0<=ch<=15 and ch not in channels and 50<=a<=c<=b<=130 and 70<=c<=110 and type(settings[f'reversed{i}']) is bool)
+                        channels.add(ch)
+                    require(geometry_valid(config,settings))
+                    if 'postures' in config:
+                        poses=config['postures']
+                        require(isinstance(poses,list) and len(poses)<=16)
+                        pose_ids=set();pose_names=set()
+                        for pose in poses:
+                            exact(pose,('id','name','angles'))
+                            require(isinstance(pose['id'],str) and re.fullmatch(r'[a-zA-Z0-9_-]{1,48}',pose['id']) and pose['id'] not in pose_ids)
+                            name=pose['name']
+                            require(isinstance(name,str) and name==name.strip() and 1<=len(name)<=40 and name.lower() not in pose_names)
+                            angles=pose['angles']
+                            require(isinstance(angles,list) and len(angles)==8 and all(type(a) is int and -20<=a<=20 for a in angles))
+                            require(all(settings[f'min{i}']<=settings[f'center{i}']+(-a if settings[f'reversed{i}'] else a)<=settings[f'max{i}'] for i,a in enumerate(angles)))
+                            pose_ids.add(pose['id']);pose_names.add(name.lower())
+                    require(all(value==0 if key.startswith('j') else value is False for key,value in config['values'].items()))
                 if kind == "lineSensors":
                     exact(config["settings"],("activeLow",))
                     require(type(config["settings"]["activeLow"]) is bool)
@@ -422,6 +454,7 @@ def scene(value, board_profile="wemos-d1-r32"):
                     exact(item["pins"], PINS[kind])
                 require(all(pin is None or (type(pin) is int and -2147483648 <= pin <= 2147483647) for pin in item["pins"].values()))
                 require(all(pin is None or pin in BOARD_PINS[board_profile] for pin in item["pins"].values()), "La escena usa un GPIO que no pertenece a la placa elegida.")
+    require(sum(item['kind']=='gorilla' for item in value['devices'])<=1)
     dashboard_kinds = {"trafficLight", "robot", "motor", "led", "servo"}
     if canvas["background"] == "railCrossing":
         require(canvas["width"] == 960 and canvas["height"] == 540, "El paso a nivel utiliza un lienzo de 960 × 540.")
@@ -447,6 +480,13 @@ def scene(value, board_profile="wemos-d1-r32"):
             require(role in ("bell", "exitButton", "outsideLight", "insideLight") and identifier(device_id) and device_id not in assigned)
             require(device_id in dashboard_items and dashboard_items[device_id]["kind"] == ("button" if role in ("bell", "exitButton") else "led"))
             assigned.add(device_id)
+    if canvas["background"] == "gorillaTrack":
+        require(canvas["width"]==960 and canvas["height"]==540)
+        for d in value["devices"]:
+            if d["kind"]=="gorilla":
+                x,y=d["position"]["x"],d["position"]["y"]
+                require(65<=x<=895 and 100<=y<=460)
+                require(all((x-o["x"])**2+(y-o["y"])**2>(42+o["radius"])**2 for o in canvas.get("arenaEnvironment",{}).get("obstacles",[])))
     if canvas["background"] == "lineTrack":
         require(canvas["width"]==960 and canvas["height"]==540)
         require(sum(d["kind"]=="robot" for d in value["devices"])<=1 and sum(d["kind"]=="lineSensors" for d in value["devices"])<=1)
@@ -563,7 +603,7 @@ def document(value):
     require(value["metadata"]["locale"] == "es-AR" and text(value["metadata"]["updatedAt"], 64, 1))
     require("migratedFrom" not in value["metadata"] or (type(value["metadata"]["migratedFrom"]) is int and value["metadata"]["migratedFrom"] == 1))
     exact(value["simulation"], ("scene", "speed"))
-    require(value["simulation"]["scene"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor", "robotArena", "weatherLab", "ottoTheater", "lineTrack", "pondLab") and number(value["simulation"]["speed"], 0.25, 4))
+    require(value["simulation"]["scene"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor", "robotArena", "weatherLab", "ottoTheater", "lineTrack", "pondLab", "gorillaBench", "gorillaTrack") and number(value["simulation"]["speed"], 0.25, 4))
     scene(value["scene"], target["boardProfile"])
     workspace(value["workspace"])
     size = len(encoded(value))

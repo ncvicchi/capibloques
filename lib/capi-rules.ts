@@ -6,7 +6,7 @@ import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 
 export const CAPI_RULES_FORMAT = 1;
 export const CAPI_INTERPRETER_ABI = 1;
-export const CAPI_INTERPRETER_VERSION = '1.10.0';
+export const CAPI_INTERPRETER_VERSION = '1.14.0';
 export const CAPI_RULES_MAX_BYTES = 32 * 1024;
 export const CAPI_RULES_MAX_INSTRUCTIONS = 2048;
 const HEADER_BYTES = 32;
@@ -37,6 +37,7 @@ export interface CapiRulesBundle {
 export class CapiRulesError extends Error {}
 
 const capabilityForOperation = (operation: string) => ({
+  gorilla:'gorilla-bench',
   pin: 'gpio', led: 'led', traffic: 'traffic', trafficVehicleDisplay: 'traffic-display', trafficPedestrianDisplay: 'traffic-display', motor: 'motor', robot: 'robot', robotWheels: 'robot-wheels',
   rgbFill: 'smart-lights', rgbPixel: 'smart-lights', rgbSegment: 'smart-lights', rgbCoordinate: 'smart-lights', rgbGradient: 'smart-lights', rgbPattern: 'smart-lights', rgbAnimation: 'smart-lights',
   servo: 'servo', buzzer: 'buzzer', tone: 'buzzer', otto: 'otto', ottoSound: 'otto', ottoExpression: 'otto', ottoArms: 'otto',
@@ -51,6 +52,9 @@ const capabilityForOperation = (operation: string) => ({
 
 function instructionCapabilities(instruction: ExecutableTask['output'][number]) {
   const result = [capabilityForOperation(instruction.op)];
+  if (instruction.op==='gorilla'&&instruction.action==='posture')result.push('gorilla-postures');
+  if(instruction.op==='gorilla'&&instruction.action==='gait')result.push('gorilla-gait');
+  if(instruction.op==='gorilla'&&(instruction.action==='foot'||instruction.action==='path'))result.push('gorilla-kinematics-v3');
   if (instruction.op === 'switchDispatch') result.push('expressions');
   const encodedInstruction = JSON.stringify(instruction);
   if (instruction.op === 'variableSet' || instruction.op === 'variableChange' || (instruction.op === 'serial' && instruction.expression)) result.push('expressions');
@@ -123,10 +127,17 @@ function canonical(value: unknown): string | undefined {
 function checksumHex(value: number) { return value.toString(16).padStart(8, '0'); }
 
 export function createCapiRules(programInput: CompiledProgram, scene: SceneDefinition, board: BoardProfileId): CapiRulesBundle {
+  if(scene.devices.some(d=>d.kind==='gorilla'&&(d.config.settings.verified!==true||(d.config.kinematics&&!d.config.kinematics.verified)||board==='waveshare-esp32-s3-touch-lcd-5-28117')))throw new CapiRulesError('GorillaBot: revisá la calibración con una persona adulta antes de enviar reglas. Banco Waveshare pendiente.');
   const program = normalizeCompiledProgram(programInput, scene);
   const errors = validateProgramForScene(program, scene, board).filter(item => item.severity === 'error');
   if (errors.length) throw new CapiRulesError(errors[0].message);
   const tasks = compileTaskGraph(program);
+  for(const instruction of tasks.flatMap(t=>t.output)){
+    if(instruction.op==='gorilla'&&instruction.action==='gait'&&[2,3].includes(instruction.index)){
+      const d=scene.devices.find(d=>d.id===instruction.deviceId);
+      if(d?.kind!=='gorilla'||!d.config.gait?.turnsVerified)throw new CapiRulesError('GorillaBot: el giro físico es experimental. Una persona adulta debe verificarlo en la escena; el giro del simulador es idealizado.');
+    }
+  }
   if (scene.devices.filter(device => device.kind === 'messages').length > 1)
     throw new CapiRulesError('El intérprete rápido admite un componente Mensajes por placa. El modo nativo conserva hasta dos.');
   if (scene.devices.filter(device => device.kind === 'otto').length > 1)
@@ -161,6 +172,7 @@ export function createCapiRules(programInput: CompiledProgram, scene: SceneDefin
     capabilities.push(`display-${device.config.profile}`);
     if (device.config.profile === 'lcd1602keypad') capabilities.push('display-keypad');
   }
+  if(scene.devices.some(d=>d.kind==='gorilla'))capabilities.push('gorilla-bench');
   if(scene.devices.some(d=>d.kind==='lineSensors'))capabilities.push('line-sensors');
   const requiredCapabilities = [...new Set(capabilities)].sort();
   return { bytes, document, checksum: checksumHex(payloadCrc), instructionCount, requiredCapabilities, resourceRequirements: resourceRequirements(document) };
@@ -179,6 +191,6 @@ export function parseCapiRules(bytes: Uint8Array, expectedBoard?: BoardProfileId
   if (!Array.isArray(document.tasks) || !Array.isArray(document.variables) || !Array.isArray(document.timers) || document.tasks.length !== view.getUint32(28, true) || !Array.isArray(document.resources?.devices) || document.resources.devices.length !== view.getUint32(24, true)) throw new CapiRulesError('Las reglas tienen una tabla incompleta.');
   const instructionCount = document.tasks.reduce((total, task) => total + (Array.isArray(task.output) ? task.output.length : CAPI_RULES_MAX_INSTRUCTIONS + 1), 0);
   if (instructionCount !== view.getUint32(20, true) || instructionCount > CAPI_RULES_MAX_INSTRUCTIONS) throw new CapiRulesError('Las reglas exceden los límites del intérprete.');
-  const requiredCapabilities = [...new Set([...document.tasks.flatMap(task => task.output.flatMap(instructionCapabilities)), ...(document.resources.devices.some(d=>d.kind==='lineSensors')?['line-sensors']:[])])].sort();
+  const requiredCapabilities = [...new Set([...document.tasks.flatMap(task => task.output.flatMap(instructionCapabilities)), ...(document.resources.devices.some(d=>d.kind==='lineSensors')?['line-sensors']:[]),...(document.resources.devices.some(d=>d.kind==='gorilla')?['gorilla-bench']:[])])].sort();
   return { bytes, document, checksum: checksumHex(expectedCrc), instructionCount, requiredCapabilities, resourceRequirements: resourceRequirements(document) };
 }

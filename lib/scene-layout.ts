@@ -4,6 +4,7 @@ export type SceneLayoutItem = SceneDevice | SceneWidget;
 export type SceneBounds = ScenePosition & { width: number; height: number; left: number; right: number; top: number; bottom: number };
 
 const deviceSizes: Partial<Record<SceneDevice['kind'], readonly [number, number]>> = {
+  gorilla: [760, 350],
   trafficLight: [126, 112], robot: [96, 104], otto: [100, 122], display: [190, 122],
   ledMatrix: [190, 104], messages: [132, 94], smartLights: [128, 92], wifiNode: [112, 92],
 };
@@ -12,14 +13,15 @@ export function sceneLayoutItems(scene: SceneDefinition): SceneLayoutItem[] {
   return [...scene.devices, ...scene.widgets];
 }
 
-export function sceneItemSize(item: SceneLayoutItem) {
+export function sceneItemSize(item: SceneLayoutItem, scene?:SceneDefinition) {
+  if(item.kind==='gorilla'&&scene?.canvas.background==='gorillaTrack')return {width:84,height:76};
   if (item.kind === 'counter') return { width: 104, height: 82 };
   const [width, height] = deviceSizes[item.kind] ?? [88, 88];
   return { width, height };
 }
 
-export function sceneItemBounds(item: SceneLayoutItem): SceneBounds {
-  const { width, height } = sceneItemSize(item);
+export function sceneItemBounds(item: SceneLayoutItem, scene?:SceneDefinition): SceneBounds {
+  const { width, height } = sceneItemSize(item,scene);
   return { ...item.position, width, height, left: item.position.x - width / 2, right: item.position.x + width / 2, top: item.position.y - height / 2, bottom: item.position.y + height / 2 };
 }
 
@@ -68,7 +70,7 @@ export function findSceneOverlaps(scene: SceneDefinition): SceneOverlap[] {
   const items = sceneLayoutItems(scene);
   // Parking controls are compact anchors, not the generic 88px device cards.
   const bounds = (item: SceneLayoutItem): SceneBounds => {
-    const box = sceneItemBounds(item);
+    const box = sceneItemBounds(item,scene);
     return ((scene.canvas.background==='pondLab'&&['distanceSensor','powerSwitch','waterSensor','servo'].includes(item.kind)) || (scene.canvas.background === 'weatherLab' && ['environmentSensor', 'lightSensor', 'waterSensor', 'servo'].includes(item.kind)) || (scene.canvas.background === 'robotArena' && ['robot', 'distanceSensor', 'colorSensor', 'infraredBarrier'].includes(item.kind)) || (scene.canvas.background === 'conveyor' && ['motor', 'infraredBarrier', 'colorSensor', 'scale', 'servo'].includes(item.kind)) || (scene.canvas.background === 'parking' && (item.kind === 'servo' || item.kind === 'infraredBarrier')) || (scene.canvas.background === 'greenhouse' && ['soilMoisture', 'powerSwitch', 'environmentSensor', 'servo', 'lightSensor'].includes(item.kind)) || (scene.canvas.background === 'smartHouse' && ['servo', 'pirSensor', 'infraredBarrier', 'lightSensor', 'cardReader'].includes(item.kind)))
       ? { ...box, width: 40, height: 40, left: item.position.x - 20, right: item.position.x + 20, top: item.position.y - 20, bottom: item.position.y + 20 }
       : box;
@@ -97,7 +99,7 @@ export function alignSceneItems(source: SceneDefinition, itemIds: readonly strin
   const selected = new Set(itemIds);
   const items = sceneLayoutItems(scene).filter(item => selected.has(item.id));
   if (items.length < 2) return scene;
-  const boxes = items.map(sceneItemBounds);
+  const boxes = items.map(item=>sceneItemBounds(item,scene));
   const minLeft = Math.min(...boxes.map(box => box.left));
   const maxRight = Math.max(...boxes.map(box => box.right));
   const minTop = Math.min(...boxes.map(box => box.top));

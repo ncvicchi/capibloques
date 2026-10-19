@@ -1,4 +1,8 @@
 // @ts-expect-error Node strip-types runner.
+import {planGorillaGait,advanceGorillaGait,type GorillaGaitMove} from './gorilla-gait.ts';
+// @ts-expect-error Node strip-types runner.
+import {createGorillaTrack,advanceGorillaTrack} from './gorilla-track.ts';
+// @ts-expect-error Node strip-types runner.
 import { createLineWorld, advanceLineWorld, lineBindings, defaultLineCircuit } from './line-world.ts';
 // @ts-expect-error Node strip-types runner.
 import { createTheaterWorldState, advanceTheaterWorld, theaterBindings, theaterHasDistance, validTheaterEnvironment } from './theater-world.ts';
@@ -57,6 +61,12 @@ import { advanceGardenWorld, createGardenWorldState, gardenBindings, validGarden
 // @ts-expect-error Node strip-types runner.
 import { advanceHouseWorld, createHouseWorldState, houseBindings, houseInputRoles, validHouseEnvironment } from './house-world.ts';
 
+// @ts-expect-error Node strip-types runner.
+import {gorillaPostureTargets,gorillaTargets,gorillaMove,advanceGorilla,type GorillaMove} from './gorilla-model.ts';
+// @ts-expect-error Node strip-types runner.
+import {planGorillaPath,advanceGorillaPath,type GorillaCartesianMove} from './gorilla-kinematics.ts';
+const gorillaJobs=new Map<string,GorillaMove|GorillaCartesianMove|GorillaGaitMove>();
+const gorillaPositions=new Map<string,number[]>();
 type Pending =
   | { kind: 'wait'; startedAt: number; until: number; blockId: string }
   | {
@@ -490,6 +500,7 @@ function freshState(): SimulatorState {
     ...(scene.canvas.background === 'ottoTheater' ? { theaterWorld: createTheaterWorldState(scene.canvas.theaterEnvironment) } : {}),
     ...(scene.canvas.background === 'weatherLab' ? { weatherWorld: createWeatherWorldState(scene.canvas.weatherEnvironment, weatherBindings(scene).roof ? initialAngle(weatherBindings(scene).roof) : 90) } : {}),
     ...(scene.canvas.background==='pondLab'?{pondWorld:createPondWorld(scene.canvas.pondEnvironment,pondBindings(scene).drain?initialAngle(pondBindings(scene).drain):0)}:{}),
+    ...(scene.canvas.background === 'gorillaTrack' ? {gorillaWorld:createGorillaTrack(scene)} : {}),
     ...(scene.canvas.background === 'lineTrack' ? { lineWorld: createLineWorld(arenaPose(scene).position, arenaPose(scene).angle) } : {}),
     ...(scene.canvas.background === 'robotArena' ? { arenaWorld: createArenaWorldState(arenaPose(scene).position, arenaPose(scene).angle) } : {}),
     ...(scene.canvas.background === 'conveyor' ? { conveyorWorld: createConveyorWorldState(scene.canvas.conveyorEnvironment, initialAngle(conveyorBindings(scene).gate)) } : {}),
@@ -885,6 +896,7 @@ function resetExecution(
   wifiMessageSequence = 0;
   lastReceivedMessages.clear();
   visualAnimations.clear();
+  gorillaJobs.clear();gorillaPositions.clear();
   ottoOwners.clear();
   ottoQueues.clear();
   clearBlockActivity();
@@ -1599,6 +1611,33 @@ function executeInstruction(
     execution.pending = null;
     delete state.activeBlockIds[execution.thread.id];
     return 'done';
+  }
+  if(node.op==='gorilla'){
+    const d=state.devices[node.deviceId],spec=scene.devices.find(x=>x.id===node.deviceId);
+    if(d?.kind!=='educationalModule'||spec?.kind!=='gorilla'){execution.pc++;return 'action';}
+    if(gorillaJobs.has(node.deviceId))return 'wait';
+    if(node.action==='prepare'){d.values.ready=true;d.values.error=false;execution.pc++;appendConsole(`${deviceName(node.deviceId)}: preparado, sin mover motores`);return 'action';}
+    const current=gorillaPositions.get(node.deviceId)??Array.from({length:8},(_,i)=>Number(d.values[`j${i}`]));
+    if(node.action==='gait'){
+      const planned=spec.config.kinematics?planGorillaGait(spec.config.kinematics,spec.config.settings,node.index,{stride:node.a,height:node.b,phaseMs:node.durationMs,turnsVerified:false},current):{error:'Configurá geometría v3.'};
+      if(!d.values.ready||!planned.move){d.values.error=true;appendConsole(`${deviceName(node.deviceId)}: ${planned.error??'Prepará el controlador.'}`);execution.pc++;return 'action';}
+      const job=planned.move;gorillaJobs.set(node.deviceId,job);d.values.moving=true;d.values.error=false;
+      execution.pending={kind:'wait',startedAt:virtualNow,until:virtualNow+job.duration,blockId:node.blockId};
+      appendConsole(`${deviceName(node.deviceId)}: ${['avanzar un ciclo','retroceder un ciclo','girar a izquierda (idealizado)','girar a derecha (idealizado)','quedar apoyado'][node.index]} · ${(job.duration/1000).toFixed(2)} s`);return 'wait';
+    }
+    if(node.action==='foot'||node.action==='path'){
+      const planned=spec.config.kinematics?planGorillaPath(spec.config.kinematics,spec.config.settings,node.index,node.points??[],current):{error:'Configurá geometría v3.'};
+      if(!d.values.ready||!planned.move){d.values.error=true;appendConsole(`${deviceName(node.deviceId)}: ${planned.error??'Prepará el controlador.'}`);execution.pc++;return 'action';}
+      const job=planned.move;gorillaJobs.set(node.deviceId,job);d.values.moving=true;d.values.error=false;execution.pending={kind:'wait',startedAt:virtualNow,until:virtualNow+job.duration,blockId:node.blockId};appendConsole(`${deviceName(node.deviceId)}: ${node.action==='path'?'trayectoria '+node.trajectoryName:'mover pie '+(node.index+1)} · ${(job.duration/1000).toFixed(2)} s`);return 'wait';
+    }
+    const targets=node.action==='posture'?gorillaPostureTargets(spec.config.settings,node.angles):gorillaTargets(spec.config.settings,current,node.index,node.a,node.b,node.action==='pair');
+    if(!d.values.ready||!targets){d.values.error=true;appendConsole(`${deviceName(node.deviceId)}: orden rechazada; prepará el robot y revisá límites`);execution.pc++;return 'action';}
+    const mask=node.action==='posture'?255:node.action==='pair'?3<<(node.index*2):1<<node.index;
+    const job=gorillaMove(current,targets,node.durationMs,mask);gorillaJobs.set(node.deviceId,job);d.values.moving=true;d.values.error=false;
+    execution.pending={kind:'wait',startedAt:virtualNow,until:virtualNow+job.duration,blockId:node.blockId};
+    if(node.action==='posture')appendConsole(`${deviceName(node.deviceId)}: postura ${node.postureName}`);
+    else appendConsole(`${deviceName(node.deviceId)}: ${node.action==='pair'?'pata '+(node.index+1):'motor '+(Math.floor(node.index/2)+1)+(node.index%2?'B':'A')} → ${node.a}°${node.action==='pair'?' / '+node.b+'°':''}`);
+    return 'wait';
   }
   if (node.op === 'wait') {
     execution.pending = {
@@ -2701,6 +2740,7 @@ function updateHousePhysics(deltaMs: number) {
 }
 
 function updatePhysics(deltaMs: number) {
+  for(const [id,job]of gorillaJobs){const next='frames' in job?advanceGorillaGait(job,deltaMs):'segments' in job?advanceGorillaPath(job,deltaMs):advanceGorilla(job,deltaMs),d=state.devices[id];if(state.gorillaWorld&&'travel' in next)state.gorillaWorld=advanceGorillaTrack(state.gorillaWorld,scene,next.travel,next.yaw,next.swing,0,next.moving);gorillaPositions.set(id,next.angles);if(d?.kind==='educationalModule'){next.angles.forEach((a,i)=>d.values[`j${i}`]=(Math.sign(a)*Math.round(Math.abs(a))||0));d.values.moving=next.moving;if('error' in next&&next.error)d.values.error=true;}if(next.moving)gorillaJobs.set(id,next.move);else gorillaJobs.delete(id);}
   if (state.status !== 'done' && state.status !== 'stopped') {
     updateRailPhysics(deltaMs);
     updateParkingPhysics(deltaMs);
@@ -2713,6 +2753,7 @@ function updatePhysics(deltaMs: number) {
     updateArenaPhysics(deltaMs);
     updateLinePhysics(deltaMs);
   }
+  if(state.gorillaWorld)state.gorillaWorld=advanceGorillaTrack(state.gorillaWorld,scene,0,0,state.gorillaWorld.swing,deltaMs,Array.from(gorillaJobs.values()).some(j=>'frames' in j));
   updateVisualAnimations();
   for (const timer of Object.values(state.timers)) {
     if (timer.status !== 'running' || timer.durationMs <= 0 || deltaMs <= 0)
@@ -2954,6 +2995,7 @@ function setInputById(deviceId: string, value: unknown) {
   if (Object.values(theaterBindings(scene)).includes(deviceId)) return;
   if (['climate', 'rain', 'light'].some(role => weatherBindings(scene)[role as 'climate' | 'rain' | 'light'] === deviceId)) return;
   const pond=pondBindings(scene);if([pond.reserveSensor,pond.lagoonSensor,pond.spillSensor].includes(deviceId))return;
+  if(scene.devices.some(d=>d.id===deviceId&&d.kind==='gorilla'))return;
   if (conveyorInputRoles.some(role => conveyorBindings(scene)[role] === deviceId)) return;
   if (houseInputRoles.some(role => houseBindings(scene)[role] === deviceId)) return;
   if (Object.entries(gardenBindings(scene)).some(([role, id]) => ['outsideSoil', 'insideSoil', 'climate', 'light'].includes(role) && id === deviceId)) return;
@@ -3162,6 +3204,7 @@ scope.addEventListener('message', (event) => {
       emit();
       break;
     case 'STOP':
+      gorillaJobs.clear();for(const d of Object.values(state.devices))if(d.kind==='educationalModule'&&d.deviceKind==='gorilla')d.values.moving=false;
       ottoQueues.clear(); ottoOwners.clear();
       running = false;
       state.status = 'stopped';

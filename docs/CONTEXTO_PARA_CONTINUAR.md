@@ -1,5 +1,199 @@
 # CapiBloques — contexto para continuar
 
+### Entrega vigente19/10 — Fase60: marcha coordinada y pista
+
+Rama `codex/fase-60-gorillabot-marcha`, desde origin/dev1
+`7b65ae1bd28520801620aa21b0c1ba0161a42b32`. [Reglas completas](FASE_60_GORILLABOT_MARCHA_PISTA.md).
+Propietario confirmó fase59 instalada en dev1. No se operó ningún servidor,
+main ni dev2; entregar comando instalado fijado al SHA de esta rama.
+
+- Nuevo planGorillaGait TS y CapiGorilla::gait común C++: entrada y cuatro etapas
+  por pata, orden TI/DI/TD/DD, up4mm de referencia, elevar/recuperar/bajar/empujar.
+  Validación íntegra incluida entrada, rama IK59, tasa30°/s +5% y duración común;
+  no usar cuatro trayectorias independientes en paralelo. Detener mantiene PWM,
+  referencia explícita no preempta; pausa congela reloj. No certifica equilibrio.
+- Config.gait opcional stride/height/phaseMs/turnsVerified, escena960×540
+  gorillaTrack/straight|maneuvers, arenaEnvironment compartido estructuralmente
+  pero validación propia sin estaciones de la pista diferencial. Cuerpo idealizado,
+  huella42, 4unidades/mm didácticas, yaw virtual no medición; visitas al parar500ms,
+  contactos por episodio y marcha puede seguir patinando, retroceder sale.
+  Controles usan borrador y guardar/cancelar/undo existentes; cambiar parámetros,
+  geometría o calibración invalida verificación de giro.
+- Nuevos bloques gait/settle, op gorilla action=gait, index0avance/1retroceso/
+  2izquierda/3derecha/4apoyo; a=stride, b=height, durationMs=phaseMs.
+  1–20 ciclos como repeat común. Dos ejemplos nuevos completos: gorillaTrack y
+  gorillaTrackProcedures, preparar/8ciclosadelante/esperar/8atrás/esperar.
+  Modular3tareas2tabs; Main tres llamadas. Ejemplos anteriores intactos.
+- Runtime1.14.0 ABI1/cap gorilla-gait, firmware/packaging/deploy/testcontratos
+  actualizados. Giro físico bloqueado hasta confirmación adulta en escena,
+  tanto en exportaciones/reglas como en intérprete. Sin migraciones/deps.
+- Evidencia: tipos/lint, smoke completo (incluye mundos previos y Gorilla60),
+  build10páginas estáticas (aviso previo chunk>500KB), seis tests backendGorilla
+  y packaging. Core C++ bajo -Wall/-Wextra/-Werror, paridad TS, HAL intérprete y
+  ambas salidas; cinco modos y dos ejemplos worker a1×/4×, STOP/RESET/pausa.
+  Navegador: ambos ejemplos nuevos, configuración guardar/cancelar/undo/redo/
+  reabrir; regresión previa58/59. La primera corrida conjunta dio11/12:
+  el test antiguo de pausa leyó un snapshot anterior al ACK; se añadió espera
+  explícita de Reanudar antes de tomar posición estable (sin cambiar runtime).
+  Rerun final dirigido: 3/3 aprobados (dos nuevos + trayectoria modular), tras
+  11/12 iniciales; toda la cobertura ejecutada quedó aprobada. SDK completo,
+  robot físico y renderer Waveshare pendientes; no confundir C++/HAL con ellos.
+  Actualización dev1 corre por propietario. No comenzar61 ni mandos62–64.
+
+### Entrega vigente19/10 — Resto59: cinemática v3 y trayectorias
+
+Rama `codex/fase-59-gorillabot-trayectorias` desde origin/dev1
+`6909d040497f6a4a2083d1a2992dd4a68a080e05`.
+[Guía completa](FASE_59_GORILLABOT_CINEMATICA.md). Propietario aportó carpeta
+GorillaBot4577379 y confirmó THIGH_SERVO_MG90S_v3 del3MFx8. Fase59 por ángulos
+está integrada en origin/dev1; esto no prueba su aceptación física.
+
+- Medidas nominales STL: muslos50mm, ambas pantorrillas100mm, separación de
+  ejes46mm en ambas bases. Herramienta propia scripts/measure-gorilla-v3.py,
+  lectura/círculos/hashes/unidades/8instancias3MF sin escala, sin dependencias.
+  No copiar el visor de armado: usa46,1/98,9 aproximados. Fuentes originales
+  quedan en Downloads del propietario, no se importan assets/código CC BY-NC-SA.
+  Guía conserva identificación/hashes/método para continuar desde otra cuenta.
+- kinematics opcional: perfil gorilla-v3-50-100-46,zeroAngles[8],pulseMinUs,
+  pulseMaxUs,verified. Referencia90° hacia abajo sólo previsualización inicial.
+  A delante/CALF_EXT, B detrás/CALF_INT. Inversión de servo resuelve reflejos.
+  Pulsos anteriores1000–2000 conservados, no se copia automáticamente544–2400
+  ni canales del programa adaptado (DI0/1,DD7/6,TI2/3,TD5/4).
+- FK/IK con rama fija inferior/A−acos/B+acos, límites de servo y márgenes
+  numéricos/singularidad, sin clipping ni conmutación. Eje L4, no apoyo en suelo.
+  Se valida camino entero incluida entrada desde posición ordenada actual;
+  paso≤0,25mm,16–256subdivisiones, IK cada tick y duración ampliada30°/s+5%
+  sobre tasa muestreada. No certifica colisiones/holguras/equilibrio.
+- trajectories opcional:8bibliotecas,16puntos cada una,IDs/nombres estables,
+  leg0..3,forward±50/up±30mm/ms200–10000,120s pedidos/180s efectivos máx.
+  Presets levantar/apoyar, rectángulo y arco como polilínea; editor amplio con
+  lista/arrastre/reordenado,undo/redo60,guardar/cancelar y preview sin USB.
+  Guarda al borrador; después Guardar cambios y Guardar escena.
+- Bloques mover pie y recorrer1–20veces (bucle común), nuevos ejemplos completos
+  trayectorias directo/modular3tareas2tabs. Ejemplos58/59anteriores intactos.
+  Simulador conserva posiciones internas fraccionales y j0..7 enteros como
+  contrato previo, no sensores. Banco usa geometría medida al habilitar perfil.
+- Runtime1.13.0/ABI1/cap gorilla-kinematics-v3, acciones gorilla/foot,path.
+  Sharedcore C++ exports Arduino/IDF e intérprete, controlador/PCA sin cambios
+  de pines automáticos. Transferencias acotadas, dueño único, pausa/STEP/STOP.
+  Comprobar dos confirmaciones adultas (general y geométrica) antes de hardware.
+  Cambios de calibración invalidan la segunda; cambios de pulsos también general.
+  Preparar no centra servos; tras encender/reiniciar no conoce posición real.
+- Pruebas locales:220posiciones TS↔C++,3presets/límites/tasa/rechazo íntegro/
+  parada/rollover/falloI2C, funciones reales del intérprete con dobles HAL,
+  5testsDjango y workspaces en worker1×/4×. Smoke completo y build10páginas
+  aprobados (aviso habitual chunk>500kB). Chromium:3nuevos recorridos aprobados,
+  regresión de los6anteriores también aprobada:9/9 Chromium. Arrastre de punto
+  y undo de gesto comprobados en repetición del editor. Tipos/lint aprobados.
+  Entrada FK→IK debe coincidir con ángulos actuales para impedir un salto de rama;
+  prueba específica TS/C++ tras ángulos20/−20. deviceSignature del workspace
+  incluye config de gorilla para refrescar bibliotecas/calibración sin recargar;
+  no mantener un weakmap con puntos antiguos después de guardar la escena.
+  Décimo recorrido Chromium aprobado: modificar Levantar, guardar y ejecutar
+  inmediatamente sin recargar, sin diagnóstico de referencias obsoletas. CAPI_G_PI evita macro PI de Arduino.
+- No dependencias/migraciones; conservar SDK/cache incremental. SDK ESP-IDF
+  completo, actualización/aceptación dev1 y prueba física NO ejecutados aquí.
+  No se operaron servidores/main/dev2. No iniciar60 ni teleoperación por inferencia.
+- Entrega commit/push sólo rama; usar capi-dev --env dev1 --branch
+  codex/fase-59-gorillabot-trayectorias --commit SHA40 publicado.
+
+Los apartados inferiores son históricos y no revocan esta ampliación autorizada.
+
+
+### Entrega vigente19/10 — Fase59: posturas por ángulos
+
+Rama `codex/fase-59-gorillabot-posturas` desde origin/dev1
+`d8f33ed9ac36da7a4ea67db5cd67479f369110a3`.
+[Guía59](FASE_59_GORILLABOT_POSTURAS.md), [plan58–64](PLAN_GORILLABOT_EVOLUTIVO.md).
+El propietario confirmó58 instalada en dev1. No se operaron servidores/main/dev2.
+
+- Alcance explícito: posturas por ángulos. Trayectorias físicas XY/IK59 pendientes
+  hasta medidas/CAD reales; no inventar geometría ni iniciar60.
+- config.postures opcional del gorilla, hasta16, ID estable/nombre único/8ángulos
+  enteros −20..20 y dentro de límites calibrados. Legacy58 sin biblioteca ofrece
+  Referencia; [] explícito conserva biblioteca vacía. Modelo/JSON/backend estrictos.
+- Modal Editar posturas desde inspector: alta/duplicación/nombre/baja confirmada,
+  8campos por pata, preview local sin USB, pausa/continuación/progreso,60undo/redo,
+  Guardar/Cancelar y confirmación de cierre. Guardar sólo aplica al borrador:
+  después Guardar cambios y Guardar escena. No convierte preview en estado inicial.
+- Bloque ir a postura por ID; rename conserva referencia y baja produce error,
+  sin sustitución silenciosa. Ocho motores con tiempo común,200–10000ms y30°/s,
+  sin dos movimientos compitiendo. No FIFO prometido entre procesos.
+- Intérprete1.12.0/ABI1/cap gorilla-postures; sharedcore idéntico Arduino/IDF/
+  intérprete, límites revalidados y arrays estrictos. Se conservan acciones58.
+  Guardas de hardware/pines/verified y bloqueo Waveshare vigentes.
+- Ejemplos completos nuevos explorar posturas y posturas con procedimientos:
+  Referencia/A+8°/B−8°, tres ciclos; modular4tareas/3tabs. No son de pie/agachado
+  certificados ni marcha. Dos ejemplos58 intactos.
+- Sin dependencias/migraciones. Conservar SDK/cache incremental; sólo recompilar
+  aplicación al actualizar. La primera posición física sigue desconocida:
+  sostener montaje/calibración adulta. Órdenes y postura mostrada no son sensores.
+- Pruebas locales: smoke completo, tipos/lint/build10páginas,4tests backend,
+  modelo/JSON/reglas/generadores y worker1×/4×, driver C++ HAL con warnings como
+  errores y validación real del intérprete. Navegador:6recorridos Chromium aprobados
+  (4ejecuciones58/59 y2editores; dos regresiones corregidas y repetidas).
+  SDK completo y robot físico NO probados; aceptación dev1 pendiente del propietario.
+- Entrega: commit/push sólo rama. Actualizar con capi-dev --env dev1 --branch
+  codex/fase-59-gorillabot-posturas --commit SHA40 publicado. Telemetría de placa
+  describe preparar/motor/par/postura por nombre; editor mantiene acciones visibles. No promover main.
+
+Los apartados inferiores son históricos; no revocan el alcance59 acordado.
+
+
+### Entrega vigente19/10 — Fase58: GorillaBot, banco y una pata
+
+Rama `codex/fase-58-gorillabot-banco` desde origin/dev1
+`481854cf239f3cc41fc247be8ffc1804646743f1`. [Plan evolutivo58–64](PLAN_GORILLABOT_EVOLUTIVO.md)
+y [alcance58](FASE_58_GORILLABOT_BANCO.md). Sólo58 autorizada/implementada.
+Fase57 confirmada por el propietario en dev1; pidió comando de promoción, pero
+no confirmó ejecutarlo. No se operaron servidores, main ni dev2.
+
+- Componente gorilla/perfil GORILLA_PCA9685: 8servos, patas DI/DD/TI/TD y motores
+  A/B. Wemos o DevKitS3, bus I2C1 dedicado/PCA9685; ningún LEDC para esos8canales.
+  Preparar sin centrar ocho motores, movimientos relativos −20..20°, límites
+  calibrados, máximo30°/s,200–10000ms; espera del camino y otros siguen.
+- Banco nuevo gorillaBench, robot/pares articulados y vista ampliada seleccionable.
+  Ilustración propia de mecanismo5barras, no geometría real/IK ni equilibrio.
+  Una pata aquí es un par A/B explícito. Coordenadas/posturas medidas en59;
+  marcha60, autonomía61, web/celular62, mandoESP3263 y Waveshare64 pendientes.
+- Inspector dedicado: canales únicos, centros/inversión/límites, dirección I2C,
+  preview local sin USB, guardar/cancelar objeto/escena, undo/redo existentes.
+  Calibración nace sin verificar; una persona adulta revisa antes de reglas o
+  fuentes para hardware. Esa confirmación no es un certificado/permiso de rol
+  ni enlaza automáticamente la calibración con el hardwareID de otra unidad.
+- Estados j0..7 ordenados (enteros, no realimentación), ready/moving/error
+  consultables. Dos ejemplos completos: conocer un motor y una pata con
+  procedimientos (3tareas/2tabs). Simulación1×/4×, pausa/Paso/reset/STOP, sin
+  sensores manuales competidores ni ocho servo-componentes sueltos.
+- Intérprete **1.11.0**, ABI1/capacidad gorilla-bench. Rechazo de perfil/calibración/
+  pines/órdenes inválidos también en firmware. Núcleo C++ idéntico entre exports
+  Arduino/IDF e intérprete; I2C acotado5ms. Mantener último pulso al detener, no
+  desenergizar y hacer caer. Actualizar firmware al probar esta capacidad.
+- Sin dependencias ni migraciones. Hay cambios de aplicación de firmware y
+  generador; usar caché incremental existente, no borrar outputs/SDK.
+  Banco Waveshare no implementado y capacidad no se anuncia en esa placa.
+
+Evidencia local: smoke completo aprobado (incluye pruebas GorillaBot); ambos
+workspaces reales con JSON portable, pestañas normalizadas y valores/capacidades,
+reglas y generadores; preparación necesaria, sólo motores elegidos, límite/
+inversión, movimiento cooperativo, pausa/Paso/reset/STOP. C++Arduino/IDF compilado/
+ejecutado con HAL y -Wall/-Wextra/-Werror, núcleo idéntico al header de intérprete;
+funciones reales nuevas de intérprete extraídas/compiladas y ejecutadas con HAL,
+validación/calibración/pines, I2C, pausa y parada. No equivale a compilar todo SDK.
+6pruebas Django(58/57), los2proyectos reales frontend→Django,26contratos de
+empaquetado/entornos/reanudación/caché aprobados. Chromium3recorridos (dos ejemplos
+y calibración preview/guardar/cancelar), repetición del modular tras ajuste
+visual y capturas inspeccionadas. Tipos/lint, lint de nuevos componentes y build
+10páginas aprobados; warning existente de chunk grande, no error.
+
+Pendientes: integrar/actualizar sólo dev1 por propietario; SDK completo en la
+actualización y prueba mecánica/eléctrica de robot/PCA9685 reales. No hubo acceso
+a un GorillaBot físico. Banco no simula equilibrio ni autoriza caminar.
+No iniciar59 sin validar medidas, montaje/rama y recorridos reales.
+La incidencia HAL previa de56 sigue documentada; no se afirma suite HAL antigua
+completa aprobada ni se modificó para ocultarla.
+
+
 ### Entrega vigente 19/10: fase57 — Laguna, depósito y bombeo
 
 Rama `codex/fase-57-laguna-bombeo` desde origin/dev1 `86e6cfe`.

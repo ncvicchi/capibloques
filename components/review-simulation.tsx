@@ -323,6 +323,7 @@ export default function ReviewSimulation({
           gardenWorld={state?.gardenWorld}
           houseWorld={state?.houseWorld}
           conveyorWorld={state?.conveyorWorld}
+          gorillaWorld={state?.gorillaWorld}
           arenaWorld={state?.arenaWorld}
           weatherWorld={state?.weatherWorld}
           pondWorld={state?.pondWorld}
@@ -344,6 +345,7 @@ export default function ReviewSimulation({
           {project.scene.devices.map((device) => {
             const runtime = state?.devices[device.id];
             if(Object.entries(pondBindings(project.scene)).some(([role,id])=>role.endsWith('Sensor')&&id===device.id))return <p key={device.id}>{device.name} · lectura automática del agua virtual</p>;
+            if(device.kind==='gorilla')return <p key={device.id}>{device.name}: actuador del banco, sin entradas manuales.</p>;
             if(project.scene.canvas.background==='lineTrack'&&device.kind==='lineSensors')return <p key={device.id}>{device.name}: lectura automática bajo el robot, no editable.</p>;
             if (Object.values(theaterBindings(project.scene)).includes(device.id)) return <p key={device.id}>{device.name} · entrada automática del público</p>;
             if (['climate', 'rain', 'light'].some(role => weatherBindings(project.scene)[role as 'climate' | 'rain' | 'light'] === device.id)) return <p key={device.id}>{device.name} · lectura automática del clima exterior</p>;
