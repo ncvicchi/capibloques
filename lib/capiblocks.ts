@@ -24,7 +24,11 @@ import { pondExample } from './pond-examples.ts';
 // @ts-expect-error Node strip-types runner.
 import {gorillaFirmwareSupport} from './gorilla-firmware.ts';
 // @ts-expect-error Node strip-types runner.
+import {gorillaPostures,gorillaPostureTargets} from './gorilla-model.ts';
+// @ts-expect-error Node strip-types runner.
 import {gorillaExample} from './gorilla-examples.ts';
+// @ts-expect-error Node strip-types runner.
+import {gorillaPostureExample} from './gorilla-posture-examples.ts';
 export type SceneId = LegacySceneId;
 // @ts-expect-error Node strip-types runner.
 import { ottoQueueSupport } from './otto-queue.ts';
@@ -131,7 +135,7 @@ export type Condition =
   | { kind: 'boolean'; value: boolean };
 
 export type ProgramNode =
-  | {op:'gorilla';deviceId:string;action:'prepare'|'joint'|'pair';index:number;a:number;b:number;durationMs:number;blockId:string}
+  | {op:'gorilla';deviceId:string;action:'prepare'|'joint'|'pair'|'posture';postureId?:string;postureName?:string;angles?:number[];index:number;a:number;b:number;durationMs:number;blockId:string}
   | { op: 'robotWheels'; deviceId: string; left: number; right: number; blockId: string }
   | { op: 'wait'; ms: number; blockId: string }
   | {
@@ -311,7 +315,7 @@ export interface ProjectDecodeResult {
   diagnostics: CapiDiagnostic[];
 }
 
-export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4' | 'parkingProcedures' | 'greenhouseProcedures' | 'smartHouseProcedures' | 'conveyorProcedures' | 'robotArenaProcedures' | 'weatherLabProcedures' | 'ottoTheaterProcedures' | 'lineTrackProcedures' | 'pondLabProcedures' | 'gorillaBenchProcedures';
+export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4' | 'parkingProcedures' | 'greenhouseProcedures' | 'smartHouseProcedures' | 'conveyorProcedures' | 'robotArenaProcedures' | 'weatherLabProcedures' | 'ottoTheaterProcedures' | 'lineTrackProcedures' | 'pondLabProcedures' | 'gorillaBenchProcedures' | 'gorillaPostures' | 'gorillaPosturesProcedures';
 export interface ExampleDefinition {
   id: ExampleId;
   title: string;
@@ -1394,6 +1398,8 @@ export const examples: ExampleDefinition[] = [
   arenaExample(true),
   gorillaExample(false),
   gorillaExample(true),
+  gorillaPostureExample(false),
+  gorillaPostureExample(true),
   pondExample(false),
   pondExample(true),
   weatherLabExample(false),
@@ -1603,7 +1609,7 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_traffic_pedestrian_display',
   'capi_led',
   'capi_power_switch',
-  'capi_gorilla_prepare', 'capi_gorilla_joint', 'capi_gorilla_pair',
+  'capi_gorilla_prepare', 'capi_gorilla_joint', 'capi_gorilla_pair', 'capi_gorilla_posture',
   'capi_rgb_fill',
   'capi_rgb_pixel',
   'capi_rgb_segment',
@@ -2100,7 +2106,7 @@ const blockKind = (block: Record<string, unknown>): SceneDeviceKind | null => {
       return 'led';
     case 'capi_power_switch': return 'powerSwitch';
     case 'capi_stepper': return 'stepper';
-    case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair': return 'gorilla';
+    case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair': case 'capi_gorilla_posture': return 'gorilla';
     case 'capi_rgb_fill':
     case 'capi_rgb_pixel':
     case 'capi_rgb_segment':
@@ -2737,7 +2743,7 @@ function normalizeNodes(
         });
         break;
       case 'gorilla':
-        result.push({op:'gorilla',deviceId,action:node.action==='prepare'?'prepare':node.action==='pair'?'pair':'joint',index:Math.max(0,Math.min(node.action==='pair'?3:7,Math.trunc(finiteNumber(node.index,0)))),a:Math.max(-20,Math.min(20,Math.round(finiteNumber(node.a,0)))),b:Math.max(-20,Math.min(20,Math.round(finiteNumber(node.b,0)))),durationMs:Math.max(200,Math.min(10000,finiteNumber(node.durationMs,1000))),blockId});
+        result.push({op:'gorilla',deviceId,action:node.action==='posture'?'posture':node.action==='prepare'?'prepare':node.action==='pair'?'pair':'joint',...(node.action==='posture'?{postureId:typeof node.postureId==='string'?node.postureId:'',postureName:typeof node.postureName==='string'?node.postureName:'',angles:Array.isArray(node.angles)?node.angles:[]}:{}),index:Math.max(0,Math.min(node.action==='pair'?3:7,Math.trunc(finiteNumber(node.index,0)))),a:Math.max(-20,Math.min(20,Math.round(finiteNumber(node.a,0)))),b:Math.max(-20,Math.min(20,Math.round(finiteNumber(node.b,0)))),durationMs:Math.max(200,Math.min(10000,Math.round(finiteNumber(node.durationMs,1000)))),blockId});
         break;
       case 'stepper':
         result.push({ op:'stepper', deviceId, steps:Math.max(-100000, Math.min(100000, Math.trunc(finiteNumber(node.steps, 0)))), speed:Math.max(1, Math.min(1000, finiteNumber(node.speed, 300))), blockId });
@@ -3406,6 +3412,10 @@ export function validateProgramForScene(
   const foreverVisualDevices = new Set<string>();
   const visualWaitBlocks = new Map<string, string>();
   visitProgram(program, (node) => {
+    if(node.op==='gorilla'&&node.action==='posture'){
+      const d=deviceMap.get(node.deviceId),pose=d?.kind==='gorilla'?gorillaPostures(d.config).find(p=>p.id===node.postureId):undefined;
+      if(!pose||d?.kind!=='gorilla'||!gorillaPostureTargets(d.config.settings,node.angles)||JSON.stringify(pose.angles)!==JSON.stringify(node.angles))diagnostics.push({severity:'error',code:'gorilla-posture',message:'La postura fue retirada o sus ángulos no corresponden a la escena. Elegila de nuevo; revisá los límites.',blockId:node.blockId,deviceId:node.deviceId});
+    }
     const expressions: ValueExpression[] = [];
     if (node.op === 'variableSet') expressions.push(node.value);
     if (node.op === 'switch') {
@@ -4101,7 +4111,8 @@ function instructionToCpp(
     }
     case 'gorilla': {
       const kind=instruction.action==='prepare'?0:instruction.action==='pair'?2:1;
-      return `${comment}\n        if (!${waiting}) { if(CAPI_GORILLA.busy)return; ${kind===0?'if(!capiGorillaPrepare())CAPI_GORILLA.error=true;':`CAPI_GORILLA.start(${kind},${instruction.index},${Math.round(instruction.a)},${Math.round(instruction.b)},${Math.round(instruction.durationMs)}U,now);`} ${waiting}=true;return;}\n        if(CAPI_GORILLA.busy)return;\n        ${waiting}=false;${pc}=${nextPc};break;`;
+      const movement=instruction.action==='posture'?`{const int pose[8]={${(instruction.angles??[]).join(',')}};CAPI_GORILLA.posture(pose,${Math.round(instruction.durationMs)}U,now);}`:`CAPI_GORILLA.start(${kind},${instruction.index},${Math.round(instruction.a)},${Math.round(instruction.b)},${Math.round(instruction.durationMs)}U,now);`;
+      return `${comment}\n        if (!${waiting}) { if(CAPI_GORILLA.busy||CAPI_GORILLA_OWNER>=0)return; CAPI_GORILLA_OWNER=${context.threadIndex}; ${kind===0&&instruction.action!=='posture'?'if(!capiGorillaPrepare())CAPI_GORILLA.error=true;':movement} ${waiting}=true;return;}\n        if(CAPI_GORILLA.busy)return;\n        CAPI_GORILLA_OWNER=-1;${waiting}=false;${pc}=${nextPc};break;`;
     }
     case 'stepper':
       return `${comment}\n        capiStepperMove_${deviceSymbol(context, instruction.deviceId)}(${Math.trunc(instruction.steps)}, ${Math.round(instruction.speed)});\n        ${componentStateSymbol(instruction.deviceId, 'position')} += ${Math.trunc(instruction.steps)};\n        ${componentStateSymbol(instruction.deviceId, 'moving')} = ${Math.trunc(instruction.steps) !== 0 ? 'true' : 'false'};\n        ${pc} = ${nextPc};\n        break;`;

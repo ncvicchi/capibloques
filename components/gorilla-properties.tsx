@@ -2,18 +2,27 @@
 import { useState } from 'react';
 import {
   gorillaLegNames,
+  gorillaPostures,
+  validGorillaPostures,
+  type GorillaPosture,
   gorillaValues,
   validGorillaSettings,
   type GorillaSettings,
 } from '@/lib/gorilla-model';
+import GorillaPostures from '@/components/gorilla-postures';
 import GorillaVisual from '@/components/gorilla-visual';
 export default function GorillaProperties({
   settings,
   onChange,
+  postures,
+  onPostures,
 }: {
   settings: GorillaSettings;
+  postures?: GorillaPosture[];
+  onPostures: (p: GorillaPosture[]) => void;
   onChange: (s: GorillaSettings) => void;
 }) {
+  const [editingPostures, setEditingPostures] = useState(false);
   const [leg, setLeg] = useState(0),
     [test, setTest] =
       useState<Record<string, number | string | boolean>>(gorillaValues());
@@ -26,6 +35,20 @@ export default function GorillaProperties({
         el ejemplo, con el robot sostenido y una persona adulta. Primero
         verificá conexiones, centros y límites.
       </p>
+      <button type="button" onClick={() => setEditingPostures(true)}>
+        Editar posturas
+      </button>
+      {editingPostures && (
+        <GorillaPostures
+          settings={settings}
+          postures={gorillaPostures({ postures })}
+          onCancel={() => setEditingPostures(false)}
+          onSave={(poses) => {
+            onPostures(poses);
+            setEditingPostures(false);
+          }}
+        />
+      )}
       <label>
         Pata a calibrar
         <select
@@ -117,6 +140,13 @@ export default function GorillaProperties({
           No se puede guardar una calibración inválida.
         </p>
       )}
+      {validGorillaSettings(settings) &&
+        !validGorillaPostures(gorillaPostures({ postures }), settings) && (
+          <p role="alert">
+            Alguna postura supera los nuevos límites. Abrí Editar posturas para
+            corregirla antes de guardar.
+          </p>
+        )}
       <GorillaVisual
         values={test}
         preview

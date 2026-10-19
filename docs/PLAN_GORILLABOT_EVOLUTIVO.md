@@ -61,6 +61,8 @@ ilustrativo explica cómo se combinan; la cinemática medida queda en59.
 
 ### 59 — Posturas, recorridos y cinemática
 
+**Decisión19/10:** implementar primero [posturas por ángulos](FASE_59_GORILLABOT_POSTURAS.md), con transiciones coordinadas y dos ejemplos. Trayectorias físicas por coordenadas/IK quedan pendientes hasta disponer de medidas reales. No publicar de pie/agachado/saludo con ángulos arbitrarios ni usar la geometría ilustrativa58 para motores reales. Esta entrega no cierra todo59.
+
 - Confirmar longitudes, distancia entre ejes, montaje/espejos y rama de ensamblaje.
   Definir zona alcanzable sin singularidades y límites por articulación; rechazar
   recorridos inalcanzables, no recortar silenciosamente ni saltar de rama.

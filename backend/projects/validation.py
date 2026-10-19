@@ -30,7 +30,7 @@ BLOCKS.add("capi_switch")
 BLOCKS.add("capi_while")
 BLOCKS.add("capi_power_switch")
 BLOCKS.add("capi_stepper")
-BLOCKS.update(("capi_gorilla_prepare","capi_gorilla_joint","capi_gorilla_pair"))
+BLOCKS.update(("capi_gorilla_prepare","capi_gorilla_joint","capi_gorilla_pair","capi_gorilla_posture"))
 BLOCKS.update(("capi_display_write", "capi_display_clear", "capi_display_animate_text", "capi_display_artwork", "capi_display_button_pressed", "capi_visual_wait"))
 BLOCKS.update(("capi_message_send", "capi_message_receive"))
 BLOCKS.update(("capi_matrix_clear", "capi_matrix_pixel", "capi_matrix_pattern", "capi_matrix_scroll"))
@@ -376,7 +376,7 @@ def scene(value, board_profile="wemos-d1-r32"):
             else:
                 if kind in MODULES:
                     module_pins, profiles, value_types = MODULES[kind]
-                    exact(config, ("profile", "values", "settings"))
+                    exact(config, ("profile", "values", "settings", "postures") if kind=="gorilla" and "postures" in config else ("profile", "values", "settings"))
                     require(config["profile"] in profiles and isinstance(config["values"], dict) and set(config["values"]) == set(value_types) and isinstance(config["settings"], dict))
                     require(all(type(config["values"][key]) in ((rule,) if isinstance(rule, type) else rule) for key, rule in value_types.items()))
                     require(all(isinstance(key, str) and isinstance(value, (str, int, float, bool)) for key, value in config["settings"].items()))
@@ -389,6 +389,19 @@ def scene(value, board_profile="wemos-d1-r32"):
                         ch,c,a,b=[settings[f'{key}{i}'] for key in ('channel','center','min','max')]
                         require(all(type(v) is int for v in (ch,c,a,b)) and 0<=ch<=15 and ch not in channels and 50<=a<=c<=b<=130 and 70<=c<=110 and type(settings[f'reversed{i}']) is bool)
                         channels.add(ch)
+                    if 'postures' in config:
+                        poses=config['postures']
+                        require(isinstance(poses,list) and len(poses)<=16)
+                        pose_ids=set();pose_names=set()
+                        for pose in poses:
+                            exact(pose,('id','name','angles'))
+                            require(isinstance(pose['id'],str) and re.fullmatch(r'[a-zA-Z0-9_-]{1,48}',pose['id']) and pose['id'] not in pose_ids)
+                            name=pose['name']
+                            require(isinstance(name,str) and name==name.strip() and 1<=len(name)<=40 and name.lower() not in pose_names)
+                            angles=pose['angles']
+                            require(isinstance(angles,list) and len(angles)==8 and all(type(a) is int and -20<=a<=20 for a in angles))
+                            require(all(settings[f'min{i}']<=settings[f'center{i}']+(-a if settings[f'reversed{i}'] else a)<=settings[f'max{i}'] for i,a in enumerate(angles)))
+                            pose_ids.add(pose['id']);pose_names.add(name.lower())
                     require(all(value==0 if key.startswith('j') else value is False for key,value in config['values'].items()))
                 if kind == "lineSensors":
                     exact(config["settings"],("activeLow",))

@@ -21,6 +21,8 @@ import { componentValueCapabilities, type ComponentValueSource } from './compone
 import { educationalModuleSpecs } from './educational-modules.ts';
 // @ts-expect-error Node strip-types runner.
 import { pedestrianDisplayValues, vehicleDisplayValues } from './traffic-displays.ts';
+// @ts-expect-error Node strip-types runner.
+import {gorillaPostures} from './gorilla-model.ts';
 type BlocklyApi = typeof import('blockly');
 type BlocklyWorkspaceSvg = import('blockly').WorkspaceSvg;
 type BlocklyBlock = import('blockly').Block;
@@ -125,7 +127,7 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
       return ['powerSwitch'];
     case 'capi_stepper':
       return ['stepper'];
-    case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair':return ['gorilla'];
+    case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair': case 'capi_gorilla_posture':return ['gorilla'];
     case 'capi_rgb_fill':
     case 'capi_rgb_pixel':
     case 'capi_rgb_segment':
@@ -414,6 +416,19 @@ function wifiPeerMenuGenerator(
   ];
 }
 
+function gorillaPostureMenu(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
+  const block=this.getSourceBlock(),device=block?devicesForBlock(block).find(d=>d.id===block.getFieldValue(DEVICE_FIELD)):undefined;
+  const options: BlocklyMenuOption[]=device?.kind==='gorilla'?gorillaPostures(device.config).map(p=>[p.name,p.id]):[];
+  const current=this.getValue();
+  if(current&&current!=='__missing_posture__'&&!options.some(o=>o[1]===current))options.push(['⚠️ Postura retirada',current]);
+  return options.length?options:[['Creá una postura en la escena','__missing_posture__']];
+}
+function refreshGorillaPosture(block: BlocklyBlock) {
+  const field=block.getField('POSTURE_ID') as BlocklyFieldDropdown|null;
+  if(!field)return;
+  const current=field.getValue();field.setOptions(gorillaPostureMenu);
+  if(field.getOptions(false).some(o=>o[1]===current))field.setValue(current);
+}
 function frameAnimationMenuGenerator(this: BlocklyFieldDropdown): BlocklyMenuOption[] {
   const block = this.getSourceBlock();
   const device = block ? devicesForBlock(block).find(item => item.id === block.getFieldValue(DEVICE_FIELD)) : undefined;
@@ -592,6 +607,7 @@ function refreshDeviceField(block: BlocklyBlock) {
   refreshDisplayArtworkField(block);
   const animationField = block.getField('ANIMATION_ID') as BlocklyFieldDropdown | null;
   if (animationField) { const previous = animationField.getValue(); animationField.setOptions(frameAnimationMenuGenerator); if (animationField.getOptions(false).some(item => item[1] === previous)) animationField.setValue(previous); }
+  refreshGorillaPosture(block);
   refreshComponentPropertyField(block);
   const wifiMessage = block.getField(
     WIFI_MESSAGE_FIELD,
@@ -842,7 +858,7 @@ const toolbox = {
         { kind: 'block', type: 'capi_led' },
         { kind: 'block', type: 'capi_power_switch' },
         { kind: 'block', type: 'capi_stepper' },
-        ...['capi_gorilla_prepare','capi_gorilla_joint','capi_gorilla_pair'].map(type=>({kind:'block',type})),
+        ...['capi_gorilla_prepare','capi_gorilla_joint','capi_gorilla_pair','capi_gorilla_posture'].map(type=>({kind:'block',type})),
         { kind: 'block', type: 'capi_rgb_fill' },
         { kind: 'block', type: 'capi_rgb_pixel' },
         { kind: 'block', type: 'capi_rgb_segment' },
@@ -951,6 +967,7 @@ function registerBlocks(Blockly: BlocklyApi) {
         (
           this.getField(WIFI_PEER_FIELD) as BlocklyFieldDropdown | null
         )?.setOptions(wifiPeerMenuGenerator);
+        refreshGorillaPosture(this);
         updateDeviceWarning(this);
       },
     );
@@ -2003,6 +2020,11 @@ function registerBlocks(Blockly: BlocklyApi) {
     },
     {
       type:'capi_gorilla_prepare',message0:'🦍 preparar %1 (sin mover motores)',args0:[deviceField('agregá GorillaBot')],previousStatement:null,nextStatement:null,colour:'#328BDD',tooltip:'Inicia el controlador. Después elegí qué motor mover. No centra ocho servos.',extensions:[DEVICE_EXTENSION],
+    },
+    {
+      type:'capi_gorilla_posture',message0:'🦍 %1 ir a postura %2 en %3 segundos',
+      args0:[deviceField('agregá GorillaBot'),{type:'field_dropdown',name:'POSTURE_ID',options:[['Referencia','reference']]},{type:'field_number',name:'SECONDS',value:2,min:.2,max:10,precision:.1}],
+      previousStatement:null,nextStatement:null,colour:'#328BDD',tooltip:'Mueve los ocho motores juntos. Respeta calibración y 30°/s; espera sólo en este camino. Editá posturas en la escena.',extensions:[DEVICE_EXTENSION],
     },
     ...(['joint','pair'] as const).map(mode=>({
       type:`capi_gorilla_${mode}`,
@@ -3735,7 +3757,12 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           blockId,
         });
         break;
-      case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair':
+      case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair': case 'capi_gorilla_posture':
+        if(block.type==='capi_gorilla_posture'){
+          const currentBlock=block,device=devicesForBlock(currentBlock).find(d=>d.id===selectedDeviceId(currentBlock)),pose=device?.kind==='gorilla'?gorillaPostures(device.config).find(p=>p.id===currentBlock.getFieldValue('POSTURE_ID')):undefined;
+          result.push({op:'gorilla',deviceId:selectedDeviceId(block),action:'posture',postureId:String(block.getFieldValue('POSTURE_ID')),postureName:pose?.name??'Postura retirada',angles:pose?.angles??[],index:0,a:0,b:0,durationMs:numberField(block,'SECONDS',2)*1000,blockId});
+          break;
+        }
         result.push({op:'gorilla',deviceId:selectedDeviceId(block),action:block.type==='capi_gorilla_prepare'?'prepare':block.type==='capi_gorilla_pair'?'pair':'joint',index:numberField(block,'INDEX',0),a:numberField(block,'A',0),b:numberField(block,'B',0),durationMs:numberField(block,'SECONDS',1)*1000,blockId});
         break;
       case 'capi_stepper':

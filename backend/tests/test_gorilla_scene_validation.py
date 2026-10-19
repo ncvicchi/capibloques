@@ -21,3 +21,14 @@ class GorillaValidationTests(unittest.TestCase):
         with self.assertRaises(ValidationError):document(v)
         v=self.sample();other=copy.deepcopy(v['scene']['devices'][0]);other.update(id='second-gorilla',name='Otro GorillaBot');v['scene']['devices'].append(other)
         with self.assertRaises(ValidationError):document(v)
+
+    def test_postures_and_legacy(self):
+        v=self.sample();config=v['scene']['devices'][0]['config']
+        config['postures']=[dict(id='ref',name='Referencia',angles=[0]*8)]
+        self.assertGreater(document(v),0)
+        for bad in ([dict(id='ref',name='Referencia',angles=[0]*7)], [dict(id='ref',name='Referencia',angles=[True]*8)], [dict(id='ref',name='',angles=[0]*8)], config['postures']*2):
+            other=copy.deepcopy(v);other['scene']['devices'][0]['config']['postures']=bad
+            with self.assertRaises(ValidationError):document(other)
+        config['settings']['min7']=85
+        config['postures'][0]['angles'][7]=-10
+        with self.assertRaises(ValidationError):document(v)

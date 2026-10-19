@@ -6,6 +6,9 @@ import {
   gorillaTargets,
   gorillaMove,
   advanceGorilla,
+  validGorillaPostures,
+  referencePosture,
+  gorillaPostureTargets,
 } from '../lib/gorilla-model.ts';
 import {
   examples,
@@ -55,8 +58,21 @@ const job = gorillaMove(zero, [20, 0, 0, 0, 0, 0, 0, 0], 200, 1);
 assert.ok(job.duration >= 666);
 assert.equal(advanceGorilla(job, job.duration).angles[0], 20);
 assert.deepEqual(advanceGorilla(job, 0).angles, zero);
+assert.ok(validGorillaPostures([referencePosture()], s));
+for (const bad of [
+  [{ ...referencePosture(), angles: [0] }],
+  [referencePosture(), referencePosture()],
+  [{ ...referencePosture(), name: '' }],
+  [{ ...referencePosture(), angles: [0, 0, 0, 0, 0, 0, 0, 21] }],
+  [{ ...referencePosture(), extra: true }],
+])
+  assert.ok(!validGorillaPostures(bad, s));
+assert.equal(
+  gorillaPostureTargets({ ...s, min7: 85 }, [0, 0, 0, 0, 0, 0, 0, -10]),
+  null,
+);
 registerBlocks(B);
-for (const e of examples.filter((e) => e.id.startsWith('gorillaBench'))) {
+for (const e of examples.filter((e) => e.id.startsWith('gorilla'))) {
   assert.ok(isSceneDefinition(e.scene));
   assert.equal(validateScene(e.scene).valid, true);
   assert.deepEqual(normalizeWorkspaceTabs(e.workspace), e.workspace.capiTabs);
@@ -100,12 +116,25 @@ for (const e of examples.filter((e) => e.id.startsWith('gorillaBench'))) {
     );
     assert.match(result.code, /capiGorillaPrepare/);
     assert.match(result.code, /CAPI_GORILLA.start/);
+    if (e.id.startsWith('gorillaPostures'))
+      assert.match(result.code, /CAPI_GORILLA.posture/);
   }
   for (const result of [
     generateEsp32CodeResult(p, e.title, e.scene),
     generateEspIdfCodeResult(p, e.title, e.scene),
   ])
     assert.ok(result.diagnostics.some((i) => i.code === 'gorilla-calibration'));
+  if (e.id.startsWith('gorillaPostures')) {
+    assert.ok(rules.requiredCapabilities.includes('gorilla-postures'));
+    const removed = structuredClone(scene);
+    removed.devices[0].config.postures = [];
+    assert.ok(
+      validateProgramForScene(p, removed).some(
+        (d) => d.code === 'gorilla-posture',
+      ),
+    );
+    assert.throws(() => createCapiRules(p, removed, 'wemos-d1-r32'), /postura/);
+  }
   const invalid = structuredClone(scene);
   invalid.devices[0].config.settings.channel2 = 0;
   assert.ok(!isSceneDefinition(invalid));

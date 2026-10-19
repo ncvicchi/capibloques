@@ -1,13 +1,19 @@
 'use client';
 import { useState } from 'react';
-import { gorillaLegDiagram, gorillaLegNames } from '@/lib/gorilla-model';
+import {
+  gorillaLegDiagram,
+  gorillaLegNames,
+  type GorillaPosture,
+} from '@/lib/gorilla-model';
 export default function GorillaVisual({
   values,
+  postures,
   preview = false,
   selectedLeg,
   onSelectLeg,
   interactive = true,
 }: {
+  postures?: GorillaPosture[];
   values: Record<string, number | string | boolean>;
   interactive?: boolean;
   preview?: boolean;
@@ -16,6 +22,14 @@ export default function GorillaVisual({
 }) {
   const [internal, setSelected] = useState(0);
   const selected = selectedLeg ?? internal;
+  const activePosture =
+    !values.moving && !values.error && values.ready
+      ? postures?.find((p) =>
+          p.angles.every(
+            (a, i) => Math.abs(a - Number(values[`j${i}`] ?? 0)) < 0.01,
+          ),
+        )
+      : undefined;
   const a = Number(values[`j${selected * 2}`] ?? 0),
     b = Number(values[`j${selected * 2 + 1}`] ?? 0),
     p = gorillaLegDiagram(a, b);
@@ -37,6 +51,7 @@ export default function GorillaVisual({
   return (
     <div
       className="gorilla-bench"
+      data-gorilla-posture={activePosture?.name ?? ''}
       data-gorilla-ready={!!values.ready}
       data-gorilla-moving={!!values.moving}
       data-gorilla-a={a.toFixed(1)}
@@ -155,9 +170,11 @@ export default function GorillaVisual({
           : values.error
             ? 'Orden rechazada: revisá preparación y límites'
             : values.moving
-              ? 'Moviendo el motor o la pata seleccionada'
+              ? 'Movimiento coordinado en curso'
               : values.ready
-                ? 'Preparado · motores no seleccionados sin nuevas órdenes'
+                ? activePosture
+                  ? `Postura ordenada: ${activePosture.name}`
+                  : 'Preparado · posición personalizada'
                 : 'Sin preparar · agregá Preparar GorillaBot al programa'}
       </small>
     </div>

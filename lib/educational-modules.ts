@@ -1,7 +1,7 @@
 import type { PinCapability, PinNumber } from './scene-model.ts';
 
 // @ts-expect-error Node strip-types runner.
-import {gorillaSettings,gorillaValues,validGorillaSettings} from './gorilla-model.ts';
+import {gorillaSettings,gorillaValues,validGorillaSettings,validGorillaPostures,type GorillaPosture} from './gorilla-model.ts';
 export const educationalModuleKinds = [
   'gorilla',
   'lineSensors', 'distanceSensor', 'pirSensor', 'joystick', 'powerSwitch', 'rotaryEncoder',
@@ -17,7 +17,7 @@ export interface ModulePinSpec { key: string; label: string; capability: PinCapa
 export interface EducationalModuleSpec {
   kind: EducationalModuleKind; phase: 38 | 39 | 40 | 41 | 56 | 58; icon: string; name: string; description: string;
   profiles: readonly { id: string; label: string }[]; pins: readonly ModulePinSpec[]; values: readonly ModuleValueSpec[];
-  defaults: { profile: string; values: Record<string, number | string | boolean>; settings: Record<string, number | string | boolean> };
+  defaults: { postures?: GorillaPosture[]; profile: string; values: Record<string, number | string | boolean>; settings: Record<string, number | string | boolean> };
   needs: readonly string[]; cautions: readonly string[];
 }
 
@@ -53,7 +53,7 @@ export function educationalModulePins(kind: EducationalModuleKind): Record<strin
 export function validEducationalModuleConfig(kind: EducationalModuleKind, value: unknown): value is EducationalModuleSpec['defaults'] {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const config = value as Record<string, unknown>, spec = educationalModuleSpecs[kind];
-  if (Object.keys(config).some(key => !['profile','values','settings'].includes(key)) || !spec.profiles.some(profile => profile.id === config.profile)) return false;
+  if (Object.keys(config).some(key => !['profile','values','settings',...(kind==='gorilla'?['postures']:[])].includes(key)) || !spec.profiles.some(profile => profile.id === config.profile)) return false;
   if (!config.values || typeof config.values !== 'object' || Array.isArray(config.values) || !config.settings || typeof config.settings !== 'object' || Array.isArray(config.settings)) return false;
   const values = config.values as Record<string, unknown>;
   if (Object.keys(values).length !== spec.values.length || spec.values.some(item => {
@@ -61,6 +61,7 @@ export function validEducationalModuleConfig(kind: EducationalModuleKind, value:
     return item.type === 'number' ? typeof candidate !== 'number' || !Number.isFinite(candidate) || candidate < (item.min ?? -Infinity) || candidate > (item.max ?? Infinity) : typeof candidate !== (item.type === 'text' ? 'string' : 'boolean') || (item.choices && !item.choices.includes(String(candidate)));
   })) return false;
   if(kind==='gorilla'&&(!validGorillaSettings(config.settings)||Object.entries(values).some(([k,v])=>k.startsWith('j')?v!==0:v!==false)))return false;
+  if(kind==='gorilla' && config.postures!==undefined && !validGorillaPostures(config.postures,config.settings as Record<string,number|string|boolean>))return false;
   if(kind==='lineSensors' && (Object.keys(config.settings).length!==1 || typeof (config.settings as Record<string,unknown>).activeLow!=='boolean'))return false;
   return Object.keys(config.settings as object).every(key => key in spec.defaults.settings);
 }

@@ -21,6 +21,21 @@ struct CapiGorilla {
     for(int i=0;i<8;++i){from[i]=position[i];duration=std::max(duration,(uint32_t)std::ceil(std::abs(target[i]-from[i])*1000.0/30.0));}
     busy=true;return true;
   }
+  bool posture(const int angles[8],uint32_t requested,uint32_t now){
+    if(busy)return false;
+    error=false;
+    if(!ready){error=true;return false;}
+    for(int i=0;i<8;++i){
+      int physical=center[i]+(reversed[i]?-angles[i]:angles[i]);
+      if(angles[i]<-20||angles[i]>20||physical<low[i]||physical>high[i]){error=true;return false;}
+    }
+    duration=std::clamp<uint32_t>(requested,200,10000);mask=255;started=now;
+    for(int i=0;i<8;++i){
+      from[i]=position[i];target[i]=angles[i];
+      duration=std::max(duration,(uint32_t)std::ceil(std::abs(target[i]-from[i])*1000.0/30.0));
+    }
+    busy=true;return true;
+  }
   void service(uint32_t now){
     if(!busy)return;
     uint32_t elapsed=now-started;double t=std::min(1.0,(double)elapsed/duration);

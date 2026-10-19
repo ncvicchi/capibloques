@@ -5,6 +5,66 @@ export const gorillaLegNames = [
   'Trasera derecha',
 ] as const;
 export type GorillaSettings = Record<string, number | string | boolean>;
+export interface GorillaPosture {
+  id: string;
+  name: string;
+  angles: number[];
+}
+export const referencePosture = (): GorillaPosture => ({
+  id: 'reference',
+  name: 'Referencia',
+  angles: Array(8).fill(0),
+});
+export function gorillaPostures(config: {
+  postures?: GorillaPosture[];
+}): GorillaPosture[] {
+  return config.postures ?? [referencePosture()];
+}
+export function gorillaPostureTargets(
+  s: GorillaSettings,
+  angles: unknown,
+): number[] | null {
+  if (
+    !Array.isArray(angles) ||
+    angles.length !== 8 ||
+    angles.some((v) => !Number.isInteger(v) || v < -20 || v > 20)
+  )
+    return null;
+  return angles.every((v, i) => {
+    const physical = Number(s[`center${i}`]) + (s[`reversed${i}`] ? -v : v);
+    return physical >= Number(s[`min${i}`]) && physical <= Number(s[`max${i}`]);
+  })
+    ? [...angles]
+    : null;
+}
+export function validGorillaPostures(
+  value: unknown,
+  s: GorillaSettings,
+): value is GorillaPosture[] {
+  if (!Array.isArray(value) || value.length > 16) return false;
+  const ids = new Set<string>(),
+    names = new Set<string>();
+  return value.every((p) => {
+    if (
+      !p ||
+      typeof p !== 'object' ||
+      Object.keys(p).sort().join(',') !== 'angles,id,name' ||
+      typeof p.id !== 'string' ||
+      !/^[a-zA-Z0-9_-]{1,48}$/.test(p.id) ||
+      ids.has(p.id) ||
+      typeof p.name !== 'string' ||
+      !p.name.trim() ||
+      p.name !== p.name.trim() ||
+      p.name.length > 40 ||
+      names.has(p.name.toLocaleLowerCase('es')) ||
+      !gorillaPostureTargets(s, p.angles)
+    )
+      return false;
+    ids.add(p.id);
+    names.add(p.name.toLocaleLowerCase('es'));
+    return true;
+  });
+}
 export function gorillaSettings(): GorillaSettings {
   return Object.fromEntries([
     ['address', 64],

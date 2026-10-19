@@ -49,7 +49,7 @@
 #ifndef CAPI_BOARD_ID
 #define CAPI_BOARD_ID "wemos-d1-r32"
 #endif
-#define CAPI_FIRMWARE_VERSION "1.11.0"
+#define CAPI_FIRMWARE_VERSION "1.12.0"
 #include "gorilla_core.h"
 static bool is_waveshare(){return !strcmp(CAPI_BOARD_ID,"waveshare-esp32-s3-touch-lcd-5-28117");}
 static constexpr uint16_t ABI = 1;
@@ -381,6 +381,12 @@ static bool gorilla_config_valid(cJSON *dev){
 }
 static bool gorilla_instruction_valid(cJSON *node){
   const char *action=text(node,"action");bool pair=!strcmp(action,"pair");
+  if(!strcmp(action,"posture")){
+    cJSON *angles=cJSON_GetObjectItem(node,"angles"),*ms=cJSON_GetObjectItem(node,"durationMs");
+    if(!cJSON_IsArray(angles)||cJSON_GetArraySize(angles)!=8||!cJSON_IsNumber(ms)||ms->valuedouble!=ms->valueint||ms->valueint<200||ms->valueint>10000)return false;
+    for(int i=0;i<8;++i){cJSON *a=cJSON_GetArrayItem(angles,i);if(!cJSON_IsNumber(a)||!std::isfinite(a->valuedouble)||a->valuedouble!=a->valueint||a->valueint < -20||a->valueint > 20)return false;}
+    return true;
+  }
   if(strcmp(action,"prepare")&&strcmp(action,"joint")&&!pair)return false;
   for(const char *key:{"index","a","b","durationMs"}){cJSON *v=cJSON_GetObjectItem(node,key);if(!cJSON_IsNumber(v)||!std::isfinite(v->valuedouble))return false;}
   return number(node,"index")>=0&&number(node,"index")<=(pair?3:7)&&number(node,"a")>=-20&&number(node,"a")<=20&&number(node,"b")>=-20&&number(node,"b")<=20&&number(node,"durationMs")>=200&&number(node,"durationMs")<=10000;
@@ -802,7 +808,13 @@ static void execute_task(void *parameter) {
       else if(!strcmp(text(instruction,"action"),"prepare")){if(!gorilla_prepare(dev)){gorilla.error=true;telemetry("warning",block,"GorillaBot: no se pudo preparar PCA9685.");}gorilla_publish();}
       else{
         gorilla_device=dev;
-        if(gorilla.start(!strcmp(text(instruction,"action"),"pair")?2:1,number(instruction,"index"),number(instruction,"a"),number(instruction,"b"),number(instruction,"durationMs"),(uint32_t)(esp_timer_get_time()/1000))){gorilla_owner=task_index;gorilla_waiting=true;waiting=true;}else telemetry("warning",block,"GorillaBot: orden rechazada; revisá preparación y límites.");
+        bool accepted=false;
+        if(!strcmp(text(instruction,"action"),"posture")){
+          int angles[8];cJSON *list=cJSON_GetObjectItem(instruction,"angles");
+          for(int i=0;i<8;++i)angles[i]=cJSON_GetArrayItem(list,i)->valueint;
+          accepted=gorilla.posture(angles,number(instruction,"durationMs"),(uint32_t)(esp_timer_get_time()/1000));
+        }else accepted=gorilla.start(!strcmp(text(instruction,"action"),"pair")?2:1,number(instruction,"index"),number(instruction,"a"),number(instruction,"b"),number(instruction,"durationMs"),(uint32_t)(esp_timer_get_time()/1000));
+        if(accepted){gorilla_owner=task_index;gorilla_waiting=true;waiting=true;}else telemetry("warning",block,"GorillaBot: orden rechazada; revisá preparación y límites.");
         gorilla_publish();
       }
       xSemaphoreGive(gorilla_mutex);if(waiting){cooperative_delay_ms(5);continue;}
@@ -917,7 +929,7 @@ static void command(cJSON *request) {
     for(const char *cap:{"line-sensors","robot-wheels","core","switch","conditional-loop","parallel","expressions","variables","timers","component-state","gpio","led","smart-lights","traffic","traffic-display","motor","robot","robotWheels","otto","servo","buzzer","matrix","display","display-lcd","display-lcd1602","display-lcd2004","display-lcd1602keypad","display-graphic","display-ssd1306","display-ili9341","display-ili9488","display-keypad","frame-animation","visual-wait","messages","wifi","wifi-messages","pairing","counter","serial","digital-input","analog-input","step"}){
       cJSON_AddItemToArray(caps,cJSON_CreateString(cap));
     }
-    if(!is_waveshare())cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-bench"));
+    if(!is_waveshare()){cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-bench"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-postures"));}
     if(is_waveshare()){
       cJSON_AddItemToArray(caps,cJSON_CreateString("touch-inputs"));
       cJSON_AddItemToArray(caps,cJSON_CreateString("autonomous-controls"));
