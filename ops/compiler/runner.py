@@ -18,9 +18,16 @@ import time
 import uuid
 import zipfile
 
-ROOT = Path("/var/lib/capibloques-compiler/artifacts")
-CONFIG = Path("/etc/capibloques-compiler.json")
+ENVIRONMENT = os.environ.get("CAPIBLOQUES_COMPILER_ENV", "main")
+if ENVIRONMENT not in ("main", "dev1", "dev2"):
+    raise ValueError("Unknown compiler environment")
+ROOT = Path("/var/lib/capibloques-compiler/artifacts" if ENVIRONMENT == "main" else
+            f"/var/lib/capibloques-environments/{ENVIRONMENT}/artifacts")
+CONFIG = Path("/etc/capibloques-compiler.json" if ENVIRONMENT == "main" else
+              f"/etc/capibloques/environments/{ENVIRONMENT}/compiler.json")
 LABEL = "com.capibloques.compiler=1"
+ENV_LABEL = "com.capibloques.environment"
+PREFIX = "capi-build-" if ENVIRONMENT == "main" else f"capi-{ENVIRONMENT}-build-"
 MAX_OUTPUT = 6_800_000
 DEADLINE = 1800
 STOP = threading.Event()
@@ -35,6 +42,9 @@ def docker(*args, maximum=4_096):
 
 def dispatch(configuration, action, data=None):
     command = ["docker", "compose", "--ansi", "never", "-f", "compose.dev.yaml", "-f", "compose.backend.dev.yaml", "exec", "-T", "api", "python", "manage.py", "compiler_dispatch", action]
+    if ENVIRONMENT != "main":
+        command = ["docker", "compose", "--ansi", "never", "-p", f"capibloques-{ENVIRONMENT}",
+                   "-f", configuration["compose"], "exec", "-T", "api", "python", "manage.py", "compiler_dispatch", action]
     result = subprocess.run(command, cwd=configuration["checkout"], input=json.dumps(data or {}).encode(), capture_output=True, timeout=20)
     if result.returncode or len(result.stdout) > 2_100_000:
         raise RuntimeError("Queue unavailable")
@@ -42,7 +52,7 @@ def dispatch(configuration, action, data=None):
 
 
 def name(attempt):
-    return "capi-build-" + str(uuid.UUID(attempt))
+    return PREFIX + str(uuid.UUID(attempt))
 
 
 def inventory():
@@ -50,8 +60,10 @@ def inventory():
     result = {}
     for cid in ids:
         detail = json.loads(docker("inspect", cid, maximum=100_000))[0]
+        if detail["Config"].get("Labels", {}).get(ENV_LABEL, "main") != ENVIRONMENT:
+            continue  # Never reconcile another environment's jobs/artifacts.
         container_name = detail["Name"].lstrip("/")
-        if not re.fullmatch(r"capi-build-[0-9a-f-]{36}", container_name):
+        if not re.fullmatch(re.escape(PREFIX) + r"[0-9a-f-]{36}", container_name):
             raise RuntimeError("Unexpected managed container")
         result[container_name] = detail
     return result
@@ -76,6 +88,7 @@ def create_arguments(attempt, image):
     if not re.fullmatch(r"sha256:[a-f0-9]{64}", image):
         raise ValueError("Image must be immutable")
     return ["create", "-i", "--name", name(attempt), "--label", LABEL,
+            "--label", ENV_LABEL + "=" + ENVIRONMENT,
             "--network", "none", "--read-only", "--user", "10000:10000", "--cap-drop", "ALL",
             "--security-opt", "no-new-privileges:true", "--pids-limit", "128", "--cpus", "0.60",
             "--memory", "1024m", "--memory-swap", "1600m", "--ulimit", "nofile=256:256",
@@ -184,6 +197,10 @@ def main():
     configuration = json.loads(CONFIG.read_text())
     image = configuration["image"]
     active = {}
+    # One physical compilation/build across this small VM, regardless of DB
+    # concurrency. Keep the inode forever; a crash releases flock, not Docker.
+    resource = open("/run/capibloques-build.lock", "a")
+    resource_held = False
     while not STOP.is_set():
         try:
             snapshot = dispatch(configuration, "inspect")
@@ -228,7 +245,20 @@ def main():
                 else:
                     dispatch(configuration, "heartbeat", job)
             cleanup(set(snapshot["artifacts"]))
-            claim = dispatch(configuration, "claim")["job"]
+            if not active and resource_held:
+                fcntl.flock(resource, fcntl.LOCK_UN)
+                resource_held = False
+            if not active:
+                try:
+                    fcntl.flock(resource, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    resource_held = True
+                except BlockingIOError:
+                    STOP.wait(5)
+                    continue
+            # A crashed runner may have left a live container after releasing
+            # flock. Its owning runner must terminate it before any new claim.
+            running = docker("ps", "-q", "--filter", "label=" + LABEL).strip()
+            claim = None if active or running else dispatch(configuration, "claim")["job"]
             if claim:
                 # Recipe is immutable image ID; queued old recipes are rejected.
                 if claim["recipe"] != image.removeprefix("sha256:"):
@@ -251,6 +281,9 @@ def main():
             # and decoded firmware indefinitely while the queue is idle. Active
             # attempts retain their inputs only in `active` for reconciliation.
             claim = current = raw = output = None
+            if not active and resource_held:
+                fcntl.flock(resource, fcntl.LOCK_UN)
+                resource_held = False
         STOP.wait(5)
     for attempt in active:
         try:
@@ -260,7 +293,8 @@ def main():
 
 
 if __name__ == "__main__":
-    lock = open("/run/capibloques-compiler.lock", "w")
+    lock = open("/run/capibloques-compiler.lock" if ENVIRONMENT == "main" else
+                f"/run/capibloques-compiler-{ENVIRONMENT}.lock", "a")
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     signal.signal(signal.SIGTERM, lambda *_: STOP.set())
     signal.signal(signal.SIGINT, lambda *_: STOP.set())

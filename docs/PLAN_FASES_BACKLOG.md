@@ -1,4 +1,21 @@
 # Nuevas fases de CapiBloques
+Actualización vigente: fase 54 implementada en rama desde dev1, con dos ejemplos completos y coordinación corporal Otto compartida (runtime 1.9.1, ABI 1). [Reglas y pendientes](FASE_54_TEATRO_OTTO.md). No operar main/dev2; SDK completo, hardware/Waveshare y aceptación DEV pendientes. Fases 55–56 no autorizadas para implementar.
+
+
+Cierre operativo de los tres ambientes (17/18 de octubre): dev1/dev2 activos
+por HTTPS y como servicios, datos de aplicación copiados inicialmente por pedido
+del propietario, independientes a partir de ahí. Main sin cambios de endpoint,
+contenedores ni datos. Sin promoción ni producción; instalación/DNS/TLS ya no
+pendientes. Aceptación humana/compilación avanzada/reboot quedan explícitas en
+el contexto vivo y la guía de operación compartida.
+
+Infraestructura transversal autorizada (17 de octubre): tres endpoints en capi-dev,
+main actual y ambientes aislados dev1/dev2; cada persona prueba en su ambiente y
+promueve sólo por pedido explícito. Implementación en `codex/ambientes-dev1-dev2`,
+instalación/DNS/TLS/aceptación pendientes. No renumera fases ni habilita producción.
+Operación, límites de VM, bootstrap, respaldos y recuperación:
+[flujo compartido vigente](FLUJO_RAMA_INTEGRACION_DEV.md). Sustituye integrar una
+tarea directamente a main para probar. El propietario crea DNS y opera instalación.
 
 Actualización vigente, 14 de octubre de 2026: **fase 21 entregada en software**,
 con DEV y aceptación humana pendientes. El estado histórico inferior que la
@@ -56,14 +73,15 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 45 | Escenas atractivas y fidelidad visual completa | Pedidos 40 y 46 | Geometría/cámara de fase 12, renderer de fase 18 y perfiles de fase 17 |
 | 46 | Peatones del cruce escolar · simulación web | Mundos interactivos, 17 de octubre | Carteles y mundo de tránsito existentes |
 | 47 | Paso a nivel | Mundos interactivos | Servo, detectores y luces/buzzer; nueva autorización |
-| 48 | Estacionamiento | Mundos interactivos | Barrera, plazas, detectores, contador/pantalla; nueva autorización |
-| 49 | Huerta e invernadero | Mundos interactivos | Sensores y salidas existentes; nueva autorización |
-| 50 | Casa inteligente y entrada segura | Mundos interactivos | Ambiente, puertas/acceso; nueva autorización |
-| 51 | Taller y cinta transportadora | Mundos interactivos | Motor, detector y desvío; nueva autorización |
-| 52 | Pista de robots interactiva | Mundos interactivos | Obstáculos/estaciones y lecturas espaciales; nueva autorización |
-| 53 | Estación meteorológica interactiva | Mundos interactivos | Fenómenos y lecturas; nueva autorización |
-| 54 | Escenario de Otto | Mundos interactivos | Público y peticiones; nueva autorización |
+| 48 | Estacionamiento | Mundos interactivos | Implementado en rama desde dev1; dos ejemplos completos; integración dev1/aceptación pendientes; ver guía de fase 48 |
+| 49 | Huerta e invernadero | Mundos interactivos | Software web en rama desde dev1; dos ejemplos completos; actualización/aceptación pendientes; ver guía de fase 49 |
+| 50 | Casa inteligente y entrada segura | Mundos interactivos | Software web en rama desde dev1; dos ejemplos completos; actualización/aceptación pendientes; ver guía de fase 50 |
+| 51 | Taller y cinta transportadora | Mundos interactivos | Software web en rama desde dev1; dos ejemplos completos; ver guía de fase 51; actualización/aceptación pendientes |
+| 52 | Pista de robots interactiva | Mundos interactivos | Software web en rama desde dev1; dos ejemplos completos; ver guía de fase 52; actualización/aceptación pendientes |
+| 53 | Estación meteorológica interactiva | Mundos interactivos | Software web en rama desde dev1; dos ejemplos completos; ver guía de fase 53; actualización/aceptación pendientes |
+| 54 | Escenario de Otto | Mundos interactivos | Software en rama dev1; público, dos ejemplos completos y runtime 1.9.1; ver guía de fase 54; aceptación pendiente |
 | 55 | Parque, laguna y aeropuerto | Mundos interactivos | Sólo análisis de actividades y valor nuevo |
+| 56 | Vehículo seguidor de línea | Pedido del propietario, 18 de octubre | Circuitos predefinidos/dibujados, reflectivos y control de ruedas; [propuesta](FASE_56_SEGUIDOR_LINEA.md), reglas/alcance por acordar |
 | Final | Producción, HTTPS, respaldos y piloto | Antigua fase 11 | Postergada hasta autorización explícita y validaciones de salida |
 
 Primero se asegura la continuidad desde otra cuenta sin depender de este chat; después se atienden los problemas cotidianos del editor y se vuelve DEV accesible desde fuera mediante un servicio controlado. TX/RX se incorpora antes de las placas nuevas para tener un contrato de comportamiento que luego se valide en cada destino. Separar DevKit, Waveshare y display interactivo permite comprobar por separado placa, pantalla y aplicación gráfica: no son el mismo soporte. Los desafíos aprovechan esas funciones como recorrido educativo propio. Las fases 20–26 separan flujos de compilación, pulido de edición, motivación, periféricos, control local, intercambio e identidad de aula para no mezclar permisos o hardware distintos en una entrega inmanejable.
@@ -814,17 +832,19 @@ Complementan la presentación de fase 45 con reglas del mundo, sin duplicarla.
 | --- | --- | --- |
 | 46 | Peatones del cruce escolar | Software web implementado; DEV, usuarios y Waveshare pendientes; [guía](FASE_46_PEATONES.md) |
 | 47 | Paso a nivel | Autorizada; implementada en rama, integración/DEV/físico pendientes; [reglas y guía](FASE_47_PASO_A_NIVEL.md) |
-| 48 | Estacionamiento | Planificada; plazas, barrera, detectores, contador y pantalla |
-| 49 | Huerta e invernadero | Planificada; sensores/salidas existentes y modelo acotado de agua/plantas |
-| 50 | Casa inteligente y entrada segura | Planificada; visitantes, día/noche, puertas, luz y acceso |
-| 51 | Taller y cinta transportadora | Planificada; motor, detector, servo, paquetes, clasificación/atasco |
-| 52 | Pista de robots | Planificada; obstáculos, estaciones y sensores ligados a posición |
-| 53 | Estación meteorológica interactiva | Planificada; fenómenos y lecturas coherentes, protección programada |
-| 54 | Escenario de Otto | Planificada; público/pedidos y reacciones programadas |
+| 48 | Estacionamiento | Software web implementado en rama desde dev1; 4/8/12 plazas y dos ejemplos completos; [reglas y entrega](FASE_48_ESTACIONAMIENTO.md); DEV/usuarios/Waveshare/físico pendientes |
+| 49 | Huerta e invernadero | Software web en rama desde dev1; dos ejemplos completos; [reglas y entrega](FASE_49_HUERTA_INVERNADERO.md); actualización/aceptación/Waveshare/físico pendientes |
+| 50 | Casa inteligente y entrada segura | Software web en rama desde dev1; dos ejemplos completos; [reglas y entrega](FASE_50_CASA_ENTRADA_SEGURA.md); actualización/aceptación/Waveshare/físico pendientes |
+| 51 | Taller y cinta transportadora | Software web en rama desde dev1; dos ejemplos completos; [reglas y entrega](FASE_51_TALLER_CINTA.md); actualización/aceptación/Waveshare/físico pendientes |
+| 52 | Pista de robots | Software web en rama desde dev1; dos ejemplos completos; [reglas y entrega](FASE_52_PISTA_ROBOTS.md); actualización/aceptación/Waveshare/físico pendientes |
+| 53 | Estación meteorológica interactiva | Software web en rama desde dev1; clima, detector residual, techo y dos ejemplos completos; [reglas y entrega](FASE_53_ESTACION_METEOROLOGICA.md); actualización/aceptación/Waveshare/físico pendientes |
+| 54 | Escenario de Otto | Software en rama desde dev1; público/pedidos, dos ejemplos completos y FIFO corporal; [reglas](FASE_54_TEATRO_OTTO.md); aceptación/SDK/físico/Waveshare pendientes |
 | 55 | Variantes parque/laguna y aeropuerto | Sólo análisis; actividad y valor pedagógico antes de implementar |
+| 56 | Vehículo seguidor de línea | Planificada; circuitos propios/predefinidos, sensores reflectivos y posibilidades didácticas; [plan](FASE_56_SEGUIDOR_LINEA.md). No implementada ni autorizada para implementar |
 
 Fase 47 autorizada el 17 de octubre tras aprobar disposición y reglas; no
-iniciar las fases 48–55 sin autorización. Mantener escena libre. Cada mundo
+iniciar las fases 54–56 sin autorización. Fases 48–53 autorizadas después y documentadas
+en su guía de entrega. Mantener escena libre. Cada mundo
 debe declarar límites, vínculo componente/lugar, entradas/salidas, consecuencias,
 pausa/velocidad/reinicio, persistencia y alcance web/Waveshare. La fase 46 no
 modifica firmware; la paridad de sus actores en Waveshare queda pendiente.

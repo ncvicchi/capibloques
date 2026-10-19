@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import './pedestrian-world.test.mjs';
 import './rail-world.test.mjs';
+import './parking-world.test.mjs';
+import './garden-world.test.mjs';
+import './house-world.test.mjs';
 import { readFileSync } from 'node:fs';
 import {
   addDeviceToScene,
@@ -375,3 +378,12 @@ assert.match(stageSource, /key={`scene-world:\$\{scene\.id}:\$\{simulationEpoch}
 assert.match(appSource, /setSimulationEpoch\(\(current\) => current \+ 1\)/);
 assert.match(reviewSource, /type === 'RESET'.*setSimulationEpoch/);
 console.log('Mundos de escena: plantillas, carriles y límites validados.');
+
+await import('./conveyor-world.test.mjs');
+
+await import('./robot-arena.test.mjs');
+
+await import('./weather-world.test.mjs');
+
+await import('./theater-world.test.mjs');
+await import('./otto-queue.test.mjs');

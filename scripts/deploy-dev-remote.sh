@@ -92,7 +92,17 @@ while IFS= read -r file; do
     backend/compiler/migrations/0002_build_board_profile.py|backend/accounts/migrations/0005_challenge_progress.py|backend/courses/migrations/0002_challenge_library.py)
       RUN_MIGRATIONS=1
       ;;
-    ops/compiler/Dockerfile|ops/compiler/archive.py|ops/compiler/entry.py|ops/compiler/runner.py)
+    ops/compiler/runner.py)
+      if [[ -f /opt/capibloques-environments/manage.py ]]; then
+        [[ $(repo_git rev-parse "$TARGET_COMMIT:$file") == $(repo_git hash-object /opt/capibloques-compiler/runner.py) ]] || \
+          fail 'runner modificado: reinstalar explícitamente setup-environments.sh antes de promover'
+        # setup already drained/installed the compatible host runner. It is
+        # NOT part of the SDK image; no toolchain rebuild for this file alone.
+      else
+        REBUILD_COMPILER=1
+      fi
+      ;;
+    ops/compiler/Dockerfile|ops/compiler/archive.py|ops/compiler/entry.py)
       REBUILD_COMPILER=1
       ;;
     ops/public-dev/test_contracts.py)
@@ -131,7 +141,7 @@ for profile in profiles:
     try:
         info = json.loads((root / f"{profile}.json").read_text(encoding="utf-8"))
         bundle = root / info["bundle"]
-        assert info["sourceRevision"] == revision and info["version"] == "1.9.0" and bundle.is_file()
+        assert info["sourceRevision"] == revision and info["version"] == "1.9.1" and bundle.is_file()
     except Exception:
         raise SystemExit(1)
 PY
@@ -292,6 +302,12 @@ while :; do
 done
 
 systemctl stop capibloques-compiler.service
+# All three queues share one physical build slot, without sharing data.
+exec 8>>/run/capibloques-build.lock
+echo 'Esperando el recurso de construcción compartido (máximo 15 minutos).'
+flock -w 900 8 || fail 'otra construcción sigue activa; repetir sin borrar el estado'
+[[ -z $(docker ps -q --filter label=com.capibloques.compiler=1) ]] || \
+  fail 'hay un compilador sin bloqueo; su runner debe reconciliarlo antes de construir'
 [[ $(systemctl is-active capibloques-compiler.service || true) == inactive ]] || fail "no se pudo detener el planificador"
 
 compose_dev() {
@@ -368,14 +384,14 @@ if ((BUILD_INTERPRETER)); then
     -e CAPI_INTERPRETER_TOOLCHAIN_KEY="$interpreter_toolchain_key" \
     -v "$REPOSITORY:/project" -w /project \
     "$interpreter_builder_image" \
-    -lc '. "$IDF_PATH/export.sh" >/dev/null && bash ./scripts/build-interpreter-firmware.sh 1.9.0 /project/public/interpreter '"$INTERPRETER_SOURCE"
+    -lc '. "$IDF_PATH/export.sh" >/dev/null && bash ./scripts/build-interpreter-firmware.sh 1.9.1 /project/public/interpreter '"$INTERPRETER_SOURCE"
   python3 - "$REPOSITORY/public/interpreter" "$INTERPRETER_SOURCE" <<'PY'
 import hashlib, json, pathlib, sys
 root, revision = pathlib.Path(sys.argv[1]), sys.argv[2]
 for profile in ("wemos-d1-r32", "diymall-esp32-s3-devkitc-v1-n16r8", "waveshare-esp32-s3-touch-lcd-5-28117"):
     info = json.loads((root / f"{profile}.json").read_text(encoding="utf-8"))
     bundle = root / info["bundle"]
-    assert info["sourceRevision"] == revision and info["version"] == "1.9.0"
+    assert info["sourceRevision"] == revision and info["version"] == "1.9.1"
     assert bundle.stat().st_size == info["bytes"]
     assert hashlib.sha256(bundle.read_bytes()).hexdigest() == info["sha256"]
 print("Firmware intérprete empaquetado y verificado para las tres placas.")

@@ -1,6 +1,387 @@
 # CapiBloques — contexto para continuar
 
+### Entrega vigente: fase 54 — Teatro interactivo de Otto, sólo dev1
+
+Rama `codex/fase-54-teatro-otto`, desde origin/dev1 `6c9a985`.
+[Reglas, dos ejemplos, firmware y guía](FASE_54_TEATRO_OTTO.md).
+Software implementado; propietario integra/actualiza sólo dev1. Sin operación
+remota ni merge a main/dev2. Las secciones inferiores son historial.
+
+- Mundo `ottoTheater`: escenario fijo, un Otto y petición, grupo de 1–4
+  espectadores, distancia frontal por perfil, pulso de 2 s y retirada aunque
+  nadie actúe. Automático reproducible o pruebas manuales; sin coreografía oculta.
+- Condiciones iniciales con guardar/cancelar/undo/redo; ensayos transitorios
+  conservados al LOAD de Simular/Paso. Un reloj, pausa/paso/velocidad/reset.
+  Cambios de cercanía/permanencia afectan al próximo grupo, no al actual.
+- Ejemplos: Otto: saludar y actuar; Teatro de Otto con procedimientos.
+  Seis tareas/cuatro pestañas, atención y una luz en paralelo. Una actuación
+  por grupo por lógica del programa, no por el renderer. Wemos tiene conexiones
+  válidas con una luz PWM y botón en GPIO4, sin inventar pines para otra luz.
+- FIFO corporal también para HOME/brazos, sin preempción; cara/sonido independientes.
+  Header C++ acotado a32 compartido exports/intérprete y cola equivalente worker.
+  Runtime mínimo **1.9.1**, ABI1; actualizar firmware antes de enviar reglas.
+  Empaquetado/orquestadores versionados juntos, sin borrar cachés/objetos del SDK.
+- No hay migraciones/dependencias nuevas. Backend acepta JSON opcional estricto.
+
+Evidencia local: smoke completo, tipos/lint y tres recorridos Chromium aprobados;
+ambos workspaces reales a1×/4× con automático/manual, una actuación por grupo,
+luces, pausa/reset y FIFO sin preempción. Cola compilada/ejecutada en g++ host
+con warnings como errores. Doce contratos Django (teatro/clima/pista), los dos
+JSON reales frontend→Django y26
+contratos de entornos/empaquetado/reanudación/caché incremental aprobados.
+Capturas inspeccionadas: se separó el nombre de Otto del estado de su cuerpo.
+Build aprobado con10 páginas estáticas; advertencia existente de chunk grande,
+sin fallo. Sintaxis Bash y contratos de versión por release aprobados. No se
+inició compilación SDK completa ni operación remota.
+
+Pendientes explícitos: actualización por propietario, SDK ESP-IDF completo1.9.1,
+servos/sonar/matriz reales, aceptación humana y renderer/dinámica del público en
+Waveshare. La ausencia de eco física puede ser0cm, frente a400cm del mundo;
+adaptación de ese caso pendiente en la aceptación física de los ejemplos.
+No confundir cola C++ probada en host/generación con firmware completo compilado.
+
+Orden como capi, con SHA40 de la entrega (también `git rev-parse origin/codex/fase-54-teatro-otto`):
+
+```bash
+cd /home/capi/capibloques
+git fetch --quiet origin codex/fase-54-teatro-otto &&
+git show origin/codex/fase-54-teatro-otto:scripts/update-dev.sh | bash -s -- --env dev1 --branch codex/fase-54-teatro-otto --commit SHA40
+```
+
+Usar el script nuevo de la rama: ejecuta el manager exacto de la release, no
+la copia instalada que tenía fija1.9.0. No reinstala herramientas compartidas.
+Manager lee versión de cada main.cpp para no renombrar firmware viejo de dev2.
+No espera Actions; reconstruye incrementalmente intérprete una vez. Sin --promote.
+Fases55–56 no autorizadas para implementar. No avanzar sin pedido nuevo.
+
+### Entrega vigente: fase 53 — Estación meteorológica y puesto protegido, sólo dev1
+
+Autorizada tras aprobar disposición/reglas; rama `codex/fase-53-estacion-meteorologica`
+desde origin/dev1 `b079ca1` (fase52 integrada). Se incorporó por fast-forward el
+commit documental `0017839` de la fase56 ya publicado, aún ausente en dev1:
+no perder ese backlog ni implementarlo. [Reglas y guía](FASE_53_ESTACION_METEOROLOGICA.md).
+Nuevo fondo weatherLab, sin cambiar antigua weatherStation/weatherYard.
+Mástil/clima/luz/detector siempre exteriores; techo0° cerrado/90° abierto y mesa
+mojable como consecuencia visual, no variable física inventada. Sin viento
+medido ni pronóstico por presión. Lluvia moja detector gradualmente y deja
+humedad residual al terminar. Techo no altera medidas ni seca instantáneamente.
+Un reloj worker para programa, clima, servo y dibujo; pausa/paso/velocidad/reset.
+Cuatro condiciones, día/noche y secuencia automática reproducible cada20s.
+Editor guarda condiciones con undo/redo/guardar/cancelar; Estado y revisión
+ofrecen ensayos transitorios conservados al LOAD interno de Simular/Paso.
+Sin sliders manuales competidores ni SET_INPUT por IDs de sensores ligados.
+Controles transitorios mantienen selección pendiente hasta ACK del worker para
+que dos cambios rápidos no se pisen; clave escena/época limpia pendientes al
+reiniciar/cambiar. Borrador del armador sigue controlado por su guardado normal.
+Dos ejemplos completos: Estación que informa, secuencial y techo abierto;
+Puesto protegido con procedimientos, cuatro procesos/ocho procedimientos/cinco
+pestañas. Techo cierra>35% y abre<10%; luz enciende<1200 y apaga>1800; buzzer
+una vez por episodio y se rearma al secarse<10%, sin bloquear los otros hilos.
+Contrato opcional weatherEnvironment estricto frontend/backend, sin migración,
+dependencias, firmware, SDK ni ABI. Exportación y reglas con componentes existentes.
+Verificado: tipos/lint (también renderer/controles nuevos), smoke completo, modelo
+puro y ambos workspaces reales a1×/4×, dos ciclos automáticos y avisos por
+episodio; veinticuatro contratos backend de seis mundos y ambos documentos
+frontend→Django aceptados. Tres recorridos Chromium aprobados: cambio rápido
+de lluvia+noche previo a Simular, sensores, techo, pausa/reset y editor con
+undo/redo/guardar/cancelar. Capturas inspeccionadas; luego mejorado contraste
+nocturno y techo abierto para que no se recorte. Build con diez páginas
+estáticas aprobado; advertencia de chunk grande ya existente. No SDK ni remoto.
+Actualizar únicamente dev1 mediante comando instalado con rama/SHA40;
+propietario integra y actualiza. Main/dev2 intactos. Aceptación humana, sensores/
+servo/pantalla reales y renderer/dinámica Waveshare pendientes.
+Fases54–56 sin autorización para implementar; 56 conserva planificación.
+Las referencias inferiores a fase52 como entrega vigente son históricas.
+
+### Agregado de planificación: fase 56 — Vehículo seguidor de línea
+
+Pedido posterior a fase 52: documentar una escena con circuitos predefinidos
+o dibujados por el usuario y pensar qué actividades agregar. **Sólo backlog/
+planificación**, sin implementar ni empezar fase 53. [Propuesta](FASE_56_SEGUIDOR_LINEA.md)
+incluye editor modal, sensores reflectivos (no barrera IR/color), control
+independiente de ruedas a evaluar, recuperación, vueltas/checkpoints, cruces,
+estaciones y variantes avanzadas. Priorizar y acordar reglas antes de autorizar.
+No renumerar 53–55; fase 56 puede reordenarse después por pedido del propietario.
+Rama documental desde dev1: `codex/plan-fase-56-seguidor-linea`.
+Sin operación remota/main/dev2 ni cambios de runtime/firmware.
+
+### Entrega vigente: fase 52 — Pista de exploración y reparto, sólo dev1
+
+Autorizada tras aprobar disposición/reglas; rama `codex/fase-52-pista-robots`
+desde origin/dev1 `2d6229f` (fase 51 integrada). [Reglas y guía](FASE_52_PISTA_ROBOTS.md).
+Nuevo fondo robotArena: base, A roja, B azul, meta verde y obstáculos editables
+antes de ejecutar. Un solo robot diferencial, sensores frontal/suelo montados
+(vínculo por tipo único/ID, no nombre), barrera fija de meta y luces/buzzer.
+Mundo puro lib/robot-arena.ts alimentado por reloj worker compartido; no usar
+además la física/rebote antigua de robot para este fondo. Contacto considera
+radio 22, bloquea desplazamiento pero deja girar/retroceder y programa vivo.
+No piloto automático, metas/visitas no detienen ni corrigen el programa.
+Distancia idealizada desde el frente contra círculos/paredes, color sólo bajo
+robot, barrera con cuerpo completo y visita por 0,6 s detenido sin duplicados.
+Recorrido limitado a 300 puntos. Pausa/Paso/velocidad/reset compartidos.
+Armar escena → Pista al comenzar: preset despejado/con obstáculo, hasta cuatro,
+agregar/quitar/mover con controles X/Y y zonas protegidas. Guardar/Cancelar/
+Deshacer/Rehacer habituales. Sensores montados se editan desde lista de objetos,
+no se arrastran por separado; sin sliders SET_INPUT competidores. Duplicación
+de robot/sensores/meta bloqueada sin excepción de teclado. Robot orientable.
+Dos ejemplos completos: Reparto por estaciones (secuencial despejado), Explorador
+con obstáculos y procedimientos (para obstáculo incluido 260/420/r28, ocho
+procedimientos/cinco pestañas y procedimiento global de reparto). Desvío
+programado, no solución de laberinto universal. Ambos visitan A/B y llegan a meta
+sin contactos a 1×/4×. Plantillas antiguas robotCourse/robotTrack intactas.
+JSON opcional arenaEnvironment (guides/obstacles) estricto frontend/backend;
+sin migración, dependencias, SDK, firmware ni ABI nuevos. Exportaciones/reglas
+con componentes existentes; físico requiere calibración y aceptación propia.
+Verificado: tipos/lint, smoke completo, modelo puro, worker con workspaces reales
+a 1×/4×, veinte contratos backend de cinco mundos recientes, dos JSON reales
+frontend→Django aceptados; tres recorridos Chromium aprobados (ambos ejemplos,
+sensores automáticos, pausa/reset y edición con undo/redo/guardar/cancelar).
+Captura inspeccionada: frente del robot, sensores montados y trayectoria del
+desvío visibles. Build final aprobado, diez páginas estáticas; advertencia de
+chunk grande existente no bloqueante. No compilación SDK ni operación remota.
+Actualizar/integrar únicamente dev1 mediante comando instalado con rama/SHA40;
+propietario lo ejecuta. Main/dev2 intactos. Aceptación humana, robot físico y
+renderer/dinámica Waveshare pendientes. Fases 53–55 no iniciadas.
+Las referencias inferiores a fase 51 como entrega vigente son históricas.
+
+### Entrega vigente: fase 51 — Taller y cinta transportadora, sólo dev1
+
+Autorizada tras aprobar disposición/reglas; rama `codex/fase-51-taller-cinta`
+desde origin/dev1 `4976e14` (fase 50 integrada).
+[Reglas completas, ejemplos y límites](FASE_51_TALLER_CINTA.md).
+Una cinta hacia delante, lectura RGB/peso con presencia y estabilización,
+desviador gradual 0° A/90° B, dos infrarrojos de confirmación y bandejas.
+Paquetes acotados, llegadas reproducibles automáticas o envío manual preparado.
+Si llegan mientras gira el desviador, atasco visible hasta Reiniciar; el programa
+y servo no se congelan. El mundo nunca decide ni corrige la clasificación.
+Mundo puro en lib/conveyor-world.ts, alimentado por el reloj worker compartido;
+sensores automáticos sin SET_INPUT competidor ni mandos manuales. Lectura de
+peso inválida se distingue en UI; bloques comprueban presencia, detienen y
+esperan 0,7 s antes de leer (estabilización 0,6 s). Valor numérico inválido cero,
+sin inventar capacidad/propiedad física nueva. Ensayos y petición manual se
+conservan al LOAD interno de Simular/Paso, no al reset/cambio de proyecto.
+Editor guarda condiciones iniciales por borrador con undo/redo/guardar/cancelar.
+Dos ejemplos completos en Proyecto → Ejemplos: color secuencial, peso modular
+con variable Peso límite, cinco procedimientos y cuatro pestañas. Llegadas
+automáticas espaciadas 20–30 s; entradas manuales muy juntas requieren ampliar
+coordinación, no se corrigen ocultamente. Fondo antiguo workshop intacto.
+Contrato opcional conveyorEnvironment estricto frontend/backend; sin migración,
+SDK, firmware, ABI ni dependencias. Exportaciones/reglas usan bloques existentes.
+Pruebas locales de tipos/lint/smoke, modelo puro, dos workspaces en worker con
+tres colores/pesos (incluido umbral exacto) a 1×/4× y flujos automáticos, dieciséis
+contratos backend y ambos documentos frontend→Django aceptados.
+Tres recorridos Chromium aprobados: ejemplos directo/modular con envío previo
+a Simular, entrega/pausa/reset y editor con condiciones iniciales/undo/redo/
+guardar/cancelar. Captura inspeccionada y duplicación de rótulos corregida.
+Build final aprobado, diez páginas estáticas; lint/tipos finales aprobados.
+Prueba adicional del worker verifica que un programa incorrecto produce atasco,
+continúa ejecutándose y se recupera con reset. No equivale a despliegue/hardware.
+Actualización por propietario sólo dev1, comando instalado con rama y SHA40;
+no integrar ni operar main/dev2/servidor. Aceptación humana, maqueta física y
+renderer/dinámica Waveshare de este mundo pendientes. Fases 52–55 no iniciadas.
+Las referencias inferiores a fase 50 como entrega vigente son históricas.
+
+### Entrega vigente: fase 50 — Casa inteligente y entrada segura, sólo dev1
+
+Autorizada tras aprobar reglas; rama `codex/fase-50-casa-entrada-segura` desde
+origin/dev1 `73ac1b7` (fase 49 integrada). [Reglas y guía](FASE_50_CASA_ENTRADA_SEGURA.md).
+Un acceso compartido, visitantes acotados, timbre/tarjetas/paso/presencia/salida
+automáticos; puerta sólo obedece al programa y permite terminar a quien cruza.
+Comparación de tarjeta es del alumno, no permiso oculto del mundo. Luces PWM
+según presencia/oscuridad con luminosidad interior realimentada. Botones/luces
+pueden moverse sin cambiar función, mediante canvas.houseAssignments validado.
+Sensores/lector/puerta anclados. Estado y revisión: condiciones virtuales y envío
+manual predefinido, sin controles manuales competidores; prueba transitoria.
+Armador guarda condiciones iniciales con undo/redo/guardar/cancelar. Un reloj
+worker para algoritmo/mundo, pausa/paso/velocidad/reset, sin temporizador React.
+Dos ejemplos completos: directo atiende cualquier timbre; modular acepta azul,
+rechaza roja/sin tarjeta y atiende salidas sin tarjeta. Seis procedimientos y
+cuatro pestañas. JSON opcional houseEnvironment/houseAssignments; sin migración,
+SDK, dependencias, firmware ni ABI nuevos. Versiones antiguas Casa/Entrada intactas.
+Verificado localmente: tipos/lint, smoke completo, ambos workspaces con tres
+tipos de visitante a 1×/4×, diecisiete contratos backend, ambos JSON frontend→Django
+y tres recorridos Chromium (envío antes de Simular, luz, acceso, pausa/reset,
+condiciones iniciales con undo/redo/guardar/cancelar), capturas inspeccionadas.
+Build con diez páginas estáticas. Arranque Simular/Paso conserva ensayos y
+visitante pendiente en el worker, sin depender de snapshots React ni preservar
+actores al cargar. Reset/otro proyecto no heredan ensayo; huerta conserva también
+sus condiciones de prueba al iniciar. Es sólo protocolo interno web, no firmware.
+El propietario integra/actualiza sólo dev1 con comando instalado; no se opera
+servidor/main/dev2. Waveshare, maqueta y aceptación humana pendientes. Fases
+51–55 no iniciadas. Las referencias inferiores a 49 como última entrega son históricas.
+
+### Entrega vigente: fase 49 — Huerta e invernadero, sólo dev1
+
+Autorización explícita tras acordar disposición/reglas. Rama
+`codex/fase-49-huerta-invernadero` desde origin/dev1 `821cc1c` (fase 48 integrada).
+[Guía completa](FASE_49_HUERTA_INVERNADERO.md). Dos canteros con riegos independientes,
+sensores automáticos de suelo/clima/luz, ventana servo; estrés y recuperación,
+sin riego automático oculto. Condiciones ambientales iniciales guardables y
+controles de prueba transitorios. Un reloj worker, pausa/paso/velocidad/reset.
+Dos ejemplos completos: riego directo de ambos canteros con ventana fija abierta,
+y control con seis procedimientos/cuatro pestañas que regula ventana por temperatura.
+La antigua smartGarden se conserva. JSON aditivo gardenEnvironment opcional y
+validadores alineados; sin migraciones, toolchain, firmware ni ABI. Se arregló
+allowlist de capi_power_switch y selección de datos de módulos educativos.
+Verificado localmente: tipos/lint, smoke completo, ambos workspaces a 1×/4×,
+modelo de agua/clima/plantas, JSON real frontend→Django, trece contratos backend
+y tres recorridos Chromium, con capturas inspeccionadas; build con diez rutas
+estáticas. Rótulos separados y lecturas de tierra a 1%/clima a 0,1. Sin espera CI.
+Commit/push y comando instalado sólo dev1; el propietario integra/actualiza.
+No se opera servidor/main/dev2. Maqueta física, Waveshare y aceptación humana
+pendientes; fases 50–55 no iniciadas. Las menciones inferiores a fase 48 como
+última entrega o a 49 sin autorización son históricas.
+
+### Entrega vigente: fase 48 — Estacionamiento, sólo dev1
+
+Autorizada e implementada en rama `codex/fase-48-estacionamiento` desde
+`origin/dev1` (`73dc00f890c82de4094680c2dbae3daa810d6f1f`). Reglas, arquitectura,
+pruebas y límites: [FASE_48_ESTACIONAMIENTO.md](FASE_48_ESTACIONAMIENTO.md).
+Dos barreras, cuatro infrarrojos, capacidad 4/8/12, autos automáticos y atasco
+recuperable si se admite sin plaza. El contador es del programa, no del mundo.
+Dos ejemplos completos de 8 plazas: directo y cinco procedimientos/cuatro tabs.
+Cambiar capacidad física no reescribe bloques: ajustar también variable Capacidad.
+Un reloj worker para autos/sensores/programa. Guardar/Cancelar/undo/redo del armador.
+JSON aditivo con parkingCapacity opcional; validación frontend/Django alineada.
+Verificado localmente: tipos/lint, build y diez rutas estáticas, smoke completo, ejecución real de ambos
+workspaces 4/8/12 a 1×/4×, nueve contratos backend, ambos JSON frontend→Django y
+tres recorridos Chromium (simulación, pausa/reinicio, capacidad/undo/redo/guardar/
+cancelar confirmado). Captura inspeccionada. Sin esperas de GitHub Actions.
+Sin SDK, firmware/ABI, migraciones ni nuevas dependencias. Renderer Waveshare,
+maqueta física y aceptación humana siguen pendientes; fases 49–55 no iniciadas.
+Integración/actualización dev1 a cargo del propietario con `~/.local/bin/capi-dev
+--env dev1 --branch codex/fase-48-estacionamiento --commit SHA40`. No se opera
+el servidor en esta entrega, no se integra main ni dev2 ni se promociona nada.
+
 Documento vivo iniciado en **fase 11**. Actualización: **17 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
+
+### Activación real dev1/dev2 y copia inicial — 17/18 de octubre
+
+El propietario creó los DNS y autorizó explícitamente instalar/configurar todo
+remotamente sin tocar el endpoint actual; después pidió «copia todo tal cual».
+Los comandos anteriores NO los había ejecutado. Se instaló el bootstrap y los
+dos ambientes, HTTP/HTTPS y certificados independientes en el edge, sin operar
+gateway/Proxmox/router/PRD ni cambiar vhost/certificado del endpoint original.
+
+URLs activas: https://capibloques.dev1.nvicchi.com y
+https://capibloques.dev2.nvicchi.com. Mismo alias/contraseña que en el original:
+copiados 542 registros desde un único snapshot consistente, incluyendo 30 usuarios,
+13 proyectos y 53 versiones, colegio/logo, curso y auditorías. Comparación completa
+de contenido y claves hash sin imprimirlas; se acepta equivalencia ISO Z/.000Z
+en timestamps de Django, nunca se normaliza texto de programas. Datos propios
+de cada ambiente desde esa copia; NO sincronización posterior. Secretos, sesiones,
+colas/recetas/artefactos privados NO se copiaron. Colas nuevas siguen pausadas.
+
+Snapshot y marcadores fuera de Git, root 0600 en
+/var/lib/capibloques-environments/seeds/ y
+/etc/capibloques/environments/<env>/seeded-from-main.json. `seed.py` es explícito,
+rechaza destinos con datos y comprueba modelos/migraciones/dependencias; cambios
+de validación de escenas sin cambio de esquema no impiden la copia. Si importó
+y falló sólo su verificación, --verify-existing con snapshot original no reimporta
+ni sobrescribe: valida y marca. No usar bootstrap_admin después de esta copia.
+
+Main sigue en HEAD servidor 44608549494130784df8fa57b610eec07f946547, contenedores
+editor 0433b3d3cd8d / API 42d9432cab71 / DB 6200aed63c86 intactos. SHA de config
+main 206d6264478a9bae9f801297716bc6e51b110022e8f9471cadc30d1af850fcf9 y vhost
+7a270a96c3248c8757ce2bf1b203072acc55458b23fc883296b126d1a12a3c14 iguales antes/después.
+Sólo cambió runner compartido compatible, drenado y con admisión restaurada.
+Se agregó exclusión LOCAL /.worktrees/ en .git/info/exclude: contiene worktree
+registrado de la otra persona; no se alteró ni borró ese trabajo.
+
+Edge real 192.168.1.38, ACME /var/www/certbot, HTTP 80 / HTTPS interno 8443.
+Certificados nuevos válidos hasta 15/01/2027, renovación webroot y hook global
+reload-nginx existente. Sólo dos archivos nuevos sites-enabled/zz-capibloques-dev1.conf
+y zz-capibloques-dev2.conf; nginx -t correcto. Se movieron de la posición inicial
+en conf.d para conservar el servidor TLS por defecto y orden de protocolos original;
+ningún vhost ajeno cambiado. Migración validada contra contenido idéntico, con
+respaldos propios /var/backups/capibloques-edge/. Advertencias previas de opciones
+de protocolo compartidas no se corrigieron: fuera del alcance, no errores.
+
+La primera imagen de generador usó accidentalmente Docker legacy (minutos por
+COPY de una base enorme). Corregido y probado en DEV con Compose/BuildKit:
+exportación del overlay dev2 0,4 segundos, sin SDK nuevo ni recompilación ESP32.
+Gestor raíz actualizado atómicamente bajo el bloqueo; código en la rama de tarea.
+Los tres sitios dieron login 200, health ok y sesión anónima independiente;
+configuración pública de colegio idéntica. Servicios nuevos activos y habilitados
+para arranque; imágenes/revisiones verificadas por el actualizador. Sin CI ni
+compilación de programa/SDK, sin reboot ni prueba física ni contraseña humana
+introducida. No atribuir esas aceptaciones al smoke HTTP o la copia de hashes.
+
+Operación diaria: ~/.local/bin/capi-dev --env dev1|dev2; tarea nueva con --branch
+y SHA de entrega, sólo --promote pasa a main cuando lo pida el propietario.
+Guía FLUJO_RAMA_INTEGRACION_DEV.md vigente; referencias inferiores a «sin instalar»
+son históricas. No hay promoción de main ni copia continua de bases.
+
+### Tres endpoints aislados — acuerdo vigente (17 de octubre)
+
+Rama `codex/ambientes-dev1-dev2`, parte de origin/main 094c846 e incorpora
+3d060c1 (bloqueo previo). Usuario autorizó main/dev1/dev2 en la misma VM;
+crea él los DNS. Main conserva capibloques.dev.nvicchi.com; nuevos dominios
+capibloques.dev1.nvicchi.com y capibloques.dev2.nvicchi.com. Guía completa y
+bootstrap: `FLUJO_RAMA_INTEGRACION_DEV.md`, obligatoria para ambos desarrolladores.
+
+`setup-environments.sh` instala comando `~/.local/bin/capi-dev` y gestor raíz,
+servicios persistentes e inicializa ramas dev1/dev2 sólo si no existen. No
+publica main ni cambia web/API/base actuales; drena y reemplaza sólo runner
+compatible, restaura admisión original. Actualizar dev1/dev2 crea API/PG/editor,
+volúmenes, secretos/sesiones/redes/artefactos independientes, sin copiar main.
+Release inmutable por SHA y API sin bind de código cambiante. PG 128 MiB por
+ambiente, API 256, editor 64; medir consumo real y swap en esta VM limitada.
+
+Tareas desde origin/dev1 (nosotros) u origin/dev2 (otro), ramas codex únicas y
+clones separados. `capi-dev --env dev1 --branch codex/tarea --commit SHA40` NO
+toca main. Sólo `--promote dev1`/dev2 integra punta instalada y saludable a
+main y actualiza endpoint actual. Rechaza avance remoto no instalado, conflicto,
+push rechazado, revisión incorrecta, mantenimiento pendiente o imagen vieja.
+Promoción sólo de código; no mueve usuarios/proyectos/bases. El acuerdo humano
+de pruebas no se inventa como aprobación automática de UI.
+
+El flock de operaciones sigue común (ocupado 75). Otro flock raíz serializa
+builders/compilaciones de las tres colas. Runner etiqueta/reconcilia sólo sus
+propios intentos; main legacy sin etiqueta sigue siendo main. SDK/base compartidos
+con generador por revisión; firmware sin cambios reutiliza bundles verificados;
+caché de intérprete nueva separada de outputs de main. Pines de imágenes
+protegen recetas dev1/dev2 frente al script de limpieza viejo; limpieza nueva
+conserva también imágenes de recuperación. No se borra caché ESP-IDF ni volúmenes.
+
+Gestor conserva respaldo PG verificado y pending.json ante fallo; reintentar
+mismo objetivo, no borrar marcadores ni regenerar secretos faltantes. Cuentas
+administradoras se crean interactivamente por ambiente; colas nacen pausadas.
+Vhosts edge propios con instalador HTTP/HTTPS, certificados propios y rollback
+acotado. No cambia gateway, Proxmox, PRD ni certificados/vhosts ajenos.
+
+Verificación local: 7 escenarios Git reales/concurrencia, 9 contratos de ambientes,
+5 aislamiento del compilador, 11 contratos public-dev, sintaxis Bash/Python y
+PowerShell. Sin CI ni SDK/build Docker ni SSH. **Pendientes:** instalar en Linux,
+DNS/Nginx/TLS, cuentas, aceptación UI/datos/compilación/reboot/recursos y promoción
+real. No se operó servidor ni se publicó main. Las instrucciones inferiores
+de --branch sin ambiente son históricas y quedan sustituidas por este acuerdo.
+
+### Integración y actualización DEV anterior (17 de octubre, sustituida)
+
+Pedido autorizado: reemplazar el bloque largo por script genérico y admitir
+una sola operación DEV a la vez. Rama `codex/integracion-dev-bloqueada` desde
+origin/main 094c846 (multivía integrada). update-dev.sh recibe --branch RAMA
+[--commit SHA40], integra en worktree separado, publica main y actualiza sin
+adelantar HEAD operativo. Rama ya integrada se salta para reintentar runtime.
+--fast sin CI; --full opcional; --check-only no admite rama. Guardas conservadas.
+
+flock compartido en /home/capi/.local/state/capibloques/dev-operation.lock antes
+de Git/sudo; ocupado sale 75 con PID/inicio/rama, sin cola ni cambios del repo.
+No borrar el archivo persistente ni desbloquear por PID: manda el descriptor.
+No protege comandos manuales/scripts antiguos/pushes fuera de DEV; todos deben
+adoptar el flujo nuevo. Windows invoca el script instalado sin chown/fetch
+remoto previo. Primera instalación mediante bootstrap concreto de la entrega.
+Guía FLUJO_RAMA_INTEGRACION_DEV.md actualizada para todas las personas/IA.
+
+Pruebas con Git real temporal y procesos concurrentes, sin SSH/sudo/Docker ni
+servidor. No se operó DEV ni se publicó main; el propietario integra e instala.
+Sin cambios de infraestructura, firmware, compilador ni dependencias.
+
+Verificación: seis pruebas operativas con Git y concurrencia, once contratos
+de public-dev y sintaxis Bash/PowerShell aprobados. No se ejecutó CI, build SDK
+ni despliegue remoto. La primera instalación y aceptación en Linux/DEV siguen
+a cargo del propietario; las pruebas locales se ejecutaron con Bash/flock MSYS.
 
 ### Paso a nivel multivía — ampliación autorizada (17 de octubre)
 

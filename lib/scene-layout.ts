@@ -66,11 +66,18 @@ export type SceneOverlap = { firstId: string; secondId: string; overlapArea: num
 
 export function findSceneOverlaps(scene: SceneDefinition): SceneOverlap[] {
   const items = sceneLayoutItems(scene);
+  // Parking controls are compact anchors, not the generic 88px device cards.
+  const bounds = (item: SceneLayoutItem): SceneBounds => {
+    const box = sceneItemBounds(item);
+    return ((scene.canvas.background === 'weatherLab' && ['environmentSensor', 'lightSensor', 'waterSensor', 'servo'].includes(item.kind)) || (scene.canvas.background === 'robotArena' && ['robot', 'distanceSensor', 'colorSensor', 'infraredBarrier'].includes(item.kind)) || (scene.canvas.background === 'conveyor' && ['motor', 'infraredBarrier', 'colorSensor', 'scale', 'servo'].includes(item.kind)) || (scene.canvas.background === 'parking' && (item.kind === 'servo' || item.kind === 'infraredBarrier')) || (scene.canvas.background === 'greenhouse' && ['soilMoisture', 'powerSwitch', 'environmentSensor', 'servo', 'lightSensor'].includes(item.kind)) || (scene.canvas.background === 'smartHouse' && ['servo', 'pirSensor', 'infraredBarrier', 'lightSensor', 'cardReader'].includes(item.kind)))
+      ? { ...box, width: 40, height: 40, left: item.position.x - 20, right: item.position.x + 20, top: item.position.y - 20, bottom: item.position.y + 20 }
+      : box;
+  };
   const overlaps: SceneOverlap[] = [];
   for (let firstIndex = 0; firstIndex < items.length; firstIndex += 1) {
-    const first = sceneItemBounds(items[firstIndex]);
+    const first = bounds(items[firstIndex]);
     for (let secondIndex = firstIndex + 1; secondIndex < items.length; secondIndex += 1) {
-      const second = sceneItemBounds(items[secondIndex]);
+      const second = bounds(items[secondIndex]);
       const width = Math.min(first.right, second.right) - Math.max(first.left, second.left);
       const height = Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top);
       if (width <= 0 || height <= 0) continue;

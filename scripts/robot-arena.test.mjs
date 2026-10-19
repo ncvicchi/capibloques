@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict';
+import * as Blockly from 'blockly';
+import { advanceArenaWorld, createArenaWorldState, defaultArenaEnvironment, obstacleArenaEnvironment, validArenaEnvironment } from '../lib/robot-arena.ts';
+import { examples, makeProject, decodeProject, validateProgramForScene, generateEsp32CodeResult, generateEspIdfCodeResult } from '../lib/capiblocks.ts';
+import { createSceneFromTemplate, createEmptyScene, appendTemplateToScene, validateScene, isSceneDefinition, addDeviceToScene } from '../lib/scene-model.ts';
+import { registerBlocks, compileWorkspace, workspaceDevices } from '../lib/blockly-engine.ts';
+import { normalizeWorkspaceTabs } from '../lib/workspace-tabs.ts';
+import { createCapiRules } from '../lib/capi-rules.ts';
+const run = (w, env, left, right, seconds) => { for (let i = 0; i < seconds * 10; i++) w = advanceArenaWorld(w, env, left, right, 100); return w; };
+let w = advanceArenaWorld(createArenaWorldState(), obstacleArenaEnvironment, 0, 0, 0);
+assert.equal(w.distance, 90);
+const before = structuredClone(w); w = run(w, obstacleArenaEnvironment, 100, 100, 5); assert.deepEqual(before, advanceArenaWorld(createArenaWorldState(), obstacleArenaEnvironment, 0, 0, 0));
+assert.equal(w.contact, true); assert.ok(w.x <= 210.1); assert.ok(w.contacts >= 1);
+w = run(w, obstacleArenaEnvironment, -60, -60, 1); assert.equal(w.contact, false); assert.ok(w.x < 170);
+w = run(w, obstacleArenaEnvironment, -75, 75, 0.8); assert.equal(Math.round(w.angle), 270);
+let border = run(createArenaWorldState({ x: 900, y: 300 }), defaultArenaEnvironment, 100, 100, 4); assert.ok(border.x <= 918); assert.equal(border.angle, 0); assert.equal(border.contact, true);
+let station = createArenaWorldState({ x: 400, y: 420 }); station = run(station, defaultArenaEnvironment, 0, 0, 2); assert.equal(station.visits.A, 1);
+station = run(station, defaultArenaEnvironment, 0, 0, 2); assert.equal(station.visits.A, 1);
+station = run(station, defaultArenaEnvironment, 100, 100, 1); station = run(station, defaultArenaEnvironment, -100, -100, 1); station = run(station, defaultArenaEnvironment, 0, 0, 1); assert.equal(station.visits.A, 2);
+assert.equal(advanceArenaWorld(createArenaWorldState({ x: 800, y: 180 }), defaultArenaEnvironment, 0, 0, 0).goalBeam, true);
+assert.equal(advanceArenaWorld(createArenaWorldState({ x: 500, y: 300 }), defaultArenaEnvironment, 0, 0, 0).offPath, true);
+for (const bad of [{}, { ...defaultArenaEnvironment, guides: 1 }, { guides: true, obstacles: [{ x: 400, y: 420, radius: 28 }] }, { guides: true, obstacles: [{ x: 120, y: 420, radius: 28 }] }, { guides: true, obstacles: [{ x: 260, y: 420, radius: NaN }] }]) assert.equal(validArenaEnvironment(bad), false);
+assert.equal(validArenaEnvironment(obstacleArenaEnvironment), true);
+const scene = createSceneFromTemplate('robotArena'); assert.equal(isSceneDefinition(scene), true); assert.deepEqual(validateScene(scene).issues.filter(i => i.severity === 'error'), []);
+assert.throws(() => addDeviceToScene(scene, 'robot')); assert.throws(() => addDeviceToScene(scene, 'distanceSensor'));
+assert.equal(isSceneDefinition(appendTemplateToScene(createEmptyScene(), 'robotArena').scene), true);
+registerBlocks(Blockly);
+for (const e of examples.filter(e => e.id.startsWith('robotArena'))) {
+  const ws = new Blockly.Workspace(); workspaceDevices.set(ws, e.scene.devices); Blockly.serialization.workspaces.load(structuredClone(e.workspace), ws); const p = compileWorkspace(ws); ws.dispose();
+  assert.deepEqual(validateProgramForScene(p, e.scene).filter(i => i.severity === 'error'), []);
+  assert.equal(normalizeWorkspaceTabs(e.workspace).tabs.length, e.id === 'robotArena' ? 1 : 5);
+  assert.deepEqual(decodeProject(JSON.parse(JSON.stringify(makeProject(e.title, e.scene, e.workspace)))).project.workspace, e.workspace);
+  for (const result of [generateEsp32CodeResult(p, e.title, e.scene), generateEspIdfCodeResult(p, e.title, e.scene)]) assert.deepEqual(result.diagnostics.filter(i => i.severity === 'error'), []);
+  assert.ok(createCapiRules(p, e.scene, 'wemos-d1-r32').instructionCount > 0);
+}
+console.log('Pista: geometría, contactos/recuperación sin rebotes, sensores, visitas sin duplicados, límites y ejemplos/JSON/generadores/reglas aprobados.');

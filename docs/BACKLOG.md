@@ -1,4 +1,79 @@
 # Backlog de CapiBloques
+**Fase 54 — Teatro interactivo de Otto:** software en rama `codex/fase-54-teatro-otto` desde dev1. Público frontal, peticiones y dos ejemplos completos, directo y modular; [reglas/evidencia](FASE_54_TEATRO_OTTO.md). Coordinación corporal FIFO sin preempción, runtime 1.9.1 / ABI 1. Actualización dev1, SDK completo, aceptación y paridad Waveshare/físico pendientes. No se tocaron main/dev2. Fases 55–56 sólo planificadas; estados históricos inferiores no revocan esta autorización.
+
+
+**Fase 53 — Estación meteorológica:** software web en rama
+`codex/fase-53-estacion-meteorologica`, desde dev1. Clima gradual, mediciones
+exteriores, detector con secado residual, techo y mesa mojable. Dos ejemplos
+completos: informativo secuencial y puesto protegido con ocho procedimientos/
+cinco pestañas. [Reglas y entrega](FASE_53_ESTACION_METEOROLOGICA.md).
+Actualización sólo dev1 por propietario; main/dev2 intactos. Aceptación humana,
+Waveshare y sensores físicos pendientes; fases 54–56 sin autorización de
+implementación. Planificación de seguidor de línea (56) conservada debajo.
+
+**Fase 56 — Vehículo seguidor de línea (planificada):** escena con circuitos
+predefinidos y trazado propio, sensores reflectivos montados y control real
+del algoritmo, sin piloto automático. [Propuesta y actividades posibles](FASE_56_SEGUIDOR_LINEA.md):
+curvas, recuperación, vueltas/checkpoints, bifurcaciones, estaciones, obstáculos,
+velocidad adaptativa y calibración. Sensores/perfiles y alcance a acordar antes
+de implementar; no confundir reflectivos con barrera infrarroja. Sin cambios
+de software ni autorización para implementar; números 53–55 conservados.
+
+**Fase 52 — Pista de robots:** software web en rama
+`codex/fase-52-pista-robots`, desde dev1. Robot, sensores montados, estaciones,
+obstáculos y contactos recuperables; dos ejemplos completos (secuencial y ocho
+procedimientos/cinco pestañas). [Reglas y entrega](FASE_52_PISTA_ROBOTS.md).
+Actualizar sólo dev1 por propietario; main/dev2 intactos. Aceptación humana,
+Waveshare y robot físico pendientes; fases 53–55 no iniciadas. Sustituye estados
+históricos inferiores.
+
+**Fase 51 — Taller y cinta transportadora:** software web en rama
+`codex/fase-51-taller-cinta`, desde dev1. Motor, lectura de color/peso estable,
+servo con atasco y salidas confirmadas; controles de llegadas y dos ejemplos
+completos (secuencial por color y modular por peso, cinco procedimientos/cuatro
+pestañas). [Reglas y entrega](FASE_51_TALLER_CINTA.md). Actualización sólo dev1
+por propietario; main/dev2 intactos. Aceptación humana, Waveshare y maqueta
+pendientes; fase 52 entregada después. Sustituye estados históricos inferiores.
+
+**Fase 50 — Casa inteligente y entrada segura:** software web en rama
+`codex/fase-50-casa-entrada-segura`, desde dev1. Visitantes, tarjetas, timbre,
+salidas, puerta con paso efectivo y luces por presencia/oscuridad. Dos ejemplos
+completos: directo sin identidad y modular que compara tarjetas. Reglas y
+entrega: [FASE_50_CASA_ENTRADA_SEGURA.md](FASE_50_CASA_ENTRADA_SEGURA.md).
+Integración/actualización sólo dev1 por propietario; main/dev2 intactos.
+Aceptación humana, Waveshare y maqueta pendientes; fase 51 entregada después.
+
+**Fase 49 — Huerta e invernadero:** autorizada e implementada en rama
+`codex/fase-49-huerta-invernadero`, desde dev1. Dos canteros/riegos, tierra,
+clima, ventana, plantas con estrés/recuperación y condiciones ambientales.
+Dos ejemplos completos: directo y seis procedimientos/cuatro pestañas.
+[Reglas, alcance y entrega](FASE_49_HUERTA_INVERNADERO.md).
+Integración/actualización sólo dev1 por propietario; main/dev2 intactos.
+Aceptación humana, Waveshare y maqueta pendientes. Fases 50–55 no iniciadas.
+
+**Fase 48 — Estacionamiento:** autorizada e implementada en
+`codex/fase-48-estacionamiento`, desde dev1. Dos accesos, dos servos, cuatro
+detectores automáticos, 4/8/12 plazas, conteo programado, cartel, atasco y
+recuperación. Dos ejemplos completos: directo y procedimientos con pestañas.
+[Reglas, uso, pruebas y límites](FASE_48_ESTACIONAMIENTO.md).
+Integración/actualización sólo dev1 por el propietario; main/dev2 intactos.
+Waveshare y aceptación física/humana pendientes; fases 49–55 no iniciadas.
+
+**Cierre operativo transversal (17/18 de octubre):** dev1/dev2 instalados,
+HTTPS/DNS/servicios activos, copia inicial autorizada y verificada con mismos
+usuarios/contraseñas/colegio/proyectos del original. Main intacto; sin promoción.
+Instalación ya no pendiente. Restan aceptación humana, compilación avanzada,
+recursos sostenidos/reboot y promoción sólo cuando se pida. Contexto vivo y
+guía compartida conservan evidencia, recuperación y comandos.
+
+**Infraestructura transversal autorizada — tres ambientes en capi-dev.** Main
+conserva endpoint actual; dev1 para nosotros, dev2 para el otro desarrollador,
+con API/PG/secretos/proyectos/colas aislados. Actualizaciones por ambiente,
+promoción a main sólo explícita, bloqueo global y compilación pesada serializada.
+Software en rama `codex/ambientes-dev1-dev2`; pendientes instalación Linux,
+DNS por propietario, Nginx/certificados, cuentas y aceptación de los tres sitios,
+compilación/recursos/reboot/promoción. No equivale a endpoints desplegados ni
+cambia fases funcionales/producción. [Guía y comandos](FLUJO_RAMA_INTEGRACION_DEV.md).
 
 Ampliación autorizada de fase 47 en `codex/paso-nivel-multivia`: 1/2/4 vías,
 trenes simultáneos por vías independientes, dos detectores por vía y cierre
@@ -19,7 +94,8 @@ nueve tareas anidadas y cinco pestañas; mantiene la versión directa. Vía
 ocupada/libre agrupan barreras y avisos; equivalencia de ambas soluciones y
 ejecución en worker verificadas. Detalle en la misma guía de fase 47.
 Ultrasonido, switch o Hall/reed no se incorporaron como perfiles intercambiables.
-Portado Waveshare y maqueta física quedan pendientes. No iniciar fase 48 aún.
+Portado Waveshare y maqueta física quedan pendientes. Fase 48 autorizada después,
+según la actualización al comienzo de este backlog.
 
 ## Mundos interactivos — pedido del 17 de octubre de 2026
 

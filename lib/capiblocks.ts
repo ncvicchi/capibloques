@@ -21,6 +21,8 @@ import {
 
 export type SceneId = LegacySceneId;
 // @ts-expect-error Node strip-types runner.
+import { ottoQueueSupport } from './otto-queue.ts';
+// @ts-expect-error Node strip-types runner.
 import { railBindings, railDetectorRole } from './rail-world.ts';
 // @ts-expect-error Node strip-types runner.
 import { displayArtworks, displayProfiles, displayTargets, layoutDisplayText, MAX_DISPLAY_TEXT, validDisplayConfig } from './display-model.ts';
@@ -301,7 +303,7 @@ export interface ProjectDecodeResult {
   diagnostics: CapiDiagnostic[];
 }
 
-export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4';
+export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4' | 'parkingProcedures' | 'greenhouseProcedures' | 'smartHouseProcedures' | 'conveyorProcedures' | 'robotArenaProcedures' | 'weatherLabProcedures' | 'ottoTheaterProcedures';
 export interface ExampleDefinition {
   id: ExampleId;
   title: string;
@@ -411,6 +413,13 @@ export interface ExecutionTaskState {
 export interface SimulatorState {
   /** Estado virtual transitorio; nunca forma parte del proyecto portable. */
   railWorld?: import('./rail-world').RailWorldState;
+  parkingWorld?: import('./parking-world').ParkingWorldState;
+  gardenWorld?: import('./garden-world').GardenWorldState;
+  houseWorld?: import('./house-world').HouseWorldState;
+  conveyorWorld?: import('./conveyor-world').ConveyorWorldState;
+  arenaWorld?: import('./robot-arena').ArenaWorldState;
+  weatherWorld?: import('./weather-world').WeatherWorldState;
+  theaterWorld?: import('./theater-world').TheaterWorldState;
   execution?: {
     mode: 'normal' | 'guided';
     awaitingFrame: number | null;
@@ -893,6 +902,361 @@ const messageReceiver = (expected: string, equal: Record<string, unknown>, diffe
   } } },
 });
 
+function parkingExample(modular: boolean): ExampleDefinition {
+  const occupied = 'parking-occupied', capacity = 'parking-capacity';
+  const sequence = (...blocks: Record<string, unknown>[]) => {
+    const copies = structuredClone(blocks);
+    for (let index = 0; index < copies.length - 1; index++) {
+      let tail = copies[index];
+      while (tail.next) tail = (tail.next as { block: Record<string, unknown> }).block;
+      tail.next = { block: copies[index + 1] };
+    }
+    return copies[0];
+  };
+  let next = 0;
+  const id = (name: string) => `parking-${modular ? 'mod' : 'direct'}-${name}-${next++}`;
+  const num = (value: number) => ({ type: 'capi_value_number', id: id('number'), fields: { VALUE: value } });
+  const read = (variable: string) => ({ type: 'capi_variable_get_number', id: id('read'), fields: { VAR: { id: variable } } });
+  const compare = (operator: string, left: Record<string, unknown>, right: Record<string, unknown>) => ({ type: 'capi_value_compare', id: id('compare'), fields: { OPERATOR: operator }, inputs: { LEFT: { block: left }, RIGHT: { block: right } } });
+  const detector = (role: string, state = 'INTERRUPTED') => ({ type: 'capi_barrier_state', id: id('read-detector'), fields: { DEVICE_ID: `parking-${role}`, STATE: state } });
+  const gate = (entry: boolean, angle: number) => ({ type: 'capi_servo', id: id('gate'), fields: { DEVICE_ID: `parking-${entry ? 'entry' : 'exit'}Gate`, ANGLE: angle } });
+  const wait = () => ({ type: 'capi_wait', id: id('yield'), fields: { SECONDS: 0.05 } });
+  const until = (condition: Record<string, unknown>) => ({ type: 'capi_while', id: id('until'), fields: { MODE: 'UNTIL' }, inputs: { CONDITION: { block: condition }, DO: { block: wait() } } });
+  const change = (delta: number) => ({ type: 'capi_variable_change', id: id('count'), fields: { VAR: { id: occupied } }, inputs: { DELTA: { block: num(delta) } } });
+  const writes = () => ({ type: 'capi_if', id: id('display-if'), inputs: {
+    CONDITION: { block: compare('GTE', read(occupied), read(capacity)) },
+    DO: { block: { type: 'capi_display_write', id: id('full'), fields: { DEVICE_ID: 'parking-display', AREA_ID: 'screen', TEXT: 'Completo' } } },
+    ELSE: { block: { type: 'capi_display_write', id: id('free'), fields: { DEVICE_ID: 'parking-display', AREA_ID: 'screen', TEXT: 'Libres: ' }, inputs: { DYNAMIC: { block: {
+      type: 'capi_number_math', id: id('subtract'), fields: { OPERATOR: 'SUBTRACT' }, inputs: { LEFT: { block: read(capacity) }, RIGHT: { block: read(occupied) } },
+    } } } } },
+  } });
+  const passage = (entry: boolean) => sequence(
+    gate(entry, 90),
+    until(detector(entry ? 'entryPassed' : 'exitPassed')),
+    until(detector(entry ? 'entryPassed' : 'exitPassed', 'CLEAR')),
+    gate(entry, 0), change(entry ? 1 : -1),
+  );
+  const call = (name: string) => ({ type: 'capi_procedure_call', id: id('call'), fields: { ROUTINE: { id: `parking-task-${name}` } } });
+  const service = (entry: boolean) => sequence(
+    until(detector(entry ? 'entryArrival' : 'exitArrival')),
+    ...(entry ? [until(compare('LT', read(occupied), read(capacity)))] : []),
+    ...(modular ? [call(entry ? 'enter' : 'exit')] : [passage(entry)]), wait(),
+  );
+  const forever = (body: Record<string, unknown>) => ({ type: 'capi_forever', id: id('loop'), inputs: { DO: { block: body } } });
+  const start = startWorkspace(sequence(
+    gate(true, 0), gate(false, 0),
+    ...[occupied, capacity].map((variable, index) => ({ type: 'capi_variable_set_number', id: id('set'), fields: { VAR: { id: variable } }, inputs: { VALUE: { block: num(index ? 8 : 0) } } })),
+    { type: 'capi_parallel', id: id('parallel'), extraState: { branches: 3 }, inputs: {
+      BRANCH0: { block: modular ? call('entryControl') : forever(service(true)) },
+      BRANCH1: { block: modular ? call('exitControl') : forever(service(false)) },
+      BRANCH2: { block: forever(sequence(modular ? call('display') : writes(), { type: 'capi_wait', id: id('display-tick'), fields: { SECONDS: 0.2 } })) },
+    } },
+  ));
+  const routines = [
+    { key: 'entryControl', name: 'Gestionar entrada', body: () => forever(service(true)) },
+    { key: 'exitControl', name: 'Gestionar salida', body: () => forever(service(false)) },
+    { key: 'enter', name: 'Dejar entrar y contar', body: () => passage(true) },
+    { key: 'exit', name: 'Dejar salir y contar', body: () => passage(false) },
+    { key: 'display', name: 'Actualizar cartel', body: writes },
+  ];
+  const definitions = modular ? routines.map((routine, index) => ({ type: 'capi_procedure_def', id: `parking-def-${routine.key}`, x: 48, y: 48 + index * 600,
+    fields: { ROUTINE: { id: `parking-task-${routine.key}` }, P1_TYPE: 'none', P2_TYPE: 'none', P3_TYPE: 'none' }, inputs: { BODY: { block: routine.body() } },
+  })) : [];
+  return {
+    id: modular ? 'parkingProcedures' : 'parking', title: modular ? 'Estacionamiento con procedimientos' : 'Estacionamiento', icon: modular ? '🧩' : '🅿️', level: 'Intermedio',
+    mission: 'Entrada y salida independientes: admití autos sólo si quedan plazas y contá cada paso completo.',
+    description: 'Solución completa de 8 plazas con cuatro detectores, dos barreras y cartel. Al cambiar las plazas, ajustá también la variable Capacidad del programa.',
+    scene: createSceneFromTemplate('parking'),
+    workspace: { ...start, variables: [
+      { id: occupied, name: 'Ocupados', type: 'Number' }, { id: capacity, name: 'Capacidad', type: 'Number' },
+      ...(modular ? routines.map(routine => ({ id: `parking-task-${routine.key}`, name: routine.name, type: 'Procedure' })) : []),
+    ], blocks: { ...start.blocks, blocks: [...start.blocks.blocks, ...definitions] },
+    capiTabs: { version: 1, tabs: [
+      { id: 'main', name: 'Principal', rootBlockIds: ['start-main'] },
+      ...(modular ? [
+        { id: 'tab-parking-control', name: 'Accesos', rootBlockIds: ['parking-def-entryControl', 'parking-def-exitControl'] },
+        { id: 'tab-parking-passages', name: 'Paso completo', rootBlockIds: ['parking-def-enter', 'parking-def-exit'] },
+        { id: 'tab-parking-sign', name: 'Cartel', rootBlockIds: ['parking-def-display'] },
+      ] : []),
+    ] } },
+  };
+}
+
+function greenhouseExample(modular: boolean): ExampleDefinition {
+  let next = 0;
+  const id = () => `garden-${modular ? 'mod' : 'direct'}-${next++}`;
+  const sequence = (...blocks: Record<string, unknown>[]) => {
+    const copies = structuredClone(blocks);
+    for (let i = 0; i < copies.length - 1; i++) { let tail = copies[i]; while (tail.next) tail = (tail.next as { block: Record<string, unknown> }).block; tail.next = { block: copies[i + 1] }; }
+    return copies[0];
+  };
+  const read = (role: string, property: string) => ({ type: 'capi_component_number', id: id(), fields: { DEVICE_ID: `garden-${role}`, PROPERTY: property } });
+  const power = (role: string, value: number) => ({ type: 'capi_power_switch', id: id(), fields: { DEVICE_ID: `garden-${role}`, POWER: value } });
+  const window = (angle: number) => ({ type: 'capi_servo', id: id(), fields: { DEVICE_ID: 'garden-window', ANGLE: angle } });
+  const condition = (role: string, property: string, operator: string, value: number) => ({ type: 'capi_value_compare', id: id(), fields: { OPERATOR: operator }, inputs: { LEFT: { block: read(role, property) }, RIGHT: { block: { type: 'capi_value_number', id: id(), fields: { VALUE: value } } } } });
+  const when = (test: Record<string, unknown>, body: Record<string, unknown>) => ({ type: 'capi_if', id: id(), inputs: { CONDITION: { block: test }, DO: { block: body } } });
+  const water = (outside: boolean) => sequence(
+    when(condition(outside ? 'outsideSoil' : 'insideSoil', 'moisture', 'LT', 35), power(outside ? 'outsidePump' : 'insidePump', 100)),
+    when(condition(outside ? 'outsideSoil' : 'insideSoil', 'moisture', 'GT', 65), power(outside ? 'outsidePump' : 'insidePump', 0)),
+  );
+  const ventilate = () => sequence(when(condition('climate', 'temperature', 'GT', 30), window(90)), when(condition('climate', 'temperature', 'LT', 26), window(0)));
+  const wait = (seconds: number) => ({ type: 'capi_wait', id: id(), fields: { SECONDS: seconds } });
+  const loop = (body: Record<string, unknown>) => ({ type: 'capi_forever', id: id(), inputs: { DO: { block: body } } });
+  const call = (routine: string) => ({ type: 'capi_procedure_call', id: id(), fields: { ROUTINE: { id: `garden-task-${routine}` } } });
+  const display = () => ({ type: 'capi_display_write', id: id(), fields: { DEVICE_ID: 'garden-display', AREA_ID: 'screen', TEXT: 'Huerta %: ' }, inputs: { DYNAMIC: { block: read('outsideSoil', 'moisture') } } });
+  const routines = [
+    { key: 'careOutside', name: 'Cuidar la huerta', body: () => loop(sequence(call('waterOutside'), wait(0.2))) },
+    { key: 'careInside', name: 'Cuidar el invernadero', body: () => loop(sequence(call('waterInside'), call('ventilate'), wait(0.2))) },
+    { key: 'waterOutside', name: 'Regular riego exterior', body: () => water(true) },
+    { key: 'waterInside', name: 'Regular riego interior', body: () => water(false) },
+    { key: 'ventilate', name: 'Regular ventilación', body: ventilate },
+    { key: 'display', name: 'Mostrar humedad', body: display },
+  ];
+  const start = startWorkspace(sequence(power('outsidePump', 0), power('insidePump', 0), window(modular ? 0 : 90), {
+    type: 'capi_parallel', id: id(), extraState: { branches: 3 }, inputs: {
+      BRANCH0: { block: modular ? call('careOutside') : loop(sequence(water(true), wait(0.2))) },
+      BRANCH1: { block: modular ? call('careInside') : loop(sequence(water(false), wait(0.2))) },
+      BRANCH2: { block: loop(sequence(modular ? call('display') : display(), wait(1))) },
+    },
+  }));
+  const definitions = modular ? routines.map((routine, index) => ({ type: 'capi_procedure_def', id: `garden-def-${routine.key}`, x: 48, y: 48 + (index % 2) * 500,
+    fields: { ROUTINE: { id: `garden-task-${routine.key}` }, P1_TYPE: 'none', P2_TYPE: 'none', P3_TYPE: 'none' }, inputs: { BODY: { block: routine.body() } },
+  })) : [];
+  return {
+    id: modular ? 'greenhouseProcedures' : 'greenhouse', title: modular ? 'Huerta e invernadero con procedimientos' : 'Huerta con riego automático', icon: modular ? '🧩' : '🌱', level: 'Intermedio',
+    mission: modular ? 'Cuidá ambos canteros y regulá la ventilación con tareas reutilizables.' : 'Regá ambos canteros usando dos umbrales: encender por debajo de 35%, apagar por encima de 65%.',
+    description: modular ? 'Solución completa: dos riegos, ventana automática y cartel, en tres procesos y cuatro pestañas.' : 'Solución directa completa: riego independiente y cartel. La ventana queda abierta; el segundo ejemplo agrega regulación de temperatura.',
+    scene: createSceneFromTemplate('greenhouse'),
+    workspace: { ...start, ...(modular ? { variables: routines.map(routine => ({ id: `garden-task-${routine.key}`, name: routine.name, type: 'Procedure' })) } : {}),
+      blocks: { ...start.blocks, blocks: [...start.blocks.blocks, ...definitions] }, capiTabs: { version: 1, tabs: [
+        { id: 'main', name: 'Principal', rootBlockIds: ['start-main'] },
+        ...(modular ? [
+          { id: 'tab-garden-care', name: 'Cuidar plantas', rootBlockIds: ['garden-def-careOutside', 'garden-def-careInside'] },
+          { id: 'tab-garden-water', name: 'Riego', rootBlockIds: ['garden-def-waterOutside', 'garden-def-waterInside'] },
+          { id: 'tab-garden-climate', name: 'Clima y cartel', rootBlockIds: ['garden-def-ventilate', 'garden-def-display'] },
+        ] : []),
+      ] } },
+  };
+}
+
+function smartHouseExample(modular: boolean): ExampleDefinition {
+  let next = 0;
+  const id = () => `house-${modular ? 'mod' : 'direct'}-${next++}`;
+  const sequence = (...blocks: Record<string, unknown>[]) => { const copies = structuredClone(blocks); for (let i = 0; i < copies.length - 1; i++) { let tail = copies[i]; while (tail.next) tail = (tail.next as { block: Record<string, unknown> }).block; tail.next = { block: copies[i + 1] }; } return copies[0]; };
+  const read = (role: string, property: string, type: 'number' | 'text' | 'boolean') => ({ type: `capi_component_${type}`, id: id(), fields: { DEVICE_ID: `house-${role}`, PROPERTY: property } });
+  const literal = (value: number | boolean | string) => ({ type: `capi_value_${typeof value === 'string' ? 'text' : typeof value}`, id: id(), fields: { VALUE: typeof value === 'boolean' ? value ? 'TRUE' : 'FALSE' : value } });
+  const compare = (left: Record<string, unknown>, operator: string, value: number | boolean | string) => ({ type: 'capi_value_compare', id: id(), fields: { OPERATOR: operator }, inputs: { LEFT: { block: left }, RIGHT: { block: literal(value) } } });
+  const when = (test: Record<string, unknown>, body: Record<string, unknown>, otherwise?: Record<string, unknown>) => ({ type: 'capi_if', id: id(), inputs: { CONDITION: { block: test }, DO: { block: body }, ...(otherwise ? { ELSE: { block: otherwise } } : {}) } });
+  const wait = (seconds = 0.2) => ({ type: 'capi_wait', id: id(), fields: { SECONDS: seconds } });
+  const until = (test: Record<string, unknown>) => ({ type: 'capi_while', id: id(), fields: { MODE: 'UNTIL' }, inputs: { CONDITION: { block: test }, DO: { block: wait(0.1) } } });
+  const loop = (body: Record<string, unknown>) => ({ type: 'capi_forever', id: id(), inputs: { DO: { block: body } } });
+  const call = (routine: string) => ({ type: 'capi_procedure_call', id: id(), fields: { ROUTINE: { id: `house-task-${routine}` } } });
+  const door = (angle: number) => ({ type: 'capi_servo', id: id(), fields: { DEVICE_ID: 'house-door', ANGLE: angle } });
+  const led = (role: string, value: number) => ({ type: 'capi_led', id: id(), fields: { DEVICE_ID: `house-${role}`, BRIGHTNESS: value } });
+  const button = (role: string) => ({ type: 'capi_button_pressed', id: id(), fields: { DEVICE_ID: `house-${role}` } });
+  const write = (text: string) => ({ type: 'capi_display_write', id: id(), fields: { DEVICE_ID: 'house-display', AREA_ID: 'screen', TEXT: text } });
+  const passage = () => sequence(write('Adelante'), door(90), ...['INTERRUPTED', 'CLEAR'].map(state => until({ type: 'capi_barrier_state', id: id(), fields: { DEVICE_ID: 'house-passage', STATE: state } })), door(0), write('Puerta cerrada'));
+  const reject = () => sequence(write('Tarjeta no valida'), { type: 'capi_buzzer', id: id(), fields: { DEVICE_ID: 'house-alarm', KIND: 'ACTIVE', DURATION: 300, FREQUENCY: 660 } }, until(compare(read('outsideMotion', 'motion', 'boolean'), 'EQ', false)), write('Esperando visita'));
+  const access = () => sequence(when(button('exitButton'), modular ? call('passage') : passage(), when(button('bell'), modular ? when(compare(read('reader', 'card', 'text'), 'EQ', 'azul'), call('passage'), call('reject')) : passage())), wait());
+  const light = (inside: boolean) => sequence(when(read(inside ? 'insideMotion' : 'outsideMotion', 'motion', 'boolean'), sequence(
+    when(compare(read(inside ? 'insideLux' : 'outsideLux', 'value', 'number'), 'LT', 1500), led(inside ? 'insideLight' : 'outsideLight', 80)),
+    when(compare(read(inside ? 'insideLux' : 'outsideLux', 'value', 'number'), 'GT', 3300), led(inside ? 'insideLight' : 'outsideLight', 0)),
+  ), led(inside ? 'insideLight' : 'outsideLight', 0)), wait());
+  const routines = [
+    { key: 'access', name: 'Atender la entrada', body: () => loop(access()) },
+    { key: 'passage', name: 'Dejar pasar y cerrar', body: passage },
+    { key: 'reject', name: 'Avisar y esperar', body: reject },
+    { key: 'lights', name: 'Cuidar las luces', body: () => ({ type: 'capi_parallel', id: id(), extraState: { branches: 2 }, inputs: { BRANCH0: { block: call('outside') }, BRANCH1: { block: call('inside') } } }) },
+    { key: 'outside', name: 'Iluminar la entrada', body: () => loop(light(false)) },
+    { key: 'inside', name: 'Iluminar la habitación', body: () => loop(light(true)) },
+  ];
+  const start = startWorkspace(sequence(door(0), led('outsideLight', 0), led('insideLight', 0), write('Esperando visita'), {
+    type: 'capi_parallel', id: id(), extraState: { branches: modular ? 2 : 3 }, inputs: modular ? { BRANCH0: { block: call('access') }, BRANCH1: { block: call('lights') } } : { BRANCH0: { block: loop(access()) }, BRANCH1: { block: loop(light(false)) }, BRANCH2: { block: loop(light(true)) } },
+  }));
+  const definitions = modular ? routines.map((routine, index) => ({ type: 'capi_procedure_def', id: `house-def-${routine.key}`, x: 48, y: 48 + (index % 2) * 600, fields: { ROUTINE: { id: `house-task-${routine.key}` }, P1_TYPE: 'none', P2_TYPE: 'none', P3_TYPE: 'none' }, inputs: { BODY: { block: routine.body() } } })) : [];
+  return { id: modular ? 'smartHouseProcedures' : 'smartHouse', title: modular ? 'Entrada con tarjetas y procedimientos' : 'Casa con iluminación automática', icon: modular ? '🧩' : '🏠', level: 'Intermedio',
+    mission: modular ? 'Aceptá la tarjeta azul, atendé las salidas y esperá el paso completo antes de cerrar.' : 'Atendé timbre y salidas; iluminá sólo con presencia y oscuridad. El timbre no verifica identidad.',
+    description: modular ? 'Solución completa: acceso con tarjeta azul, rechazo con aviso y luces independientes. Seis procedimientos y cuatro pestañas.' : 'Solución directa completa: abre a cualquier visitante que toque el timbre. La segunda solución verifica tarjetas.',
+    scene: createSceneFromTemplate('smartHouse'), workspace: { ...start, ...(modular ? { variables: routines.map(routine => ({ id: `house-task-${routine.key}`, name: routine.name, type: 'Procedure' })) } : {}), blocks: { ...start.blocks, blocks: [...start.blocks.blocks, ...definitions] }, capiTabs: { version: 1, tabs: [ { id: 'main', name: 'Principal', rootBlockIds: ['start-main'] }, ...(modular ? [
+      { id: 'tab-house-access', name: 'Acceso', rootBlockIds: ['house-def-access', 'house-def-passage'] }, { id: 'tab-house-reject', name: 'Avisos y luces', rootBlockIds: ['house-def-reject', 'house-def-lights'] }, { id: 'tab-house-lights', name: 'Iluminación', rootBlockIds: ['house-def-outside', 'house-def-inside'] },
+    ] : []) ] } } };
+}
+
+function conveyorExample(modular: boolean): ExampleDefinition {
+  let n = 0;
+  const id = () => `conveyor-${modular ? 'mod' : 'direct'}-${n++}`;
+  const sequence = (...blocks: Record<string, unknown>[]) => { const copies = structuredClone(blocks); for (let i = 0; i < copies.length - 1; i++) { let tail = copies[i]; while (tail.next) tail = (tail.next as { block: Record<string, unknown> }).block; tail.next = { block: copies[i + 1] }; } return copies[0]; };
+  const wait = (seconds: number) => ({ type: 'capi_wait', id: id(), fields: { SECONDS: seconds } });
+  const motor = (power: number) => ({ type: 'capi_motor', id: id(), fields: { DEVICE_ID: 'conveyor-motor', DIRECTION: power ? 'FORWARD' : 'STOP', POWER: power } });
+  const gate = (angle: number) => ({ type: 'capi_servo', id: id(), fields: { DEVICE_ID: 'conveyor-gate', ANGLE: angle } });
+  const beam = (role: string, state = 'INTERRUPTED') => ({ type: 'capi_barrier_state', id: id(), fields: { DEVICE_ID: `conveyor-${role}`, STATE: state } });
+  const until = (condition: Record<string, unknown>) => ({ type: 'capi_while', id: id(), fields: { MODE: 'UNTIL' }, inputs: { CONDITION: { block: condition }, DO: { block: wait(0.05) } } });
+  const read = (role: string, property: string) => ({ type: 'capi_component_number', id: id(), fields: { DEVICE_ID: `conveyor-${role}`, PROPERTY: property } });
+  const compare = (value: Record<string, unknown>, threshold: Record<string, unknown>) => ({ type: 'capi_value_compare', id: id(), fields: { OPERATOR: 'GT' }, inputs: { LEFT: { block: value }, RIGHT: { block: threshold } } });
+  const literal = (value: number) => ({ type: 'capi_value_number', id: id(), fields: { VALUE: value } });
+  const variable = (name: string) => ({ type: 'capi_variable_get_number', id: id(), fields: { VAR: { id: name } } });
+  const call = (name: string) => ({ type: 'capi_procedure_call', id: id(), fields: { ROUTINE: { id: `conveyor-task-${name}` } } });
+  const count = () => ({ type: 'capi_counter_change', id: id(), fields: { DELTA: 1 } });
+  const collect = () => sequence(motor(60), until(beam('presence')), motor(0), wait(0.7));
+  const deliver = (route: string) => sequence(gate(route === 'outputA' ? 0 : 90), wait(1.25), motor(60), until(beam(route)), until(beam(route, 'CLEAR')), motor(0), count());
+  const choose = () => ({ type: 'capi_if', id: id(), inputs: {
+    CONDITION: { block: modular ? compare(read('scale', 'weight'), variable('conveyor-threshold')) : compare(read('color', 'red'), literal(150)) },
+    DO: { block: modular ? call('A') : deliver('outputA') },
+    ELSE: { block: modular ? call('B') : deliver('outputB') },
+  } });
+  const routines = [
+    { key: 'cycle', name: 'Clasificar un paquete', body: () => sequence(call('collect'), call('choose')) },
+    { key: 'collect', name: 'Transportar y pesar', body: collect },
+    { key: 'choose', name: 'Elegir por peso', body: choose },
+    { key: 'A', name: 'Entregar en A', body: () => deliver('outputA') },
+    { key: 'B', name: 'Entregar en B', body: () => deliver('outputB') },
+  ];
+  const start = startWorkspace(sequence(motor(0), gate(0), { type: 'capi_counter_set', id: id(), fields: { VALUE: 0 } },
+    ...(modular ? [{ type: 'capi_variable_set_number', id: id(), fields: { VAR: { id: 'conveyor-threshold' } }, inputs: { VALUE: { block: literal(500) } } }] : []),
+    { type: 'capi_forever', id: id(), inputs: { DO: { block: modular ? call('cycle') : sequence(collect(), choose()) } } }));
+  const definitions = modular ? routines.map((r, i) => ({ type: 'capi_procedure_def', id: `conveyor-def-${r.key}`, x: 48, y: 48 + (i % 2) * 580, fields: { ROUTINE: { id: `conveyor-task-${r.key}` }, P1_TYPE: 'none', P2_TYPE: 'none', P3_TYPE: 'none' }, inputs: { BODY: { block: r.body() } } })) : [];
+  return { id: modular ? 'conveyorProcedures' : 'conveyor', title: modular ? 'Taller por peso y procedimientos' : 'Taller: clasificar por color', icon: '📦', level: 'Intermedio',
+    mission: modular ? 'Pesá con la cinta detenida. Más de 500 g a A; el resto a B. Contá sólo entregas confirmadas.' : 'Rojo a A; azul y verde a B. Detené para leer y esperá la entrega completa.',
+    description: modular ? 'Solución completa con umbral editable, cinco procedimientos y cuatro pestañas.' : 'Solución secuencial completa: presencia, lectura, desvío y confirmación de salida. Las llegadas automáticas están espaciadas para este ejemplo; paquetes manuales muy seguidos requieren coordinar el programa.',
+    scene: createSceneFromTemplate('conveyor'), workspace: { ...start, ...(modular ? { variables: [{ id: 'conveyor-threshold', name: 'Peso límite', type: 'Number' }, ...routines.map(r => ({ id: `conveyor-task-${r.key}`, name: r.name, type: 'Procedure' }))] } : {}),
+      blocks: { ...start.blocks, blocks: [...start.blocks.blocks, ...definitions] }, capiTabs: { version: 1, tabs: [{ id: 'main', name: 'Principal', rootBlockIds: ['start-main'] }, ...(modular ? [
+        { id: 'tab-conveyor-cycle', name: 'Transporte', rootBlockIds: ['conveyor-def-cycle', 'conveyor-def-collect'] },
+        { id: 'tab-conveyor-choice', name: 'Clasificación', rootBlockIds: ['conveyor-def-choose'] },
+        { id: 'tab-conveyor-delivery', name: 'Entregas', rootBlockIds: ['conveyor-def-A', 'conveyor-def-B'] },
+      ] : [])] } } };
+}
+
+function arenaExample(modular: boolean): ExampleDefinition {
+  let n = 0;
+  const id = () => `arena-${modular ? 'mod' : 'direct'}-${n++}`;
+  const sequence = (...blocks: Record<string, unknown>[]) => { const copies = structuredClone(blocks); for (let i = 0; i < copies.length - 1; i++) { let tail = copies[i]; while (tail.next) tail = (tail.next as { block: Record<string, unknown> }).block; tail.next = { block: copies[i + 1] }; } return copies[0]; };
+  const wait = (seconds: number) => ({ type: 'capi_wait', id: id(), fields: { SECONDS: seconds } });
+  const move = (action: string, speed = 60) => ({ type: 'capi_robot', id: id(), fields: { DEVICE_ID: 'arena-robot', ACTION: action, SPEED: speed } });
+  const call = (routine: string) => ({ type: 'capi_procedure_call', id: id(), fields: { ROUTINE: { id: `arena-task-${routine}` } } });
+  const led = (brightness: number) => ({ type: 'capi_led', id: id(), fields: { DEVICE_ID: 'arena-light', BRIGHTNESS: brightness } });
+  const compare = (device: string, property: string, operator: string, value: number) => ({ type: 'capi_value_compare', id: id(), fields: { OPERATOR: operator }, inputs: { LEFT: { block: { type: 'capi_component_number', id: id(), fields: { DEVICE_ID: device, PROPERTY: property } } }, RIGHT: { block: { type: 'capi_value_number', id: id(), fields: { VALUE: value } } } } });
+  const until = (test: Record<string, unknown>) => ({ type: 'capi_while', id: id(), fields: { MODE: 'UNTIL' }, inputs: { CONDITION: { block: test }, DO: { block: wait(0.04) } } });
+  const turn = (direction: string) => sequence(move(direction, 75), wait(0.8), move('STOP'));
+  const station = (color: string) => sequence(move('FORWARD'), until(compare('arena-color', color, 'GT', 150)), wait(0.64), move('STOP'), led(80), wait(0.8), led(0));
+  const detour = () => sequence(move('STOP'), move('BACKWARD'), wait(0.64), move('STOP'), turn('LEFT'), move('FORWARD'), wait(2.08), turn('RIGHT'), move('FORWARD'), wait(3.36), turn('RIGHT'), move('FORWARD'), wait(2.08), turn('LEFT'));
+  const approach = () => sequence(move('FORWARD'), until(compare('arena-distance', 'distance', 'LT', 70)), call('detour'), call('A'));
+  const finish = () => sequence(move('FORWARD'), until({ type: 'capi_barrier_state', id: id(), fields: { DEVICE_ID: 'arena-goal', STATE: 'INTERRUPTED' } }), move('STOP'), led(100), { type: 'capi_buzzer', id: id(), fields: { DEVICE_ID: 'arena-buzzer', KIND: 'ACTIVE', DURATION: 300, FREQUENCY: 660 } });
+  const routines = [
+    { key: 'route', name: 'Completar el reparto', body: () => sequence(call('approach'), call('left'), call('B'), call('right'), call('finish')) },
+    { key: 'approach', name: 'Recorrer primer tramo', body: approach },
+    { key: 'detour', name: 'Resolver este obstáculo', body: detour },
+    { key: 'A', name: 'Atender estación A', body: () => station('red') },
+    { key: 'B', name: 'Atender estación B', body: () => station('blue') },
+    { key: 'left', name: 'Girar a la izquierda', body: () => turn('LEFT') },
+    { key: 'right', name: 'Girar a la derecha', body: () => turn('RIGHT') },
+    { key: 'finish', name: 'Llegar y avisar', body: finish },
+  ];
+  const start = startWorkspace(sequence(led(0), modular ? call('route') : sequence(station('red'), turn('LEFT'), station('blue'), turn('RIGHT'), finish())));
+  const definitions = modular ? routines.map((r, i) => ({ type: 'capi_procedure_def', id: `arena-def-${r.key}`, x: 48, y: 48 + (i % 2) * 650, fields: { ROUTINE: { id: `arena-task-${r.key}` }, P1_TYPE: 'none', P2_TYPE: 'none', P3_TYPE: 'none' }, inputs: { BODY: { block: r.body() } } })) : [];
+  const scene = createSceneFromTemplate('robotArena');
+  if (modular) scene.canvas.arenaEnvironment = { guides: true, obstacles: [{ x: 260, y: 420, radius: 28 }] };
+  return { id: modular ? 'robotArenaProcedures' : 'robotArena', title: modular ? 'Explorador con obstáculos y procedimientos' : 'Reparto por estaciones', icon: '🤖', level: 'Intermedio',
+    mission: modular ? 'Detectá el obstáculo, rodealo y visitá A y B antes de llegar a meta.' : 'Leé marcas del suelo, detenete en A y B y avisá al cruzar la meta.',
+    description: modular ? 'Solución completa para esta disposición: ocho procedimientos y cinco pestañas. El desvío está preparado para el obstáculo incluido; no resuelve cualquier laberinto.' : 'Solución secuencial completa en pista despejada. Color, giros, pausas y meta, sin seguir automáticamente el camino.',
+    scene, workspace: { ...start, ...(modular ? { variables: routines.map(r => ({ id: `arena-task-${r.key}`, name: r.name, type: 'Procedure' })) } : {}),
+      blocks: { ...start.blocks, blocks: [...start.blocks.blocks, ...definitions] }, capiTabs: { version: 1, tabs: [{ id: 'main', name: 'Principal', rootBlockIds: ['start-main'] }, ...(modular ? [
+        { id: 'tab-arena-route', name: 'Recorrido', rootBlockIds: ['arena-def-route', 'arena-def-approach'] },
+        { id: 'tab-arena-detour', name: 'Desvío', rootBlockIds: ['arena-def-detour', 'arena-def-finish'] },
+        { id: 'tab-arena-stations', name: 'Estaciones', rootBlockIds: ['arena-def-A', 'arena-def-B'] },
+        { id: 'tab-arena-turns', name: 'Giros', rootBlockIds: ['arena-def-left', 'arena-def-right'] },
+      ] : [])] } } };
+}
+
+function weatherLabExample(modular: boolean): ExampleDefinition {
+  let n = 0;
+  const id = () => `weather-${modular ? 'mod' : 'direct'}-${n++}`;
+  const sequence = (...blocks: Record<string, unknown>[]) => { const copies = structuredClone(blocks); for (let i = 0; i < copies.length - 1; i++) { let tail = copies[i]; while (tail.next) tail = (tail.next as { block: Record<string, unknown> }).block; tail.next = { block: copies[i + 1] }; } return copies[0]; };
+  const wait = (seconds: number) => ({ type: 'capi_wait', id: id(), fields: { SECONDS: seconds } });
+  const loop = (body: Record<string, unknown>) => ({ type: 'capi_forever', id: id(), inputs: { DO: { block: body } } });
+  const call = (routine: string) => ({ type: 'capi_procedure_call', id: id(), fields: { ROUTINE: { id: `weather-task-${routine}` } } });
+  const read = (role: string, property: string) => ({ type: 'capi_component_number', id: id(), fields: { DEVICE_ID: `weather-${role}`, PROPERTY: property } });
+  const test = (role: string, property: string, operator: string, value: number) => ({ type: 'capi_value_compare', id: id(), fields: { OPERATOR: operator }, inputs: { LEFT: { block: read(role, property) }, RIGHT: { block: { type: 'capi_value_number', id: id(), fields: { VALUE: value } } } } });
+  const when = (condition: Record<string, unknown>, body: Record<string, unknown>, otherwise?: Record<string, unknown>) => ({ type: 'capi_if', id: id(), inputs: { CONDITION: { block: condition }, DO: { block: body }, ...(otherwise ? { ELSE: { block: otherwise } } : {}) } });
+  const led = (role: string, brightness: number) => ({ type: 'capi_led', id: id(), fields: { DEVICE_ID: `weather-${role}-light`, BRIGHTNESS: brightness } });
+  const roof = (angle: number) => ({ type: 'capi_servo', id: id(), fields: { DEVICE_ID: 'weather-roof', ANGLE: angle } });
+  const show = (text: string, role?: string, property?: string) => ({ type: 'capi_display_write', id: id(), fields: { DEVICE_ID: 'weather-display', AREA_ID: 'screen', TEXT: text }, ...(role && property ? { inputs: { DYNAMIC: { block: read(role, property) } } } : {}) });
+  const rainfall = () => when(test('rain', 'level', 'GT', 20), sequence(show('Detector mojado'), ...(modular ? [] : [led('alert', 100)])), sequence(show('Detector seco'), ...(modular ? [] : [led('alert', 0)])));
+  const lights = () => modular ? sequence(when(test('light', 'value', 'LT', 1200), led('night', 80)), when(test('light', 'value', 'GT', 1800), led('night', 0))) : when(test('light', 'value', 'LT', 1200), led('night', 80), led('night', 0));
+  const protect = () => sequence(when(test('rain', 'level', 'GT', 35), roof(0)), when(test('rain', 'level', 'LT', 10), roof(90)));
+  const alarm = () => sequence(when(test('rain', 'level', 'GT', 35), sequence(led('alert', 100), { type: 'capi_buzzer', id: id(), fields: { DEVICE_ID: 'weather-buzzer', KIND: 'ACTIVE', DURATION: 400, FREQUENCY: 660 } }, { type: 'capi_while', id: id(), fields: { MODE: 'UNTIL' }, inputs: { CONDITION: { block: test('rain', 'level', 'LT', 10) }, DO: { block: wait(0.2) } } }, led('alert', 0))), wait(0.2));
+  const report = () => sequence(modular ? call('temperature') : show('Temp C: ', 'climate', 'temperature'), wait(1), modular ? call('humidity') : show('Humedad %: ', 'climate', 'humidity'), wait(1), modular ? call('pressure') : show('Presion hPa: ', 'climate', 'pressure'), wait(1), modular ? call('rain') : rainfall(), wait(1));
+  const routines = [
+    { key: 'report', name: 'Actualizar informe', body: () => loop(report()) },
+    { key: 'temperature', name: 'Mostrar temperatura', body: () => show('Temp C: ', 'climate', 'temperature') },
+    { key: 'humidity', name: 'Mostrar humedad', body: () => show('Humedad %: ', 'climate', 'humidity') },
+    { key: 'pressure', name: 'Mostrar presion', body: () => show('Presion hPa: ', 'climate', 'pressure') },
+    { key: 'rain', name: 'Informar detector', body: rainfall },
+    { key: 'roof', name: 'Proteger el puesto', body: () => loop(sequence(protect(), wait(0.2))) },
+    { key: 'light', name: 'Regular luz', body: () => loop(sequence(lights(), wait(0.2))) },
+    { key: 'alarm', name: 'Avisar una vez', body: () => loop(alarm()) },
+  ];
+  const start = startWorkspace(sequence(roof(90), led('night', 0), led('alert', 0), modular ? {
+    type: 'capi_parallel', id: id(), extraState: { branches: 4 }, inputs: Object.fromEntries(['report', 'roof', 'light', 'alarm'].map((key, i) => [`BRANCH${i}`, { block: call(key) }])),
+  } : loop(sequence(report(), lights()))));
+  const definitions = modular ? routines.map((r, i) => ({ type: 'capi_procedure_def', id: `weather-def-${r.key}`, x: 48, y: 48 + (i % 2) * 650, fields: { ROUTINE: { id: `weather-task-${r.key}` }, P1_TYPE: 'none', P2_TYPE: 'none', P3_TYPE: 'none' }, inputs: { BODY: { block: r.body() } } })) : [];
+  const scene = createSceneFromTemplate('weatherLab'); scene.canvas.weatherEnvironment = { condition: 'sunny', night: false, automatic: true };
+  return { id: modular ? 'weatherLabProcedures' : 'weatherLab', title: modular ? 'Puesto protegido con procedimientos' : 'Estación que informa', icon: '🌦️', level: 'Intermedio',
+    mission: modular ? 'Mostrá el clima, protegé la mesa, regulá luz y avisá una vez por episodio húmedo.' : 'Informá temperatura, humedad, presión y detector; observá qué pasa con la mesa si el techo queda abierto.',
+    description: modular ? 'Solución completa con cuatro procesos, ocho procedimientos y cinco pestañas. Techo cierra >35% y abre <10%; luz enciende <1200 y apaga >1800.' : 'Solución secuencial completa: muestra mediciones alternadas, avisa detector mojado y regula una luz. No cierra el techo. Secuencia de clima de prueba incluida.',
+    scene, workspace: { ...start, ...(modular ? { variables: routines.map(r => ({ id: `weather-task-${r.key}`, name: r.name, type: 'Procedure' })) } : {}),
+      blocks: { ...start.blocks, blocks: [...start.blocks.blocks, ...definitions] }, capiTabs: { version: 1, tabs: [{ id: 'main', name: 'Principal', rootBlockIds: ['start-main'] }, ...(modular ? [
+        { id: 'tab-weather-report', name: 'Informe', rootBlockIds: ['weather-def-report', 'weather-def-rain'] },
+        { id: 'tab-weather-measures', name: 'Mediciones', rootBlockIds: ['weather-def-temperature', 'weather-def-humidity'] },
+        { id: 'tab-weather-roof', name: 'Protección', rootBlockIds: ['weather-def-roof', 'weather-def-pressure'] },
+        { id: 'tab-weather-alerts', name: 'Luces y avisos', rootBlockIds: ['weather-def-light', 'weather-def-alarm'] },
+      ] : [])] } } };
+}
+
+function theaterExample(modular: boolean): ExampleDefinition {
+  let n = 0;
+  const id = () => `theater-${modular ? 'mod' : 'direct'}-${n++}`;
+  const sequence = (...blocks: Record<string, unknown>[]) => { const copies = structuredClone(blocks); for (let i = 0; i < copies.length - 1; i++) { let tail = copies[i]; while (tail.next) tail = (tail.next as { block: Record<string, unknown> }).block; tail.next = { block: copies[i + 1] }; } return copies[0]; };
+  const wait = (seconds: number) => ({ type: 'capi_wait', id: id(), fields: { SECONDS: seconds } });
+  const loop = (body: Record<string, unknown>) => ({ type: 'capi_forever', id: id(), inputs: { DO: { block: body } } });
+  const call = (routine: string) => ({ type: 'capi_procedure_call', id: id(), fields: { ROUTINE: { id: `theater-task-${routine}` } } });
+  const body = (action: string, repetitions = 1) => ({ type: 'capi_otto', id: id(), fields: { DEVICE_ID: 'theater-otto', ACTION: action, SPEED: 60, REPETITIONS: repetitions } });
+  const face = (expression: string) => ({ type: 'capi_otto_expression', id: id(), fields: { DEVICE_ID: 'theater-otto', EXPRESSION: expression } });
+  const sound = (preset: string) => ({ type: 'capi_otto_sound', id: id(), fields: { DEVICE_ID: 'theater-otto', SOUND: preset } });
+  const led = (index: number, value: number) => ({ type: 'capi_led', id: id(), fields: { DEVICE_ID: `theater-light-${index}`, BRIGHTNESS: value } });
+  const distance = (operator: string, value: number) => ({ type: 'capi_value_compare', id: id(), fields: { OPERATOR: operator }, inputs: { LEFT: { block: { type: 'capi_component_number', id: id(), fields: { DEVICE_ID: 'theater-otto', PROPERTY: 'distance' } } }, RIGHT: { block: { type: 'capi_value_number', id: id(), fields: { VALUE: value } } } } });
+  const button = () => ({ type: 'capi_button_pressed', id: id(), fields: { DEVICE_ID: 'theater-request' } });
+  const until = (condition: Record<string, unknown>) => ({ type: 'capi_while', id: id(), fields: { MODE: 'UNTIL' }, inputs: { CONDITION: { block: condition }, DO: { block: wait(0.1) } } });
+  const greet = () => sequence(face('SMILE'), sound('HAPPY'), body('SWING'), wait(0.3));
+  const show = () => sequence(...(modular ? [] : [led(1,100)]), face('SURPRISED'), body('DANCE',2), body('JUMP'), face('LOVE'), sound('SURPRISE'), wait(0.6), body('HOME'), { type: 'capi_counter_change', id: id(), fields: { DELTA: 1 } }, ...(modular ? [] : [led(1,30)]));
+  const goodbye = () => sequence(face('SAD'), sound('SLEEPING'), body('HOME'), wait(0.6), face('SLEEPY'));
+  const attendRequest = () => ({ type: 'capi_while', id: id(), fields: { MODE: 'WHILE' }, inputs: { CONDITION: { block: distance('LT',80) }, DO: { block: sequence({
+    type: 'capi_if', id: id(), inputs: { CONDITION: { block: button() }, DO: { block: sequence(modular ? call('show') : show(), until({ type: 'capi_value_compare', id: id(), fields: { OPERATOR: 'EQ' }, inputs: { LEFT: { block: { type: 'capi_component_boolean', id: id(), fields: { DEVICE_ID: 'theater-request', PROPERTY: 'pressed' } } }, RIGHT: { block: { type: 'capi_value_boolean', id: id(), fields: { VALUE: 'FALSE' } } } } }), until(distance('GT',80))) } },
+  }, wait(0.1)) } } });
+  const attend = () => loop(sequence(until(distance('LT',60)), modular ? call('greet') : greet(), modular ? call('request') : attendRequest(), modular ? call('goodbye') : goodbye()));
+  const lights = () => loop(sequence(led(1,80),wait(0.4),led(1,20),wait(0.4)));
+  const routines = [
+    { key: 'attend', name: 'Atender al público', body: attend },
+    { key: 'request', name: 'Esperar la petición', body: attendRequest },
+    { key: 'greet', name: 'Saludar', body: greet },
+    { key: 'show', name: 'Hacer actuación', body: show },
+    { key: 'goodbye', name: 'Despedirse', body: goodbye },
+    { key: 'lights', name: 'Iluminar escenario', body: lights },
+  ];
+  const start = startWorkspace(sequence(body('HOME'), face('SLEEPY'), { type: 'capi_counter_set', id: id(), fields: { VALUE: 0 } }, modular ? {
+    type: 'capi_parallel', id: id(), extraState: { branches: 2 }, inputs: { BRANCH0: { block: call('attend') }, BRANCH1: { block: call('lights') } },
+  } : sequence(led(1,30),attend())));
+  const definitions = modular ? routines.map((r,i) => ({ type: 'capi_procedure_def', id: `theater-def-${r.key}`, x: 48, y: 48 + (i % 2) * 650, fields: { ROUTINE: { id: `theater-task-${r.key}` }, P1_TYPE: 'none', P2_TYPE: 'none', P3_TYPE: 'none' }, inputs: { BODY: { block: r.body() } } })) : [];
+  return { id: modular ? 'ottoTheaterProcedures' : 'ottoTheater', title: modular ? 'Teatro de Otto con procedimientos' : 'Otto: saludar y actuar', icon: '🎭', level: 'Intermedio',
+    mission: 'Saludá al público cercano, esperá su petición, actuá una vez por grupo y despedite.',
+    description: modular ? 'Solución completa: seis procedimientos y cuatro pestañas; luces en paralelo, un único responsable del cuerpo.' : 'Solución secuencial completa con público y peticiones automáticas. Caras, movimientos, sonidos y contador de actuaciones.',
+    scene: createSceneFromTemplate('ottoTheater'), workspace: { ...start, ...(modular ? { variables: routines.map(r => ({ id: `theater-task-${r.key}`, name: r.name, type: 'Procedure' })) } : {}),
+      blocks: { ...start.blocks, blocks: [...start.blocks.blocks, ...definitions] }, capiTabs: { version: 1, tabs: [{ id:'main',name:'Principal',rootBlockIds:['start-main'] }, ...(modular ? [
+        { id:'tab-theater-public',name:'Público',rootBlockIds:['theater-def-attend','theater-def-request'] },
+        { id:'tab-theater-show',name:'Actuación',rootBlockIds:['theater-def-greet','theater-def-show'] },
+        { id:'tab-theater-stage',name:'Ambiente',rootBlockIds:['theater-def-goodbye','theater-def-lights'] },
+      ] : [])] } } };
+}
+
 export const examples: ExampleDefinition[] = [
   {
     id: 'traffic',
@@ -1004,6 +1368,20 @@ export const examples: ExampleDefinition[] = [
   },
   multitrackExample(2),
   multitrackExample(4),
+  parkingExample(false),
+  parkingExample(true),
+  greenhouseExample(false),
+  greenhouseExample(true),
+  smartHouseExample(false),
+  smartHouseExample(true),
+  conveyorExample(false),
+  conveyorExample(true),
+  arenaExample(false),
+  arenaExample(true),
+  weatherLabExample(false),
+  weatherLabExample(true),
+  theaterExample(false),
+  theaterExample(true),
   {
     id: 'display', title: 'Mensajes para la plaza', icon: '📺', level: 'Inicial',
     mission: 'Escribí en la pantalla, esperá para leer y borrá el mensaje. La consola es otro destino.',
@@ -1205,6 +1583,7 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_traffic_vehicle_display',
   'capi_traffic_pedestrian_display',
   'capi_led',
+  'capi_power_switch',
   'capi_rgb_fill',
   'capi_rgb_pixel',
   'capi_rgb_segment',
@@ -3740,11 +4119,11 @@ function instructionToCpp(
     case 'otto': {
       const device = `DEV_${deviceSymbol(context, instruction.deviceId)}`;
       if (instruction.action === 'HOME')
-        return `${comment}\n        ${device}.owner = -1; ottoHome(${device});\n        capiAssignText(${componentStateSymbol(instruction.deviceId, 'motion')}, "HOME");\n        ${waiting} = false; ${pc} = ${nextPc};\n        break;`;
+        return `${comment}\n        if (!${device}.turns.try_acquire(${context.threadIndex})) { return; } ${device}.owner = -1; ottoHome(${device}); ${device}.turns.release(${context.threadIndex});\n        capiAssignText(${componentStateSymbol(instruction.deviceId, 'motion')}, "HOME");\n        ${waiting} = false; ${pc} = ${nextPc};\n        break;`;
       const action = { WALK_FORWARD: 0, WALK_BACKWARD: 1, TURN_LEFT: 2, TURN_RIGHT: 3, DANCE: 4, JUMP: 5, SWING: 6, TIPTOE: 7, JITTER: 8, MOONWALK_LEFT: 9, MOONWALK_RIGHT: 10, BEND_LEFT: 11, BEND_RIGHT: 12, SHAKE_LEFT: 13, SHAKE_RIGHT: 14, FLAP_FORWARD: 15, FLAP_BACKWARD: 16 }[instruction.action];
       const stepMs = 480 - Math.round(Math.max(0, Math.min(100, instruction.speed)) * 3);
       const duration = stepMs * 4 * Math.max(1, Math.min(20, Math.round(instruction.repetitions)));
-      return `${comment}\n        if (!${waiting}) { ${device}.owner = ${context.threadIndex}; capiAssignText(${componentStateSymbol(instruction.deviceId, 'motion')}, ${cppString(instruction.action)}); ${waitStarted} = now; ${waiting} = true; }\n        if (${device}.owner != ${context.threadIndex}) { ${waiting} = false; ${pc} = ${nextPc}; break; }\n        ottoMove(${device}, ${action}, (uint8_t)(((uint32_t)(now - ${waitStarted}) / ${stepMs}U) % 4U));\n        if ((uint32_t)(now - ${waitStarted}) < ${duration}U) return;\n        ${device}.owner = -1; ottoHome(${device}); capiAssignText(${componentStateSymbol(instruction.deviceId, 'motion')}, "HOME"); ${waiting} = false; ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        if (!${waiting}) { if (!${device}.turns.try_acquire(${context.threadIndex})) return; ${device}.owner = ${context.threadIndex}; capiAssignText(${componentStateSymbol(instruction.deviceId, 'motion')}, ${cppString(instruction.action)}); ${waitStarted} = now; ${waiting} = true; }\n        if (${device}.owner != ${context.threadIndex}) { ${waiting} = false; ${pc} = ${nextPc}; break; }\n        ottoMove(${device}, ${action}, (uint8_t)(((uint32_t)(now - ${waitStarted}) / ${stepMs}U) % 4U));\n        if ((uint32_t)(now - ${waitStarted}) < ${duration}U) return;\n        ${device}.owner = -1; ottoHome(${device}); ${device}.turns.release(${context.threadIndex}); capiAssignText(${componentStateSymbol(instruction.deviceId, 'motion')}, "HOME"); ${waiting} = false; ${pc} = ${nextPc};\n        break;`;
     }
     case 'ottoSound': {
       const sound = { HAPPY: 0, SAD: 1, SURPRISE: 2, CONFUSED: 3, SLEEPING: 4, BUTTON: 5, MODE: 6, FART: 7 }[instruction.sound];
@@ -3756,7 +4135,7 @@ function instructionToCpp(
     }
     case 'ottoArms': {
       const pose = { DOWN: 0, UP: 1, LEFT_UP: 2, RIGHT_UP: 3, OPEN: 4 }[instruction.pose];
-      return `${comment}\n        ottoArms(DEV_${deviceSymbol(context, instruction.deviceId)}, ${pose});\n        ${pc} = ${nextPc};\n        break;`;
+      return `${comment}\n        if (!DEV_${deviceSymbol(context, instruction.deviceId)}.turns.try_acquire(${context.threadIndex})) return;\n        ottoArms(DEV_${deviceSymbol(context, instruction.deviceId)}, ${pose}); DEV_${deviceSymbol(context, instruction.deviceId)}.turns.release(${context.threadIndex});\n        ${pc} = ${nextPc};\n        break;`;
     }
     case 'motor': {
       const power = Math.max(0, Math.min(100, Math.round(instruction.power)));
@@ -4619,7 +4998,8 @@ ${native ? idfRuntimeSupport(scene, usesWifi, profileId) : '#include <Arduino.h>
 ${wifiHeader}${diagnosticHeader}
 struct TrafficDevice { uint8_t red; uint8_t yellow; uint8_t green; uint8_t matrixDin; uint8_t matrixClk; uint8_t matrixCs; bool vehicleDisplay; bool pedestrianDisplay; uint8_t matrixBrightness; };
 struct RobotDevice { uint8_t leftIn1; uint8_t leftIn2; uint8_t rightIn1; uint8_t rightIn2; };
-struct OttoDevice { uint8_t pins[6]; uint8_t centers[6]; bool reversed[6]; uint8_t buzzer; uint8_t trigger; uint8_t echo; uint8_t matrixDin; uint8_t matrixClk; uint8_t matrixCs; uint8_t matrixBrightness; int8_t owner; uint8_t soundPreset; uint8_t soundStep; uint32_t soundAt; uint8_t sonarState; uint64_t sonarAt; uint64_t echoStarted; uint16_t distanceCm; };
+${ottoQueueSupport}
+struct OttoDevice { uint8_t pins[6]; uint8_t centers[6]; bool reversed[6]; uint8_t buzzer; uint8_t trigger; uint8_t echo; uint8_t matrixDin; uint8_t matrixClk; uint8_t matrixCs; uint8_t matrixBrightness; int8_t owner; uint8_t soundPreset; uint8_t soundStep; uint32_t soundAt; uint8_t sonarState; uint64_t sonarAt; uint64_t echoStarted; uint16_t distanceCm; CapiOttoQueue turns{}; };
 struct MotorDevice { uint8_t in1; uint8_t in2; };
 struct MessageDevice { uint8_t port; uint8_t tx; uint8_t rx; uint32_t baud; };
 enum class TrafficColor { RED, YELLOW, GREEN, OFF };
