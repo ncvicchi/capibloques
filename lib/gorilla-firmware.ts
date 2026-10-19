@@ -21,7 +21,7 @@ ${native ? 'i2c_master_bus_handle_t CAPI_G_BUS=nullptr; i2c_master_dev_handle_t 
 bool capiGorillaTransfer(const uint8_t *bytes,size_t size){
  ${native ? 'return CAPI_G_DEVICE&&i2c_master_transmit(CAPI_G_DEVICE,bytes,size,5)==ESP_OK;' : `CAPI_G_BUS.beginTransmission(${Number(s.address)});CAPI_G_BUS.write(bytes,size);return CAPI_G_BUS.endTransmission()==0;`}
 }
-bool capiGorillaWrite(int channel,int angle){uint16_t ticks=(uint16_t)std::lround((1000.0+angle*1000.0/180.0)*4096.0/20000.0);uint8_t data[]={(uint8_t)(6+channel*4),0,0,(uint8_t)(ticks&255),(uint8_t)(ticks>>8)};return capiGorillaTransfer(data,sizeof(data));}
+bool capiGorillaWrite(int channel,double angle){uint16_t ticks=(uint16_t)std::lround((CAPI_GORILLA.pulse_min+angle*(CAPI_GORILLA.pulse_max-CAPI_GORILLA.pulse_min)/180.0)*4096.0/20000.0);uint8_t data[]={(uint8_t)(6+channel*4),0,0,(uint8_t)(ticks&255),(uint8_t)(ticks>>8)};return capiGorillaTransfer(data,sizeof(data));}
 bool capiGorillaPrepare(){
  if(!${!!s.verified}){CAPI_GORILLA.error=true;return false;}
  if(CAPI_GORILLA.ready){CAPI_GORILLA.error=false;return true;}
@@ -35,6 +35,8 @@ bool capiGorillaPrepare(){
  if(!capiGorillaTransfer(sleep,2)||!capiGorillaTransfer(pre,2)||!capiGorillaTransfer(wake,2))return false;
  ${native ? 'vTaskDelay(pdMS_TO_TICKS(1)+1);' : 'delayMicroseconds(600);'}
  ${Array.from({ length: 8 }, (_, i) => `CAPI_GORILLA.center[${i}]=${Number(s[`center${i}`])};CAPI_GORILLA.low[${i}]=${Number(s[`min${i}`])};CAPI_GORILLA.high[${i}]=${Number(s[`max${i}`])};CAPI_GORILLA.channel[${i}]=${Number(s[`channel${i}`])};CAPI_GORILLA.reversed[${i}]=${!!s[`reversed${i}`]};`).join('\n')}
+ CAPI_GORILLA.kinematics_verified=${d.config.kinematics?.verified??false};CAPI_GORILLA.pulse_min=${d.config.kinematics?.pulseMinUs??1000};CAPI_GORILLA.pulse_max=${d.config.kinematics?.pulseMaxUs??2000};
+ ${Array.from({length:8},(_,i)=>`CAPI_GORILLA.zero_angles[${i}]=${d.config.kinematics?.zeroAngles[i]??90};`).join('')}
  CAPI_GORILLA.write=capiGorillaWrite;CAPI_GORILLA.start(0,0,0,0,0,0);return true;
 }
 void capiGorillaService(uint32_t now){CAPI_GORILLA.service(now);${Array.from({ length: 8 }, (_, i) => `${state(d.id, `j${i}`)}=std::lround(CAPI_GORILLA.position[${i}]);`).join('')}${state(d.id, 'ready')}=CAPI_GORILLA.ready;${state(d.id, 'moving')}=CAPI_GORILLA.busy;${state(d.id, 'error')}=CAPI_GORILLA.error;}

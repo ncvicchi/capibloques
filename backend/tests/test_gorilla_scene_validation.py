@@ -32,3 +32,16 @@ class GorillaValidationTests(unittest.TestCase):
         config['settings']['min7']=85
         config['postures'][0]['angles'][7]=-10
         with self.assertRaises(ValidationError):document(v)
+
+    def test_v3_trajectories(self):
+        v=self.sample();config=v['scene']['devices'][0]['config']
+        config['kinematics']=dict(profile='gorilla-v3-50-100-46',zeroAngles=[90]*8,pulseMinUs=1000,pulseMaxUs=2000,verified=False)
+        config['trajectories']=[dict(id='lift',name='Levantar',leg=0,points=[dict(forward=0,up=0,ms=1000),dict(forward=0,up=4,ms=1000),dict(forward=0,up=0,ms=1000)])]
+        self.assertGreater(document(v),0)
+        bads=[]
+        w=copy.deepcopy(v);w['scene']['devices'][0]['config']['trajectories'][0]['points'][1]['forward']=50;bads.append(w)
+        w=copy.deepcopy(v);w['scene']['devices'][0]['config']['kinematics']['zeroAngles']=[90];bads.append(w)
+        w=copy.deepcopy(v);w['scene']['devices'][0]['config']['kinematics']['pulseMaxUs']=2600;bads.append(w)
+        w=copy.deepcopy(v);w['scene']['devices'][0]['config']['trajectories']*=2;bads.append(w)
+        for bad in bads:
+            with self.assertRaises(ValidationError):document(bad)

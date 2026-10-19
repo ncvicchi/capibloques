@@ -100,7 +100,9 @@ for (const e of examples.filter((e) => e.id.startsWith('gorilla'))) {
   assert.throws(() => addDeviceToScene(e.scene, 'gorilla'));
   const scene = structuredClone(e.scene);
   scene.devices[0].config.settings.verified = true;
+  if(scene.devices[0].config.kinematics)scene.devices[0].config.kinematics.verified=true;
   const rules = createCapiRules(p, scene, 'wemos-d1-r32');
+  if(e.id.startsWith('gorillaTrajectories'))assert.ok(rules.requiredCapabilities.includes('gorilla-kinematics-v3'));
   assert.ok(rules.requiredCapabilities.includes('gorilla-bench'));
   assert.ok(
     parseCapiRules(rules.bytes).requiredCapabilities.includes('gorilla-bench'),

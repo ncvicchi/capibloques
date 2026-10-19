@@ -1,5 +1,65 @@
 # CapiBloques — contexto para continuar
 
+### Entrega vigente19/10 — Resto59: cinemática v3 y trayectorias
+
+Rama `codex/fase-59-gorillabot-trayectorias` desde origin/dev1
+`6909d040497f6a4a2083d1a2992dd4a68a080e05`.
+[Guía completa](FASE_59_GORILLABOT_CINEMATICA.md). Propietario aportó carpeta
+GorillaBot4577379 y confirmó THIGH_SERVO_MG90S_v3 del3MFx8. Fase59 por ángulos
+está integrada en origin/dev1; esto no prueba su aceptación física.
+
+- Medidas nominales STL: muslos50mm, ambas pantorrillas100mm, separación de
+  ejes46mm en ambas bases. Herramienta propia scripts/measure-gorilla-v3.py,
+  lectura/círculos/hashes/unidades/8instancias3MF sin escala, sin dependencias.
+  No copiar el visor de armado: usa46,1/98,9 aproximados. Fuentes originales
+  quedan en Downloads del propietario, no se importan assets/código CC BY-NC-SA.
+  Guía conserva identificación/hashes/método para continuar desde otra cuenta.
+- kinematics opcional: perfil gorilla-v3-50-100-46,zeroAngles[8],pulseMinUs,
+  pulseMaxUs,verified. Referencia90° hacia abajo sólo previsualización inicial.
+  A delante/CALF_EXT, B detrás/CALF_INT. Inversión de servo resuelve reflejos.
+  Pulsos anteriores1000–2000 conservados, no se copia automáticamente544–2400
+  ni canales del programa adaptado (DI0/1,DD7/6,TI2/3,TD5/4).
+- FK/IK con rama fija inferior/A−acos/B+acos, límites de servo y márgenes
+  numéricos/singularidad, sin clipping ni conmutación. Eje L4, no apoyo en suelo.
+  Se valida camino entero incluida entrada desde posición ordenada actual;
+  paso≤0,25mm,16–256subdivisiones, IK cada tick y duración ampliada30°/s+5%
+  sobre tasa muestreada. No certifica colisiones/holguras/equilibrio.
+- trajectories opcional:8bibliotecas,16puntos cada una,IDs/nombres estables,
+  leg0..3,forward±50/up±30mm/ms200–10000,120s pedidos/180s efectivos máx.
+  Presets levantar/apoyar, rectángulo y arco como polilínea; editor amplio con
+  lista/arrastre/reordenado,undo/redo60,guardar/cancelar y preview sin USB.
+  Guarda al borrador; después Guardar cambios y Guardar escena.
+- Bloques mover pie y recorrer1–20veces (bucle común), nuevos ejemplos completos
+  trayectorias directo/modular3tareas2tabs. Ejemplos58/59anteriores intactos.
+  Simulador conserva posiciones internas fraccionales y j0..7 enteros como
+  contrato previo, no sensores. Banco usa geometría medida al habilitar perfil.
+- Runtime1.13.0/ABI1/cap gorilla-kinematics-v3, acciones gorilla/foot,path.
+  Sharedcore C++ exports Arduino/IDF e intérprete, controlador/PCA sin cambios
+  de pines automáticos. Transferencias acotadas, dueño único, pausa/STEP/STOP.
+  Comprobar dos confirmaciones adultas (general y geométrica) antes de hardware.
+  Cambios de calibración invalidan la segunda; cambios de pulsos también general.
+  Preparar no centra servos; tras encender/reiniciar no conoce posición real.
+- Pruebas locales:220posiciones TS↔C++,3presets/límites/tasa/rechazo íntegro/
+  parada/rollover/falloI2C, funciones reales del intérprete con dobles HAL,
+  5testsDjango y workspaces en worker1×/4×. Smoke completo y build10páginas
+  aprobados (aviso habitual chunk>500kB). Chromium:3nuevos recorridos aprobados,
+  regresión de los6anteriores también aprobada:9/9 Chromium. Arrastre de punto
+  y undo de gesto comprobados en repetición del editor. Tipos/lint aprobados.
+  Entrada FK→IK debe coincidir con ángulos actuales para impedir un salto de rama;
+  prueba específica TS/C++ tras ángulos20/−20. deviceSignature del workspace
+  incluye config de gorilla para refrescar bibliotecas/calibración sin recargar;
+  no mantener un weakmap con puntos antiguos después de guardar la escena.
+  Décimo recorrido Chromium aprobado: modificar Levantar, guardar y ejecutar
+  inmediatamente sin recargar, sin diagnóstico de referencias obsoletas. CAPI_G_PI evita macro PI de Arduino.
+- No dependencias/migraciones; conservar SDK/cache incremental. SDK ESP-IDF
+  completo, actualización/aceptación dev1 y prueba física NO ejecutados aquí.
+  No se operaron servidores/main/dev2. No iniciar60 ni teleoperación por inferencia.
+- Entrega commit/push sólo rama; usar capi-dev --env dev1 --branch
+  codex/fase-59-gorillabot-trayectorias --commit SHA40 publicado.
+
+Los apartados inferiores son históricos y no revocan esta ampliación autorizada.
+
+
 ### Entrega vigente19/10 — Fase59: posturas por ángulos
 
 Rama `codex/fase-59-gorillabot-posturas` desde origin/dev1

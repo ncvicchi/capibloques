@@ -235,6 +235,31 @@ for (const e of examples.filter((e) => e.id.startsWith('gorillaPostures'))) {
   for (let i = 0; i < 8; i++)
     assert.equal(state.devices['gorilla-robot'].values['j' + i], 0);
 }
+for (const e of examples.filter((e) =>
+  e.id.startsWith('gorillaTrajectories'),
+)) {
+  const ws = new B.Workspace();
+  workspaceDevices.set(ws, e.scene.devices);
+  B.serialization.workspaces.load(structuredClone(e.workspace), ws);
+  const program = compileWorkspace(ws);
+  ws.dispose();
+  for (const speed of [1, 4]) {
+    send({ type: 'LOAD', scene: e.scene, program });
+    send({ type: 'SET_SPEED', speed });
+    send({ type: 'RUN' });
+    let moved = false;
+    for (let t = 0; t < 65000 / speed; t += 20) {
+      advance(20);
+      const v = state.devices['gorilla-robot'].values;
+      moved ||= v.j0 < -3;
+      for (let i = 2; i < 8; i++) assert.equal(v['j' + i], 0);
+    }
+    assert.equal(state.status, 'done', e.id);
+    assert.ok(moved, e.id);
+    assert.equal(state.devices['gorilla-robot'].values.j0, 0);
+    assert.equal(state.devices['gorilla-robot'].values.j1, 0);
+  }
+}
 console.log(
   'GorillaBot worker: ejemplos 1×/4×, pares, sólo canales elegidos, preparación, pausa/paso/reset y cooperación aprobados.',
 );

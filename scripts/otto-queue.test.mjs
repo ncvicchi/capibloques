@@ -17,7 +17,7 @@ const source = await readFile(
   'utf8',
 );
 assert.match(source, /#include "otto_turn.h"/);
-assert.match(source, /CAPI_FIRMWARE_VERSION "1\.12\.0"/);
+assert.match(source, /CAPI_FIRMWARE_VERSION "1\.13\.0"/);
 assert.match(source, /otto\.turns\.clear\(\)/);
 assert.match(source, /otto\.turns\.release\(task_index\)/);
 assert.match(source, /ottoArms"\)\) \{if\(!otto_turn\(task_index\)\)/);

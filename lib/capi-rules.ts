@@ -6,7 +6,7 @@ import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 
 export const CAPI_RULES_FORMAT = 1;
 export const CAPI_INTERPRETER_ABI = 1;
-export const CAPI_INTERPRETER_VERSION = '1.12.0';
+export const CAPI_INTERPRETER_VERSION = '1.13.0';
 export const CAPI_RULES_MAX_BYTES = 32 * 1024;
 export const CAPI_RULES_MAX_INSTRUCTIONS = 2048;
 const HEADER_BYTES = 32;
@@ -53,6 +53,7 @@ const capabilityForOperation = (operation: string) => ({
 function instructionCapabilities(instruction: ExecutableTask['output'][number]) {
   const result = [capabilityForOperation(instruction.op)];
   if (instruction.op==='gorilla'&&instruction.action==='posture')result.push('gorilla-postures');
+  if(instruction.op==='gorilla'&&(instruction.action==='foot'||instruction.action==='path'))result.push('gorilla-kinematics-v3');
   if (instruction.op === 'switchDispatch') result.push('expressions');
   const encodedInstruction = JSON.stringify(instruction);
   if (instruction.op === 'variableSet' || instruction.op === 'variableChange' || (instruction.op === 'serial' && instruction.expression)) result.push('expressions');
@@ -125,7 +126,7 @@ function canonical(value: unknown): string | undefined {
 function checksumHex(value: number) { return value.toString(16).padStart(8, '0'); }
 
 export function createCapiRules(programInput: CompiledProgram, scene: SceneDefinition, board: BoardProfileId): CapiRulesBundle {
-  if(scene.devices.some(d=>d.kind==='gorilla'&&(d.config.settings.verified!==true||board==='waveshare-esp32-s3-touch-lcd-5-28117')))throw new CapiRulesError('GorillaBot: revisá la calibración con una persona adulta antes de enviar reglas. Banco Waveshare pendiente.');
+  if(scene.devices.some(d=>d.kind==='gorilla'&&(d.config.settings.verified!==true||(d.config.kinematics&&!d.config.kinematics.verified)||board==='waveshare-esp32-s3-touch-lcd-5-28117')))throw new CapiRulesError('GorillaBot: revisá la calibración con una persona adulta antes de enviar reglas. Banco Waveshare pendiente.');
   const program = normalizeCompiledProgram(programInput, scene);
   const errors = validateProgramForScene(program, scene, board).filter(item => item.severity === 'error');
   if (errors.length) throw new CapiRulesError(errors[0].message);

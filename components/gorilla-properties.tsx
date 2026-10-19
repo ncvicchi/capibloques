@@ -9,6 +9,8 @@ import {
   validGorillaSettings,
   type GorillaSettings,
 } from '@/lib/gorilla-model';
+import GorillaTrajectories from '@/components/gorilla-trajectories';
+import type {GorillaKinematics,GorillaTrajectory} from '@/lib/gorilla-kinematics';
 import GorillaPostures from '@/components/gorilla-postures';
 import GorillaVisual from '@/components/gorilla-visual';
 export default function GorillaProperties({
@@ -16,12 +18,15 @@ export default function GorillaProperties({
   onChange,
   postures,
   onPostures,
+  kinematics,trajectories,onGeometry,
 }: {
   settings: GorillaSettings;
+  kinematics?:GorillaKinematics;trajectories?:GorillaTrajectory[];onGeometry:(k:GorillaKinematics,t:GorillaTrajectory[])=>void;
   postures?: GorillaPosture[];
   onPostures: (p: GorillaPosture[]) => void;
   onChange: (s: GorillaSettings) => void;
 }) {
+  const [editingTrajectories,setEditingTrajectories]=useState(false);
   const [editingPostures, setEditingPostures] = useState(false);
   const [leg, setLeg] = useState(0),
     [test, setTest] =
@@ -38,6 +43,8 @@ export default function GorillaProperties({
       <button type="button" onClick={() => setEditingPostures(true)}>
         Editar posturas
       </button>
+      <button type="button" onClick={()=>setEditingTrajectories(true)}>Editar trayectorias de una pata</button>
+      {editingTrajectories&&<GorillaTrajectories settings={settings} kinematics={kinematics} trajectories={trajectories} onCancel={()=>setEditingTrajectories(false)} onSave={(k,t)=>{onGeometry(k,t);setEditingTrajectories(false);}}/>}
       {editingPostures && (
         <GorillaPostures
           settings={settings}
@@ -148,6 +155,7 @@ export default function GorillaProperties({
           </p>
         )}
       <GorillaVisual
+        kinematics={kinematics}
         values={test}
         preview
         selectedLeg={leg}
