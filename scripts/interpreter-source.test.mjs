@@ -26,7 +26,7 @@ assert.match(source, /CONFIG_PAIR/);
 assert.match(source, /hardwareId/);
 assert.match(source, /PAIR_CONFIGURED/);
 assert.match(source, /MAX_RULES = 32 \* 1024/);
-assert.match(source, /#define CAPI_FIRMWARE_VERSION "1\.15\.0"/);
+assert.match(source, /#define CAPI_FIRMWARE_VERSION "1\.16\.0"/);
 assert.match(source, /supported_switch/);
 assert.match(source, /"conditional-loop"/);
 assert.match(source, /"switch"/);

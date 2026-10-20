@@ -209,8 +209,8 @@ struct CapiGorilla {
 struct CapiGorillaWalk {
   bool active=false,finishing=false,requested=false,moved=false;int outcome=0,mode=0;
   double stride=4,height=2;uint32_t phase=500,limit=30000,started=0;
-  bool begin(int direction,double step,double lift,uint32_t ms,uint32_t timeout,uint32_t now){
-    if(active||direction<0||direction>1||timeout<1000||timeout>120000)return false;
+  bool begin(int direction,double step,double lift,uint32_t ms,uint32_t timeout,uint32_t now,bool turns=false){
+    if(active||direction<0||direction>(turns?3:1)||timeout<1000||timeout>120000)return false;
     mode=direction;stride=step;height=lift;phase=ms;limit=timeout;started=now;outcome=0;finishing=requested=moved=false;active=true;return true;
   }
   bool service(CapiGorilla &robot,bool condition,uint32_t now){

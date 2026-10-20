@@ -1,4 +1,4 @@
-set(CAPI_REQUIRES nvs_flash json driver esp_timer esp_wifi esp_event esp_netif esp_hw_support mbedtls)
+set(CAPI_REQUIRES nvs_flash json driver esp_timer esp_wifi esp_event esp_netif esp_hw_support mbedtls esp_http_server)
 if(IDF_TARGET STREQUAL "esp32s3")
   list(APPEND CAPI_REQUIRES esp_driver_usb_serial_jtag esp_lcd)
 endif()

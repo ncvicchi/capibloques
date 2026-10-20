@@ -49,7 +49,7 @@
 #ifndef CAPI_BOARD_ID
 #define CAPI_BOARD_ID "wemos-d1-r32"
 #endif
-#define CAPI_FIRMWARE_VERSION "1.15.0"
+#define CAPI_FIRMWARE_VERSION "1.16.0"
 #include "gorilla_core.h"
 #include "sonar_core.h"
 #include "esp_rom_sys.h"
@@ -152,6 +152,10 @@ static void telemetry_state(const char *event,const char *block,const char *devi
 static const char *text(cJSON *object, const char *key, const char *fallback = "") { cJSON *item = cJSON_GetObjectItemCaseSensitive(object, key); return cJSON_IsString(item) && item->valuestring ? item->valuestring : fallback; }
 static int number(cJSON *object, const char *key, int fallback = 0) { cJSON *item = cJSON_GetObjectItemCaseSensitive(object, key); return cJSON_IsNumber(item) ? item->valueint : fallback; }
 static std::string hardware_id(){uint8_t mac[6]={};if(esp_read_mac(mac,ESP_MAC_WIFI_SOFTAP)!=ESP_OK)return "";char value[13]={};snprintf(value,sizeof(value),"%02X%02X%02X%02X%02X%02X",mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);return value;}
+static cJSON *remote_device(){cJSON *r=active?cJSON_GetObjectItem(active,"resources"):nullptr,*devices=r?cJSON_GetObjectItem(r,"devices"):nullptr,*d;cJSON_ArrayForEach(d,devices)if(!strcmp(text(d,"kind"),"gorilla")&&cJSON_IsObject(cJSON_GetObjectItem(cJSON_GetObjectItem(d,"config"),"remote")))return d;return nullptr;}
+#include "remote_http.h"
+static std::string remote_nvs(const char *key){nvs_handle_t h;char value[65]={};size_t n=sizeof(value);if(nvs_open("capi",NVS_READONLY,&h)!=ESP_OK)return "";nvs_get_str(h,key,value,&n);nvs_close(h);return value;}
+static RuntimeValue remote_value(const char *property){RuntimeValue v;xSemaphoreTake(remote_mutex,portMAX_DELAY);remote_control.expire((uint32_t)(esp_timer_get_time()/1000));if(!strcmp(property,"remoteConnected")||!strcmp(property,"remoteArmed")||!strcmp(property,"remoteStopped")){v.kind=RuntimeValue::BOOLEAN;v.boolean=!strcmp(property,"remoteConnected")?remote_control.connected:!strcmp(property,"remoteArmed")?remote_control.armed:remote_control.stopped;}else if(!strcmp(property,"remoteDirection")||!strcmp(property,"remoteMode")){v.kind=RuntimeValue::TEXT;const char *dirs[]={"quieto","adelante","atrás","izquierda","derecha"};v.text=!strcmp(property,"remoteDirection")?dirs[remote_control.direction]:remote_control.mode?"autónomo":"manual";}else v.number=!strcmp(property,"remoteRhythm")?remote_control.rhythm:remote_control.mission;xSemaphoreGive(remote_mutex);return v;}
 static cJSON *device(const char *id) {
   cJSON *resources = cJSON_GetObjectItem(active, "resources"), *devices = resources ? cJSON_GetObjectItem(resources, "devices") : nullptr, *item;
   cJSON_ArrayForEach(item, devices) if (!strcmp(text(item, "id"), id)) return item;
@@ -267,7 +271,8 @@ static bool display_begin(){display=DisplayState{};if(display_i2c_device){i2c_ma
 static void wifi_event(void*,esp_event_base_t base,int32_t id,void*){if(base==IP_EVENT&&id==IP_EVENT_STA_GOT_IP)wifi_connected=true;else if(base==WIFI_EVENT&&id==WIFI_EVENT_STA_DISCONNECTED)wifi_connected=false;}
 static cJSON *wifi_device(){cJSON *resources=active?cJSON_GetObjectItem(active,"resources"):nullptr,*devices=resources?cJSON_GetObjectItem(resources,"devices"):nullptr,*dev;cJSON_ArrayForEach(dev,devices)if(!strcmp(text(dev,"kind"),"wifiNode"))return dev;return nullptr;}
 static std::string wifi_pair_role(){char role[8]={};size_t size=sizeof(role);nvs_handle_t handle;if(nvs_open("capi",NVS_READONLY,&handle)!=ESP_OK)return "";esp_err_t result=nvs_get_str(handle,"pair_role",role,&size);nvs_close(handle);return result==ESP_OK?role:"";}
-static bool wifi_creates_network(){std::string role=wifi_pair_role();if(role=="screen")return true;if(role=="project")return false;cJSON *dev=wifi_device(),*config=dev?cJSON_GetObjectItem(dev,"config"):nullptr;return config&&!strcmp(text(config,"role"),"create");}
+static bool remote_configuring=false;
+static bool wifi_creates_network(){if(remote_configuring||remote_device())return remote_nvs("remote_mode")=="ap";std::string role=wifi_pair_role();if(role=="screen")return true;if(role=="project")return false;cJSON *dev=wifi_device(),*config=dev?cJSON_GetObjectItem(dev,"config"):nullptr;return config&&!strcmp(text(config,"role"),"create");}
 static bool wifi_initialize(){if(wifi_ready)return true;if(esp_netif_init()!=ESP_OK||esp_event_loop_create_default()!=ESP_OK||!esp_netif_create_default_wifi_sta()||!esp_netif_create_default_wifi_ap())return false;wifi_init_config_t config=WIFI_INIT_CONFIG_DEFAULT();if(esp_wifi_init(&config)!=ESP_OK||esp_wifi_set_storage(WIFI_STORAGE_RAM)!=ESP_OK||esp_event_handler_register(WIFI_EVENT,ESP_EVENT_ANY_ID,wifi_event,nullptr)!=ESP_OK||esp_event_handler_register(IP_EVENT,IP_EVENT_STA_GOT_IP,wifi_event,nullptr)!=ESP_OK)return false;wifi_ready=true;return true;}
 static bool wifi_provision(const char *ssid,const char *password){size_t ssid_length=strlen(ssid),password_length=strlen(password);if(!ssid_length||ssid_length>32||(password_length&&password_length<8)||password_length>63)return false;nvs_handle_t handle;if(nvs_open("capi",NVS_READWRITE,&handle)!=ESP_OK)return false;esp_err_t result=nvs_set_str(handle,"wifi_ssid",ssid);if(result==ESP_OK)result=nvs_set_str(handle,"wifi_pass",password);if(result==ESP_OK)result=nvs_commit(handle);nvs_close(handle);return result==ESP_OK;}
 static bool hex_string(const char *value,size_t length,bool uppercase){if(strlen(value)!=length)return false;for(size_t index=0;index<length;++index){char c=value[index];if((c>='0'&&c<='9')||(uppercase&&c>='A'&&c<='F')||(!uppercase&&c>='a'&&c<='f'))continue;return false;}return true;}
@@ -365,6 +370,7 @@ static bool supported_switch(cJSON *instruction,int size) {
   return true;
 }
 static bool gorilla_config_valid(cJSON *dev){
+  cJSON *rc=cJSON_GetObjectItem(cJSON_GetObjectItem(dev,"config"),"remote");if(rc){cJSON *missions=cJSON_GetObjectItem(rc,"missions");if(!cJSON_IsObject(rc)||cJSON_GetArraySize(rc)!=1||!cJSON_IsArray(missions)||cJSON_GetArraySize(missions)>4)return false;for(int i=0;i<cJSON_GetArraySize(missions);++i){cJSON *m=cJSON_GetArrayItem(missions,i);if(!cJSON_IsString(m)||!m->valuestring||!strlen(m->valuestring)||strlen(m->valuestring)>128)return false;for(int j=0;j<i;++j)if(!strcmp(m->valuestring,cJSON_GetArrayItem(missions,j)->valuestring))return false;}}
   cJSON *config=cJSON_GetObjectItem(dev,"config"),*s=config?cJSON_GetObjectItem(config,"settings"):nullptr,*values=config?cJSON_GetObjectItem(config,"values"):nullptr;
   if(is_waveshare()||strcmp(text(config,"profile"),"GORILLA_PCA9685")||!cJSON_IsObject(s)||cJSON_GetArraySize(s)!=42||!cJSON_IsTrue(cJSON_GetObjectItem(s,"verified"))||!cJSON_IsObject(values)||cJSON_GetArraySize(values)!=11)return false;
   auto integer=[](cJSON *o,const char *key,int low,int high){cJSON *v=cJSON_GetObjectItem(o,key);return cJSON_IsNumber(v)&&std::isfinite(v->valuedouble)&&v->valuedouble==v->valueint&&v->valueint>=low&&v->valueint<=high;};
@@ -394,7 +400,7 @@ static bool gorilla_instruction_valid(cJSON *node){
   auto integer=[](cJSON *o,const char *key,int low,int high){cJSON *v=cJSON_GetObjectItem(o,key);return cJSON_IsNumber(v)&&std::isfinite(v->valuedouble)&&v->valuedouble==v->valueint&&v->valueint>=low&&v->valueint<=high;};
   const char *action=text(node,"action");
   if(!strcmp(action,"finish"))return true;
-  if(!strcmp(action,"walk"))return integer(node,"index",0,1)&&integer(node,"a",1,12)&&integer(node,"b",1,8)&&integer(node,"durationMs",200,2000)&&integer(node,"timeoutMs",1000,120000)&&supported_condition(cJSON_GetObjectItem(node,"condition"));
+  if(!strcmp(action,"walk"))return integer(node,"index",0,cJSON_IsTrue(cJSON_GetObjectItem(node,"remote"))?3:1)&&integer(node,"a",1,12)&&integer(node,"b",1,8)&&integer(node,"durationMs",200,2000)&&integer(node,"timeoutMs",1000,120000)&&supported_condition(cJSON_GetObjectItem(node,"condition"));
   if(!strcmp(action,"gait"))return integer(node,"index",0,4)&&integer(node,"a",1,12)&&integer(node,"b",1,8)&&integer(node,"durationMs",200,2000);
   bool pair=!strcmp(action,"pair");
   if(!strcmp(action,"foot")||!strcmp(action,"path")){
@@ -421,6 +427,18 @@ static bool gorilla_autonomy_resources_valid(cJSON *devices){
   for(int i=0;i<cJSON_GetArraySize(devices);++i){cJSON *item=cJSON_GetArrayItem(devices,i);if(!strcmp(text(item,"kind"),"distanceSensor")){sensor=item;++count;}}
   return count==1&&!strcmp(text(cJSON_GetObjectItem(sensor,"config"),"profile"),"HC-SR04")&&allowed_output_pin(pin(sensor,"trigger"))&&allowed_pin(pin(sensor,"echo"))&&pin(sensor,"trigger")!=pin(sensor,"echo");
 }
+static bool gorilla_remote_instruction_valid(cJSON *devices,cJSON *node){
+  const bool guarded=cJSON_IsTrue(cJSON_GetObjectItem(node,"remote"));cJSON *dev=nullptr;
+  for(int i=0;i<cJSON_GetArraySize(devices);++i){cJSON *d=cJSON_GetArrayItem(devices,i);if(!strcmp(text(d,"id"),text(node,"deviceId")))dev=d;}
+  cJSON *config=dev?cJSON_GetObjectItem(dev,"config"):nullptr;bool enabled=cJSON_IsObject(cJSON_GetObjectItem(config,"remote"));
+  if(guarded&&(!enabled||strcmp(text(node,"action"),"walk")))return false;
+  if(enabled){
+    const char *a=text(node,"action");if(strcmp(a,"prepare")&&strcmp(a,"finish")&&strcmp(a,"walk"))return false;
+    if(!strcmp(a,"walk")&&!guarded)return false;
+    if(!strcmp(a,"walk")&&number(node,"index")>=2&&!cJSON_IsTrue(cJSON_GetObjectItem(cJSON_GetObjectItem(config,"gait"),"turnsVerified")))return false;
+  }
+  return true;
+}
 static bool validate_rules(const std::vector<uint8_t> &bytes, cJSON **document) {
   if (bytes.size() < 32 || bytes.size() > MAX_RULES || memcmp(bytes.data(), "CAPIRULE", 8) || u16(&bytes[8]) != 1 || u16(&bytes[10]) != ABI || u32(&bytes[12]) != bytes.size() - 32 || u32(&bytes[16]) != crc32(&bytes[32], bytes.size() - 32)) return false;
   std::string payload((const char *)&bytes[32], bytes.size() - 32); cJSON *root = cJSON_ParseWithLength(payload.data(), payload.size());
@@ -428,7 +446,7 @@ static bool validate_rules(const std::vector<uint8_t> &bytes, cJSON **document) 
   if (!root || strcmp(text(root, "format"), "CapiRules") || strcmp(text(root, "board"), CAPI_BOARD_ID) || number(root, "abi") != ABI || !cJSON_IsArray(tasks) || cJSON_GetArraySize(tasks)>32 || !cJSON_IsArray(timers_json) || cJSON_GetArraySize(timers_json)>16 || !cJSON_IsArray(devices) || cJSON_GetArraySize(devices)>64 || u32(&bytes[20])>2048 || u32(&bytes[24])!=(uint32_t)cJSON_GetArraySize(devices) || u32(&bytes[28])!=(uint32_t)cJSON_GetArraySize(tasks)) { cJSON_Delete(root); return false; }
   cJSON *item,*pins,*pin_item,*task,*instruction;int message_devices=0,otto_devices=0,display_devices=0;cJSON_ArrayForEach(item,devices){pins=cJSON_GetObjectItem(item,"pins"); if(!cJSON_IsObject(pins)){cJSON_Delete(root);return false;} cJSON_ArrayForEach(pin_item,pins) if(cJSON_IsNumber(pin_item)&&!allowed_pin(pin_item->valueint)){cJSON_Delete(root);return false;}const char *kind=text(item,"kind");if(!strcmp(kind,"led")||!strcmp(kind,"smartLights")||!strcmp(kind,"trafficLight")||!strcmp(kind,"motor")||!strcmp(kind,"robot")||!strcmp(kind,"servo")||!strcmp(kind,"activeBuzzer")||!strcmp(kind,"passiveBuzzer")||!strcmp(kind,"ledMatrix"))cJSON_ArrayForEach(pin_item,pins)if(cJSON_IsNumber(pin_item)&&!allowed_output_pin(pin_item->valueint)){cJSON_Delete(root);return false;}if(!strcmp(kind,"otto")){++otto_devices;cJSON *echo=cJSON_GetObjectItem(pins,"echo");cJSON_ArrayForEach(pin_item,pins)if(cJSON_IsNumber(pin_item)&&pin_item!=echo&&!allowed_output_pin(pin_item->valueint)){cJSON_Delete(root);return false;}if(otto_devices>1||(cJSON_IsNumber(echo)&&!allowed_pin(echo->valueint))){cJSON_Delete(root);return false;}}if(!strcmp(kind,"display")){++display_devices;cJSON *config=cJSON_GetObjectItem(item,"config");const char *profile=text(config,"profile");bool parallel=!strcmp(profile,"lcd1602keypad"),i2c=!strcmp(profile,"lcd1602")||!strcmp(profile,"lcd2004")||!strcmp(profile,"ssd1306"),spi=!strcmp(profile,"ili9341")||!strcmp(profile,"ili9488");if(display_devices>1||(!parallel&&!i2c&&!spi)){cJSON_Delete(root);return false;}cJSON *keys=cJSON_GetObjectItem(pins,"keys");cJSON_ArrayForEach(pin_item,pins)if(cJSON_IsNumber(pin_item)&&pin_item!=keys&&!allowed_output_pin(pin_item->valueint)){cJSON_Delete(root);return false;}if(parallel&&(!cJSON_IsNumber(keys)||!allowed_pin(keys->valueint))){cJSON_Delete(root);return false;}}if(!strcmp(kind,"messages")){++message_devices;cJSON *tx=cJSON_GetObjectItem(pins,"tx"),*rx=cJSON_GetObjectItem(pins,"rx"),*config=cJSON_GetObjectItem(item,"config");const char *mode=text(config,"mode");int baud=number(config,"baudRate");if(message_devices>1||(!cJSON_IsNull(tx)&&(!cJSON_IsNumber(tx)||!allowed_output_pin(tx->valueint)))||(!cJSON_IsNull(rx)&&(!cJSON_IsNumber(rx)||!allowed_pin(rx->valueint)))||(strcmp(mode,"send")&&strcmp(mode,"receive")&&strcmp(mode,"both"))||(baud!=9600&&baud!=19200&&baud!=38400&&baud!=57600&&baud!=115200)){cJSON_Delete(root);return false;}}}
   int gorilla_count=0;cJSON *gorilla_device;cJSON_ArrayForEach(gorilla_device,devices)if(!strcmp(text(gorilla_device,"kind"),"gorilla")&&(!gorilla_config_valid(gorilla_device)||++gorilla_count>1)){cJSON_Delete(root);return false;}
-  uint32_t instructions=0; cJSON_ArrayForEach(task,tasks){cJSON *output=cJSON_GetObjectItem(task,"output");int output_size=cJSON_GetArraySize(output); if(!cJSON_IsArray(output)){cJSON_Delete(root);return false;} cJSON_ArrayForEach(instruction,output){const char *op=text(instruction,"op"),*device_id=text(instruction,"deviceId");bool target_ok=true;if(!strcmp(op,"gorilla")&&!strcmp(text(instruction,"action"),"walk"))target_ok=gorilla_autonomy_resources_valid(devices);else if(!strcmp(op,"jump"))target_ok=number(instruction,"target",-1)>=0&&number(instruction,"target")<output_size;else if(!strcmp(op,"repeatStart"))target_ok=number(instruction,"end",-1)>=0&&number(instruction,"end")<output_size;else if(!strcmp(op,"repeatNext"))target_ok=number(instruction,"target",-1)>=0&&number(instruction,"target")<output_size;else if(!strcmp(op,"jumpIfFalse"))target_ok=number(instruction,"target",-1)>=0&&number(instruction,"target")<output_size;else if(!strcmp(op,"switchDispatch"))target_ok=supported_switch(instruction,output_size);else if(!strcmp(op,"messageReceiveWait")||!strcmp(op,"wifiMessageReceiveWait"))target_ok=number(instruction,"equalTarget",-1)>=0&&number(instruction,"equalTarget")<output_size&&number(instruction,"differentTarget",-1)>=0&&number(instruction,"differentTarget")<output_size&&number(instruction,"timeoutTarget",-1)>=0&&number(instruction,"timeoutTarget")<=output_size&&number(instruction,"timeoutMs",0)>=100&&number(instruction,"timeoutMs",0)<=300000;else if(!strcmp(op,"pin"))target_ok=allowed_output_pin(number(instruction,"pin",-1));else if(!strcmp(op,"fork")||!strcmp(op,"join")){cJSON *children=cJSON_GetObjectItem(instruction,"children"),*child;target_ok=cJSON_IsArray(children);cJSON_ArrayForEach(child,children)if(!cJSON_IsNumber(child)||child->valueint<0||child->valueint>=cJSON_GetArraySize(tasks))target_ok=false;}if(++instructions>2048||!supported_operation(op)||(!strcmp(op,"gorilla")&&!gorilla_instruction_valid(instruction))||!target_ok||!operation_device_valid(devices,op,device_id)||(device_id[0]&&!contains_device(devices,device_id))||(!strcmp(op,"jumpIfFalse")&&!supported_condition(cJSON_GetObjectItem(instruction,"condition")))||(!strcmp(op,"variableSet")&&!supported_expression(cJSON_GetObjectItem(instruction,"value")))||(!strcmp(op,"variableChange")&&!supported_expression(cJSON_GetObjectItem(instruction,"delta")))||((!strcmp(op,"serial")||!strcmp(op,"messageSend")||!strcmp(op,"wifiMessageSend")||!strcmp(op,"displayWrite"))&&cJSON_HasObjectItem(instruction,"expression")&&!supported_expression(cJSON_GetObjectItem(instruction,"expression")))){cJSON_Delete(root);return false;}}}
+  uint32_t instructions=0; cJSON_ArrayForEach(task,tasks){cJSON *output=cJSON_GetObjectItem(task,"output");int output_size=cJSON_GetArraySize(output); if(!cJSON_IsArray(output)){cJSON_Delete(root);return false;} cJSON_ArrayForEach(instruction,output){const char *op=text(instruction,"op"),*device_id=text(instruction,"deviceId");bool target_ok=true;if(!strcmp(op,"gorilla")&&!strcmp(text(instruction,"action"),"walk"))target_ok=cJSON_IsTrue(cJSON_GetObjectItem(instruction,"remote"))||gorilla_autonomy_resources_valid(devices);else if(!strcmp(op,"jump"))target_ok=number(instruction,"target",-1)>=0&&number(instruction,"target")<output_size;else if(!strcmp(op,"repeatStart"))target_ok=number(instruction,"end",-1)>=0&&number(instruction,"end")<output_size;else if(!strcmp(op,"repeatNext"))target_ok=number(instruction,"target",-1)>=0&&number(instruction,"target")<output_size;else if(!strcmp(op,"jumpIfFalse"))target_ok=number(instruction,"target",-1)>=0&&number(instruction,"target")<output_size;else if(!strcmp(op,"switchDispatch"))target_ok=supported_switch(instruction,output_size);else if(!strcmp(op,"messageReceiveWait")||!strcmp(op,"wifiMessageReceiveWait"))target_ok=number(instruction,"equalTarget",-1)>=0&&number(instruction,"equalTarget")<output_size&&number(instruction,"differentTarget",-1)>=0&&number(instruction,"differentTarget")<output_size&&number(instruction,"timeoutTarget",-1)>=0&&number(instruction,"timeoutTarget")<=output_size&&number(instruction,"timeoutMs",0)>=100&&number(instruction,"timeoutMs",0)<=300000;else if(!strcmp(op,"pin"))target_ok=allowed_output_pin(number(instruction,"pin",-1));else if(!strcmp(op,"fork")||!strcmp(op,"join")){cJSON *children=cJSON_GetObjectItem(instruction,"children"),*child;target_ok=cJSON_IsArray(children);cJSON_ArrayForEach(child,children)if(!cJSON_IsNumber(child)||child->valueint<0||child->valueint>=cJSON_GetArraySize(tasks))target_ok=false;}if(++instructions>2048||!supported_operation(op)||(!strcmp(op,"gorilla")&&(!gorilla_instruction_valid(instruction)||!gorilla_remote_instruction_valid(devices,instruction)))||!target_ok||!operation_device_valid(devices,op,device_id)||(device_id[0]&&!contains_device(devices,device_id))||(!strcmp(op,"jumpIfFalse")&&!supported_condition(cJSON_GetObjectItem(instruction,"condition")))||(!strcmp(op,"variableSet")&&!supported_expression(cJSON_GetObjectItem(instruction,"value")))||(!strcmp(op,"variableChange")&&!supported_expression(cJSON_GetObjectItem(instruction,"delta")))||((!strcmp(op,"serial")||!strcmp(op,"messageSend")||!strcmp(op,"wifiMessageSend")||!strcmp(op,"displayWrite"))&&cJSON_HasObjectItem(instruction,"expression")&&!supported_expression(cJSON_GetObjectItem(instruction,"expression")))){cJSON_Delete(root);return false;}}}
   if(instructions!=u32(&bytes[20])){cJSON_Delete(root);return false;}
   cJSON *frame_device;
   cJSON_ArrayForEach(frame_device,devices){
@@ -683,6 +701,7 @@ static RuntimeValue evaluate(cJSON *expression){
   if(!strcmp(kind,"ottoDistance")){out.number=otto.distance.load();return out;}
   if(!strcmp(kind,"wifiValue")){out.kind=RuntimeValue::BOOLEAN;out.boolean=wifi_connected.load();return out;}
   if(!strcmp(kind,"componentValue")){const char *id=text(expression,"deviceId"),*property=text(expression,"property");cJSON *dev=device(id);const char *device_kind=dev?text(dev,"kind"):"";
+    if(!strcmp(device_kind,"gorilla")&&!strncmp(property,"remote",6))return remote_value(property);
     if((!strcmp(device_kind,"lightSensor")||!strcmp(device_kind,"potentiometer"))&&!strcmp(property,"value")){if(is_waveshare())return component_get(id,property);out.number=analog_read(pin(dev,"signal"));return out;}
     if(!strcmp(device_kind,"button")&&!strcmp(property,"pressed")){if(is_waveshare())return component_get(id,property);int gpio=pin(dev,"signal");out.kind=RuntimeValue::BOOLEAN;if(gpio>=0){gpio_set_direction((gpio_num_t)gpio,GPIO_MODE_INPUT);out.boolean=gpio_get_level((gpio_num_t)gpio)==0;}return out;}
     if(!strcmp(device_kind,"infraredBarrier")&&!strcmp(property,"interrupted")){if(is_waveshare())return component_get(id,property);int gpio=pin(dev,"signal");out.kind=RuntimeValue::BOOLEAN;if(gpio>=0){gpio_set_direction((gpio_num_t)gpio,GPIO_MODE_INPUT);cJSON *config=cJSON_GetObjectItem(dev,"config");out.boolean=gpio_get_level((gpio_num_t)gpio)==(!strcmp(text(config,"interruptedLevel","LOW"),"HIGH")?1:0);}return out;}
@@ -744,6 +763,7 @@ static bool load_rules() {
 
 
 static CapiGorilla gorilla;
+inline bool remote_motion_busy(){return gorilla.busy;}
 static CapiGorillaWalk gorilla_walk;
 static i2c_master_bus_handle_t gorilla_bus=nullptr;
 static i2c_master_dev_handle_t gorilla_device_handle=nullptr;
@@ -780,12 +800,13 @@ static bool gorilla_prepare(cJSON *dev){
   for(int i=0;i<8;++i){cJSON *a=kin?cJSON_GetArrayItem(cJSON_GetObjectItem(kin,"zeroAngles"),i):nullptr;gorilla.zero_angles[i]=a?a->valuedouble:90;}
   gorilla.write=gorilla_write;gorilla_last=(uint32_t)(esp_timer_get_time()/1000);return gorilla.start(0,0,0,0,0,gorilla_last);
 }
+#include "remote_runtime.h"
 static void gorilla_service(){
   if(!gorilla_mutex||xSemaphoreTake(gorilla_mutex,0)!=pdTRUE)return;
   uint32_t now=(uint32_t)(esp_timer_get_time()/1000);
   if(!running){gorilla.halt();gorilla_walk.halt();}
   else if(paused&&step_owner!=gorilla_owner){gorilla.started+=now-gorilla_last;gorilla_walk.started+=now-gorilla_last;}
-  else gorilla.service(now);
+  else {remote_guard(now);gorilla.service(now);if(!gorilla.busy)remote_finishing=false;}
   gorilla_last=now;gorilla_publish();xSemaphoreGive(gorilla_mutex);
 }
 static bool condition(cJSON *value) {
@@ -871,11 +892,13 @@ static void execute_task(void *parameter) {
       else if(!strcmp(text(instruction,"action"),"walk")){
         if(!gorilla_waiting){
           if(gorilla.busy||gorilla_owner>=0)waiting=true;
-          else{gorilla_device=dev;gorilla_owner=task_index;gorilla_waiting=gorilla_walk.begin(number(instruction,"index"),number(instruction,"a"),number(instruction,"b"),number(instruction,"durationMs"),number(instruction,"timeoutMs"),(uint32_t)(esp_timer_get_time()/1000));}
+          else{gorilla_device=dev;gorilla_owner=task_index;remote_walk_guard=false;gorilla_waiting=gorilla_walk.begin(number(instruction,"index"),number(instruction,"a"),number(instruction,"b"),number(instruction,"durationMs"),number(instruction,"timeoutMs"),(uint32_t)(esp_timer_get_time()/1000),cJSON_IsTrue(cJSON_GetObjectItem(instruction,"remote"))&&remote_turns.load());}
         }
         if(gorilla_waiting){
           RuntimeValue initial_outcome;initial_outcome.kind=RuntimeValue::TEXT;initial_outcome.text="ninguno";component_set(text(dev,"id"),"walkOutcome",initial_outcome);
-          waiting=gorilla_walk.service(gorilla,condition(cJSON_GetObjectItem(instruction,"condition")),(uint32_t)(esp_timer_get_time()/1000));
+          if(cJSON_IsTrue(cJSON_GetObjectItem(instruction,"remote"))&&!gorilla.busy&&!gorilla_walk.finishing){int base=number(instruction,"durationMs");gorilla_walk.phase=(uint32_t)std::lround(base+(2000-base)*(100-remote_value("remoteRhythm").number)/75.0);}
+          bool guard=!remote_permits(number(instruction,"index"));remote_walk_guard=guard;
+          waiting=gorilla_walk.service(gorilla,guard||condition(cJSON_GetObjectItem(instruction,"condition")),(uint32_t)(esp_timer_get_time()/1000));
           if(!waiting){gorilla_waiting=false;gorilla_owner=-1;RuntimeValue outcome;outcome.kind=RuntimeValue::TEXT;const char *labels[]={"ninguno","condición","tiempo máximo","solicitado","error"};outcome.text=labels[gorilla_walk.outcome];component_set(text(dev,"id"),"walkOutcome",outcome);}
           gorilla_publish();
         }
@@ -967,7 +990,7 @@ else if (!strcmp(op,"matrixClear")) {if(matrix_mutex)xSemaphoreTake(matrix_mutex
 #endif
   vTaskDelete(nullptr);
 }
-static bool start_program(bool start_paused=false) { if(!active||running||active_tasks>0)return false;for(auto &state:task_states)state=0;step_requested=false;step_owner=-1;counter_value=0;wifi_messages_reset();initialize_variables();initialize_component_states();gorilla_reset();front_sonar_begin();if(timers_mutex)xSemaphoreTake(timers_mutex,portMAX_DELAY);initialize_timers();if(timers_mutex)xSemaphoreGive(timers_mutex);if(message_mutex)xSemaphoreTake(message_mutex,portMAX_DELAY);message_last.clear();bool messages_ready=message_begin();if(message_mutex)xSemaphoreGive(message_mutex);if(!messages_ready){telemetry("error",nullptr,"No se pudo iniciar el puerto de Mensajes.");return false;}traffic_matrix_begin();if(matrix_mutex)xSemaphoreTake(matrix_mutex,portMAX_DELAY);matrix_begin();if(matrix_mutex)xSemaphoreGive(matrix_mutex);if(otto_mutex)xSemaphoreTake(otto_mutex,portMAX_DELAY);otto_begin();if(otto_mutex)xSemaphoreGive(otto_mutex);if(display_mutex)xSemaphoreTake(display_mutex,portMAX_DELAY);bool display_ready=display_begin();if(display_mutex)xSemaphoreGive(display_mutex);if(!display_ready){telemetry("error",nullptr,"No se pudo iniciar la pantalla de texto.");return false;}if(smart_lights_mutex)xSemaphoreTake(smart_lights_mutex,portMAX_DELAY);bool smart_ready=smart_begin();if(smart_lights_mutex)xSemaphoreGive(smart_lights_mutex);if(!smart_ready){telemetry("error",nullptr,"No se pudieron iniciar las luces RGB inteligentes.");return false;}running=true;paused=start_paused;cJSON *tasks=cJSON_GetObjectItem(active,"tasks"),*task;int index=0,started=0;cJSON_ArrayForEach(task,tasks){if(cJSON_IsTrue(cJSON_GetObjectItem(task,"initial"))&&start_task(index))++started;++index;}if(!started){running=false;paused=false;return false;}
+static bool start_program(bool start_paused=false) { if(!active||running||active_tasks>0)return false;for(auto &state:task_states)state=0;step_requested=false;step_owner=-1;counter_value=0;wifi_messages_reset();initialize_variables();initialize_component_states();gorilla_reset();front_sonar_begin();if(!remote_begin()){telemetry("warning",nullptr,"Configurá el mando Wi-Fi por USB antes de ejecutar.");return false;}if(timers_mutex)xSemaphoreTake(timers_mutex,portMAX_DELAY);initialize_timers();if(timers_mutex)xSemaphoreGive(timers_mutex);if(message_mutex)xSemaphoreTake(message_mutex,portMAX_DELAY);message_last.clear();bool messages_ready=message_begin();if(message_mutex)xSemaphoreGive(message_mutex);if(!messages_ready){telemetry("error",nullptr,"No se pudo iniciar el puerto de Mensajes.");return false;}traffic_matrix_begin();if(matrix_mutex)xSemaphoreTake(matrix_mutex,portMAX_DELAY);matrix_begin();if(matrix_mutex)xSemaphoreGive(matrix_mutex);if(otto_mutex)xSemaphoreTake(otto_mutex,portMAX_DELAY);otto_begin();if(otto_mutex)xSemaphoreGive(otto_mutex);if(display_mutex)xSemaphoreTake(display_mutex,portMAX_DELAY);bool display_ready=display_begin();if(display_mutex)xSemaphoreGive(display_mutex);if(!display_ready){telemetry("error",nullptr,"No se pudo iniciar la pantalla de texto.");return false;}if(smart_lights_mutex)xSemaphoreTake(smart_lights_mutex,portMAX_DELAY);bool smart_ready=smart_begin();if(smart_lights_mutex)xSemaphoreGive(smart_lights_mutex);if(!smart_ready){telemetry("error",nullptr,"No se pudieron iniciar las luces RGB inteligentes.");return false;}running=true;paused=start_paused;cJSON *tasks=cJSON_GetObjectItem(active,"tasks"),*task;int index=0,started=0;cJSON_ArrayForEach(task,tasks){if(cJSON_IsTrue(cJSON_GetObjectItem(task,"initial"))&&start_task(index))++started;++index;}if(!started){running=false;paused=false;return false;}
 #ifdef CONFIG_IDF_TARGET_ESP32S3
 waveshare_dirty=true;
 #endif
@@ -1016,7 +1039,7 @@ static void command(cJSON *request) {
     for(const char *cap:{"line-sensors","robot-wheels","core","switch","conditional-loop","parallel","expressions","variables","timers","component-state","gpio","led","smart-lights","traffic","traffic-display","motor","robot","robotWheels","otto","servo","buzzer","matrix","display","display-lcd","display-lcd1602","display-lcd2004","display-lcd1602keypad","display-graphic","display-ssd1306","display-ili9341","display-ili9488","display-keypad","frame-animation","visual-wait","messages","wifi","wifi-messages","pairing","counter","serial","digital-input","analog-input","step"}){
       cJSON_AddItemToArray(caps,cJSON_CreateString(cap));
     }
-    if(!is_waveshare()){cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-bench"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-postures"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-kinematics-v3"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-gait"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-autonomy"));cJSON_AddItemToArray(caps,cJSON_CreateString("sonar-hcsr04"));}
+    if(!is_waveshare()){cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-remote"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-bench"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-postures"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-kinematics-v3"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-gait"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-autonomy"));cJSON_AddItemToArray(caps,cJSON_CreateString("sonar-hcsr04"));}
     if(is_waveshare()){
       cJSON_AddItemToArray(caps,cJSON_CreateString("touch-inputs"));
       cJSON_AddItemToArray(caps,cJSON_CreateString("autonomous-controls"));
@@ -1025,6 +1048,8 @@ static void command(cJSON *request) {
     cJSON_AddNumberToObject(resources,"pwmChannels",8);
     send_json(out);
   }
+  else if(!strcmp(type,"CONFIG_REMOTE")){if(running||active_tasks>0){reply("ERROR","Detené el programa antes de configurar el mando.");return;}if(remote_provision(request))remote_info();else reply("ERROR","No pudimos guardar la red del mando. La clave debe tener 8–63 caracteres.");}
+  else if(!strcmp(type,"REMOTE_INFO"))remote_info();
   else if (!strcmp(type,"CONFIG_WIFI")) { if(running){reply("ERROR","Detené el programa antes de cambiar la red Wi-Fi.");return;}if(wifi_provision(text(request,"ssid"),text(request,"password")))reply("WIFI_CONFIGURED");else reply("ERROR","La red o la clave Wi-Fi no tienen un formato válido."); }
   else if (!strcmp(type,"CONFIG_PAIR")) {if(running){reply("ERROR","Detené el programa antes de emparejar las placas.");return;}if(wifi_provision_pair(text(request,"role"),text(request,"ssid"),text(request,"password"),text(request,"pairingKey"),text(request,"screenHardwareId"))){reply("PAIR_CONFIGURED");wifi_connect();}else reply("ERROR","No pudimos guardar un perfil de pareja válido para esta placa.");}
   else if (!strcmp(type,"BEGIN")) { if(running){reply("ERROR","Detené el programa antes de reemplazarlo.");return;} expected_bytes=number(request,"bytes"); const char *sum=text(request,"checksum"); expected_crc=strtoul(sum,nullptr,16); if(!expected_bytes||expected_bytes>MAX_RULES){reply("ERROR","Tamaño de reglas inválido.");return;} candidate.clear(); candidate.reserve(expected_bytes); reply("READY"); }
@@ -1039,11 +1064,11 @@ static void command(cJSON *request) {
   waveshare_dirty=true;if(waveshare_mutex)xSemaphoreGive(waveshare_mutex);
 #endif
   candidate.clear(); reply("COMMITTED"); }
-  else if (!strcmp(type,"RUN")) { if(start_program()) reply("OK"); else reply("ERROR","No hay reglas o el programa ya está ejecutándose."); }
-  else if (!strcmp(type,"PAUSE")) { pause_program();reply("OK"); }
+  else if (!strcmp(type,"RUN")) { if(start_program()) reply("OK"); else reply("ERROR",remote_device()?"No se pudo iniciar el mando. Detené el programa y revisá su Wi-Fi por USB.":"No hay reglas o el programa ya está ejecutándose."); }
+  else if (!strcmp(type,"PAUSE")) { xSemaphoreTake(remote_mutex,portMAX_DELAY);remote_control.connected=remote_control.armed=false;remote_control.direction=remote_control.mission=0;xSemaphoreGive(remote_mutex);pause_program();reply("OK"); }
   else if (!strcmp(type,"RESUME")) { resume_program();reply("OK"); }
   else if (!strcmp(type,"STEP")) { if(step_program())reply("OK");else reply("ERROR","Esperá a que termine el paso actual o enviá reglas válidas."); }
-  else if (!strcmp(type,"STOP")) { bool stopped=stop_program();reply(stopped?"OK":"ERROR",stopped?nullptr:"No pudimos detener todos los caminos."); }
+  else if (!strcmp(type,"STOP")) {xSemaphoreTake(remote_mutex,portMAX_DELAY);remote_control.connected=remote_control.armed=false;remote_control.direction=remote_control.mission=0;xSemaphoreGive(remote_mutex); bool stopped=stop_program();reply(stopped?"OK":"ERROR",stopped?nullptr:"No pudimos detener todos los caminos."); }
   else if (!strcmp(type,"RESET_PROGRAM")) { reset_program();reply("OK"); }
   else reply("ERROR","Comando desconocido.");
 }
@@ -1063,13 +1088,13 @@ extern "C" void app_main() {
     usb_link_ready=usb_serial_jtag_driver_install(&usb_config)==ESP_OK;
   }
 #endif
-  gorilla_mutex=xSemaphoreCreateMutex();
+  gorilla_mutex=xSemaphoreCreateMutex();remote_mutex=xSemaphoreCreateMutex();remote_motion_mutex=gorilla_mutex;
   if(!wifi_pair_role().empty()) wifi_connect();
-  if(load_rules()&&!wifi_creates_network()) start_program();
+  if(load_rules()&&(remote_device()||!wifi_creates_network())) start_program();
   std::string line; uint8_t byte;
   for(;;){
     front_sonar_service();
-    gorilla_service();
+    gorilla_service();remote_publish();
 #ifdef CONFIG_IDF_TARGET_ESP32S3
     int action=waveshare_action.exchange(0);if(action==1){const char *value=!running?"RUN":paused?"RESUME":"PAUSE";if(!running)start_program();else if(paused)resume_program();else pause_program();telemetry_state("control",nullptr,nullptr,value);}else if(action==2){if(step_program())telemetry_state("control",nullptr,nullptr,"STEP");}else if(action==3){stop_program();telemetry_state("control",nullptr,nullptr,"STOP");}else if(action==4){reset_program();telemetry_state("control",nullptr,nullptr,"RESET_PROGRAM");}
 #endif

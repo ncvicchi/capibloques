@@ -129,7 +129,7 @@ function acceptedDeviceKinds(block: BlocklyBlock): readonly SceneDeviceKind[] {
       return ['powerSwitch'];
     case 'capi_stepper':
       return ['stepper'];
-    case 'capi_gorilla_walk': case 'capi_gorilla_finish': case 'capi_gorilla_gait': case 'capi_gorilla_settle': case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair': case 'capi_gorilla_posture': case 'capi_gorilla_foot': case 'capi_gorilla_path':return ['gorilla'];
+    case 'capi_gorilla_remote_walk': case 'capi_gorilla_walk': case 'capi_gorilla_finish': case 'capi_gorilla_gait': case 'capi_gorilla_settle': case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair': case 'capi_gorilla_posture': case 'capi_gorilla_foot': case 'capi_gorilla_path':return ['gorilla'];
     case 'capi_rgb_fill':
     case 'capi_rgb_pixel':
     case 'capi_rgb_segment':
@@ -869,7 +869,7 @@ const toolbox = {
         { kind: 'block', type: 'capi_led' },
         { kind: 'block', type: 'capi_power_switch' },
         { kind: 'block', type: 'capi_stepper' },
-        ...['capi_gorilla_walk','capi_gorilla_finish','capi_gorilla_gait','capi_gorilla_settle','capi_gorilla_prepare','capi_gorilla_joint','capi_gorilla_pair','capi_gorilla_posture','capi_gorilla_foot','capi_gorilla_path'].map(type=>({kind:'block',type})),
+        ...['capi_gorilla_remote_walk','capi_gorilla_walk','capi_gorilla_finish','capi_gorilla_gait','capi_gorilla_settle','capi_gorilla_prepare','capi_gorilla_joint','capi_gorilla_pair','capi_gorilla_posture','capi_gorilla_foot','capi_gorilla_path'].map(type=>({kind:'block',type})),
         { kind: 'block', type: 'capi_rgb_fill' },
         { kind: 'block', type: 'capi_rgb_pixel' },
         { kind: 'block', type: 'capi_rgb_segment' },
@@ -2029,6 +2029,7 @@ function registerBlocks(Blockly: BlocklyApi) {
       tooltip: 'Controla una carga de baja tensión con MOSFET o relé.',
       extensions: [DEVICE_EXTENSION],
     },
+    {type:'capi_gorilla_remote_walk',message0:'🎮 %1 %2 con mando hasta que %3 máximo %4 segundos',args0:[deviceField('agregá GorillaBot'),{type:'field_dropdown',name:'MODE',options:[['avanzar','0'],['retroceder','1'],['girar izquierda (experimental)','2'],['girar derecha (experimental)','3']]},{type:'input_value',name:'CONDITION',check:'Boolean'},{type:'field_number',name:'LIMIT',value:30,min:1,max:120,precision:1}],previousStatement:null,nextStatement:null,colour:'#328BDD',tooltip:'El programa decide cuándo caminar. Soltar o perder el mando termina en apoyo. Ritmo limitado por la escena.',extensions:[DEVICE_EXTENSION]},
     {
       type:'capi_gorilla_walk',message0:'🦍 %1 %2 hasta que %3 máximo %4 segundos',args0:[deviceField('agregá GorillaBot'),{type:'field_dropdown',name:'MODE',options:[['avanzar','0'],['retroceder','1']]},{type:'input_value',name:'CONDITION',check:'Boolean'},{type:'field_number',name:'LIMIT',value:30,min:1,max:120,precision:1}],previousStatement:null,nextStatement:null,colour:'#328BDD',tooltip:'Revisa tu condición durante la marcha y termina bajando los pies en su lugar. Sin sensores de suelo ni giro automático.',extensions:[DEVICE_EXTENSION],
     },
@@ -3790,10 +3791,10 @@ function compileStack(first: BlocklyBlock | null): ProgramNode[] {
           blockId,
         });
         break;
-      case 'capi_gorilla_walk': case 'capi_gorilla_finish': case 'capi_gorilla_gait': case 'capi_gorilla_settle': case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair': case 'capi_gorilla_posture': case 'capi_gorilla_foot': case 'capi_gorilla_path':
-        if(block.type==='capi_gorilla_walk'||block.type==='capi_gorilla_finish'){
+      case 'capi_gorilla_remote_walk': case 'capi_gorilla_walk': case 'capi_gorilla_finish': case 'capi_gorilla_gait': case 'capi_gorilla_settle': case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair': case 'capi_gorilla_posture': case 'capi_gorilla_foot': case 'capi_gorilla_path':
+        if(block.type==='capi_gorilla_remote_walk'||block.type==='capi_gorilla_walk'||block.type==='capi_gorilla_finish'){
           const currentBlock=block,d=devicesForBlock(currentBlock).find(d=>d.id===selectedDeviceId(currentBlock)),g=d?.kind==='gorilla'?(d.config.gait??defaultGorillaGait):defaultGorillaGait;
-          result.push({op:'gorilla',action:block.type==='capi_gorilla_finish'?'finish':'walk',deviceId:selectedDeviceId(block),index:numberField(block,'MODE',0),a:g.stride,b:g.height,durationMs:g.phaseMs,...(block.type==='capi_gorilla_walk'?{condition:compileCondition(block.getInputTargetBlock('CONDITION')),timeoutMs:numberField(block,'LIMIT',30)*1000}:{}),blockId});break;
+          result.push({op:'gorilla',...(block.type==='capi_gorilla_remote_walk'?{remote:true}:{}),action:block.type==='capi_gorilla_finish'?'finish':'walk',deviceId:selectedDeviceId(block),index:numberField(block,'MODE',0),a:g.stride,b:g.height,durationMs:g.phaseMs,...(block.type!=='capi_gorilla_finish'?{condition:compileCondition(block.getInputTargetBlock('CONDITION')),timeoutMs:numberField(block,'LIMIT',30)*1000}:{}),blockId});break;
         }
         if(block.type==='capi_gorilla_gait'||block.type==='capi_gorilla_settle'){
           const currentBlock=block,d=devicesForBlock(currentBlock).find(d=>d.id===selectedDeviceId(currentBlock)),g=d?.kind==='gorilla'?(d.config.gait??defaultGorillaGait):defaultGorillaGait;

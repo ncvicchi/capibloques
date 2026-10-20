@@ -25,6 +25,7 @@ BOARD_PINS = {
     "waveshare-esp32-s3-touch-lcd-5-28117": set(),
 }
 BLOCKS = {"capi_" + name for name in ("start", "forever", "repeat", "wait", "if", "compare", "counter_compare", "counter_set", "counter_change", "traffic", "led", "pin_write", "robot", "otto", "motor", "servo", "buzzer", "tone", "button_pressed", "sensor_compare", "wifi_connect", "wifi_connected", "serial")}
+BLOCKS.add("capi_gorilla_remote_walk")
 BLOCKS.add("capi_parallel")
 BLOCKS.add("capi_robot_wheels")
 BLOCKS.add("capi_switch")
@@ -378,11 +379,15 @@ def scene(value, board_profile="wemos-d1-r32"):
             else:
                 if kind in MODULES:
                     module_pins, profiles, value_types = MODULES[kind]
-                    exact(config, ("profile", "values", "settings", *(key for key in ("postures","kinematics","trajectories","gait") if key in config)) if kind=="gorilla" else ("profile", "values", "settings"))
+                    exact(config, ("profile", "values", "settings", *(key for key in ("postures","kinematics","trajectories","gait","remote") if key in config)) if kind=="gorilla" else ("profile", "values", "settings"))
                     require(config["profile"] in profiles and isinstance(config["values"], dict) and set(config["values"]) == set(value_types) and isinstance(config["settings"], dict))
                     require(all(type(config["values"][key]) in ((rule,) if isinstance(rule, type) else rule) for key, rule in value_types.items()))
                     require(all(isinstance(key, str) and isinstance(value, (str, int, float, bool)) for key, value in config["settings"].items()))
                 if kind == "gorilla":
+                    if "remote" in config:
+                        r = config["remote"]
+                        if not isinstance(r, dict) or set(r) != {"missions"} or not isinstance(r["missions"], list) or len(r["missions"]) > 4 or any(not isinstance(m, str) or not 1 <= len(m) <= 32 or m != m.strip() for m in r["missions"]) or len(set(r["missions"])) != len(r["missions"]):
+                            require(False)
                     if "gait" in config:
                         g=config["gait"]
                         require(isinstance(g,dict) and set(g)=={"stride","height","phaseMs","turnsVerified"})

@@ -88,17 +88,17 @@ const validation = source.slice(
 const runtime = source.slice(
   source.indexOf('static CapiGorilla gorilla;'),
   source.indexOf('static bool condition(cJSON *value)'),
-);
+).replace('#include "remote_runtime.h"','').replace('else {remote_guard(now);gorilla.service(now);if(!gorilla.busy)remote_finishing=false;}','else gorilla.service(now);');
 const settings = scene.devices[0].config.settings;
 const mock = `
 #include <map>
 #include <string>
 #include <cstring>
 #include <cstdio>
-struct cJSON{enum{OBJECT,ARRAY,NUMBER,STRING,TRUE_VALUE,FALSE_VALUE}type=OBJECT;int valueint=0;double valuedouble=0;std::string str;std::map<std::string,cJSON*> children;cJSON(){}explicit cJSON(int n):type(NUMBER),valueint(n),valuedouble(n){}explicit cJSON(bool b):type(b?TRUE_VALUE:FALSE_VALUE){}explicit cJSON(const char*s):type(STRING),str(s){}};
+struct cJSON{enum{OBJECT,ARRAY,NUMBER,STRING,TRUE_VALUE,FALSE_VALUE}type=OBJECT;int valueint=0;double valuedouble=0;std::string str;char*valuestring=nullptr;std::map<std::string,cJSON*> children;cJSON(){}explicit cJSON(int n):type(NUMBER),valueint(n),valuedouble(n){}explicit cJSON(bool b):type(b?TRUE_VALUE:FALSE_VALUE){}explicit cJSON(const char*s):type(STRING),str(s){}};
 cJSON* cJSON_GetObjectItem(cJSON*o,const char*k){if(!o)return nullptr;auto it=o->children.find(k);return it==o->children.end()?nullptr:it->second;}
 bool cJSON_IsArray(cJSON*v){return v&&v->type==cJSON::ARRAY;}cJSON* cJSON_GetArrayItem(cJSON*v,int i){return cJSON_GetObjectItem(v,std::to_string(i).c_str());}
-bool cJSON_IsObject(cJSON*v){return v&&v->type==cJSON::OBJECT;}bool cJSON_IsNumber(cJSON*v){return v&&v->type==cJSON::NUMBER;}bool cJSON_IsTrue(cJSON*v){return v&&v->type==cJSON::TRUE_VALUE;}bool cJSON_IsFalse(cJSON*v){return v&&v->type==cJSON::FALSE_VALUE;}bool cJSON_IsBool(cJSON*v){return cJSON_IsTrue(v)||cJSON_IsFalse(v);}int cJSON_GetArraySize(cJSON*v){return v?(int)v->children.size():0;}
+bool cJSON_IsString(cJSON*v){return v&&v->type==cJSON::STRING;}bool cJSON_IsObject(cJSON*v){return v&&v->type==cJSON::OBJECT;}bool cJSON_IsNumber(cJSON*v){return v&&v->type==cJSON::NUMBER;}bool cJSON_IsTrue(cJSON*v){return v&&v->type==cJSON::TRUE_VALUE;}bool cJSON_IsFalse(cJSON*v){return v&&v->type==cJSON::FALSE_VALUE;}bool cJSON_IsBool(cJSON*v){return cJSON_IsTrue(v)||cJSON_IsFalse(v);}int cJSON_GetArraySize(cJSON*v){return v?(int)v->children.size():0;}
 bool supported_condition(cJSON*o){return cJSON_IsObject(o);}
 const char*text(cJSON*o,const char*k){auto v=cJSON_GetObjectItem(o,k);return v?v->str.c_str():"";}
 int number(cJSON*o,const char*k,int fallback=0){auto v=cJSON_GetObjectItem(o,k);return cJSON_IsNumber(v)?v->valueint:fallback;}
@@ -118,6 +118,7 @@ const interp =
   runtime +
   `
 int main(){
+ cJSON empty;assert(gorilla_remote_instruction_valid(&empty,&empty));cJSON forged;forged.children["remote"]=new cJSON(true);assert(!gorilla_remote_instruction_valid(&empty,&forged));
  cJSON dev,config,s,values,pins;dev.children["config"]=&config;dev.children["pins"]=&pins;dev.children["id"]=new cJSON("test");config.children["settings"]=&s;config.children["values"]=&values;config.children["profile"]=new cJSON("GORILLA_PCA9685");
  pins.children["sda"]=new cJSON(18);pins.children["scl"]=new cJSON(19);
  ${Object.entries(settings)

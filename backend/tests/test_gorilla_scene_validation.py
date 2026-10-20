@@ -12,6 +12,14 @@ class GorillaValidationTests(unittest.TestCase):
         s['devices']=[dict(schemaVersion=1,id='gorilla-robot',kind='gorilla',name='Mi GorillaBot',position=dict(x=480,y=290),rotation=0,pins=dict(sda=18,scl=19),config=dict(profile='GORILLA_PCA9685',values=values,settings=settings))];s['widgets']=[]
         return v
     def test_accepts_profile(self):self.assertGreater(document(self.sample()),0)
+    def test_remote_config_and_derived_values(self):
+        v=self.sample();c=v['scene']['devices'][0]['config'];c['remote']={'missions':['Explorar']}
+        self.assertGreater(document(v),0)
+        for bad in ({'missions':['a','a']},{'missions':[' a']},{'missions':[False]},{'missions':[], 'password':'not-portable'},{'missions':['x'*33]}, {'missions':['a','b','c','d','e']}):
+            w=copy.deepcopy(v);w['scene']['devices'][0]['config']['remote']=bad
+            with self.assertRaises(ValidationError):document(w)
+        c['values']['remoteArmed']=True
+        with self.assertRaises(ValidationError):document(v)
     def test_rejects_bad_calibration(self):
         for key,value in [('channel1',0),('channel2',16),('center0',200),('min0',95),('max0',80),('reversed0',1),('verified',1),('address',True),('extra',1)]:
             v=self.sample();v['scene']['devices'][0]['config']['settings'][key]=value

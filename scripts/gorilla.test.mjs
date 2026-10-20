@@ -113,6 +113,7 @@ for (const e of examples.filter((e) => e.id.startsWith('gorilla'))) {
     generateEsp32CodeResult(p, e.title, scene),
     generateEspIdfCodeResult(p, e.title, scene),
   ]) {
+    if(e.id.startsWith('gorillaRemote')){assert.ok(result.diagnostics.some(d=>d.code==='remote-interpreter'&&d.severity==='error'));continue;}
     assert.deepEqual(
       result.diagnostics.filter((i) => i.severity === 'error'),
       [],

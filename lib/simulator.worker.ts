@@ -1,4 +1,6 @@
 // @ts-expect-error Node strip-types runner.
+import {GorillaRemoteLease} from './gorilla-remote.ts';
+// @ts-expect-error Node strip-types runner.
 import {planGorillaGait,planGorillaSupport,advanceGorillaGait,type GorillaGaitMove} from './gorilla-gait.ts';
 // @ts-expect-error Node strip-types runner.
 import {createGorillaTrack,advanceGorillaTrack,gorillaBindings,gorillaDistance} from './gorilla-track.ts';
@@ -68,6 +70,9 @@ import {planGorillaPath,advanceGorillaPath,type GorillaCartesianMove} from './go
 const gorillaJobs=new Map<string,GorillaMove|GorillaCartesianMove|GorillaGaitMove>();
 const gorillaWalks=new Map<string,{owner:string;block:string;started:number;finishing:boolean;requested:boolean;moved:boolean;outcome:string}>();
 const gorillaPositions=new Map<string,number[]>();
+let gorillaRemote=new GorillaRemoteLease();
+function publishRemote(){gorillaRemote.expire(performance.now());for(const spec of scene.devices){const d=state.devices[spec.id];if(spec.kind==='gorilla'&&spec.config.remote&&d?.kind==='educationalModule')Object.assign(d.values,gorillaRemote.values(),{remoteTicket:gorillaRemote.ticket,remoteSequence:gorillaRemote.sequence});}}
+function remoteAllowed(node:{index:number}){return gorillaRemote.connected&&gorillaRemote.armed&&!gorillaRemote.stopped&&(gorillaRemote.mode===1?gorillaRemote.mission>0:gorillaRemote.direction===node.index+1);}
 type Pending =
   | { kind: 'wait'; startedAt: number; until: number; blockId: string }
   | {
@@ -898,7 +903,7 @@ function resetExecution(
   wifiMessageSequence = 0;
   lastReceivedMessages.clear();
   visualAnimations.clear();
-  gorillaJobs.clear();gorillaWalks.clear();gorillaPositions.clear();
+  gorillaRemote=new GorillaRemoteLease();gorillaJobs.clear();gorillaWalks.clear();gorillaPositions.clear();
   ottoOwners.clear();
   ottoQueues.clear();
   clearBlockActivity();
@@ -1617,6 +1622,8 @@ function executeInstruction(
   if(node.op==='gorilla'){
     const d=state.devices[node.deviceId],spec=scene.devices.find(x=>x.id===node.deviceId);
     if(d?.kind!=='educationalModule'||spec?.kind!=='gorilla'){execution.pc++;return 'action';}
+    publishRemote();
+    if(node.action!=='prepare'&&spec.config.remote&&gorillaRemote.stopped){gorillaJobs.delete(node.deviceId);gorillaWalks.delete(node.deviceId);d.values.moving=false;execution.pc++;return 'action';}
     if(node.action==='finish'){const w=gorillaWalks.get(node.deviceId);if(w)w.requested=true;execution.pc++;return 'action';}
     if(node.action==='walk'){
       let w=gorillaWalks.get(node.deviceId);
@@ -1626,7 +1633,7 @@ function executeInstruction(
       if(d.values.error||!d.values.ready){w.outcome='error';gorillaJobs.delete(node.deviceId);}
       else if(w.finishing){if(gorillaJobs.has(node.deviceId))return 'wait';}
       else {
-        const reason=w.requested?'solicitado':evaluate(node.condition!)?'condición':virtualNow-w.started>=(node.timeoutMs??30000)?'tiempo máximo':'';
+        const reason=spec.config.remote&&!remoteAllowed(node)?'solicitado':w.requested?'solicitado':evaluate(node.condition!)?'condición':virtualNow-w.started>=(node.timeoutMs??30000)?'tiempo máximo':'';
         if(reason){
           w.outcome=reason;w.finishing=true;
           if(w.moved){
@@ -1636,7 +1643,7 @@ function executeInstruction(
           d.values.error=true;w.outcome='error';}
         }else{
           if(!gorillaJobs.has(node.deviceId)){
-            const p=spec.config.kinematics?planGorillaGait(spec.config.kinematics,spec.config.settings,node.index,{stride:node.a,height:node.b,phaseMs:node.durationMs,turnsVerified:false},current):{};
+            const p=spec.config.kinematics?planGorillaGait(spec.config.kinematics,spec.config.settings,node.index,{stride:node.a,height:node.b,phaseMs:Math.round(node.durationMs+(node.remote?(2000-node.durationMs)*(100-gorillaRemote.rhythm)/75:0)),turnsVerified:!!spec.config.gait?.turnsVerified},current):{};
             if(!p.move){w.outcome='error';d.values.error=true;}else{w.moved=true;gorillaJobs.set(node.deviceId,p.move);d.values.moving=true;return 'wait';}
           }else return 'wait';
         }
@@ -2915,6 +2922,7 @@ function runScheduler(stopAtEvent = false) {
 }
 
 function tick() {
+  publishRemote();
   const now = performance.now();
   const realDelta = Math.min(100, now - lastRealTime);
   lastRealTime = now;
@@ -3102,6 +3110,7 @@ function setLegacyInput(name: unknown, value: unknown) {
     if (w) { if (value === 'arrive' && w.phase === 'empty') w.pendingArrival = true; if (value === 'leave' && w.phase !== 'empty') w.pendingDeparture = true; if (value === 'request' && w.phase === 'watching' && !w.requestMs) w.pendingRequest = true; }
     return;
   }
+  if(name==='gorillaRemote'){const spec=scene.devices.find(d=>d.kind==='gorilla'&&d.config.remote);const d=spec&&state.devices[spec.id];if(spec?.kind==='gorilla'&&d?.kind==='educationalModule'&&value&&typeof value==='object'){const v=value as Record<string,unknown>;if(v.claim)gorillaRemote.claim('simulator',performance.now(),gorillaRemote.ticket+1);else gorillaRemote.accept('simulator',v as unknown as import('./gorilla-remote').RemoteIntent,performance.now(),gorillaRemote.ticket+1,!!d.values.moving,!!spec.config.gait?.turnsVerified,spec.config.remote!.missions.length);if(gorillaRemote.stopped){gorillaJobs.delete(spec.id);gorillaWalks.delete(spec.id);d.values.moving=false;}publishRemote();}return;}
   if(name==='gorillaButtonPulse'){const id=gorillaBindings(scene).button;if(id&&state.gorillaWorld){state.gorillaWorld.buttonPulseMs=250;applyInputValue(id,true);}return;}
   if(name==='gorillaTrial'){if(state.gorillaWorld&&value&&typeof value==='object'){const v=value as {sonarMode?:unknown;obstaclesRemoved?:unknown};if(['normal','missing','stale'].includes(String(v.sonarMode)))state.gorillaWorld.sonarMode=v.sonarMode as 'normal'|'missing'|'stale';if(typeof v.obstaclesRemoved==='boolean')state.gorillaWorld.obstaclesRemoved=v.obstaclesRemoved;}return;}
   if(name==='pondEnvironment'){if(state.pondWorld&&validPondEnvironment(value))state.pondWorld.environment={...value};return;}

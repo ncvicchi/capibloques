@@ -6,7 +6,7 @@ import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 
 export const CAPI_RULES_FORMAT = 1;
 export const CAPI_INTERPRETER_ABI = 1;
-export const CAPI_INTERPRETER_VERSION = '1.15.0';
+export const CAPI_INTERPRETER_VERSION = '1.16.0';
 export const CAPI_RULES_MAX_BYTES = 32 * 1024;
 export const CAPI_RULES_MAX_INSTRUCTIONS = 2048;
 const HEADER_BYTES = 32;
@@ -23,6 +23,7 @@ export interface CapiRulesDocument {
   tasks: ExecutableTask[];
   initial: { taskIds: string[] };
   debug: { blockIds: string[] };
+  metadata?: {title:string};
 }
 
 export interface CapiRulesBundle {
@@ -52,6 +53,7 @@ const capabilityForOperation = (operation: string) => ({
 
 function instructionCapabilities(instruction: ExecutableTask['output'][number]) {
   const result = [capabilityForOperation(instruction.op)];
+  if(instruction.op==='gorilla'&&instruction.remote)result.push('gorilla-remote');
   if (instruction.op==='gorilla'&&instruction.action==='posture')result.push('gorilla-postures');
   if(instruction.op==='gorilla'&&(instruction.action==='walk'||instruction.action==='finish'))result.push('gorilla-autonomy','sonar-hcsr04','component-state');
   if(instruction.op==='gorilla'&&instruction.action==='gait')result.push('gorilla-gait');
@@ -127,14 +129,14 @@ function canonical(value: unknown): string | undefined {
 
 function checksumHex(value: number) { return value.toString(16).padStart(8, '0'); }
 
-export function createCapiRules(programInput: CompiledProgram, scene: SceneDefinition, board: BoardProfileId): CapiRulesBundle {
+export function createCapiRules(programInput: CompiledProgram, scene: SceneDefinition, board: BoardProfileId, title?:string): CapiRulesBundle {
   if(scene.devices.some(d=>d.kind==='gorilla'&&(d.config.settings.verified!==true||(d.config.kinematics&&!d.config.kinematics.verified)||board==='waveshare-esp32-s3-touch-lcd-5-28117')))throw new CapiRulesError('GorillaBot: revisá la calibración con una persona adulta antes de enviar reglas. Banco Waveshare pendiente.');
   const program = normalizeCompiledProgram(programInput, scene);
   const errors = validateProgramForScene(program, scene, board).filter(item => item.severity === 'error');
   if (errors.length) throw new CapiRulesError(errors[0].message);
   const tasks = compileTaskGraph(program);
   for(const instruction of tasks.flatMap(t=>t.output)){
-    if(instruction.op==='gorilla'&&instruction.action==='gait'&&[2,3].includes(instruction.index)){
+    if(instruction.op==='gorilla'&&(instruction.action==='gait'||instruction.remote)&&[2,3].includes(instruction.index)){
       const d=scene.devices.find(d=>d.id===instruction.deviceId);
       if(d?.kind!=='gorilla'||!d.config.gait?.turnsVerified)throw new CapiRulesError('GorillaBot: el giro físico es experimental. Una persona adulta debe verificarlo en la escena; el giro del simulador es idealizado.');
     }
@@ -143,11 +145,13 @@ export function createCapiRules(programInput: CompiledProgram, scene: SceneDefin
     throw new CapiRulesError('El intérprete rápido admite un componente Mensajes por placa. El modo nativo conserva hasta dos.');
   if (scene.devices.filter(device => device.kind === 'otto').length > 1)
     throw new CapiRulesError('El intérprete rápido admite un robot Otto por placa. El modo nativo conserva proyectos avanzados con más de uno.');
+  if(scene.devices.some(d=>d.kind==='gorilla'&&d.config.remote)&&tasks.flatMap(t=>t.output).some(i=>i.op==='gorilla'&&!['prepare','walk','finish'].includes(i.action)))throw new CapiRulesError('Con Control remoto usá sólo preparar y marchas con condición; el banco, posturas y ciclos libres se prueban sin mando.');
   const instructionCount = tasks.reduce((total, task) => total + task.output.length, 0);
   if (instructionCount > CAPI_RULES_MAX_INSTRUCTIONS) throw new CapiRulesError(`El programa tiene ${instructionCount} instrucciones; el intérprete admite hasta ${CAPI_RULES_MAX_INSTRUCTIONS}.`);
   const blockIds = [...new Set(tasks.flatMap(task => task.output.map(item => item.blockId)))];
   const document: CapiRulesDocument = {
     format: 'CapiRules', version: CAPI_RULES_FORMAT, abi: CAPI_INTERPRETER_ABI, board,
+    ...(title?{metadata:{title:title.trim().slice(0,80)}}:{}),
     resources: scene, variables: program.variables ?? [], timers: program.timers ?? [], tasks,
     initial: { taskIds: tasks.filter(task => task.initial).map(task => task.id) },
     debug: { blockIds },
@@ -167,6 +171,7 @@ export function createCapiRules(programInput: CompiledProgram, scene: SceneDefin
   view.setUint32(28, tasks.length, true);
   bytes.set(payload, HEADER_BYTES);
   const capabilities = tasks.flatMap(task => task.output.flatMap(instructionCapabilities));
+  if(scene.devices.some(d=>d.kind==='gorilla'&&d.config.remote))capabilities.push('gorilla-remote');
   const usedDeviceIds = new Set(tasks.flatMap(task => task.output.flatMap(instruction => 'deviceId' in instruction ? [instruction.deviceId] : [])));
   for (const device of scene.devices) if (device.kind === 'display' && usedDeviceIds.has(device.id)) {
     capabilities.push(['lcd1602', 'lcd2004', 'lcd1602keypad'].includes(device.config.profile) ? 'display-lcd' : 'display-graphic');
@@ -192,6 +197,6 @@ export function parseCapiRules(bytes: Uint8Array, expectedBoard?: BoardProfileId
   if (!Array.isArray(document.tasks) || !Array.isArray(document.variables) || !Array.isArray(document.timers) || document.tasks.length !== view.getUint32(28, true) || !Array.isArray(document.resources?.devices) || document.resources.devices.length !== view.getUint32(24, true)) throw new CapiRulesError('Las reglas tienen una tabla incompleta.');
   const instructionCount = document.tasks.reduce((total, task) => total + (Array.isArray(task.output) ? task.output.length : CAPI_RULES_MAX_INSTRUCTIONS + 1), 0);
   if (instructionCount !== view.getUint32(20, true) || instructionCount > CAPI_RULES_MAX_INSTRUCTIONS) throw new CapiRulesError('Las reglas exceden los límites del intérprete.');
-  const requiredCapabilities = [...new Set([...document.tasks.flatMap(task => task.output.flatMap(instructionCapabilities)), ...(document.resources.devices.some(d=>d.kind==='lineSensors')?['line-sensors']:[]),...(document.resources.devices.some(d=>d.kind==='gorilla')?['gorilla-bench']:[])])].sort();
+  const requiredCapabilities = [...new Set([...document.tasks.flatMap(task => task.output.flatMap(instructionCapabilities)), ...(document.resources.devices.some(d=>d.kind==='lineSensors')?['line-sensors']:[]),...(document.resources.devices.some(d=>d.kind==='gorilla')?['gorilla-bench']:[]),...(document.resources.devices.some(d=>d.kind==='gorilla'&&d.config.remote)?['gorilla-remote']:[])])].sort();
   return { bytes, document, checksum: checksumHex(expectedCrc), instructionCount, requiredCapabilities, resourceRequirements: resourceRequirements(document) };
 }

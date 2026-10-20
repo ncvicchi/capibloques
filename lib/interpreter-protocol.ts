@@ -177,6 +177,13 @@ export class InterpreterSession {
       throw error;
     }
   }
+  async provisionRemote(mode:'ap'|'client',ssid:string,password:string) {
+    if(this.state.stage!=='ready'&&this.state.stage!=='stopped')throw new InterpreterProtocolError('Conectá y detené la placa antes de configurar el mando.');
+    if(password.length<8||password.length>63||(mode==='client'&&(!ssid.trim()||new TextEncoder().encode(ssid).length>32)))throw new InterpreterProtocolError('Revisá la red y una clave de 8–63 caracteres.');
+    await this.write({type:'CONFIG_REMOTE',mode,ssid,password});
+    return await this.next('REMOTE_CONFIGURED') as {type:string;ssid:string;key:string;url:string};
+  }
+  async remoteInfo(){await this.write({type:'REMOTE_INFO'});return await this.next('REMOTE_CONFIGURED') as {type:string;ssid:string;key:string;url:string};}
   async provisionWifi(ssid: string, password: string) {
     if (this.state.stage !== 'ready' && this.state.stage !== 'stopped') throw new InterpreterProtocolError('Conectá el intérprete antes de configurar Wi-Fi.');
     if (!ssid.trim() || new TextEncoder().encode(ssid).length > 32) throw new InterpreterProtocolError('El nombre de red debe ocupar entre 1 y 32 bytes.');

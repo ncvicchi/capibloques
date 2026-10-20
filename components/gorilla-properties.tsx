@@ -14,12 +14,15 @@ import type {GorillaKinematics,GorillaTrajectory} from '@/lib/gorilla-kinematics
 import GorillaPostures from '@/components/gorilla-postures';
 import GorillaVisual from '@/components/gorilla-visual';
 export default function GorillaProperties({
+  remote,onRemote,
   settings,
   onChange,
   postures,
   onPostures,
   kinematics,trajectories,onGeometry,
 }: {
+  remote?: import('@/lib/gorilla-remote').GorillaRemoteConfig;
+  onRemote: (r?:import('@/lib/gorilla-remote').GorillaRemoteConfig)=>void;
   settings: GorillaSettings;
   kinematics?:GorillaKinematics;trajectories?:GorillaTrajectory[];onGeometry:(k:GorillaKinematics,t:GorillaTrajectory[])=>void;
   postures?: GorillaPosture[];
@@ -35,6 +38,7 @@ export default function GorillaProperties({
     onChange({ ...settings, [key]: value });
   return (
     <section aria-label="Calibración de GorillaBot">
+      <details><summary>🎮 Control remoto · web o celular</summary><label><input type="checkbox" checked={!!remote} onChange={e=>onRemote(e.target.checked?{missions:[]}:undefined)}/> Habilitar mando local (sin pines)</label>{remote&&<><label>Misiones permitidas (máximo 4 de 32 caracteres), una por línea<textarea aria-label="Misiones del mando" defaultValue={remote.missions.join('\n')} maxLength={131} onBlur={e=>{const missions=e.target.value.split('\n').map(s=>s.trim()).filter(Boolean).slice(0,4);onRemote({missions:[...new Set(missions)].map(s=>s.slice(0,32))});}}/></label><p>El programa lee la solicitud de misión (1 a 4) y decide qué procedimiento ejecutar. La conexión Wi-Fi y su clave se configuran al usar la placa, no aquí. El mando requiere intérprete y reglas; no se incluye en fuentes nativas.</p></>}</details>
       <p>
         La vista previa no mueve motores físicos. Para probar un servo real usá
         el ejemplo, con el robot sostenido y una persona adulta. Primero

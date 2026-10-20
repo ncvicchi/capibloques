@@ -1,4 +1,6 @@
 // @ts-expect-error Node strip-types runner.
+import {gorillaRemoteExample} from './gorilla-remote-examples.ts';
+// @ts-expect-error Node strip-types runner.
 import {sonarFirmwareSupport,frontSonar} from './sonar-firmware.ts';
 // @ts-expect-error Node strip-types runner.
 import {gorillaAutonomyExample} from './gorilla-autonomy-examples.ts';
@@ -147,7 +149,7 @@ export type Condition =
   | { kind: 'boolean'; value: boolean };
 
 export type ProgramNode =
-  | {op:'gorilla';deviceId:string;action:'prepare'|'joint'|'pair'|'posture'|'foot'|'path'|'gait'|'walk'|'finish';condition?:Condition;timeoutMs?:number;points?:GorillaPoint[];trajectoryId?:string;trajectoryName?:string;postureId?:string;postureName?:string;angles?:number[];index:number;a:number;b:number;durationMs:number;blockId:string}
+  | {op:'gorilla';deviceId:string;action:'prepare'|'joint'|'pair'|'posture'|'foot'|'path'|'gait'|'walk'|'finish';remote?:boolean;condition?:Condition;timeoutMs?:number;points?:GorillaPoint[];trajectoryId?:string;trajectoryName?:string;postureId?:string;postureName?:string;angles?:number[];index:number;a:number;b:number;durationMs:number;blockId:string}
   | { op: 'robotWheels'; deviceId: string; left: number; right: number; blockId: string }
   | { op: 'wait'; ms: number; blockId: string }
   | {
@@ -327,7 +329,7 @@ export interface ProjectDecodeResult {
   diagnostics: CapiDiagnostic[];
 }
 
-export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4' | 'parkingProcedures' | 'greenhouseProcedures' | 'smartHouseProcedures' | 'conveyorProcedures' | 'robotArenaProcedures' | 'weatherLabProcedures' | 'ottoTheaterProcedures' | 'lineTrackProcedures' | 'pondLabProcedures' | 'gorillaBenchProcedures' | 'gorillaPostures' | 'gorillaPosturesProcedures' | 'gorillaTrajectories' | 'gorillaTrajectoriesProcedures' | 'gorillaTrackProcedures' | 'gorillaAutonomy' | 'gorillaAutonomyProcedures';
+export type ExampleId = SceneId | 'display' | 'robot-messages' | 'traffic-messages' | 'led-matrix' | 'railCrossingProcedures' | 'railCrossing2' | 'railCrossing4' | 'parkingProcedures' | 'greenhouseProcedures' | 'smartHouseProcedures' | 'conveyorProcedures' | 'robotArenaProcedures' | 'weatherLabProcedures' | 'ottoTheaterProcedures' | 'lineTrackProcedures' | 'pondLabProcedures' | 'gorillaBenchProcedures' | 'gorillaPostures' | 'gorillaPosturesProcedures' | 'gorillaTrajectories' | 'gorillaTrajectoriesProcedures' | 'gorillaTrackProcedures' | 'gorillaAutonomy' | 'gorillaAutonomyProcedures' | 'gorillaRemote' | 'gorillaRemoteMissions';
 export interface ExampleDefinition {
   id: ExampleId;
   title: string;
@@ -1417,6 +1419,8 @@ export const examples: ExampleDefinition[] = [
   gorillaPathExample(true),
   gorillaGaitExample(false),
   gorillaGaitExample(true),
+  gorillaRemoteExample(false),
+  gorillaRemoteExample(true),
   gorillaAutonomyExample(false),
   gorillaAutonomyExample(true),
   pondExample(false),
@@ -1628,7 +1632,7 @@ const supportedBlocklyBlockTypes = new Set([
   'capi_traffic_pedestrian_display',
   'capi_led',
   'capi_power_switch',
-  'capi_gorilla_walk', 'capi_gorilla_finish', 'capi_gorilla_gait', 'capi_gorilla_settle', 'capi_gorilla_prepare', 'capi_gorilla_joint', 'capi_gorilla_pair', 'capi_gorilla_posture', 'capi_gorilla_foot', 'capi_gorilla_path',
+  'capi_gorilla_remote_walk', 'capi_gorilla_walk', 'capi_gorilla_finish', 'capi_gorilla_gait', 'capi_gorilla_settle', 'capi_gorilla_prepare', 'capi_gorilla_joint', 'capi_gorilla_pair', 'capi_gorilla_posture', 'capi_gorilla_foot', 'capi_gorilla_path',
   'capi_rgb_fill',
   'capi_rgb_pixel',
   'capi_rgb_segment',
@@ -2125,7 +2129,7 @@ const blockKind = (block: Record<string, unknown>): SceneDeviceKind | null => {
       return 'led';
     case 'capi_power_switch': return 'powerSwitch';
     case 'capi_stepper': return 'stepper';
-    case 'capi_gorilla_walk': case 'capi_gorilla_finish': case 'capi_gorilla_gait': case 'capi_gorilla_settle': case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair': case 'capi_gorilla_posture': case 'capi_gorilla_foot': case 'capi_gorilla_path': return 'gorilla';
+    case 'capi_gorilla_remote_walk': case 'capi_gorilla_walk': case 'capi_gorilla_finish': case 'capi_gorilla_gait': case 'capi_gorilla_settle': case 'capi_gorilla_prepare': case 'capi_gorilla_joint': case 'capi_gorilla_pair': case 'capi_gorilla_posture': case 'capi_gorilla_foot': case 'capi_gorilla_path': return 'gorilla';
     case 'capi_rgb_fill':
     case 'capi_rgb_pixel':
     case 'capi_rgb_segment':
@@ -2762,7 +2766,7 @@ function normalizeNodes(
         });
         break;
       case 'gorilla':
-        result.push({op:'gorilla',deviceId,action:node.action==='walk'?'walk':node.action==='finish'?'finish':node.action==='gait'?'gait':node.action==='foot'?'foot':node.action==='path'?'path':node.action==='posture'?'posture':node.action==='prepare'?'prepare':node.action==='pair'?'pair':'joint',...(node.action==='foot'||node.action==='path'?{points:Array.isArray(node.points)?node.points:[],trajectoryId:typeof node.trajectoryId==='string'?node.trajectoryId:'',trajectoryName:typeof node.trajectoryName==='string'?node.trajectoryName:''}:{}),...(node.action==='posture'?{postureId:typeof node.postureId==='string'?node.postureId:'',postureName:typeof node.postureName==='string'?node.postureName:'',angles:Array.isArray(node.angles)?node.angles:[]}:{}),...(node.action==='walk'?{condition:normalizeCondition(node.condition,scene),timeoutMs:finiteNumber(node.timeoutMs,30000)}:{}),index:Math.max(0,Math.min(node.action==='gait'?4:node.action==='pair'||node.action==='foot'||node.action==='path'?3:7,Math.trunc(finiteNumber(node.index,0)))),a:Math.max(-20,Math.min(20,Math.round(finiteNumber(node.a,0)))),b:Math.max(-20,Math.min(20,Math.round(finiteNumber(node.b,0)))),durationMs:Math.max(200,Math.min(10000,Math.round(finiteNumber(node.durationMs,1000)))),blockId});
+        result.push({op:'gorilla',deviceId,...(node.remote===true?{remote:true}:{}),action:node.action==='walk'?'walk':node.action==='finish'?'finish':node.action==='gait'?'gait':node.action==='foot'?'foot':node.action==='path'?'path':node.action==='posture'?'posture':node.action==='prepare'?'prepare':node.action==='pair'?'pair':'joint',...(node.action==='foot'||node.action==='path'?{points:Array.isArray(node.points)?node.points:[],trajectoryId:typeof node.trajectoryId==='string'?node.trajectoryId:'',trajectoryName:typeof node.trajectoryName==='string'?node.trajectoryName:''}:{}),...(node.action==='posture'?{postureId:typeof node.postureId==='string'?node.postureId:'',postureName:typeof node.postureName==='string'?node.postureName:'',angles:Array.isArray(node.angles)?node.angles:[]}:{}),...(node.action==='walk'?{condition:normalizeCondition(node.condition,scene),timeoutMs:finiteNumber(node.timeoutMs,30000)}:{}),index:Math.max(0,Math.min(node.action==='gait'?4:node.action==='pair'||node.action==='foot'||node.action==='path'?3:7,Math.trunc(finiteNumber(node.index,0)))),a:Math.max(-20,Math.min(20,Math.round(finiteNumber(node.a,0)))),b:Math.max(-20,Math.min(20,Math.round(finiteNumber(node.b,0)))),durationMs:Math.max(200,Math.min(10000,Math.round(finiteNumber(node.durationMs,1000)))),blockId});
         break;
       case 'stepper':
         result.push({ op:'stepper', deviceId, steps:Math.max(-100000, Math.min(100000, Math.trunc(finiteNumber(node.steps, 0)))), speed:Math.max(1, Math.min(1000, finiteNumber(node.speed, 300))), blockId });
@@ -3432,9 +3436,11 @@ export function validateProgramForScene(
   const foreverVisualDevices = new Set<string>();
   const visualWaitBlocks = new Map<string, string>();
   visitProgram(program, (node) => {
+    if(node.op==='gorilla'){const d=deviceMap.get(node.deviceId);if(d?.kind==='gorilla'&&d.config.remote&&(!['prepare','walk','finish'].includes(node.action)||(node.action==='walk'&&!node.remote)))diagnostics.push({severity:'error',code:'gorilla-remote-operation',message:'Con mando usá preparar y marchas con mando/condición, no movimientos libres de banco.',blockId:node.blockId});}
     if(node.op==='gorilla'&&(node.action==='gait'||node.action==='walk')){
       const d=deviceMap.get(node.deviceId),g=d?.kind==='gorilla'?(d.config.gait??defaultGorillaGait):defaultGorillaGait;
-      if(node.action==='walk'&&(!frontSonar(scene)||![0,1].includes(node.index)||!Number.isInteger(node.timeoutMs)||node.timeoutMs!<1000||node.timeoutMs!>120000||!node.condition))diagnostics.push({severity:'error',code:'gorilla-walk',message:'Marcha autónoma: elegí avance/retroceso, condición, tiempo máximo y un HC-SR04 frontal.',blockId:node.blockId});
+      if(node.action==='walk'&&((!node.remote&&!frontSonar(scene))||!(node.remote?[0,1,2,3]:[0,1]).includes(node.index)||!Number.isInteger(node.timeoutMs)||node.timeoutMs!<1000||node.timeoutMs!>120000||!node.condition))diagnostics.push({severity:'error',code:'gorilla-walk',message:'Marcha autónoma: elegí avance/retroceso, condición, tiempo máximo y un HC-SR04 frontal.',blockId:node.blockId});
+      if(node.remote&&!(d?.kind==='gorilla'&&d.config.remote))diagnostics.push({severity:'error',code:'gorilla-remote',message:'Activá Control remoto en la escena.',blockId:node.blockId});
       if(d?.kind!=='gorilla'||!d.config.kinematics||node.a!==g.stride||node.b!==g.height||node.durationMs!==g.phaseMs||!planGorillaGait(d.config.kinematics,d.config.settings,node.index,g,Array(8).fill(0)).move)diagnostics.push({severity:'error',code:'gorilla-gait',message:'Marcha inválida. Revisá geometría, longitud, altura, ritmo y límites.',blockId:node.blockId,deviceId:node.deviceId});
     }
     if(node.op==='gorilla'&&(node.action==='foot'||node.action==='path')){
@@ -4900,6 +4906,7 @@ export function generateEsp32CodeResult(
   if((()=>{let invalid=false;visitProgram(program,i=>{if(i.op==='gorilla'&&i.action==='gait'&&[2,3].includes(i.index)&&!scene.devices.some(d=>d.id===i.deviceId&&d.kind==='gorilla'&&d.config.gait?.turnsVerified))invalid=true;});return invalid;})())diagnostics.push({severity:'error',code:'gorilla-turn',message:'El giro físico es experimental y requiere confirmación adulta en la escena.'});
   if(scene.devices.some(d=>d.kind==='gorilla'&&(d.config.settings.verified!==true||(d.config.kinematics&&!d.config.kinematics.verified))))diagnostics.push({severity:'error',code:'gorilla-calibration',message:'GorillaBot: una persona adulta debe revisar la calibración y el montaje antes de exportar para hardware.'});
   if (native && !allocateIdfPwm(scene, profileId)) diagnostics.push({ severity: 'error', code: 'idf-pwm-timer-limit', message: 'No hay una combinación de canales y temporizadores PWM disponible para esta escena. Reducí componentes PWM antes de exportar ESP-IDF.' });
+  if(scene.devices.some(d=>d.kind==='gorilla'&&d.config.remote))diagnostics.push({severity:'error',code:'remote-interpreter',message:'El mando web local requiere el firmware intérprete y reglas. Desactivá Control remoto para exportar fuentes Arduino/ESP-IDF sin mando.'});
   const { symbols, collisions } = createCppSymbols(scene);
   diagnostics.push(
     ...collisions.map(({ deviceId, ownerId }) => ({

@@ -1,4 +1,5 @@
 'use client';
+import GorillaRemoteControls from '@/components/gorilla-remote-controls';
 import GorillaAutonomyControls from '@/components/gorilla-autonomy-controls';
 import {gorillaBindings} from '@/lib/gorilla-track';
 
@@ -1571,6 +1572,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
                   onDashboardAction={(deviceId, action) => postToWorker({ type: 'SET_DASHBOARD', deviceId, action })}
                 />
               </div>
+                  {scene.devices.filter(d=>d.kind==='gorilla'&&d.config.remote).map(d=>{const v=sim.devices[d.id];return d.kind==='gorilla'&&d.config.remote&&v?.kind==='educationalModule'?<GorillaRemoteControls key={d.id} config={d.config.remote} turns={!!d.config.gait?.turnsVerified} values={v.values} disabled={physicalMirrorActive} onChange={value=>postToWorker({type:'SET_INPUT',name:'gorillaRemote',value})}/>:null;})}
                   {scene.canvas.background==='gorillaTrack'&&gorillaBindings(scene).sensor&&<GorillaAutonomyControls onButton={()=>postToWorker({type:'SET_INPUT',name:'gorillaButtonPulse',value:true})} state={sim.gorillaWorld} disabled={physicalMirrorActive} onChange={value=>postToWorker({type:'SET_INPUT',name:'gorillaTrial',value})}/>}
             </TabsContent>
             <TabsContent value="state" className="sim-content state-content">
@@ -1971,7 +1973,7 @@ export default function CapiBlocksApp({ account, draftStore, checkpointRef, onLo
       </Dialog>
 
       {usbOpen && !offline && !guest && <UsbBoard account={account} store={draftStore} job={usbJob} currentBoardProfile={projectTarget.boardProfile} currentFingerprint={fingerprint} onClose={() => { setUsbOpen(false); setUsbJob(null); }} onBuilds={() => { setUsbOpen(false); setUsbJob(null); setBuildsOpen(true); }} />}
-      {interpreterOpen && <InterpreterBoard account={account} store={draftStore} guest={guest} program={lastProgram} scene={scene} board={projectTarget.boardProfile} centralDisplay={projectTarget.centralDisplay} onChangeBoard={changeBoardFromAssistant} onChangeCentralDisplay={changeCentralDisplayFromAssistant} onMirrorCommand={mirrorPhysicalExecution} onPhysicalStatus={reportPhysicalStatus} onPhysicalLog={appendPhysicalLog} controlRef={physicalControlRef} onClose={closeInterpreter} />}
+      {interpreterOpen && <InterpreterBoard projectName={projectName} account={account} store={draftStore} guest={guest} program={lastProgram} scene={scene} board={projectTarget.boardProfile} centralDisplay={projectTarget.centralDisplay} onChangeBoard={changeBoardFromAssistant} onChangeCentralDisplay={changeCentralDisplayFromAssistant} onMirrorCommand={mirrorPhysicalExecution} onPhysicalStatus={reportPhysicalStatus} onPhysicalLog={appendPhysicalLog} controlRef={physicalControlRef} onClose={closeInterpreter} />}
       {buildsOpen && !offline && !guest && <FirmwareBuilds account={account} store={draftStore} csrfToken={csrfToken} capture={currentProject} fingerprint={fingerprint} targetBoardProfile={projectTarget.boardProfile} onClose={() => setBuildsOpen(false)} onProgram={job => { setBuildsOpen(false); setUsbJob(job); setUsbOpen(true); }} validate={framework => {
         const generated = buildCode(framework);
         if (generated.diagnostics.some(item => item.severity === 'error')) { setProblemsOpen(true); return null; }

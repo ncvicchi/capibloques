@@ -1,5 +1,42 @@
 # CapiBloques — contexto para continuar
 
+### Entrega vigente20/10 — Fase62, mando web/celular GorillaBot
+
+Rama `codex/fase-62-gorillabot-mando-web`, creada desde origin/dev1
+`0c71577f8acde9195a41a7081573dfef8fbd1ea7`. Se incorporó por avance rápido
+la fase61 publicada `5d10f43782b94bd543f13c9d5fe89a3236f63593` como dependencia:
+propietario confirmó instalación, pero Git remoto seguía en60. No se operaron
+servidores/main/dev2 ni se publicó la rama permanente dev1.
+[Guía vigente62](FASE_62_GORILLABOT_MANDO_WEB.md).
+
+- Panel local servido por intérprete, AP Gorilla-últimos6MAC o Wi-Fi cliente.
+  Configuración sólo USB/NVS y clave aleatoria de mando separada, sin secretos
+  en JSON/Git/servidor/URL. Una sesión, orden secuencial y ticket con plazo500ms.
+  HTTP peticiones/ACK100ms; Origin/Host y tamaño512B, no WebSocket ni Internet.
+- Servicio lógico Control remoto en GorillaBot, máximo4misiones32caracteres,
+  datos derivados remoteConnected/Armed/Stopped/Direction/Mode/Rhythm/Mission.
+  Bloque remote_walk compila walk con remote:true; fin en apoyo al soltar/corte,
+  STOP conserva pulsos y exige rearme neutral. Misión remota también caduca.
+  Sin autopiloto, banco libre deshabilitado en proyectos con mando.
+- Dos ejemplos completos nuevos: gorillaRemote y gorillaRemoteMissions; este
+  último tres procedimientos/tres pestañas y monitor frontal/botón cooperativo,
+  misión de un disparo. Giros sólo con verificación adulta y código explícito.
+  Mando de ensayo bajo Escena, no envía a placa ni compite con espejo físico.
+- Intérprete1.16.0 ABI1/capgorilla-remote; CMake agrega esp_http_server oficial,
+  sin dependencias npm/Python/migraciones. Cachés SDK/outputs conservados.
+  Pareja Waveshare y exportación nativa con mando bloqueadas con explicación;
+  quitar mando conserva fuentes Arduino/IDF legacy. 24genérica/63/64 pendientes.
+- Verificación final: typecheck/lint, smoke completo, build10páginas, ocho tests
+  backend/perfil y empaquetado aprobados. Editor Chromium2/2, panel HTML real
+  con transporte simulado y watchdog real con HAL aprobados. Límites en guía62.
+  Build real SDK, Wi-Fi/AP/DHCP/celular y robot sostenido/pista pendientes.
+  HAL, worker y Chromium no prueban equilibrio ni latencia real.
+- El propietario actualiza sólo dev1 con capi-dev --env dev1 --branch
+  codex/fase-62-gorillabot-mando-web --commit SHA40. Instalar luego intérprete
+  nuevo en placa, configurar mando, enviar reglas y habilitar en reposo.
+  No promover main ni actualizar dev2 sin pedido expreso.
+
+
 ### Entrega vigente19/10 — Fase61, alcance frontal/botón
 
 Rama `codex/fase-61-gorillabot-autonomia`, desde origin/dev1
