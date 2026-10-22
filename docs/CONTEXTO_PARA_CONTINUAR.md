@@ -1,5 +1,597 @@
 # CapiBloques — contexto para continuar
 
+### Entrega vigente19/10 — Fase60: marcha coordinada y pista
+
+Rama `codex/fase-60-gorillabot-marcha`, desde origin/dev1
+`7b65ae1bd28520801620aa21b0c1ba0161a42b32`. [Reglas completas](FASE_60_GORILLABOT_MARCHA_PISTA.md).
+Propietario confirmó fase59 instalada en dev1. No se operó ningún servidor,
+main ni dev2; entregar comando instalado fijado al SHA de esta rama.
+
+- Nuevo planGorillaGait TS y CapiGorilla::gait común C++: entrada y cuatro etapas
+  por pata, orden TI/DI/TD/DD, up4mm de referencia, elevar/recuperar/bajar/empujar.
+  Validación íntegra incluida entrada, rama IK59, tasa30°/s +5% y duración común;
+  no usar cuatro trayectorias independientes en paralelo. Detener mantiene PWM,
+  referencia explícita no preempta; pausa congela reloj. No certifica equilibrio.
+- Config.gait opcional stride/height/phaseMs/turnsVerified, escena960×540
+  gorillaTrack/straight|maneuvers, arenaEnvironment compartido estructuralmente
+  pero validación propia sin estaciones de la pista diferencial. Cuerpo idealizado,
+  huella42, 4unidades/mm didácticas, yaw virtual no medición; visitas al parar500ms,
+  contactos por episodio y marcha puede seguir patinando, retroceder sale.
+  Controles usan borrador y guardar/cancelar/undo existentes; cambiar parámetros,
+  geometría o calibración invalida verificación de giro.
+- Nuevos bloques gait/settle, op gorilla action=gait, index0avance/1retroceso/
+  2izquierda/3derecha/4apoyo; a=stride, b=height, durationMs=phaseMs.
+  1–20 ciclos como repeat común. Dos ejemplos nuevos completos: gorillaTrack y
+  gorillaTrackProcedures, preparar/8ciclosadelante/esperar/8atrás/esperar.
+  Modular3tareas2tabs; Main tres llamadas. Ejemplos anteriores intactos.
+- Runtime1.14.0 ABI1/cap gorilla-gait, firmware/packaging/deploy/testcontratos
+  actualizados. Giro físico bloqueado hasta confirmación adulta en escena,
+  tanto en exportaciones/reglas como en intérprete. Sin migraciones/deps.
+- Evidencia: tipos/lint, smoke completo (incluye mundos previos y Gorilla60),
+  build10páginas estáticas (aviso previo chunk>500KB), seis tests backendGorilla
+  y packaging. Core C++ bajo -Wall/-Wextra/-Werror, paridad TS, HAL intérprete y
+  ambas salidas; cinco modos y dos ejemplos worker a1×/4×, STOP/RESET/pausa.
+  Navegador: ambos ejemplos nuevos, configuración guardar/cancelar/undo/redo/
+  reabrir; regresión previa58/59. La primera corrida conjunta dio11/12:
+  el test antiguo de pausa leyó un snapshot anterior al ACK; se añadió espera
+  explícita de Reanudar antes de tomar posición estable (sin cambiar runtime).
+  Rerun final dirigido: 3/3 aprobados (dos nuevos + trayectoria modular), tras
+  11/12 iniciales; toda la cobertura ejecutada quedó aprobada. SDK completo,
+  robot físico y renderer Waveshare pendientes; no confundir C++/HAL con ellos.
+  Actualización dev1 corre por propietario. No comenzar61 ni mandos62–64.
+
+### Entrega vigente19/10 — Resto59: cinemática v3 y trayectorias
+
+Rama `codex/fase-59-gorillabot-trayectorias` desde origin/dev1
+`6909d040497f6a4a2083d1a2992dd4a68a080e05`.
+[Guía completa](FASE_59_GORILLABOT_CINEMATICA.md). Propietario aportó carpeta
+GorillaBot4577379 y confirmó THIGH_SERVO_MG90S_v3 del3MFx8. Fase59 por ángulos
+está integrada en origin/dev1; esto no prueba su aceptación física.
+
+- Medidas nominales STL: muslos50mm, ambas pantorrillas100mm, separación de
+  ejes46mm en ambas bases. Herramienta propia scripts/measure-gorilla-v3.py,
+  lectura/círculos/hashes/unidades/8instancias3MF sin escala, sin dependencias.
+  No copiar el visor de armado: usa46,1/98,9 aproximados. Fuentes originales
+  quedan en Downloads del propietario, no se importan assets/código CC BY-NC-SA.
+  Guía conserva identificación/hashes/método para continuar desde otra cuenta.
+- kinematics opcional: perfil gorilla-v3-50-100-46,zeroAngles[8],pulseMinUs,
+  pulseMaxUs,verified. Referencia90° hacia abajo sólo previsualización inicial.
+  A delante/CALF_EXT, B detrás/CALF_INT. Inversión de servo resuelve reflejos.
+  Pulsos anteriores1000–2000 conservados, no se copia automáticamente544–2400
+  ni canales del programa adaptado (DI0/1,DD7/6,TI2/3,TD5/4).
+- FK/IK con rama fija inferior/A−acos/B+acos, límites de servo y márgenes
+  numéricos/singularidad, sin clipping ni conmutación. Eje L4, no apoyo en suelo.
+  Se valida camino entero incluida entrada desde posición ordenada actual;
+  paso≤0,25mm,16–256subdivisiones, IK cada tick y duración ampliada30°/s+5%
+  sobre tasa muestreada. No certifica colisiones/holguras/equilibrio.
+- trajectories opcional:8bibliotecas,16puntos cada una,IDs/nombres estables,
+  leg0..3,forward±50/up±30mm/ms200–10000,120s pedidos/180s efectivos máx.
+  Presets levantar/apoyar, rectángulo y arco como polilínea; editor amplio con
+  lista/arrastre/reordenado,undo/redo60,guardar/cancelar y preview sin USB.
+  Guarda al borrador; después Guardar cambios y Guardar escena.
+- Bloques mover pie y recorrer1–20veces (bucle común), nuevos ejemplos completos
+  trayectorias directo/modular3tareas2tabs. Ejemplos58/59anteriores intactos.
+  Simulador conserva posiciones internas fraccionales y j0..7 enteros como
+  contrato previo, no sensores. Banco usa geometría medida al habilitar perfil.
+- Runtime1.13.0/ABI1/cap gorilla-kinematics-v3, acciones gorilla/foot,path.
+  Sharedcore C++ exports Arduino/IDF e intérprete, controlador/PCA sin cambios
+  de pines automáticos. Transferencias acotadas, dueño único, pausa/STEP/STOP.
+  Comprobar dos confirmaciones adultas (general y geométrica) antes de hardware.
+  Cambios de calibración invalidan la segunda; cambios de pulsos también general.
+  Preparar no centra servos; tras encender/reiniciar no conoce posición real.
+- Pruebas locales:220posiciones TS↔C++,3presets/límites/tasa/rechazo íntegro/
+  parada/rollover/falloI2C, funciones reales del intérprete con dobles HAL,
+  5testsDjango y workspaces en worker1×/4×. Smoke completo y build10páginas
+  aprobados (aviso habitual chunk>500kB). Chromium:3nuevos recorridos aprobados,
+  regresión de los6anteriores también aprobada:9/9 Chromium. Arrastre de punto
+  y undo de gesto comprobados en repetición del editor. Tipos/lint aprobados.
+  Entrada FK→IK debe coincidir con ángulos actuales para impedir un salto de rama;
+  prueba específica TS/C++ tras ángulos20/−20. deviceSignature del workspace
+  incluye config de gorilla para refrescar bibliotecas/calibración sin recargar;
+  no mantener un weakmap con puntos antiguos después de guardar la escena.
+  Décimo recorrido Chromium aprobado: modificar Levantar, guardar y ejecutar
+  inmediatamente sin recargar, sin diagnóstico de referencias obsoletas. CAPI_G_PI evita macro PI de Arduino.
+- No dependencias/migraciones; conservar SDK/cache incremental. SDK ESP-IDF
+  completo, actualización/aceptación dev1 y prueba física NO ejecutados aquí.
+  No se operaron servidores/main/dev2. No iniciar60 ni teleoperación por inferencia.
+- Entrega commit/push sólo rama; usar capi-dev --env dev1 --branch
+  codex/fase-59-gorillabot-trayectorias --commit SHA40 publicado.
+
+Los apartados inferiores son históricos y no revocan esta ampliación autorizada.
+
+
+### Entrega vigente19/10 — Fase59: posturas por ángulos
+
+Rama `codex/fase-59-gorillabot-posturas` desde origin/dev1
+`d8f33ed9ac36da7a4ea67db5cd67479f369110a3`.
+[Guía59](FASE_59_GORILLABOT_POSTURAS.md), [plan58–64](PLAN_GORILLABOT_EVOLUTIVO.md).
+El propietario confirmó58 instalada en dev1. No se operaron servidores/main/dev2.
+
+- Alcance explícito: posturas por ángulos. Trayectorias físicas XY/IK59 pendientes
+  hasta medidas/CAD reales; no inventar geometría ni iniciar60.
+- config.postures opcional del gorilla, hasta16, ID estable/nombre único/8ángulos
+  enteros −20..20 y dentro de límites calibrados. Legacy58 sin biblioteca ofrece
+  Referencia; [] explícito conserva biblioteca vacía. Modelo/JSON/backend estrictos.
+- Modal Editar posturas desde inspector: alta/duplicación/nombre/baja confirmada,
+  8campos por pata, preview local sin USB, pausa/continuación/progreso,60undo/redo,
+  Guardar/Cancelar y confirmación de cierre. Guardar sólo aplica al borrador:
+  después Guardar cambios y Guardar escena. No convierte preview en estado inicial.
+- Bloque ir a postura por ID; rename conserva referencia y baja produce error,
+  sin sustitución silenciosa. Ocho motores con tiempo común,200–10000ms y30°/s,
+  sin dos movimientos compitiendo. No FIFO prometido entre procesos.
+- Intérprete1.12.0/ABI1/cap gorilla-postures; sharedcore idéntico Arduino/IDF/
+  intérprete, límites revalidados y arrays estrictos. Se conservan acciones58.
+  Guardas de hardware/pines/verified y bloqueo Waveshare vigentes.
+- Ejemplos completos nuevos explorar posturas y posturas con procedimientos:
+  Referencia/A+8°/B−8°, tres ciclos; modular4tareas/3tabs. No son de pie/agachado
+  certificados ni marcha. Dos ejemplos58 intactos.
+- Sin dependencias/migraciones. Conservar SDK/cache incremental; sólo recompilar
+  aplicación al actualizar. La primera posición física sigue desconocida:
+  sostener montaje/calibración adulta. Órdenes y postura mostrada no son sensores.
+- Pruebas locales: smoke completo, tipos/lint/build10páginas,4tests backend,
+  modelo/JSON/reglas/generadores y worker1×/4×, driver C++ HAL con warnings como
+  errores y validación real del intérprete. Navegador:6recorridos Chromium aprobados
+  (4ejecuciones58/59 y2editores; dos regresiones corregidas y repetidas).
+  SDK completo y robot físico NO probados; aceptación dev1 pendiente del propietario.
+- Entrega: commit/push sólo rama. Actualizar con capi-dev --env dev1 --branch
+  codex/fase-59-gorillabot-posturas --commit SHA40 publicado. Telemetría de placa
+  describe preparar/motor/par/postura por nombre; editor mantiene acciones visibles. No promover main.
+
+Los apartados inferiores son históricos; no revocan el alcance59 acordado.
+
+
+### Entrega vigente19/10 — Fase58: GorillaBot, banco y una pata
+
+Rama `codex/fase-58-gorillabot-banco` desde origin/dev1
+`481854cf239f3cc41fc247be8ffc1804646743f1`. [Plan evolutivo58–64](PLAN_GORILLABOT_EVOLUTIVO.md)
+y [alcance58](FASE_58_GORILLABOT_BANCO.md). Sólo58 autorizada/implementada.
+Fase57 confirmada por el propietario en dev1; pidió comando de promoción, pero
+no confirmó ejecutarlo. No se operaron servidores, main ni dev2.
+
+- Componente gorilla/perfil GORILLA_PCA9685: 8servos, patas DI/DD/TI/TD y motores
+  A/B. Wemos o DevKitS3, bus I2C1 dedicado/PCA9685; ningún LEDC para esos8canales.
+  Preparar sin centrar ocho motores, movimientos relativos −20..20°, límites
+  calibrados, máximo30°/s,200–10000ms; espera del camino y otros siguen.
+- Banco nuevo gorillaBench, robot/pares articulados y vista ampliada seleccionable.
+  Ilustración propia de mecanismo5barras, no geometría real/IK ni equilibrio.
+  Una pata aquí es un par A/B explícito. Coordenadas/posturas medidas en59;
+  marcha60, autonomía61, web/celular62, mandoESP3263 y Waveshare64 pendientes.
+- Inspector dedicado: canales únicos, centros/inversión/límites, dirección I2C,
+  preview local sin USB, guardar/cancelar objeto/escena, undo/redo existentes.
+  Calibración nace sin verificar; una persona adulta revisa antes de reglas o
+  fuentes para hardware. Esa confirmación no es un certificado/permiso de rol
+  ni enlaza automáticamente la calibración con el hardwareID de otra unidad.
+- Estados j0..7 ordenados (enteros, no realimentación), ready/moving/error
+  consultables. Dos ejemplos completos: conocer un motor y una pata con
+  procedimientos (3tareas/2tabs). Simulación1×/4×, pausa/Paso/reset/STOP, sin
+  sensores manuales competidores ni ocho servo-componentes sueltos.
+- Intérprete **1.11.0**, ABI1/capacidad gorilla-bench. Rechazo de perfil/calibración/
+  pines/órdenes inválidos también en firmware. Núcleo C++ idéntico entre exports
+  Arduino/IDF e intérprete; I2C acotado5ms. Mantener último pulso al detener, no
+  desenergizar y hacer caer. Actualizar firmware al probar esta capacidad.
+- Sin dependencias ni migraciones. Hay cambios de aplicación de firmware y
+  generador; usar caché incremental existente, no borrar outputs/SDK.
+  Banco Waveshare no implementado y capacidad no se anuncia en esa placa.
+
+Evidencia local: smoke completo aprobado (incluye pruebas GorillaBot); ambos
+workspaces reales con JSON portable, pestañas normalizadas y valores/capacidades,
+reglas y generadores; preparación necesaria, sólo motores elegidos, límite/
+inversión, movimiento cooperativo, pausa/Paso/reset/STOP. C++Arduino/IDF compilado/
+ejecutado con HAL y -Wall/-Wextra/-Werror, núcleo idéntico al header de intérprete;
+funciones reales nuevas de intérprete extraídas/compiladas y ejecutadas con HAL,
+validación/calibración/pines, I2C, pausa y parada. No equivale a compilar todo SDK.
+6pruebas Django(58/57), los2proyectos reales frontend→Django,26contratos de
+empaquetado/entornos/reanudación/caché aprobados. Chromium3recorridos (dos ejemplos
+y calibración preview/guardar/cancelar), repetición del modular tras ajuste
+visual y capturas inspeccionadas. Tipos/lint, lint de nuevos componentes y build
+10páginas aprobados; warning existente de chunk grande, no error.
+
+Pendientes: integrar/actualizar sólo dev1 por propietario; SDK completo en la
+actualización y prueba mecánica/eléctrica de robot/PCA9685 reales. No hubo acceso
+a un GorillaBot físico. Banco no simula equilibrio ni autoriza caminar.
+No iniciar59 sin validar medidas, montaje/rama y recorridos reales.
+La incidencia HAL previa de56 sigue documentada; no se afirma suite HAL antigua
+completa aprobada ni se modificó para ocultarla.
+
+
+### Entrega vigente 19/10: fase57 — Laguna, depósito y bombeo
+
+Rama `codex/fase-57-laguna-bombeo` desde origin/dev1 `86e6cfe`.
+[Reglas aprobadas y guía](FASE_57_LAGUNA_DEPOSITO_BOMBEO.md). Fase56 actualizada
+en dev1 según confirmación del propietario; Git remoto contiene su integración.
+No es aceptación de SDK, hardware o renderer Waveshare.
+
+- Nuevo pondLab, independiente de pond/counter históricos. Reserva300L/laguna100L,
+  bomba2L/s, servo/desagüe3L/s/1,2s; balance explícito, lluvia/fuga/evaporación,
+  derrame acumulado y humedad residual con secado15s. No apagar órdenes ni
+  proteger automáticamente por el alumno. Integración worker determinista20ms.
+- Dos distancias automáticas inversas120–20cm, bandeja con threshold del sensor.
+  Lugares y cantidades fijos, falta/quitar/reponer sin inventar lecturas;
+  control de potencia MOSFET proporcional y relé binario. Nombres configurados.
+- Condiciones guardables y ensayos transitorios lluvia/fuga/recarga, sin sliders
+  competidores para sensores. Recarga acotada al avanzar reloj; LOAD previo a
+  Simular/Paso preserva ensayos del mismo mundo; Reiniciar borra todo estado.
+  Mismo mundo en editor, simulación y revisión; espejo físico no controla ensayos.
+- Dos ejemplos completos en catálogo: Laguna con nivel automático (40–70%, directo)
+  y Laguna protegida con procedimientos (6tareas/4pestañas/3procesos). Protección
+  de reserva, timeout25s de bombeo enclavado hasta reset, desagüe90–80%,
+  luz/buzzer por episodio e informe. Responsables únicos por actuador.
+- Sin migraciones, dependencias, ABI, nuevo firmware ni SDK; capacidades existentes.
+  Actualizador debe reutilizar firmware1.10.0/caché, no borrar outputs.
+  No se operaron servidores, main ni dev2. Propietario integra/actualiza sólo dev1.
+
+Pruebas: balance/conservación, límites, reserva seca sin autoapagado, humedad,
+slots, frontend/backend, JSON portable, CapiRules y fuentes Arduino/IDF; ambos
+workspaces reales a1×/4×, regulación, reserva/recarga, desagüe, timeout, pausa/reset
+y bloqueo de controles competidores. Smoke completo y7 pruebas Django(57/53)
+aprobados; los dos JSON reales frontend→Django aceptados. Chromium3 recorridos
+(ambos ejemplos/pausa/reset y edición guardar/cancelar/undo/redo), capturas
+inspeccionadas, build10páginas, tipos/lint y lint de componentes nuevos aprobados.
+Advertencia existente de chunk grande conservada; no es un error de build.
+La revisión de navegador detectó IDs de pestaña sin prefijo y nombre de variable
+>32caracteres; corregidos y agregadas aserciones de normalización/límite.
+
+Pendientes: actualización/aceptación dev1 por propietario, uso infantil/docente,
+maqueta física. Mundo específico Waveshare no implementado (no confundir con
+simple prueba de pantalla pendiente). SDK/hardware del runtime1.10.0 anterior
+siguen pendientes; no reconstruidos por este mundo. Fixture HAL previo de56
+sigue documentado, no se altera ni se declara suite HAL completa aprobada.
+
+
+### Entrega vigente19/10: fase56 — Vehículo seguidor de línea
+
+Rama `codex/fase-56-seguidor-linea` creada desde origin/dev1
+`e9158e1949e8739a63c6e16418a7d30d83bebd38`. Incluye por avance rápido42ff720
+(documentación55 todavía no integrada); no pierde ese análisis ni lo implementa.
+[Reglas aprobadas y guía](FASE_56_SEGUIDOR_LINEA.md).
+
+- Mundo nuevo lineTrack: robot diferencial, barra lineSensors genérica DIGITAL_3,
+  sensores frontales izquierdo/central/derecho, geometría común con polilínea.
+  Motor izquierdo/derecho −100..100, sin corrección oculta, contacto recuperable.
+  Un reloj, pausa/Paso/velocidad/reset; métricas y traza acotadas.
+- Recta, óvalo, curvas y S. Modal de circuito con lápiz/recta/curva de3clics,
+  seleccionar/mover/borrar, ancho12–24,64 trazos/256 puntos por trazo/512 totales;
+  undo/redo60, guardar al borrador, guardar/cancelar escena, JSON frontend/backend.
+  Abrir el armador detiene ejecución; sin edición concurrente.
+- Dos ejemplos completos: Seguidor de línea básico y Seguidor con búsqueda y
+  procedimientos. Cinco tareas/tres pestañas, memoria del último lado y máximo
+  2s de búsqueda; si vence, aviso y motores detenidos hasta reinicio. Probado
+  recuperar salida a90°; no garantía universal para todo dibujo/cruce.
+- Nuevo op robotWheels y capacidades robot-wheels/line-sensors; intérprete
+  **1.10.0**, ABI/formato1. Arduino/IDF y firmware leen salidas digitales con
+  polaridad configurable. Pines de Wemos34/35/36 sin pull-up interno supuesto.
+  Nuevos bloque/valores/configuración/ayuda, sin dependencias ni migraciones.
+- Se corrigió la allowlist portable que omitía capi_timer_compare ya existente,
+  necesario para importar/guardar el ejemplo. No cambiar código del alumno.
+- Actualizador de la revisión lee versión por release y conserva objetos SDK.
+  Sin promoción, operación remota ni cambios en main/dev2.
+
+Evidencia local: ambos workspaces reales a1×/4× en óvalo prolongado y los otros
+3predefinidos; pérdida con parada/búsqueda limitada, recuperación de salida
+girada, posiciones coincidentes mundo/componente, pausa/Paso/reset y entradas
+competidoras bloqueadas. JSON/generadores/reglas y8 contratos Django (56/54),
+los2 JSON reales frontend→Django y26 contratos de empaquetado/entornos/
+reanudación/caché aprobados. Chromium3 recorridos (ambos ejemplos y dibujo/
+mover/borrar/undo/redo/guardar/cancelar), capturas inspeccionadas. Casos C++ HAL
+nuevos line-true/line-false compilados y ejecutados con warnings como errores.
+Tipos/lint, smoke completo y build con10 páginas estáticas aprobados.
+Advertencia existente de chunk grande, sin fallo. El dibujo y recorrido nuevos
+se inspeccionaron en capturas; esquema de escena y ejecución comparten geometría.
+
+Límite de prueba encontrado: corrida integral scripts/idf-driver.test.mjs se
+detiene en su fixture runtime con salida3, antes de casos nuevos. Comparación
+de fuentes generadas para ese fixture contra origin/dev1: idénticas byte por
+byte; no generado por esta fase. Queda diagnóstico separado, NO afirmar toda
+esa suite aprobada. Se añadió filtro CAPI_IDF_CASE para correr casos concretos;
+sin filtro conserva la corrida completa y sus fallos, no se ocultaron.
+
+Pendientes: actualización por propietario en dev1, SDK completo1.10.0 y placa
+real con módulos digitales exactos/chasis/driver. Mundo y sensores dinámicos en
+renderer Waveshare requieren trabajo/aceptación aparte, no inferirlo de la web.
+No afirmar aceptación física ni SDK por aprobar g++ con HAL de escritorio.
+Ampliaciones PID/ruido/competición/bifurcaciones/obstáculos conservadas como
+posibilidades del plan original, no autorizadas. No iniciar otra fase.
+
+Comando como capi en capi-dev, reemplazando SHA40 por la entrega:
+
+```bash
+cd /home/capi/capibloques &&
+git fetch --quiet origin codex/fase-56-seguidor-linea &&
+git show origin/codex/fase-56-seguidor-linea:scripts/update-dev.sh |
+bash -s -- --env dev1 --branch codex/fase-56-seguidor-linea --commit SHA40
+```
+
+Primera actualización construye intérprete incremental1.10.0 una vez; no
+espera Actions ni requiere borrar cachés. Sin --promote. Servidor no inspeccionado.
+
+
+### Entrega vigente19/10: fase55 — análisis de variantes, sin código
+
+Rama `codex/fase-55-analisis-escenas`, desde origin/dev1
+`e9158e1949e8739a63c6e16418a7d30d83bebd38`.
+[Informe y candidatos retenidos](FASE_55_ANALISIS_VARIANTES_ESCENAS.md).
+Fase55 autorizada para analizar/documentar y cerrada en ese alcance, no como
+mundos construidos. No se tocó código ejecutable ni se operó el servidor.
+
+- Parque de luces/riego repite casa/huerta: reutilizar actividades, no duplicar
+  motores. Fuente coreografiada retenida para definir aporte propio.
+- Laguna con depósito: principal candidato, balance de agua, distancia inversa
+  al nivel, bombeo, reserva y derrame. Agua/lluvia mide superficie, no nivel
+  omnisciente del tanque. Sin química/oxígeno ni hardware certificado inventado.
+- Aeropuerto: sólo justificar si enseña solicitudes/turnos de recurso único;
+  variante distribuida depende del canal de fase34. Señales/barreras solas repiten
+  tren/tránsito. Puente/barcos también postergado por solapamiento.
+- Todas las alternativas, incluidas las postergadas, quedan trazadas dentro de
+  fase55; no se crean números nuevos ni se autoriza implementar por documentarlas.
+- Siguiente recomendada56: acordar disposición, sensores y reglas del seguidor
+  de línea antes de implementar. No empezar código sin autorización explícita.
+
+Verificación proporcional: fuentes de catálogo/modelo/render y guías49–54,
+enlaces relativos del informe y diff. Sin build, SDK ni pruebas largas por
+documentación. Commit/push sólo a la rama de tarea; integración por propietario.
+No hace falta actualizar el sitio para leer el análisis en GitHub.
+
+Confirmación de fase54: propietario dijo «ya quedó en dev» después de recibir
+`--promote dev1`. Git remoto leído19/10: origin/dev1=e9158e1 y
+origin/main=fe230bb, ambos contienen 7ac3585 (entrega54). Se registra DEV original
+actualizado por confirmación operativa, **no** por inspección remota independiente.
+No afirmar SDK completo1.9.1, hardware, aceptación infantil o paridad Waveshare
+aprobados por esa promoción. Las secciones inferiores conservan el historial.
+
+
+### Entrega vigente: fase 54 — Teatro interactivo de Otto, sólo dev1
+
+Rama `codex/fase-54-teatro-otto`, desde origin/dev1 `6c9a985`.
+[Reglas, dos ejemplos, firmware y guía](FASE_54_TEATRO_OTTO.md).
+Software implementado; propietario integra/actualiza sólo dev1. Sin operación
+remota ni merge a main/dev2. Las secciones inferiores son historial.
+
+- Mundo `ottoTheater`: escenario fijo, un Otto y petición, grupo de 1–4
+  espectadores, distancia frontal por perfil, pulso de 2 s y retirada aunque
+  nadie actúe. Automático reproducible o pruebas manuales; sin coreografía oculta.
+- Condiciones iniciales con guardar/cancelar/undo/redo; ensayos transitorios
+  conservados al LOAD de Simular/Paso. Un reloj, pausa/paso/velocidad/reset.
+  Cambios de cercanía/permanencia afectan al próximo grupo, no al actual.
+- Ejemplos: Otto: saludar y actuar; Teatro de Otto con procedimientos.
+  Seis tareas/cuatro pestañas, atención y una luz en paralelo. Una actuación
+  por grupo por lógica del programa, no por el renderer. Wemos tiene conexiones
+  válidas con una luz PWM y botón en GPIO4, sin inventar pines para otra luz.
+- FIFO corporal también para HOME/brazos, sin preempción; cara/sonido independientes.
+  Header C++ acotado a32 compartido exports/intérprete y cola equivalente worker.
+  Runtime mínimo **1.9.1**, ABI1; actualizar firmware antes de enviar reglas.
+  Empaquetado/orquestadores versionados juntos, sin borrar cachés/objetos del SDK.
+- No hay migraciones/dependencias nuevas. Backend acepta JSON opcional estricto.
+
+Evidencia local: smoke completo, tipos/lint y tres recorridos Chromium aprobados;
+ambos workspaces reales a1×/4× con automático/manual, una actuación por grupo,
+luces, pausa/reset y FIFO sin preempción. Cola compilada/ejecutada en g++ host
+con warnings como errores. Doce contratos Django (teatro/clima/pista), los dos
+JSON reales frontend→Django y26
+contratos de entornos/empaquetado/reanudación/caché incremental aprobados.
+Capturas inspeccionadas: se separó el nombre de Otto del estado de su cuerpo.
+Build aprobado con10 páginas estáticas; advertencia existente de chunk grande,
+sin fallo. Sintaxis Bash y contratos de versión por release aprobados. No se
+inició compilación SDK completa ni operación remota.
+
+Pendientes explícitos: actualización por propietario, SDK ESP-IDF completo1.9.1,
+servos/sonar/matriz reales, aceptación humana y renderer/dinámica del público en
+Waveshare. La ausencia de eco física puede ser0cm, frente a400cm del mundo;
+adaptación de ese caso pendiente en la aceptación física de los ejemplos.
+No confundir cola C++ probada en host/generación con firmware completo compilado.
+
+Orden como capi, con SHA40 de la entrega (también `git rev-parse origin/codex/fase-54-teatro-otto`):
+
+```bash
+cd /home/capi/capibloques
+git fetch --quiet origin codex/fase-54-teatro-otto &&
+git show origin/codex/fase-54-teatro-otto:scripts/update-dev.sh | bash -s -- --env dev1 --branch codex/fase-54-teatro-otto --commit SHA40
+```
+
+Usar el script nuevo de la rama: ejecuta el manager exacto de la release, no
+la copia instalada que tenía fija1.9.0. No reinstala herramientas compartidas.
+Manager lee versión de cada main.cpp para no renombrar firmware viejo de dev2.
+No espera Actions; reconstruye incrementalmente intérprete una vez. Sin --promote.
+Fases55–56 no autorizadas para implementar. No avanzar sin pedido nuevo.
+
+### Entrega vigente: fase 53 — Estación meteorológica y puesto protegido, sólo dev1
+
+Autorizada tras aprobar disposición/reglas; rama `codex/fase-53-estacion-meteorologica`
+desde origin/dev1 `b079ca1` (fase52 integrada). Se incorporó por fast-forward el
+commit documental `0017839` de la fase56 ya publicado, aún ausente en dev1:
+no perder ese backlog ni implementarlo. [Reglas y guía](FASE_53_ESTACION_METEOROLOGICA.md).
+Nuevo fondo weatherLab, sin cambiar antigua weatherStation/weatherYard.
+Mástil/clima/luz/detector siempre exteriores; techo0° cerrado/90° abierto y mesa
+mojable como consecuencia visual, no variable física inventada. Sin viento
+medido ni pronóstico por presión. Lluvia moja detector gradualmente y deja
+humedad residual al terminar. Techo no altera medidas ni seca instantáneamente.
+Un reloj worker para programa, clima, servo y dibujo; pausa/paso/velocidad/reset.
+Cuatro condiciones, día/noche y secuencia automática reproducible cada20s.
+Editor guarda condiciones con undo/redo/guardar/cancelar; Estado y revisión
+ofrecen ensayos transitorios conservados al LOAD interno de Simular/Paso.
+Sin sliders manuales competidores ni SET_INPUT por IDs de sensores ligados.
+Controles transitorios mantienen selección pendiente hasta ACK del worker para
+que dos cambios rápidos no se pisen; clave escena/época limpia pendientes al
+reiniciar/cambiar. Borrador del armador sigue controlado por su guardado normal.
+Dos ejemplos completos: Estación que informa, secuencial y techo abierto;
+Puesto protegido con procedimientos, cuatro procesos/ocho procedimientos/cinco
+pestañas. Techo cierra>35% y abre<10%; luz enciende<1200 y apaga>1800; buzzer
+una vez por episodio y se rearma al secarse<10%, sin bloquear los otros hilos.
+Contrato opcional weatherEnvironment estricto frontend/backend, sin migración,
+dependencias, firmware, SDK ni ABI. Exportación y reglas con componentes existentes.
+Verificado: tipos/lint (también renderer/controles nuevos), smoke completo, modelo
+puro y ambos workspaces reales a1×/4×, dos ciclos automáticos y avisos por
+episodio; veinticuatro contratos backend de seis mundos y ambos documentos
+frontend→Django aceptados. Tres recorridos Chromium aprobados: cambio rápido
+de lluvia+noche previo a Simular, sensores, techo, pausa/reset y editor con
+undo/redo/guardar/cancelar. Capturas inspeccionadas; luego mejorado contraste
+nocturno y techo abierto para que no se recorte. Build con diez páginas
+estáticas aprobado; advertencia de chunk grande ya existente. No SDK ni remoto.
+Actualizar únicamente dev1 mediante comando instalado con rama/SHA40;
+propietario integra y actualiza. Main/dev2 intactos. Aceptación humana, sensores/
+servo/pantalla reales y renderer/dinámica Waveshare pendientes.
+Fases54–56 sin autorización para implementar; 56 conserva planificación.
+Las referencias inferiores a fase52 como entrega vigente son históricas.
+
+### Agregado de planificación: fase 56 — Vehículo seguidor de línea
+
+Pedido posterior a fase 52: documentar una escena con circuitos predefinidos
+o dibujados por el usuario y pensar qué actividades agregar. **Sólo backlog/
+planificación**, sin implementar ni empezar fase 53. [Propuesta](FASE_56_SEGUIDOR_LINEA.md)
+incluye editor modal, sensores reflectivos (no barrera IR/color), control
+independiente de ruedas a evaluar, recuperación, vueltas/checkpoints, cruces,
+estaciones y variantes avanzadas. Priorizar y acordar reglas antes de autorizar.
+No renumerar 53–55; fase 56 puede reordenarse después por pedido del propietario.
+Rama documental desde dev1: `codex/plan-fase-56-seguidor-linea`.
+Sin operación remota/main/dev2 ni cambios de runtime/firmware.
+
+### Entrega vigente: fase 52 — Pista de exploración y reparto, sólo dev1
+
+Autorizada tras aprobar disposición/reglas; rama `codex/fase-52-pista-robots`
+desde origin/dev1 `2d6229f` (fase 51 integrada). [Reglas y guía](FASE_52_PISTA_ROBOTS.md).
+Nuevo fondo robotArena: base, A roja, B azul, meta verde y obstáculos editables
+antes de ejecutar. Un solo robot diferencial, sensores frontal/suelo montados
+(vínculo por tipo único/ID, no nombre), barrera fija de meta y luces/buzzer.
+Mundo puro lib/robot-arena.ts alimentado por reloj worker compartido; no usar
+además la física/rebote antigua de robot para este fondo. Contacto considera
+radio 22, bloquea desplazamiento pero deja girar/retroceder y programa vivo.
+No piloto automático, metas/visitas no detienen ni corrigen el programa.
+Distancia idealizada desde el frente contra círculos/paredes, color sólo bajo
+robot, barrera con cuerpo completo y visita por 0,6 s detenido sin duplicados.
+Recorrido limitado a 300 puntos. Pausa/Paso/velocidad/reset compartidos.
+Armar escena → Pista al comenzar: preset despejado/con obstáculo, hasta cuatro,
+agregar/quitar/mover con controles X/Y y zonas protegidas. Guardar/Cancelar/
+Deshacer/Rehacer habituales. Sensores montados se editan desde lista de objetos,
+no se arrastran por separado; sin sliders SET_INPUT competidores. Duplicación
+de robot/sensores/meta bloqueada sin excepción de teclado. Robot orientable.
+Dos ejemplos completos: Reparto por estaciones (secuencial despejado), Explorador
+con obstáculos y procedimientos (para obstáculo incluido 260/420/r28, ocho
+procedimientos/cinco pestañas y procedimiento global de reparto). Desvío
+programado, no solución de laberinto universal. Ambos visitan A/B y llegan a meta
+sin contactos a 1×/4×. Plantillas antiguas robotCourse/robotTrack intactas.
+JSON opcional arenaEnvironment (guides/obstacles) estricto frontend/backend;
+sin migración, dependencias, SDK, firmware ni ABI nuevos. Exportaciones/reglas
+con componentes existentes; físico requiere calibración y aceptación propia.
+Verificado: tipos/lint, smoke completo, modelo puro, worker con workspaces reales
+a 1×/4×, veinte contratos backend de cinco mundos recientes, dos JSON reales
+frontend→Django aceptados; tres recorridos Chromium aprobados (ambos ejemplos,
+sensores automáticos, pausa/reset y edición con undo/redo/guardar/cancelar).
+Captura inspeccionada: frente del robot, sensores montados y trayectoria del
+desvío visibles. Build final aprobado, diez páginas estáticas; advertencia de
+chunk grande existente no bloqueante. No compilación SDK ni operación remota.
+Actualizar/integrar únicamente dev1 mediante comando instalado con rama/SHA40;
+propietario lo ejecuta. Main/dev2 intactos. Aceptación humana, robot físico y
+renderer/dinámica Waveshare pendientes. Fases 53–55 no iniciadas.
+Las referencias inferiores a fase 51 como entrega vigente son históricas.
+
+### Entrega vigente: fase 51 — Taller y cinta transportadora, sólo dev1
+
+Autorizada tras aprobar disposición/reglas; rama `codex/fase-51-taller-cinta`
+desde origin/dev1 `4976e14` (fase 50 integrada).
+[Reglas completas, ejemplos y límites](FASE_51_TALLER_CINTA.md).
+Una cinta hacia delante, lectura RGB/peso con presencia y estabilización,
+desviador gradual 0° A/90° B, dos infrarrojos de confirmación y bandejas.
+Paquetes acotados, llegadas reproducibles automáticas o envío manual preparado.
+Si llegan mientras gira el desviador, atasco visible hasta Reiniciar; el programa
+y servo no se congelan. El mundo nunca decide ni corrige la clasificación.
+Mundo puro en lib/conveyor-world.ts, alimentado por el reloj worker compartido;
+sensores automáticos sin SET_INPUT competidor ni mandos manuales. Lectura de
+peso inválida se distingue en UI; bloques comprueban presencia, detienen y
+esperan 0,7 s antes de leer (estabilización 0,6 s). Valor numérico inválido cero,
+sin inventar capacidad/propiedad física nueva. Ensayos y petición manual se
+conservan al LOAD interno de Simular/Paso, no al reset/cambio de proyecto.
+Editor guarda condiciones iniciales por borrador con undo/redo/guardar/cancelar.
+Dos ejemplos completos en Proyecto → Ejemplos: color secuencial, peso modular
+con variable Peso límite, cinco procedimientos y cuatro pestañas. Llegadas
+automáticas espaciadas 20–30 s; entradas manuales muy juntas requieren ampliar
+coordinación, no se corrigen ocultamente. Fondo antiguo workshop intacto.
+Contrato opcional conveyorEnvironment estricto frontend/backend; sin migración,
+SDK, firmware, ABI ni dependencias. Exportaciones/reglas usan bloques existentes.
+Pruebas locales de tipos/lint/smoke, modelo puro, dos workspaces en worker con
+tres colores/pesos (incluido umbral exacto) a 1×/4× y flujos automáticos, dieciséis
+contratos backend y ambos documentos frontend→Django aceptados.
+Tres recorridos Chromium aprobados: ejemplos directo/modular con envío previo
+a Simular, entrega/pausa/reset y editor con condiciones iniciales/undo/redo/
+guardar/cancelar. Captura inspeccionada y duplicación de rótulos corregida.
+Build final aprobado, diez páginas estáticas; lint/tipos finales aprobados.
+Prueba adicional del worker verifica que un programa incorrecto produce atasco,
+continúa ejecutándose y se recupera con reset. No equivale a despliegue/hardware.
+Actualización por propietario sólo dev1, comando instalado con rama y SHA40;
+no integrar ni operar main/dev2/servidor. Aceptación humana, maqueta física y
+renderer/dinámica Waveshare de este mundo pendientes. Fases 52–55 no iniciadas.
+Las referencias inferiores a fase 50 como entrega vigente son históricas.
+
+### Entrega vigente: fase 50 — Casa inteligente y entrada segura, sólo dev1
+
+Autorizada tras aprobar reglas; rama `codex/fase-50-casa-entrada-segura` desde
+origin/dev1 `73ac1b7` (fase 49 integrada). [Reglas y guía](FASE_50_CASA_ENTRADA_SEGURA.md).
+Un acceso compartido, visitantes acotados, timbre/tarjetas/paso/presencia/salida
+automáticos; puerta sólo obedece al programa y permite terminar a quien cruza.
+Comparación de tarjeta es del alumno, no permiso oculto del mundo. Luces PWM
+según presencia/oscuridad con luminosidad interior realimentada. Botones/luces
+pueden moverse sin cambiar función, mediante canvas.houseAssignments validado.
+Sensores/lector/puerta anclados. Estado y revisión: condiciones virtuales y envío
+manual predefinido, sin controles manuales competidores; prueba transitoria.
+Armador guarda condiciones iniciales con undo/redo/guardar/cancelar. Un reloj
+worker para algoritmo/mundo, pausa/paso/velocidad/reset, sin temporizador React.
+Dos ejemplos completos: directo atiende cualquier timbre; modular acepta azul,
+rechaza roja/sin tarjeta y atiende salidas sin tarjeta. Seis procedimientos y
+cuatro pestañas. JSON opcional houseEnvironment/houseAssignments; sin migración,
+SDK, dependencias, firmware ni ABI nuevos. Versiones antiguas Casa/Entrada intactas.
+Verificado localmente: tipos/lint, smoke completo, ambos workspaces con tres
+tipos de visitante a 1×/4×, diecisiete contratos backend, ambos JSON frontend→Django
+y tres recorridos Chromium (envío antes de Simular, luz, acceso, pausa/reset,
+condiciones iniciales con undo/redo/guardar/cancelar), capturas inspeccionadas.
+Build con diez páginas estáticas. Arranque Simular/Paso conserva ensayos y
+visitante pendiente en el worker, sin depender de snapshots React ni preservar
+actores al cargar. Reset/otro proyecto no heredan ensayo; huerta conserva también
+sus condiciones de prueba al iniciar. Es sólo protocolo interno web, no firmware.
+El propietario integra/actualiza sólo dev1 con comando instalado; no se opera
+servidor/main/dev2. Waveshare, maqueta y aceptación humana pendientes. Fases
+51–55 no iniciadas. Las referencias inferiores a 49 como última entrega son históricas.
+
+### Entrega vigente: fase 49 — Huerta e invernadero, sólo dev1
+
+Autorización explícita tras acordar disposición/reglas. Rama
+`codex/fase-49-huerta-invernadero` desde origin/dev1 `821cc1c` (fase 48 integrada).
+[Guía completa](FASE_49_HUERTA_INVERNADERO.md). Dos canteros con riegos independientes,
+sensores automáticos de suelo/clima/luz, ventana servo; estrés y recuperación,
+sin riego automático oculto. Condiciones ambientales iniciales guardables y
+controles de prueba transitorios. Un reloj worker, pausa/paso/velocidad/reset.
+Dos ejemplos completos: riego directo de ambos canteros con ventana fija abierta,
+y control con seis procedimientos/cuatro pestañas que regula ventana por temperatura.
+La antigua smartGarden se conserva. JSON aditivo gardenEnvironment opcional y
+validadores alineados; sin migraciones, toolchain, firmware ni ABI. Se arregló
+allowlist de capi_power_switch y selección de datos de módulos educativos.
+Verificado localmente: tipos/lint, smoke completo, ambos workspaces a 1×/4×,
+modelo de agua/clima/plantas, JSON real frontend→Django, trece contratos backend
+y tres recorridos Chromium, con capturas inspeccionadas; build con diez rutas
+estáticas. Rótulos separados y lecturas de tierra a 1%/clima a 0,1. Sin espera CI.
+Commit/push y comando instalado sólo dev1; el propietario integra/actualiza.
+No se opera servidor/main/dev2. Maqueta física, Waveshare y aceptación humana
+pendientes; fases 50–55 no iniciadas. Las menciones inferiores a fase 48 como
+última entrega o a 49 sin autorización son históricas.
+
+### Entrega vigente: fase 48 — Estacionamiento, sólo dev1
+
+Autorizada e implementada en rama `codex/fase-48-estacionamiento` desde
+`origin/dev1` (`73dc00f890c82de4094680c2dbae3daa810d6f1f`). Reglas, arquitectura,
+pruebas y límites: [FASE_48_ESTACIONAMIENTO.md](FASE_48_ESTACIONAMIENTO.md).
+Dos barreras, cuatro infrarrojos, capacidad 4/8/12, autos automáticos y atasco
+recuperable si se admite sin plaza. El contador es del programa, no del mundo.
+Dos ejemplos completos de 8 plazas: directo y cinco procedimientos/cuatro tabs.
+Cambiar capacidad física no reescribe bloques: ajustar también variable Capacidad.
+Un reloj worker para autos/sensores/programa. Guardar/Cancelar/undo/redo del armador.
+JSON aditivo con parkingCapacity opcional; validación frontend/Django alineada.
+Verificado localmente: tipos/lint, build y diez rutas estáticas, smoke completo, ejecución real de ambos
+workspaces 4/8/12 a 1×/4×, nueve contratos backend, ambos JSON frontend→Django y
+tres recorridos Chromium (simulación, pausa/reinicio, capacidad/undo/redo/guardar/
+cancelar confirmado). Captura inspeccionada. Sin esperas de GitHub Actions.
+Sin SDK, firmware/ABI, migraciones ni nuevas dependencias. Renderer Waveshare,
+maqueta física y aceptación humana siguen pendientes; fases 49–55 no iniciadas.
+Integración/actualización dev1 a cargo del propietario con `~/.local/bin/capi-dev
+--env dev1 --branch codex/fase-48-estacionamiento --commit SHA40`. No se opera
+el servidor en esta entrega, no se integra main ni dev2 ni se promociona nada.
+
 Documento vivo iniciado en **fase 11**. Actualización: **17 de octubre de 2026**. Leerlo desde el checkout vigente; no hace falta el historial del chat. Al terminar **cada fase solicitada**, actualizar aquí estado, pruebas, despliegue, pendientes y próxima autorización, junto con el plan y su guía de entrega.
 
 ### Activación real dev1/dev2 y copia inicial — 17/18 de octubre

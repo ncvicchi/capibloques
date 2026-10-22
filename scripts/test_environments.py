@@ -168,16 +168,42 @@ class EnvironmentTests(unittest.TestCase):
             main = directory/'main'
             source = main/'public/interpreter'
             source.mkdir(parents=True)
+            release = directory/'release'
+            (release/'interpreter/main').mkdir(parents=True)
+            (release/'interpreter/main/main.cpp').write_text('#define CAPI_FIRMWARE_VERSION "1.9.1"\n')
             for profile in manager.PROFILES:
                 raw = profile.encode()
                 (source/(profile+'.zip')).write_bytes(raw)
                 (source/(profile+'.json')).write_text(json.dumps(dict(bundle=profile+'.zip', bytes=len(raw),
-                    sha256=hashlib.sha256(raw).hexdigest(), sourceRevision='tree-id', version='1.9.0')))
+                    sha256=hashlib.sha256(raw).hexdigest(), sourceRevision='tree-id', version='1.9.1')))
             with patch.object(manager, 'REPO', main), patch.object(manager, 'git', return_value='tree-id'), \
                  patch.object(manager.os, 'chown', create=True), patch.object(manager, 'run') as run:
                 manager.firmware(directory/'release', 'a'*40)
             run.assert_not_called()
             self.assertEqual(len(list((directory/'release/public/interpreter').glob('*.json'))), 3)
+
+    def test_old_release_keeps_its_own_firmware_version(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            release = Path(temporary)
+            (release/'interpreter/main').mkdir(parents=True)
+            (release/'interpreter/main/main.cpp').write_text('#define CAPI_FIRMWARE_VERSION "1.9.0"\n')
+            bundles = release/'public/interpreter'
+            bundles.mkdir(parents=True)
+            for profile in manager.PROFILES:
+                raw = profile.encode()
+                (bundles/(profile+'.zip')).write_bytes(raw)
+                (bundles/(profile+'.json')).write_text(json.dumps(dict(bundle=profile+'.zip', bytes=len(raw),
+                    sha256=hashlib.sha256(raw).hexdigest(), sourceRevision='old-tree', version='1.9.0')))
+            with patch.object(manager, 'git', return_value='old-tree'), patch.object(manager.os, 'chown', create=True), patch.object(manager, 'run') as run:
+                manager.firmware(release, 'b'*40)
+            run.assert_not_called()
+            self.assertEqual(json.loads((bundles/(manager.PROFILES[0]+'.json')).read_text())['version'], '1.9.0')
+
+    def test_update_uses_exact_release_manager_without_installing_shared_tools(self):
+        source = (ROOT/'scripts/update-dev.sh').read_text()
+        self.assertIn('git show "$target:ops/environments/manage.py" >"$REMOTE_SCRIPT"', source)
+        self.assertIn('sudo python3 "$REMOTE_SCRIPT" deploy "$DESTINATION" --commit "$target"', source)
+        self.assertNotIn('manage.py install', source)
 
     def test_missing_existing_database_secret_is_not_regenerated(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -1,5 +1,23 @@
 # Nuevas fases de CapiBloques
 
+**Fase60 — marcha y pista GorillaBot, software en rama desde dev1 (19/10).** [Reglas y entrega](FASE_60_GORILLABOT_MARCHA_PISTA.md): cuatro tiempos coordinados, avanzar/retroceder/giro experimental, ritmo y amplitud, referencia de apoyo, pista nueva con estaciones/obstáculos/contactos recuperables y dos ejemplos completos (directo y tres procedimientos/dos pestañas). Runtime1.14.0/ABI1/cap gorilla-gait; guardas de calibración y giro físico, no odometría ni equilibrio certificado. Fase59 confirmada instalada en dev1. Actualización dev1, SDK completo, aceptación física y renderer Waveshare pendientes; main/dev2 no operados. Estados inferiores previos a60 son históricos; 61–64 siguen pendientes, sin autorización.
+
+**Fase59 completa en software: cinemática y trayectorias v3 (19/10).** [Entrega y medidas reproducibles](FASE_59_GORILLABOT_CINEMATICA.md). Propietario confirmó MG90S v3 del3MFx8; STL dan50/100/46mm, no46,1/98,9 del visor antiguo. FK/IK con rama fija, recorridos de una pata, editor/preview/undo/redo/guardar/cancelar y dos ejemplos nuevos completos. Runtime1.13.0/ABI1/cap gorilla-kinematics-v3; conservar canales/pulsos, verificar referencia/sentidos/escala por unidad antes de hardware. Rama desde dev1, main/dev2 intactos. SDK completo, actualización/aceptación dev1 y prueba física pendientes; no iniciar marcha60. Sustituye el pendiente inferior de59 por falta de medidas.
+
+**Fase59 — alcance aprobado: posturas por ángulos (19/10).** [Reglas y entrega](FASE_59_GORILLABOT_POSTURAS.md). Biblioteca con IDs estables, editor amplio/preview local/guardar/cancelar/undo/redo, ocho motores coordinados y dos nuevos ejemplos completos. Runtime1.12.0/ABI1/capacidad gorilla-postures; sin migraciones/dependencias ni borrado de cachés. Rama desde dev1; main/dev2 intactos. Fase58 confirmada en dev1. La cinemática y trayectorias físicas por coordenadas de59 siguen pendientes hasta recibir medidas/CAD reales; no iniciar60 por inferencia. Evidencia y aceptación DEV/física separadas en contexto. Sustituye los estados inferiores históricos de sólo58 autorizada.
+
+**GorillaBot evolutivo — fases58–64 (19/10):** [plan completo](PLAN_GORILLABOT_EVOLUTIVO.md). 58 perfil/calibración/banco y par de una pata; 59 posturas/cinemática medida; 60 marcha/pista; 61 autonomía; 62 web/celular; 63 mando ESP32; 64 Waveshare. Sólo58 autorizada e implementada en rama desde dev1: [guía58](FASE_58_GORILLABOT_BANCO.md), dos ejemplos completos, runtime1.11.0/ABI1. Pruebas/SDK/hardware y actualización dev1 se distinguen en contexto; main/dev2 intactos. El movimiento de pie cartesiano requiere medidas reales y queda en59, no se inventa geometría certificada. Fase57 confirmada en dev1; promoción a main no confirmada.
+
+**Fase 57 — Laguna, depósito y bombeo (19/10):** software en rama `codex/fase-57-laguna-bombeo` desde dev1. [Reglas aprobadas y entrega](FASE_57_LAGUNA_DEPOSITO_BOMBEO.md): balance de agua, dos distancias, bomba/compuerta, derrame y secado residual, ensayos y dos ejemplos completos (directo/modular). Sin firmware/ABI/SDK/migraciones; actualización dev1, aceptación humana/física y mundo Waveshare pendientes. Fase56 ya actualizada en dev1 por confirmación del propietario. Sustituye estados históricos de laguna sólo propuesta; no habilita otra fase ni cambios main/dev2.
+
+**19/10: fase56 implementada en software en rama desde dev1.** [Reglas, límites y evidencia](FASE_56_SEGUIDOR_LINEA.md): sensores digitales de suelo, ruedas independientes, editor y dos ejemplos completos. Runtime1.10.0, ABI1; DEV/SDK completo/hardware/Waveshare pendientes. No iniciar otra fase ni promover main. La documentación55 viaja incluida sin implementar sus variantes.
+
+
+**19/10: fase55 cerrada como análisis**, sin implementar variantes. [Evaluación y candidatos retenidos](FASE_55_ANALISIS_VARIANTES_ESCENAS.md): parque reutilizable, laguna/depósito con realimentación como candidato principal y aeropuerto postergado hasta justificar arbitraje/mensajes. No se crean nuevas fases de implementación por este análisis. Siguiente recomendada56, con disposición/reglas por acordar antes de autorizar código. Fase54 en DEV original por confirmación del propietario; SDK/físico/Waveshare no se presumen aceptados.
+
+Actualización vigente: fase 54 implementada en rama desde dev1, con dos ejemplos completos y coordinación corporal Otto compartida (runtime 1.9.1, ABI 1). [Reglas y pendientes](FASE_54_TEATRO_OTTO.md). No operar main/dev2; SDK completo, hardware/Waveshare y aceptación DEV pendientes. Fases 55–56 no autorizadas para implementar.
+
+
 Cierre operativo de los tres ambientes (17/18 de octubre): dev1/dev2 activos
 por HTTPS y como servicios, datos de aplicación copiados inicialmente por pedido
 del propietario, independientes a partir de ahí. Main sin cambios de endpoint,
@@ -71,14 +89,23 @@ La antigua fase 11 de producción pasa a llamarse **Fase final**, sin número y 
 | 45 | Escenas atractivas y fidelidad visual completa | Pedidos 40 y 46 | Geometría/cámara de fase 12, renderer de fase 18 y perfiles de fase 17 |
 | 46 | Peatones del cruce escolar · simulación web | Mundos interactivos, 17 de octubre | Carteles y mundo de tránsito existentes |
 | 47 | Paso a nivel | Mundos interactivos | Servo, detectores y luces/buzzer; nueva autorización |
-| 48 | Estacionamiento | Mundos interactivos | Barrera, plazas, detectores, contador/pantalla; nueva autorización |
-| 49 | Huerta e invernadero | Mundos interactivos | Sensores y salidas existentes; nueva autorización |
-| 50 | Casa inteligente y entrada segura | Mundos interactivos | Ambiente, puertas/acceso; nueva autorización |
-| 51 | Taller y cinta transportadora | Mundos interactivos | Motor, detector y desvío; nueva autorización |
-| 52 | Pista de robots interactiva | Mundos interactivos | Obstáculos/estaciones y lecturas espaciales; nueva autorización |
-| 53 | Estación meteorológica interactiva | Mundos interactivos | Fenómenos y lecturas; nueva autorización |
-| 54 | Escenario de Otto | Mundos interactivos | Público y peticiones; nueva autorización |
-| 55 | Parque, laguna y aeropuerto | Mundos interactivos | Sólo análisis de actividades y valor nuevo |
+| 48 | Estacionamiento | Mundos interactivos | Implementado en rama desde dev1; dos ejemplos completos; integración dev1/aceptación pendientes; ver guía de fase 48 |
+| 49 | Huerta e invernadero | Mundos interactivos | Software web en rama desde dev1; dos ejemplos completos; actualización/aceptación pendientes; ver guía de fase 49 |
+| 50 | Casa inteligente y entrada segura | Mundos interactivos | Software web en rama desde dev1; dos ejemplos completos; actualización/aceptación pendientes; ver guía de fase 50 |
+| 51 | Taller y cinta transportadora | Mundos interactivos | Software web en rama desde dev1; dos ejemplos completos; ver guía de fase 51; actualización/aceptación pendientes |
+| 52 | Pista de robots interactiva | Mundos interactivos | Software web en rama desde dev1; dos ejemplos completos; ver guía de fase 52; actualización/aceptación pendientes |
+| 53 | Estación meteorológica interactiva | Mundos interactivos | Software web en rama desde dev1; dos ejemplos completos; ver guía de fase 53; actualización/aceptación pendientes |
+| 54 | Escenario de Otto | Mundos interactivos | Software en rama dev1; público, dos ejemplos completos y runtime 1.9.1; ver guía de fase 54; aceptación pendiente |
+| 55 | Parque, laguna y aeropuerto | Mundos interactivos | Análisis cerrado; [candidatos, solapamientos y recomendación](FASE_55_ANALISIS_VARIANTES_ESCENAS.md); ninguna variante implementada |
+| 56 | Vehículo seguidor de línea | Pedido del propietario, 18 de octubre | Software en rama dev1; sensores, circuitos/editor, ruedas independientes y dos ejemplos; [reglas/evidencia](FASE_56_SEGUIDOR_LINEA.md); DEV/SDK/físico/Waveshare pendientes |
+| 57 | Laguna, depósito y bombeo | Variante de fase55 aprobada el19/10 | Software web con balance, sensores, control y dos ejemplos; [reglas/evidencia](FASE_57_LAGUNA_DEPOSITO_BOMBEO.md); dev1/aceptación/Waveshare pendientes |
+| 58 | GorillaBot: perfil, calibración, banco y una pata | Robot evolutivo | [Guía58](FASE_58_GORILLABOT_BANCO.md); software en rama desde dev1, dos ejemplos, runtime1.11.0; DEV/SDK/físico pendientes |
+| 59 | GorillaBot: posturas y trayectorias del pie | Robot evolutivo | [Plan58–64](PLAN_GORILLABOT_EVOLUTIVO.md); medidas y validación mecánica de58; pendiente |
+| 60 | GorillaBot: marcha y pista de misiones | Robot evolutivo | [Software60](FASE_60_GORILLABOT_MARCHA_PISTA.md); actualización/SDK/aceptación física pendientes |
+| 61 | GorillaBot: autonomía sensorial | Robot evolutivo | Marcha60 y sensores identificados; [plan](PLAN_GORILLABOT_EVOLUTIVO.md); pendiente |
+| 62 | GorillaBot: mando web/celular y modos | Robot evolutivo | Reusar24/33, árbitro y watchdog; [plan](PLAN_GORILLABOT_EVOLUTIVO.md); pendiente |
+| 63 | GorillaBot: mando remoto ESP32 | Robot evolutivo | Protocolo62, joystick/botones38; [plan](PLAN_GORILLABOT_EVOLUTIVO.md); pendiente |
+| 64 | GorillaBot: mando Waveshare | Robot evolutivo | Integrar34/44 y protocolo62; [plan](PLAN_GORILLABOT_EVOLUTIVO.md); pendiente |
 | Final | Producción, HTTPS, respaldos y piloto | Antigua fase 11 | Postergada hasta autorización explícita y validaciones de salida |
 
 Primero se asegura la continuidad desde otra cuenta sin depender de este chat; después se atienden los problemas cotidianos del editor y se vuelve DEV accesible desde fuera mediante un servicio controlado. TX/RX se incorpora antes de las placas nuevas para tener un contrato de comportamiento que luego se valide en cada destino. Separar DevKit, Waveshare y display interactivo permite comprobar por separado placa, pantalla y aplicación gráfica: no son el mismo soporte. Los desafíos aprovechan esas funciones como recorrido educativo propio. Las fases 20–26 separan flujos de compilación, pulido de edición, motivación, periféricos, control local, intercambio e identidad de aula para no mezclar permisos o hardware distintos en una entrega inmanejable.
@@ -829,17 +856,19 @@ Complementan la presentación de fase 45 con reglas del mundo, sin duplicarla.
 | --- | --- | --- |
 | 46 | Peatones del cruce escolar | Software web implementado; DEV, usuarios y Waveshare pendientes; [guía](FASE_46_PEATONES.md) |
 | 47 | Paso a nivel | Autorizada; implementada en rama, integración/DEV/físico pendientes; [reglas y guía](FASE_47_PASO_A_NIVEL.md) |
-| 48 | Estacionamiento | Planificada; plazas, barrera, detectores, contador y pantalla |
-| 49 | Huerta e invernadero | Planificada; sensores/salidas existentes y modelo acotado de agua/plantas |
-| 50 | Casa inteligente y entrada segura | Planificada; visitantes, día/noche, puertas, luz y acceso |
-| 51 | Taller y cinta transportadora | Planificada; motor, detector, servo, paquetes, clasificación/atasco |
-| 52 | Pista de robots | Planificada; obstáculos, estaciones y sensores ligados a posición |
-| 53 | Estación meteorológica interactiva | Planificada; fenómenos y lecturas coherentes, protección programada |
-| 54 | Escenario de Otto | Planificada; público/pedidos y reacciones programadas |
-| 55 | Variantes parque/laguna y aeropuerto | Sólo análisis; actividad y valor pedagógico antes de implementar |
+| 48 | Estacionamiento | Software web implementado en rama desde dev1; 4/8/12 plazas y dos ejemplos completos; [reglas y entrega](FASE_48_ESTACIONAMIENTO.md); DEV/usuarios/Waveshare/físico pendientes |
+| 49 | Huerta e invernadero | Software web en rama desde dev1; dos ejemplos completos; [reglas y entrega](FASE_49_HUERTA_INVERNADERO.md); actualización/aceptación/Waveshare/físico pendientes |
+| 50 | Casa inteligente y entrada segura | Software web en rama desde dev1; dos ejemplos completos; [reglas y entrega](FASE_50_CASA_ENTRADA_SEGURA.md); actualización/aceptación/Waveshare/físico pendientes |
+| 51 | Taller y cinta transportadora | Software web en rama desde dev1; dos ejemplos completos; [reglas y entrega](FASE_51_TALLER_CINTA.md); actualización/aceptación/Waveshare/físico pendientes |
+| 52 | Pista de robots | Software web en rama desde dev1; dos ejemplos completos; [reglas y entrega](FASE_52_PISTA_ROBOTS.md); actualización/aceptación/Waveshare/físico pendientes |
+| 53 | Estación meteorológica interactiva | Software web en rama desde dev1; clima, detector residual, techo y dos ejemplos completos; [reglas y entrega](FASE_53_ESTACION_METEOROLOGICA.md); actualización/aceptación/Waveshare/físico pendientes |
+| 54 | Escenario de Otto | Software en rama desde dev1; público/pedidos, dos ejemplos completos y FIFO corporal; [reglas](FASE_54_TEATRO_OTTO.md); aceptación/SDK/físico/Waveshare pendientes |
+| 55 | Variantes parque/laguna y aeropuerto | Análisis cerrado; [informe](FASE_55_ANALISIS_VARIANTES_ESCENAS.md); laguna/depósito candidata, parque reutilizable y aeropuerto postergado; implementación no autorizada |
+| 56 | Vehículo seguidor de línea | Software en rama dev1; [entrega y pendientes](FASE_56_SEGUIDOR_LINEA.md), runtime1.10.0 ABI1, dos ejemplos completos; ampliaciones avanzadas sólo planificadas |
 
 Fase 47 autorizada el 17 de octubre tras aprobar disposición y reglas; no
-iniciar las fases 48–55 sin autorización. Mantener escena libre. Cada mundo
+iniciar las fases 54–56 sin autorización. Fases 48–53 autorizadas después y documentadas
+en su guía de entrega. Mantener escena libre. Cada mundo
 debe declarar límites, vínculo componente/lugar, entradas/salidas, consecuencias,
 pausa/velocidad/reinicio, persistencia y alcance web/Waveshare. La fase 46 no
 modifica firmware; la paridad de sus actores en Waveshare queda pendiente.

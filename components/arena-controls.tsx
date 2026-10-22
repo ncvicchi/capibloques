@@ -1,0 +1,13 @@
+'use client';
+import {validGorillaEnvironment} from '@/lib/gorilla-track';
+import { defaultArenaEnvironment, obstacleArenaEnvironment, validArenaEnvironment, type ArenaEnvironment } from '@/lib/robot-arena';
+export default function ArenaControls({ value, onChange, gorilla=false }: { value: ArenaEnvironment; gorilla?:boolean; onChange: (v: ArenaEnvironment) => void }) {
+  const valid=gorilla?validGorillaEnvironment:validArenaEnvironment;
+  return <fieldset className="message-test-panel"><legend>Preparar pista</legend>
+    <label>Disposición <select aria-label="Disposición de la pista" value={value.obstacles.length ? 'obstacles' : 'clear'} onChange={e => onChange(structuredClone(e.target.value === 'clear' ? defaultArenaEnvironment : gorilla?{guides:true,obstacles:[{x:430,y:355,radius:28}]}:obstacleArenaEnvironment))}><option value="clear">Despejada</option><option value="obstacles">Con obstáculo</option></select></label>
+    <label><input type="checkbox" checked={value.guides} onChange={e => onChange({ ...value, guides: e.target.checked })} /> {gorilla?'Mostrar recorrido':'Mostrar haz, estaciones y recorrido'}</label>
+    {value.obstacles.map((o, index) => <div key={index}><strong>Obstáculo {index + 1}</strong>{(['x', 'y'] as const).map(axis => <label key={axis}>{axis === 'x' ? 'Horizontal' : 'Vertical'} <input aria-label={`Obstáculo ${index + 1} ${axis}`} type="range" min={axis === 'x' ? 210 : 100} max={axis === 'x' ? 850 : 460} step="5" value={o[axis]} onChange={e => { const next = { ...value, obstacles: value.obstacles.map((p, i) => i === index ? { ...p, [axis]: Number(e.target.value) } : p) }; if (valid(next)) onChange(next); }} /><output>{o[axis]}</output></label>)}<button type="button" onClick={() => onChange({ ...value, obstacles: value.obstacles.filter((_, i) => i !== index) })}>Quitar obstáculo {index + 1}</button></div>)}
+    {value.obstacles.length < 4 && <button type="button" onClick={() => { const available = [{ x: 260, y: 420, radius: 28 }, { x: 650, y: 340, radius: 28 }, { x: 800, y: 410, radius: 28 }, { x: 570, y: 110, radius: 28 }].find(o => valid({ ...value, obstacles: [...value.obstacles, o] })); if (available) onChange({ ...value, obstacles: [...value.obstacles, available] }); }}>Agregar obstáculo</button>}
+    <small>{gorilla?'Mové y orientá GorillaBot en la escena. Ningún obstáculo se esquiva solo. La posición inicial debe quedar libre; tapar una estación puede impedir completar la misión.':'Mové y orientá el robot en la escena. Los sensores viajan montados; la meta queda fija. Los obstáculos no pueden tapar estaciones ni la salida. Cambiar la pista puede requerir cambiar el programa.'}</small>
+  </fieldset>;
+}
