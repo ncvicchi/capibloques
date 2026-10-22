@@ -1,4 +1,13 @@
 'use client';
+import TheaterControls from '@/components/theater-controls';
+import { theaterBindings, defaultTheaterEnvironment } from '@/lib/theater-world';
+import PondControls from '@/components/pond-controls';
+import {pondBindings,defaultPondEnvironment} from '@/lib/pond-world';
+import WeatherControls from '@/components/weather-controls';
+import { weatherBindings, defaultWeatherEnvironment } from '@/lib/weather-world';
+import { arenaBindings } from '@/lib/robot-arena';
+import ConveyorControls from '@/components/conveyor-controls';
+import { conveyorBindings, conveyorInputRoles, defaultConveyorEnvironment } from '@/lib/conveyor-world';
 
 import {
   lazy,
@@ -13,6 +22,10 @@ import BlocklyWorkspace, {
   type BlocklyWorkspaceHandle,
 } from '@/components/blockly-workspace';
 import SceneStage from '@/components/scene-stage';
+import GardenControls from '@/components/garden-controls';
+import HouseControls from '@/components/house-controls';
+import { defaultHouseEnvironment, houseBindings, houseInputRoles } from '@/lib/house-world';
+import { defaultGardenEnvironment, gardenBindings } from '@/lib/garden-world';
 import ExecutionPanel from '@/components/execution-panel';
 import { Button } from '@/components/ui/button';
 import {
@@ -306,6 +319,16 @@ export default function ReviewSimulation({
           scene={project.scene}
           runtimeDevices={state?.devices}
           railWorld={state?.railWorld}
+          parkingWorld={state?.parkingWorld}
+          gardenWorld={state?.gardenWorld}
+          houseWorld={state?.houseWorld}
+          conveyorWorld={state?.conveyorWorld}
+          gorillaWorld={state?.gorillaWorld}
+          arenaWorld={state?.arenaWorld}
+          weatherWorld={state?.weatherWorld}
+          pondWorld={state?.pondWorld}
+          theaterWorld={state?.theaterWorld}
+          lineWorld={state?.lineWorld}
           counter={state?.counter}
           simulationSpeed={speed}
           simulationRunning={state?.status === 'running'}
@@ -313,8 +336,23 @@ export default function ReviewSimulation({
         />
         <fieldset className="review-inputs" disabled={!program}>
           <legend>Sensores simulados</legend>
+          {project.scene.canvas.background==='pondLab'&&<PondControls key={`${project.scene.id}:${simulationEpoch}`} value={state?.pondWorld?.environment??project.scene.canvas.pondEnvironment??defaultPondEnvironment} onChange={value=>worker.current?.postMessage({type:'SET_INPUT',name:'pondEnvironment',value})} onRefill={()=>worker.current?.postMessage({type:'SET_INPUT',name:'pondRefill',value:true})}/>}
+          {project.scene.canvas.background === 'ottoTheater' && <TheaterControls value={state?.theaterWorld?.environment ?? project.scene.canvas.theaterEnvironment ?? defaultTheaterEnvironment} state={state?.theaterWorld} onChange={value => worker.current?.postMessage({ type: 'SET_INPUT', name: 'theaterEnvironment', value })} onAction={value => worker.current?.postMessage({ type: 'SET_INPUT', name: 'theaterAction', value })} />}
+          {project.scene.canvas.background === 'weatherLab' && <WeatherControls key={`${project.scene.id}:${simulationEpoch}`} optimistic value={state?.weatherWorld?.environment ?? project.scene.canvas.weatherEnvironment ?? defaultWeatherEnvironment} onChange={value => worker.current?.postMessage({ type: 'SET_INPUT', name: 'weatherEnvironment', value })} />}
+          {project.scene.canvas.background === 'conveyor' && <ConveyorControls value={state?.conveyorWorld?.environment ?? project.scene.canvas.conveyorEnvironment ?? defaultConveyorEnvironment} pending={!!state?.conveyorWorld?.pendingPackage || !!state?.conveyorWorld?.jammed} onChange={value => worker.current?.postMessage({ type: 'SET_INPUT', name: 'conveyorEnvironment', value })} onSend={() => worker.current?.postMessage({ type: 'SET_INPUT', name: 'conveyorPackage', value: state?.conveyorWorld?.environment ?? project.scene.canvas.conveyorEnvironment ?? defaultConveyorEnvironment })} />}
+          {project.scene.canvas.background === 'smartHouse' && <HouseControls value={state?.houseWorld?.environment ?? project.scene.canvas.houseEnvironment ?? defaultHouseEnvironment} pending={!!state?.houseWorld?.pendingVisitor} onChange={value => worker.current?.postMessage({ type: 'SET_INPUT', name: 'houseEnvironment', value })} onSend={() => worker.current?.postMessage({ type: 'SET_INPUT', name: 'houseVisitor', value: state?.houseWorld?.environment.nextVisitor ?? project.scene.canvas.houseEnvironment?.nextVisitor ?? 'known' })} />}
+          {project.scene.canvas.background === 'greenhouse' && <GardenControls value={state?.gardenWorld?.environment ?? project.scene.canvas.gardenEnvironment ?? defaultGardenEnvironment} onChange={value => worker.current?.postMessage({ type: 'SET_INPUT', name: 'gardenEnvironment', value })} />}
           {project.scene.devices.map((device) => {
             const runtime = state?.devices[device.id];
+            if(Object.entries(pondBindings(project.scene)).some(([role,id])=>role.endsWith('Sensor')&&id===device.id))return <p key={device.id}>{device.name} · lectura automática del agua virtual</p>;
+            if(device.kind==='gorilla')return <p key={device.id}>{device.name}: actuador del banco, sin entradas manuales.</p>;
+            if(project.scene.canvas.background==='lineTrack'&&device.kind==='lineSensors')return <p key={device.id}>{device.name}: lectura automática bajo el robot, no editable.</p>;
+            if (Object.values(theaterBindings(project.scene)).includes(device.id)) return <p key={device.id}>{device.name} · entrada automática del público</p>;
+            if (['climate', 'rain', 'light'].some(role => weatherBindings(project.scene)[role as 'climate' | 'rain' | 'light'] === device.id)) return <p key={device.id}>{device.name} · lectura automática del clima exterior</p>;
+            if (['distanceSensor', 'colorSensor', 'infraredBarrier'].some(kind => arenaBindings(project.scene)[kind as 'distanceSensor' | 'colorSensor' | 'infraredBarrier'] === device.id)) return <p key={device.id}>{device.name} · lectura automática de la pista</p>;
+            if (conveyorInputRoles.some(role => conveyorBindings(project.scene)[role] === device.id)) return <p key={device.id}>{device.name} · lectura automática del taller virtual</p>;
+            if (houseInputRoles.some(role => houseBindings(project.scene)[role] === device.id)) return <p key={device.id}>{device.name} · lectura automática de la casa virtual</p>;
+            if (Object.entries(gardenBindings(project.scene)).some(([role, id]) => ['outsideSoil', 'insideSoil', 'climate', 'light'].includes(role) && id === device.id)) return <p key={device.id}>{device.name} · lectura automática de la huerta virtual</p>;
             if (device.kind === 'button')
               return (
                 <label key={device.id}>
@@ -340,7 +378,7 @@ export default function ReviewSimulation({
               const interrupted = runtime?.kind === 'infraredBarrier'
                 ? runtime.interrupted
                 : device.config.interrupted;
-              if (project.scene.canvas.background === 'railCrossing') return <p key={device.id}>{device.name}: {interrupted ? 'Haz interrumpido' : 'Haz libre'} · automático del tren virtual</p>;
+              if (project.scene.canvas.background === 'railCrossing' || project.scene.canvas.background === 'parking') return <p key={device.id}>{device.name}: {interrupted ? 'Haz interrumpido' : 'Haz libre'} · automático del mundo virtual</p>;
               return (
                 <label key={device.id}>
                   {device.name} ·

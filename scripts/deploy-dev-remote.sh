@@ -141,7 +141,7 @@ for profile in profiles:
     try:
         info = json.loads((root / f"{profile}.json").read_text(encoding="utf-8"))
         bundle = root / info["bundle"]
-        assert info["sourceRevision"] == revision and info["version"] == "1.9.0" and bundle.is_file()
+        assert info["sourceRevision"] == revision and info["version"] == "1.14.0" and bundle.is_file()
     except Exception:
         raise SystemExit(1)
 PY
@@ -384,14 +384,14 @@ if ((BUILD_INTERPRETER)); then
     -e CAPI_INTERPRETER_TOOLCHAIN_KEY="$interpreter_toolchain_key" \
     -v "$REPOSITORY:/project" -w /project \
     "$interpreter_builder_image" \
-    -lc '. "$IDF_PATH/export.sh" >/dev/null && bash ./scripts/build-interpreter-firmware.sh 1.9.0 /project/public/interpreter '"$INTERPRETER_SOURCE"
+    -lc '. "$IDF_PATH/export.sh" >/dev/null && bash ./scripts/build-interpreter-firmware.sh 1.14.0 /project/public/interpreter '"$INTERPRETER_SOURCE"
   python3 - "$REPOSITORY/public/interpreter" "$INTERPRETER_SOURCE" <<'PY'
 import hashlib, json, pathlib, sys
 root, revision = pathlib.Path(sys.argv[1]), sys.argv[2]
 for profile in ("wemos-d1-r32", "diymall-esp32-s3-devkitc-v1-n16r8", "waveshare-esp32-s3-touch-lcd-5-28117"):
     info = json.loads((root / f"{profile}.json").read_text(encoding="utf-8"))
     bundle = root / info["bundle"]
-    assert info["sourceRevision"] == revision and info["version"] == "1.9.0"
+    assert info["sourceRevision"] == revision and info["version"] == "1.14.0"
     assert bundle.stat().st_size == info["bytes"]
     assert hashlib.sha256(bundle.read_bytes()).hexdigest() == info["sha256"]
 print("Firmware intérprete empaquetado y verificado para las tres placas.")

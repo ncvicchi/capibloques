@@ -607,7 +607,7 @@ const BlocklyWorkspace = forwardRef<
       device.id,
       device.kind,
       device.name,
-      device.kind === 'display' ? device.config : null,
+      device.kind === 'display' || device.kind === 'gorilla' ? device.config : null,
     ]),
   );
 

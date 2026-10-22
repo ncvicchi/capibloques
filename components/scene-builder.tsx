@@ -1,9 +1,30 @@
 'use client';
+import {defaultGorillaGait,planGorillaGait} from '@/lib/gorilla-gait';
+import {gorillaTrackAllowed} from '@/lib/gorilla-track';
+
+import LineCircuitEditor from '@/components/line-circuit-editor';
+import { defaultLineCircuit } from '@/lib/line-world';
+import TheaterControls from '@/components/theater-controls';
+import { theaterSlots, defaultTheaterEnvironment } from '@/lib/theater-world';
+import GorillaProperties from '@/components/gorilla-properties';
+import PondControls from '@/components/pond-controls';
+import { pondSlots, nearestPondSlot, defaultPondEnvironment } from '@/lib/pond-world';
+import WeatherControls from '@/components/weather-controls';
+import { weatherSlots, nearestWeatherSlot, defaultWeatherEnvironment } from '@/lib/weather-world';
+import ArenaControls from '@/components/arena-controls';
+import { arenaKinds, arenaStartAllowed, defaultArenaEnvironment } from '@/lib/robot-arena';
+import ConveyorControls from '@/components/conveyor-controls';
+import { conveyorSlots, nearestConveyorSlot, defaultConveyorEnvironment } from '@/lib/conveyor-world';
 import { DisplayProperties } from '@/components/display-properties';
 import { LedMatrixProperties } from '@/components/led-matrix-properties';
 import ComponentHelpDialog from '@/components/component-help';
 import { crossingNames } from '@/lib/pedestrian-world';
 import { nearestRailSlot, railTrackCount, type RailTrackCount } from '@/lib/rail-world';
+import { nearestParkingSlot, parkingCapacity, type ParkingCapacity } from '@/lib/parking-world';
+import { gardenSlots, nearestGardenSlot, defaultGardenEnvironment } from '@/lib/garden-world';
+import GardenControls from '@/components/garden-controls';
+import HouseControls from '@/components/house-controls';
+import { houseSlots, houseBindings, nearestHouseSlot, defaultHouseEnvironment } from '@/lib/house-world';
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { InspectorDraft, SceneDraft } from '@/lib/scene-recovery';
@@ -37,6 +58,13 @@ import {
   appendTemplateToScene,
   arrangeCrossroadsTrafficLights,
   arrangeRailDevices,
+  arrangeParkingDevices,
+  arrangeGardenDevices,
+  arrangeHouseDevices,
+  arrangeConveyorDevices,
+  arrangeWeatherDevices,
+  arrangePondDevices,
+  arrangeTheaterDevices,
   configureRailTracks,
   assignSafePins,
   cloneScene,
@@ -107,6 +135,17 @@ const backgrounds: { value: SceneBackground; label: string; icon: string }[] = [
   { value: 'pond', label: 'Laguna', icon: '🪷' },
   { value: 'crossroads', label: 'Cruce con tránsito', icon: '🚗' },
   { value: 'railCrossing', label: 'Paso a nivel', icon: '🚂' },
+  { value: 'parking', label: 'Estacionamiento', icon: '🅿️' },
+  { value: 'greenhouse', label: 'Huerta e invernadero', icon: '🌱' },
+  { value:'lineTrack',label:'Vehículo seguidor de línea',icon:'〰️' },
+  { value: 'ottoTheater', label: 'Teatro interactivo de Otto', icon: '🎭' },
+  {value:'gorillaTrack',label:'Pista GorillaBot',icon:'🦍'},
+  {value:'gorillaBench',label:'Banco de pruebas GorillaBot',icon:'🦍'},
+  { value:'pondLab',label:'Laguna, depósito y bombeo',icon:'💧' },
+  { value: 'weatherLab', label: 'Estación meteorológica y puesto', icon: '🌦️' },
+  { value: 'robotArena', label: 'Pista de exploración y reparto', icon: '🤖' },
+  { value: 'conveyor', label: 'Taller y cinta transportadora', icon: '📦' },
+  { value: 'smartHouse', label: 'Casa inteligente y entrada segura', icon: '🏠' },
   { value: 'robotTrack', label: 'Pista de robots', icon: '🛣️' },
   { value: 'garden', label: 'Huerta', icon: '🌱' },
   { value: 'schoolGate', label: 'Entrada de la escuela', icon: '🏫' },
@@ -141,6 +180,17 @@ const quickTemplates: {
   { id: 'securityGate', name: 'Entrada', icon: '🚧', detail: 'sensor + barrera' },
   { id: 'weatherStation', name: 'Clima', icon: '🌦️', detail: 'ambiente + lluvia' },
   { id: 'railCrossing', name: 'Paso a nivel', icon: '🚂', detail: 'barreras + detectores' },
+  { id: 'parking', name: 'Estacionamiento', icon: '🅿️', detail: 'entrada + salida + plazas' },
+  { id: 'greenhouse', name: 'Huerta e invernadero', icon: '🌱', detail: 'dos canteros + riego + ventana' },
+  { id:'lineTrack',name:'Seguidor de línea',icon:'〰️',detail:'tres sensores + motores independientes' },
+  { id: 'ottoTheater', name: 'Teatro de Otto', icon: '🎭', detail: 'público + petición + coreografías' },
+  {id:'gorillaTrack',name:'Pista GorillaBot',icon:'🦍',detail:'Marcha coordinada + ida y vuelta'},
+  {id:'gorillaBench',name:'Banco GorillaBot',icon:'🦍',detail:'8 servos + calibración + una pata'},
+  {id:'pondLab',name:'Laguna y reserva',icon:'💧',detail:'agua + bomba + desagüe'},
+  { id: 'weatherLab', name: 'Puesto meteorológico', icon: '🌦️', detail: 'clima + lluvia + techo móvil' },
+  { id: 'robotArena', name: 'Pista de exploración', icon: '🤖', detail: 'robot + sensores montados + estaciones' },
+  { id: 'conveyor', name: 'Taller y cinta', icon: '📦', detail: 'motor + sensores + clasificación' },
+  { id: 'smartHouse', name: 'Casa inteligente', icon: '🏠', detail: 'visitantes + puerta + luces' },
 ];
 
 const sceneItems = (scene: SceneDefinition): SceneItem[] => [
@@ -283,6 +333,7 @@ function SceneBuilderSession({
   const [pendingSelectionId, setPendingSelectionId] = useState<string | null>(
     null,
   );
+  const [lineEditorOpen,setLineEditorOpen]=useState(false);
   const [discardSceneOpen, setDiscardSceneOpen] = useState(false);
   const [pendingBoardProfile, setPendingBoardProfile] = useState<BoardProfileId | null>(null);
   const [matrixPreviewPattern, setMatrixPreviewPattern] = useState<{ deviceId: string; patternId: string } | null>(null);
@@ -630,7 +681,7 @@ function SceneBuilderSession({
       const groupBounds = groupIds
         .map(id => findSceneItem(next, id))
         .filter((item): item is SceneItem => Boolean(item))
-        .map(sceneItemBounds);
+        .map(item=>sceneItemBounds(item,next));
       delta = {
         x: Math.max(-Math.min(...groupBounds.map(box => box.left)), Math.min(delta.x, next.canvas.width - Math.max(...groupBounds.map(box => box.right)))),
         y: Math.max(-Math.min(...groupBounds.map(box => box.top)), Math.min(delta.y, next.canvas.height - Math.max(...groupBounds.map(box => box.bottom)))),
@@ -933,6 +984,26 @@ function SceneBuilderSession({
                       ? arrangeCrossroadsTrafficLights(changed)
                       : changed.canvas.background === 'railCrossing'
                       ? arrangeRailDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
+                      : changed.canvas.background === 'parking'
+                      ? arrangeParkingDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
+                      : changed.canvas.background === 'greenhouse'
+                      ? arrangeGardenDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
+                      : changed.canvas.background==='gorillaTrack'
+                      ? {...changed,canvas:{...changed.canvas,width:960,height:540},devices:changed.devices.map(d=>d.kind==='gorilla'?{...d,position:{x:120,y:355}}:d)}
+                      : changed.canvas.background === 'lineTrack'
+                      ? {...changed,canvas:{...changed.canvas,width:960,height:540},devices:changed.devices.map(d=>d.kind==='lineSensors'?{...d,position:{x:165,y:420}}:d)}
+                      : changed.canvas.background === 'ottoTheater'
+                      ? arrangeTheaterDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
+                      : changed.canvas.background === 'pondLab'
+                      ? arrangePondDevices({...changed,canvas:{...changed.canvas,width:960,height:540}})
+                      : changed.canvas.background === 'weatherLab'
+                      ? arrangeWeatherDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
+                      : changed.canvas.background === 'robotArena'
+                      ? { ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } }
+                      : changed.canvas.background === 'conveyor'
+                      ? arrangeConveyorDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
+                      : changed.canvas.background === 'smartHouse'
+                      ? arrangeHouseDevices({ ...changed, canvas: { ...changed.canvas, width: 960, height: 540 } })
                       : changed,
                   );
                 }}
@@ -969,6 +1040,29 @@ function SceneBuilderSession({
                 </small>
               )}
             </label>
+            {previewScene.canvas.background === 'lineTrack' && <div className="scene-inline-notice"><button type="button" onClick={()=>{if(requireSettledInspector('editar el circuito'))setLineEditorOpen(true);}}>Editar circuito</button><small>Mové y orientá el robot antes de correr. La barra de sensores va montada al frente. No hay piloto automático.</small></div>}
+            {previewScene.canvas.background === 'ottoTheater' && <details><summary>Público al comenzar</summary><TheaterControls value={previewScene.canvas.theaterEnvironment ?? defaultTheaterEnvironment} onChange={value => { if (requireSettledInspector('cambiar el público inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, theaterEnvironment: value } }, 'Público inicial actualizado en el borrador.'); }} /></details>}
+            {previewScene.canvas.background==='pondLab'&&<details><summary>Agua al comenzar</summary><PondControls initial value={previewScene.canvas.pondEnvironment??defaultPondEnvironment} onChange={value=>{if(requireSettledInspector('cambiar el agua inicial'))commitScene({...previewScene,canvas:{...previewScene.canvas,pondEnvironment:value}},'Agua inicial actualizada en el borrador.');}}/></details>}
+            {previewScene.canvas.background === 'weatherLab' && <details><summary>Clima al comenzar</summary><WeatherControls value={previewScene.canvas.weatherEnvironment ?? defaultWeatherEnvironment} onChange={value => { if (requireSettledInspector('cambiar el clima inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, weatherEnvironment: value } }, 'Clima inicial actualizado en el borrador.'); }} /></details>}
+            {previewScene.canvas.background==='gorillaTrack'&&<details><summary>Pista GorillaBot al comenzar</summary><label>Recorrido <select value={previewScene.canvas.gorillaTrack??'straight'} onChange={e=>{if(requireSettledInspector('cambiar la pista'))commitScene({...previewScene,canvas:{...previewScene.canvas,gorillaTrack:e.target.value as 'straight'|'maneuvers'}},'Recorrido actualizado.');}}><option value="straight">Ida y vuelta</option><option value="maneuvers">Circuito de maniobras</option></select></label><ArenaControls gorilla value={previewScene.canvas.arenaEnvironment??defaultArenaEnvironment} onChange={value=>{const next={...previewScene,canvas:{...previewScene.canvas,arenaEnvironment:value}},robot=next.devices.find(d=>d.kind==='gorilla');if(robot&&!gorillaTrackAllowed(next,robot.position.x,robot.position.y)){setMessage('El obstáculo se superpone al robot.');return;}if(requireSettledInspector('cambiar la pista'))commitScene(next,'Pista actualizada en el borrador.');}}/><small>La huella es conservadora, no CAD. El camino no guía al robot ni los contactos detienen el programa.</small></details>}
+            {previewScene.canvas.background === 'robotArena' && <details><summary>Pista al comenzar</summary><ArenaControls value={previewScene.canvas.arenaEnvironment ?? defaultArenaEnvironment} onChange={value => { const robot = previewScene.devices.find(d => d.kind === 'robot'); if (robot && !arenaStartAllowed(robot.position, value)) { setMessage('El obstáculo no puede superponerse al robot.'); return; } if (requireSettledInspector('cambiar la pista inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, arenaEnvironment: value } }, 'Pista inicial actualizada en el borrador.'); }} /></details>}
+            {previewScene.canvas.background === 'conveyor' && <details><summary>Taller al comenzar</summary><ConveyorControls value={previewScene.canvas.conveyorEnvironment ?? defaultConveyorEnvironment} onChange={value => { if (requireSettledInspector('cambiar el taller inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, conveyorEnvironment: value } }, 'Taller inicial actualizado en el borrador.'); }} /></details>}
+            {previewScene.canvas.background === 'smartHouse' && <details><summary>Casa al comenzar</summary><HouseControls value={previewScene.canvas.houseEnvironment ?? defaultHouseEnvironment} onChange={value => {
+              if (requireSettledInspector('cambiar la casa inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, houseEnvironment: value } }, 'Condiciones iniciales de la casa actualizadas en el borrador.');
+            }} /></details>}
+            {previewScene.canvas.background === 'greenhouse' && <details><summary>Clima inicial de la huerta</summary><GardenControls value={previewScene.canvas.gardenEnvironment ?? defaultGardenEnvironment} onChange={value => {
+              if (requireSettledInspector('cambiar el clima inicial')) commitScene({ ...previewScene, canvas: { ...previewScene.canvas, gardenEnvironment: value } }, 'Clima inicial actualizado en el borrador.');
+            }} /></details>}
+            {previewScene.canvas.background === 'parking' && <label htmlFor="parking-capacity">
+              Plazas del estacionamiento
+              <NativeSelect id="parking-capacity" aria-label="Plazas del estacionamiento" value={parkingCapacity(previewScene)} onChange={event => {
+                if (!requireSettledInspector('cambiar las plazas')) return;
+                commitScene({ ...previewScene, canvas: { ...previewScene.canvas, parkingCapacity: Number(event.target.value) as ParkingCapacity } }, 'Plazas actualizadas en el borrador. Ajustá también la variable Capacidad del programa: cambiar el mundo no reescribe tus bloques.');
+              }}>
+                {[4, 8, 12].map(capacity => <NativeSelectOption key={capacity} value={capacity}>{capacity} plazas</NativeSelectOption>)}
+              </NativeSelect>
+              <small>Dos barreras (0° cerrada, 90° abierta) y cuatro detectores automáticos de autos. El programa lleva su cuenta: ajustá su variable Capacidad si cambiás las plazas. Sin lugar, un auto admitido atasca la entrada hasta que se libera una plaza.</small>
+            </label>}
             {previewScene.canvas.background === 'railCrossing' && <label htmlFor="rail-track-count">
               Vías del tren
               <NativeSelect id="rail-track-count" aria-label="Cantidad de vías" value={railTrackCount(previewScene)} onChange={event => {
@@ -1109,7 +1203,7 @@ function SceneBuilderSession({
                       type="button"
                       key={template.id}
                       disabled={
-                        (template.id === 'railCrossing' && objectCount > 0) ||
+                        ((template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor' || template.id === 'robotArena' || template.id === 'weatherLab' || template.id === 'ottoTheater' || template.id === 'lineTrack' || template.id === 'pondLab' || template.id === 'gorillaBench' || template.id === 'gorillaTrack') && objectCount > 0) ||
                         (template.id === 'traffic' || template.id === 'intersection') &&
                         previewScene.canvas.background !== 'crossroads' &&
                         objectCount > 0
@@ -1117,8 +1211,8 @@ function SceneBuilderSession({
                       onClick={() => addTemplate(template.id)}
                       aria-label={`Agregar aventura ${template.name}: ${template.detail}`}
                       title={
-                        template.id === 'railCrossing' && objectCount > 0
-                          ? 'El paso a nivel completo se agrega a una escena vacía; no reemplaza componentes existentes.'
+                        (template.id === 'railCrossing' || template.id === 'parking' || template.id === 'greenhouse' || template.id === 'smartHouse' || template.id === 'conveyor' || template.id === 'robotArena' || template.id === 'weatherLab' || template.id === 'ottoTheater' || template.id === 'lineTrack' || template.id === 'pondLab' || template.id === 'gorillaBench' || template.id === 'gorillaTrack') && objectCount > 0
+                          ? 'Este mundo completo se agrega a una escena vacía; no reemplaza componentes existentes.'
                           : (template.id === 'traffic' || template.id === 'intersection') &&
                         previewScene.canvas.background !== 'crossroads' &&
                         objectCount > 0
@@ -1161,7 +1255,16 @@ function SceneBuilderSession({
                     const railLimitBlocked = previewScene.canvas.background === 'railCrossing' &&
                       (component.kind === 'servo' || component.kind === 'infraredBarrier') &&
                       previewScene.devices.filter(device => device.kind === component.kind).length >= (component.kind === 'servo' ? 2 : railTrackCount(previewScene) * 2);
-                    const reason = visualBlocked
+                    const parkingLimitBlocked = previewScene.canvas.background === 'parking' && (component.kind === 'servo' || component.kind === 'infraredBarrier') && previewScene.devices.filter(device => device.kind === component.kind).length >= (component.kind === 'servo' ? 2 : 4);
+                    const gardenLimitBlocked = previewScene.canvas.background === 'greenhouse' && gardenSlots.some(slot => slot.kind === component.kind) && previewScene.devices.filter(device => device.kind === component.kind).length >= gardenSlots.filter(slot => slot.kind === component.kind).length;
+                    const lineLimitBlocked = previewScene.canvas.background==='lineTrack' && (component.kind==='robot'||component.kind==='lineSensors') && previewScene.devices.some(d=>d.kind===component.kind);
+                    const theaterLimitBlocked = previewScene.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === component.kind) && previewScene.devices.some(d => d.kind === component.kind);
+                    const pondLimitBlocked=previewScene.canvas.background==='pondLab'&&pondSlots.some(s=>s.kind===component.kind)&&previewScene.devices.filter(d=>d.kind===component.kind).length>=pondSlots.filter(s=>s.kind===component.kind).length;
+                    const weatherLimitBlocked = previewScene.canvas.background === 'weatherLab' && weatherSlots.some(s => s.kind === component.kind) && previewScene.devices.some(d => d.kind === component.kind);
+                    const arenaLimitBlocked = previewScene.canvas.background === 'robotArena' && arenaKinds.includes(component.kind as typeof arenaKinds[number]) && previewScene.devices.some(d => d.kind === component.kind);
+                    const conveyorLimitBlocked = previewScene.canvas.background === 'conveyor' && conveyorSlots.some(slot => slot.kind === component.kind) && previewScene.devices.filter(d => d.kind === component.kind).length >= conveyorSlots.filter(s => s.kind === component.kind).length;
+                    const houseLimitBlocked = previewScene.canvas.background === 'smartHouse' && component.kind !== 'led' && component.kind !== 'button' && houseSlots.some(slot => slot.kind === component.kind) && previewScene.devices.filter(device => device.kind === component.kind).length >= houseSlots.filter(slot => slot.kind === component.kind).length;
+                    const reason = component.kind==='gorilla'&&previewScene.devices.some(d=>d.kind==='gorilla')?'No disponible: un GorillaBot por proyecto':visualBlocked
                       ? `No disponible: ya usás ${visualOutput?.name}`
                       : messagesBlocked
                         ? 'No disponible: máximo dos por proyecto'
@@ -1170,8 +1273,15 @@ function SceneBuilderSession({
                           : trafficLimitBlocked
                             ? 'No disponible: los cuatro lugares están ocupados'
                         : railLimitBlocked ? 'No disponible: los lugares de este componente en el paso a nivel están ocupados'
+                        : parkingLimitBlocked ? 'No disponible: los lugares de este componente en el estacionamiento están ocupados'
+                        : gardenLimitBlocked ? 'No disponible: los lugares de este componente en la huerta están ocupados'
+                        : lineLimitBlocked ? 'No disponible: un robot y una barra de sensores en esta mesa' : theaterLimitBlocked ? 'No disponible: el teatro admite un Otto y un botón de petición'
+                        : pondLimitBlocked ? 'No disponible: los lugares de este componente de agua están ocupados' : weatherLimitBlocked ? 'No disponible: el puesto tiene un lugar por sensor y un techo'
+                        : arenaLimitBlocked ? 'No disponible: la pista admite un robot y un sensor de cada tipo; los sensores van montados'
+                        : conveyorLimitBlocked ? 'No disponible: los lugares de este componente en el taller están ocupados'
+                        : houseLimitBlocked ? 'No disponible: los lugares de este componente en la casa están ocupados'
                         : component.childFriendlyControl;
-                    const componentBlocked = visualBlocked || messagesBlocked || trafficSceneBlocked || trafficLimitBlocked || railLimitBlocked;
+                    const componentBlocked = (component.kind==='gorilla'&&previewScene.devices.some(d=>d.kind==='gorilla')) || visualBlocked || messagesBlocked || trafficSceneBlocked || trafficLimitBlocked || railLimitBlocked || parkingLimitBlocked || gardenLimitBlocked || houseLimitBlocked || conveyorLimitBlocked || arenaLimitBlocked || pondLimitBlocked || weatherLimitBlocked || theaterLimitBlocked || lineLimitBlocked;
                     return <div className="component-palette-card" key={component.kind}>
                       <button type="button" className="component-add-button" disabled={componentBlocked} onClick={() => addComponent(component.kind)} title={componentBlocked ? reason : component.description} aria-label={`Agregar ${component.name}. ${reason}`}>
                         <span aria-hidden="true">{component.icon}</span><span><strong>{component.name}</strong><small>{reason}</small></span><b aria-hidden="true">{componentBlocked ? '🔒' : '＋'}</b>
@@ -1314,7 +1424,7 @@ function SceneBuilderSession({
                       max="330"
                       step="30"
                       value={selected.rotation}
-                      disabled={previewScene.canvas.background === 'railCrossing' && !!nearestRailSlot(selected.kind, selected.position, railTrackCount(previewScene))}
+                      disabled={(previewScene.canvas.background==='pondLab'&&!!nearestPondSlot(selected.kind,selected.position)) || (previewScene.canvas.background==='lineTrack' && selected.kind==='lineSensors') || (previewScene.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === selected.kind)) || (previewScene.canvas.background === 'weatherLab' && !!nearestWeatherSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'robotArena' && ['distanceSensor', 'colorSensor', 'infraredBarrier'].includes(selected.kind)) || (previewScene.canvas.background === 'conveyor' && !!nearestConveyorSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'smartHouse' && !!nearestHouseSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'greenhouse' && !!nearestGardenSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'parking' && !!nearestParkingSlot(selected.kind, selected.position)) || (previewScene.canvas.background === 'railCrossing' && !!nearestRailSlot(selected.kind, selected.position, railTrackCount(previewScene)))}
                       onChange={(event) =>
                         updateSelectedDraft((device) => ({
                           ...device,
@@ -1358,13 +1468,15 @@ function SceneBuilderSession({
                       </label>}
                     </div>
                   )}
-                  {isEducationalModuleKind(selected.kind) && (() => {
+                  {selected.kind==='gorilla'&&<><fieldset><legend>Marcha coordinada</legend>{(['stride','height','phaseMs'] as const).map(key=><label key={key}>{({stride:'Longitud del paso (mm)',height:'Elevación adicional (mm)',phaseMs:'Tiempo por fase (ms)'})[key]}<input type="number" min={key==='phaseMs'?200:1} max={key==='phaseMs'?2000:key==='stride'?12:8} step={1} value={(selected.config.gait??defaultGorillaGait)[key]} onChange={e=>updateSelectedDraft(d=>d.kind==='gorilla'?{...d,config:{...d.config,gait:{...(d.config.gait??defaultGorillaGait),[key]:Number(e.target.value),turnsVerified:false}}}:d)}/></label>)}<label><input type="checkbox" checked={selected.config.gait?.turnsVerified??false} onChange={e=>updateSelectedDraft(d=>d.kind==='gorilla'?{...d,config:{...d.config,gait:{...(d.config.gait??defaultGorillaGait),turnsVerified:e.target.checked}}}:d)}/>Una persona adulta probó los giros físicos (experimentales, sin ángulo garantizado)</label><p>Apoyo de referencia: 4 mm arriba. Un ciclo recupera las cuatro patas. Ritmo común limitado a 30°/s.</p><details><summary>Ver coreografía del ciclo</summary><p>Trasera izquierda → delantera izquierda → trasera derecha → delantera derecha.</p><ol><li>Entrar en la referencia de apoyo, sin avanzar.</li><li>Elevar una pata; las otras tres conservan el apoyo previsto.</li><li>Recuperarla hacia adelante y bajarla.</li><li>Empujar con los cuatro apoyos: el cuerpo avanza un cuarto del paso.</li><li>Repetir con la siguiente pata. Al terminar las cuatro, el ciclo vuelve a su referencia.</li></ol><small>Retroceder invierte el recorrido longitudinal. Girar usa recorridos opuestos por lado; el ángulo del simulador es aproximado.</small></details>{selected.config.kinematics&&(()=>{const p=planGorillaGait(selected.config.kinematics,selected.config.settings,0,selected.config.gait??defaultGorillaGait,Array(8).fill(0));return <output>{p.move?'Ciclo validado · '+(p.move.duration/1000).toFixed(2)+' s. No certifica equilibrio.':p.error}</output>;})()}</fieldset></>}
+                  {selected.kind==='gorilla'&&<GorillaProperties kinematics={selected.config.kinematics} trajectories={selected.config.trajectories} onGeometry={(kinematics,trajectories)=>updateSelectedDraft(device=>device.kind==='gorilla'?{...device,config:{...device.config,...(device.config.gait?{gait:{...device.config.gait,turnsVerified:false}}:{}),kinematics,trajectories,settings:{...device.config.settings,verified:device.config.kinematics?.pulseMinUs===kinematics.pulseMinUs&&device.config.kinematics?.pulseMaxUs===kinematics.pulseMaxUs?device.config.settings.verified:false}}}:device)} postures={selected.config.postures} onPostures={postures=>updateSelectedDraft(device=>device.kind==='gorilla'?{...device,config:{...device.config,postures}}:device)} settings={selected.config.settings} onChange={settings=>updateSelectedDraft(device=>device.kind==='gorilla'?{...device,config:{...device.config,...(device.config.gait?{gait:{...device.config.gait,turnsVerified:false}}:{}),settings,...(device.config.kinematics&&Object.keys(settings).some(key=>key!=='verified'&&settings[key]!==device.config.settings[key])?{kinematics:{...device.config.kinematics,verified:false}}:{})}}:device)}/>}
+                  {selected.kind!=='gorilla'&&isEducationalModuleKind(selected.kind) && (() => {
                     const spec = educationalModuleSpecs[selected.kind];
                     const moduleDevice = selected as EducationalModuleDevice;
                     return <div className="messages-properties">
                       <label><span>Modelo</span><NativeSelect value={moduleDevice.config.profile} onChange={event => updateSelectedDraft(device => isEducationalModuleKind(device.kind) ? { ...(device as EducationalModuleDevice), config: { ...(device as EducationalModuleDevice).config, profile: event.target.value } } as SceneDevice : device)}>{spec.profiles.map(profile => <NativeSelectOption key={profile.id} value={profile.id}>{profile.label}</NativeSelectOption>)}</NativeSelect></label>
                       <small>{spec.description}</small>
-                      {Object.entries(moduleDevice.config.settings).map(([key, value]) => <label key={key}><span>{key === 'threshold' ? 'Umbral' : key === 'speed' ? 'Velocidad' : key === 'baudRate' ? 'Velocidad de comunicación' : key === 'deadZone' ? 'Zona central' : key === 'maxDistance' ? 'Distancia máxima' : key}</span>{typeof value === 'boolean' ? <input type="checkbox" checked={value} onChange={event => updateSelectedDraft(device => { if (!isEducationalModuleKind(device.kind)) return device; const current = device as EducationalModuleDevice; return { ...current, config: { ...current.config, settings: { ...current.config.settings, [key]: event.target.checked } } } as SceneDevice; })} /> : <Input type={typeof value === 'number' ? 'number' : 'text'} value={String(value)} onChange={event => updateSelectedDraft(device => { if (!isEducationalModuleKind(device.kind)) return device; const current = device as EducationalModuleDevice; return { ...current, config: { ...current.config, settings: { ...current.config.settings, [key]: typeof value === 'number' ? Number(event.target.value) : event.target.value } } } as SceneDevice; })} />}</label>)}
+                      {Object.entries(moduleDevice.config.settings).map(([key, value]) => <label key={key}><span>{key === 'activeLow' ? 'La salida es LOW sobre la línea' : key === 'threshold' ? 'Umbral' : key === 'speed' ? 'Velocidad' : key === 'baudRate' ? 'Velocidad de comunicación' : key === 'deadZone' ? 'Zona central' : key === 'maxDistance' ? 'Distancia máxima' : key}</span>{typeof value === 'boolean' ? <input type="checkbox" checked={value} onChange={event => updateSelectedDraft(device => { if (!isEducationalModuleKind(device.kind)) return device; const current = device as EducationalModuleDevice; return { ...current, config: { ...current.config, settings: { ...current.config.settings, [key]: event.target.checked } } } as SceneDevice; })} /> : <Input type={typeof value === 'number' ? 'number' : 'text'} value={String(value)} onChange={event => updateSelectedDraft(device => { if (!isEducationalModuleKind(device.kind)) return device; const current = device as EducationalModuleDevice; return { ...current, config: { ...current.config, settings: { ...current.config.settings, [key]: typeof value === 'number' ? Number(event.target.value) : event.target.value } } } as SceneDevice; })} />}</label>)}
                     </div>;
                   })()}
                   {selected.kind === 'smartLights' && (
@@ -1461,6 +1573,18 @@ function SceneBuilderSession({
                       </label>
                     </div>
                   )}
+                  {previewScene.canvas.background === 'greenhouse' && nearestGardenSlot(selected.kind, selected.position) && <p className="scene-inline-notice">Función: {nearestGardenSlot(selected.kind, selected.position)?.name}. {selected.kind === 'powerSwitch' ? 'Riego por salida de potencia: 0% apagado, 100% máximo. Requiere módulo de potencia, no conectar bomba al GPIO.' : selected.kind === 'servo' ? 'Ventana: 0° cerrada, 90° abierta. Ventila hacia la temperatura exterior.' : 'Lectura automática del mundo virtual. Cambiá el clima, no el sensor. Los ajustes manuales del componente no reemplazan esa lectura.'}</p>}
+                  {previewScene.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === selected.kind) && <p className="scene-inline-notice">{selected.kind === 'otto' ? 'Coreografía en escenario fijo. Los sensores/cara dependen del perfil. Un movimiento corporal a la vez; cara y sonido independientes. El ultrasonido representa al público frontal, no equilibrio ni orientación 3D.' : 'Petición del público: pulso de 2 s simulados. El programa decide si actúa y debe esperar su liberación.'}</p>}
+                  {previewScene.canvas.background==='pondLab'&&nearestPondSlot(selected.kind,selected.position)&&<p className="scene-inline-notice">Función: {nearestPondSlot(selected.kind,selected.position)?.name}. Más agua: menor distancia. Bomba: reserva → laguna; compuerta 0° cerrada y 90° abierta. El detector de derrame no mide el nivel del recipiente.</p>}
+                  {previewScene.canvas.background === 'weatherLab' && nearestWeatherSlot(selected.kind, selected.position) && <p className="scene-inline-notice">Función: {nearestWeatherSlot(selected.kind, selected.position)?.name}. {selected.kind === 'servo' ? '0° cerrado, 90° abierto. Protege la mesa gradualmente, no seca lo mojado ni cubre los sensores.' : 'Sensor exterior siempre expuesto, con lectura automática del mundo. El detector de lluvia mide su humedad residual, no milímetros ni intensidad de precipitación.'}</p>}
+                  {previewScene.canvas.background === 'robotArena' && arenaKinds.includes(selected.kind as typeof arenaKinds[number]) && <p className="scene-inline-notice">{selected.kind === 'robot' ? 'Mové y orientá el robot al comenzar. El camino no lo guía; puede salir y recuperar contactos retrocediendo o girando.' : selected.kind === 'infraredBarrier' ? 'Barrera fija en la meta; queda interrumpida mientras cruza el cuerpo del robot.' : 'Sensor montado sobre el único robot. Se mueve y gira con él; cambiale nombre o pines aquí, no su posición. Su lectura es automática.'}</p>}
+                  {previewScene.canvas.background === 'conveyor' && nearestConveyorSlot(selected.kind, selected.position) && <p className="scene-inline-notice">Función: {nearestConveyorSlot(selected.kind, selected.position)?.name}. Lecturas automáticas del paquete en esta zona. Detené la cinta 0,6 s para pesar; desviador 0° A / 90° B. Si llega un paquete mientras gira, se atasca. Marcha atrás no disponible en este taller.</p>}
+                  {previewScene.canvas.background === 'smartHouse' && nearestHouseSlot(selected.kind, selected.position) && <p className="scene-inline-notice">Función: {nearestHouseSlot(selected.kind, selected.position)?.name}. {selected.kind === 'servo' ? '0° cerrada, 90° abierta. Una puerta abierta deja pasar a quien espera; el programa decide por qué abrir.' : selected.kind === 'led' ? 'Luz regulable. La luz interior modifica la luminosidad medida dentro.' : 'Entrada automática de visitantes/ambiente. No se reemplaza con controles manuales. Un PIR real detecta movimiento; la presencia continua es una simplificación educativa.'}</p>}
+                  {previewScene.canvas.background === 'smartHouse' && (selected.kind === 'led' || selected.kind === 'button') && <p className="scene-inline-notice">Función: {houseSlots.find(slot => houseBindings(previewScene)[slot.role] === selected.id)?.name ?? 'Componente libre'}. Podés moverlo sin cambiar su función; las luces y botones adicionales son independientes.</p>}
+                  {previewScene.canvas.background === 'parking' && nearestParkingSlot(selected.kind, selected.position) && <p className="scene-inline-notice">
+                    Función: {nearestParkingSlot(selected.kind, selected.position)?.name}.
+                    {selected.kind === 'servo' ? ' 0°: cerrada; 90° o más: abierta. Recorrido de 1,2 s, sin bloquear el programa.' : ' Entrada automática de los autos virtuales. Esperá haz interrumpido y después libre para contar un paso completo, una sola vez. No es una lectura física.'}
+                  </p>}
                   {previewScene.canvas.background === 'railCrossing' && nearestRailSlot(selected.kind, selected.position, railTrackCount(previewScene)) && <p className="scene-inline-notice">
                     Función: {nearestRailSlot(selected.kind, selected.position, railTrackCount(previewScene))?.name}.
                     {selected.kind === 'servo' ? ' 0°: cerrada; 90° o más: abierta. Movimiento de 1,2 s; los autos esperan hasta la apertura completa.' : ' Haz interrumpido mientras cualquier parte del tren ocupa este punto. Entrada automática del mundo virtual, no lectura física.'}
@@ -1632,8 +1756,8 @@ function SceneBuilderSession({
                       type="button"
                       variant="outline"
                       onClick={duplicateSelected}
-                      disabled={selected.kind === 'display' || selected.kind === 'ledMatrix'}
-                      title={selected.kind === 'display' || selected.kind === 'ledMatrix' ? 'Una sola pantalla o matriz por proyecto' : undefined}
+                      disabled={(previewScene.canvas.background==='pondLab'&&!!nearestPondSlot(selected.kind,selected.position)) || (previewScene.canvas.background==='lineTrack' && ['robot','lineSensors'].includes(selected.kind)) || (previewScene.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === selected.kind)) || (previewScene.canvas.background === 'weatherLab' && !!nearestWeatherSlot(selected.kind, selected.position)) || selected.kind === 'display' || selected.kind === 'ledMatrix' || (previewScene.canvas.background === 'robotArena' && arenaKinds.includes(selected.kind as typeof arenaKinds[number]))}
+                      title={previewScene.canvas.background==='pondLab'&&nearestPondSlot(selected.kind,selected.position)?'Lugares hidráulicos fijos; agregá el segundo sensor desde el catálogo':previewScene.canvas.background==='lineTrack' && ['robot','lineSensors'].includes(selected.kind) ? 'Un robot y una barra de sensores en esta mesa' : previewScene.canvas.background === 'ottoTheater' && theaterSlots.some(s => s.kind === selected.kind) ? 'Un Otto y una petición en este teatro' : previewScene.canvas.background === 'weatherLab' && nearestWeatherSlot(selected.kind, selected.position) ? 'Un sensor por lugar y un techo en este puesto' : previewScene.canvas.background === 'robotArena' && arenaKinds.includes(selected.kind as typeof arenaKinds[number]) ? 'Un robot y un sensor de cada tipo en esta pista' : selected.kind === 'display' || selected.kind === 'ledMatrix' ? 'Una sola pantalla o matriz por proyecto' : undefined}
                     >
                       📄 Duplicar
                     </Button>
@@ -1911,6 +2035,7 @@ function SceneBuilderSession({
           </AlertDialogContent>
         </AlertDialog>
       </Dialog>
+      {lineEditorOpen && <LineCircuitEditor value={previewScene.canvas.lineCircuit??defaultLineCircuit} onCancel={()=>setLineEditorOpen(false)} onSave={value=>{commitScene({...previewScene,canvas:{...previewScene.canvas,lineCircuit:value}},'Circuito actualizado en el borrador.');setLineEditorOpen(false);}} />}
       {helpTarget && <ComponentHelpDialog open onOpenChange={next => !next && setHelpTarget(null)} kind={helpTarget.kind} device={helpTarget.device} boardProfileId={draftBoardProfile} />}
     </>
   );

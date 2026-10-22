@@ -1,3 +1,19 @@
+// @ts-expect-error Node strip-types runner.
+import {planGorillaGait,advanceGorillaGait,type GorillaGaitMove} from './gorilla-gait.ts';
+// @ts-expect-error Node strip-types runner.
+import {createGorillaTrack,advanceGorillaTrack} from './gorilla-track.ts';
+// @ts-expect-error Node strip-types runner.
+import { createLineWorld, advanceLineWorld, lineBindings, defaultLineCircuit } from './line-world.ts';
+// @ts-expect-error Node strip-types runner.
+import { createTheaterWorldState, advanceTheaterWorld, theaterBindings, theaterHasDistance, validTheaterEnvironment } from './theater-world.ts';
+// @ts-expect-error Node strip-types runner.
+import { advanceWeatherWorld, createWeatherWorldState, weatherBindings, validWeatherEnvironment } from './weather-world.ts';
+// @ts-expect-error Node strip-types runner.
+import { advancePondWorld, createPondWorld, pondBindings, waterDistance, validPondEnvironment } from './pond-world.ts';
+// @ts-expect-error Node strip-types runner.
+import { advanceArenaWorld, createArenaWorldState, arenaBindings, arenaPose, defaultArenaEnvironment } from './robot-arena.ts';
+// @ts-expect-error Node strip-types runner.
+import { advanceConveyorWorld, createConveyorWorldState, conveyorBindings, conveyorInputRoles, validConveyorEnvironment } from './conveyor-world.ts';
 import {
   addCounterValues,
   compileTaskGraph,
@@ -38,7 +54,19 @@ import { decodeChallenge, variantScene, compareChallenge, challengeExpectations 
 import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 // @ts-expect-error Node strip-types runner.
 import { advanceRailWorld, createRailWorldState, railBindings, railTrackCount } from './rail-world.ts';
+// @ts-expect-error Node strip-types runner.
+import { advanceParkingWorld, createParkingWorldState, parkingBindings, parkingCapacity } from './parking-world.ts';
+// @ts-expect-error Node strip-types runner.
+import { advanceGardenWorld, createGardenWorldState, gardenBindings, validGardenEnvironment } from './garden-world.ts';
+// @ts-expect-error Node strip-types runner.
+import { advanceHouseWorld, createHouseWorldState, houseBindings, houseInputRoles, validHouseEnvironment } from './house-world.ts';
 
+// @ts-expect-error Node strip-types runner.
+import {gorillaPostureTargets,gorillaTargets,gorillaMove,advanceGorilla,type GorillaMove} from './gorilla-model.ts';
+// @ts-expect-error Node strip-types runner.
+import {planGorillaPath,advanceGorillaPath,type GorillaCartesianMove} from './gorilla-kinematics.ts';
+const gorillaJobs=new Map<string,GorillaMove|GorillaCartesianMove|GorillaGaitMove>();
+const gorillaPositions=new Map<string,number[]>();
 type Pending =
   | { kind: 'wait'; startedAt: number; until: number; blockId: string }
   | {
@@ -146,7 +174,7 @@ type SensorRuntimeState = Extract<RuntimeDeviceState, { value: number }>;
 
 type WorkerInboundMessage =
   | { type: 'ASSESS_CHALLENGE'; challenge: unknown; program: CompiledProgram }
-  | { type: 'LOAD'; program: unknown; scene?: unknown; boardProfile?: unknown }
+  | { type: 'LOAD'; program: unknown; scene?: unknown; boardProfile?: unknown; preserveWorldTrials?: boolean }
   | { type: 'SYNC_SCENE'; scene: unknown; boardProfile?: unknown }
   | { type: 'RUN' | 'PAUSE' | 'STOP' | 'RESET' | 'STEP' }
   | { type: 'SET_SPEED'; speed: unknown }
@@ -248,6 +276,9 @@ let wifiMessageSequence = 0;
 const lastReceivedMessages = new Map<string, string>();
 const visualAnimations = new Map<string, VisualAnimation>();
 const ottoOwners = new Map<string, string>();
+const ottoQueues = new Map<string, string[]>();
+function ottoTurn(deviceId: string, threadId: string) { const queue = ottoQueues.get(deviceId) ?? []; if (!queue.includes(threadId)) queue.push(threadId); ottoQueues.set(deviceId, queue); return queue[0] === threadId; }
+function releaseOttoTurn(deviceId: string, threadId: string) { ottoQueues.set(deviceId, (ottoQueues.get(deviceId) ?? []).filter(id => id !== threadId)); }
 let wifiAvailableOverride: boolean | undefined;
 let diagnostics: CapiDiagnostic[] = [];
 let simulationBlocked = false;
@@ -455,6 +486,7 @@ function defaultRobot() {
 function freshState(): SimulatorState {
   const devices = createDeviceState();
   const bindings = railBindings(scene);
+  const parking = parkingBindings(scene);
   const initialAngle = (id: string | undefined) => id && devices[id]?.kind === 'servo' ? devices[id].angle : 0;
   dashboardManual.clear();
   dashboardProgramStates.clear();
@@ -463,6 +495,16 @@ function freshState(): SimulatorState {
       dashboardProgramStates.set(id, structuredClone(devices[id]));
   return {
     ...(scene.canvas.background === 'railCrossing' ? { railWorld: createRailWorldState(initialAngle(bindings.northGate), initialAngle(bindings.southGate), railTrackCount(scene)) } : {}),
+    ...(scene.canvas.background === 'parking' ? { parkingWorld: createParkingWorldState(parkingCapacity(scene), initialAngle(parking.entryGate), initialAngle(parking.exitGate)) } : {}),
+    ...(scene.canvas.background === 'greenhouse' ? { gardenWorld: createGardenWorldState(scene.canvas.gardenEnvironment, initialAngle(gardenBindings(scene).window)) } : {}),
+    ...(scene.canvas.background === 'ottoTheater' ? { theaterWorld: createTheaterWorldState(scene.canvas.theaterEnvironment) } : {}),
+    ...(scene.canvas.background === 'weatherLab' ? { weatherWorld: createWeatherWorldState(scene.canvas.weatherEnvironment, weatherBindings(scene).roof ? initialAngle(weatherBindings(scene).roof) : 90) } : {}),
+    ...(scene.canvas.background==='pondLab'?{pondWorld:createPondWorld(scene.canvas.pondEnvironment,pondBindings(scene).drain?initialAngle(pondBindings(scene).drain):0)}:{}),
+    ...(scene.canvas.background === 'gorillaTrack' ? {gorillaWorld:createGorillaTrack(scene)} : {}),
+    ...(scene.canvas.background === 'lineTrack' ? { lineWorld: createLineWorld(arenaPose(scene).position, arenaPose(scene).angle) } : {}),
+    ...(scene.canvas.background === 'robotArena' ? { arenaWorld: createArenaWorldState(arenaPose(scene).position, arenaPose(scene).angle) } : {}),
+    ...(scene.canvas.background === 'conveyor' ? { conveyorWorld: createConveyorWorldState(scene.canvas.conveyorEnvironment, initialAngle(conveyorBindings(scene).gate)) } : {}),
+    ...(scene.canvas.background === 'smartHouse' ? { houseWorld: createHouseWorldState(scene.canvas.houseEnvironment, initialAngle(houseBindings(scene).door)) } : {}),
     now: 0,
     status: 'idle',
     devices,
@@ -646,7 +688,7 @@ function executionTaskState(execution: ThreadExecution): ExecutionTaskState {
     ? 'inactive'
     : execution.done
       ? 'done'
-      : execution.pending
+      : execution.pending || [...ottoQueues.values()].some(q => q.includes(execution.thread.id) && q[0] !== execution.thread.id)
         ? 'waiting'
         : node?.op === 'join'
           ? 'joining'
@@ -701,6 +743,7 @@ function executionTaskState(execution: ThreadExecution): ExecutionTaskState {
     );
     task.detail = latest?.message ?? 'Ejecutando';
   }
+  if ([...ottoQueues.values()].some(q => q.includes(execution.thread.id) && q[0] !== execution.thread.id)) task.detail = 'Esperando su turno para mover a Otto';
   const activeLoop = execution.loopCounters.findLastIndex((value) => value > 0);
   if (activeLoop >= 0 && execution.loopTotals[activeLoop] > 0) {
     task.totalIterations = execution.loopTotals[activeLoop];
@@ -791,6 +834,7 @@ function applyInputOverrides() {
 function resetExecution(
   status: SimulatorState['status'] = 'idle',
   preserveDashboardManual = false,
+  emitSnapshot = true,
 ) {
   const manualDevices = preserveDashboardManual
     ? new Map(
@@ -820,6 +864,15 @@ function resetExecution(
   }
   applyInputOverrides();
   updateRailPhysics(0);
+  updateParkingPhysics(0);
+  updateGardenPhysics(0);
+  updateWeatherPhysics(0);
+  updatePondPhysics(0);
+  updateTheaterPhysics(0);
+  updateHousePhysics(0);
+  updateConveyorPhysics(0);
+  updateArenaPhysics(0);
+  updateLinePhysics(0);
   state.status = status;
   virtualNow = 0;
   schedulerDebtMs = 0;
@@ -843,9 +896,11 @@ function resetExecution(
   wifiMessageSequence = 0;
   lastReceivedMessages.clear();
   visualAnimations.clear();
+  gorillaJobs.clear();gorillaPositions.clear();
   ottoOwners.clear();
+  ottoQueues.clear();
   clearBlockActivity();
-  emit();
+  if (emitSnapshot) emit();
 }
 
 const numberOperators = {
@@ -954,8 +1009,8 @@ function evaluateValue(expression: ValueExpression): number | string | boolean {
         return device.brightness;
       if (device.kind === 'robot' && expression.property === 'motion') {
         if (device.left === 0 && device.right === 0) return 'STOP';
-        if (device.left > 0 && device.right > 0) return 'FORWARD';
-        if (device.left < 0 && device.right < 0) return 'BACKWARD';
+        if (device.left === device.right) return device.left > 0 ? 'FORWARD' : 'BACKWARD';
+        if (device.left !== -device.right) return 'WHEELS';
         return device.left < device.right ? 'LEFT' : 'RIGHT';
       }
       if (device.kind === 'motor' && expression.property === 'power')
@@ -1348,6 +1403,7 @@ function resolvePending(
       device.speed = 0;
     }
     ottoOwners.delete(pending.deviceId);
+    releaseOttoTurn(pending.deviceId, execution.thread.id);
     execution.pending = null;
     execution.pc += 1;
     return 'advanced';
@@ -1491,6 +1547,7 @@ function executeInstruction(
     delete state.activeBlockIds[execution.thread.id];
     return 'done';
   }
+  if ((node.op === 'otto' || node.op === 'ottoArms') && !ottoTurn(node.deviceId, execution.thread.id)) return 'wait';
   markBlockActive(execution.thread.id, node.blockId);
 
   if (node.op === 'fork') {
@@ -1555,6 +1612,33 @@ function executeInstruction(
     delete state.activeBlockIds[execution.thread.id];
     return 'done';
   }
+  if(node.op==='gorilla'){
+    const d=state.devices[node.deviceId],spec=scene.devices.find(x=>x.id===node.deviceId);
+    if(d?.kind!=='educationalModule'||spec?.kind!=='gorilla'){execution.pc++;return 'action';}
+    if(gorillaJobs.has(node.deviceId))return 'wait';
+    if(node.action==='prepare'){d.values.ready=true;d.values.error=false;execution.pc++;appendConsole(`${deviceName(node.deviceId)}: preparado, sin mover motores`);return 'action';}
+    const current=gorillaPositions.get(node.deviceId)??Array.from({length:8},(_,i)=>Number(d.values[`j${i}`]));
+    if(node.action==='gait'){
+      const planned=spec.config.kinematics?planGorillaGait(spec.config.kinematics,spec.config.settings,node.index,{stride:node.a,height:node.b,phaseMs:node.durationMs,turnsVerified:false},current):{error:'Configurá geometría v3.'};
+      if(!d.values.ready||!planned.move){d.values.error=true;appendConsole(`${deviceName(node.deviceId)}: ${planned.error??'Prepará el controlador.'}`);execution.pc++;return 'action';}
+      const job=planned.move;gorillaJobs.set(node.deviceId,job);d.values.moving=true;d.values.error=false;
+      execution.pending={kind:'wait',startedAt:virtualNow,until:virtualNow+job.duration,blockId:node.blockId};
+      appendConsole(`${deviceName(node.deviceId)}: ${['avanzar un ciclo','retroceder un ciclo','girar a izquierda (idealizado)','girar a derecha (idealizado)','quedar apoyado'][node.index]} · ${(job.duration/1000).toFixed(2)} s`);return 'wait';
+    }
+    if(node.action==='foot'||node.action==='path'){
+      const planned=spec.config.kinematics?planGorillaPath(spec.config.kinematics,spec.config.settings,node.index,node.points??[],current):{error:'Configurá geometría v3.'};
+      if(!d.values.ready||!planned.move){d.values.error=true;appendConsole(`${deviceName(node.deviceId)}: ${planned.error??'Prepará el controlador.'}`);execution.pc++;return 'action';}
+      const job=planned.move;gorillaJobs.set(node.deviceId,job);d.values.moving=true;d.values.error=false;execution.pending={kind:'wait',startedAt:virtualNow,until:virtualNow+job.duration,blockId:node.blockId};appendConsole(`${deviceName(node.deviceId)}: ${node.action==='path'?'trayectoria '+node.trajectoryName:'mover pie '+(node.index+1)} · ${(job.duration/1000).toFixed(2)} s`);return 'wait';
+    }
+    const targets=node.action==='posture'?gorillaPostureTargets(spec.config.settings,node.angles):gorillaTargets(spec.config.settings,current,node.index,node.a,node.b,node.action==='pair');
+    if(!d.values.ready||!targets){d.values.error=true;appendConsole(`${deviceName(node.deviceId)}: orden rechazada; prepará el robot y revisá límites`);execution.pc++;return 'action';}
+    const mask=node.action==='posture'?255:node.action==='pair'?3<<(node.index*2):1<<node.index;
+    const job=gorillaMove(current,targets,node.durationMs,mask);gorillaJobs.set(node.deviceId,job);d.values.moving=true;d.values.error=false;
+    execution.pending={kind:'wait',startedAt:virtualNow,until:virtualNow+job.duration,blockId:node.blockId};
+    if(node.action==='posture')appendConsole(`${deviceName(node.deviceId)}: postura ${node.postureName}`);
+    else appendConsole(`${deviceName(node.deviceId)}: ${node.action==='pair'?'pata '+(node.index+1):'motor '+(Math.floor(node.index/2)+1)+(node.index%2?'B':'A')} → ${node.a}°${node.action==='pair'?' / '+node.b+'°':''}`);
+    return 'wait';
+  }
   if (node.op === 'wait') {
     execution.pending = {
       kind: 'wait',
@@ -1568,6 +1652,7 @@ function executeInstruction(
     const device = state.devices[node.deviceId];
     if (node.action === 'HOME') {
       ottoOwners.delete(node.deviceId);
+      releaseOttoTurn(node.deviceId, execution.thread.id);
       if (device?.kind === 'otto') {
         device.motion = 'HOME';
         device.phase = 0;
@@ -2036,6 +2121,9 @@ function executeInstruction(
         `GPIO ${node.pin}: ${node.value ? 'encendido' : 'apagado'}`,
       );
       break;
+    case 'robotWheels': {
+      const device=programDevice(node.deviceId);if(device?.kind==='robot'){device.left=Math.max(-100,Math.min(100,node.left));device.right=Math.max(-100,Math.min(100,node.right));appendConsole(`${deviceName(node.deviceId)}: motor izquierdo ${device.left}%, derecho ${device.right}%`);}break;
+    }
     case 'robot': {
       const device = programDevice(node.deviceId);
       if (device?.kind === 'robot') {
@@ -2119,6 +2207,7 @@ function executeInstruction(
       break;
     }
     case 'ottoArms': {
+      releaseOttoTurn(node.deviceId, execution.thread.id);
       const device = state.devices[node.deviceId];
       if (device?.kind === 'otto') {
         device.arms = node.pose;
@@ -2547,8 +2636,124 @@ function updateRailPhysics(deltaMs: number) {
   }
 }
 
+function updateParkingPhysics(deltaMs: number) {
+  if (state.parkingWorld) {
+    const bindings = parkingBindings(scene);
+    const angle = (id: string | undefined) => id && state.devices[id]?.kind === 'servo' ? state.devices[id].angle : 0;
+    state.parkingWorld = advanceParkingWorld(state.parkingWorld, { entryGate: angle(bindings.entryGate), exitGate: angle(bindings.exitGate) }, deltaMs);
+    for (const role of ['entryArrival', 'entryPassed', 'exitArrival', 'exitPassed'] as const) {
+      const id = bindings[role];
+      if (id) applyInputValue(id, state.parkingWorld.detectors[role]);
+    }
+  }
+}
+
+function updateTheaterPhysics(deltaMs: number) {
+  if (!state.theaterWorld) return;
+  const b = theaterBindings(scene), w = state.theaterWorld = advanceTheaterWorld(state.theaterWorld, deltaMs);
+  const otto = b.otto ? state.devices[b.otto] : undefined;
+  if (otto?.kind === 'otto' && theaterHasDistance(scene)) otto.distance = Math.round(w.distance);
+  if (b.request) applyInputValue(b.request, w.requestMs > 0);
+}
+
+function updatePondPhysics(deltaMs:number){
+  if(!state.pondWorld)return;
+  const b=pondBindings(scene),pump=b.pump?state.devices[b.pump]:undefined,gate=b.drain?state.devices[b.drain]:undefined;
+  const pumpSpec=scene.devices.find(d=>d.id===b.pump);
+  const ordered=pump?.kind==='educationalModule'?Number(pump.values.power??0):0;
+  const power=pumpSpec?.kind==='powerSwitch'&&pumpSpec.config.profile==='RELAY_LOW_VOLTAGE'?(ordered>0?100:0):ordered;
+  const w=state.pondWorld=advancePondWorld(state.pondWorld,power,gate?.kind==='servo'?gate.angle:0,deltaMs);
+  for(const [role,volume,capacity]of [['reserveSensor',w.reserve,300],['lagoonSensor',w.lagoon,100]] as const){
+    const d=b[role]?state.devices[b[role]!]:undefined;
+    if(d?.kind==='educationalModule')d.values.distance=Math.round(waterDistance(volume,capacity)*100)/100;
+  }
+  const spill=b.spillSensor?state.devices[b.spillSensor]:undefined,spec=scene.devices.find(d=>d.id===b.spillSensor);
+  if(spill?.kind==='educationalModule')Object.assign(spill.values,{level:Math.round(w.wetness),wet:w.wetness>=(spec?.kind==='waterSensor'?Number(spec.config.settings.threshold):20)});
+}
+function updateWeatherPhysics(deltaMs: number) {
+  if (!state.weatherWorld) return;
+  const b = weatherBindings(scene), roof = b.roof ? state.devices[b.roof] : undefined;
+  const rainSpec = scene.devices.find(d => d.id === b.rain);
+  const wetThreshold = rainSpec?.kind === 'waterSensor' ? Number(rainSpec.config.settings.threshold) : 20;
+  const w = state.weatherWorld = advanceWeatherWorld(state.weatherWorld, roof?.kind === 'servo' ? roof.angle : 90, deltaMs);
+  for (const [role, values] of [['climate', { temperature: Math.round(w.temperature * 10) / 10, humidity: Math.round(w.humidity * 10) / 10, pressure: Math.round(w.pressure * 10) / 10 }], ['rain', { level: Math.round(w.detectorWater), wet: w.detectorWater >= wetThreshold }]] as const) {
+    const d = b[role] ? state.devices[b[role]!] : undefined;
+    if (d?.kind === 'educationalModule') Object.assign(d.values, values);
+  }
+  if (b.light) applyInputValue(b.light, Math.round(w.light));
+}
+
+function updateGardenPhysics(deltaMs: number) {
+  if (!state.gardenWorld) return;
+  const bindings = gardenBindings(scene);
+  const power = (id?: string) => id && state.devices[id]?.kind === 'educationalModule' ? Number(state.devices[id].values.power ?? 0) : 0;
+  const window = bindings.window ? state.devices[bindings.window] : undefined;
+  state.gardenWorld = advanceGardenWorld(state.gardenWorld, { outsidePower: power(bindings.outsidePump), insidePower: power(bindings.insidePump), windowAngle: window?.kind === 'servo' ? window.angle : 0 }, deltaMs);
+  const world = state.gardenWorld;
+  for (const [role, values] of [['outsideSoil', { moisture: Math.round(world.outside.moisture) }], ['insideSoil', { moisture: Math.round(world.inside.moisture) }], ['climate', { temperature: Math.round(world.temperature * 10) / 10, humidity: Math.round(world.humidity * 10) / 10, pressure: 1013 }]] as const) {
+    const id = bindings[role], device = id && state.devices[id];
+    if (device && device.kind === 'educationalModule') Object.assign(device.values, values);
+  }
+  if (bindings.light) applyInputValue(bindings.light, Math.round(world.light / 100 * 4095));
+}
+
+function updateLinePhysics(deltaMs:number) {
+  if(!state.lineWorld)return;const b=lineBindings(scene),robot=b.robot?state.devices[b.robot]:undefined;
+  const w=state.lineWorld=advanceLineWorld(state.lineWorld,scene.canvas.lineCircuit??defaultLineCircuit,robot?.kind==='robot'?robot.left:0,robot?.kind==='robot'?robot.right:0,deltaMs);
+  if(robot?.kind==='robot'){robot.x=w.x/scene.canvas.width*100;robot.y=w.y/scene.canvas.height*100;robot.angle=w.angle;}
+  const sensors=b.sensors?state.devices[b.sensors]:undefined;if(sensors?.kind==='educationalModule')Object.assign(sensors.values,{left:w.left,center:w.center,right:w.right});
+}
+function updateArenaPhysics(deltaMs: number) {
+  if (!state.arenaWorld) return;
+  const b = arenaBindings(scene), robot = b.robot ? state.devices[b.robot] : undefined;
+  const distanceSpec = scene.devices.find(d => d.id === b.distanceSensor);
+  const maximum = distanceSpec?.kind === 'distanceSensor' ? Number(distanceSpec.config.settings.maxDistance) : 400;
+  const w = state.arenaWorld = advanceArenaWorld(state.arenaWorld, scene.canvas.arenaEnvironment ?? defaultArenaEnvironment, robot?.kind === 'robot' ? robot.left : 0, robot?.kind === 'robot' ? robot.right : 0, deltaMs, maximum);
+  if (robot?.kind === 'robot') { robot.x = w.x / scene.canvas.width * 100; robot.y = w.y / scene.canvas.height * 100; robot.angle = w.angle; }
+  const distance = b.distanceSensor ? state.devices[b.distanceSensor] : undefined, color = b.colorSensor ? state.devices[b.colorSensor] : undefined;
+  if (distance?.kind === 'educationalModule') distance.values.distance = w.distance;
+  if (color?.kind === 'educationalModule') Object.assign(color.values, { red: w.floor === 'red' ? 240 : 20, blue: w.floor === 'blue' ? 240 : 20, green: w.floor === 'green' ? 240 : 20, light: 80 });
+  if (b.infraredBarrier) applyInputValue(b.infraredBarrier, w.goalBeam);
+}
+
+function updateConveyorPhysics(deltaMs: number) {
+  if (!state.conveyorWorld) return;
+  const b = conveyorBindings(scene), motor = b.motor ? state.devices[b.motor] : undefined, servo = b.gate ? state.devices[b.gate] : undefined;
+  const w = state.conveyorWorld = advanceConveyorWorld(state.conveyorWorld, { power: motor?.kind === 'motor' ? motor.power : 0, angle: servo?.kind === 'servo' ? servo.angle : 0 }, deltaMs);
+  for (const [role, value] of [['presence', w.presence], ['outputA', w.outputA], ['outputB', w.outputB]] as const) if (b[role]) applyInputValue(b[role]!, value);
+  const color = b.color ? state.devices[b.color] : undefined, scale = b.scale ? state.devices[b.scale] : undefined;
+  if (color?.kind === 'educationalModule') Object.assign(color.values, { red: w.color === 'red' ? 240 : w.color ? 20 : 0, blue: w.color === 'blue' ? 240 : w.color ? 20 : 0, green: w.color === 'green' ? 240 : w.color ? 20 : 0, light: w.presence ? 80 : 0 });
+  if (scale?.kind === 'educationalModule') scale.values.weight = w.weight;
+}
+
+function updateHousePhysics(deltaMs: number) {
+  if (!state.houseWorld) return;
+  const bindings = houseBindings(scene);
+  const output = (role: 'door' | 'outsideLight' | 'insideLight') => { const id = bindings[role], device = id ? state.devices[id] : undefined; return device?.kind === 'servo' ? device.angle : device?.kind === 'led' ? device.brightness : 0; };
+  state.houseWorld = advanceHouseWorld(state.houseWorld, { doorAngle: output('door'), outsideLight: output('outsideLight'), insideLight: output('insideLight') }, deltaMs);
+  const w = state.houseWorld;
+  for (const [role, value] of [['bell', w.bellMs > 0], ['exitButton', w.exitPressed], ['passage', w.passage], ['insideLux', w.insideLux], ['outsideLux', w.outsideLux]] as const) { const id = bindings[role]; if (id) applyInputValue(id, value); }
+  for (const [role, values] of [['outsideMotion', { motion: w.outsidePresence }], ['insideMotion', { motion: w.insidePresence }], ['reader', { card: w.card, present: w.cardPresent }]] as const) {
+    const id = bindings[role], device = id ? state.devices[id] : undefined;
+    if (device?.kind === 'educationalModule') Object.assign(device.values, values);
+  }
+}
+
 function updatePhysics(deltaMs: number) {
-  if (state.status !== 'done' && state.status !== 'stopped') updateRailPhysics(deltaMs);
+  for(const [id,job]of gorillaJobs){const next='frames' in job?advanceGorillaGait(job,deltaMs):'segments' in job?advanceGorillaPath(job,deltaMs):advanceGorilla(job,deltaMs),d=state.devices[id];if(state.gorillaWorld&&'travel' in next)state.gorillaWorld=advanceGorillaTrack(state.gorillaWorld,scene,next.travel,next.yaw,next.swing,0,next.moving);gorillaPositions.set(id,next.angles);if(d?.kind==='educationalModule'){next.angles.forEach((a,i)=>d.values[`j${i}`]=(Math.sign(a)*Math.round(Math.abs(a))||0));d.values.moving=next.moving;if('error' in next&&next.error)d.values.error=true;}if(next.moving)gorillaJobs.set(id,next.move);else gorillaJobs.delete(id);}
+  if (state.status !== 'done' && state.status !== 'stopped') {
+    updateRailPhysics(deltaMs);
+    updateParkingPhysics(deltaMs);
+    updateGardenPhysics(deltaMs);
+    updateWeatherPhysics(deltaMs);
+    updatePondPhysics(deltaMs);
+    updateTheaterPhysics(deltaMs);
+    updateHousePhysics(deltaMs);
+    updateConveyorPhysics(deltaMs);
+    updateArenaPhysics(deltaMs);
+    updateLinePhysics(deltaMs);
+  }
+  if(state.gorillaWorld)state.gorillaWorld=advanceGorillaTrack(state.gorillaWorld,scene,0,0,state.gorillaWorld.swing,deltaMs,Array.from(gorillaJobs.values()).some(j=>'frames' in j));
   updateVisualAnimations();
   for (const timer of Object.values(state.timers)) {
     if (timer.status !== 'running' || timer.durationMs <= 0 || deltaMs <= 0)
@@ -2574,7 +2779,7 @@ function updatePhysics(deltaMs: number) {
       remainder === 0 ? timer.durationMs : timer.durationMs - remainder;
   }
   for (const [deviceId, device] of Object.entries(state.devices)) {
-    if (device.kind === 'robot') {
+    if (device.kind === 'robot' && scene.canvas.background !== 'robotArena' && scene.canvas.background !== 'lineTrack') {
       const average = (device.left + device.right) / 2;
       const turn = (device.right - device.left) * 0.0012 * deltaMs;
       device.angle += turn;
@@ -2785,6 +2990,16 @@ function stopOutputs() {
 }
 
 function setInputById(deviceId: string, value: unknown) {
+  if(lineBindings(scene).sensors===deviceId)return;
+  if (['distanceSensor', 'colorSensor', 'infraredBarrier'].some(kind => arenaBindings(scene)[kind as 'distanceSensor' | 'colorSensor' | 'infraredBarrier'] === deviceId)) return;
+  if (Object.values(theaterBindings(scene)).includes(deviceId)) return;
+  if (['climate', 'rain', 'light'].some(role => weatherBindings(scene)[role as 'climate' | 'rain' | 'light'] === deviceId)) return;
+  const pond=pondBindings(scene);if([pond.reserveSensor,pond.lagoonSensor,pond.spillSensor].includes(deviceId))return;
+  if(scene.devices.some(d=>d.id===deviceId&&d.kind==='gorilla'))return;
+  if (conveyorInputRoles.some(role => conveyorBindings(scene)[role] === deviceId)) return;
+  if (houseInputRoles.some(role => houseBindings(scene)[role] === deviceId)) return;
+  if (Object.entries(gardenBindings(scene)).some(([role, id]) => ['outsideSoil', 'insideSoil', 'climate', 'light'].includes(role) && id === deviceId)) return;
+  if (Object.entries(parkingBindings(scene)).some(([role, id]) => !role.endsWith('Gate') && id === deviceId)) return;
   const bindings = railBindings(scene);
   if (Object.entries(bindings).some(([role, id]) => role.includes('Detector') && id === deviceId)) return;
   const device = state.devices[deviceId];
@@ -2845,6 +3060,26 @@ function setInputById(deviceId: string, value: unknown) {
 }
 
 function setLegacyInput(name: unknown, value: unknown) {
+  if (name === 'conveyorEnvironment') { if (state.conveyorWorld && validConveyorEnvironment(value)) state.conveyorWorld.environment = { ...value }; return; }
+  if (name === 'conveyorPackage') { const w = state.conveyorWorld; if (w && !w.pendingPackage && !w.jammed && validConveyorEnvironment(value)) w.pendingPackage = { color: value.color, weight: value.weight }; return; }
+  if (name === 'houseEnvironment') { if (state.houseWorld && validHouseEnvironment(value)) state.houseWorld.environment = { ...value }; return; }
+  if (name === 'houseVisitor') { if (state.houseWorld && ['known', 'unknown', 'none'].includes(String(value)) && typeof value === 'string' && !state.houseWorld.pendingVisitor) state.houseWorld.pendingVisitor = value as 'known' | 'unknown' | 'none'; return; }
+  if (name === 'theaterEnvironment') { if (state.theaterWorld && validTheaterEnvironment(value)) state.theaterWorld.environment = { ...value }; return; }
+  if (name === 'theaterAction') {
+    const w = state.theaterWorld;
+    if (w) { if (value === 'arrive' && w.phase === 'empty') w.pendingArrival = true; if (value === 'leave' && w.phase !== 'empty') w.pendingDeparture = true; if (value === 'request' && w.phase === 'watching' && !w.requestMs) w.pendingRequest = true; }
+    return;
+  }
+  if(name==='pondEnvironment'){if(state.pondWorld&&validPondEnvironment(value))state.pondWorld.environment={...value};return;}
+  if(name==='pondRefill'){if(state.pondWorld&&value===true)state.pondWorld.pendingRefill=true;return;}
+  if (name === 'weatherEnvironment') {
+    if (state.weatherWorld && validWeatherEnvironment(value)) { state.weatherWorld.environment = { ...value }; const fresh = createWeatherWorldState(value); state.weatherWorld.phaseMs = 0; state.weatherWorld.phaseIndex = fresh.phaseIndex; }
+    return;
+  }
+  if (name === 'gardenEnvironment') {
+    if (state.gardenWorld && validGardenEnvironment(value)) state.gardenWorld.environment = { ...value };
+    return;
+  }
   if (name === 'wifiAvailable') {
     wifiAvailableOverride = Boolean(value);
     state.wifiAvailable = wifiAvailableOverride;
@@ -2886,6 +3121,13 @@ scope.addEventListener('message', (event) => {
     case 'LOAD': {
       const invalidScene =
         message.scene !== undefined && !isSceneDefinition(message.scene);
+      const preserveTrials = message.preserveWorldTrials === true && isSceneDefinition(message.scene) && scene.id === message.scene.id && scene.canvas.background === message.scene.canvas.background;
+      const conveyorTrial = preserveTrials && state.conveyorWorld ? { environment: { ...state.conveyorWorld.environment }, pendingPackage: state.conveyorWorld.pendingPackage } : null;
+      const houseTrial = preserveTrials && state.houseWorld ? { environment: { ...state.houseWorld.environment }, pendingVisitor: state.houseWorld.pendingVisitor } : null;
+      const theaterTrial = preserveTrials && state.theaterWorld ? { environment: { ...state.theaterWorld.environment }, pendingArrival: state.theaterWorld.pendingArrival } : null;
+      const weatherTrial = preserveTrials && state.weatherWorld ? { ...state.weatherWorld.environment } : null;
+      const pondTrial=preserveTrials&&state.pondWorld?{environment:{...state.pondWorld.environment},pendingRefill:state.pondWorld.pendingRefill}:null;
+      const gardenTrial = preserveTrials && state.gardenWorld ? { ...state.gardenWorld.environment } : null;
       try {
         currentBoardProfile = isBoardProfileId(message.boardProfile)
           ? message.boardProfile
@@ -2894,7 +3136,14 @@ scope.addEventListener('message', (event) => {
           ? cloneScene(message.scene)
           : inferSceneForProgram(message.program);
         program = normalizeCompiledProgram(message.program, scene);
-        resetExecution('idle', true);
+        resetExecution('idle', true, false);
+        if (conveyorTrial && state.conveyorWorld) { state.conveyorWorld.environment = conveyorTrial.environment; state.conveyorWorld.pendingPackage = conveyorTrial.pendingPackage; }
+        if (houseTrial && state.houseWorld) { state.houseWorld.environment = houseTrial.environment; state.houseWorld.pendingVisitor = houseTrial.pendingVisitor; }
+        if (theaterTrial && state.theaterWorld) { state.theaterWorld.environment = theaterTrial.environment; state.theaterWorld.pendingArrival = theaterTrial.pendingArrival; }
+        if (weatherTrial && state.weatherWorld) { state.weatherWorld.environment = weatherTrial; state.weatherWorld.phaseIndex = createWeatherWorldState(weatherTrial).phaseIndex; }
+        if (gardenTrial && state.gardenWorld) state.gardenWorld.environment = gardenTrial;
+        if(pondTrial&&state.pondWorld){state.pondWorld.environment=pondTrial.environment;state.pondWorld.pendingRefill=pondTrial.pendingRefill;}
+        emit();
         refreshDiagnostics(
           invalidScene
             ? [
@@ -2955,6 +3204,8 @@ scope.addEventListener('message', (event) => {
       emit();
       break;
     case 'STOP':
+      gorillaJobs.clear();for(const d of Object.values(state.devices))if(d.kind==='educationalModule'&&d.deviceKind==='gorilla')d.values.moving=false;
+      ottoQueues.clear(); ottoOwners.clear();
       running = false;
       state.status = 'stopped';
       stopSounds();

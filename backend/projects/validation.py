@@ -7,6 +7,7 @@ import json
 import math
 import re
 import unicodedata
+from .gorilla import geometry_valid
 
 from django.core.exceptions import ValidationError
 
@@ -25,10 +26,12 @@ BOARD_PINS = {
 }
 BLOCKS = {"capi_" + name for name in ("start", "forever", "repeat", "wait", "if", "compare", "counter_compare", "counter_set", "counter_change", "traffic", "led", "pin_write", "robot", "otto", "motor", "servo", "buzzer", "tone", "button_pressed", "sensor_compare", "wifi_connect", "wifi_connected", "serial")}
 BLOCKS.add("capi_parallel")
+BLOCKS.add("capi_robot_wheels")
 BLOCKS.add("capi_switch")
 BLOCKS.add("capi_while")
 BLOCKS.add("capi_power_switch")
 BLOCKS.add("capi_stepper")
+BLOCKS.update(("capi_gorilla_gait","capi_gorilla_settle","capi_gorilla_prepare","capi_gorilla_joint","capi_gorilla_pair","capi_gorilla_posture","capi_gorilla_foot","capi_gorilla_path"))
 BLOCKS.update(("capi_display_write", "capi_display_clear", "capi_display_animate_text", "capi_display_artwork", "capi_display_button_pressed", "capi_visual_wait"))
 BLOCKS.update(("capi_message_send", "capi_message_receive"))
 BLOCKS.update(("capi_matrix_clear", "capi_matrix_pixel", "capi_matrix_pattern", "capi_matrix_scroll"))
@@ -58,6 +61,8 @@ PINS["messages"] = ["tx", "rx"]
 PINS["ledMatrix"] = ["din", "clk", "cs"]
 CONFIGS["messages"] = {"mode": ["send", "receive", "both"], "baudRate": [9600, 19200, 38400, 57600, 115200]}
 MODULES = {
+    'gorilla':(['sda','scl'],['GORILLA_PCA9685'],{**{f'j{i}':(int,float) for i in range(8)},'ready':bool,'moving':bool,'error':bool}),
+    "lineSensors": (["left","center","right"], ["DIGITAL_3"], {"left":bool,"center":bool,"right":bool}),
     "distanceSensor": (["trigger", "echo"], ["HC-SR04", "VL53L0X"], {"distance": (int, float)}),
     "pirSensor": (["signal"], ["HC-SR501"], {"motion": bool}),
     "joystick": (["x", "y", "button"], ["KY-023"], {"x": (int, float), "y": (int, float), "pressed": bool}),
@@ -278,12 +283,60 @@ def scene(value, board_profile="wemos-d1-r32"):
     exact(value, ("schemaVersion", "id", "name", "description", "canvas", "devices", "widgets"), ("retiredDeviceIds", "sourceTemplate"))
     require(type(value["schemaVersion"]) is int and value["schemaVersion"] == 1 and identifier(value["id"]))
     require(text(value["name"], 60, 1) and value["name"].strip() and isinstance(value["description"], str))
-    require("sourceTemplate" not in value or value["sourceTemplate"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing"))
+    require("sourceTemplate" not in value or value["sourceTemplate"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor", "robotArena", "weatherLab", "ottoTheater", "lineTrack", "pondLab", "gorillaBench", "gorillaTrack"))
     canvas = value["canvas"]
-    exact(canvas, ("width", "height", "background", "gridSize", "snapToGrid"), ("trafficDirections", "itemOrder", "railTracks"))
+    exact(canvas, ("width", "height", "background", "gridSize", "snapToGrid"), ("trafficDirections", "itemOrder", "railTracks", "parkingCapacity", "gardenEnvironment", "houseEnvironment", "houseAssignments", "conveyorEnvironment", "arenaEnvironment", "gorillaTrack", "weatherEnvironment", "theaterEnvironment", "lineCircuit", "pondEnvironment"))
+    if "lineCircuit" in canvas:
+        c=canvas["lineCircuit"]
+        exact(c,("width","strokes"))
+        require(number(c["width"],12,24) and isinstance(c["strokes"],list) and len(c["strokes"])<=64)
+        require(all(isinstance(s,list) and 2<=len(s)<=256 for s in c["strokes"]) and sum(len(s) for s in c["strokes"])<=512)
+        for stroke in c["strokes"]:
+            for p in stroke:
+                exact(p,("x","y"))
+                require(number(p["x"],45,915) and number(p["y"],75,485))
+    if "theaterEnvironment" in canvas:
+        environment = canvas["theaterEnvironment"]
+        exact(environment, ("automaticArrivals", "count", "distance", "staySeconds"))
+        require(type(environment["automaticArrivals"]) is bool and (type(environment["count"]) is int and 1 <= environment["count"] <= 4) and number(environment["distance"],20,100) and number(environment["staySeconds"],12,40))
+    if "pondEnvironment" in canvas:
+        environment = canvas["pondEnvironment"]
+        exact(environment, ("lagoon", "reserve", "evaporation", "leak", "rain"))
+        for key, maximum in (("lagoon",100),("reserve",300),("evaporation",0.5),("leak",4),("rain",4)):
+            require(number(environment[key],0,maximum))
+    if "weatherEnvironment" in canvas:
+        environment = canvas["weatherEnvironment"]
+        exact(environment, ("condition", "night", "automatic"))
+        require(environment["condition"] in ("sunny", "cloudy", "rain", "heavyRain") and type(environment["night"]) is bool and type(environment["automatic"]) is bool)
+    if "arenaEnvironment" in canvas:
+        env = canvas["arenaEnvironment"]
+        exact(env, ("obstacles", "guides"))
+        require(type(env["guides"]) is bool and isinstance(env["obstacles"], list) and len(env["obstacles"]) <= 4)
+        placed = []
+        for obstacle in env["obstacles"]:
+            exact(obstacle, ("x", "y", "radius"))
+            x, y, r = obstacle["x"], obstacle["y"], obstacle["radius"]
+            require(number(x, 210, 850) and number(y, 100, 460) and number(r, 20, 40))
+            if canvas["background"]!="gorillaTrack": require(all((x-sx)**2 + (y-sy)**2 >= (r+75)**2 for sx, sy in ((400,420), (400,180), (800,180))))
+            require(all((x-px)**2 + (y-py)**2 >= (r+pr+15)**2 for px, py, pr in placed))
+            placed.append((x,y,r))
+    if "conveyorEnvironment" in canvas:
+        env = canvas["conveyorEnvironment"]
+        exact(env, ("automaticArrivals", "color", "weight"))
+        require(type(env["automaticArrivals"]) is bool and env["color"] in ("red", "blue", "green") and number(env["weight"], 100, 1000))
+    if "houseEnvironment" in canvas:
+        environment = canvas["houseEnvironment"]
+        exact(environment, ("night", "automaticDay", "automaticArrivals", "nextVisitor"))
+        require(all(type(environment[key]) is bool for key in ("night", "automaticDay", "automaticArrivals")) and environment["nextVisitor"] in ("known", "unknown", "none"))
+    if "gardenEnvironment" in canvas:
+        environment = canvas["gardenEnvironment"]
+        exact(environment, ("sun", "outsideTemperature", "rain", "changingWeather"))
+        require(environment["sun"] in ("low", "medium", "strong") and number(environment["outsideTemperature"], 5, 40) and type(environment["rain"]) is bool and type(environment["changingWeather"]) is bool)
+    require("parkingCapacity" not in canvas or type(canvas["parkingCapacity"]) is int and canvas["parkingCapacity"] in (4, 8, 12))
     require("railTracks" not in canvas or type(canvas["railTracks"]) is int and canvas["railTracks"] in (1, 2, 4))
     require(number(canvas["width"], 0.01, 4096) and number(canvas["height"], 0.01, 4096) and number(canvas["gridSize"], 0.01, 512))
-    require(canvas["background"] in ("park", "workshop", "home", "pond", "crossroads", "robotTrack", "garden", "schoolGate", "weatherYard", "railCrossing", "blank") and type(canvas["snapToGrid"]) is bool)
+    require("gorillaTrack" not in canvas or canvas["gorillaTrack"] in ("straight","maneuvers"))
+    require(canvas["background"] in ("park", "workshop", "home", "pond", "crossroads", "robotTrack", "garden", "schoolGate", "weatherYard", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor", "robotArena", "weatherLab", "ottoTheater", "lineTrack", "pondLab", "gorillaBench", "gorillaTrack", "blank") and type(canvas["snapToGrid"]) is bool)
     traffic_directions = canvas.get("trafficDirections", [])
     require(isinstance(traffic_directions, list) and len(traffic_directions) <= 4 and len(set(traffic_directions)) == len(traffic_directions))
     require(all(direction in ("eastbound", "westbound", "southbound", "northbound") for direction in traffic_directions))
@@ -325,10 +378,41 @@ def scene(value, board_profile="wemos-d1-r32"):
             else:
                 if kind in MODULES:
                     module_pins, profiles, value_types = MODULES[kind]
-                    exact(config, ("profile", "values", "settings"))
+                    exact(config, ("profile", "values", "settings", *(key for key in ("postures","kinematics","trajectories","gait") if key in config)) if kind=="gorilla" else ("profile", "values", "settings"))
                     require(config["profile"] in profiles and isinstance(config["values"], dict) and set(config["values"]) == set(value_types) and isinstance(config["settings"], dict))
                     require(all(type(config["values"][key]) in ((rule,) if isinstance(rule, type) else rule) for key, rule in value_types.items()))
                     require(all(isinstance(key, str) and isinstance(value, (str, int, float, bool)) for key, value in config["settings"].items()))
+                if kind == "gorilla":
+                    if "gait" in config:
+                        g=config["gait"]
+                        require(isinstance(g,dict) and set(g)=={"stride","height","phaseMs","turnsVerified"})
+                        require(type(g["stride"]) is int and 1<=g["stride"]<=12 and type(g["height"]) is int and 1<=g["height"]<=8 and type(g["phaseMs"]) is int and 200<=g["phaseMs"]<=2000 and type(g["turnsVerified"]) is bool)
+                    settings=config['settings']
+                    exact(settings,('address','verified',*(f'{key}{i}' for i in range(8) for key in ('channel','center','min','max','reversed'))))
+                    require(type(settings['verified']) is bool and type(settings['address']) is int and 64<=settings['address']<=119)
+                    channels=set()
+                    for i in range(8):
+                        ch,c,a,b=[settings[f'{key}{i}'] for key in ('channel','center','min','max')]
+                        require(all(type(v) is int for v in (ch,c,a,b)) and 0<=ch<=15 and ch not in channels and 50<=a<=c<=b<=130 and 70<=c<=110 and type(settings[f'reversed{i}']) is bool)
+                        channels.add(ch)
+                    require(geometry_valid(config,settings))
+                    if 'postures' in config:
+                        poses=config['postures']
+                        require(isinstance(poses,list) and len(poses)<=16)
+                        pose_ids=set();pose_names=set()
+                        for pose in poses:
+                            exact(pose,('id','name','angles'))
+                            require(isinstance(pose['id'],str) and re.fullmatch(r'[a-zA-Z0-9_-]{1,48}',pose['id']) and pose['id'] not in pose_ids)
+                            name=pose['name']
+                            require(isinstance(name,str) and name==name.strip() and 1<=len(name)<=40 and name.lower() not in pose_names)
+                            angles=pose['angles']
+                            require(isinstance(angles,list) and len(angles)==8 and all(type(a) is int and -20<=a<=20 for a in angles))
+                            require(all(settings[f'min{i}']<=settings[f'center{i}']+(-a if settings[f'reversed{i}'] else a)<=settings[f'max{i}'] for i,a in enumerate(angles)))
+                            pose_ids.add(pose['id']);pose_names.add(name.lower())
+                    require(all(value==0 if key.startswith('j') else value is False for key,value in config['values'].items()))
+                if kind == "lineSensors":
+                    exact(config["settings"],("activeLow",))
+                    require(type(config["settings"]["activeLow"]) is bool)
                 if kind == "messages":
                     messages_count += 1
                     require(messages_count <= 2, "La placa admite hasta dos componentes Mensajes.")
@@ -370,6 +454,7 @@ def scene(value, board_profile="wemos-d1-r32"):
                     exact(item["pins"], PINS[kind])
                 require(all(pin is None or (type(pin) is int and -2147483648 <= pin <= 2147483647) for pin in item["pins"].values()))
                 require(all(pin is None or pin in BOARD_PINS[board_profile] for pin in item["pins"].values()), "La escena usa un GPIO que no pertenece a la placa elegida.")
+    require(sum(item['kind']=='gorilla' for item in value['devices'])<=1)
     dashboard_kinds = {"trafficLight", "robot", "motor", "led", "servo"}
     if canvas["background"] == "railCrossing":
         require(canvas["width"] == 960 and canvas["height"] == 540, "El paso a nivel utiliza un lienzo de 960 × 540.")
@@ -387,6 +472,116 @@ def scene(value, board_profile="wemos-d1-r32"):
             require(role not in occupied, "Cada barrera y detector necesita su propio lugar.")
             occupied.add(role)
     dashboard_items = {item["id"]: item for item in value["devices"]}
+    if "houseAssignments" in canvas:
+        assignments = canvas["houseAssignments"]
+        require(isinstance(assignments, dict) and len(assignments) <= 4)
+        assigned = set()
+        for role, device_id in assignments.items():
+            require(role in ("bell", "exitButton", "outsideLight", "insideLight") and identifier(device_id) and device_id not in assigned)
+            require(device_id in dashboard_items and dashboard_items[device_id]["kind"] == ("button" if role in ("bell", "exitButton") else "led"))
+            assigned.add(device_id)
+    if canvas["background"] == "gorillaTrack":
+        require(canvas["width"]==960 and canvas["height"]==540)
+        for d in value["devices"]:
+            if d["kind"]=="gorilla":
+                x,y=d["position"]["x"],d["position"]["y"]
+                require(65<=x<=895 and 100<=y<=460)
+                require(all((x-o["x"])**2+(y-o["y"])**2>(42+o["radius"])**2 for o in canvas.get("arenaEnvironment",{}).get("obstacles",[])))
+    if canvas["background"] == "lineTrack":
+        require(canvas["width"]==960 and canvas["height"]==540)
+        require(sum(d["kind"]=="robot" for d in value["devices"])<=1 and sum(d["kind"]=="lineSensors" for d in value["devices"])<=1)
+        for d in value["devices"]:
+            if d["kind"]=="robot":
+                require(42<=d["position"]["x"]<=918 and 72<=d["position"]["y"]<=488)
+            if d["kind"]=="lineSensors":
+                require(d["position"]==dict(x=165,y=420))
+    if canvas["background"] == "ottoTheater":
+        require(canvas["width"] == 960 and canvas["height"] == 540)
+        slots = {"otto": (480,210), "button": (760,360)}
+        occupied = set()
+        for item in value["devices"]:
+            if item["kind"] not in slots:
+                continue
+            require((item["position"]["x"], item["position"]["y"]) == slots[item["kind"]] and item["kind"] not in occupied)
+            occupied.add(item["kind"])
+    if canvas["background"] == "pondLab":
+        require(canvas["width"] == 960 and canvas["height"] == 540)
+        slots = {"distanceSensor": ((210,145),(640,185)), "powerSwitch": ((410,340),), "servo": ((835,375),), "waterSensor": ((640,445),)}
+        occupied = set()
+        for item in value["devices"]:
+            if item["kind"] not in slots:
+                continue
+            point = (item["position"]["x"],item["position"]["y"])
+            require(point in slots[item["kind"]] and (item["kind"],point) not in occupied and item["rotation"] == 0)
+            occupied.add((item["kind"],point))
+    if canvas["background"] == "weatherLab":
+        require(canvas["width"] == 960 and canvas["height"] == 540)
+        slots = {"environmentSensor": (210,220), "lightSensor": (345,220), "waterSensor": (370,365), "servo": (650,245)}
+        occupied = set()
+        for item in value["devices"]:
+            if item["kind"] not in slots:
+                continue
+            require((item["position"]["x"], item["position"]["y"]) == slots[item["kind"]] and item["kind"] not in occupied)
+            occupied.add(item["kind"])
+    if canvas["background"] == "robotArena":
+        require(canvas["width"] == 960 and canvas["height"] == 540)
+        for kind in ("robot", "distanceSensor", "colorSensor", "infraredBarrier"):
+            require(sum(item["kind"] == kind for item in value["devices"]) <= 1)
+        for item in value["devices"]:
+            if item["kind"] == "infraredBarrier":
+                require(item["position"] == {"x": 800, "y": 110})
+            if item["kind"] == "robot":
+                x, y = item["position"]["x"], item["position"]["y"]
+                require(number(x,45,915) and number(y,75,485))
+                require(all((x-o["x"])**2 + (y-o["y"])**2 > (o["radius"]+24)**2 for o in canvas.get("arenaEnvironment", {}).get("obstacles", [])))
+    if canvas["background"] == "conveyor":
+        require(canvas["width"] == 960 and canvas["height"] == 540)
+        slots = {"motor": ((160, 360),), "infraredBarrier": ((325, 270), (785, 185), (785, 355)), "colorSensor": ((325, 170),), "scale": ((435, 360),), "servo": ((640, 270),)}
+        occupied = set()
+        for item in value["devices"]:
+            if item["kind"] not in slots:
+                continue
+            position = (item["position"]["x"], item["position"]["y"])
+            require(position in slots[item["kind"]], "Elegí un lugar marcado del taller.")
+            role = (item["kind"], position)
+            require(role not in occupied, "Cada componente necesita su propio lugar.")
+            occupied.add(role)
+    if canvas["background"] == "smartHouse":
+        require(canvas["width"] == 960 and canvas["height"] == 540, "La casa utiliza un lienzo de 960 × 540.")
+        slots = {"servo": ((450, 280),), "pirSensor": ((175, 230), (755, 150)), "infraredBarrier": ((450, 380),), "lightSensor": ((650, 150), (65, 130)), "cardReader": ((340, 150),)}
+        occupied = set()
+        for item in value["devices"]:
+            if item["kind"] not in slots:
+                continue
+            position = (item["position"]["x"], item["position"]["y"])
+            require(position in slots[item["kind"]], "Elegí un lugar marcado de la casa.")
+            role = (item["kind"], position)
+            require(role not in occupied, "Cada componente necesita su propio lugar.")
+            occupied.add(role)
+    if canvas["background"] == "greenhouse":
+        require(canvas["width"] == 960 and canvas["height"] == 540, "La huerta utiliza un lienzo de 960 × 540.")
+        slots = {"soilMoisture": ((205, 365), (655, 365)), "powerSwitch": ((345, 365), (795, 365)), "environmentSensor": ((680, 145),), "servo": ((865, 205),), "lightSensor": ((375, 145),)}
+        occupied = set()
+        for item in value["devices"]:
+            if item["kind"] not in slots:
+                continue
+            position = (item["position"]["x"], item["position"]["y"])
+            require(position in slots[item["kind"]], "Elegí un lugar marcado de la huerta e invernadero.")
+            role = (item["kind"], position)
+            require(role not in occupied, "Cada componente de la huerta necesita su propio lugar.")
+            occupied.add(role)
+    if canvas["background"] == "parking":
+        require(canvas["width"] == 960 and canvas["height"] == 540, "El estacionamiento utiliza un lienzo de 960 × 540.")
+        parking_slots = {"servo": ((105, 430), (855, 430)), "infraredBarrier": ((160, 480), (160, 375), (800, 390), (800, 485))}
+        occupied = set()
+        for item in value["devices"]:
+            if item["kind"] not in parking_slots:
+                continue
+            position = (item["position"]["x"], item["position"]["y"])
+            require(position in parking_slots[item["kind"]], "Elegí un lugar marcado del estacionamiento.")
+            role = (item["kind"], position)
+            require(role not in occupied, "Cada barrera y detector necesita su propio lugar.")
+            occupied.add(role)
     require(all(device_id in dashboard_items and dashboard_items[device_id]["kind"] in dashboard_kinds for device_id in dashboard_ids), "El tablero contiene un control retirado o incompatible.")
     retired = value.get("retiredDeviceIds", [])
     require(all(item_id in ids for item_id in item_order), "El orden visual contiene un objeto retirado.")
@@ -408,7 +603,7 @@ def document(value):
     require(value["metadata"]["locale"] == "es-AR" and text(value["metadata"]["updatedAt"], 64, 1))
     require("migratedFrom" not in value["metadata"] or (type(value["metadata"]["migratedFrom"]) is int and value["metadata"]["migratedFrom"] == 1))
     exact(value["simulation"], ("scene", "speed"))
-    require(value["simulation"]["scene"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing") and number(value["simulation"]["speed"], 0.25, 4))
+    require(value["simulation"]["scene"] in ("traffic", "robot", "wifi", "counter", "intersection", "robotCourse", "smartGarden", "securityGate", "weatherStation", "railCrossing", "parking", "greenhouse", "smartHouse", "conveyor", "robotArena", "weatherLab", "ottoTheater", "lineTrack", "pondLab", "gorillaBench", "gorillaTrack") and number(value["simulation"]["speed"], 0.25, 4))
     scene(value["scene"], target["boardProfile"])
     workspace(value["workspace"])
     size = len(encoded(value))

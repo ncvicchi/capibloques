@@ -583,3 +583,173 @@ resetMessages();
 }
 console.log('Simulator worker smoke checks passed, including automatic railway inputs and cooperative gates.');
 function currentTrackCount(scene) { return scene.canvas.railTracks ?? 1; }
+
+// Execute both actual parking workspaces, not a hand-written controller.
+for (const exampleId of ['parking', 'parkingProcedures']) for (const capacity of [4, 8, 12]) for (const speed of [1, 4]) {
+  const example = examples.find(item => item.id === exampleId);
+  const parkingScene = structuredClone(example.scene);
+  parkingScene.canvas.parkingCapacity = capacity;
+  for (const device of parkingScene.devices) if (device.kind === 'infraredBarrier') device.config.interrupted = true;
+  const serialized = structuredClone(example.workspace);
+  const setCapacity = value => {
+    if (!value || typeof value !== 'object') return;
+    if (value.type === 'capi_variable_set_number' && value.fields.VAR.id === 'parking-capacity') value.inputs.VALUE.block.fields.VALUE = capacity;
+    Object.values(value).forEach(setCapacity);
+  };
+  setCapacity(serialized);
+  const workspace = new Blockly.Workspace();
+  workspaceDevices.set(workspace, parkingScene.devices);
+  Blockly.serialization.workspaces.load(serialized, workspace);
+  const parkingProgram = compileWorkspace(workspace); workspace.dispose();
+  send({ type: 'LOAD', scene: parkingScene, program: parkingProgram });
+  assert.ok(parkingScene.devices.filter(device => device.kind === 'infraredBarrier').every(device => latestState().devices[device.id].interrupted === false), 'al cargar manda el mundo vacío, no el ajuste manual del sensor');
+  send({ type: 'SET_INPUT', deviceId: 'parking-entryArrival', value: true });
+  assert.equal(latestState().devices['parking-entryArrival'].interrupted, false, 'no entrada manual competidora');
+  send({ type: 'SET_SPEED', speed }); send({ type: 'RUN' });
+  let entered = 0, exited = 0, seenFull = false;
+  for (let i = 0; i < 10000 / speed; i++) {
+    advance(20);
+    const current = latestState();
+    const world = current.parkingWorld;
+    assert.ok(world, `${exampleId}: el mundo se conserva en el worker`);
+    assert.equal(world.jammed, false, `${exampleId}/${capacity}/${speed}: no admitir si no hay plaza`);
+    const count = Number(current.variables['parking-occupied']);
+    assert.ok(count >= 0 && count <= capacity, 'contador sin duplicados ni valores negativos');
+    // Snapshot can fall between sensor clear and the following count statement.
+    assert.ok(Math.abs(count - (world.entries - world.exits)) <= 2, `cuenta propia sigue pasos completos: ${JSON.stringify({ exampleId, capacity, speed, now: current.now, count, entries: world.entries, exits: world.exits, cars: world.cars, variables: current.variables })}`);
+    entered = world.entries; exited = world.exits; seenFull ||= count === capacity;
+    if (i % 500 === 0) { const last = messages.findLast(message => message.type === 'SNAPSHOT'); resetMessages(); if (last) messages.push(last); }
+  }
+  assert.ok(entered >= 8 && exited >= 3, `${exampleId}/${capacity}/${speed}: entradas y salidas continúan (${entered}/${exited})`);
+  if (capacity === 4) assert.ok(seenFull, 'se ejercita la espera por estacionamiento completo');
+  send({ type: 'PAUSE' }); const before = structuredClone(latestState().parkingWorld);
+  advance(200); assert.deepEqual(latestState().parkingWorld, before);
+  send({ type: 'RESET' });
+  assert.equal(latestState().parkingWorld.cars.length, 0);
+  assert.equal(latestState().parkingWorld.jammed, false);
+  assert.equal(latestState().parkingWorld.entries, 0);
+  assert.ok(Object.values(latestState().parkingWorld.detectors).every(value => value === false));
+  send({ type: 'STEP' }); assert.ok(latestState().parkingWorld.nextArrivalMs < 800);
+  send({ type: 'STOP' }); resetMessages();
+}
+console.log('Estacionamiento: ambos ejemplos ejecutados con 4/8/12 plazas a 1×/4×, cola, conteo, pausa, paso y reinicio aprobados.');
+
+for (const exampleId of ['greenhouse', 'greenhouseProcedures']) for (const speed of [1, 4]) {
+  const example = examples.find(item => item.id === exampleId);
+  const workspace = new Blockly.Workspace(); workspaceDevices.set(workspace, example.scene.devices);
+  Blockly.serialization.workspaces.load(structuredClone(example.workspace), workspace);
+  const gardenProgram = compileWorkspace(workspace); workspace.dispose();
+  send({ type: 'LOAD', scene: example.scene, program: gardenProgram });
+  send({ type: 'SET_INPUT', deviceId: 'garden-outsideSoil', value: { property: 'moisture', value: 99 } });
+  assert.equal(latestState().devices['garden-outsideSoil'].values.moisture, 55);
+  send({ type: 'SET_INPUT', name: 'gardenEnvironment', value: { sun: 'strong' } });
+  assert.equal(latestState().gardenWorld.environment.sun, 'medium', 'rechazar clima incompleto');
+  send({ type: 'SET_SPEED', speed }); send({ type: 'RUN' });
+  const on = new Set(), off = new Set(); let opened = false, closedAfterOpen = false;
+  for (let i = 0; i < 10000 / speed; i++) {
+    advance(20); const current = latestState(), world = current.gardenWorld;
+    assert.ok(world, 'el mundo está en el worker');
+    for (const role of ['outside', 'inside']) {
+      assert.ok(world[role].moisture >= 30 && world[role].moisture <= 70, `${exampleId}: riego estable ${role}=${world[role].moisture}`);
+      assert.ok(world[role].health >= 85, 'cuidar la planta sin corregir el programa ocultamente');
+      const power = Number(current.devices[`garden-${role}Pump`].values.power);
+      if (power > 0) on.add(role); else if (on.has(role)) off.add(role);
+      assert.ok(Math.abs(current.devices[`garden-${role}Soil`].values.moisture - world[role].moisture) <= 0.5, 'lectura realimentada al algoritmo con resolución de 1%');
+    }
+    if (world.windowAngle >= 89) opened = true;
+    if (opened && world.windowAngle < 1) closedAfterOpen = true;
+    if (i % 500 === 0) { const last = messages.findLast(message => message.type === 'SNAPSHOT'); resetMessages(); if (last) messages.push(last); }
+  }
+  assert.equal(on.size, 2); assert.equal(off.size, 2, 'ambos riegos completaron ciclos');
+  if (exampleId === 'greenhouseProcedures') assert.ok(opened && closedAfterOpen, 'ventilar con dos umbrales');
+  send({ type: 'PAUSE' }); const before = structuredClone(latestState().gardenWorld); advance(200); assert.deepEqual(latestState().gardenWorld, before);
+  send({ type: 'RESET' }); assert.equal(latestState().gardenWorld.outside.moisture, 55); assert.equal(latestState().gardenWorld.inside.health, 90);
+  send({ type: 'STEP' }); assert.ok(latestState().gardenWorld.outside.moisture < 55, 'Paso mueve el mismo mundo');
+  send({ type: 'STOP' }); resetMessages();
+}
+console.log('Huerta: workspaces reales directo/modular, histéresis, sensores, ventilación, pausa, paso y reset a 1×/4× aprobados.');
+
+for (const exampleId of ['smartHouse', 'smartHouseProcedures']) for (const kind of ['known', 'unknown', 'none']) for (const speed of [1, 4]) {
+  const e = examples.find(e => e.id === exampleId), scene = structuredClone(e.scene);
+  scene.canvas.houseEnvironment = { night: false, automaticDay: false, automaticArrivals: false, nextVisitor: kind };
+  const workspace = new Blockly.Workspace(); workspaceDevices.set(workspace, scene.devices); Blockly.serialization.workspaces.load(structuredClone(e.workspace), workspace);
+  const program = compileWorkspace(workspace); workspace.dispose();
+  send({ type: 'LOAD', scene, program });
+  send({ type: 'SET_INPUT', deviceId: 'house-bell', value: true }); assert.equal(latestState().devices['house-bell'].pressed, false);
+  send({ type: 'SET_INPUT', name: 'houseEnvironment', value: { ...scene.canvas.houseEnvironment, night: true } });
+  send({ type: 'SET_INPUT', name: 'houseVisitor', value: kind });
+  send({ type: 'LOAD', scene, program, preserveWorldTrials: true });
+  assert.equal(latestState().houseWorld.pendingVisitor, kind, 'compilar al iniciar no pierde el visitante enviado antes de Simular');
+  assert.equal(latestState().houseWorld.environment.night, true, 'conserva el ensayo, no cambia el JSON inicial');
+  send({ type: 'SET_SPEED', speed }); send({ type: 'RUN' });
+  let insideLit = false, outsideLit = false;
+  for (let i = 0; i < 4000 / speed; i++) {
+    advance(20); const state = latestState();
+    insideLit ||= state.devices['house-insideLight'].brightness > 0; outsideLit ||= state.devices['house-outsideLight'].brightness > 0;
+    assert.equal(state.houseWorld.closeWarnings, 0, 'los ejemplos esperan paso completo');
+    if (i % 500 === 0) { const last = messages.findLast(m => m.type === 'SNAPSHOT'); resetMessages(); if (last) messages.push(last); }
+  }
+  const state = latestState(), admitted = exampleId === 'smartHouse' || kind === 'known';
+  assert.equal(Object.values(state.houseWorld.entries).reduce((a, b) => a + b, 0), admitted ? 1 : 0, `${exampleId}/${kind}/${speed}: política del programa`);
+  assert.equal(state.houseWorld.exits, admitted ? 1 : 0, 'salida independiente de tarjeta');
+  assert.equal(state.houseWorld.abandoned, admitted ? 0 : 1);
+  assert.equal(insideLit, admitted); assert.ok(outsideLit);
+  assert.equal(state.devices['house-insideLight'].brightness, 0, 'apagar al quedar vacía');
+  send({ type: 'PAUSE' }); const before = structuredClone(latestState().houseWorld); advance(200); assert.deepEqual(latestState().houseWorld, before);
+  send({ type: 'RESET' }); assert.equal(latestState().houseWorld.people.length, 0); assert.equal(latestState().houseWorld.closeWarnings, 0); assert.equal(latestState().houseWorld.environment.night, false);
+  send({ type: 'STEP' }); assert.ok(latestState().houseWorld.nextArrivalMs < 1500); send({ type: 'STOP' }); resetMessages();
+}
+console.log('Casa: ambos workspaces con tarjeta azul/roja/sin tarjeta a 1×/4×, entradas/salidas, luces, pausa/paso/reset aprobados.');
+
+for (const exampleId of ['conveyor', 'conveyorProcedures']) for (const speed of [1, 4]) for (const [color, weight] of [['red', 300], ['blue', 800], ['green', 500]]) {
+  const e = examples.find(e => e.id === exampleId), scene = structuredClone(e.scene);
+  scene.canvas.conveyorEnvironment = { automaticArrivals: false, color, weight };
+  const workspace = new Blockly.Workspace(); workspaceDevices.set(workspace, scene.devices); Blockly.serialization.workspaces.load(structuredClone(e.workspace), workspace);
+  const program = compileWorkspace(workspace); workspace.dispose();
+  send({ type: 'LOAD', scene, program });
+  send({ type: 'SET_INPUT', deviceId: 'conveyor-presence', value: true }); assert.equal(latestState().devices['conveyor-presence'].interrupted, false);
+  send({ type: 'SET_INPUT', name: 'conveyorPackage', value: scene.canvas.conveyorEnvironment });
+  send({ type: 'LOAD', scene, program, preserveWorldTrials: true });
+  assert.equal(latestState().conveyorWorld.pendingPackage.weight, weight);
+  send({ type: 'SET_SPEED', speed }); send({ type: 'RUN' });
+  let valid = false, outputSeen = false;
+  const route = (exampleId === 'conveyor' ? color === 'red' : weight > 500) ? 'A' : 'B';
+  for (let i = 0; i < 1500 / speed; i++) {
+    advance(20); const current = latestState(), w = current.conveyorWorld;
+    assert.equal(w.jammed, false, exampleId + ': no girar sobre un paquete');
+    if (w.readingValid) { valid = true; assert.equal(current.devices['conveyor-scale'].values.weight, weight); }
+    outputSeen ||= w['output' + route];
+    if (i % 400 === 0) { const last = messages.findLast(m => m.type === 'SNAPSHOT'); resetMessages(); if (last) messages.push(last); }
+  }
+  const current = latestState(); assert.equal(current.conveyorWorld['delivered' + route], 1, JSON.stringify(current.conveyorWorld)); assert.equal(current.counter, 1); assert.ok(valid && outputSeen);
+  send({ type: 'PAUSE' }); const before = structuredClone(latestState().conveyorWorld); advance(200); assert.deepEqual(latestState().conveyorWorld, before);
+  send({ type: 'RESET' }); assert.equal(latestState().conveyorWorld.packages.length, 0); assert.equal(latestState().conveyorWorld.jammed, false); assert.equal(latestState().counter, 0);
+  send({ type: 'STEP' }); assert.ok(latestState().conveyorWorld.nextArrivalMs < 1200); send({ type: 'STOP' }); resetMessages();
+}
+for (const exampleId of ['conveyor', 'conveyorProcedures']) {
+  const e = examples.find(e => e.id === exampleId), workspace = new Blockly.Workspace(); workspaceDevices.set(workspace, e.scene.devices); Blockly.serialization.workspaces.load(structuredClone(e.workspace), workspace);
+  const program = compileWorkspace(workspace); workspace.dispose(); send({ type: 'LOAD', scene: e.scene, program }); send({ type: 'SET_SPEED', speed: 4 }); send({ type: 'RUN' });
+  for (let i = 0; i < 2000; i++) { advance(20); assert.equal(latestState().conveyorWorld.jammed, false); if (i % 400 === 0) { const last = messages.findLast(m => m.type === 'SNAPSHOT'); resetMessages(); if (last) messages.push(last); } }
+  assert.ok(latestState().conveyorWorld.deliveredA + latestState().conveyorWorld.deliveredB >= 5);
+  assert.ok(Math.abs(latestState().counter - latestState().conveyorWorld.deliveredA - latestState().conveyorWorld.deliveredB) <= 1); send({ type: 'STOP' }); resetMessages();
+}
+console.log('Taller: ambos workspaces, tres colores/pesos incluido umbral exacto a 1×/4×, automático, sensores, conteo, pausa/paso/reset aprobados.');
+{
+  const scene = structuredClone(examples.find(e => e.id === 'conveyor').scene); scene.canvas.conveyorEnvironment.automaticArrivals = false;
+  send({ type: 'LOAD', scene, program: [
+    { op: 'servo', deviceId: 'conveyor-gate', angle: 45, blockId: 'wrong-gate' },
+    { op: 'motor', deviceId: 'conveyor-motor', direction: 'FORWARD', power: 100, blockId: 'wrong-motor' },
+    { op: 'repeat', count: -1, body: [{ op: 'wait', ms: 100, blockId: 'alive' }], blockId: 'keep-alive' },
+  ] });
+  send({ type: 'SET_INPUT', name: 'conveyorPackage', value: scene.canvas.conveyorEnvironment }); send({ type: 'SET_SPEED', speed: 4 }); send({ type: 'RUN' });
+  for (let i = 0; i < 150; i++) advance(20);
+  assert.equal(latestState().conveyorWorld.jammed, true); assert.equal(latestState().status, 'running');
+  const x = latestState().conveyorWorld.packages[0].x; for (let i = 0; i < 50; i++) advance(20); assert.equal(latestState().conveyorWorld.packages[0].x, x);
+  send({ type: 'RESET' }); assert.equal(latestState().conveyorWorld.jammed, false); assert.equal(latestState().conveyorWorld.packages.length, 0); send({ type: 'STOP' }); resetMessages();
+}
+console.log('Taller: programa incorrecto causa atasco sin congelar el worker; reset limpia todo.');
+
+// Independent worker harness avoids sharing live module globals with the existing suites.
+await import('node:child_process').then(({ execFileSync }) => execFileSync(process.execPath, ['--experimental-strip-types', 'scripts/arena-worker.test.mjs'], { stdio: 'inherit' }));
+
+await import('node:child_process').then(({ execFileSync }) => execFileSync(process.execPath, ['--experimental-strip-types', 'scripts/weather-worker.test.mjs'], { stdio: 'inherit' }));

@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import './pedestrian-world.test.mjs';
 import './rail-world.test.mjs';
+import './parking-world.test.mjs';
+import './garden-world.test.mjs';
+import './house-world.test.mjs';
 import { readFileSync } from 'node:fs';
 import {
   addDeviceToScene,
@@ -375,3 +378,26 @@ assert.match(stageSource, /key={`scene-world:\$\{scene\.id}:\$\{simulationEpoch}
 assert.match(appSource, /setSimulationEpoch\(\(current\) => current \+ 1\)/);
 assert.match(reviewSource, /type === 'RESET'.*setSimulationEpoch/);
 console.log('Mundos de escena: plantillas, carriles y límites validados.');
+
+await import('./conveyor-world.test.mjs');
+
+await import('./robot-arena.test.mjs');
+
+await import('./weather-world.test.mjs');
+
+await import('./theater-world.test.mjs');
+await import('./otto-queue.test.mjs');
+
+await import('./line-world.test.mjs');
+await import('node:child_process').then(({execFileSync})=>execFileSync(process.execPath,['--experimental-strip-types','scripts/line-worker.test.mjs'],{stdio:'inherit'}));
+
+await import('./pond-world.test.mjs');
+await import('node:child_process').then(({execFileSync})=>execFileSync(process.execPath,['--experimental-strip-types','scripts/pond-worker.test.mjs'],{stdio:'inherit'}));
+
+await import('./gorilla.test.mjs');
+await import('node:child_process').then(({execFileSync})=>{for(const file of ['gorilla-worker','gorilla-driver'])execFileSync(process.execPath,['--experimental-strip-types',`scripts/${file}.test.mjs`],{stdio:'inherit'});});
+
+await import('./gorilla-kinematics.test.mjs');
+
+await import('./gorilla-gait.test.mjs');
+await import('node:child_process').then(({execFileSync})=>execFileSync(process.execPath,['--experimental-strip-types','scripts/gorilla-gait-worker.test.mjs'],{stdio:'inherit'}));
