@@ -2,6 +2,12 @@
 
 ### Entrega vigente19/10 — Fase60: marcha coordinada y pista
 
+Actualización 22/10: el propietario confirmó Wemos D1 R32 + controlador HW-378
+(PCA9685) + TowerPro MG90S. En su montaje 150–600 ticks a 50Hz funciona bien y
+casi alcanza 180°; equivale aprox. a 732–2930µs. La rama ofrece esta escala como
+opción de calibración en el editor sin cambiar defaults/proyectos existentes.
+Es evidencia del montaje informado por el propietario, no de SDK/robot adicional.
+
 Rama `codex/fase-60-gorillabot-marcha`, desde origin/dev1
 `7b65ae1bd28520801620aa21b0c1ba0161a42b32`. [Reglas completas](FASE_60_GORILLABOT_MARCHA_PISTA.md).
 Propietario confirmó fase59 instalada en dev1. No se operó ningún servidor,

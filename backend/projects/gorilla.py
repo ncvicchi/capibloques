@@ -11,7 +11,7 @@ def geometry_valid(config, settings):
     zeros=k['zeroAngles']
     if k['profile']!='gorilla-v3-50-100-46' or type(k['verified']) is not bool or not isinstance(zeros,list) or len(zeros)!=8 or not all(type(a) is int and 45<=a<=135 for a in zeros):
         return False
-    if not (type(k['pulseMinUs']) is int and 500<=k['pulseMinUs']<=1200 and type(k['pulseMaxUs']) is int and 1800<=k['pulseMaxUs']<=2500):
+    if not (type(k['pulseMinUs']) is int and 500<=k['pulseMinUs']<=1200 and type(k['pulseMaxUs']) is int and 1800<=k['pulseMaxUs']<=3000):
         return False
     paths=config.get('trajectories',[])
     if not isinstance(paths,list) or len(paths)>8:

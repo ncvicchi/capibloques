@@ -49,7 +49,7 @@ export function validGorillaKinematics(v: unknown): v is GorillaKinematics {
     k.pulseMinUs >= 500 &&
     k.pulseMinUs <= 1200 &&
     k.pulseMaxUs >= 1800 &&
-    k.pulseMaxUs <= 2500
+    k.pulseMaxUs <= 3000
   );
 }
 const rad = Math.PI / 180,

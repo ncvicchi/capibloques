@@ -267,17 +267,27 @@ export default function GorillaTrajectories({
                 <input
                   type="number"
                   min={1800}
-                  max={2500}
+                  max={3000}
                   value={k.pulseMaxUs}
                   onChange={(e) =>
                     changeK({ ...k, pulseMaxUs: Number(e.target.value) })
                   }
                 />
               </label>
+              <Button
+                type="button"
+                onClick={() =>
+                  changeK({ ...k, pulseMinUs: 732, pulseMaxUs: 2930 })
+                }
+              >
+                Usar rango probado HW-378 + MG90S (ticks 150–600)
+              </Button>
               <p>
+                A 50 Hz, 150–600 ticks del PCA9685 equivalen aproximadamente a
+                732–2930 µs. Este rango fue probado en una HW-378 con MG90S;
+                verificá topes y movimiento de cada montaje antes de confirmar.
                 1000–2000 conserva la escala anterior; el código original usa
-                544–2400. No copies su escala sin comprobar tu servo. Cambiar
-                pulsos afecta todos los movimientos.
+                544–2400. Cambiar pulsos afecta todos los movimientos.
               </p>
               {gorillaLegNames.map((name, l) => (
                 <fieldset key={name}>

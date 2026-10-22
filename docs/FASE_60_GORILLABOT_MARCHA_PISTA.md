@@ -13,6 +13,11 @@ Se conserva el banco y todos los ejemplos anteriores. La nueva escena
 La geometría sigue siendo v3, 50/100/46 mm, con calibración por unidad y
 las guardas de [fase 59](FASE_59_GORILLABOT_CINEMATICA.md).
 
+Actualización de calibración 22/10/2026: para HW-378 + TowerPro MG90S, el
+propietario confirmó que 150–600 ticks a 50Hz funciona bien y llega cerca de
+180°. El editor de cinemática ofrece la equivalencia aproximada 732–2930µs como
+opción explícita; se mantienen los valores iniciales y escenas ya calibradas.
+
 ## Marcha acordada y concretada
 
 - Marcha lenta de cuatro tiempos: trasera izquierda → delantera izquierda →

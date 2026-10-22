@@ -70,8 +70,14 @@ en el editor. Cambiar pulsos también invalida la revisión general del componen
 Se conservan canales y escala anteriores,1000–2000µs. El programa adaptado
 suministrado usa544–2400µs y orden de canales distinto:
 DI A/B0/1, DD A/B7/6, TI A/B2/3, TD A/B5/4. No aplicarlos automáticamente.
-Los pulsos configurables500–1200/1800–2500µs deben contrastarse con cada unidad
+Los pulsos configurables500–1200/1800–3000µs deben contrastarse con cada unidad
 y oscilador PCA9685; no se certifica un giro real a partir del número enviado.
+Para la combinación HW-378 + TowerPro MG90S probada por el propietario,
+150–600 ticks a 50Hz corresponden aproximadamente a 732–2930µs. El editor
+ofrece ese rango como selección explícita; no cambia la calibración inicial ni
+la configuración de proyectos existentes. Confirmación del propietario del
+22/10/2026: ese rango en su montaje funciona bien y se acerca a 180°; no implica
+que todas las unidades MG90S compartan los mismos topes.
 
 ## Cinemática y ejecución
 
