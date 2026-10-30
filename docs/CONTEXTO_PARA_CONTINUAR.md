@@ -21,12 +21,10 @@ y diagnóstico del manifiesto de firmware.
 - No se ejecutaron pruebas ni compilaciones ni se conectó una placa. El
   propietario identificó la placa como Wemos D1 R32; aceptación física
   pendiente. No se consultó ni modificó el servidor dev2.
-  La revisión automática rechazó el push al detectar que el clon temporal
-  cambió el remoto local por GitHub. La conexión GitHub confirmó el repositorio
-  `ncvicchi/capibloques`, pero informó permiso `push=false`. No reintentar por
-  otra vía; falta publicar desde un origen con escritura, actualizar con
-  `capi-dev --env dev2 --branch codex/interpreter-serial-errors --commit SHA40`
-  y validar dev2/placa.
+  El propietario autorizó explícitamente el push para dev2; la rama quedó
+  publicada en `origin/codex/interpreter-serial-errors`. Aún no se ha confirmado
+  actualización del ambiente ni prueba física. El siguiente paso usa el
+  actualizador `capi-dev` con el SHA completo de la rama.
 
 ### Entrega vigente19/10 — Fase60: marcha coordinada y pista
 
