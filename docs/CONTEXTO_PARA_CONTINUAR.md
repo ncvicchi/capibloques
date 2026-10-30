@@ -1,5 +1,28 @@
 # CapiBloques — contexto para continuar
 
+### Corrección de errores al cargar y ejecutar el intérprete — 30/10/2026
+
+Rama `codex/interpreter-serial-errors`, creada desde `origin/dev2`
+`0822c6cd15fd0ea8b6a3563e87e74cfd2899971d`, por pedido del propietario para
+trabajar contra dev2. Corrige tres rutas relacionadas con los mensajes que
+reportó: «no pudimos detener los caminos», mensajes seriales demasiado grandes
+y diagnóstico del manifiesto de firmware.
+
+- El lector CapiLink ahora limita cada línea, no el total de varias líneas que
+  Web Serial entregue juntas. Antes podía rechazar un lote válido de telemetría
+  de más de 64 KiB como una sola respuesta excesiva.
+- La instrucción esperar cede la CPU en segmentos de hasta 20 ms y observa la
+  señal de parada. Antes dormía todo el intervalo de una vez; STOP podía agotar
+  su espera de 1 s y fallar mientras un camino tenía una espera larga.
+- La descarga del firmware ahora diferencia JSON inválido, placa/versión/ABI
+  incompatibles y campos del manifiesto dañados. Una versión vieja o de otra
+  placa da un mensaje que indica actualizar artefactos de firmware del ambiente.
+- No se ejecutaron pruebas ni compilaciones ni se conectó una placa. El modelo
+  físico exacto sigue pendiente. No se consultó ni modificó el servidor dev2;
+  el dueño actualiza con `capi-dev --env dev2 --branch
+  codex/interpreter-serial-errors --commit SHA40` tras revisar la entrega.
+  Falta commit/push y validar dev2/placa después de la actualización.
+
 ### Entrega vigente19/10 — Fase60: marcha coordinada y pista
 
 Rama `codex/fase-60-gorillabot-marcha`, desde origin/dev1

@@ -70,6 +70,15 @@ static size_t expected_bytes = 0;
 static uint32_t expected_crc = 0;
 static cJSON *active = nullptr;
 static volatile bool running = false, paused = false;
+static void cooperative_wait_ms(uint32_t milliseconds) {
+  const int64_t deadline = esp_timer_get_time() + (int64_t)milliseconds * 1000;
+  while (running) {
+    const int64_t remaining_us = deadline - esp_timer_get_time();
+    if (remaining_us <= 0) return;
+    const uint32_t remaining_ms = (uint32_t)((remaining_us + 999) / 1000);
+    cooperative_delay_ms(std::min<uint32_t>(remaining_ms, 20));
+  }
+}
 static std::atomic<bool> step_requested{false};
 static std::atomic<int> step_owner{-1};
 static uint32_t paused_at = 0;
@@ -789,7 +798,7 @@ static void execute_task(void *parameter) {
     cJSON *instruction = cJSON_GetArrayItem(instructions, pc), *dev = device(text(instruction,"deviceId")); const char *op = text(instruction,"op"), *block = text(instruction,"blockId",nullptr);
     if(reported!=pc){telemetry("block",block,op);reported=pc;}
     if (!strcmp(op,"halt")) break;
-    if (!strcmp(op,"wait")) vTaskDelay(pdMS_TO_TICKS(std::max(0, number(instruction,"ms"))));
+    if (!strcmp(op,"wait")) cooperative_wait_ms(std::max(0, number(instruction,"ms")));
     else if (!strcmp(op,"counterSet")) {counter_value=number(instruction,"value");telemetry_state("counter",block,nullptr,std::to_string(counter_value.load()));}
     else if (!strcmp(op,"counterChange")) {counter_value.fetch_add(number(instruction,"delta"));telemetry_state("counter",block,nullptr,std::to_string(counter_value.load()));}
     else if (!strcmp(op,"variableSet")||!strcmp(op,"variableChange")) {const char *id=text(instruction,"variableId");RuntimeValue incoming=evaluate(cJSON_GetObjectItem(instruction,!strcmp(op,"variableSet")?"value":"delta"));std::string shown;if(variables_mutex)xSemaphoreTake(variables_mutex,portMAX_DELAY);for(auto &variable:variables)if(variable.id==id){if(!strcmp(op,"variableChange")&&variable.value.kind==RuntimeValue::NUMBER){int64_t result=(int64_t)variable.value.number+value_number(incoming);variable.value.number=(int32_t)std::clamp<int64_t>(result,INT32_MIN,INT32_MAX);}else if(variable.value.kind==RuntimeValue::TEXT)variable.value.text=value_text(incoming);else if(variable.value.kind==RuntimeValue::BOOLEAN)variable.value.boolean=value_boolean(incoming);else variable.value.number=value_number(incoming);shown=value_text(variable.value);break;}if(variables_mutex)xSemaphoreGive(variables_mutex);telemetry_state("variable",block,id,shown);}
