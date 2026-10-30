@@ -1,11 +1,98 @@
 # Grabación y envío de reglas resistentes a fallos
 
+## Estado vigente: STOP durante esperas, firmware1.14.2 (30/10)
+
+Rama `codex/dev1-stop-caminos` desde dev1 b43c43a, incorporando por avance
+rápido la corrección40497f9 del saludo/publicación aún no integrada en dev1.
+No modifica main/dev2 ni datos del servidor.
+
+Se reprodujo **en la Wemos física con1.14.1**: cargar una espera de60s,
+ejecutar y enviar STOP a los150ms devuelve «No pudimos detener todos los
+caminos.» después de1,015s. El error sucede antes de BEGIN, no tiene relación
+con el número de instrucciones, el tamaño ni el CRC del proyecto. El texto
+de detalles sobre conservación de reglas es informativo, no otro error.
+
+Causa: `wait` hacía un único `vTaskDelay` con toda su duración; STOP sólo
+esperaba1s para que los caminos salieran. La nueva espera entrega CPU en
+segmentos de hasta10ms, comprueba STOP y congela el tiempo restante durante
+PAUSA. STEP puede completar el bloque y volver a pausa. Conserva reloj
+monotónico y aritmética de rollover, sin eliminar tareas a la fuerza ni
+liberar reglas mientras todavía se usan. `running` y `paused` son atómicos.
+
+Se añade una barrera breve al crear los caminos iniciales: un camino que
+termina enseguida no puede anunciar fin global antes de registrar a sus
+hermanos. Los contextos esperan sin tomar mutex. Los caminos creados en
+fork siguen conservando conteo y join existentes.
+
+**Evidencia física1.14.2:** compilación completa/incremental ESP-IDF5.4.1,
+grabación con esptool-js de producción y conexión sin reset manual. Espera
+larga, pausa y cuatro caminos paralelos/join permitieron STOP+carga completa
+del reemplazo en341–388ms. También pasaron varios caminos iniciales con uno
+instantáneo, reemplazo de espera autoarrancada tras reset, carga27KB,
+20ciclos y3 adicionales, duplicados/CRC/reset parcial. La placa queda con
+un programa sintético sin GPIO, detenido; los actuadores estaban desconectados.
+Las pruebas usan el puente pySerial descrito abajo, no se presentan como
+aceptación del USB nativo de Chrome/Edge ni de otras placas.
+
+`npm run test:usb` incluye prueba C++ del helper real: STOP durante60s,
+STOP pausado, tiempo congelado, STEP, cero y rollover. Suite smoke completa,
+TypeScript, lint, validación de entornos y build estático aprobados.
+La entrega requiere **1.14.2 / ABI1**, con versiones de empaquetado y web
+coherentes; una1.14.1 debe actualizarse antes de enviar reglas desde la web
+nueva. La Wemos de la prueba ya quedó en1.14.2.
+
+Actualizar sólo dev1 con el script fresco (sustituir SHA40 por el commit de
+esta entrega), porque puede seguir instalado el actualizador antiguo:
+
+```sh
+cd /home/capi/capibloques && git fetch --quiet origin codex/dev1-stop-caminos && git show origin/codex/dev1-stop-caminos:scripts/update-dev.sh | bash -s -- --env dev1 --branch codex/dev1-stop-caminos --commit SHA40
+```
+
+Conserva las cachés del SDK; no requiere instalar otras herramientas ni
+integrar separadamente40497f9. Lo que sigue registra las entregas anteriores.
+
 Trabajo autorizado el 30/10/2026 en `codex/dev1-carga-placa-robusta`, desde
 `origin/dev1` (`0c71577`). Amplía la fase 20; no incorpora por inferencia las
 entregas de las fases 61/62 que están en otras ramas. No modifica main, dev2,
 datos, migraciones ni infraestructura. El propietario actualiza dev1.
 
 ## Fallos encontrados y correcciones
+
+### Corrección del primer saludo y publicación (30/10, posterior a instalar en DEV1)
+
+El propietario confirmó «Comando desconocido.» al primer intento y
+«Intérprete 1.14.1 listo» al reintentar. Se reprodujo el camino en pruebas:
+el modo de descubrimiento legacy admitía también un ERROR sin requestId.
+Una respuesta de un comando parcial/anterior podía fallar un HELLO nuevo.
+Ahora sólo HELLO puede aceptarse sin ID durante descubrimiento; un ERROR
+sin correlación no se atribuye al pedido actual. El reintento ocurre sin
+cerrar el asistente ni exigir otro clic. No se ignoran errores correlacionados
+de una carga de reglas. Esta causa reproduce el síntoma; no se capturaron
+los bytes de aquel primer intento real del propietario.
+
+La inspección de DEV1 confirmó la release `b43c43a` activa, pero su manifiesto
+descargable declaraba 1.9.0. El actualizador instalado era anterior al arreglo
+que usa el manager exacto de cada release. Por ello, versión publicada y
+fuentes podían diferir aunque HTTP/API e imagen fueran saludables. Se agrega
+verificación de los manifiestos HTTP reales de los tres perfiles, su versión,
+ABI, placa y árbol de fuentes antes de confirmar éxito. La versión incorrecta
+produce un error claro en el editor antes de descargar/escribir firmware.
+
+Cada actualización exitosa renueva atómicamente el comando de usuario
+`~/.local/bin/capi-dev` con el script de esa release. No instala un manager
+global, no modifica main/dev2 y no borra cachés SDK. Para salir por primera
+vez del comando antiguo, usar el script fresco desde la rama publicada:
+
+```sh
+cd /home/capi/capibloques && git fetch --quiet origin codex/dev1-instalar-firmware-diagnostico && git show origin/codex/dev1-instalar-firmware-diagnostico:scripts/update-dev.sh | bash -s -- --env dev1 --branch codex/dev1-instalar-firmware-diagnostico --commit SHA40
+```
+
+Conservar el commit exacto de la entrega. Después vuelve a bastar el comando
+normal capi-dev. Estas correcciones no cambian el firmware intérprete: sigue
+1.14.1 y conserva el árbol de fuentes, por lo que la Wemos ya grabada no debe
+volver a flashearse sólo por este arreglo web. Las pruebas del saludo y de
+publicación fallida son automatizadas; las pruebas físicas anteriores siguen
+referidas al firmware1.14.1, sin atribuirlas a USB nativo del navegador.
 
 1. **Reset incompleto de esptool-js 0.6.1, reproducido físicamente.** Su
    `HardReset.reset()` espera y libera RTS, pero no lo activa. Una grabación

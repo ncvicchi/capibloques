@@ -1,5 +1,7 @@
 # Fase 20 — Uso guiado de la placa
 
+**Vigente30/10: STOP y espera cancelable, intérprete1.14.2.** [Entrega y pruebas reales](CARGA_PLACA_ROBUSTA.md). Corrige STOP ante waits largos/pausados y arranque paralelo; Wemos física: reemplazo completo341–388ms y20+3ciclos aprobados. Rama desde dev1 incluye el arreglo previo de saludo/publicación. Un solo comando fresco actualiza dev1; la Wemos ensayada ya tiene1.14.2. Versiones inferiores de esta guía son históricas.
+
 **Ampliación de fiabilidad30/10/2026:** [carga robusta y pruebas](CARGA_PLACA_ROBUSTA.md). La entrega de esta rama requiere intérprete1.14.1/ABI1 con reliable-transfer. Corrige el pulso de reset y continúa automáticamente después de grabar. Wemos real: grabación y veinte ciclos sin reset manual; otras placas y aceptación del USB nativo pendientes. Las versiones inferiores mencionadas a continuación son históricas.
 
 Estado al 3 de octubre de 2026: **asistente, selección visual y modelo de dos placas implementados en software; reconexión posgrabación sin recarga, consulta del proyecto activo, aceptación física y escena remota Waveshare pendientes**. El propietario redefinió la fase para que el recorrido cotidiano sea instalar el firmware intérprete precompilado y enviar reglas localmente. La compilación Arduino/ESP-IDF por proyecto se conserva como herramienta avanzada, pero deja de competir con la acción principal.

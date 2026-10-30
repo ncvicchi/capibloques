@@ -1,5 +1,6 @@
 """Fast local contracts. No Docker/SSH, no disk changes outside temporary dirs."""
 import importlib.util
+import io
 import hashlib
 import json
 import os
@@ -28,6 +29,20 @@ seeder = load('environment_seeder', 'ops/environments/seed.py')
 
 
 class EnvironmentTests(unittest.TestCase):
+    def test_published_firmware_must_match_release_not_only_http_health(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            release = Path(temporary)
+            (release/'interpreter/main').mkdir(parents=True)
+            (release/'interpreter/main/main.cpp').write_text('#define CAPI_FIRMWARE_VERSION "1.14.1"\n')
+            def published(url, **kwargs):
+                profile = url.rsplit('/', 1)[-1].removesuffix('.json')
+                return io.StringIO(json.dumps(dict(board=profile, version='1.14.1', abi=1, sourceRevision='tree')))
+            with patch.object(manager, 'git', return_value='tree'), patch.object(manager.urllib.request, 'urlopen', side_effect=published):
+                manager.verify_published_firmware(manager.layout('dev1'), release, 'a'*40)
+            with patch.object(manager, 'git', return_value='tree'), patch.object(manager.urllib.request, 'urlopen', return_value=io.StringIO(json.dumps(dict(board=manager.PROFILES[0], version='1.9.0', abi=1, sourceRevision='tree')))):
+                with self.assertRaisesRegex(RuntimeError, 'esperado 1.14.1, publicado 1.9.0'):
+                    manager.verify_published_firmware(manager.layout('dev1'), release, 'a'*40)
+
     def test_fixture_comparison_normalizes_only_zero_timestamp_not_program_text(self):
         a = [{'model': 'projects.project', 'pk': 'id', 'fields': {
             'created_at': '2026-10-18T00:00:00.000Z', 'document': {'text': 'data.000Z'}}}]
@@ -204,6 +219,8 @@ class EnvironmentTests(unittest.TestCase):
         self.assertIn('git show "$target:ops/environments/manage.py" >"$REMOTE_SCRIPT"', source)
         self.assertIn('sudo python3 "$REMOTE_SCRIPT" deploy "$DESTINATION" --commit "$target"', source)
         self.assertNotIn('manage.py install', source)
+        self.assertIn('git show "$target:scripts/update-dev.sh" >"$launcher_candidate"', source)
+        self.assertIn('mv -f "$launcher_candidate" "$launcher_directory/capi-dev"', source)
 
     def test_missing_existing_database_secret_is_not_regenerated(self):
         with tempfile.TemporaryDirectory() as temporary:

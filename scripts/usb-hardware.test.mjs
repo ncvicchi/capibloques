@@ -75,6 +75,38 @@ try {
   assert.equal(session.state.stage, 'ready', session.state.message); await session.send(large);
   await session.send(bundle); await session.close(); session = null;
   console.log(`LARGE RULES OK: ${large.bytes.length} bytes, ${Math.ceil(large.bytes.length / 768)} confirmed chunks, small fixture restored before running`);
+  const waitNodes = [{ op: 'wait', ms: 60000, blockId: 'wait-60s' }];
+  const parallelNodes = [{ op: 'parallel', blockId: 'parallel', branches: Array.from({ length: 4 }, (_, index) => [{ op: 'wait', ms: 60000, blockId: `parallel-wait-${index}` }]) }];
+  for (const [name, nodes, pause] of [['long wait', waitNodes, false], ['paused long wait', waitNodes, true], ['four parallel waits and join', parallelNodes, false]]) {
+    const waiting = createCapiRules({ version: 2, variables: [], threads: [{ id: 'main', startBlockId: 's', nodes }] }, createEmptyScene('STOP durante espera'), 'wemos-d1-r32');
+    session = new InterpreterSession(); await session.connect(async () => port, 'wemos-d1-r32');
+    assert.equal(session.state.stage, 'ready', session.state.message); await session.send(waiting); await session.command('RUN');
+    await new Promise(resolve => setTimeout(resolve, 100));
+    if (pause) await session.command('PAUSE');
+    const started = performance.now(); await session.send(bundle);
+    const elapsed = performance.now() - started; assert.ok(elapsed < 2000, `${name}: STOP and replacement took ${elapsed}ms`);
+    console.log(`STOP OK: ${name}, program replaced in ${Math.round(elapsed)}ms`);
+    await session.close(); session = null;
+  }
+  // Last rules boot automatically. Reconnect/replacement must stop that wait too.
+  const multiInitial = createCapiRules({ version: 2, variables: [], threads: [
+    { id: 'fast', startBlockId: 'fast-start', nodes: [{ op: 'wait', ms: 0, blockId: 'fast-wait' }] },
+    { id: 'slow', startBlockId: 'slow-start', nodes: [{ op: 'wait', ms: 60000, blockId: 'slow-wait' }] },
+  ] }, createEmptyScene('Dos caminos iniciales'), 'wemos-d1-r32');
+  session = new InterpreterSession(); await session.connect(async () => port, 'wemos-d1-r32');
+  await session.send(multiInitial); await session.command('RUN'); await new Promise(resolve => setTimeout(resolve, 100));
+  assert.equal(session.state.stage, 'running', 'a completed fast initial task must not end its still-running sibling');
+  await session.send(bundle); await session.close(); session = null;
+  console.log('STOP OK: simultaneous initial paths, one immediate completion and one 60s wait');
+  session = new InterpreterSession(); await session.connect(async () => port, 'wemos-d1-r32');
+  const bootWait = createCapiRules({ version: 2, variables: [], threads: [{ id: 'main', startBlockId: 's', nodes: waitNodes }] }, createEmptyScene('Espera al arrancar'), 'wemos-d1-r32');
+  await session.send(bootWait); await session.close(); session = null;
+  await port.open({ baudRate: 115200 }); await port.setSignals({ dataTerminalReady: false }); await port.setSignals({ requestToSend: true });
+  await new Promise(resolve => setTimeout(resolve, 100)); await port.setSignals({ requestToSend: false }); await port.close();
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  session = new InterpreterSession(); await session.connect(async () => port, 'wemos-d1-r32');
+  assert.equal(session.state.stage, 'ready', session.state.message); await session.send(bundle); await session.close(); session = null;
+  console.log('STOP OK: replacing the automatically started 60s wait after board reset');
   for (let index = 0; index < cycles; index++) {
     session = new InterpreterSession();
     await session.connect(async () => port, 'wemos-d1-r32'); assert.equal(session.state.stage, 'ready', session.state.message);

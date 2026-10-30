@@ -3,6 +3,7 @@ import { InterpreterSession, encodeProtocolPacket, ProtocolLines } from '../lib/
 import { createCapiRules, CAPI_INTERPRETER_VERSION } from '../lib/capi-rules.ts';
 import { createEmptyScene } from '../lib/scene-model.ts';
 import { acquireUsbLease } from '../lib/usb-lease.ts';
+import { fetchInterpreterFirmware } from '../lib/interpreter-firmware.ts';
 
 const delay = ms => new Promise(resolve => realTimeout(resolve, ms));
 const realTimeout = globalThis.setTimeout;
@@ -34,6 +35,9 @@ function board(options = {}) {
           cache = { id: request.requestId, response };
         }
         if (options.drop?.includes(request.type) && !dropped.has(request.type)) { dropped.add(request.type); return; }
+        if (options.bootError && request.type === 'HELLO' && !dropped.has('boot-error')) {
+          dropped.add('boot-error'); controller.enqueue(encodeProtocolPacket({ type: 'ERROR', message: 'Comando desconocido.' })); return;
+        }
         if (options.silent === request.type) return;
         if (options.noise) controller.enqueue(new TextEncoder().encode('{broken boot log}\n'));
         if (options.stale) controller.enqueue(encodeProtocolPacket({ type: 'ERROR', requestId: 'old-connection', message: 'stale' }));
@@ -48,6 +52,13 @@ function board(options = {}) {
 }
 async function connect(fake) { const session = new InterpreterSession(); await session.connect(async () => fake.port, 'wemos-d1-r32'); assert.equal(session.state.stage, 'ready', session.state.message); return session; }
 try {
+  const originalFetch = globalThis.fetch;
+  let downloads = 0;
+  globalThis.fetch = async () => { downloads++; return new Response(JSON.stringify({ version: '1.9.0' }), { status: 200 }); };
+  try { await assert.rejects(fetchInterpreterFirmware('wemos-d1-r32', new AbortController().signal), /ofrece firmware 1.9.0.*necesita 1.14.2/); }
+  finally { globalThis.fetch = originalFetch; }
+  assert.equal(downloads, 1, 'a stale manifest must not download or flash a bundle');
+  console.log('Reliable USB: mismatched published firmware gives an actionable error before downloading/USB');
   const normal = board({ duplicate: true, noise: true, stale: true, drop: ['HELLO', 'STOP', 'BEGIN', 'CHUNK', 'VERIFY', 'COMMIT', 'RUN'] });
   const session = await connect(normal);
   await assert.rejects(session.send({ ...bundle, document: { ...bundle.document, board: 'diymall-esp32-s3-devkitc-v1-n16r8' } }), /no coincide/);
@@ -89,6 +100,9 @@ try {
 
   const legacy = board({ legacy: true }), old = new InterpreterSession();
   await old.connect(async () => legacy.port, 'wemos-d1-r32'); assert.equal(old.state.stage, 'incompatible'); await assert.rejects(old.send(bundle)); await old.close();
+  const boot = board({ bootError: true }), bootSession = await connect(boot);
+  assert.equal(boot.effects.HELLO, 2); await bootSession.close();
+  console.log('Reliable USB: untagged unknown-command from buffered startup cannot fail a fresh HELLO');
   let choose;
   const cancelled = new InterpreterSession(), late = board();
   const connecting = cancelled.connect(() => new Promise(resolve => choose = resolve), 'wemos-d1-r32');

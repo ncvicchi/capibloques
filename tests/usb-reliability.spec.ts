@@ -12,7 +12,7 @@ test.beforeEach(async ({ page }) => {
   await page.route(/\/lib\/interpreter-firmware\.ts(?:\?|$)/, route => route.fulfill({ contentType: 'text/javascript', body: 'export async function fetchInterpreterFirmware(){return {chip:"ESP32",flashBytes:4194304,parts:[{address:4096,data:new Uint8Array([1,2,3])}]};}' }));
   await page.route(/\/lib\/usb-esptool\.ts(?:\?|$)/, route => route.fulfill({ contentType: 'text/javascript', body: 'export async function createEspDriver(port){return {async detect(){await port.open();return {chip:"ESP32",flashBytes:4194304}},async write(f,p){p(100)},async reset(){},async close(){await port.close()}};}' }));
   await page.addInitScript(version => {
-    const probe = { selected: 0, opened: 0, closed: 0, commands: [] as string[], disconnectNext: false };
+    const probe = { selected: 0, opened: 0, closed: 0, commands: [] as string[], disconnectNext: false, bootErrorNext: false };
     Object.assign(window, { usbProbe: probe });
     let controller: ReadableStreamDefaultController<Uint8Array>;
     const port = {
@@ -23,6 +23,9 @@ test.beforeEach(async ({ page }) => {
         this.readable = new ReadableStream({ start(value) { controller = value; } });
         this.writable = new WritableStream({ async write(bytes: Uint8Array) {
           const request = JSON.parse(new TextDecoder().decode(bytes)); probe.commands.push(request.type);
+          if (request.type === 'HELLO' && probe.bootErrorNext) {
+            probe.bootErrorNext = false; controller.enqueue(new TextEncoder().encode('{"type":"ERROR","message":"Comando desconocido."}\n')); return;
+          }
           if (request.type === 'CHUNK' && probe.disconnectNext) { probe.disconnectNext = false; controller.close(); return; }
           const answer = request.type === 'HELLO' ? { protocol: 'CapiLink', firmware: version, abi: 1, board: 'wemos-d1-r32', maxRulesBytes: 32768, capabilities: ['core', 'reliable-transfer'], resources: { pwmChannels: 8 } } : {};
           const type = ({ HELLO: 'HELLO', BEGIN: 'READY', CHUNK: 'ACK', VERIFY: 'VERIFIED', COMMIT: 'COMMITTED' } as Record<string, string>)[request.type] ?? 'OK';
@@ -83,6 +86,7 @@ test('la instalación continúa a las reglas sin selector adicional, recarga ni 
   await page.getByRole('checkbox', { name: 'Es la placa correcta.' }).check();
   await page.getByRole('checkbox', { name: 'Motores y actuadores están desconectados.' }).check();
   await page.getByRole('checkbox', { name: 'Podemos reemplazar el programa actual.' }).check();
+  await page.evaluate(() => { (window as unknown as { usbProbe: { bootErrorNext: boolean } }).usbProbe.bootErrorNext = true; });
   await page.getByRole('button', { name: 'Instalar CapiBloques', exact: true }).click();
   await expect.poll(() => page.evaluate(() => (window as unknown as { usbProbe: { opened: number } }).usbProbe.opened)).toBe(3);
   await expect(page.getByRole('heading', { name: 'Enviar el programa' })).toBeVisible();

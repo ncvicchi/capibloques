@@ -46,11 +46,12 @@
 #include "font5x7.h"
 #include "frame_animation.h"
 #include "link_transfer.h"
+#include "program_wait.h"
 
 #ifndef CAPI_BOARD_ID
 #define CAPI_BOARD_ID "wemos-d1-r32"
 #endif
-#define CAPI_FIRMWARE_VERSION "1.14.1"
+#define CAPI_FIRMWARE_VERSION "1.14.2"
 #include "gorilla_core.h"
 static bool is_waveshare(){return !strcmp(CAPI_BOARD_ID,"waveshare-esp32-s3-touch-lcd-5-28117");}
 static constexpr uint16_t ABI = 1;
@@ -75,7 +76,8 @@ static std::vector<uint8_t> candidate;
 static size_t expected_bytes = 0;
 static uint32_t expected_crc = 0;
 static cJSON *active = nullptr;
-static volatile bool running = false, paused = false;
+static std::atomic<bool> running{false}, paused{false};
+static std::atomic<bool> starting_program{false};
 static std::atomic<bool> step_requested{false};
 static std::atomic<int> step_owner{-1};
 static uint32_t paused_at = 0;
@@ -802,6 +804,7 @@ static bool start_task(int index) {
 }
 static void execute_task(void *parameter) {
   TaskContext *context=(TaskContext*)parameter;cJSON *task=context->task,*instructions=cJSON_GetObjectItem(task,"output");int task_index=context->index;delete context;int pc=0,reported=-1,stepped_pc=-1;std::vector<int> loops(32,0);bool message_waiting=false,wifi_message_waiting=false,otto_waiting=false,wifi_waiting=false,gorilla_waiting=false;TickType_t message_started=0,wifi_message_started=0,otto_started=0,wifi_started_at=0;
+  while(starting_program.load() && running.load()) cooperative_delay_ms(1);
   while (running && pc < cJSON_GetArraySize(instructions)) {
     if(step_owner==task_index&&stepped_pc>=0&&pc!=stepped_pc){step_owner=-1;step_requested=false;paused=true;telemetry("step-done",text(task,"id"),"Paso terminado");
 #ifdef CONFIG_IDF_TARGET_ESP32S3
@@ -818,7 +821,13 @@ static void execute_task(void *parameter) {
     cJSON *instruction = cJSON_GetArrayItem(instructions, pc), *dev = device(text(instruction,"deviceId")); const char *op = text(instruction,"op"), *block = text(instruction,"blockId",nullptr);
     if(reported!=pc){telemetry("block",block,op);reported=pc;}
     if (!strcmp(op,"halt")) break;
-    if (!strcmp(op,"wait")) vTaskDelay(pdMS_TO_TICKS(std::max(0, number(instruction,"ms"))));
+    if (!strcmp(op,"wait")) {
+      capi_program_wait(static_cast<uint32_t>(std::max(0, number(instruction,"ms"))),
+        [] { return running.load(); }, [] { return paused.load(); },
+        [task_index] { return step_owner.load() == task_index; },
+        [] { return static_cast<uint32_t>(esp_timer_get_time()/1000); },
+        [](uint32_t ms) { cooperative_delay_ms(ms); });
+    }
     else if (!strcmp(op,"counterSet")) {counter_value=number(instruction,"value");telemetry_state("counter",block,nullptr,std::to_string(counter_value.load()));}
     else if (!strcmp(op,"counterChange")) {counter_value.fetch_add(number(instruction,"delta"));telemetry_state("counter",block,nullptr,std::to_string(counter_value.load()));}
     else if (!strcmp(op,"variableSet")||!strcmp(op,"variableChange")) {const char *id=text(instruction,"variableId");RuntimeValue incoming=evaluate(cJSON_GetObjectItem(instruction,!strcmp(op,"variableSet")?"value":"delta"));std::string shown;if(variables_mutex)xSemaphoreTake(variables_mutex,portMAX_DELAY);for(auto &variable:variables)if(variable.id==id){if(!strcmp(op,"variableChange")&&variable.value.kind==RuntimeValue::NUMBER){int64_t result=(int64_t)variable.value.number+value_number(incoming);variable.value.number=(int32_t)std::clamp<int64_t>(result,INT32_MIN,INT32_MAX);}else if(variable.value.kind==RuntimeValue::TEXT)variable.value.text=value_text(incoming);else if(variable.value.kind==RuntimeValue::BOOLEAN)variable.value.boolean=value_boolean(incoming);else variable.value.number=value_number(incoming);shown=value_text(variable.value);break;}if(variables_mutex)xSemaphoreGive(variables_mutex);telemetry_state("variable",block,id,shown);}
@@ -943,7 +952,7 @@ else if (!strcmp(op,"matrixClear")) {if(matrix_mutex)xSemaphoreTake(matrix_mutex
 #endif
   vTaskDelete(nullptr);
 }
-static bool start_program(bool start_paused=false) { if(!active||running||active_tasks>0)return false;for(auto &state:task_states)state=0;step_requested=false;step_owner=-1;counter_value=0;wifi_messages_reset();initialize_variables();initialize_component_states();gorilla_reset();if(timers_mutex)xSemaphoreTake(timers_mutex,portMAX_DELAY);initialize_timers();if(timers_mutex)xSemaphoreGive(timers_mutex);if(message_mutex)xSemaphoreTake(message_mutex,portMAX_DELAY);message_last.clear();bool messages_ready=message_begin();if(message_mutex)xSemaphoreGive(message_mutex);if(!messages_ready){telemetry("error",nullptr,"No se pudo iniciar el puerto de Mensajes.");return false;}traffic_matrix_begin();if(matrix_mutex)xSemaphoreTake(matrix_mutex,portMAX_DELAY);matrix_begin();if(matrix_mutex)xSemaphoreGive(matrix_mutex);if(otto_mutex)xSemaphoreTake(otto_mutex,portMAX_DELAY);otto_begin();if(otto_mutex)xSemaphoreGive(otto_mutex);if(display_mutex)xSemaphoreTake(display_mutex,portMAX_DELAY);bool display_ready=display_begin();if(display_mutex)xSemaphoreGive(display_mutex);if(!display_ready){telemetry("error",nullptr,"No se pudo iniciar la pantalla de texto.");return false;}if(smart_lights_mutex)xSemaphoreTake(smart_lights_mutex,portMAX_DELAY);bool smart_ready=smart_begin();if(smart_lights_mutex)xSemaphoreGive(smart_lights_mutex);if(!smart_ready){telemetry("error",nullptr,"No se pudieron iniciar las luces RGB inteligentes.");return false;}running=true;paused=start_paused;cJSON *tasks=cJSON_GetObjectItem(active,"tasks"),*task;int index=0,started=0;cJSON_ArrayForEach(task,tasks){if(cJSON_IsTrue(cJSON_GetObjectItem(task,"initial"))&&start_task(index))++started;++index;}if(!started){running=false;paused=false;return false;}
+static bool start_program(bool start_paused=false) { if(!active||running||active_tasks>0)return false;for(auto &state:task_states)state=0;step_requested=false;step_owner=-1;counter_value=0;wifi_messages_reset();initialize_variables();initialize_component_states();gorilla_reset();if(timers_mutex)xSemaphoreTake(timers_mutex,portMAX_DELAY);initialize_timers();if(timers_mutex)xSemaphoreGive(timers_mutex);if(message_mutex)xSemaphoreTake(message_mutex,portMAX_DELAY);message_last.clear();bool messages_ready=message_begin();if(message_mutex)xSemaphoreGive(message_mutex);if(!messages_ready){telemetry("error",nullptr,"No se pudo iniciar el puerto de Mensajes.");return false;}traffic_matrix_begin();if(matrix_mutex)xSemaphoreTake(matrix_mutex,portMAX_DELAY);matrix_begin();if(matrix_mutex)xSemaphoreGive(matrix_mutex);if(otto_mutex)xSemaphoreTake(otto_mutex,portMAX_DELAY);otto_begin();if(otto_mutex)xSemaphoreGive(otto_mutex);if(display_mutex)xSemaphoreTake(display_mutex,portMAX_DELAY);bool display_ready=display_begin();if(display_mutex)xSemaphoreGive(display_mutex);if(!display_ready){telemetry("error",nullptr,"No se pudo iniciar la pantalla de texto.");return false;}if(smart_lights_mutex)xSemaphoreTake(smart_lights_mutex,portMAX_DELAY);bool smart_ready=smart_begin();if(smart_lights_mutex)xSemaphoreGive(smart_lights_mutex);if(!smart_ready){telemetry("error",nullptr,"No se pudieron iniciar las luces RGB inteligentes.");return false;}starting_program=true;running=true;paused=start_paused;cJSON *tasks=cJSON_GetObjectItem(active,"tasks"),*task;int index=0,started=0;cJSON_ArrayForEach(task,tasks){if(cJSON_IsTrue(cJSON_GetObjectItem(task,"initial"))&&start_task(index))++started;++index;}starting_program=false;if(!started){running=false;paused=false;return false;}
 #ifdef CONFIG_IDF_TARGET_ESP32S3
 waveshare_dirty=true;
 #endif

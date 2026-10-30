@@ -200,7 +200,9 @@ export class InterpreterSession {
             this.update({ telemetry: [...this.state.telemetry, telemetry].slice(-60), ...(controlsAllowed && stage ? { stage, message: stage === 'ready' ? 'El programa terminó o se reinició.' : stage === 'running' ? 'El programa se está ejecutando en la placa.' : stage === 'paused' ? 'Programa pausado en la placa.' : 'Programa detenido en la placa.' } : {}) });
           } else {
             const pending = this.pending;
-            if (!pending || !(packet.requestId === pending.id || (pending.legacy && packet.requestId === undefined))) continue;
+            // Legacy discovery may accept an untagged HELLO, never an untagged
+            // ERROR from a partial command buffered before this connection.
+            if (!pending || !(packet.requestId === pending.id || (pending.legacy && packet.type === 'HELLO' && packet.requestId === undefined))) continue;
             if (packet.type === 'ERROR') pending.reject(new InterpreterProtocolError(typeof packet.message === 'string' ? packet.message : 'La placa rechazó la operación.'));
             else if (packet.type === pending.type) pending.resolve(packet);
             else pending.reject(new InterpreterProtocolError('La placa respondió fuera de secuencia. Volvé a conectar.'));
