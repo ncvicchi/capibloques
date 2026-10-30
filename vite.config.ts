@@ -1,4 +1,3 @@
-import { sites } from '@openai/sites-vite-plugin';
 import tailwindcss from '@tailwindcss/postcss';
 import vinext from 'vinext';
 import { defineConfig } from 'vite';
@@ -42,7 +41,15 @@ export default defineConfig(async () => {
   process.env.MINIFLARE_REGISTRY_PATH ??= '.wrangler/registry';
 
   // Wrangler snapshots its log path while the Cloudflare plugin is imported.
-  const { cloudflare } = await import('@cloudflare/vite-plugin');
+  const platformPlugins = process.env.CAPIBLOQUES_LOCAL_DEV === '1' ? [] : await (async () => {
+    const [{ sites }, { cloudflare }] = await Promise.all([
+      import('@openai/sites-vite-plugin'), import('@cloudflare/vite-plugin'),
+    ]);
+    return [sites(), cloudflare({
+      viteEnvironment: { name: 'rsc', childEnvironments: ['ssr'] },
+      config: localBindingConfig,
+    })];
+  })();
 
   return {
     // Dominio propio en Proxmox: las rutas anidadas comparten assets desde raíz.
@@ -69,11 +76,7 @@ export default defineConfig(async () => {
     },
     plugins: [
       vinext(),
-      sites(),
-      cloudflare({
-        viteEnvironment: { name: 'rsc', childEnvironments: ['ssr'] },
-        config: localBindingConfig,
-      }),
+      ...platformPlugins,
     ],
   };
 });

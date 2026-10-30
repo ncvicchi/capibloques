@@ -1,5 +1,7 @@
 # Backlog de CapiBloques
 
+**30/10 — Ambiente DEV3 local:** [operación y contexto](DEV3_VM_LOCAL.md). VMpropia con editorHMR, API/DBaisladas y copia solicitada/verificada de dev1; firmware intérprete3placas1.14.3 y cachés locales, repetición3,3s. Gitbranchdev3 separada; no publicar automáticamente main/dev1/dev2. Pendiente del propietario autenticaciónGitHubVM y opcionalreserva DHCP; cola nativaantigua porproyecto no activada. Datos/snapshots fueraGit. Incluye arreglosemáforo yaaceptado físicamente en rama propia.
+
 **30/10 — Semáforo físico, firmware1.14.3:** [causa y aceptación física](SEMAFORO_SALIDAS_1_14_3.md). Corregida potencia0 por confundir estado inicial con intensidad del color elegido; Wemos con dos semáforos confirmada por propietario. Desconectar USB visible y distinto de Detener. Rama desde dev1; publicación dev1 por propietario pendiente, otras placas físicas pendientes. Programa original restaurado, no fixture.
 
 **30/10 — Fase20: STOP durante esperas, firmware1.14.2.** [Causa y evidencia](CARGA_PLACA_ROBUSTA.md): fallo reproducido en Wemos1.14.1 con wait60s; nuevo helper responde a STOP/PAUSA/STEP, arranque de hermanos protegido. Reemplazos completos341–388ms,20+3ciclos, paralelo/join/autoarranque probados físicamente. Rama `codex/dev1-stop-caminos` incluye40497f9; único comando fresco paradev1, main/dev2 intactos. Actualización por propietario y otras placas/USB nativo pendientes.

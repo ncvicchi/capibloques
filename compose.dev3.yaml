@@ -1,0 +1,68 @@
+name: capibloques-dev3
+
+# VM local de desarrollo: HMR fuera de Docker, backend con recarga y DB propia.
+# Nunca combinar este archivo con los compose del servidor.
+services:
+  db:
+    image: postgres:17-bookworm@sha256:051f7b7b3abdd564d5d1bd1e8c4b9c1b6e77087d1dd22020ede611c096a272e0
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: capibloques
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_admin_password
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    secrets: [db_admin_password, db_app_password]
+    volumes:
+      - dev3_pgdata:/var/lib/postgresql/data
+      - ./ops/postgres/10-app-role.sh:/docker-entrypoint-initdb.d/10-app-role.sh:ro
+    networks: [database]
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U postgres -d capibloques]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    logging:
+      driver: json-file
+      options: {max-size: 5m, max-file: '2'}
+  api:
+    build: ./backend
+    image: capibloques-api-dev3:local
+    user: '1000:1000'
+    init: true
+    read_only: true
+    command: [gunicorn, 'config.wsgi:application', --bind, '0.0.0.0:8000', --reload, --workers, '1', --threads, '4', --timeout, '60']
+    ports: ['127.0.0.1:8003:8000']
+    environment:
+      DJANGO_SECRET_KEY_FILE: /run/secrets/django_key
+      DB_PASSWORD_FILE: /run/secrets/db_app_password
+      CAPIBLOQUES_SECURE_COOKIES: 'false'
+    secrets: [django_key, db_app_password]
+    volumes:
+      - ./backend:/app:ro
+      - ${HOME}/.local/share/capibloques-dev3/artifacts:/artifacts:ro
+    tmpfs: ['/tmp:rw,nosuid,nodev,size=256m,mode=1777']
+    networks: [default, database]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+    depends_on:
+      db: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/api/health/live/", timeout=5)']
+      interval: 5s
+      timeout: 6s
+      retries: 30
+    logging:
+      driver: json-file
+      options: {max-size: 5m, max-file: '2'}
+volumes:
+  dev3_pgdata:
+networks:
+  database: {internal: true}
+secrets:
+  django_key:
+    file: ${HOME}/.config/capibloques-dev3/django_key
+  db_admin_password:
+    file: ${HOME}/.config/capibloques-dev3/db_admin_password
+  db_app_password:
+    file: ${HOME}/.config/capibloques-dev3/db_app_password
