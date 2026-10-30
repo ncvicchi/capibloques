@@ -1,5 +1,7 @@
 # CapiBloques — contexto para continuar
 
+**Seguimiento30/10, tras reporte de primer intento fallido:** rama `codex/dev1-instalar-firmware-diagnostico` desde dev1 b43c43a. Ver sección nueva de [carga robusta](CARGA_PLACA_ROBUSTA.md). ERROR sin ID ya no se acepta durante HELLO; regresión en tests con primererror desconocido→éxito automático. Manifiesto HTTP realdev1 devolvió1.9.0 porque capi-dev instalado invocaba manager viejo; fuenteeditor activa síera b43c43a. Nuevo gestor exige manifiestos publicados correctos y actualizador renueva comando local atómicamente; primer comando debe ejecutar git show de rama nueva, NO el instalado viejo. No cambió intérprete1.14.1 ni hay motivo de reflashear placa que ya saluda1.14.1. Sólo lecturas remotas; la actualización la hace el propietario. Main/dev2 y datos intactos.
+
 **Entrega vigente30/10: carga de placa robusta.** Rama `codex/dev1-carga-placa-robusta` desde origin/dev1 0c71577. Ver [guía y evidencia reproducible](CARGA_PLACA_ROBUSTA.md). Runtime1.14.1/ABI1, reliable-transfer, reset esptool-js0.6.1 corregido con flancos EN reales. Wemos real pasó grabación y20ciclos consecutivos sin reset manual, duplicados/CRC/orden/reset parcial; suites USB/smoke y UI. No afirmar USB nativo de navegador ni S3/Waveshare probados físicamente. No se actualizó el servidor; entregar comando del manager sólo dev1 con SHA exacto. Mantener cachés SDK y main/dev2. Fases61/62 existen como otras ramas; no están incorporadas a esta base de dev1.
 
 ### Entrega vigente19/10 — Fase60: marcha coordinada y pista

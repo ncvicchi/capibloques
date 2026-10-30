@@ -11,6 +11,10 @@ export async function fetchInterpreterFirmware(board: BoardProfileId, signal: Ab
   const response = await fetch(`/interpreter/${board}.json`, { cache: 'no-store', signal });
   if (!response.ok) throw new Error('El firmware intérprete todavía no está publicado en este servidor. Pedile a un administrador que genere los artefactos de la fase 36.');
   const info = await response.json() as PublishedInterpreter;
+  if (info.version !== CAPI_INTERPRETER_VERSION) {
+    const found = typeof info.version === 'string' && /^\d+\.\d+\.\d+$/.test(info.version) ? info.version : 'desconocida';
+    throw new Error(`El servidor ofrece firmware ${found}, pero este editor necesita ${CAPI_INTERPRETER_VERSION}. Falta completar la actualización de DEV; no se grabó la placa.`);
+  }
   if (info.board !== board || info.version !== CAPI_INTERPRETER_VERSION || info.abi !== CAPI_INTERPRETER_ABI || !/^[a-f0-9]{64}$/.test(info.sha256) || !Number.isSafeInteger(info.bytes) || info.bytes <= 0 || !/^[a-z0-9.-]+\.zip$/.test(info.bundle)) throw new Error('El manifiesto del intérprete no es válido.');
   const bundle = await fetch(`/interpreter/${info.bundle}`, { cache: 'no-store', signal });
   if (!bundle.ok) throw new Error('No pudimos descargar el firmware intérprete.');

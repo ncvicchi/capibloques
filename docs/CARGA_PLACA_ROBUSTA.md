@@ -7,6 +7,42 @@ datos, migraciones ni infraestructura. El propietario actualiza dev1.
 
 ## Fallos encontrados y correcciones
 
+### Corrección del primer saludo y publicación (30/10, posterior a instalar en DEV1)
+
+El propietario confirmó «Comando desconocido.» al primer intento y
+«Intérprete 1.14.1 listo» al reintentar. Se reprodujo el camino en pruebas:
+el modo de descubrimiento legacy admitía también un ERROR sin requestId.
+Una respuesta de un comando parcial/anterior podía fallar un HELLO nuevo.
+Ahora sólo HELLO puede aceptarse sin ID durante descubrimiento; un ERROR
+sin correlación no se atribuye al pedido actual. El reintento ocurre sin
+cerrar el asistente ni exigir otro clic. No se ignoran errores correlacionados
+de una carga de reglas. Esta causa reproduce el síntoma; no se capturaron
+los bytes de aquel primer intento real del propietario.
+
+La inspección de DEV1 confirmó la release `b43c43a` activa, pero su manifiesto
+descargable declaraba 1.9.0. El actualizador instalado era anterior al arreglo
+que usa el manager exacto de cada release. Por ello, versión publicada y
+fuentes podían diferir aunque HTTP/API e imagen fueran saludables. Se agrega
+verificación de los manifiestos HTTP reales de los tres perfiles, su versión,
+ABI, placa y árbol de fuentes antes de confirmar éxito. La versión incorrecta
+produce un error claro en el editor antes de descargar/escribir firmware.
+
+Cada actualización exitosa renueva atómicamente el comando de usuario
+`~/.local/bin/capi-dev` con el script de esa release. No instala un manager
+global, no modifica main/dev2 y no borra cachés SDK. Para salir por primera
+vez del comando antiguo, usar el script fresco desde la rama publicada:
+
+```sh
+cd /home/capi/capibloques && git fetch --quiet origin codex/dev1-instalar-firmware-diagnostico && git show origin/codex/dev1-instalar-firmware-diagnostico:scripts/update-dev.sh | bash -s -- --env dev1 --branch codex/dev1-instalar-firmware-diagnostico --commit SHA40
+```
+
+Conservar el commit exacto de la entrega. Después vuelve a bastar el comando
+normal capi-dev. Estas correcciones no cambian el firmware intérprete: sigue
+1.14.1 y conserva el árbol de fuentes, por lo que la Wemos ya grabada no debe
+volver a flashearse sólo por este arreglo web. Las pruebas del saludo y de
+publicación fallida son automatizadas; las pruebas físicas anteriores siguen
+referidas al firmware1.14.1, sin atribuirlas a USB nativo del navegador.
+
 1. **Reset incompleto de esptool-js 0.6.1, reproducido físicamente.** Su
    `HardReset.reset()` espera y libera RTS, pero no lo activa. Una grabación
    verificada podía dejar el stub ejecutándose, sin responder a CapiLink.

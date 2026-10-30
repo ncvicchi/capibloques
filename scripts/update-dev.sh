@@ -369,6 +369,18 @@ if [[ $DESTINATION != main ]]; then
     REMOTE_SCRIPT=$(mktemp /tmp/capibloques-env-deploy.XXXXXX.py)
     git show "$target:ops/environments/manage.py" >"$REMOTE_SCRIPT"
     sudo python3 "$REMOTE_SCRIPT" deploy "$DESTINATION" --commit "$target" </dev/null
+    # Keep the user's entry point current too. Atomic replacement leaves the
+    # running Bash file intact and needs no root/shared-manager installation.
+    launcher_directory=/home/capi/.local/bin
+    mkdir -p "$launcher_directory"
+    launcher_candidate=$(mktemp "$launcher_directory/.capi-dev.XXXXXX")
+    if git show "$target:scripts/update-dev.sh" >"$launcher_candidate" && chmod 0755 "$launcher_candidate"; then
+      mv -f "$launcher_candidate" "$launcher_directory/capi-dev"
+    else
+      rm -f "$launcher_candidate"
+      echo 'ERROR: DEV se actualizó, pero no se pudo renovar el comando capi-dev.' >&2
+      exit 1
+    fi
   fi
   DEPLOY_CONFIRMED=1
   exit 0

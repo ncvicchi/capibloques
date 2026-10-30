@@ -262,6 +262,26 @@ def firmware(release, commit):
         raise RuntimeError('Firmware incompleto o de otra revisión; no se publicará.')
 
 
+def verify_published_firmware(spec, release, commit):
+    """Health/revision alone cannot detect a mislabeled interpreter bundle."""
+    versions = re.findall(r'^#define CAPI_FIRMWARE_VERSION "([0-9]+\.[0-9]+\.[0-9]+)"$', (release/'interpreter/main/main.cpp').read_text(), re.MULTILINE)
+    if len(versions) != 1:
+        raise RuntimeError('No se pudo determinar la versión de firmware publicada.')
+    version = versions[0]
+    revision = git('rev-parse', commit+':interpreter')
+    for profile in PROFILES:
+        try:
+            with urllib.request.urlopen(f'http://127.0.0.1:{spec["local"]}/interpreter/{profile}.json', timeout=10) as response:
+                info = json.load(response)
+            if not isinstance(info, dict):
+                raise ValueError('Manifiesto inválido')
+            if (info.get('board') != profile or info.get('version') != version or
+                    info.get('abi') != 1 or info.get('sourceRevision') != revision):
+                raise ValueError(f'esperado {version}, publicado {info.get("version", "desconocido")}')
+        except (OSError, ValueError, KeyError) as error:
+            raise RuntimeError(f'Firmware publicado incompatible para {profile}: {error}. No se confirma la actualización.') from None
+
+
 def healthy(spec):
     deadline = time.monotonic()+120
     while time.monotonic() < deadline:
@@ -386,6 +406,7 @@ def deploy(spec, commit):
         run('systemctl', 'restart', f'capibloques-{spec["env"]}.service')
         healthy(spec)
         verify_active(spec, commit)
+        verify_published_firmware(spec, release, commit)
         manage(spec, 'compiler_dispatch', 'register', data=json.dumps(dict(recipe=image.removeprefix('sha256:'), ceiling=1)))
         run('systemctl', 'enable', '--now', f'capibloques-compiler-{spec["env"]}.service')
         atomic(spec['directory']/'deployed', commit+'\n', 0o644)
