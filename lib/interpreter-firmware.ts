@@ -7,6 +7,7 @@ import type { BoardProfileId } from './board-profiles.ts';
 interface PublishedInterpreter { board: BoardProfileId; version: string; abi: number; bundle: string; bytes: number; sha256: string; }
 
 export async function fetchInterpreterFirmware(board: BoardProfileId, signal: AbortSignal): Promise<UsbFirmware> {
+  signal = AbortSignal.any([signal, AbortSignal.timeout(60000)]);
   const response = await fetch(`/interpreter/${board}.json`, { cache: 'no-store', signal });
   if (!response.ok) throw new Error('El firmware intérprete todavía no está publicado en este servidor. Pedile a un administrador que genere los artefactos de la fase 36.');
   const info = await response.json() as PublishedInterpreter;

@@ -1,4 +1,6 @@
 /// <reference types="w3c-web-serial" />
+// @ts-expect-error Node strip-types runner.
+import { acquireUsbLease } from './usb-lease.ts';
 import type { UsbFirmware } from './usb-firmware';
 
 export type UsbStage = 'idle' | 'selecting' | 'preparing' | 'connecting' | 'writing' | 'resetting' | 'closing' | 'done' | 'monitor' | 'error';
@@ -78,6 +80,7 @@ export class UsbSession {
     try { selection = requestPort(); } catch (error) { selection = Promise.reject(error); }
     this.operation = (async () => {
       let success = false, cleanupFailed = false;
+      let releaseLease: (() => Promise<void>) | undefined;
       const operate = async () => {
         try {
           const port = await selection; this.check(aborter.signal); this.port = port;
@@ -92,12 +95,8 @@ export class UsbSession {
         // Consume selection rejection even if another tab owns the lock.
         await selection;
         this.check(aborter.signal);
-        if (typeof navigator !== 'undefined' && navigator.locks) {
-          await navigator.locks.request('capibloques-usb', { ifAvailable: true }, async lock => {
-            if (!lock) throw new UsbError('Otra pestaña de CapiBloques está usando USB. Cerrá su conexión primero.');
-            await operate();
-          });
-        } else await operate();
+        releaseLease = await acquireUsbLease(this);
+        await operate();
         if (success) this.update({ stage: 'done', message: 'Firmware grabado y verificado. La placa se reinició; al conectarla, CapiBloques esperará automáticamente a que termine de arrancar.', progress: 100 });
       } catch (error) {
         cleanupFailed = error instanceof UsbCleanupError;
@@ -108,12 +107,13 @@ export class UsbSession {
           : usbErrorMessage(error, incomplete);
         this.update({ stage: cancelledCleanly ? 'idle' : 'error', message: message + (this.state.verified ? ' Los segmentos sí se verificaron, pero no confirmamos el reinicio o cierre. Revisá la conexión y pulsá RESET con los actuadores desconectados.' : '') });
       } finally {
-        this.driver = null; this.port = null; this.reader = null; this.aborter = null; this.operation = null;
+        this.driver = null; this.port = null; this.reader = null; this.aborter = null;
         // If cleanup failed, keep the lease: a new account/panel must not race
         // a reader/writer that the browser could not close. Reopening the tab
         // is the explicit recovery, never a silent second owner.
-        if (owner === this && !cleanupFailed) owner = null;
+        if (!cleanupFailed) { await releaseLease?.(); if (owner === this) owner = null; }
         if (this.disposed) this.state = { ...this.state, text: '', chip: '' };
+        this.operation = null;
       }
     })();
   }

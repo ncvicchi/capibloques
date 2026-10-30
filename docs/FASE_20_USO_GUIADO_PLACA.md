@@ -1,5 +1,7 @@
 # Fase 20 — Uso guiado de la placa
 
+**Ampliación de fiabilidad30/10/2026:** [carga robusta y pruebas](CARGA_PLACA_ROBUSTA.md). La entrega de esta rama requiere intérprete1.14.1/ABI1 con reliable-transfer. Corrige el pulso de reset y continúa automáticamente después de grabar. Wemos real: grabación y veinte ciclos sin reset manual; otras placas y aceptación del USB nativo pendientes. Las versiones inferiores mencionadas a continuación son históricas.
+
 Estado al 3 de octubre de 2026: **asistente, selección visual y modelo de dos placas implementados en software; reconexión posgrabación sin recarga, consulta del proyecto activo, aceptación física y escena remota Waveshare pendientes**. El propietario redefinió la fase para que el recorrido cotidiano sea instalar el firmware intérprete precompilado y enviar reglas localmente. La compilación Arduino/ESP-IDF por proyecto se conserva como herramienta avanzada, pero deja de competir con la acción principal.
 
 La primera implementación se publicó en `main` como `6dece1e`. La corrección `9914ae8` del 25 de septiembre reemplaza el panel acumulativo por un asistente de pantallas. DEV todavía permanece en `8103b14` hasta que el propietario ejecute la actualización rápida.

@@ -45,11 +45,12 @@
 #include "nvs_flash.h"
 #include "font5x7.h"
 #include "frame_animation.h"
+#include "link_transfer.h"
 
 #ifndef CAPI_BOARD_ID
 #define CAPI_BOARD_ID "wemos-d1-r32"
 #endif
-#define CAPI_FIRMWARE_VERSION "1.14.0"
+#define CAPI_FIRMWARE_VERSION "1.14.1"
 #include "gorilla_core.h"
 static bool is_waveshare(){return !strcmp(CAPI_BOARD_ID,"waveshare-esp32-s3-touch-lcd-5-28117");}
 static constexpr uint16_t ABI = 1;
@@ -65,6 +66,11 @@ static void cooperative_delay_ms(uint32_t milliseconds) {
   vTaskDelay(ticks > 0 ? ticks : 1);
 }
 
+static CapiLinkTransfer transfer;
+static CapiLinkReplay replay;
+static std::string request_id;
+static SemaphoreHandle_t link_mutex = nullptr;
+static std::atomic<bool> transfer_active{false};
 static std::vector<uint8_t> candidate;
 static size_t expected_bytes = 0;
 static uint32_t expected_crc = 0;
@@ -143,7 +149,30 @@ static int link_write(const void *data,size_t size){
 #endif
   return uart_write_bytes(LINK,data,size);
 }
-static void send_json(cJSON *value) { char *line = cJSON_PrintUnformatted(value); if (line) { link_write(line, strlen(line)); link_write("\n", 1); free(line); } cJSON_Delete(value); }
+static void link_line(const char *line) {
+  if (link_mutex) xSemaphoreTake(link_mutex, portMAX_DELAY);
+  std::string framed(line); framed += '\n';
+  size_t offset = 0;
+  while (offset < framed.size()) {
+    int sent = link_write(framed.data() + offset, framed.size() - offset);
+    if (sent <= 0) break;
+    offset += static_cast<size_t>(sent);
+  }
+  if (link_mutex) xSemaphoreGive(link_mutex);
+}
+static void send_json(cJSON *value) {
+  cJSON *kind = cJSON_GetObjectItemCaseSensitive(value, "type");
+  bool event = cJSON_IsString(kind) && !strcmp(kind->valuestring, "TELEMETRY");
+  if (event && transfer_active.load()) { cJSON_Delete(value); return; }
+  // Only the command loop writes request_id/replay; worker telemetry is excluded.
+  if (!event && !request_id.empty()) cJSON_AddStringToObject(value, "requestId", request_id.c_str());
+  char *line = cJSON_PrintUnformatted(value);
+  if (line) {
+    if (!event && !request_id.empty()) { replay.id = request_id; replay.response = line; }
+    link_line(line); free(line);
+  }
+  cJSON_Delete(value);
+}
 static void reply(const char *type, const char *message = nullptr) { cJSON *out = cJSON_CreateObject(); cJSON_AddStringToObject(out, "type", type); if (message) cJSON_AddStringToObject(out, "message", message); send_json(out); }
 static void telemetry(const char *event, const char *block, const char *message) { cJSON *out = cJSON_CreateObject(); cJSON_AddStringToObject(out, "type", "TELEMETRY"); cJSON_AddStringToObject(out, "event", event); if (block) cJSON_AddStringToObject(out, "blockId", block); if (message) cJSON_AddStringToObject(out, "message", message); send_json(out); }
 static void telemetry_state(const char *event,const char *block,const char *device_id,const std::string &value){cJSON *out=cJSON_CreateObject();cJSON_AddStringToObject(out,"type","TELEMETRY");cJSON_AddStringToObject(out,"event",event);if(block)cJSON_AddStringToObject(out,"blockId",block);if(device_id&&device_id[0])cJSON_AddStringToObject(out,"deviceId",device_id);cJSON_AddStringToObject(out,"value",value.c_str());send_json(out);}
@@ -944,6 +973,9 @@ static void reset_program(){stop_program();counter_value=0;if(active){initialize
 
 static void command(cJSON *request) {
   const char *type = text(request,"type");
+  if(transfer.begun && (!strcmp(type,"RUN")||!strcmp(type,"PAUSE")||!strcmp(type,"RESUME")||!strcmp(type,"STEP")||!strcmp(type,"RESET_PROGRAM"))){
+    reply("ERROR","Terminá el envío o detené la transferencia antes de ejecutar.");return;
+  }
   if (!strcmp(type,"HELLO")) {
     cJSON *out=cJSON_CreateObject();
     cJSON_AddStringToObject(out,"type","HELLO");
@@ -960,7 +992,7 @@ static void command(cJSON *request) {
     cJSON_AddStringToObject(out,"wifiMac",shown_mac);
     cJSON_AddNumberToObject(out,"maxRulesBytes",MAX_RULES);
     cJSON *caps=cJSON_AddArrayToObject(out,"capabilities");
-    for(const char *cap:{"line-sensors","robot-wheels","core","switch","conditional-loop","parallel","expressions","variables","timers","component-state","gpio","led","smart-lights","traffic","traffic-display","motor","robot","robotWheels","otto","servo","buzzer","matrix","display","display-lcd","display-lcd1602","display-lcd2004","display-lcd1602keypad","display-graphic","display-ssd1306","display-ili9341","display-ili9488","display-keypad","frame-animation","visual-wait","messages","wifi","wifi-messages","pairing","counter","serial","digital-input","analog-input","step"}){
+    for(const char *cap:{"reliable-transfer","line-sensors","robot-wheels","core","switch","conditional-loop","parallel","expressions","variables","timers","component-state","gpio","led","smart-lights","traffic","traffic-display","motor","robot","robotWheels","otto","servo","buzzer","matrix","display","display-lcd","display-lcd1602","display-lcd2004","display-lcd1602keypad","display-graphic","display-ssd1306","display-ili9341","display-ili9488","display-keypad","frame-animation","visual-wait","messages","wifi","wifi-messages","pairing","counter","serial","digital-input","analog-input","step"}){
       cJSON_AddItemToArray(caps,cJSON_CreateString(cap));
     }
     if(!is_waveshare()){cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-bench"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-postures"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-kinematics-v3"));cJSON_AddItemToArray(caps,cJSON_CreateString("gorilla-gait"));}
@@ -974,10 +1006,43 @@ static void command(cJSON *request) {
   }
   else if (!strcmp(type,"CONFIG_WIFI")) { if(running){reply("ERROR","Detené el programa antes de cambiar la red Wi-Fi.");return;}if(wifi_provision(text(request,"ssid"),text(request,"password")))reply("WIFI_CONFIGURED");else reply("ERROR","La red o la clave Wi-Fi no tienen un formato válido."); }
   else if (!strcmp(type,"CONFIG_PAIR")) {if(running){reply("ERROR","Detené el programa antes de emparejar las placas.");return;}if(wifi_provision_pair(text(request,"role"),text(request,"ssid"),text(request,"password"),text(request,"pairingKey"),text(request,"screenHardwareId"))){reply("PAIR_CONFIGURED");wifi_connect();}else reply("ERROR","No pudimos guardar un perfil de pareja válido para esta placa.");}
-  else if (!strcmp(type,"BEGIN")) { if(running){reply("ERROR","Detené el programa antes de reemplazarlo.");return;} expected_bytes=number(request,"bytes"); const char *sum=text(request,"checksum"); expected_crc=strtoul(sum,nullptr,16); if(!expected_bytes||expected_bytes>MAX_RULES){reply("ERROR","Tamaño de reglas inválido.");return;} candidate.clear(); candidate.reserve(expected_bytes); reply("READY"); }
-  else if (!strcmp(type,"CHUNK")) { const char *encoded=text(request,"data"); size_t capacity=strlen(encoded)*3/4+3, written=0, before=candidate.size(); candidate.resize(before+capacity); if(mbedtls_base64_decode(candidate.data()+before,capacity,&written,(const unsigned char*)encoded,strlen(encoded))!=0||before+written>expected_bytes){candidate.clear();reply("ERROR","Fragmento inválido.");return;} candidate.resize(before+written); reply("ACK"); }
-  else if (!strcmp(type,"VERIFY")) { cJSON *parsed=nullptr; if(candidate.size()!=expected_bytes||candidate.size()<32||crc32(candidate.data()+32,candidate.size()-32)!=expected_crc||!validate_rules(candidate,&parsed)){reply("ERROR","Las reglas no superaron la verificación.");return;} cJSON_Delete(parsed); reply("VERIFIED"); }
-  else if (!strcmp(type,"COMMIT")) { cJSON *parsed=nullptr; if(!validate_rules(candidate,&parsed)||!persist(candidate)){cJSON_Delete(parsed);reply("ERROR","No pudimos guardar las reglas.");return;} running=false;
+  else if (!strcmp(type,"BEGIN")) {
+    if(running){reply("ERROR","Detené el programa antes de reemplazarlo.");return;}
+    int size=number(request,"bytes");
+    const char *sum=text(request,"checksum");
+    char *end=nullptr;
+    unsigned long checksum=strtoul(sum,&end,16);
+    if(size<32||size>static_cast<int>(MAX_RULES)||strlen(sum)!=8||!end||*end||number(request,"format")!=1||number(request,"abi")!=ABI){
+      reply("ERROR","Tamaño o formato de reglas inválido.");return;
+    }
+    expected_bytes=static_cast<size_t>(size);expected_crc=static_cast<uint32_t>(checksum);
+    candidate.clear();candidate.reserve(expected_bytes);transfer.begin();transfer_active=true;reply("READY");
+  }
+  else if (!strcmp(type,"CHUNK")) {
+    const char *encoded=text(request,"data");int sequence=number(request,"sequence",-1);
+    size_t capacity=strlen(encoded)*3/4+3,written=0;
+    uint8_t decoded[771];
+    if(capacity>sizeof(decoded)||!transfer.begun||sequence<0||static_cast<size_t>(sequence)!=transfer.sequence||
+       mbedtls_base64_decode(decoded,sizeof(decoded),&written,(const unsigned char*)encoded,strlen(encoded))!=0||
+       !written||candidate.size()+written>expected_bytes){
+      reply("ERROR","Fragmento inválido o fuera de secuencia.");return;
+    }
+    transfer.accept(sequence);candidate.insert(candidate.end(),decoded,decoded+written);
+    cJSON *out=cJSON_CreateObject();cJSON_AddStringToObject(out,"type","ACK");cJSON_AddNumberToObject(out,"sequence",sequence);send_json(out);
+  }
+  else if (!strcmp(type,"VERIFY")) {
+    cJSON *parsed=nullptr;
+    if(!transfer.begun||candidate.size()!=expected_bytes||candidate.size()<32||
+       crc32(candidate.data()+32,candidate.size()-32)!=expected_crc||!validate_rules(candidate,&parsed)){
+      cJSON_Delete(parsed);reply("ERROR","Las reglas no superaron la verificación.");return;
+    }
+    cJSON_Delete(parsed);transfer.verified=true;reply("VERIFIED");
+  }
+  else if (!strcmp(type,"COMMIT")) {
+    cJSON *parsed=nullptr;
+    if(running||active_tasks>0||!transfer.verified||candidate.size()!=expected_bytes||!validate_rules(candidate,&parsed)||!persist(candidate)){
+      cJSON_Delete(parsed);reply("ERROR","No pudimos guardar las reglas.");return;
+    } running=false;
 #ifdef CONFIG_IDF_TARGET_ESP32S3
   if(waveshare_mutex)xSemaphoreTake(waveshare_mutex,portMAX_DELAY);
 #endif
@@ -985,17 +1050,28 @@ static void command(cJSON *request) {
 #ifdef CONFIG_IDF_TARGET_ESP32S3
   waveshare_dirty=true;if(waveshare_mutex)xSemaphoreGive(waveshare_mutex);
 #endif
-  candidate.clear(); reply("COMMITTED"); }
+  candidate.clear();transfer.clear();transfer_active=false;reply("COMMITTED"); }
   else if (!strcmp(type,"RUN")) { if(start_program()) reply("OK"); else reply("ERROR","No hay reglas o el programa ya está ejecutándose."); }
   else if (!strcmp(type,"PAUSE")) { pause_program();reply("OK"); }
   else if (!strcmp(type,"RESUME")) { resume_program();reply("OK"); }
   else if (!strcmp(type,"STEP")) { if(step_program())reply("OK");else reply("ERROR","Esperá a que termine el paso actual o enviá reglas válidas."); }
-  else if (!strcmp(type,"STOP")) { bool stopped=stop_program();reply(stopped?"OK":"ERROR",stopped?nullptr:"No pudimos detener todos los caminos."); }
+  else if (!strcmp(type,"STOP")) { transfer.clear();transfer_active=false;candidate.clear();bool stopped=stop_program();reply(stopped?"OK":"ERROR",stopped?nullptr:"No pudimos detener todos los caminos."); }
   else if (!strcmp(type,"RESET_PROGRAM")) { reset_program();reply("OK"); }
   else reply("ERROR","Comando desconocido.");
 }
 
+static void dispatch(cJSON *request) {
+  request_id=text(request,"requestId");
+  if(request_id.size()>64){request_id.clear();reply("ERROR","Identificador inválido.");return;}
+  if(!request_id.empty() && replay.id==request_id && !replay.response.empty()){
+    link_line(replay.response.c_str());request_id.clear();return;
+  }
+  command(request);
+  request_id.clear();
+}
+
 extern "C" void app_main() {
+  link_mutex=xSemaphoreCreateMutex();
   nvs_flash_init();variables_mutex=xSemaphoreCreateMutex();timers_mutex=xSemaphoreCreateMutex();matrix_mutex=xSemaphoreCreateMutex();message_mutex=xSemaphoreCreateMutex();otto_mutex=xSemaphoreCreateMutex();display_mutex=xSemaphoreCreateMutex();smart_lights_mutex=xSemaphoreCreateMutex();
 #ifdef CONFIG_IDF_TARGET_ESP32S3
   waveshare_mutex=xSemaphoreCreateMutex();if(is_waveshare()){if(!waveshare_begin())printf("CapiBloques: no se pudo iniciar la pantalla Waveshare.\n");xTaskCreate(waveshare_service,"capi-screen",6144,nullptr,2,nullptr);}
@@ -1017,7 +1093,7 @@ extern "C" void app_main() {
   for(;;){
     gorilla_service();
 #ifdef CONFIG_IDF_TARGET_ESP32S3
-    int action=waveshare_action.exchange(0);if(action==1){const char *value=!running?"RUN":paused?"RESUME":"PAUSE";if(!running)start_program();else if(paused)resume_program();else pause_program();telemetry_state("control",nullptr,nullptr,value);}else if(action==2){if(step_program())telemetry_state("control",nullptr,nullptr,"STEP");}else if(action==3){stop_program();telemetry_state("control",nullptr,nullptr,"STOP");}else if(action==4){reset_program();telemetry_state("control",nullptr,nullptr,"RESET_PROGRAM");}
+    int action=waveshare_action.exchange(0);if(transfer_active.load())action=0;if(action==1){const char *value=!running?"RUN":paused?"RESUME":"PAUSE";if(!running)start_program();else if(paused)resume_program();else pause_program();telemetry_state("control",nullptr,nullptr,value);}else if(action==2){if(step_program())telemetry_state("control",nullptr,nullptr,"STEP");}else if(action==3){stop_program();telemetry_state("control",nullptr,nullptr,"STOP");}else if(action==4){reset_program();telemetry_state("control",nullptr,nullptr,"RESET_PROGRAM");}
 #endif
     int received=0;
 #ifdef CONFIG_IDF_TARGET_ESP32S3
@@ -1033,7 +1109,7 @@ extern "C" void app_main() {
     if(byte=='\n'){
       if(!line.empty()&&line.size()<32768){
         cJSON *request=cJSON_ParseWithLength(line.data(),line.size());
-        if(request){command(request);cJSON_Delete(request);}
+        if(request){dispatch(request);cJSON_Delete(request);}
         else reply("ERROR","Mensaje inválido.");
       }
       line.clear();
