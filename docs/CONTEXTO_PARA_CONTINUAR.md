@@ -2,9 +2,10 @@
 
 ### Corrección de errores al cargar y ejecutar el intérprete — 30/10/2026
 
-Rama `codex/interpreter-serial-errors`, creada desde `origin/dev2`
+Rama local `codex/interpreter-serial-errors`, creada desde `origin/dev2`
 `0822c6cd15fd0ea8b6a3563e87e74cfd2899971d`, por pedido del propietario para
-trabajar contra dev2. Corrige tres rutas relacionadas con los mensajes que
+trabajar contra dev2. Commit local `e4c56f1dc01d38da68ec2371cc945e78a4191352`.
+Corrige tres rutas relacionadas con los mensajes que
 reportó: «no pudimos detener los caminos», mensajes seriales demasiado grandes
 y diagnóstico del manifiesto de firmware.
 
@@ -18,10 +19,11 @@ y diagnóstico del manifiesto de firmware.
   incompatibles y campos del manifiesto dañados. Una versión vieja o de otra
   placa da un mensaje que indica actualizar artefactos de firmware del ambiente.
 - No se ejecutaron pruebas ni compilaciones ni se conectó una placa. El modelo
-  físico exacto sigue pendiente. No se consultó ni modificó el servidor dev2;
-  el dueño actualiza con `capi-dev --env dev2 --branch
-  codex/interpreter-serial-errors --commit SHA40` tras revisar la entrega.
-  Falta commit/push y validar dev2/placa después de la actualización.
+  físico exacto sigue pendiente. No se consultó ni modificó el servidor dev2.
+  El push fue rechazado por revisión automática porque el destino remoto de
+  GitHub no se consideró verificado. No reintentar por otra vía; falta publicar
+  con aprobación del propietario, actualizar con `capi-dev --env dev2 --branch
+  codex/interpreter-serial-errors --commit SHA40` y validar dev2/placa.
 
 ### Entrega vigente19/10 — Fase60: marcha coordinada y pista
 
