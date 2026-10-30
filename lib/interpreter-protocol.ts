@@ -11,6 +11,7 @@ export interface InterpreterTelemetry { event: string; blockId?: string; taskId?
 export interface InterpreterState { stage: InterpreterStage; message: string; progress: number; hello: InterpreterHello | null; telemetry: InterpreterTelemetry[]; }
 type Packet = Record<string, unknown>;
 const CHUNK_BYTES = 768;
+const MAX_PROTOCOL_LINE_CHARS = 64 * 1024;
 
 export class InterpreterProtocolError extends Error {}
 
@@ -42,8 +43,10 @@ export class ProtocolLines {
   private decoder = new TextDecoder();
   push(bytes: Uint8Array) {
     this.pending += this.decoder.decode(bytes, { stream: true });
-    if (this.pending.length > 64 * 1024) throw new InterpreterProtocolError('La placa envió una respuesta demasiado grande.');
     const lines = this.pending.split('\n'); this.pending = lines.pop() ?? '';
+    if (this.pending.length > MAX_PROTOCOL_LINE_CHARS || lines.some(line => line.length > MAX_PROTOCOL_LINE_CHARS)) {
+      throw new InterpreterProtocolError('La placa envió una respuesta demasiado grande.');
+    }
     return lines.map(line => line.trim()).filter(line => line.startsWith('{')).map(line => {
       try { return JSON.parse(line) as Packet; } catch { throw new InterpreterProtocolError('La placa respondió con un mensaje inválido.'); }
     });

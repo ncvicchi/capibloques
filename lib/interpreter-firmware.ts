@@ -9,8 +9,17 @@ interface PublishedInterpreter { board: BoardProfileId; version: string; abi: nu
 export async function fetchInterpreterFirmware(board: BoardProfileId, signal: AbortSignal): Promise<UsbFirmware> {
   const response = await fetch(`/interpreter/${board}.json`, { cache: 'no-store', signal });
   if (!response.ok) throw new Error('El firmware intérprete todavía no está publicado en este servidor. Pedile a un administrador que genere los artefactos de la fase 36.');
-  const info = await response.json() as PublishedInterpreter;
-  if (info.board !== board || info.version !== CAPI_INTERPRETER_VERSION || info.abi !== CAPI_INTERPRETER_ABI || !/^[a-f0-9]{64}$/.test(info.sha256) || !Number.isSafeInteger(info.bytes) || info.bytes <= 0 || !/^[a-z0-9.-]+\.zip$/.test(info.bundle)) throw new Error('El manifiesto del intérprete no es válido.');
+  let info: PublishedInterpreter;
+  try { info = await response.json() as PublishedInterpreter; }
+  catch (error) {
+    if (signal.aborted) throw error;
+    throw new Error('El manifiesto del intérprete publicado no contiene JSON válido. Actualizá los artefactos de firmware de este ambiente.');
+  }
+  if (!info || typeof info !== 'object') throw new Error('El manifiesto del intérprete está vacío o incompleto. Actualizá los artefactos de firmware de este ambiente.');
+  if (info.board !== board) throw new Error(`El manifiesto publicado es para otra placa (${String(info.board)}); seleccionaste ${board}.`);
+  if (info.version !== CAPI_INTERPRETER_VERSION) throw new Error(`El firmware publicado es ${String(info.version)} y esta aplicación necesita ${CAPI_INTERPRETER_VERSION}. Actualizá los artefactos de firmware de este ambiente.`);
+  if (info.abi !== CAPI_INTERPRETER_ABI) throw new Error(`El manifiesto publicado usa ABI ${String(info.abi)} y esta aplicación necesita ABI ${CAPI_INTERPRETER_ABI}. Actualizá los artefactos de firmware de este ambiente.`);
+  if (!/^[a-f0-9]{64}$/.test(info.sha256) || !Number.isSafeInteger(info.bytes) || info.bytes <= 0 || !/^[a-z0-9.-]+\.zip$/.test(info.bundle)) throw new Error('El manifiesto del intérprete está incompleto o dañado. Actualizá los artefactos de firmware de este ambiente.');
   const bundle = await fetch(`/interpreter/${info.bundle}`, { cache: 'no-store', signal });
   if (!bundle.ok) throw new Error('No pudimos descargar el firmware intérprete.');
   const bytes = new Uint8Array(await bundle.arrayBuffer());
