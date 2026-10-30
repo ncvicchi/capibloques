@@ -46,7 +46,11 @@ try {
   await assert.rejects(driver.write(firmware, () => {}), /does not match/);
   ESPLoader.prototype.writeFlash = mockedWrite;
   console.log('USB adapter OK: actual Espressif writeFlash checks flashed MD5 and rejects mismatches');
-  await driver.reset(); await driver.close(); await driver.close(); assert.equal(events.filter(value => value === 'close').length, 1);
+  await driver.reset();
+  const pulse = events.findIndex(value => value?.requestToSend === true);
+  assert.ok(pulse >= 0, 'hard reset must assert EN, not just release it');
+  assert.ok(events.slice(pulse + 1).some(value => value?.requestToSend === false), 'hard reset must release EN');
+  await driver.close(); await driver.close(); assert.equal(events.filter(value => value === 'close').length, 1);
   await assert.rejects(driver.write(firmware, () => {}));
   console.log('USB adapter OK: pinned loader, SHA-checked headers preserved, MD5, SLIP, bounded receive, silent private transport, one close');
 
@@ -59,6 +63,6 @@ try {
   console.log('USB adapter OK: unknown flash does not use upstream unsafe 4 MB fallback');
 
   let release; const late = fakePort({ heldOpen: new Promise(resolve => release = resolve) }), cancelled = new AbortController(), lateDriver = await createEspDriver(late.port, cancelled.signal);
-  const detecting = lateDriver.detect(); cancelled.abort(); await lateDriver.close(); release(); await assert.rejects(detecting); await lateDriver.close(); assert.deepEqual(late.events, ['open', 'close']);
+  const detecting = lateDriver.detect(); cancelled.abort(); const closing = lateDriver.close(); release(); await assert.rejects(detecting); await closing; await lateDriver.close(); assert.deepEqual(late.events, ['open', 'close']);
   console.log('USB adapter OK: late port.open after cancellation is closed, never reused or written');
 } finally { for (const [name, value] of Object.entries(original)) ESPLoader.prototype[name] = value; hooks.deregister(); }

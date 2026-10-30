@@ -43,8 +43,10 @@ const writable = new WritableStream({ write(bytes) {
   const packet = JSON.parse(new TextDecoder().decode(bytes).trim());
   commands.push(packet.type);
   const reply = packet.type === 'HELLO'
-    ? { type: 'HELLO', protocol: 'CapiLink', firmware: CAPI_INTERPRETER_VERSION, abi: 1, board: 'waveshare-esp32-s3-touch-lcd-5-28117', maxRulesBytes: 32768, capabilities: ['core', 'counter', 'serial', 'step', 'touch-inputs', 'autonomous-controls'], resources: { pwmChannels: 8 } }
+    ? { type: 'HELLO', protocol: 'CapiLink', firmware: CAPI_INTERPRETER_VERSION, abi: 1, board: 'waveshare-esp32-s3-touch-lcd-5-28117', maxRulesBytes: 32768, capabilities: ['reliable-transfer', 'core', 'counter', 'serial', 'step', 'touch-inputs', 'autonomous-controls'], resources: { pwmChannels: 8 } }
     : { type: ['STOP','STEP','RUN','PAUSE','RESUME','RESET_PROGRAM'].includes(packet.type) ? 'OK' : packet.type === 'BEGIN' ? 'READY' : packet.type === 'CHUNK' ? 'ACK' : packet.type === 'VERIFY' ? 'VERIFIED' : 'COMMITTED' };
+  reply.requestId = packet.requestId;
+  if (packet.type === 'CHUNK') reply.sequence = packet.sequence;
   serialController.enqueue(encodeProtocolPacket(reply));
 } });
 const fakePort = { readable, writable, async open() {}, async close() {} };
