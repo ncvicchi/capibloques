@@ -18,8 +18,9 @@ y diagnóstico del manifiesto de firmware.
 - La descarga del firmware ahora diferencia JSON inválido, placa/versión/ABI
   incompatibles y campos del manifiesto dañados. Una versión vieja o de otra
   placa da un mensaje que indica actualizar artefactos de firmware del ambiente.
-- No se ejecutaron pruebas ni compilaciones ni se conectó una placa. El modelo
-  físico exacto sigue pendiente. No se consultó ni modificó el servidor dev2.
+- No se ejecutaron pruebas ni compilaciones ni se conectó una placa. El
+  propietario identificó la placa como Wemos D1 R32; aceptación física
+  pendiente. No se consultó ni modificó el servidor dev2.
   El push fue rechazado por revisión automática porque el destino remoto de
   GitHub no se consideró verificado. No reintentar por otra vía; falta publicar
   con aprobación del propietario, actualizar con `capi-dev --env dev2 --branch
