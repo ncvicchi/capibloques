@@ -51,7 +51,7 @@
 #ifndef CAPI_BOARD_ID
 #define CAPI_BOARD_ID "wemos-d1-r32"
 #endif
-#define CAPI_FIRMWARE_VERSION "1.14.2"
+#define CAPI_FIRMWARE_VERSION "1.14.3"
 #include "gorilla_core.h"
 static bool is_waveshare(){return !strcmp(CAPI_BOARD_ID,"waveshare-esp32-s3-touch-lcd-5-28117");}
 static constexpr uint16_t ABI = 1;
@@ -849,7 +849,16 @@ static void execute_task(void *parameter) {
       }
       if(smart_lights_mutex)xSemaphoreGive(smart_lights_mutex);
     }
-    else if (!strcmp(op,"traffic")) { const char *color=text(instruction,"color");cJSON *config=cJSON_GetObjectItem(dev,"config");pwm(pin(dev,"red"),!strcmp(color,"RED")?number(config,"redBrightness",100):0);pwm(pin(dev,"yellow"),!strcmp(color,"YELLOW")?number(config,"yellowBrightness",100):0);pwm(pin(dev,"green"),!strcmp(color,"GREEN")?number(config,"greenBrightness",100):0);RuntimeValue state;state.kind=RuntimeValue::TEXT;state.text=color;component_set(text(instruction,"deviceId"),"color",state); }
+    else if (!strcmp(op,"traffic")) {
+      const char *color=text(instruction,"color");
+      // config.*Brightness is the initial scene state (normally all zero),
+      // not a power ceiling. Match simulator/native exports: chosen light ON.
+      pwm(pin(dev,"red"),!strcmp(color,"RED")?100:0);
+      pwm(pin(dev,"yellow"),!strcmp(color,"YELLOW")?100:0);
+      pwm(pin(dev,"green"),!strcmp(color,"GREEN")?100:0);
+      RuntimeValue state;state.kind=RuntimeValue::TEXT;state.text=color;
+      component_set(text(instruction,"deviceId"),"color",state);
+    }
     else if (!strcmp(op,"trafficVehicleDisplay")||!strcmp(op,"trafficPedestrianDisplay")) {const bool vehicle=!strcmp(op,"trafficVehicleDisplay");const char *value=text(instruction,"value","OFF");traffic_matrix_show(dev,vehicle,traffic_glyph(value));RuntimeValue state;state.kind=RuntimeValue::TEXT;state.text=value;component_set(text(instruction,"deviceId"),vehicle?"vehicleDisplay":"pedestrianDisplay",state);telemetry_state("device",block,text(instruction,"deviceId"),value);}
     else if (!strcmp(op,"motor")) { const char *direction=text(instruction,"direction");int power=number(instruction,"power"),signed_power=!strcmp(direction,"FORWARD")?power:!strcmp(direction,"BACKWARD")?-power:0;motor(dev,signed_power);RuntimeValue state;state.number=signed_power;component_set(text(instruction,"deviceId"),"power",state); }
     else if (!strcmp(op,"robotWheels")) {
