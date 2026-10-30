@@ -64,6 +64,11 @@ test('envía, controla y vuelve a enviar sin recrear el asistente ni elegir otro
   await dialog.getByRole('button', { name: 'Volver a enviar y ejecutar', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Detalles de placa', exact: true })).toBeVisible();
   expect(await page.evaluate(() => (window as unknown as { usbProbe: { selected: number } }).usbProbe.selected)).toBe(1);
+  await page.getByRole('button', { name: 'Detalles de placa', exact: true }).click();
+  await page.getByRole('button', { name: 'Desconectar USB', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(await page.evaluate(() => (window as unknown as { usbProbe: { closed: number, commands: string[] } }).usbProbe.closed)).toBe(1);
+  expect(await page.evaluate(() => (window as unknown as { usbProbe: { commands: string[] } }).usbProbe.commands.at(-1))).toBe('RUN');
   expect(errors).toEqual([]);
 });
 
