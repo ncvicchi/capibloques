@@ -55,7 +55,7 @@ try {
   const originalFetch = globalThis.fetch;
   let downloads = 0;
   globalThis.fetch = async () => { downloads++; return new Response(JSON.stringify({ version: '1.9.0' }), { status: 200 }); };
-  try { await assert.rejects(fetchInterpreterFirmware('wemos-d1-r32', new AbortController().signal), /ofrece firmware 1.9.0.*necesita 1.14.1/); }
+  try { await assert.rejects(fetchInterpreterFirmware('wemos-d1-r32', new AbortController().signal), /ofrece firmware 1.9.0.*necesita 1.14.2/); }
   finally { globalThis.fetch = originalFetch; }
   assert.equal(downloads, 1, 'a stale manifest must not download or flash a bundle');
   console.log('Reliable USB: mismatched published firmware gives an actionable error before downloading/USB');
