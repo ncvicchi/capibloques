@@ -38,6 +38,12 @@ TypeScript y lint aprobados. Cuatro casos Playwright contra DEV3 en Chromium,
 Chrome y Edge (12 aprobados): Wemos/S3, ida/vuelta, pin exacto, conservación
 del chequeo sin aprobarlo, señal sin asignar y Waveshare. Capturas revisadas.
 
+El caso histórico `workbench.spec.ts` «Wemos: pines...» tiene un fixture
+desactualizado: espera Semáforo 1 en el proyecto inicial, que ahora es Seguidor
+de línea básico. Falló al buscar esa opción; no es una regresión del selector.
+La nueva prueba carga su propio proyecto y comprueba selector/mapa/tabla sin
+depender del ejemplo inicial. No se declara aprobada toda la suite histórica.
+
 Archivos sincronizados explícitamente a la VM y activos por HMR en
 `http://localhost:3003/`. No requiere compilar/grabar firmware ni usar
 `update-dev.sh`. Rama publicada sin integrar automáticamente main/dev1/dev2.

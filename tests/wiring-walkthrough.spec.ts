@@ -28,6 +28,10 @@ for (const board of ['wemos-d1-r32', 'diymall-esp32-s3-devkitc-v1-n16r8'] as con
   test(`${board}: guía ida/vuelta, pin exacto y revisión conservada`, async ({ page }, info) => {
     const dialog = await openGuide(page, board);
     const pin = await dialog.locator('.wiring-pin-button').first().textContent();
+    await dialog.getByRole('combobox', { name: 'Resaltar conexiones de' }).selectOption({ label: 'Luz del jardín' });
+    const selectedDevice = await dialog.getByRole('combobox', { name: 'Resaltar conexiones de' }).inputValue();
+    await expect(dialog.locator('.board-contact[aria-pressed="true"]')).toHaveCount(1);
+    await expect(dialog.locator('.wiring-table tr[data-selected="true"]')).toHaveCount(1);
     await dialog.getByRole('checkbox').first().check();
     await dialog.getByRole('button', { name: 'Paso a paso', exact: true }).click();
     await expect(dialog.getByRole('heading', { name: 'Primero, alimentación y materiales' })).toBeVisible();
@@ -49,6 +53,8 @@ for (const board of ['wemos-d1-r32', 'diymall-esp32-s3-devkitc-v1-n16r8'] as con
     await expect(dialog.getByRole('heading', { name: 'Recorrido terminado' })).toBeVisible();
     await dialog.getByRole('button', { name: 'Volver al listado y al chequeo' }).click();
     await expect(dialog.locator('.wiring-pin-button').first()).toHaveText(pin!);
+    await expect(dialog.getByRole('combobox', { name: 'Resaltar conexiones de' })).toHaveValue(selectedDevice);
+    await expect(dialog.locator('.wiring-table tr[data-selected="true"]')).toHaveCount(1);
     await expect(dialog.getByRole('checkbox').first()).toBeChecked();
     await expect(dialog.getByRole('button', { name: 'Conexiones revisadas', exact: true })).toBeDisabled();
     await dialog.getByRole('button', { name: 'Paso a paso', exact: true }).click();
