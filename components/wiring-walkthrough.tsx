@@ -96,12 +96,14 @@ export default function WiringWalkthrough({ connections, devices, profileId, adv
         {step.kind === 'ground' && <>
           <div className="wiring-step-route"><div><small>{step.device.name}</small><strong>GND / negativo común</strong></div><ArrowRight aria-hidden="true" /><div><small>{profile.shortName}</small><strong>GND</strong></div></div>
           <p>Buscá los contactos GND resaltados. Usá uno para unir la masa del componente o de su driver con la placa. Si usa una fuente externa, su negativo también comparte GND.</p>
-          {['led', 'trafficLight'].includes(step.device.kind) && <p>En los LED, el cátodo (−) va a GND y cada luz lleva su propia resistencia de 220–330 Ω en serie.</p>}
+          {step.device.kind === 'led' && <p>En los LED, el cátodo (−) va a GND y cada luz lleva su propia resistencia de 220–330 Ω en serie.</p>}
+          {step.device.kind === 'trafficLight' && <p>En el módulo de la foto, usá el pin GND: es el primero de arriba. G es verde; no es GND.</p>}
         </>}
         {row && <>
           <div className="wiring-step-route"><div><small>{row.deviceName}</small><strong>{row.signal}</strong></div><Cable aria-hidden="true" /><div><small>{profile.shortName}</small><strong>{located ? physical : 'Revisar asignación'}</strong>{located && <span>GPIO {row.pin}{row.boardLabel && row.boardLabel !== physical ? ` · ${row.boardLabel}` : ''}</span>}</div></div>
           <p>{located ? `Localizá ${physical} en la placa, marcado con un aro y una flecha. Conectá la señal indicada a GPIO ${row.pin}.` : row.pin == null ? 'Esta señal está sin asignar. Elegí su pin en Armar escena antes de conectar; no hay un cable de destino indicado.' : `GPIO ${row.pin} no está habilitado o no se pudo localizar en esta placa. Revisá su asignación en Armar escena antes de conectar.`}</p>
-          {device && ['led', 'trafficLight'].includes(device.kind) && /LED/.test(row.signal) && <p>GPIO → resistencia de 220–330 Ω → ánodo (+) del LED. El cátodo (−) va a GND.</p>}
+          {device?.kind === 'led' && <p>GPIO → resistencia de 220–330 Ω → ánodo (+) del LED. El cátodo (−) va a GND.</p>}
+          {device?.kind === 'trafficLight' && /LED/.test(row.signal) && <p>Conectá el GPIO al pin {({ 'LED rojo': 'R (rojo)', 'LED amarillo': 'Y (amarillo)', 'LED verde': 'G (verde)' } as Record<string, string>)[row.signal]} resaltado en el módulo. El módulo de la foto ya tiene sus resistencias.</p>}
           {device?.kind === 'messages' && <p>Enviar se conecta a Recibir del otro equipo; Recibir se conecta a Enviar. No unas dos salidas Enviar.</p>}
           {!device && <p>Usá el circuito de tu carga (resistencia, transistor o driver). Este bloque sólo define una salida GPIO.</p>}
         </>}

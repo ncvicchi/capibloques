@@ -29,6 +29,16 @@ resistencia dibujada. El cable se recalcula al cambiar paso o dimensiones,
 incluido el diseño apilado de pantallas pequeñas. No se dibuja un cable a la
 placa si la señal no tiene destino válido. Preparación muestra ambos sin cable.
 
+Referencia de semáforo confirmada por foto del propietario:
+[foto original](references/traffic-light-module.png). Se representa su PCB
+horizontal, tres LED, resistencias y conector de cuatro pines; de arriba hacia
+abajo **GND, R, Y, G**. El aro y el origen del cable se ubican sobre el pin
+físico correspondiente. G significa verde, no GND. Este modelo incorpora
+resistencias; la guía distingue este módulo de LED sueltos. Los carteles
+MAX7219 opcionales conservan su dibujo separado. Esta referencia sí fija el
+orden del conector de este modelo; otros componentes siguen siendo esquemas
+genéricos. Caso Playwright recorre los cuatro pines en Chromium/Chrome/Edge.
+
 ## Límites
 
 - GPIO vacío/no localizado/no habilitado: explica el problema sin inventar destino.

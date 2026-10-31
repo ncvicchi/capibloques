@@ -4,13 +4,14 @@ import { makeProject } from '../lib/capiblocks';
 import { createEmptyScene, createSceneDevice } from '../lib/scene-model';
 import { projectTargetForBoard, type BoardProfileId } from '../lib/board-profiles';
 
-async function openGuide(page: Page, board: BoardProfileId, missing = false) {
+async function openGuide(page: Page, board: BoardProfileId, missing = false, kind: 'led' | 'trafficLight' = 'led') {
   await mockEditorSession(page);
   await page.goto('/');
   await expect(page.locator('.blocklySvg')).toBeVisible();
   const scene = createEmptyScene('Prueba de conexiones');
-  const led = createSceneDevice('led', [], { boardProfile: board });
-  led.name = 'Luz del jardín';
+  if (kind === 'trafficLight') scene.canvas.background = 'crossroads';
+  const led = createSceneDevice(kind, [], { boardProfile: board });
+  led.name = kind === 'led' ? 'Luz del jardín' : 'Semáforo del cruce';
   scene.devices.push(led);
   const project = makeProject('Recorrido de cables', scene, { blocks: { languageVersion: 0, blocks: [{ type: 'capi_start', id: 'start' }] } }, 1, projectTargetForBoard(board));
   if (missing) (project.scene.devices[0].pins as Record<string, number | null>).signal = null;
@@ -84,4 +85,19 @@ test('Waveshare virtual explica por qué no hay recorrido de cables', async ({ p
   const dialog = await openGuide(page, 'waveshare-esp32-s3-touch-lcd-5-28117');
   await expect(dialog.getByRole('button', { name: 'Paso a paso', exact: true })).toBeDisabled();
   await expect(dialog.getByText('En la Waveshare los componentes son virtuales: no llevan cables GPIO.')).toBeVisible();
+});
+
+test('módulo de semáforo: conector GND/R/Y/G y cable en el pin físico del paso', async ({ page }, info) => {
+  const dialog = await openGuide(page, 'wemos-d1-r32', false, 'trafficLight');
+  await dialog.getByRole('button', { name: 'Paso a paso', exact: true }).click();
+  await expect(dialog.locator('[data-module-pin]')).toHaveCount(4);
+  await dialog.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  for (const pin of ['GND', 'R', 'Y', 'G']) {
+    await expect(dialog.locator('[data-module-pin][data-active="true"]')).toHaveAttribute('data-module-pin', pin);
+    await expect(dialog.locator(`[data-module-pin="${pin}"] .wiring-component-terminal`)).toHaveCount(1);
+    await expect(dialog.locator('[data-wire-connected="true"]')).toHaveCount(1);
+    if (pin === 'R') await page.screenshot({ path: info.outputPath('modulo-semaforo-R.png') });
+    if (pin !== 'G') await dialog.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+  await expect(dialog).toContainText('G (verde)');
 });
