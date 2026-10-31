@@ -7,13 +7,16 @@ import { useId } from 'react';
 import { sceneComponentCatalog, type SceneDevice } from '@/lib/scene-model';
 import { displayProfiles } from '@/lib/display-model';
 
+export type TrafficWiringMode = 'module' | 'leds';
+
 // Traffic module connector order follows the owner's reference photo.
 // Other modules remain generic schematics, not vendor connector pinouts.
-export default function WiringComponent({ device, signal, ground = false, connected = false }: {
+export default function WiringComponent({ device, signal, ground = false, connected = false, trafficMode = 'module' }: {
   device: SceneDevice;
   signal?: string;
   ground?: boolean;
   connected?: boolean;
+  trafficMode?: TrafficWiringMode;
 }) {
   const titleId = useId();
   const catalog = sceneComponentCatalog.find(item => item.kind === device.kind);
@@ -22,16 +25,28 @@ export default function WiringComponent({ device, signal, ground = false, connec
   const resistor = !ground && Boolean(signal) && (device.kind === 'led' || lamp >= 0);
   const display = device.kind === 'display';
   const matrix = device.kind === 'ledMatrix' || (device.kind === 'trafficLight' && signal?.startsWith('Matrices'));
-  const trafficModule = device.kind === 'trafficLight' && !matrix;
+  const trafficModule = device.kind === 'trafficLight' && !matrix && trafficMode === 'module';
+  const looseTrafficLeds = device.kind === 'trafficLight' && !matrix && trafficMode === 'leds';
   const activeTrafficPin = ground ? 0 : lamp >= 0 ? lamp + 1 : -1;
   return <figure className="wiring-component-figure">
-    <svg viewBox="0 0 350 185" role="img" aria-labelledby={titleId} data-component-kind={device.kind}>
+    <svg viewBox="0 0 350 185" role="img" aria-labelledby={titleId} data-component-kind={device.kind} data-traffic-mode={device.kind === 'trafficLight' ? trafficMode : undefined}>
       <title id={titleId}>{device.name}{terminal ? `: contacto ${terminal}` : ''}. Ilustración de conexión.</title>
       {matrix ? <>
         <rect x="15" y="25" width="170" height="105" rx="7" fill="#172434" stroke="#364b62" strokeWidth="3" />
         {Array.from({ length: device.kind === 'trafficLight' ? 8 : 16 }, (_, x) => Array.from({ length: 8 }, (_, y) => <circle key={`${x}-${y}`} cx={23 + x * (device.kind === 'trafficLight' ? 21 : 10)} cy={36 + y * 12} r="3" fill="#ef5555" />))}
         <text x="100" y="155" textAnchor="middle">Matriz LED</text>
-      </> : device.kind === 'trafficLight' ? <>
+      </> : looseTrafficLeds ? <>
+        {['#ef4444', '#facc15', '#22c55e'].map((color, index) => {
+          const x = 36 + index * 62;
+          return <g key={color} data-loose-led={index} opacity={lamp < 0 || lamp === index ? 1 : .3}>
+            <path d={`M${x - 19} 102V66a19 19 0 0138 0v36Z`} fill={color} stroke="#334155" strokeWidth="2" />
+            <path d={`M${x - 22} 102h44m-30 1v39m16-39v24`} stroke="#334155" strokeWidth="3" />
+            <text x={x - 12} y="156">+</text><text x={x + 4} y="142">−</text>
+          </g>;
+        })}
+        {ground && <path d="M44 127V166H168V127M106 127V166M168 166H184V85H193" fill="none" stroke="#a74300" strokeWidth="3" />}
+        {lamp >= 0 && <path d={`M${28 + lamp * 62} 142H180V85H193`} fill="none" stroke="#a74300" strokeWidth="3" />}
+      </> : trafficModule ? <>
         <path d="M12 57H195Q203 57 203 65V78H263V28Q263 20 271 20H300Q308 20 308 28V157Q308 165 300 165H271Q263 165 263 157V111H203V122Q203 130 195 130H12Q5 130 5 123V64Q5 57 12 57Z" fill="#171d1c" stroke="#3b4743" strokeWidth="2" />
         <circle cx="284" cy="37" r="10" fill="white" stroke="#718078" strokeWidth="2" />
         <circle cx="284" cy="148" r="10" fill="white" stroke="#718078" strokeWidth="2" />
@@ -96,6 +111,6 @@ export default function WiringComponent({ device, signal, ground = false, connec
         {connected && <circle cx="322" cy="85" r="13" fill="none" stroke="#ff8a00" strokeWidth="3" />}
       </>}
     </svg>
-    <figcaption>{trafficModule ? `Módulo de referencia de ${device.name}, según tu foto. Pines de arriba hacia abajo: GND, R (rojo), Y (amarillo), G (verde). Resistencias en la placa del módulo.` : `Esquema de ${device.name}. Los contactos se identifican por su nombre; su posición puede variar según el módulo.`}</figcaption>
+    <figcaption>{trafficModule ? `Módulo de ${device.name}. Pines de arriba hacia abajo: GND, R (rojo), Y (amarillo), G (verde).` : looseTrafficLeds ? 'LED sueltos: ánodo (+), pata larga; cátodo (−), pata corta y lado plano. Una resistencia en serie por cada LED.' : `Esquema de ${device.name}. Los contactos se identifican por su nombre; su posición puede variar según el módulo.`}</figcaption>
   </figure>;
 }

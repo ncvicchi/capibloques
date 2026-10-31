@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, Cable, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import WemosBoard, { type WiringConnection } from '@/components/wemos-board';
 import S3Board from '@/components/s3-board';
-import WiringComponent from '@/components/wiring-component';
+import WiringComponent, { type TrafficWiringMode } from '@/components/wiring-component';
 import { boardProfile, type BoardProfileId } from '@/lib/board-profiles';
 import { physicalWemosLabel } from '@/lib/wemos-board';
 import { physicalS3Label } from '@/lib/s3-board';
@@ -22,6 +22,7 @@ export default function WiringWalkthrough({ connections, devices, profileId, adv
   onHelp: (device: SceneDevice) => void;
 }) {
   const [index, setIndex] = useState(0);
+  const [trafficModes, setTrafficModes] = useState<Record<string, TrafficWiringMode>>({});
   const heading = useRef<HTMLHeadingElement>(null);
   const circuit = useRef<HTMLDivElement>(null);
   const wireId = useId();
@@ -39,6 +40,7 @@ export default function WiringWalkthrough({ connections, devices, profileId, adv
   const step = steps[index];
   const row = step?.kind === 'signal' ? step.row : undefined;
   const device = row ? devices.find(item => item.id === row.deviceId) : step && step.kind !== 'signal' ? step.device : undefined;
+  const trafficMode = device ? trafficModes[device.id] ?? 'module' : 'module';
   const profile = boardProfile(profileId);
   const physical = row ? (profileId === 'wemos-d1-r32' ? physicalWemosLabel(row.pin) : physicalS3Label(row.pin)) : undefined;
   const located = row?.pin != null && Boolean(physical) && profile.pins.some(pin => pin.gpio === row.pin);
@@ -75,7 +77,7 @@ export default function WiringWalkthrough({ connections, devices, profileId, adv
     container.querySelectorAll('svg').forEach(svg => observer.observe(svg));
     const frame = requestAnimationFrame(update);
     return () => { observer.disconnect(); cancelAnimationFrame(frame); };
-  }, [index, device, located, step?.kind]);
+  }, [index, device, located, step?.kind, trafficMode]);
 
   return <section className="wiring-walkthrough" aria-label="Conexiones paso a paso">
     <div className="wiring-step-toolbar">
@@ -87,23 +89,28 @@ export default function WiringWalkthrough({ connections, devices, profileId, adv
       <div className="wiring-step-card" data-kind={step.kind}>
         <span className="wiring-step-component">{device?.name ?? row?.deviceName}</span>
         <h3 ref={heading} tabIndex={-1}>{step.kind === 'prepare' ? 'Primero, alimentación y materiales' : step.kind === 'ground' ? 'Uní las masas: GND' : row?.signal}</h3>
-        {device && <WiringComponent device={device} signal={row?.signal} ground={step.kind === 'ground'} connected={located || step.kind === 'ground'} />}
+        {step.kind === 'prepare' && device?.kind === 'trafficLight' && <fieldset className="wiring-traffic-mode">
+          <legend>¿Cómo armás este semáforo?</legend>
+          <label><input type="radio" name={`traffic-mode-${device.id}`} checked={trafficMode === 'module'} onChange={() => setTrafficModes(current => ({ ...current, [device.id]: 'module' }))} /> Módulo</label>
+          <label><input type="radio" name={`traffic-mode-${device.id}`} checked={trafficMode === 'leds'} onChange={() => setTrafficModes(current => ({ ...current, [device.id]: 'leds' }))} /> LED y resistencia en serie</label>
+        </fieldset>}
+        {device && <WiringComponent device={device} signal={row?.signal} ground={step.kind === 'ground'} connected={located || step.kind === 'ground'} trafficMode={trafficMode} />}
         {step.kind === 'prepare' && <>
-          <p>{advice[step.device.kind]}</p>
+          <p>{step.device.kind === 'trafficLight' ? trafficMode === 'module' ? 'Identificá en el módulo los cuatro pines: GND, R, Y y G. Los vamos a conectar uno por uno.' : 'Prepará tres LED (rojo, amarillo y verde) y una resistencia de 220–330 Ω para cada uno. Cada resistencia va en serie con su LED.' : advice[step.device.kind]}</p>
           <p>{connections.some(connection => connection.deviceId === step.device.id) ? 'Prepará este componente con la placa desconectada. A continuación veremos GND y cada señal, de a una.' : 'Este componente no tiene señales GPIO configurables. No agregues cables a partir de este recorrido.'}</p>
-          <p>La alimentación depende del módulo: revisá su ficha. Esta guía no asigna un pin de alimentación automáticamente.</p>
+          {step.device.kind !== 'trafficLight' && <p>La alimentación depende del módulo: revisá su ficha. Esta guía no asigna un pin de alimentación automáticamente.</p>}
         </>}
         {step.kind === 'ground' && <>
           <div className="wiring-step-route"><div><small>{step.device.name}</small><strong>GND / negativo común</strong></div><ArrowRight aria-hidden="true" /><div><small>{profile.shortName}</small><strong>GND</strong></div></div>
           <p>Buscá los contactos GND resaltados. Usá uno para unir la masa del componente o de su driver con la placa. Si usa una fuente externa, su negativo también comparte GND.</p>
           {step.device.kind === 'led' && <p>En los LED, el cátodo (−) va a GND y cada luz lleva su propia resistencia de 220–330 Ω en serie.</p>}
-          {step.device.kind === 'trafficLight' && <p>En el módulo de la foto, usá el pin GND: es el primero de arriba. G es verde; no es GND.</p>}
+          {step.device.kind === 'trafficLight' && <p>{trafficMode === 'module' ? 'En el módulo, usá el pin GND: es el primero de arriba. G es verde; no es GND.' : 'Conectá el cátodo (−) de cada LED a GND. Es la pata corta y está del lado plano del LED. El ánodo (+) es la pata larga.'}</p>}
         </>}
         {row && <>
           <div className="wiring-step-route"><div><small>{row.deviceName}</small><strong>{row.signal}</strong></div><Cable aria-hidden="true" /><div><small>{profile.shortName}</small><strong>{located ? physical : 'Revisar asignación'}</strong>{located && <span>GPIO {row.pin}{row.boardLabel && row.boardLabel !== physical ? ` · ${row.boardLabel}` : ''}</span>}</div></div>
           <p>{located ? `Localizá ${physical} en la placa, marcado con un aro y una flecha. Conectá la señal indicada a GPIO ${row.pin}.` : row.pin == null ? 'Esta señal está sin asignar. Elegí su pin en Armar escena antes de conectar; no hay un cable de destino indicado.' : `GPIO ${row.pin} no está habilitado o no se pudo localizar en esta placa. Revisá su asignación en Armar escena antes de conectar.`}</p>
           {device?.kind === 'led' && <p>GPIO → resistencia de 220–330 Ω → ánodo (+) del LED. El cátodo (−) va a GND.</p>}
-          {device?.kind === 'trafficLight' && /LED/.test(row.signal) && <p>Conectá el GPIO al pin {({ 'LED rojo': 'R (rojo)', 'LED amarillo': 'Y (amarillo)', 'LED verde': 'G (verde)' } as Record<string, string>)[row.signal]} resaltado en el módulo. El módulo de la foto ya tiene sus resistencias.</p>}
+          {device?.kind === 'trafficLight' && /LED/.test(row.signal) && <p>{trafficMode === 'module' ? <>Conectá el GPIO al pin {({ 'LED rojo': 'R (rojo)', 'LED amarillo': 'Y (amarillo)', 'LED verde': 'G (verde)' } as Record<string, string>)[row.signal]} resaltado en el módulo.</> : <>GPIO → resistencia de 220–330 Ω → ánodo (+, pata larga) del {row.signal.toLowerCase()}. Cátodo (−, pata corta/lado plano) → GND. Usá una resistencia distinta para cada LED.</>}</p>}
           {device?.kind === 'messages' && <p>Enviar se conecta a Recibir del otro equipo; Recibir se conecta a Enviar. No unas dos salidas Enviar.</p>}
           {!device && <p>Usá el circuito de tu carga (resistencia, transistor o driver). Este bloque sólo define una salida GPIO.</p>}
         </>}

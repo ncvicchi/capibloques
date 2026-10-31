@@ -90,6 +90,8 @@ test('Waveshare virtual explica por qué no hay recorrido de cables', async ({ p
 test('módulo de semáforo: conector GND/R/Y/G y cable en el pin físico del paso', async ({ page }, info) => {
   const dialog = await openGuide(page, 'wemos-d1-r32', false, 'trafficLight');
   await dialog.getByRole('button', { name: 'Paso a paso', exact: true }).click();
+  await dialog.getByRole('radio', { name: 'Módulo', exact: true }).check();
+  await expect(dialog.locator('.wiring-step-card')).not.toContainText(/resistencias/i);
   await expect(dialog.locator('[data-module-pin]')).toHaveCount(4);
   await dialog.getByRole('button', { name: 'Siguiente', exact: true }).click();
   for (const pin of ['GND', 'R', 'Y', 'G']) {
@@ -100,4 +102,29 @@ test('módulo de semáforo: conector GND/R/Y/G y cable en el pin físico del pas
     if (pin !== 'G') await dialog.getByRole('button', { name: 'Siguiente', exact: true }).click();
   }
   await expect(dialog).toContainText('G (verde)');
+  await expect(dialog.locator('.wiring-step-card')).not.toContainText(/resistencias/i);
+});
+
+test('semáforo con LED sueltos: elección inicial, resistencia y polaridad; volver permite cambiar montaje', async ({ page }, info) => {
+  const dialog = await openGuide(page, 'wemos-d1-r32', false, 'trafficLight');
+  await dialog.getByRole('button', { name: 'Paso a paso', exact: true }).click();
+  await dialog.getByRole('radio', { name: 'LED y resistencia en serie' }).check();
+  await expect(dialog.locator('[data-loose-led]')).toHaveCount(3);
+  await expect(dialog.locator('[data-module-pin]')).toHaveCount(0);
+  await expect(dialog.locator('.wiring-step-card')).toContainText('una resistencia de 220–330 Ω para cada uno');
+  await dialog.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  await expect(dialog.locator('.wiring-step-card')).toContainText('Conectá el cátodo (−) de cada LED a GND');
+  await expect(dialog.locator('[data-wire-connected="true"]')).toHaveCount(1);
+  await dialog.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  await expect(dialog.locator('.wiring-step-card')).toContainText('ánodo (+, pata larga) del led rojo');
+  await expect(dialog.locator('.wiring-component-figure')).toContainText('220–330 Ω');
+  await page.screenshot({ path: info.outputPath('semaforo-led-resistencia.png') });
+  await dialog.getByRole('button', { name: 'Atrás', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Atrás', exact: true }).click();
+  await expect(dialog.getByRole('radio', { name: 'LED y resistencia en serie' })).toBeChecked();
+  await dialog.getByRole('radio', { name: 'Módulo', exact: true }).check();
+  await expect(dialog.locator('[data-module-pin]')).toHaveCount(4);
+  await expect(dialog.locator('.wiring-step-card')).not.toContainText(/resistencias/i);
+  await dialog.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  await expect(dialog.locator('[data-module-pin][data-active="true"]')).toHaveAttribute('data-module-pin', 'GND');
 });

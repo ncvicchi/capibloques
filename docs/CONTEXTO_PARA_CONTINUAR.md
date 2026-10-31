@@ -1,5 +1,7 @@
 # CapiBloques — contexto para continuar
 
+**31/10 — Dos montajes en conexiones:** primer paso de cada semáforo ofrece Módulo o LED y resistencia en serie. Estado local por componente, conservado al navegar, sin cambios de JSON/pines/firmware. Módulo GND/R/Y/G sin aclaraciones de resistencias; LED sueltos con resistencia por luz y polaridad (+ pata larga; − pata corta/lado plano) y GND común. Volver al primer paso permite cambiar. Ver `CONEXIONES_PASO_A_PASO.md`; sustituye la presentación única anterior.
+
 **31/10 — Módulo físico de semáforo:** foto del propietario guardada en `docs/references/traffic-light-module.png`. Dibujo horizontal fiel a PCB/LED/conector, pines de arriba abajo GND/R/Y/G. Origen del cable y aro en el pin correspondiente, no terminal abstracto; G es verde. Resistencias incorporadas distinguibles de LED sueltos. MAX7219 opcional separado. Prueba de los cuatro pines en los tres navegadores; mismo trabajo de conexiones DEV3.
 
 **31/10 — Seguimiento de conexiones guiadas:** el propietario pidió que se vean ambos extremos. `wiring-component.tsx` muestra el componente, su contacto rotulado y, en LED, resistencia. Un cable SVG llega al pin del mapa de placa; ResizeObserver conserva alineación al navegar/redimensionar. Diagramas esquemáticos (no orden físico de conectores), sin cable si GPIO inválido. Mismo trabajo/rama DEV3, sin firmware ni cambios de datos.

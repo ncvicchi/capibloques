@@ -39,6 +39,25 @@ MAX7219 opcionales conservan su dibujo separado. Esta referencia sí fija el
 orden del conector de este modelo; otros componentes siguen siendo esquemas
 genéricos. Caso Playwright recorre los cuatro pines en Chromium/Chrome/Edge.
 
+## Dos montajes de semáforo
+
+El primer paso de cada semáforo permite elegir **Módulo** o **LED y resistencia
+en serie**. La elección es independiente por semáforo y se conserva mientras
+se avanza/retrocede en el recorrido. Se puede cambiar volviendo a su primer
+paso; no modifica GPIO, proyecto, JSON ni firmware. Al iniciar un recorrido
+nuevo se ofrece Módulo como opción inicial.
+
+- Módulo: dibujo GND/R/Y/G de la foto, cable desde el pin seleccionado y sin
+  aclaraciones sobre resistencias en los pasos de ese montaje.
+- LED y resistencia en serie: tres LED sueltos, cátodos comunes a GND, una
+  resistencia de 220–330 Ω por luz y señal al ánodo. La guía explica pata
+  larga/ánodo (+), pata corta/lado plano/cátodo (−), y dibuja la resistencia
+  en serie en el paso de cada luz.
+- Los carteles opcionales MAX7219 conservan sus pasos sin cambiar por esta elección.
+
+Las pruebas cubren ambos montajes, los cuatro pines del módulo, ausencia de
+notas de resistencias en modo Módulo, polaridad/serie en LED y cambio al volver.
+
 ## Límites
 
 - GPIO vacío/no localizado/no habilitado: explica el problema sin inventar destino.
