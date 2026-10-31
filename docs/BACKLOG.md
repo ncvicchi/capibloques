@@ -1,5 +1,7 @@
 # Backlog de CapiBloques
 
+**31/10 — Conexiones guiadas, ambos extremos:** agregado dibujo esquemático del componente y cable hasta el pin señalado en la placa; actualiza contacto y trazado por paso/tamaño. Incluye resistencia en LED y selección de luz en semáforo. [Detalle](CONEXIONES_PASO_A_PASO.md). Activo en DEV3; aceptación visual del propietario pendiente.
+
 **31/10 — Conexiones guiadas en DEV3 (ampliación UX de conexiones):** [recorrido y límites](CONEXIONES_PASO_A_PASO.md). Paso a paso agregado a la vista existente, preparación/GND/señales por componente, Atrás/Siguiente y pin resaltado con mayor contraste en Wemos/S3. No cambia proyectos ni completa revisión adulta. Pruebas de navegador aprobadas; aceptación del propietario pendiente.
 
 **31/10 — Normalización solicitada:** main/dev1/dev3 integrados en GitHub conservando historiales e igual contenido. No implica actualizar servicios del servidor. Trabajos siguientes en ramas desde dev3; dev2 intacta. Este registro sustituye los pendientes anteriores de integración de semáforo/STOP/comunicación en esas ramas, no sus aceptaciones físicas pendientes.

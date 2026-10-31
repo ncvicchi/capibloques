@@ -19,6 +19,16 @@ con borde oscuro. Etiquetas con contorno blanco contrastan sobre la placa.
 La mejora también se aplica a la vista completa. El estado simulado sigue
 siendo optativo allí; el recorrido usa marcas fijas para mostrar cableado.
 
+Seguimiento: el recorrido muestra **componente y placa juntos**, con el
+contacto del componente rotulado y un cable hasta el contacto seleccionado
+de la placa. Hay dibujos propios para semáforo, LED, matriz, pantalla, servo,
+motor/driver y botón; los demás usan un módulo esquemático con su icono y
+nombre de catálogo. No son fotografías ni prometen el orden físico de bornes.
+En semáforo se destaca la luz correspondiente; los pasos de LED incluyen la
+resistencia dibujada. El cable se recalcula al cambiar paso o dimensiones,
+incluido el diseño apilado de pantallas pequeñas. No se dibuja un cable a la
+placa si la señal no tiene destino válido. Preparación muestra ambos sin cable.
+
 ## Límites
 
 - GPIO vacío/no localizado/no habilitado: explica el problema sin inventar destino.

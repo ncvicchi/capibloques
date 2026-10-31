@@ -1,5 +1,7 @@
 # CapiBloques — contexto para continuar
 
+**31/10 — Seguimiento de conexiones guiadas:** el propietario pidió que se vean ambos extremos. `wiring-component.tsx` muestra el componente, su contacto rotulado y, en LED, resistencia. Un cable SVG llega al pin del mapa de placa; ResizeObserver conserva alineación al navegar/redimensionar. Diagramas esquemáticos (no orden físico de conectores), sin cable si GPIO inválido. Mismo trabajo/rama DEV3, sin firmware ni cambios de datos.
+
 **31/10 — Conexiones guiadas:** rama `codex/dev3-conexiones-paso-a-paso`, desde dev3 normalizada. Ver [entrega](CONEXIONES_PASO_A_PASO.md). Vista actual conservada, nuevo botón Paso a paso con preparación/GND/señales, navegación, ayuda por componente y resaltado contrastado en ambos mapas. Sin cambios de firmware/JSON/datos, ni aprobación adulta automática. Activo por HMR en VM; aceptación del propietario pendiente. Pruebas Chromium/Chrome/Edge aprobadas.
 
 **31/10 — Ramas normalizadas por pedido explícito:** main, dev1 y dev3 publicadas con igual contenido e historiales conservados. No se actualizaron servicios remotos ni dev2. Dev3 local quedó limpia y en su rama estable antes de crear esta nueva tarea. Los pendientes históricos de integración de las correcciones USB/STOP/semáforo en Git ya fueron resueltos; las instalaciones de servidor se verifican aparte.

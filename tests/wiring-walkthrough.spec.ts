@@ -44,6 +44,14 @@ for (const board of ['wemos-d1-r32', 'diymall-esp32-s3-devkitc-v1-n16r8'] as con
     await expect(dialog.locator('.board-contact.selected')).toHaveCount(1);
     await expect(dialog.locator('.board-contact.selected .board-active-arrow')).toHaveCount(1);
     await expect(dialog.locator('.wiring-step-component')).toHaveText('Luz del jardín');
+    await expect(dialog.getByRole('img', { name: 'Luz del jardín: contacto LED. Ilustración de conexión.' })).toBeVisible();
+    await expect(dialog.locator('[data-wire-connected="true"]')).toHaveCount(1);
+    const wire = dialog.locator('.wiring-live-wire > path').last();
+    const desktopPath = await wire.getAttribute('d');
+    await page.setViewportSize({ width: 500, height: 900 });
+    await expect.poll(() => wire.getAttribute('d')).not.toBe(desktopPath);
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await expect.poll(() => wire.getAttribute('d')).toBe(desktopPath);
     await expect(dialog.getByRole('heading', { name: 'LED', exact: true })).toBeFocused();
     await page.screenshot({ path: info.outputPath('conexion-resaltada.png') });
     await dialog.getByRole('button', { name: 'Atrás', exact: true }).click();
@@ -69,6 +77,7 @@ test('no inventa un destino cuando falta asignar el pin', async ({ page }) => {
   await dialog.getByRole('button', { name: 'Siguiente', exact: true }).click();
   await expect(dialog.getByText('Esta señal está sin asignar.', { exact: false })).toBeVisible();
   await expect(dialog.locator('.board-contact.selected')).toHaveCount(0);
+  await expect(dialog.locator('[data-wire-connected="true"]')).toHaveCount(0);
 });
 
 test('Waveshare virtual explica por qué no hay recorrido de cables', async ({ page }) => {

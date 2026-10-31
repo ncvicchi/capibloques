@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Cable, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import WemosBoard, { type WiringConnection } from '@/components/wemos-board';
 import S3Board from '@/components/s3-board';
+import WiringComponent from '@/components/wiring-component';
 import { boardProfile, type BoardProfileId } from '@/lib/board-profiles';
 import { physicalWemosLabel } from '@/lib/wemos-board';
 import { physicalS3Label } from '@/lib/s3-board';
@@ -22,6 +23,9 @@ export default function WiringWalkthrough({ connections, devices, profileId, adv
 }) {
   const [index, setIndex] = useState(0);
   const heading = useRef<HTMLHeadingElement>(null);
+  const circuit = useRef<HTMLDivElement>(null);
+  const wireId = useId();
+  const [wire, setWire] = useState<{ path: string; width: number; height: number } | null>(null);
   // Keep shared bus wires as separate connections: each module needs its cable.
   const steps: Step[] = devices.flatMap(device => {
     const rows = connections.filter(row => row.deviceId === device.id);
@@ -48,6 +52,30 @@ export default function WiringWalkthrough({ connections, devices, profileId, adv
     },
   };
   useEffect(() => { heading.current?.focus({ preventScroll: true }); }, [index]);
+  useEffect(() => {
+    const container = circuit.current;
+    if (!container || !device || (!located && step?.kind !== 'ground')) { setWire(null); return; }
+    const update = () => {
+      const from = container.querySelector('.wiring-component-terminal')?.getBoundingClientRect();
+      const to = container.querySelector('.wiring-step-board .board-contact.selected > circle')?.getBoundingClientRect();
+      if (!from || !to) { setWire(null); return; }
+      const bounds = container.getBoundingClientRect();
+      const x1 = from.x + from.width / 2 - bounds.x, y1 = from.y + from.height / 2 - bounds.y;
+      const x2 = to.x + to.width / 2 - bounds.x, y2 = to.y + to.height / 2 - bounds.y;
+      const middle = (x1 + x2) / 2;
+      const boardBounds = container.querySelector('.wiring-step-board')!.getBoundingClientRect();
+      const cardBounds = container.querySelector('.wiring-step-card')!.getBoundingClientRect();
+      const path = boardBounds.top >= cardBounds.bottom
+        ? `M${x1} ${y1}H${bounds.width - 4}V${y2}H${x2}`
+        : `M${x1} ${y1} C${middle} ${y1},${middle} ${y2},${x2} ${y2}`;
+      setWire(current => current?.path === path && current.width === bounds.width && current.height === bounds.height ? current : { path, width: bounds.width, height: bounds.height });
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(container);
+    container.querySelectorAll('svg').forEach(svg => observer.observe(svg));
+    const frame = requestAnimationFrame(update);
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
+  }, [index, device, located, step?.kind]);
 
   return <section className="wiring-walkthrough" aria-label="Conexiones paso a paso">
     <div className="wiring-step-toolbar">
@@ -55,10 +83,11 @@ export default function WiringWalkthrough({ connections, devices, profileId, adv
       <span aria-live="polite">{step ? `Paso ${index + 1} de ${steps.length}` : 'Recorrido terminado'}</span>
     </div>
     <progress aria-label="Progreso de conexiones" max={steps.length || 1} value={Math.min(index + 1, steps.length)} />
-    {step ? <div className="wiring-step-content" data-has-board={step.kind !== 'prepare'}>
+    {step ? <div className="wiring-step-content" data-has-board="true" ref={circuit}>
       <div className="wiring-step-card" data-kind={step.kind}>
         <span className="wiring-step-component">{device?.name ?? row?.deviceName}</span>
         <h3 ref={heading} tabIndex={-1}>{step.kind === 'prepare' ? 'Primero, alimentación y materiales' : step.kind === 'ground' ? 'Uní las masas: GND' : row?.signal}</h3>
+        {device && <WiringComponent device={device} signal={row?.signal} ground={step.kind === 'ground'} connected={located || step.kind === 'ground'} />}
         {step.kind === 'prepare' && <>
           <p>{advice[step.device.kind]}</p>
           <p>{connections.some(connection => connection.deviceId === step.device.id) ? 'Prepará este componente con la placa desconectada. A continuación veremos GND y cada señal, de a una.' : 'Este componente no tiene señales GPIO configurables. No agregues cables a partir de este recorrido.'}</p>
@@ -78,7 +107,12 @@ export default function WiringWalkthrough({ connections, devices, profileId, adv
         </>}
         {device && <Button variant="outline" onClick={() => onHelp(device)}>Ver ayuda de {device.name}</Button>}
       </div>
-      {step.kind !== 'prepare' && <div className="wiring-step-board">{profileId === 'wemos-d1-r32' ? <WemosBoard {...boardProps} /> : <S3Board {...boardProps} />}</div>}
+      <div className="wiring-step-board">{profileId === 'wemos-d1-r32' ? <WemosBoard {...boardProps} /> : <S3Board {...boardProps} />}</div>
+      {wire && <svg className="wiring-live-wire" viewBox={`0 0 ${wire.width} ${wire.height}`} aria-hidden="true" data-wire-connected="true">
+        <defs><marker id={wireId} markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#a74300" /></marker></defs>
+        <path d={wire.path} fill="none" stroke="white" strokeWidth="8" />
+        <path d={wire.path} fill="none" stroke="#a74300" strokeWidth="4" markerEnd={`url(#${wireId})`} />
+      </svg>}
     </div> : <div className="wiring-step-card">
       <Check aria-hidden="true" /><h3 ref={heading} tabIndex={-1}>Recorrido terminado</h3>
       <p>Ya viste todos los componentes y sus señales. Si había pines sin asignar, corregilos en Armar escena. Volvé a la vista completa para revisar el listado y completar el chequeo con una persona adulta.</p>
