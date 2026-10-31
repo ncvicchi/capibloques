@@ -45,7 +45,7 @@ export default function WiringComponent({ device, signal, ground = false, connec
           </g>;
         })}
         {ground && <path d="M44 127V166H168V127M106 127V166M168 166H184V85H193" fill="none" stroke="#a74300" strokeWidth="3" />}
-        {lamp >= 0 && <path d={`M${28 + lamp * 62} 142H180V85H193`} fill="none" stroke="#a74300" strokeWidth="3" />}
+        {lamp >= 0 && <path d={`M${28 + lamp * 62} 142V174H184V85H193`} fill="none" stroke="#a74300" strokeWidth="3" />}
       </> : trafficModule ? <>
         <path d="M12 57H195Q203 57 203 65V78H263V28Q263 20 271 20H300Q308 20 308 28V157Q308 165 300 165H271Q263 165 263 157V111H203V122Q203 130 195 130H12Q5 130 5 123V64Q5 57 12 57Z" fill="#171d1c" stroke="#3b4743" strokeWidth="2" />
         <circle cx="284" cy="37" r="10" fill="white" stroke="#718078" strokeWidth="2" />
