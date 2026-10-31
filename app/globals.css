@@ -3750,12 +3750,51 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .board-contact circle { fill: #c3d2e0; stroke: #132e45; stroke-width: 3; }
 .board-contact-target { fill: transparent; stroke: transparent; stroke-width: 3; }
 .board-contact.used { cursor: pointer; }
-.board-contact.used circle { fill: #e9cbff; stroke: #4b1a8f; stroke-width: 4; }
-.board-contact.selected .board-contact-target, .board-contact:focus .board-contact-target { fill: #e8cbff; stroke: #702dd3; }
+.board-contact.used .board-contact-target { fill: #102a43; stroke: #fff; stroke-width: 2; }
+.board-contact.used circle { fill: #ffdf32; stroke: #111827; stroke-width: 4; }
+.board-contact.selected .board-contact-target, .board-contact:focus .board-contact-target { fill: #fff4ba; stroke: #111827; stroke-width: 3; }
+.board-contact.selected circle { stroke: #111827; }
+.board-active-ring { fill: none !important; stroke: #ff8a00 !important; stroke-width: 4 !important; filter: drop-shadow(0 0 1px #000); pointer-events: none; }
+.board-active-arrow { fill: none; stroke: #ffdf32; stroke-width: 5; stroke-linejoin: round; stroke-linecap: round; filter: drop-shadow(0 1px 1px #111827); pointer-events: none; }
 .board-contact.invalid circle { fill: #ffd2c9; stroke: #a9280c; }
-.board-physical-label { fill: #15243a; font-size: 12px; font-weight: 800; }
-.board-alias { fill: #53627c; font-size: 10px; }
-.board-wire-number { fill: #fff0ff; font-size: 14px; font-weight: 900; }
+.board-physical-label { fill: #111827; stroke: #fff; stroke-width: 3px; paint-order: stroke; font-size: 12px; font-weight: 800; }
+.board-alias { fill: #111827; stroke: #fff; stroke-width: 3px; paint-order: stroke; font-size: 10px; font-weight: 700; }
+.board-wire-number { fill: #ffdf32; stroke: #111827; stroke-width: 4px; paint-order: stroke; font-size: 14px; font-weight: 900; }
+.wiring-help-entry { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px; border: 1px solid #b4c4dc; border-radius: 10px; background: #f3f7ff; }
+.wiring-help-entry span { font-size: 13px; color: #233955; }
+.wiring-walkthrough { display: grid; gap: 14px; min-width: 0; }
+.wiring-step-toolbar, .wiring-step-navigation { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.wiring-step-toolbar > span { font-weight: 800; color: #183e68; }
+.wiring-walkthrough progress { width: 100%; height: 9px; accent-color: #174e94; }
+.wiring-step-card { border: 2px solid #174e94; border-radius: 12px; background: #f2f7ff; padding: 18px; color: #152b48; }
+.wiring-step-component { display: block; color: #124c8f; font-weight: 800; font-size: 14px; margin-bottom: 6px; }
+.wiring-step-card h3 { font-size: 22px; font-weight: 800; line-height: 1.3; margin: 0 0 12px; }
+.wiring-step-card h3:focus-visible { outline: 3px solid #174e94; outline-offset: 4px; }
+.wiring-step-card p { font-size: 14px; line-height: 1.6; margin: 10px 0; }
+.wiring-step-route { display: flex; align-items: center; gap: 14px; margin: 14px 0; }
+.wiring-step-route > div { flex: 1; min-width: 0; padding: 14px; border: 2px solid #174e94; background: #fff; border-radius: 10px; overflow-wrap: anywhere; }
+.wiring-step-route > div:last-child { background: #fff4ba; border-color: #674200; color: #322000; }
+.wiring-step-route strong, .wiring-step-route small, .wiring-step-route span { display: block; }
+.wiring-step-route strong { font-size: 22px; line-height: 1.3; margin: 4px 0; }
+.wiring-step-route > svg { flex-shrink: 0; width: 28px; height: 28px; }
+.wiring-step-board { min-width: 0; }
+.wiring-step-content { display: grid; gap: 14px; align-items: start; }
+.wiring-step-content[data-has-board='true'] { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
+.wiring-step-board .wemos-image { min-width: 0; }
+.wiring-step-board .wemos-caution { display: none; }
+.wiring-step-board .wemos-image[viewBox='0 0 650 680'] { max-height: 410px; }
+.wiring-step-content .wiring-step-route { gap: 7px; }
+.wiring-step-content .wiring-step-route > div { padding: 10px; }
+.wiring-step-content .wiring-step-route strong { font-size: 19px; }
+.wiring-step-navigation { position: sticky; bottom: 0; background: white; border-top: 1px solid #b4c4dc; padding: 12px 0 2px; z-index: 2; }
+.wiring-step-navigation button { min-height: 44px; }
+@media (max-width: 600px) {
+  .wiring-step-content[data-has-board='true'] { grid-template-columns: minmax(0, 1fr); }
+  .wiring-step-card { padding: 12px; }
+  .wiring-step-route { gap: 7px; }
+  .wiring-step-route > div { padding: 8px; }
+  .wiring-step-route strong { font-size: 17px; }
+}
 .wiring-table tr[data-selected='true'] td { background: #eee3ff; }
 .wiring-pin-button { border: 1px solid #bca6df; color: #522494; background: #f7f1ff; padding: 7px 9px; border-radius: 6px; white-space: nowrap; font-weight: 700; }
 .wiring-pin-button[aria-pressed='true'] { background: #eadcff; outline: 2px solid #7a45bd; }

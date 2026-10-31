@@ -9,14 +9,14 @@ import { wemosD1R32Pins } from '@/lib/scene-model';
 
 export type WiringConnection = { id: string; deviceId: string; deviceName: string; signal: string; pin: number | null | undefined; boardLabel?: string; simulated?: import('@/lib/simulated-pin-state').SimulatedPinState };
 
-export default function WemosBoard({ connections, selectedPin, selectedDevice, onSelect }: { connections: WiringConnection[]; selectedPin?: number; selectedDevice?: string; onSelect: (pin: number) => void }) {
+export default function WemosBoard({ connections, selectedPin, selectedDevice, selectedContact, onSelect }: { connections: WiringConnection[]; selectedPin?: number; selectedDevice?: string; selectedContact?: 'GND'; onSelect: (pin: number) => void }) {
   const titleId = useId();
   const contact = (pin: BoardContact, index: number, bottom: boolean) => {
     const x = (bottom ? 248 : 85) + index * 40 + (index >= (bottom ? 8 : 10) ? 18 : 0);
     const y = bottom ? 278 : 66;
     const matches = connections.map((row, i) => ({ ...row, number: i + 1 })).filter(row => pin.gpio !== undefined && row.pin === pin.gpio);
     const supported = wemosD1R32Pins.some(candidate => candidate.gpio === pin.gpio);
-    const selected = matches.length > 0 && (selectedPin === pin.gpio || matches.some(row => row.deviceId === selectedDevice));
+    const selected = pin.label === selectedContact || (matches.length > 0 && (selectedPin === pin.gpio || matches.some(row => row.deviceId === selectedDevice)));
     const label = `${pin.label}${pin.gpio !== undefined ? ` · GPIO ${pin.gpio}` : ''}${pin.alias ? ` · alias ${pin.alias}` : ''} · ${matches.length ? matches.map(row => `${row.number}. ${row.deviceName}: ${row.signal}`).join('; ') : 'Sin conexión asignada'}${!supported && pin.gpio !== undefined ? ' · No habilitado por este perfil' : ''}`;
     return <g key={`${bottom}-${index}`} className={`board-contact${matches.length ? ' used' : ''}${selected ? ' selected' : ''}${matches.length && !supported ? ' invalid' : ''}`} data-gpio={pin.gpio} data-used={Boolean(matches.length)} role={matches.length ? 'button' : undefined} tabIndex={matches.length ? 0 : undefined} aria-label={matches.length ? label : undefined} aria-pressed={matches.length ? selected : undefined}
       onClick={() => { if (matches.length && pin.gpio !== undefined) onSelect(pin.gpio); }}
@@ -24,6 +24,7 @@ export default function WemosBoard({ connections, selectedPin, selectedDevice, o
       <title>{label}</title>
       <rect x={x - 18} y={y - 24} width={36} height={48} rx={6} className="board-contact-target" />
       <circle cx={x} cy={y} r={9} style={supported && matches.length === 1 && matches[0]?.simulated ? { fill: matches[0].simulated.color, fillOpacity: .25 + .75 * matches[0].simulated.intensity } : undefined} />
+      {selected && <><circle className="board-active-ring" cx={x} cy={y} r={16} /><path className="board-active-arrow" d={bottom ? `M${x} ${y - 64}v35m-7-7 7 7 7-7` : `M${x} ${y + 66}v-35m-7 7 7-7 7 7`} /></>}
       <text x={x} y={bottom ? y + 37 : y - 29} textAnchor="middle" className="board-physical-label">{pin.label}</text>
       {pin.alias && <text x={x} y={bottom ? y + 54 : y - 39} textAnchor="middle" className="board-alias">{pin.alias}</text>}
       {matches.length > 0 && <text x={x} y={bottom ? y - 22 : y + 31} textAnchor="middle" className="board-wire-number">{matches.map(row => row.number).join(',')}</text>}
@@ -48,7 +49,7 @@ export default function WemosBoard({ connections, selectedPin, selectedDevice, o
       {wemosTop.map((pin, index) => contact(pin, index, false))}
       {wemosBottom.map((pin, index) => contact(pin, index, true))}
     </svg></div>
-    <figcaption>Vista superior esquemática, no a escala. IO26 significa GPIO 26; D2 es su alias Arduino. Los números violetas corresponden a las filas. Seleccioná una fila o un pin para relacionarlos.</figcaption>
+    <figcaption>Vista superior esquemática, no a escala. IO26 significa GPIO 26; D2 es su alias Arduino. Amarillo: conexión asignada. Aro naranja y flecha: contacto seleccionado. Los números corresponden a las filas.</figcaption>
     <p className="wemos-caution">Compará la serigrafía con tu placa antes de conectar: hay variantes. Este dibujo localiza señales, no reemplaza el circuito, resistencias, drivers ni la revisión adulta. Pines no usados se muestran sólo como referencia; no habilitan nuevas salidas.</p>
   </figure>;
 }

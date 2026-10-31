@@ -7,7 +7,7 @@ import { boardProfile } from '@/lib/board-profiles';
 import type { BoardContact } from '@/lib/wemos-board';
 import type { WiringConnection } from '@/components/wemos-board';
 
-export default function S3Board({ connections, selectedPin, selectedDevice, onSelect }: { connections: WiringConnection[]; selectedPin?: number; selectedDevice?: string; onSelect: (pin: number) => void }) {
+export default function S3Board({ connections, selectedPin, selectedDevice, selectedContact, onSelect }: { connections: WiringConnection[]; selectedPin?: number; selectedDevice?: string; selectedContact?: 'GND'; onSelect: (pin: number) => void }) {
   const titleId = useId();
   const supportedPins = boardProfile('diymall-esp32-s3-devkitc-v1-n16r8').pins;
   const contact = (pin: BoardContact, index: number, right: boolean) => {
@@ -15,7 +15,7 @@ export default function S3Board({ connections, selectedPin, selectedDevice, onSe
     const y = 55 + index * 28;
     const matches = connections.map((row, i) => ({ ...row, number: i + 1 })).filter(row => pin.gpio !== undefined && row.pin === pin.gpio);
     const supported = supportedPins.some(candidate => candidate.gpio === pin.gpio);
-    const selected = matches.length > 0 && (selectedPin === pin.gpio || matches.some(row => row.deviceId === selectedDevice));
+    const selected = pin.label === selectedContact || (matches.length > 0 && (selectedPin === pin.gpio || matches.some(row => row.deviceId === selectedDevice)));
     const label = `${pin.label}${pin.gpio !== undefined ? ` · GPIO ${pin.gpio}` : ''} · ${matches.length ? matches.map(row => `${row.number}. ${row.deviceName}: ${row.signal}`).join('; ') : 'Sin conexión asignada'}${!supported && pin.gpio !== undefined ? ' · Reservado o no habilitado por este perfil' : ''}`;
     return <g key={`${right}-${index}`} className={`board-contact${matches.length ? ' used' : ''}${selected ? ' selected' : ''}${matches.length && !supported ? ' invalid' : ''}`} role={matches.length ? 'button' : undefined} tabIndex={matches.length ? 0 : undefined} aria-label={matches.length ? label : undefined} aria-pressed={matches.length ? selected : undefined}
       onClick={() => { if (matches.length && pin.gpio !== undefined) onSelect(pin.gpio); }}
@@ -23,6 +23,7 @@ export default function S3Board({ connections, selectedPin, selectedDevice, onSe
       <title>{label}</title>
       <rect x={x - 25} y={y - 12} width={50} height={24} rx={5} className="board-contact-target" />
       <circle cx={x} cy={y} r={7} style={supported && matches.length === 1 && matches[0]?.simulated ? { fill: matches[0].simulated.color, fillOpacity: .25 + .75 * matches[0].simulated.intensity } : undefined} />
+      {selected && <><circle className="board-active-ring" cx={x} cy={y} r={12} /><path className="board-active-arrow" d={right ? `M${x - 68} ${y}h42m-7-7 7 7-7 7` : `M${x + 68} ${y}h-42m7-7-7 7 7 7`} /></>}
       <text x={right ? x + 19 : x - 19} y={y + 4} textAnchor={right ? 'start' : 'end'} className="board-physical-label">{pin.label}</text>
       {matches.length > 0 && <text x={right ? x - 18 : x + 18} y={y + 4} textAnchor={right ? 'end' : 'start'} className="board-wire-number">{matches.map(row => row.number).join(',')}</text>}
     </g>;
@@ -44,7 +45,7 @@ export default function S3Board({ connections, selectedPin, selectedDevice, onSe
       {s3Left.map((pin, index) => contact(pin, index, false))}
       {s3Right.map((pin, index) => contact(pin, index, true))}
     </svg></div>
-    <figcaption>Vista superior esquemática, conectores USB hacia abajo. Los números violetas enlazan cada pin con la tabla.</figcaption>
+    <figcaption>Vista superior esquemática, conectores USB hacia abajo. Amarillo: conexión asignada. Aro naranja y flecha: contacto seleccionado. Los números enlazan cada pin con la tabla.</figcaption>
     <p className="wemos-caution">GPIO35, 36 y 37 se muestran para reconocer la serigrafía, pero quedan deshabilitados porque la PSRAM Octal N16R8 los utiliza. Para programar normalmente usá USB-UART; no intercambies ambos conectores por intuición.</p>
   </figure>;
 }

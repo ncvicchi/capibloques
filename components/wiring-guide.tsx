@@ -6,6 +6,8 @@ import WemosBoard from '@/components/wemos-board';
 import S3Board from '@/components/s3-board';
 import WaveshareBoard from '@/components/waveshare-board';
 import ComponentHelpDialog from '@/components/component-help';
+import WiringWalkthrough from '@/components/wiring-walkthrough';
+import { Button } from '@/components/ui/button';
 import { physicalWemosLabel } from '@/lib/wemos-board';
 import { physicalS3Label } from '@/lib/s3-board';
 import { boardProfile, type BoardProfileId } from '@/lib/board-profiles';
@@ -66,7 +68,7 @@ const deviceAdvice: Record<SceneDevice['kind'], string> = {
 function sceneSignature(scene: SceneDefinition, rawPins: number[], profileId: BoardProfileId) {
   return JSON.stringify([
     profileId,
-    scene.devices.map((device) => [device.id, device.kind, device.pins, ['display', 'ledMatrix', 'infraredBarrier', 'otto'].includes(device.kind) ? device.config : null]),
+    scene.devices.map((device) => [device.id, device.name, device.kind, device.pins, device.config]),
     rawPins,
   ]);
 }
@@ -84,6 +86,7 @@ export default function WiringGuide({
   onAcknowledgedChange,
 }: WiringGuideProps) {
   const [showSimulation, setShowSimulation] = useState(false);
+  const [walkthrough, setWalkthrough] = useState(false);
   const signature = sceneSignature(scene, rawPins, profileId);
   const [selection, setSelection] = useState<{ signature: string; pin: number } | null>(null);
   const [deviceSelection, setDeviceSelection] = useState<{ signature: string; id: string } | null>(null);
@@ -184,7 +187,7 @@ export default function WiringGuide({
   const allChecked = checklist.every((item) => checks[item.id]);
 
   return (<>
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={next => { if (!next) setWalkthrough(false); onOpenChange(next); }}>
       <DialogContent className="wiring-dialog">
         <DialogHeader>
           <DialogTitle>Conectar {profile.shortName} sin adivinar</DialogTitle>
@@ -194,7 +197,11 @@ export default function WiringGuide({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="wiring-layout">
+        {walkthrough && open ? <WiringWalkthrough key={signature} connections={connectionRows} devices={scene.devices} profileId={profileId} advice={deviceAdvice} onExit={() => setWalkthrough(false)} onHelp={setHelpDevice} /> : <div className="wiring-layout">
+          <div className="wiring-help-entry">
+            <Button variant="outline" disabled={profileId === 'waveshare-esp32-s3-touch-lcd-5-28117' || (!scene.devices.length && !rawPins.length)} onClick={() => setWalkthrough(true)}>Paso a paso</Button>
+            <span>{profileId === 'waveshare-esp32-s3-touch-lcd-5-28117' ? 'En la Waveshare los componentes son virtuales: no llevan cables GPIO.' : '¿Necesitás ayuda? Mirá un componente y una conexión por vez.'}</span>
+          </div>
           {runtimeDevices && profileId !== 'waveshare-esp32-s3-touch-lcd-5-28117' && <label className="simulated-pins-toggle"><input type="checkbox" checked={showSimulation} onChange={event => setShowSimulation(event.target.checked)} /> Ver estado simulado de los pines</label>}
           {showSimulation && <p className="simulated-pins-explanation">Simulación lógica, no medición eléctrica. Color e intensidad muestran el estado del programa. Buses y señales no modeladas se indican sin lectura.</p>}
           <label className="wiring-highlight">Resaltar conexiones de
@@ -366,7 +373,7 @@ export default function WiringGuide({
               {acknowledged ? 'Revisión completa' : 'Conexiones revisadas'}
             </button>
           </div>
-        </div>
+        </div>}
       </DialogContent>
     </Dialog>
     {helpDevice && <ComponentHelpDialog open onOpenChange={next => !next && setHelpDevice(null)} kind={helpDevice.kind} device={helpDevice} boardProfileId={profileId} initialSection="connect" />}

@@ -1,5 +1,9 @@
 # Backlog de CapiBloques
 
+**31/10 — Conexiones guiadas en DEV3 (ampliación UX de conexiones):** [recorrido y límites](CONEXIONES_PASO_A_PASO.md). Paso a paso agregado a la vista existente, preparación/GND/señales por componente, Atrás/Siguiente y pin resaltado con mayor contraste en Wemos/S3. No cambia proyectos ni completa revisión adulta. Pruebas de navegador aprobadas; aceptación del propietario pendiente.
+
+**31/10 — Normalización solicitada:** main/dev1/dev3 integrados en GitHub conservando historiales e igual contenido. No implica actualizar servicios del servidor. Trabajos siguientes en ramas desde dev3; dev2 intacta. Este registro sustituye los pendientes anteriores de integración de semáforo/STOP/comunicación en esas ramas, no sus aceptaciones físicas pendientes.
+
 **30/10 — Ambiente DEV3 local:** [operación y contexto](DEV3_VM_LOCAL.md). VMpropia con editorHMR, API/DBaisladas y copia solicitada/verificada de dev1; firmware intérprete3placas1.14.3 y cachés locales, repetición3,3s. Gitbranchdev3 separada; no publicar automáticamente main/dev1/dev2. Pendiente del propietario autenticaciónGitHubVM y opcionalreserva DHCP; cola nativaantigua porproyecto no activada. Datos/snapshots fueraGit. Incluye arreglosemáforo yaaceptado físicamente en rama propia.
 
 **30/10 — Semáforo físico, firmware1.14.3:** [causa y aceptación física](SEMAFORO_SALIDAS_1_14_3.md). Corregida potencia0 por confundir estado inicial con intensidad del color elegido; Wemos con dos semáforos confirmada por propietario. Desconectar USB visible y distinto de Detener. Rama desde dev1; publicación dev1 por propietario pendiente, otras placas físicas pendientes. Programa original restaurado, no fixture.
