@@ -853,12 +853,12 @@ function SceneBuilderSession({
       setMessage('La Waveshare simula los componentes en su pantalla: no necesita conexiones GPIO.');
       return;
     }
-    const result = assignSafePins(previewScene, { boardProfile: draftBoardProfile });
+    const result = assignSafePins(previewScene, { boardProfile: draftBoardProfile, reassignTraffic: true });
     commitScene(
       result.scene,
       result.warnings.length
-        ? 'Conecté todo lo posible. Aún faltan pines para algunos componentes.'
-        : `Pines compatibles asignados para ${boardProfile(draftBoardProfile).name}.`,
+        ? 'Actualicé las conexiones de toda la escena. Revisá los avisos antes de conectar.'
+        : `Conexiones de toda la escena actualizadas para ${boardProfile(draftBoardProfile).shortName}. Revisalas antes de conectar.`,
     );
     // commitScene refreshes the inspector from this preview; the project is
     // unchanged until Guardar escena and Cancelar can discard the whole draft.
@@ -1185,7 +1185,7 @@ function SceneBuilderSession({
               onClick={autoConnect}
               aria-label="Auto conectar"
               disabled={waveshareSimulation}
-              title={waveshareSimulation ? 'La simulación en pantalla no necesita GPIO.' : undefined}
+              title={waveshareSimulation ? 'La simulación en pantalla no necesita GPIO.' : 'Organiza las conexiones de toda la escena, no sólo del componente seleccionado'}
             >
               <span aria-hidden="true">✨</span>
               <span className="auto-connect-label">{waveshareSimulation ? 'Sin conexiones' : 'Auto conectar'}</span>

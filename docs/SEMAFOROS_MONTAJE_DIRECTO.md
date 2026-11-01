@@ -1,5 +1,14 @@
 # Semáforos: asignación por cantidad y orientación
 
+Corrección 01/11: el botón del editor **Auto conectar** debe pasar
+`reassignTraffic: true`. Antes seguía usando el modo conservador del modelo,
+por lo que una escena existente podía conservar un semáforo con GND real y
+otro directo. Se corrige en `codex/dev3-autoconectar-escena-completa`.
+Un clic organiza todos los semáforos, sin depender de cuál esté seleccionado,
+y repetirlo conserva la asignación. La regresión de navegador importa ese
+montaje mixto, cambia selección, autoconecta, guarda y verifica el JSON con
+ambos grupos Wemos completos. No cambia ni requiere recompilar firmware1.15.0.
+
 Pedido del propietario, 01/11/2026. Rama `codex/dev3-semaforos-conexion-automatica`,
 continuación de la guía de conexiones en DEV3. Sin cambios de main/dev1/dev2.
 

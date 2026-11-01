@@ -1,18 +1,23 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mockEditorSession } from './editor-fixture';
 import { makeProject } from '../lib/capiblocks';
-import { createEmptyScene, createSceneDevice } from '../lib/scene-model';
+import { addDeviceToScene, createEmptyScene, createSceneDevice } from '../lib/scene-model';
 import { projectTargetForBoard, type BoardProfileId } from '../lib/board-profiles';
 
-async function openGuide(page: Page, board: BoardProfileId, missing = false, kind: 'led' | 'trafficLight' = 'led') {
+async function openGuide(page: Page, board: BoardProfileId, missing = false, kind: 'led' | 'trafficLight' = 'led', mixedTraffic = false) {
   await mockEditorSession(page);
   await page.goto('/');
   await expect(page.locator('.blocklySvg')).toBeVisible();
-  const scene = createEmptyScene('Prueba de conexiones');
+  let scene = createEmptyScene('Prueba de conexiones');
   if (kind === 'trafficLight') scene.canvas.background = 'crossroads';
   const led = createSceneDevice(kind, [], { boardProfile: board });
   led.name = kind === 'led' ? 'Luz del jardín' : 'Semáforo del cruce';
+  if (mixedTraffic && led.kind === 'trafficLight') {
+    delete led.pins.common;
+    Object.assign(led.pins, { red: 26, yellow: 25, green: 27 });
+  }
   scene.devices.push(led);
+  if (mixedTraffic) scene = addDeviceToScene(scene, 'trafficLight', { boardProfile: board }).scene;
   const project = makeProject('Recorrido de cables', scene, { blocks: { languageVersion: 0, blocks: [{ type: 'capi_start', id: 'start' }] } }, 1, projectTargetForBoard(board));
   if (missing) (project.scene.devices[0].pins as Record<string, number | null>).signal = null;
   await page.locator('input[type="file"]').setInputFiles({ name: 'wiring.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) });
@@ -148,4 +153,29 @@ test('semáforo con LED sueltos: elección inicial, resistencia y polaridad; vol
   await expect(dialog.locator('.wiring-step-card')).not.toContainText(/resistencias/i);
   await dialog.getByRole('button', { name: 'Siguiente', exact: true }).click();
   await expect(dialog.locator('[data-module-pin][data-active="true"]')).toHaveAttribute('data-module-pin', 'GND');
+});
+
+test('Auto conectar normaliza ambos semáforos con un solo clic, independientemente de la selección', async ({ page }) => {
+  const guide = await openGuide(page, 'wemos-d1-r32', false, 'trafficLight', true);
+  await expect(guide.locator('.wiring-table tbody tr')).toHaveCount(7); // Legacy wired + one direct.
+  await guide.getByRole('button', { name: 'Cerrar', exact: true }).click();
+  await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  const editor = page.getByRole('dialog').filter({ has: page.getByRole('heading', { name: 'Editor de escenas', exact: true }) });
+  await editor.locator('.scene-device-trafficLight').last().click();
+  await editor.getByRole('button', { name: 'Auto conectar', exact: true }).click();
+  const common = editor.getByRole('combobox', { name: /GND del módulo → retorno LOW de/ });
+  await expect(common).toHaveValue('5');
+  await editor.locator('.scene-device-trafficLight').first().click();
+  await expect(common).toHaveValue('26');
+  await editor.getByRole('button', { name: 'Auto conectar', exact: true }).click();
+  await expect(common).toHaveValue('26');
+  await editor.getByRole('button', { name: 'Guardar escena', exact: true }).click();
+  await page.getByRole('button', { name: 'Opciones del proyecto' }).click();
+  const download = page.waitForEvent('download');
+  await page.getByRole('menuitem', { name: 'Proyecto editable JSON' }).click();
+  const stream = await (await download).createReadStream();
+  const parts: Buffer[] = [];
+  for await (const part of stream!) parts.push(Buffer.from(part));
+  const project = JSON.parse(Buffer.concat(parts).toString());
+  expect(project.scene.devices.map((device: { pins: Record<string, number> }) => ['common', 'red', 'yellow', 'green'].map(key => device.pins[key]))).toEqual([[26, 25, 17, 16], [5, 23, 19, 18]]);
 });
