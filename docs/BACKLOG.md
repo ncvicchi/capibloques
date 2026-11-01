@@ -1,5 +1,7 @@
 # Backlog de CapiBloques
 
+**01/11 — Semáforos directos/agrupados e inversión:** [entrega y restricciones](SEMAFOROS_MONTAJE_DIRECTO.md). Asignación automática por cantidad para Wemos/S3, grupos Wemos confirmados por aletas, `pins.common` opcional, inversión conjunta con guardado, guía coherente y firmware1.15.0 digital. SDK y pruebas software aprobados; pendientes prueba física de enchufe/arranque/reinicio en ambas orientaciones y revisión del espacio S3. Sólo DEV3; sin modificar main/dev1/dev2.
+
 **31/10 — Conexiones guiadas, ambos extremos:** agregado dibujo esquemático del componente y cable hasta el pin señalado en la placa; actualiza contacto y trazado por paso/tamaño. Incluye resistencia en LED y selección de luz en semáforo. [Detalle](CONEXIONES_PASO_A_PASO.md). Activo en DEV3; aceptación visual del propietario pendiente.
 
 **31/10 — Conexiones guiadas en DEV3 (ampliación UX de conexiones):** [recorrido y límites](CONEXIONES_PASO_A_PASO.md). Paso a paso agregado a la vista existente, preparación/GND/señales por componente, Atrás/Siguiente y pin resaltado con mayor contraste en Wemos/S3. No cambia proyectos ni completa revisión adulta. Pruebas de navegador aprobadas; aceptación del propietario pendiente.

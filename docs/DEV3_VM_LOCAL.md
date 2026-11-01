@@ -1,5 +1,10 @@
 # DEV3 local — operación y contexto
 
+Actualización 01/11: intérpretes **1.15.0** publicados para los tres perfiles
+por el montaje de semáforos directos/digitales. Ver `SEMAFOROS_MONTAJE_DIRECTO.md`.
+SDK y cachés se conservaron. Las menciones inferiores a1.14.3 documentan la
+preparación original y su aceptación física, no una prueba física de1.15.0.
+
 Preparado30/10/2026 por pedido del propietario. VM `capi-dev3`, Ubuntu Server
 26.04 LTS, NAT VMware,8vCPU/16GB/120GB. Dirección actual192.168.230.148;
 es una concesión DHCP, no se modificó el router ni el DHCP global de VMware.

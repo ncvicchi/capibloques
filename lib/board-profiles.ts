@@ -72,6 +72,9 @@ export const WAVESHARE_TOUCH_LCD_5_PROFILE_ID: BoardProfileId =
   'waveshare-esp32-s3-touch-lcd-5-28117';
 
 export const wemosD1R32Pins: readonly BoardPinDefinition[] = [
+  { gpio: 5, label: 'D10', capabilities: ['pwmOutput'], recommended: false, note: 'Reservado al grupo completo del segundo semáforo directo; no se asigna a otras cargas.' },
+  { gpio: 21, label: 'SDA', capabilities: ['pwmOutput', 'digitalInput'], recommended: true, note: 'I2C SDA; se usa para semáforos con cables sólo si hace falta y está libre.' },
+  { gpio: 22, label: 'SCL', capabilities: ['pwmOutput', 'digitalInput'], recommended: true, note: 'I2C SCL; se usa para semáforos con cables sólo si hace falta y está libre.' },
   { gpio: 26, label: 'D2', capabilities: ['pwmOutput', 'digitalInput'], recommended: true },
   { gpio: 25, label: 'D3', capabilities: ['pwmOutput', 'digitalInput'], recommended: true },
   { gpio: 17, label: 'D4', capabilities: ['pwmOutput', 'digitalInput'], recommended: true },
@@ -125,7 +128,7 @@ export const boardProfiles: Record<BoardProfileId, BoardProfile> = {
     id: 'wemos-d1-r32', name: 'Wemos D1 R32', shortName: 'Wemos', family: 'esp32', chip: 'ESP32', idfTarget: 'esp32',
     fqbn: 'esp32:esp32:d1_uno32', flashBytes: 4 * 1024 * 1024, flashSize: '4MB', psramBytes: 0, pwmChannels: 16,
     pins: wemosD1R32Pins,
-    safeOutputPins: [26, 25, 27, 17, 16, 23, 19, 18, 14, 13],
+    safeOutputPins: [26, 25, 27, 17, 16, 23, 19, 18, 14, 13, 21, 22],
     safeDigitalInputPins: [4, 26, 25, 27, 17, 16, 23, 19, 18, 14, 13],
     safeAnalogInputPins: [35, 34, 36, 39],
   },

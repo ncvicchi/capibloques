@@ -1,4 +1,6 @@
 'use client';
+
+import { invertTrafficPins, trafficOrientation } from '@/lib/traffic-wiring';
 import {defaultGorillaGait,planGorillaGait} from '@/lib/gorilla-gait';
 import {gorillaTrackAllowed} from '@/lib/gorilla-track';
 
@@ -803,7 +805,8 @@ function SceneBuilderSession({
       const removed = draftScene.devices.find(
         (device) => device.id === deleteTarget.id,
       );
-      const next = removeDeviceFromScene(draftScene, deleteTarget.id);
+      const remaining = removeDeviceFromScene(draftScene, deleteTarget.id);
+      const next = removed?.kind === 'trafficLight' ? assignSafePins(remaining, { boardProfile: draftBoardProfile, reassignTraffic: true }).scene : remaining;
       const nextSelection = selectionAfterRemoval(
         draftScene,
         next,
@@ -812,7 +815,7 @@ function SceneBuilderSession({
       commitScene(
         next,
         removed
-          ? `${removed.name} fue quitado. Puedes deshacer esta acción.`
+          ? `${removed.name} fue quitado. Puedes deshacer esta acción.${removed.kind === 'trafficLight' ? ' Se ajustaron las conexiones de los semáforos restantes: revisalas antes de conectar.' : ''}`
           : '',
         { select: nextSelection ?? null },
       );
@@ -1439,6 +1442,11 @@ function SceneBuilderSession({
                   {/* oxlint-disable jsx-a11y/label-has-associated-control -- compound design-system controls are wrapped by their visible labels */}
                   {selected.kind === 'trafficLight' && (
                     <div className="messages-properties">
+                      <strong>{selected.pins.common != null ? 'Módulo directo · cuatro contactos' : 'Semáforo con cables · GND real'}</strong>
+                      {selected.pins.common != null && <>
+                        <small>Orientación {trafficOrientation(selected.pins, draftBoardProfile) === 'inverted' ? 'invertida' : 'normal'}. Invertir cambia GND y las tres señales dentro del mismo grupo.</small>
+                        <Button type="button" variant="outline" onClick={() => updateSelectedDraft(device => device.kind === 'trafficLight' ? { ...device, pins: { ...device.pins, ...invertTrafficPins(device.pins) } } : device)}>Invertir orientación</Button>
+                      </>}
                       <strong>Carteles opcionales · matrices 8×8</strong>
                       <small>Son módulos de un solo cuadro MAX7219. Si activás ambos, se conectan en cadena y comparten tres pines.</small>
                       <label>
@@ -1667,7 +1675,7 @@ function SceneBuilderSession({
                             requirement.key
                           ] ?? null;
                         const compatiblePins = boardProfile(draftBoardProfile).pins.filter((pin) =>
-                          pin.capabilities.includes(requirement.capability),
+                          pin.capabilities.includes(requirement.capability) && !(draftBoardProfile === 'wemos-d1-r32' && pin.gpio === 5 && selected.kind !== 'trafficLight'),
                         );
                         const currentPinIsCompatible =
                           value === null ||

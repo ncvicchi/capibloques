@@ -105,6 +105,27 @@ test('módulo de semáforo: conector GND/R/Y/G y cable en el pin físico del pas
   await expect(dialog.locator('.wiring-step-card')).not.toContainText(/resistencias/i);
 });
 
+test('orientación directa: invertir, guardar y localizar GND en el GPIO cambiado', async ({ page }) => {
+  let dialog = await openGuide(page, 'wemos-d1-r32', false, 'trafficLight');
+  await dialog.getByRole('button', { name: 'Cerrar', exact: true }).click();
+  await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  const editor = page.getByRole('dialog').filter({ has: page.getByRole('heading', { name: 'Editor de escenas', exact: true }) });
+  await editor.getByRole('button', { name: 'Mover Semáforo del cruce', exact: true }).click();
+  await editor.getByRole('button', { name: 'Invertir orientación', exact: true }).click();
+  await editor.getByRole('button', { name: 'Guardar cambios', exact: false }).click();
+  await editor.getByRole('button', { name: 'Guardar escena', exact: true }).click();
+  await page.getByRole('button', { name: 'Más herramientas' }).click();
+  await page.getByRole('menuitem', { name: 'Ver conexiones' }).click();
+  dialog = page.getByRole('dialog', { name: /Conectar .* sin adivinar/ });
+  await dialog.getByRole('button', { name: 'Paso a paso', exact: true }).click();
+  await expect(dialog.locator('[data-orientation="inverted"]')).toHaveCount(1);
+  await expect(dialog.locator('.wiring-step-card')).toContainText('GND → GPIO 16');
+  await dialog.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  await expect(dialog.locator('.wiring-step-route')).toContainText('GPIO 16');
+  await expect(dialog.locator('.board-contact.selected')).toHaveAttribute('data-gpio', '16');
+  await expect(dialog.locator('[data-module-pin="GND"] .wiring-component-terminal')).toHaveCount(1);
+});
+
 test('semáforo con LED sueltos: elección inicial, resistencia y polaridad; volver permite cambiar montaje', async ({ page }, info) => {
   const dialog = await openGuide(page, 'wemos-d1-r32', false, 'trafficLight');
   await dialog.getByRole('button', { name: 'Paso a paso', exact: true }).click();

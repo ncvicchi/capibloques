@@ -11,12 +11,13 @@ export type TrafficWiringMode = 'module' | 'leds';
 
 // Traffic module connector order follows the owner's reference photo.
 // Other modules remain generic schematics, not vendor connector pinouts.
-export default function WiringComponent({ device, signal, ground = false, connected = false, trafficMode = 'module' }: {
+export default function WiringComponent({ device, signal, ground = false, connected = false, trafficMode = 'module', inverted = false }: {
   device: SceneDevice;
   signal?: string;
   ground?: boolean;
   connected?: boolean;
   trafficMode?: TrafficWiringMode;
+  inverted?: boolean;
 }) {
   const titleId = useId();
   const catalog = sceneComponentCatalog.find(item => item.kind === device.kind);
@@ -46,7 +47,7 @@ export default function WiringComponent({ device, signal, ground = false, connec
         })}
         {ground && <path d="M44 127V166H168V127M106 127V166M168 166H184V85H193" fill="none" stroke="#a74300" strokeWidth="3" />}
         {lamp >= 0 && <path d={`M${28 + lamp * 62} 142V174H184V85H193`} fill="none" stroke="#a74300" strokeWidth="3" />}
-      </> : trafficModule ? <>
+      </> : trafficModule ? <g transform={inverted ? 'rotate(180 175 92.5)' : undefined} data-orientation={inverted ? 'inverted' : 'normal'}>
         <path d="M12 57H195Q203 57 203 65V78H263V28Q263 20 271 20H300Q308 20 308 28V157Q308 165 300 165H271Q263 165 263 157V111H203V122Q203 130 195 130H12Q5 130 5 123V64Q5 57 12 57Z" fill="#171d1c" stroke="#3b4743" strokeWidth="2" />
         <circle cx="284" cy="37" r="10" fill="white" stroke="#718078" strokeWidth="2" />
         <circle cx="284" cy="148" r="10" fill="white" stroke="#718078" strokeWidth="2" />
@@ -69,7 +70,7 @@ export default function WiringComponent({ device, signal, ground = false, connec
             </>}
           </g>;
         })}
-      </> : device.kind === 'led' ? <>
+      </g> : device.kind === 'led' ? <>
         <path d="M62 101V57a31 31 0 0162 0v44Z" fill={device.config.color} stroke="#334155" strokeWidth="3" />
         <path d="M57 101h72M80 104v50m28-50v36" stroke="#334155" strokeWidth="4" />
         <text x="75" y="174">+</text><text x="104" y="159">−</text>
@@ -111,6 +112,6 @@ export default function WiringComponent({ device, signal, ground = false, connec
         {connected && <circle cx="322" cy="85" r="13" fill="none" stroke="#ff8a00" strokeWidth="3" />}
       </>}
     </svg>
-    <figcaption>{trafficModule ? `Módulo de ${device.name}. Pines de arriba hacia abajo: GND, R (rojo), Y (amarillo), G (verde).` : looseTrafficLeds ? 'LED sueltos: ánodo (+), pata larga; cátodo (−), pata corta y lado plano. Una resistencia en serie por cada LED.' : `Esquema de ${device.name}. Los contactos se identifican por su nombre; su posición puede variar según el módulo.`}</figcaption>
+    <figcaption>{trafficModule ? `Módulo de ${device.name}${inverted ? ' invertido' : ''}. Pines de arriba hacia abajo: ${inverted ? 'G (verde), Y (amarillo), R (rojo), GND' : 'GND, R (rojo), Y (amarillo), G (verde)'}.` : looseTrafficLeds ? 'LED sueltos: ánodo (+), pata larga; cátodo (−), pata corta y lado plano. Una resistencia en serie por cada LED.' : `Esquema de ${device.name}. Los contactos se identifican por su nombre; su posición puede variar según el módulo.`}</figcaption>
   </figure>;
 }

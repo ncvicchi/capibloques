@@ -16,7 +16,7 @@ assert.deepEqual(fittedCamera, { zoom: 1, x: 0, y: 0 });
 for (const pin of wemosD1R32Pins) {
   const contacts = wemosContacts.filter(contact => contact.gpio === pin.gpio);
   assert.equal(contacts.length, 1, `one physical location for GPIO ${pin.gpio}`);
-  assert.equal(contacts[0].alias, pin.label);
+  assert.equal(contacts[0].alias ?? contacts[0].label, pin.label);
 }
 assert.equal(physicalWemosLabel(26), 'IO26');
 assert.equal(physicalWemosLabel(35), 'IO35');

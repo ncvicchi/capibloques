@@ -3657,7 +3657,7 @@ export function validateProgramForScene(
     }
     if (node.op === 'pin') {
       const definition = profile.pins.find((pin) => pin.gpio === node.pin);
-      if (!definition?.capabilities.includes('pwmOutput')) {
+      if (!definition?.capabilities.includes('pwmOutput') || (profileId === 'wemos-d1-r32' && node.pin === 5)) {
         diagnostics.push({
           severity: 'error',
           code: 'raw-pin-not-output',
@@ -4392,7 +4392,7 @@ function deviceDeclarations(
       if (isEducationalModuleKind(device.kind)) return Object.entries(device.pins).map(([key, pin]) => `constexpr uint8_t PIN_${symbol}_${cppIdentifier(key)} = ${label(pin)}`).join('\n');
       switch (device.kind) {
         case 'trafficLight':
-          return `constexpr TrafficDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.red)}, ${gpioOrPlaceholder(device.pins.yellow)}, ${gpioOrPlaceholder(device.pins.green)}, ${gpioOrPlaceholder(device.pins.matrixDin)}, ${gpioOrPlaceholder(device.pins.matrixClk)}, ${gpioOrPlaceholder(device.pins.matrixCs)}, ${device.config.vehicleDisplay ? 'true' : 'false'}, ${device.config.pedestrianDisplay ? 'true' : 'false'}, ${Math.max(0, Math.min(15, Math.round(device.config.matrixBrightness)))}}; // ${cppLineComment(device.name)}`;
+          return `constexpr TrafficDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.red)}, ${gpioOrPlaceholder(device.pins.yellow)}, ${gpioOrPlaceholder(device.pins.green)}, ${gpioOrPlaceholder(device.pins.matrixDin)}, ${gpioOrPlaceholder(device.pins.matrixClk)}, ${gpioOrPlaceholder(device.pins.matrixCs)}, ${device.config.vehicleDisplay ? 'true' : 'false'}, ${device.config.pedestrianDisplay ? 'true' : 'false'}, ${Math.max(0, Math.min(15, Math.round(device.config.matrixBrightness)))}, ${gpioOrPlaceholder(device.pins.common ?? null)}}; // ${cppLineComment(device.name)}`;
         case 'robot':
           return `constexpr RobotDevice DEV_${symbol}{${gpioOrPlaceholder(device.pins.leftIn1)}, ${gpioOrPlaceholder(device.pins.leftIn2)}, ${gpioOrPlaceholder(device.pins.rightIn1)}, ${gpioOrPlaceholder(device.pins.rightIn2)}}; // ${cppLineComment(device.name)}`;
         case 'otto':
@@ -5073,7 +5073,7 @@ ${threadGlobals}`;
 
 ${native ? idfRuntimeSupport(scene, usesWifi, profileId) : '#include <Arduino.h>'}
 ${wifiHeader}${diagnosticHeader}
-struct TrafficDevice { uint8_t red; uint8_t yellow; uint8_t green; uint8_t matrixDin; uint8_t matrixClk; uint8_t matrixCs; bool vehicleDisplay; bool pedestrianDisplay; uint8_t matrixBrightness; };
+struct TrafficDevice { uint8_t red; uint8_t yellow; uint8_t green; uint8_t matrixDin; uint8_t matrixClk; uint8_t matrixCs; bool vehicleDisplay; bool pedestrianDisplay; uint8_t matrixBrightness; uint8_t common; };
 struct RobotDevice { uint8_t leftIn1; uint8_t leftIn2; uint8_t rightIn1; uint8_t rightIn2; };
 ${ottoQueueSupport}
 struct OttoDevice { uint8_t pins[6]; uint8_t centers[6]; bool reversed[6]; uint8_t buzzer; uint8_t trigger; uint8_t echo; uint8_t matrixDin; uint8_t matrixClk; uint8_t matrixCs; uint8_t matrixBrightness; int8_t owner; uint8_t soundPreset; uint8_t soundStep; uint32_t soundAt; uint8_t sonarState; uint64_t sonarAt; uint64_t echoStarted; uint16_t distanceCm; CapiOttoQueue turns{}; };
@@ -5087,6 +5087,9 @@ ${componentStateDeclarations(scene)}
 ${supportCode}
 
 void setTraffic(const TrafficDevice& device, TrafficColor color) {
+  if (device.common != 255) {
+    ${native ? 'capiDigitalWrite(device.common, 0);' : 'digitalWrite(device.common, LOW); pinMode(device.common, OUTPUT);'}
+  }
   ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.red, color == TrafficColor::RED ? ${native ? '1 : 0' : 'HIGH : LOW'});
   ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.yellow, color == TrafficColor::YELLOW ? ${native ? '1 : 0' : 'HIGH : LOW'});
   ${native ? 'capiDigitalWrite' : 'digitalWrite'}(device.green, color == TrafficColor::GREEN ? ${native ? '1 : 0' : 'HIGH : LOW'});

@@ -18,6 +18,8 @@ import { displayConfig, displayPins, displayPinKeys, requiredDisplayPins, validD
 import { ledMatrixConfig, validMatrixConfig, type LedMatrixConfig } from './led-matrix.ts';
 // @ts-expect-error Node strip-types tests import the source extension.
 import { boardProfile, WAVESHARE_TOUCH_LCD_5_PROFILE_ID, type BoardPinDefinition, type BoardProfileId, type PinCapability } from './board-profiles.ts';
+// @ts-expect-error Node strip-types runner.
+import { planTrafficWiring, validDirectTraffic, trafficOrientation, invertTrafficPins } from './traffic-wiring.ts';
 // @ts-expect-error Node strip-types tests import the source extension.
 import { educationalModuleKinds, educationalModulePins, educationalModuleSpecs, isEducationalModuleKind, validEducationalModuleConfig, type EducationalModuleKind } from './educational-modules.ts';
 // @ts-expect-error Node strip-types runner.
@@ -398,6 +400,7 @@ export type TrafficLightDevice = SceneDeviceBase<
     red: PinNumber;
     yellow: PinNumber;
     green: PinNumber;
+    common?: PinNumber;
     matrixDin: PinNumber;
     matrixClk: PinNumber;
     matrixCs: PinNumber;
@@ -650,6 +653,7 @@ export const safeWemosAnalogInputPins = boardProfile('wemos-d1-r32').safeAnalogI
 
 const requirementsByKind: Record<SceneDeviceKind, readonly PinRequirement[]> = {
   trafficLight: [
+    { key: 'common', label: 'GND del módulo → retorno LOW', capability: 'pwmOutput' },
     { key: 'red', label: 'LED rojo', capability: 'pwmOutput' },
     { key: 'yellow', label: 'LED amarillo', capability: 'pwmOutput' },
     { key: 'green', label: 'LED verde', capability: 'pwmOutput' },
@@ -1311,6 +1315,7 @@ function collectPinSlots(devices: readonly SceneDevice[]): PinSlot[] {
 
 export interface PinAssignmentOptions {
   reassignAll?: boolean;
+  reassignTraffic?: boolean;
   boardProfile?: BoardProfileId;
 }
 
@@ -1335,17 +1340,42 @@ export function assignSafePins(
   // inventamos conexiones sobre sus bornes especializados.
   if (profileId === WAVESHARE_TOUCH_LCD_5_PROFILE_ID) return { scene, warnings: [] };
   const warnings: string[] = [];
+  const traffic = scene.devices.filter((device): device is TrafficLightDevice => device.kind === 'trafficLight');
+  const colors = ['common', 'red', 'yellow', 'green'];
+  // Preserve saved/manual wiring. New modules and explicit Auto conectar use
+  // the count-based plan; crossing 2 -> 3 releases GPIO returns for real GND.
+  const transition = traffic.length > 2 && traffic.some(device => device.pins.common != null);
+  const damagedDirect = traffic.some(device => device.pins.common != null && (!validDirectTraffic(device.pins, profileId) || scene.devices.some(other => other.id !== device.id && getPinRequirements(other).some(requirement => {
+    const pin = pinRecord(other)[requirement.key];
+    return pin != null && [device.pins.common, device.pins.red, device.pins.yellow, device.pins.green].includes(pin);
+  }))));
+  if (traffic.length && (options.reassignAll || options.reassignTraffic || transition || damagedDirect || traffic.some(device => device.pins.red === null || device.pins.yellow === null || device.pins.green === null))) {
+    const preserve = !options.reassignAll && !options.reassignTraffic && !transition && !damagedDirect;
+    const retained = traffic.filter(device => preserve && ['red', 'yellow', 'green'].every(key => pinRecord(device)[key] != null));
+    const retainedIds = new Set(retained.map(device => device.id));
+    const occupied = new Set(collectPinSlots(scene.devices).filter(slot => slot.pin !== null && (slot.deviceId && (!traffic.some(device => device.id === slot.deviceId) || !colors.includes(slot.key) || retainedIds.has(slot.deviceId)))).map(slot => slot.pin!));
+    const target = traffic.filter(device => !retainedIds.has(device.id));
+    const planned = planTrafficWiring(profileId, traffic.length, occupied);
+    // The planner's count governs policy; preserved devices already occupy
+    // their groups, so use only the remaining number of proposed assignments.
+    target.forEach((device, index) => {
+      const next = planned[index];
+      const inverted = trafficOrientation(device.pins, profileId) === 'inverted';
+      device.pins = { ...device.pins, ...(inverted && next.common != null ? invertTrafficPins(next) : next) };
+    });
+    if (transition) warnings.push('Ahora hay tres o cuatro semáforos: conectá sus GND a GND real y revisá los nuevos pines antes de encender.');
+  }
   const used = new Map<number, PinSlot>();
   const slots = collectPinSlots(scene.devices);
 
   for (const slot of slots) {
-    if (options.reassignAll || slot.pin === null) continue;
+    if ((options.reassignAll && !traffic.some(device => device.id === slot.deviceId && colors.includes(slot.key))) || slot.pin === null) continue;
     if (!pinSupports(slot.pin, slot.capability, profileId)) continue;
     if (!used.has(slot.pin)) used.set(slot.pin, slot);
   }
 
   for (const slot of slots) {
-    const current = options.reassignAll ? null : slot.pin;
+    const current = options.reassignAll && !traffic.some(device => device.id === slot.deviceId && colors.includes(slot.key)) ? null : slot.pin;
     const owner = current === null ? undefined : used.get(current);
     const currentIsUsable =
       current !== null &&
@@ -2747,6 +2777,10 @@ export function validateScene(
   }
 
   for (const slot of collectPinSlots(scene.devices).filter(slot => !dashboardIds.has(slot.deviceId))) {
+    const owner = scene.devices[slot.deviceIndex];
+    if ((owner.kind === 'trafficLight' && owner.pins.common != null && !validDirectTraffic(owner.pins, profileId)) || (profileId === 'wemos-d1-r32' && slot.pin === 5 && !(owner.kind === 'trafficLight' && validDirectTraffic(owner.pins, profileId)))) {
+      issues.push({ code: 'unsupported-pin', severity: 'warning', deviceId: slot.deviceId, pin: slot.pin ?? undefined, message: `${slot.deviceName}: el montaje directo debe usar un grupo completo válido. Usá Auto conectar o Invertir orientación.` });
+    }
     if (slot.pin === null) {
       issues.push({
         code: 'missing-pin',
@@ -3030,6 +3064,7 @@ function isSceneDevice(value: unknown, incompleteDisplayLayout = false): value i
     return false;
   const pinsAreValid = requirementsByKind[typedKind].every((requirement) => {
     const pin = pins[requirement.key];
+    if (typedKind === 'trafficLight' && requirement.key === 'common' && pin === undefined) return true;
     return pin === null || (typeof pin === 'number' && Number.isInteger(pin));
   });
   return pinsAreValid && (typedKind === 'display' ? validDisplayConfig(value.config, incompleteDisplayLayout) : validDeviceConfig(typedKind, value.config));
@@ -3304,7 +3339,7 @@ export function getPinRequirements(device: SceneDeviceKind | SceneDevice) {
     const matricesEnabled =
       device.config.vehicleDisplay || device.config.pedestrianDisplay;
     return requirementsByKind.trafficLight.filter(requirement =>
-      matricesEnabled || !requirement.key.startsWith('matrix'),
+      requirement.key === 'common' ? device.pins.common != null : matricesEnabled || !requirement.key.startsWith('matrix'),
     );
   }
   if (device.kind === 'messages') {

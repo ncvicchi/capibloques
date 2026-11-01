@@ -7,7 +7,7 @@ import { useId } from 'react';
 import { wemosBottom, wemosTop, type BoardContact } from '@/lib/wemos-board';
 import { wemosD1R32Pins } from '@/lib/scene-model';
 
-export type WiringConnection = { id: string; deviceId: string; deviceName: string; signal: string; pin: number | null | undefined; boardLabel?: string; simulated?: import('@/lib/simulated-pin-state').SimulatedPinState };
+export type WiringConnection = { id: string; deviceId: string; deviceName: string; signal: string; signalKey?: string; pin: number | null | undefined; boardLabel?: string; simulated?: import('@/lib/simulated-pin-state').SimulatedPinState };
 
 export default function WemosBoard({ connections, selectedPin, selectedDevice, selectedContact, onSelect }: { connections: WiringConnection[]; selectedPin?: number; selectedDevice?: string; selectedContact?: 'GND'; onSelect: (pin: number) => void }) {
   const titleId = useId();

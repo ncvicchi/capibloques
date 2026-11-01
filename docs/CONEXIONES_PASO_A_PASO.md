@@ -1,5 +1,9 @@
 # Conexiones paso a paso — DEV3
 
+Actualización 01/11: el [montaje directo y su inversión](SEMAFOROS_MONTAJE_DIRECTO.md)
+agrega retorno GPIO LOW e intérprete1.15.0. Las referencias inferiores a una
+entrega sólo web/sin firmware describen la guía inicial del 31/10.
+
 Entrega del 31/10/2026 en `codex/dev3-conexiones-paso-a-paso`, desde `dev3`.
 Ampliación de la guía de conexiones; no sustituye el listado existente.
 

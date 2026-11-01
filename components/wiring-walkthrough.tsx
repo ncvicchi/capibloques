@@ -10,6 +10,7 @@ import { boardProfile, type BoardProfileId } from '@/lib/board-profiles';
 import { physicalWemosLabel } from '@/lib/wemos-board';
 import { physicalS3Label } from '@/lib/s3-board';
 import type { SceneDevice } from '@/lib/scene-model';
+import { trafficOrientation } from '@/lib/traffic-wiring';
 
 type Step = { kind: 'prepare' | 'ground'; device: SceneDevice } | { kind: 'signal'; row: WiringConnection };
 
@@ -29,7 +30,7 @@ export default function WiringWalkthrough({ connections, devices, profileId, adv
   const [wire, setWire] = useState<{ path: string; width: number; height: number } | null>(null);
   // Keep shared bus wires as separate connections: each module needs its cable.
   const steps: Step[] = devices.flatMap(device => {
-    const rows = connections.filter(row => row.deviceId === device.id);
+    const rows = connections.filter(row => row.deviceId === device.id && row.signalKey !== 'common');
     return [
       { kind: 'prepare', device } as Step,
       ...(rows.length ? [{ kind: 'ground', device } as Step] : []),
@@ -41,13 +42,15 @@ export default function WiringWalkthrough({ connections, devices, profileId, adv
   const row = step?.kind === 'signal' ? step.row : undefined;
   const device = row ? devices.find(item => item.id === row.deviceId) : step && step.kind !== 'signal' ? step.device : undefined;
   const trafficMode = device ? trafficModes[device.id] ?? 'module' : 'module';
+  const direct = device?.kind === 'trafficLight' && device.pins.common != null && trafficMode === 'module';
+  const common = direct ? device.pins.common! : undefined;
   const profile = boardProfile(profileId);
   const physical = row ? (profileId === 'wemos-d1-r32' ? physicalWemosLabel(row.pin) : physicalS3Label(row.pin)) : undefined;
   const located = row?.pin != null && Boolean(physical) && profile.pins.some(pin => pin.gpio === row.pin);
   const boardProps = {
     connections: connections.map(connection => ({ ...connection, simulated: undefined })),
-    selectedPin: located ? row?.pin ?? undefined : undefined,
-    selectedContact: step?.kind === 'ground' ? 'GND' as const : undefined,
+    selectedPin: step?.kind === 'ground' && direct ? common : located ? row?.pin ?? undefined : undefined,
+    selectedContact: step?.kind === 'ground' && !direct ? 'GND' as const : undefined,
     onSelect: (pin: number) => {
       const target = steps.findIndex(candidate => candidate.kind === 'signal' && candidate.row.pin === pin && candidate.row.deviceId === device?.id);
       if (target >= 0) setIndex(target);
@@ -94,15 +97,16 @@ export default function WiringWalkthrough({ connections, devices, profileId, adv
           <label><input type="radio" name={`traffic-mode-${device.id}`} checked={trafficMode === 'module'} onChange={() => setTrafficModes(current => ({ ...current, [device.id]: 'module' }))} /> Módulo</label>
           <label><input type="radio" name={`traffic-mode-${device.id}`} checked={trafficMode === 'leds'} onChange={() => setTrafficModes(current => ({ ...current, [device.id]: 'leds' }))} /> LED y resistencia en serie</label>
         </fieldset>}
-        {device && <WiringComponent device={device} signal={row?.signal} ground={step.kind === 'ground'} connected={located || step.kind === 'ground'} trafficMode={trafficMode} />}
+        {device && <WiringComponent device={device} signal={row?.signal} ground={step.kind === 'ground'} connected={located || step.kind === 'ground'} trafficMode={trafficMode} inverted={device.kind === 'trafficLight' && trafficOrientation(device.pins, profileId) === 'inverted'} />}
         {step.kind === 'prepare' && <>
           <p>{step.device.kind === 'trafficLight' ? trafficMode === 'module' ? 'Identificá en el módulo los cuatro pines: GND, R, Y y G. Los vamos a conectar uno por uno.' : 'Prepará tres LED (rojo, amarillo y verde) y una resistencia de 220–330 Ω para cada uno. Cada resistencia va en serie con su LED.' : advice[step.device.kind]}</p>
+          {step.device.kind === 'trafficLight' && trafficMode === 'module' && <p>{direct ? `Montaje directo en cuatro contactos consecutivos: GND → GPIO ${common}, R → ${step.device.pins.red}, Y → ${step.device.pins.yellow}, G → ${step.device.pins.green}. La orientación del dibujo coincide con la elegida en Armar escena; allí podés invertirla.` : 'Montaje con cables: R, Y y G van a sus GPIO; GND va a GND real. Se agrupan las señales en el conector cuando es posible.'}</p>}
           <p>{connections.some(connection => connection.deviceId === step.device.id) ? 'Prepará este componente con la placa desconectada. A continuación veremos GND y cada señal, de a una.' : 'Este componente no tiene señales GPIO configurables. No agregues cables a partir de este recorrido.'}</p>
           {step.device.kind !== 'trafficLight' && <p>La alimentación depende del módulo: revisá su ficha. Esta guía no asigna un pin de alimentación automáticamente.</p>}
         </>}
         {step.kind === 'ground' && <>
-          <div className="wiring-step-route"><div><small>{step.device.name}</small><strong>GND / negativo común</strong></div><ArrowRight aria-hidden="true" /><div><small>{profile.shortName}</small><strong>GND</strong></div></div>
-          <p>Buscá los contactos GND resaltados. Usá uno para unir la masa del componente o de su driver con la placa. Si usa una fuente externa, su negativo también comparte GND.</p>
+          <div className="wiring-step-route"><div><small>{step.device.name}</small><strong>GND / negativo común</strong></div><ArrowRight aria-hidden="true" /><div><small>{profile.shortName}</small><strong>{direct ? `GPIO ${common}` : 'GND'}</strong>{direct && <span>Retorno mantenido en LOW</span>}</div></div>
+          <p>{direct ? `El GND del módulo coincide con GPIO ${common}. El firmware lo mantiene en LOW como retorno de estas tres luces; no lo uses como masa para otros componentes.` : 'Buscá los contactos GND resaltados. Usá uno para unir la masa del componente o de su driver con la placa. Si usa una fuente externa, su negativo también comparte GND.'}</p>
           {step.device.kind === 'led' && <p>En los LED, el cátodo (−) va a GND y cada luz lleva su propia resistencia de 220–330 Ω en serie.</p>}
           {step.device.kind === 'trafficLight' && <p>{trafficMode === 'module' ? 'En el módulo, usá el pin GND: es el primero de arriba. G es verde; no es GND.' : 'Conectá el cátodo (−) de cada LED a GND. Es la pata corta y está del lado plano del LED. El ánodo (+) es la pata larga.'}</p>}
         </>}

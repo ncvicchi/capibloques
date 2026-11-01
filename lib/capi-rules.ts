@@ -6,7 +6,7 @@ import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 
 export const CAPI_RULES_FORMAT = 1;
 export const CAPI_INTERPRETER_ABI = 1;
-export const CAPI_INTERPRETER_VERSION = '1.14.3';
+export const CAPI_INTERPRETER_VERSION = '1.15.0';
 export const CAPI_RULES_MAX_BYTES = 32 * 1024;
 export const CAPI_RULES_MAX_INSTRUCTIONS = 2048;
 const HEADER_BYTES = 32;
@@ -94,8 +94,8 @@ function resourceRequirements(document: CapiRulesDocument) {
   const pwmPins = new Set<number>();
   for (const device of document.resources.devices) {
     if (!deviceIds.has(device.id)) continue;
-    const keys = device.kind === 'trafficLight' ? ['red', 'yellow', 'green']
-      : device.kind === 'robot' ? ['leftIn1', 'leftIn2', 'rightIn1', 'rightIn2']
+    if (device.kind === 'trafficLight') continue; // Digital lights do not consume LEDC channels.
+    const keys = device.kind === 'robot' ? ['leftIn1', 'leftIn2', 'rightIn1', 'rightIn2']
         : device.kind === 'motor' ? ['in1', 'in2']
           : device.kind === 'otto' ? ['leftLeg', 'rightLeg', 'leftFoot', 'rightFoot', 'leftArm', 'rightArm', 'buzzer']
             : ['signal'];
@@ -145,9 +145,11 @@ export function createCapiRules(programInput: CompiledProgram, scene: SceneDefin
   const instructionCount = tasks.reduce((total, task) => total + task.output.length, 0);
   if (instructionCount > CAPI_RULES_MAX_INSTRUCTIONS) throw new CapiRulesError(`El programa tiene ${instructionCount} instrucciones; el intérprete admite hasta ${CAPI_RULES_MAX_INSTRUCTIONS}.`);
   const blockIds = [...new Set(tasks.flatMap(task => task.output.map(item => item.blockId)))];
+  const virtualBoard = board === 'waveshare-esp32-s3-touch-lcd-5-28117';
+  const resources = virtualBoard ? { ...scene, devices: scene.devices.map(device => ({ ...device, pins: Object.fromEntries(Object.keys(device.pins).map(key => [key, null])) })) } as SceneDefinition : scene;
   const document: CapiRulesDocument = {
     format: 'CapiRules', version: CAPI_RULES_FORMAT, abi: CAPI_INTERPRETER_ABI, board,
-    resources: scene, variables: program.variables ?? [], timers: program.timers ?? [], tasks,
+    resources, variables: program.variables ?? [], timers: program.timers ?? [], tasks,
     initial: { taskIds: tasks.filter(task => task.initial).map(task => task.id) },
     debug: { blockIds },
   };
@@ -166,6 +168,8 @@ export function createCapiRules(programInput: CompiledProgram, scene: SceneDefin
   view.setUint32(28, tasks.length, true);
   bytes.set(payload, HEADER_BYTES);
   const capabilities = tasks.flatMap(task => task.output.flatMap(instructionCapabilities));
+  if (scene.devices.some(device => device.kind === 'trafficLight')) capabilities.push('traffic-digital');
+  if (!virtualBoard && scene.devices.some(device => device.kind === 'trafficLight' && device.pins.common != null)) capabilities.push('traffic-direct');
   const usedDeviceIds = new Set(tasks.flatMap(task => task.output.flatMap(instruction => 'deviceId' in instruction ? [instruction.deviceId] : [])));
   for (const device of scene.devices) if (device.kind === 'display' && usedDeviceIds.has(device.id)) {
     capabilities.push(['lcd1602', 'lcd2004', 'lcd1602keypad'].includes(device.config.profile) ? 'display-lcd' : 'display-graphic');
