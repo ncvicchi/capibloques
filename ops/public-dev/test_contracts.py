@@ -140,6 +140,8 @@ class PublicRuntimeContracts(unittest.TestCase):
         self.assertIn("pg_dump -U postgres -d capibloques -Fc </dev/null", deployer)
         self.assertIn("Editor activo verificado", deployer)
         self.assertIn("ops/public-dev/test_contracts.py)", deployer)
+        self.assertIn("compose.dev3.yaml)", deployer)
+        self.assertNotIn("compose.*)", deployer)
         self.assertIn("ops/public-dev/runtime.py)", deployer)
         self.assertIn("trap cleanup EXIT", deployer)
         self.assertIn("preserve_git_owner", deployer)

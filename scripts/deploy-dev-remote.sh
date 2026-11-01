@@ -105,6 +105,10 @@ while IFS= read -r file; do
     ops/compiler/Dockerfile|ops/compiler/archive.py|ops/compiler/entry.py)
       REBUILD_COMPILER=1
       ;;
+    compose.dev3.yaml)
+      # Receta exclusiva de la VM local: main usa sus compose.dev/backend/
+      # compiler explícitos, nunca este archivo. No modifica el servidor.
+      ;;
     ops/public-dev/test_contracts.py)
       # Es una prueba local/CI del contrato operativo; no se instala ni forma
       # parte del runtime público de la VM.

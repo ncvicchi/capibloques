@@ -1,5 +1,17 @@
 # DEV3 local — operación y contexto
 
+Promoción autorizada 01/11: el propietario pidió pasar todo lo de DEV3 a
+DEV1 y al DEV original (`main`). Ambas ramas recibieron los cambios hasta
+`31fc979` por avance rápido, sin copiar bases de datos ni tocar DEV2.
+La rama `codex/promover-dev3-a-dev1-dev` corrige además el preflight de
+`deploy-dev-remote.sh`: `compose.dev3.yaml` sólo pertenece a la VM local y
+no requiere mantenimiento del servidor. Los demás Compose siguen sujetos
+a la validación anterior. Para la publicación se reutilizan los paquetes
+1.15.0 verificados de DEV1, de la misma revisión del árbol `interpreter`;
+no se modifican binarios, manifiestos, SDK ni cachés para cambiar versiones.
+Confirmar el resultado operativo en los chequeos finales del actualizador;
+el avance de una rama por sí solo no acredita que el ambiente esté publicado.
+
 Actualización 01/11: intérpretes **1.15.0** publicados para los tres perfiles
 por el montaje de semáforos directos/digitales. Ver `SEMAFOROS_MONTAJE_DIRECTO.md`.
 SDK y cachés se conservaron. Las menciones inferiores a1.14.3 documentan la
