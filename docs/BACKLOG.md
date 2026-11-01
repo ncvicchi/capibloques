@@ -1,5 +1,7 @@
 # Backlog de CapiBloques
 
+**01/11 — Simulador/Placa y PC y reenvío sin reconectar:** [entrega](MODOS_SIMULAR_EJECUTAR.md). Ejecución explícita con reglas y compilación actuales, snapshot común PC/placa, cambios pendientes y STOP al editar/cambiar a PC. Regresiones de campo Blockly/GPIO y puerto elegido una vez. Wemos1.15.0: propietario confirmó ambos módulos tanto en prueba temporal como en programa original restaurado. Sin firmware nuevo; quedan otras placas/orientaciones físicas.
+
 **01/11 — Semáforos directos/agrupados e inversión:** [entrega y restricciones](SEMAFOROS_MONTAJE_DIRECTO.md). Asignación automática por cantidad para Wemos/S3, grupos Wemos confirmados por aletas, `pins.common` opcional, inversión conjunta con guardado, guía coherente y firmware1.15.0 digital. SDK y pruebas software aprobados; pendientes prueba física de enchufe/arranque/reinicio en ambas orientaciones y revisión del espacio S3. Sólo DEV3; sin modificar main/dev1/dev2.
 
 **31/10 — Conexiones guiadas, ambos extremos:** agregado dibujo esquemático del componente y cable hasta el pin señalado en la placa; actualiza contacto y trazado por paso/tamaño. Incluye resistencia en LED y selección de luz en semáforo. [Detalle](CONEXIONES_PASO_A_PASO.md). Activo en DEV3; aceptación visual del propietario pendiente.

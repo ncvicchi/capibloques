@@ -38,7 +38,8 @@ function programBlocks(program: CompiledProgram) {
 type GuideStep = 'review' | 'board' | 'pair-screen' | 'pair-project' | 'connect' | 'prepare' | 'wifi' | 'send' | 'run';
 const WAVESHARE = 'waveshare-esp32-s3-touch-lcd-5-28117' as const;
 export type PhysicalBoardCommand = 'RUN' | 'PAUSE' | 'RESUME' | 'STEP' | 'STOP' | 'RESET_PROGRAM' | 'SHOW';
-export type PhysicalBoardControl = (command: PhysicalBoardCommand) => void;
+export type PhysicalBoardControl = (command: PhysicalBoardCommand) => Promise<boolean>;
+export type PhysicalProjectSnapshot = { program: CompiledProgram; scene: SceneDefinition; board: BoardProfileId; workspace: string };
 const boardPhotos: Record<BoardProfileId, string> = {
   'wemos-d1-r32': '/boards/wemos-d1-r32.png',
   'diymall-esp32-s3-devkitc-v1-n16r8': '/boards/diymall-esp32-s3-devkitc-v1-n16r8.png',
@@ -56,7 +57,7 @@ function BoardPhoto({ id }: { id: BoardProfileId }) {
   return <figure className={`board-photo-figure ${id === 'diymall-esp32-s3-devkitc-v1-n16r8' ? 'is-diymall' : ''}`}><img src={boardPhotos[id]} alt={`${boardProfile(id).name}, vista superior`} loading="lazy" /><figcaption>{boardProfile(id).shortName}</figcaption></figure>;
 }
 
-export default function InterpreterBoard({ account, store, guest = false, program, scene, board, centralDisplay, onChangeBoard, onChangeCentralDisplay, onMirrorCommand, onPhysicalStatus, onPhysicalLog, controlRef, onClose }: { account: Account; store: AccountDraftStore; guest?: boolean; program: CompiledProgram; scene: SceneDefinition; board: BoardProfileId; centralDisplay?: CentralDisplayTarget; onChangeBoard: (board: BoardProfileId, scene: SceneDefinition) => void; onChangeCentralDisplay: (centralDisplay?: CentralDisplayTarget) => void; onMirrorCommand: (command: 'RUN' | 'PAUSE' | 'RESUME' | 'STEP' | 'STOP' | 'RESET_PROGRAM' | 'DONE') => void; onPhysicalStatus: (stage: string, message: string) => void; onPhysicalLog: (message: string) => void; controlRef: RefObject<PhysicalBoardControl | null>; onClose: () => void }) {
+export default function InterpreterBoard({ account, store, guest = false, program, scene, board, centralDisplay, onChangeBoard, onChangeCentralDisplay, onMirrorCommand, onPhysicalStatus, onPhysicalLog, controlRef, getCurrentProject, onBusyChange, onClose }: { account: Account; store: AccountDraftStore; guest?: boolean; program: CompiledProgram; scene: SceneDefinition; board: BoardProfileId; centralDisplay?: CentralDisplayTarget; onChangeBoard: (board: BoardProfileId, scene: SceneDefinition) => void; onChangeCentralDisplay: (centralDisplay?: CentralDisplayTarget) => void; onMirrorCommand: (command: 'RUN' | 'PAUSE' | 'RESUME' | 'STEP' | 'STOP' | 'RESET_PROGRAM' | 'DONE', snapshot?: PhysicalProjectSnapshot) => void; onPhysicalStatus: (stage: string, message: string) => void; onPhysicalLog: (message: string) => void; controlRef: RefObject<PhysicalBoardControl | null>; getCurrentProject: () => PhysicalProjectSnapshot; onBusyChange: (busy: boolean) => void; onClose: () => void }) {
   const [session] = useState(() => new InterpreterSession());
   const state = useSyncExternalStore(session.subscribe, session.snapshot, session.snapshot);
   const [installer] = useState(() => new UsbSession(createEspDriver));
@@ -72,6 +73,8 @@ export default function InterpreterBoard({ account, store, guest = false, progra
   const [minimized, setMinimized] = useState(false);
   const reportedDone = useRef<object | null>(null);
   const reportedTelemetry = useRef<object[]>([]);
+  const uploadedChecksum = useRef<string | null>(null);
+  const commandBusy = useRef(false);
   const wifiDevice = scene.devices.find(device => device.kind === 'wifiNode');
   const [wifiSsid, setWifiSsid] = useState(wifiDevice?.kind === 'wifiNode' ? wifiDevice.config.ssid : '');
   const [wifiPassword, setWifiPassword] = useState('');
@@ -118,6 +121,9 @@ export default function InterpreterBoard({ account, store, guest = false, progra
     if (['RUN','PAUSE','RESUME','STEP','STOP','RESET_PROGRAM'].includes(latest.value)) onMirrorCommand(latest.value as 'RUN' | 'PAUSE' | 'RESUME' | 'STEP' | 'STOP' | 'RESET_PROGRAM');
   }, [onMirrorCommand, state.telemetry]);
   useEffect(() => { onPhysicalStatus(state.stage, state.message); }, [onPhysicalStatus, state.message, state.stage]);
+  useEffect(() => {
+    if (['idle', 'connecting', 'incompatible', 'error'].includes(state.stage)) uploadedChecksum.current = null;
+  }, [state.stage]);
   useEffect(() => {
     const known = new Set(reportedTelemetry.current);
     const fresh = state.telemetry.filter(item => item.event !== 'device' && !known.has(item));
@@ -231,10 +237,42 @@ export default function InterpreterBoard({ account, store, guest = false, progra
   const act = (operation: Promise<unknown>) => { setActionError(''); void operation.catch(cause => setActionError(cause instanceof Error ? cause.message : 'La placa rechazó la operación.')); };
   const authorized = (operation: () => Promise<unknown>) => act(verifySession().then(operation));
   const configureWifi = () => authorized(async () => { await session.provisionWifi(wifiSsid, wifiPassword); setWifiPassword(''); setStep('send'); });
-  const sendAndRun = () => bundle && authorized(async () => { await session.send(bundle); await session.command('RUN'); onMirrorCommand('RUN'); setStep('run'); setMinimized(true); });
-  const physicalCommand = (command: 'RUN' | 'PAUSE' | 'RESUME' | 'STEP' | 'STOP' | 'RESET_PROGRAM') => authorized(async () => { await session.command(command); onMirrorCommand(command); });
+  const physicalCommand = async (command: Exclude<PhysicalBoardCommand, 'SHOW'>): Promise<boolean> => {
+    if (commandBusy.current) { setActionError('Esperá a que termine la operación anterior.'); return false; }
+    commandBusy.current = true;
+    onBusyChange(true);
+    setActionError('');
+    try {
+      await verifySession();
+      if (command === 'RUN' || command === 'RESUME' || command === 'STEP') {
+        // Compile at the click, not when the assistant was first opened.
+        // Keep this immutable snapshot for both transfer and the web mirror.
+        const snapshot = getCurrentProject();
+        const current = createCapiRules(snapshot.program, snapshot.scene, snapshot.board);
+        if (command === 'RUN' || uploadedChecksum.current !== current.checksum) {
+          await session.send(current);
+          uploadedChecksum.current = current.checksum;
+          const next = command === 'STEP' ? 'STEP' : 'RUN';
+          await session.command(next);
+          onMirrorCommand(next, snapshot);
+          setStep('run'); setMinimized(true);
+          return true;
+        }
+      }
+      await session.command(command);
+      onMirrorCommand(command);
+      return true;
+    } catch (cause) {
+      setActionError(cause instanceof Error ? cause.message : 'La placa rechazó la operación.');
+      return false;
+    } finally { commandBusy.current = false; onBusyChange(false); }
+  };
+  const sendAndRun = () => { void physicalCommand('RUN'); };
   useEffect(() => {
-    controlRef.current = command => { if (command === 'SHOW') setMinimized(false); else physicalCommand(command); };
+    controlRef.current = async command => {
+      if (command === 'SHOW') { setMinimized(false); return true; }
+      return physicalCommand(command);
+    };
     return () => { controlRef.current = null; };
   });
   const rulesLoaded = state.progress === 100 || state.stage === 'running' || state.stage === 'paused';

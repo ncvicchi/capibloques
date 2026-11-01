@@ -12,7 +12,8 @@ test.beforeEach(async ({ page }) => {
   await page.route(/\/lib\/interpreter-firmware\.ts(?:\?|$)/, route => route.fulfill({ contentType: 'text/javascript', body: 'export async function fetchInterpreterFirmware(){return {chip:"ESP32",flashBytes:4194304,parts:[{address:4096,data:new Uint8Array([1,2,3])}]};}' }));
   await page.route(/\/lib\/usb-esptool\.ts(?:\?|$)/, route => route.fulfill({ contentType: 'text/javascript', body: 'export async function createEspDriver(port){return {async detect(){await port.open();return {chip:"ESP32",flashBytes:4194304}},async write(f,p){p(100)},async reset(){},async close(){await port.close()}};}' }));
   await page.addInitScript(version => {
-    const probe = { selected: 0, opened: 0, closed: 0, commands: [] as string[], disconnectNext: false, bootErrorNext: false };
+    const probe = { selected: 0, opened: 0, closed: 0, commands: [] as string[], rules: [] as Array<{ tasks: Array<{ output: Array<{ op: string; ms?: number }> }> }>, disconnectNext: false, bootErrorNext: false };
+    let chunks: Uint8Array[] = [];
     Object.assign(window, { usbProbe: probe });
     let controller: ReadableStreamDefaultController<Uint8Array>;
     const port = {
@@ -27,6 +28,13 @@ test.beforeEach(async ({ page }) => {
             probe.bootErrorNext = false; controller.enqueue(new TextEncoder().encode('{"type":"ERROR","message":"Comando desconocido."}\n')); return;
           }
           if (request.type === 'CHUNK' && probe.disconnectNext) { probe.disconnectNext = false; controller.close(); return; }
+          if (request.type === 'BEGIN') chunks = [];
+          if (request.type === 'CHUNK') chunks[request.sequence] = Uint8Array.from(atob(request.data), value => value.charCodeAt(0));
+          if (request.type === 'COMMIT') {
+            const bytes = new Uint8Array(chunks.reduce((total, chunk) => total + chunk.length, 0));
+            let offset = 0; for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+            probe.rules.push(JSON.parse(new TextDecoder().decode(bytes.subarray(32))));
+          }
           const answer = request.type === 'HELLO' ? { protocol: 'CapiLink', firmware: version, abi: 1, board: 'wemos-d1-r32', maxRulesBytes: 32768, capabilities: ['core', 'reliable-transfer'], resources: { pwmChannels: 8 } } : {};
           const type = ({ HELLO: 'HELLO', BEGIN: 'READY', CHUNK: 'ACK', VERIFY: 'VERIFIED', COMMIT: 'COMMITTED' } as Record<string, string>)[request.type] ?? 'OK';
           // Let React process the sending state before the confirmation.
@@ -98,4 +106,43 @@ test('la instalación continúa a las reglas sin selector adicional, recarga ni 
   expect(await page.evaluate(() => (window as unknown as { usbProbe: { selected: number } }).usbProbe.selected)).toBe(2);
   await page.getByRole('button', { name: 'Enviar y ejecutar', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Detalles de placa', exact: true })).toBeVisible();
+});
+
+test('modos explícitos y Ejecutar reenvía el programa editado sin reconectar USB', async ({ page }, info) => {
+  await page.getByRole('button', { name: 'Enviar y ejecutar', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Placa y PC', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  const rules = () => page.evaluate(() => (window as unknown as { usbProbe: { rules: Array<{ tasks: Array<{ output: Array<{ op: string; ms?: number }> }> }> } }).usbProbe.rules);
+  expect((await rules()).at(-1)!.tasks.flatMap(task => task.output).find(instruction => instruction.op === 'wait')?.ms).toBe(1000);
+  await page.locator('.blocklySvg').getByText('1', { exact: true }).dblclick();
+  await page.locator('.blocklyHtmlInput').fill('2');
+  await page.locator('.blocklyHtmlInput').press('Enter');
+  await expect(page.getByRole('button', { name: 'Ejecutar', exact: true })).toBeVisible();
+  await expect(page.getByText('Cambios pendientes · se envían al ejecutar')).toBeVisible();
+  await page.screenshot({ path: info.outputPath('modos-y-cambios-pendientes.png') });
+  await page.getByRole('button', { name: 'Ejecutar', exact: true }).click();
+  await expect.poll(async () => (await rules()).length).toBe(2);
+  expect((await rules()).at(-1)!.tasks.flatMap(task => task.output).find(instruction => instruction.op === 'wait')?.ms).toBe(2000);
+  expect(await page.evaluate(() => (window as unknown as { usbProbe: { selected: number } }).usbProbe.selected)).toBe(1);
+  await page.getByRole('button', { name: 'Simulador', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Simular', exact: true })).toBeVisible();
+  const commands = await page.evaluate(() => (window as unknown as { usbProbe: { commands: string[] } }).usbProbe.commands);
+  expect(commands.at(-1)).toBe('STOP');
+  await page.getByRole('button', { name: 'Simular', exact: true }).click();
+  expect(await page.evaluate(() => (window as unknown as { usbProbe: { commands: string[] } }).usbProbe.commands)).toEqual(commands);
+  await page.getByRole('button', { name: 'Placa y PC', exact: true }).click();
+  await page.getByRole('button', { name: 'Ejecutar', exact: true }).click();
+  await expect.poll(async () => (await rules()).length).toBe(3);
+  expect(await page.evaluate(() => (window as unknown as { usbProbe: { selected: number } }).usbProbe.selected)).toBe(1);
+  await expect(page.getByRole('button', { name: 'Pausar', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Armar escena', exact: true }).click();
+  const sceneEditor = page.getByRole('dialog').filter({ has: page.getByRole('heading', { name: 'Editor de escenas', exact: true }) });
+  await sceneEditor.getByRole('button', { name: /^Agregar LED\./ }).click();
+  await sceneEditor.getByRole('combobox', { name: /^LED de / }).selectOption('25');
+  await sceneEditor.getByRole('button', { name: /Guardar cambios/ }).click();
+  await sceneEditor.getByRole('button', { name: 'Guardar escena', exact: true }).click();
+  await page.getByRole('button', { name: 'Ejecutar', exact: true }).click();
+  await expect.poll(async () => (await rules()).length).toBe(4);
+  const uploadedDevices = await page.evaluate(() => (window as unknown as { usbProbe: { rules: Array<{ resources: { devices: Array<{ kind: string; pins: Record<string, number> }> } }> } }).usbProbe.rules.at(-1)!.resources.devices);
+  expect(uploadedDevices.find(device => device.kind === 'led')?.pins.signal).toBe(25);
+  expect(await page.evaluate(() => (window as unknown as { usbProbe: { selected: number } }).usbProbe.selected)).toBe(1);
 });

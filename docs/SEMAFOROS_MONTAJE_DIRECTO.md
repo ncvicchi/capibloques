@@ -1,5 +1,10 @@
 # Semáforos: asignación por cantidad y orientación
 
+Aceptación física 01/11: Wemos1.15.0 con ambos grupos en orientación normal
+confirmada por el propietario, con secuencia de prueba y programa original.
+Ver [diagnóstico y restauración](MODOS_SIMULAR_EJECUTAR.md). S3 e inversión
+física continúan pendientes; esto no certifica todas las variantes de montaje.
+
 Corrección 01/11: el botón del editor **Auto conectar** debe pasar
 `reassignTraffic: true`. Antes seguía usando el modo conservador del modelo,
 por lo que una escena existente podía conservar un semáforo con GND real y

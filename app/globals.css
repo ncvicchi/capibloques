@@ -3657,6 +3657,11 @@ html[data-editor-locked='true'] .session-cover * { visibility: visible !importan
 .workbench .toolbar button { min-height: 40px; padding: 8px 12px; white-space: nowrap; }
 .workbench .taskbar { overflow: visible; box-shadow: none; }
 .workbench .execution-association { display: flex; align-items: center; gap: 6px; padding: 3px; border: 1px solid #aab2cd; border-radius: 14px; background: #f5f6fb; flex: 0 0 auto; }
+.execution-mode-selector { display: grid; gap: 2px; min-width: 178px; max-width: 235px; padding: 2px 4px; }
+.execution-mode-selector > fieldset { display: flex; gap: 3px; border: 0; padding: 0; margin: 0; min-width: 0; }
+.workbench .taskbar .execution-mode-selector button { min-height: 30px; padding: 4px 9px; border: 1px solid #aab2cd; border-radius: 7px; background: white; color: #263751; font-size: 12px; }
+.workbench .taskbar .execution-mode-selector button[aria-pressed='true'] { background: #254a88; border-color: #254a88; color: white; }
+.execution-mode-selector small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 10px; color: #344761; }
 .workbench .execution-association .execution-target { border: 0; background: transparent; }
 .workbench .execution-association .execution-target.is-board { background: #f1efff; }
 .workbench .execution-association .board-run-button { min-height: 40px; }
