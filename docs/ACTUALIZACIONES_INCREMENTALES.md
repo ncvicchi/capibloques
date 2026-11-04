@@ -5,6 +5,12 @@ desde `origin/dev3`. Sólo código, documentación y pruebas aisladas en DEV3.
 No se integró ni instaló en main, DEV1 ni DEV2. No cambia firmware, ABI,
 reglas, datos, credenciales, DNS ni los comandos habituales del operador.
 
+Autorización posterior del propietario: integrar esta entrega y actualizar
+DEV1 y el DEV original (`main`), conservando datos y cachés, sin operar DEV2.
+La integración se prepara en `codex/integrar-actualizaciones-dev1-dev`.
+El alcance anterior describe las pruebas previas; la operación actual se
+confirma únicamente al finalizar los chequeos de cada ambiente.
+
 ## Problema observado
 
 La limpieza de main ejecutaba `docker builder prune --all --force` en cada
@@ -127,7 +133,7 @@ crea y retira sólo sus propias imágenes sintéticas. Los dobles de shell se
 ejecutan en Linux, preferentemente DEV3. No se necesita CI, USB ni compilación
 SDK completa para estos cambios operativos.
 
-Pendiente de autorización: integrar la rama y adoptar los scripts en el servidor.
+Integración y adopción en DEV1/main autorizadas posteriormente; DEV2 queda fuera.
 No ejecutar `update-dev.sh` en la VM DEV3: allí siguen vigentes HMR y `dev3.sh`.
 La primera actualización de main usará su guardia del runtime auditado actualizada;
 DEV1/DEV2 seguirán usando el manager de su revisión exacta. No es necesario
