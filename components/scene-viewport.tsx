@@ -9,7 +9,7 @@ import { Hand, Minus, Plus, Scan } from 'lucide-react';
 import { constrainCamera, fittedCamera, MAX_SCENE_ZOOM, MIN_SCENE_ZOOM, zoomScene, type SceneCamera } from '@/lib/scene-camera';
 
 /** A local camera, deliberately outside the project's undo/save/serialization. */
-export default function SceneViewport({ width, height, children }: { width: number; height: number; children: ReactNode }) {
+export default function SceneViewport({ width, height, children, logicalScale=false }: { width: number; height: number; children: ReactNode; logicalScale?:boolean }) {
   const viewport = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 1, height: 1 });
   const [camera, setCamera] = useState<SceneCamera>(fittedCamera);
@@ -28,8 +28,8 @@ export default function SceneViewport({ width, height, children }: { width: numb
   const fit = Math.min(size.width / width, size.height / height);
   // Lay out at the fitted size so labels remain readable at 100%; zoom then
   // magnifies the whole view. Logical scene coordinates still use percentages.
-  const renderWidth = width * fit, renderHeight = height * fit;
-  const scale = bounded.zoom;
+  const renderWidth = logicalScale ? width : width * fit, renderHeight = logicalScale ? height : height * fit;
+  const scale = bounded.zoom * (logicalScale ? fit : 1);
   const anchor = (x: number, y: number) => {
     const rect = viewport.current!.getBoundingClientRect();
     return { x: x - rect.left - size.width / 2, y: y - rect.top - size.height / 2 };

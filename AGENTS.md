@@ -140,3 +140,18 @@
 - Mensajes de fase 7 en `docs/FASE_7_MENSAJES_Y_PANTALLAS.md`: una sola pantalla por proyecto; LCD PCF8574 16×2/20×4, SSD1306 I2C y TFT SPI ILI9341/ILI9488. Consola/Serial independientes. Preservar identidades de zonas retiradas, layout/texto compartido entre worker y generador y recuperación local del inspector incompleto sin aceptarlo como proyecto válido. Cambiar perfil requiere confirmación; no reusar sus conexiones. Servicio Arduino con buffers acotados y refresco cooperativo; compilar no demuestra compatibilidad eléctrica. No instalar herramientas de compilación pesadas en las VMs fuera de su fase. ESP-IDF, incorporado en fase 8, conserva los mismos contratos sin introducir Arduino como dependencia oculta. La separación catálogo/programa está implementada en fase 12. El lienzo de bloques estático, el paralelo vertical y el progreso local están implementados en fase 14.
 - Mantener exportación/importación JSON, compatibilidad de proyectos y pruebas existentes. Validar comportamiento y hardware por separado.
 - Mesa de trabajo de fase 12 en `docs/FASE_12_MESA_DE_TRABAJO.md`: dos filas globales, catálogo temporal opaco con cierre/arrastre, cámara transitoria de escena, mapa Wemos contrastado y reloj compartido de sesión de 60 segundos. No reintroducir consultas por foco/visibilidad ni desmontar el editor por una sesión igual; conservar expiración conocida y permisos frescos de operaciones. Cámara fuera de JSON/autoguardado/historial, coordenadas inversas al mover objetos y encuadre persistente al ejecutar. No iniciar grupo de Deshacer con un frame sin cambios. Mantener montado `ExecutionPanel` para su ACK guiado, aun si su detalle está cerrado. Errores de almacenamiento no deben tapar Exportar/salida. La ilustración no cambia validación eléctrica ni incorpora perfiles S3.
+
+## Fase 45: tráfico compartido — 4 de noviembre de 2026
+
+- Entrega en `codex/dev3-fase45-trafico`, desde dev3 más optimización51415e7.
+  No promover ramas estables ni operar main/dev1/dev2 sin pedido explícito.
+- Mantener plano lógico `lib/traffic-presentation.ts`, renderer React y adaptador
+  `traffic_document.h` coherentes. No duplicar a mano el fondo ni introducir autos
+  ficticios en Waveshare. Cuerpo vertical y flecha por carril, rótulos separados.
+- Runtime1.16.0/ABI1/cap traffic-scene-v1; mínimo físico Wemos/DevKit1.15.0.
+  CapiRules con plano sólo para cruce Waveshare; proyectos JSON sin migración.
+- Evidencia y pendientes en `docs/FASE_45_ESCENAS_VISUALES.md`. Tráfico entregado
+  en software; física/fluidez/memoria y resto de escenas no se dan por aceptados.
+- Regresión: `npm run test:traffic-presentation` necesita C++17/g++; en DEV3,
+  Node oficial de pruebas en `work/tools/node` si Ubuntu no soporta strip-types.
+  Conservar todos los SDK/objetos/caches al compilar, sin volver a limpiar IDF.

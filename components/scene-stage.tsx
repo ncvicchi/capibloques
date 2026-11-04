@@ -1,6 +1,8 @@
 'use client';
 import GorillaTrack from '@/components/gorilla-track';
 import type {GorillaTrackState} from '@/lib/gorilla-track';
+import { TrafficLabels, TrafficPrimitives } from '@/components/traffic-presentation';
+import { createTrafficPresentation, TRAFFIC_CARD, trafficSignalPrimitives, trafficBackground, trafficCarPrimitives, trafficPersonPrimitives, trafficConflictPrimitives } from '@/lib/traffic-presentation';
 
 import LineWorld from '@/components/line-world';
 import type { LineWorldState } from '@/lib/line-world';
@@ -173,6 +175,7 @@ function TrafficActors({
   const stateRef = useRef(world);
   const lastFrameRef = useRef<number | null>(null);
   const lastPaintRef = useRef(0);
+  const trafficClock=useRef(0);
   const eastboundSignal = signals.eastbound;
   const westboundSignal = signals.westbound;
   const southboundSignal = signals.southbound;
@@ -187,6 +190,8 @@ function TrafficActors({
     const animate = (now: number) => {
       const previous = lastFrameRef.current ?? now;
       lastFrameRef.current = now;
+      trafficClock.current+=Math.min(200, Math.max(0,now-previous))*speed;
+      while(trafficClock.current>=20){
       stateRef.current = advanceTrafficWorld(
         stateRef.current,
         {
@@ -195,10 +200,12 @@ function TrafficActors({
           southbound: southboundSignal,
           northbound: northboundSignal,
         },
-        (now - previous) * speed,
+        20,
         enabledLanes,
         pedestrianSignals,
       );
+      trafficClock.current-=20;
+      }
       if (now - lastPaintRef.current >= 40) {
         lastPaintRef.current = now;
         setWorld({
@@ -228,56 +235,26 @@ function TrafficActors({
           const path = crossingPaths[id];
           const walking = pedestrianSignals[id] === 'WALK';
           const label = `${crossingNames[id]} · ${crossingLabels[id]}: ${walking ? 'Cruzar' : 'Esperar'}`;
-          const labelPosition = {
-            north: { x: 480, y: 125, anchor: 'middle' },
-            east: { x: 615, y: 175, anchor: 'start' },
-            south: { x: 480, y: 415, anchor: 'middle' },
-            west: { x: 345, y: 175, anchor: 'end' },
-          } as const;
           return <g key={id} aria-label={label} data-crossing={id}>
             <title>{label}</title>
             <circle cx={path.from.x - 17} cy={path.from.y - 16} r="8" fill={walking ? '#087f5b' : '#b32942'} stroke="white" strokeWidth="2" />
-            <text x={labelPosition[id].x} y={labelPosition[id].y} textAnchor={labelPosition[id].anchor} fontSize="18" fontWeight="800" fill="#172e38" stroke="white" strokeWidth="4" paintOrder="stroke">{crossingLabels[id]} · {walking ? 'Cruzar' : 'Esperar'}</text>
           </g>;
         })}
         {world.pedestrians.people.map((person, index, people) => {
           const queueIndex = people.slice(0, index).filter(other => !other.started && other.crossing === person.crossing && other.direction === person.direction).length;
           const at = pedestrianPosition(person, queueIndex);
           const involved = world.pedestrianCollision?.pedestrianId === person.id;
-          return <g key={person.id} className={involved ? 'traffic-pedestrian involved' : 'traffic-pedestrian'} data-pedestrian={person.id} data-crossing={person.crossing} data-started={person.started} transform={`translate(${at.x} ${at.y}) scale(1.25)`} aria-hidden="true">
+          return <g key={person.id} className={involved ? 'traffic-pedestrian involved' : 'traffic-pedestrian'} data-pedestrian={person.id} data-crossing={person.crossing} data-started={person.started} transform={`translate(${at.x} ${at.y})`} aria-hidden="true">
             {involved && <circle cy="2" r="16" fill="#fff3cd" stroke="#b32942" strokeWidth="2" />}
-            <circle cy="-7" r="4" fill="#f0bd8e" stroke="#30364c" strokeWidth="1.5" />
-            <path d="M0 -2V6M-6 2L0 0L6 2M0 6L-4 12M0 6L4 12" fill="none" stroke={person.direction === 1 ? '#334ea3' : '#9e3673'} strokeWidth="3" strokeLinecap="round" />
+            <TrafficPrimitives primitives={trafficPersonPrimitives(person.direction)}/>
           </g>;
         })}
       </svg>
-      {world.cars.map(car => {
-        const position = trafficCarPosition(car);
-        return (
-          <i
-            key={car.id}
-            className={`traffic-car ${car.lane}${car.crashed ? ' crashed' : ''}`}
-            aria-hidden="true"
-            style={{
-              left: `${(position.x / 960) * 100}%`,
-              top: `${(position.y / 540) * 100}%`,
-            }}
-          >
-            {car.lane === 'eastbound' || car.lane === 'westbound' ? '🚗' : '🚙'}
-          </i>
-        );
-      })}
+      <svg className="traffic-canonical-actors" viewBox="0 0 960 540" aria-hidden="true">
+        {world.cars.map(car=>{const position=trafficCarPosition(car);const angle={eastbound:0,westbound:180,southbound:90,northbound:270}[car.lane];return <g key={car.id} data-car={car.id} transform={`translate(${position.x} ${position.y}) rotate(${angle})`}><TrafficPrimitives primitives={trafficCarPrimitives(Number(car.id.split('-').at(-1)))}/></g>;})}
+      </svg>
       {(world.collision || world.pedestrianCollision) && (
-        <strong className="traffic-crash" role="alert">
-          <span aria-hidden="true">⚠️ </span>
-          Choque {world.pedestrianCollision ? `auto–peatón en ${crossingNames[world.pedestrianCollision.crossing].toLowerCase()}` : 'entre autos'}.
-          {' '}La escena está detenida. Reiniciá programa y escena para volver a probar.
-        </strong>
-      )}
-      {Object.entries(signals).map(([lane, color]) =>
-        color === 'RED' && enabledLanes.includes(lane as TrafficLane) ? (
-          <small key={lane} className={`traffic-jam ${lane}`}>fila</small>
-        ) : null,
+        <><svg className="traffic-canonical-actors" viewBox="0 0 960 540" aria-hidden="true"><TrafficPrimitives primitives={trafficConflictPrimitives()}/></svg><strong className="sr-only" role="alert">Choque {world.pedestrianCollision?'auto con peatón':'entre autos'}. Reiniciá programa y escena para volver a probar.</strong></>
       )}
     </div>
   );
@@ -386,19 +363,7 @@ function SceneBackdrop({
           <g fill="#64ad56"><ellipse cx="150" cy="435" rx="70" ry="27"/><ellipse cx="745" cy="390" rx="85" ry="31"/></g>
           <g fill="#f7a6cf"><circle cx="150" cy="415" r="17"/><circle cx="745" cy="367" r="19"/></g>
         </>}
-        {background === 'crossroads' && <>
-          <rect width="960" height="540" fill="#86c978"/><rect x="0" y="180" width="960" height="180" fill="#505663"/><rect x="390" y="0" width="180" height="540" fill="#505663"/>
-          <g fill="#f8dc6a"><rect x="0" y="266" width="115" height="8"/><rect x="155" y="266" width="115" height="8"/><rect x="690" y="266" width="115" height="8"/><rect x="845" y="266" width="115" height="8"/><rect x="476" y="0" width="8" height="80"/><rect x="476" y="120" width="8" height="60"/><rect x="476" y="360" width="8" height="65"/><rect x="476" y="465" width="8" height="75"/></g>
-          <g fill="#fff" opacity=".9">{Array.from({ length: 12 }, (_, i) => <g key={i}>
-            <rect x={365} y={183 + i * 15} width="20" height="8" />
-            <rect x={575} y={183 + i * 15} width="20" height="8" />
-            <rect x={393 + i * 15} y={155} width="8" height="20" />
-            <rect x={393 + i * 15} y={365} width="8" height="20" />
-          </g>)}</g>
-          <g fill="#fff" fontSize="38" fontWeight="900" opacity=".86"><text x="185" y="338">→</text><text x="745" y="228">←</text><text x="405" y="105">↓</text><text x="525" y="470">↑</text></g>
-          <path d="M35 35h220v105H35z" fill="#f6efd0"/><path d="m25 45 120-35 120 35-14 28H39z" fill="#e76962"/><text x="83" y="105" fontSize="30" fontWeight="800" fill="#34445b">ESCUELA</text>
-          <g fill="#397d46"><circle cx="805" cy="75" r="42"/><circle cx="885" cy="115" r="35"/></g>
-        </>}
+        {background === 'crossroads' && <TrafficPrimitives primitives={trafficBackground()}/>}
         {background === 'robotTrack' && <>
           <rect width="960" height="540" fill="#e8edf7"/><g stroke="#d1d9e8" strokeWidth="2"><path d="M0 90H960M0 180H960M0 270H960M0 360H960M0 450H960M120 0V540M240 0V540M360 0V540M480 0V540M600 0V540M720 0V540M840 0V540"/></g>
           <path d="M145 405 C260 405 250 245 385 245 S525 420 650 350 S690 135 805 145" fill="none" stroke="#536076" strokeWidth="78" strokeLinecap="round"/>
@@ -872,6 +837,7 @@ export default function SceneStage({
     '--wifi-animation-duration': `${800 / safeSimulationSpeed}ms`,
     '--otto-animation-duration': `${240 / safeSimulationSpeed}ms`,
   } as CSSProperties;
+  const trafficPresentation=useMemo(()=>scene.canvas.background==='crossroads'?createTrafficPresentation(scene):null,[scene]);
   const selectedSet = new Set(selectedIds ?? (selectedId ? [selectedId] : []));
   const overlapSet = new Set(overlappingIds ?? []);
   const draggingItem = draggingId
@@ -890,7 +856,7 @@ export default function SceneStage({
     : undefined;
 
   return (
-    <SceneViewport key={`${scene.id}:${scene.canvas.width}:${scene.canvas.height}`} width={scene.canvas.width} height={scene.canvas.height}>
+    <SceneViewport key={`${scene.id}:${scene.canvas.width}:${scene.canvas.height}`} width={scene.canvas.width} height={scene.canvas.height} logicalScale={!!trafficPresentation}>
     <section
       ref={stageRef}
       className={`scene-stage scene-background-${scene.canvas.background}${editing ? ' editing' : ''}${simulationRunning ? '' : ' simulation-paused'}`}
@@ -1012,25 +978,27 @@ export default function SceneStage({
         const arenaAnchor = (scene.canvas.background === 'lineTrack' && device.kind === 'robot') || scene.canvas.background === 'robotArena' && (device.kind === 'robot' || device.kind === 'infraredBarrier');
         const railAnchor = !!pondAnchor || !!weatherAnchor || arenaAnchor || !!conveyorAnchor || !!houseAnchor || !!gardenAnchor || !!parkingAnchor || (scene.canvas.background === 'railCrossing' && !!nearestRailSlot(device.kind, device.position, railTrackCount(scene)));
         const gorillaAnchor=device.kind==='gorilla'&&scene.canvas.background==='gorillaTrack';
-        const size = gorillaAnchor?{width:84,height:76}:railAnchor ? { width: 40, height: 40 } : sceneItemSize(device);
+        const trafficSignal=!!trafficPresentation&&device.kind==='trafficLight';
+        const size = trafficSignal?TRAFFIC_CARD:gorillaAnchor?{width:84,height:76}:railAnchor ? { width: 40, height: 40 } : sceneItemSize(device);
         const labelSide = (scene.canvas.background === 'ottoTheater' || ((scene.canvas.background === 'smartHouse' && (device.kind === 'led' || device.kind === 'button')) || (scene.canvas.background === 'weatherLab' && !weatherAnchor))) ? 'bottom' : sceneItemLabelSide(scene, device.id);
         const style = {
           left: `${(position.x / scene.canvas.width) * 100}%`,
           top: `${(position.y / scene.canvas.height) * 100}%`,
           width: `${(size.width / scene.canvas.width) * 100}%`,
-          minWidth: railAnchor ? 0 : undefined,
-          height: railAnchor ? `${(size.height / scene.canvas.height) * 100}%` : undefined,
-          padding: railAnchor ? 0 : undefined,
+          minWidth: railAnchor||trafficPresentation ? 0 : undefined,
+          height: railAnchor||trafficPresentation ? `${(size.height / scene.canvas.height) * 100}%` : undefined,
+          padding: railAnchor||trafficSignal ? 0 : undefined,
           minHeight: `${(size.height / scene.canvas.height) * 100}%`,
           zIndex: sceneItemLayer(scene, device.id) + (railAnchor ? 20 : 0),
-          transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+          transform: `translate(-50%, -50%) rotate(${trafficSignal?0:rotation}deg)`,
         };
         const contents = (
           <>
             {gorillaAnchor?<svg viewBox="-48 -42 96 84" aria-label="GorillaBot visto desde arriba, frente a la derecha">{[0,1,2,3].map(leg=>{const front=leg<2,x=front?25:-25,y=leg%2===0?-1:1,values=runtime?.kind==='educationalModule'?runtime.values:undefined,a=Number(values?.['j'+(leg*2)]??0),swing=gorillaWorld?.swing===leg&&!editing;return <g key={leg} stroke={swing?'#ef9c41':'#536c7d'} strokeWidth="4" fill="none"><path d={`M${x} ${y*12}L${x+a/2} ${y*25}L${x-a/2} ${y*35}`}/><circle cx={x-a/2} cy={y*35} r={swing?5:3} fill={swing?'#ffc76d':'#536c7d'}/></g>;})}<rect x="-33" y="-17" width="66" height="34" rx="12" fill="#65aaa2" stroke="#35534a" strokeWidth="3"/><path d="M24 -8L40 0 24 8Z" fill="#fbe7a8"/><circle cx="8" cy="-7" r="3" fill="#fff"/><circle cx="8" cy="7" r="3" fill="#fff"/></svg>:pondAnchor ? <span className="rail-component-anchor" title={pondAnchor.name}>{device.kind==='servo'?'⚙':device.kind==='powerSwitch'?'↗':'◉'}</span> : weatherAnchor ? <span className="rail-component-anchor" title={weatherAnchor.name}>{device.kind === 'servo' ? '⚙' : device.kind === 'waterSensor' ? '💧' : '◉'}</span> : arenaAnchor ? device.kind === 'robot' ? <svg viewBox="0 0 44 44" aria-label="Robot visto desde arriba, frente hacia la flecha"><rect x="7" y="2" width="25" height="40" rx="9" fill="#52acc7" stroke="#356075" strokeWidth="2" /><path d="M9 3H27M9 41H27" stroke="#43535d" strokeWidth="5" /><path d="M27 14l12 8-12 8Z" fill="#fff0b8" /><circle cx="21" cy="22" r="5" fill="#daeaf0" /></svg> : <span className="rail-component-anchor" title={device.name}>↕</span> : conveyorAnchor ? <span className="rail-component-anchor" title={conveyorAnchor.name}>{device.kind === 'motor' ? '⚙' : device.kind === 'servo' ? '↗' : '◉'}</span> : houseAnchor ? <span className="rail-component-anchor" title={houseAnchor.name}>{device.kind === 'servo' ? '⚙' : device.kind === 'led' ? '💡' : '◉'}</span> : gardenAnchor ? <span className="rail-component-anchor" title={gardenAnchor.name}>{device.kind === 'servo' ? '⚙' : device.kind === 'powerSwitch' ? '💧' : '◉'}</span> : parkingAnchor ? <span className="rail-component-anchor" title={parkingAnchor.name}>{device.kind === 'servo' ? '⚙' : '↕'}</span> : scene.canvas.background === 'railCrossing' && nearestRailSlot(device.kind, device.position, railTrackCount(scene))
               ? <span className="rail-component-anchor" title={nearestRailSlot(device.kind, device.position, railTrackCount(scene))?.name}>{device.kind === 'servo' ? '⚙' : '↕'}</span>
+              : trafficSignal && device.kind==='trafficLight' ? <svg className="traffic-signal-canonical" viewBox="-50 -44 100 88" aria-hidden="true"><TrafficPrimitives primitives={trafficSignalPrimitives(device)} state={{color:runtime?.color,vehicleDisplay:runtime?.vehicleDisplay,pedestrianDisplay:runtime?.pedestrianDisplay}}/></svg>
               : <DeviceVisual interactive={!editing} device={device} runtime={runtime} matrixPreviewPattern={matrixPreviewPattern} sceneDevices={scene.devices} runtimeDevices={runtimeDevices} dashboardModes={dashboardModes} onDashboardAction={onDashboardAction} />}
-            {!pondAnchor && !weatherAnchor && !arenaAnchor && !conveyorAnchor && !houseAnchor && !gardenAnchor && !(scene.canvas.background === 'greenhouse' && device.kind === 'display') && !parkingAnchor && !(scene.canvas.background === 'railCrossing' && railTrackCount(scene) > 1 && device.kind === 'infraredBarrier') && <span className={`scene-device-name label-${labelSide}`} title={device.name}>{device.name}</span>}
+            {!trafficPresentation && !pondAnchor && !weatherAnchor && !arenaAnchor && !conveyorAnchor && !houseAnchor && !gardenAnchor && !(scene.canvas.background === 'greenhouse' && device.kind === 'display') && !parkingAnchor && !(scene.canvas.background === 'railCrossing' && railTrackCount(scene) > 1 && device.kind === 'infraredBarrier') && <span className={`scene-device-name label-${labelSide}`} title={device.name}>{device.name}</span>}
           </>
         );
         if (!editing) {
@@ -1049,8 +1017,8 @@ export default function SceneStage({
             >
               {contents}
               {activeDeviceId === device.id && (
-                <strong className="device-now">
-                  ➜ {activeDeviceMessage ?? 'Ahora'}
+                <strong className={trafficPresentation?"traffic-device-now":"device-now"} title={activeDeviceMessage}>
+                  {trafficPresentation?"➜":`➜ ${activeDeviceMessage ?? 'Ahora'}`}
                 </strong>
               )}
             </article>
@@ -1080,6 +1048,9 @@ export default function SceneStage({
           </button>
         );
       })}
+      {trafficPresentation && <svg className="traffic-label-layer" viewBox={`0 0 ${scene.canvas.width} ${scene.canvas.height}`} aria-label="Nombres de los componentes">
+        <TrafficLabels labels={trafficPresentation.labels} names={new Map(scene.devices.map(device=>[device.id,device.name]))}/>
+      </svg>}
       {!scene.devices.length && !scene.widgets.length && (
         <div className="scene-empty">
           <span>🧰</span>

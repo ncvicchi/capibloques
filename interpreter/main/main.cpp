@@ -44,6 +44,7 @@
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "font5x7.h"
+#include "traffic_document.h"
 #include "frame_animation.h"
 #include "link_transfer.h"
 #include "program_wait.h"
@@ -51,7 +52,7 @@
 #ifndef CAPI_BOARD_ID
 #define CAPI_BOARD_ID "wemos-d1-r32"
 #endif
-#define CAPI_FIRMWARE_VERSION "1.15.0"
+#define CAPI_FIRMWARE_VERSION "1.16.0"
 #include "gorilla_core.h"
 static bool is_waveshare(){return !strcmp(CAPI_BOARD_ID,"waveshare-esp32-s3-touch-lcd-5-28117");}
 static constexpr uint16_t ABI = 1;
@@ -98,6 +99,7 @@ static i2c_master_dev_handle_t waveshare_mode=nullptr,waveshare_io=nullptr,waves
 static uint16_t *waveshare_pixels=nullptr;
 static SemaphoreHandle_t waveshare_mutex=nullptr;
 static std::atomic<bool> waveshare_dirty{true};
+static std::atomic<bool> waveshare_traffic_reset{true};
 static std::atomic<int> waveshare_action{0}; // 1 run/pause, 2 step, 3 stop, 4 reset
 static std::atomic<int> waveshare_page{0}; // 0 escena, 1 datos
 static bool waveshare_ready=false;
@@ -468,6 +470,8 @@ static bool validate_rules(const std::vector<uint8_t> &bytes, cJSON **document) 
   std::string payload((const char *)&bytes[32], bytes.size() - 32); cJSON *root = cJSON_ParseWithLength(payload.data(), payload.size());
   cJSON *tasks=root?cJSON_GetObjectItem(root,"tasks"):nullptr,*timers_json=root?cJSON_GetObjectItem(root,"timers"):nullptr,*resources=root?cJSON_GetObjectItem(root,"resources"):nullptr,*devices=resources?cJSON_GetObjectItem(resources,"devices"):nullptr;
   if (!root || strcmp(text(root, "format"), "CapiRules") || strcmp(text(root, "board"), CAPI_BOARD_ID) || number(root, "abi") != ABI || !cJSON_IsArray(tasks) || cJSON_GetArraySize(tasks)>32 || !cJSON_IsArray(timers_json) || cJSON_GetArraySize(timers_json)>16 || !cJSON_IsArray(devices) || cJSON_GetArraySize(devices)>64 || u32(&bytes[20])>2048 || u32(&bytes[24])!=(uint32_t)cJSON_GetArraySize(devices) || u32(&bytes[28])!=(uint32_t)cJSON_GetArraySize(tasks)) { cJSON_Delete(root); return false; }
+  cJSON *presentation=cJSON_GetObjectItem(root,"presentation");
+  if(!capi_traffic::document_valid(presentation)||(presentation&&!is_waveshare())){cJSON_Delete(root);return false;}
   cJSON *item,*pins,*pin_item,*task,*instruction;int message_devices=0,otto_devices=0,display_devices=0;cJSON_ArrayForEach(item,devices){pins=cJSON_GetObjectItem(item,"pins"); if(!cJSON_IsObject(pins)){cJSON_Delete(root);return false;} cJSON_ArrayForEach(pin_item,pins) if(cJSON_IsNumber(pin_item)&&!allowed_pin(pin_item->valueint)){cJSON_Delete(root);return false;}const char *kind=text(item,"kind");if(!strcmp(kind,"led")||!strcmp(kind,"smartLights")||!strcmp(kind,"trafficLight")||!strcmp(kind,"motor")||!strcmp(kind,"robot")||!strcmp(kind,"servo")||!strcmp(kind,"activeBuzzer")||!strcmp(kind,"passiveBuzzer")||!strcmp(kind,"ledMatrix"))cJSON_ArrayForEach(pin_item,pins)if(cJSON_IsNumber(pin_item)&&!allowed_output_pin(pin_item->valueint)){cJSON_Delete(root);return false;}if(!strcmp(kind,"otto")){++otto_devices;cJSON *echo=cJSON_GetObjectItem(pins,"echo");cJSON_ArrayForEach(pin_item,pins)if(cJSON_IsNumber(pin_item)&&pin_item!=echo&&!allowed_output_pin(pin_item->valueint)){cJSON_Delete(root);return false;}if(otto_devices>1||(cJSON_IsNumber(echo)&&!allowed_pin(echo->valueint))){cJSON_Delete(root);return false;}}if(!strcmp(kind,"display")){++display_devices;cJSON *config=cJSON_GetObjectItem(item,"config");const char *profile=text(config,"profile");bool parallel=!strcmp(profile,"lcd1602keypad"),i2c=!strcmp(profile,"lcd1602")||!strcmp(profile,"lcd2004")||!strcmp(profile,"ssd1306"),spi=!strcmp(profile,"ili9341")||!strcmp(profile,"ili9488");if(display_devices>1||(!parallel&&!i2c&&!spi)){cJSON_Delete(root);return false;}cJSON *keys=cJSON_GetObjectItem(pins,"keys");cJSON_ArrayForEach(pin_item,pins)if(cJSON_IsNumber(pin_item)&&pin_item!=keys&&!allowed_output_pin(pin_item->valueint)){cJSON_Delete(root);return false;}if(parallel&&(!cJSON_IsNumber(keys)||!allowed_pin(keys->valueint))){cJSON_Delete(root);return false;}}if(!strcmp(kind,"messages")){++message_devices;cJSON *tx=cJSON_GetObjectItem(pins,"tx"),*rx=cJSON_GetObjectItem(pins,"rx"),*config=cJSON_GetObjectItem(item,"config");const char *mode=text(config,"mode");int baud=number(config,"baudRate");if(message_devices>1||(!cJSON_IsNull(tx)&&(!cJSON_IsNumber(tx)||!allowed_output_pin(tx->valueint)))||(!cJSON_IsNull(rx)&&(!cJSON_IsNumber(rx)||!allowed_pin(rx->valueint)))||(strcmp(mode,"send")&&strcmp(mode,"receive")&&strcmp(mode,"both"))||(baud!=9600&&baud!=19200&&baud!=38400&&baud!=57600&&baud!=115200)){cJSON_Delete(root);return false;}}}
   cJSON *traffic_device,*other_device,*other_pin;
   cJSON_ArrayForEach(traffic_device,devices){
@@ -517,9 +521,15 @@ static RuntimeValue component_get(const char *device_id,const char *property){Ru
 
 #ifdef CONFIG_IDF_TARGET_ESP32S3
 static uint16_t rgb565(uint8_t r,uint8_t g,uint8_t b){return (uint16_t)(((r&0xf8)<<8)|((g&0xfc)<<3)|(b>>3));}
+struct WsDeviceTransform { bool enabled=false;double sx=1,sy=1,x=0,y=0;int left=0,top=0,right=800,bottom=480; };
+static WsDeviceTransform ws_device_transform;
 static void ws_rect(int x,int y,int width,int height,uint16_t color){
   if(!waveshare_pixels||width<=0||height<=0){return;}
+  const auto &t=ws_device_transform;
+  if(t.enabled){int right=(int)std::round(t.x+(x+width)*t.sx),bottom=(int)std::round(t.y+(y+height)*t.sy);x=(int)std::round(t.x+x*t.sx);y=(int)std::round(t.y+y*t.sy);width=right-x;height=bottom-y;}
   int x0=std::max(0,x),y0=std::max(0,y),x1=std::min(WAVESHARE_WIDTH,x+width),y1=std::min(WAVESHARE_HEIGHT,y+height);
+  if(t.enabled){x0=std::max(x0,t.left);y0=std::max(y0,t.top);x1=std::min(x1,t.right);y1=std::min(y1,t.bottom);}
+  if(x0>=x1||y0>=y1){return;}
   for(int row=y0;row<y1;++row)std::fill(waveshare_pixels+row*WAVESHARE_WIDTH+x0,waveshare_pixels+row*WAVESHARE_WIDTH+x1,color);
 }
 static void ws_circle(int cx,int cy,int radius,uint16_t color){for(int y=-radius;y<=radius;++y){int span=(int)std::sqrt((float)(radius*radius-y*y));ws_rect(cx-span,cy+y,span*2+1,1,color);}}
@@ -547,7 +557,7 @@ static int ws_label_side(cJSON *devices,cJSON *target){
   }
   return nearby<2?0:index%4;
 }
-static void ws_device(cJSON *dev,int x,int y,int label_side=0){
+static void ws_device(cJSON *dev,int x,int y,int label_side=0,bool draw_name=true){
   const char *kind=text(dev,"kind"),*id=text(dev,"id");const uint16_t ink=rgb565(30,38,69),muted=rgb565(190,196,213),white=rgb565(255,255,255);
   ws_rect(x-58,y-55,116,112,white);
   if(!strcmp(kind,"trafficLight")){
@@ -575,11 +585,58 @@ static void ws_device(cJSON *dev,int x,int y,int label_side=0){
   }else if(!strcmp(kind,"pirSensor")){
     bool on=component_get(id,"motion").boolean;ws_circle(x,y-8,28,on?rgb565(255,154,78):rgb565(126,139,166));ws_text(x-17,y-14,on?"SI":"NO",white,2,2);
   }else{ws_circle(x,y-8,27,rgb565(126,139,166));ws_text(x-7,y-16,"?",white,3,1);}
+  if(!draw_name){return;}
   const char *name=text(dev,"name","Componente");int length=std::min<int>((int)strlen(name),18),scale=length>9?1:2,label_x=x-length*3*scale,label_y=y+40;
   if(label_side==1){label_y=y-68;}
   else if(label_side==2){label_x=x+62;label_y=y-7;}
   else if(label_side==3){label_x=x-62-length*6*scale;label_y=y-7;}
   ws_text(label_x,label_y,name,ink,scale,18);
+}
+static capi_traffic::World waveshare_traffic;
+struct WsTrafficPainter {void rect(int x,int y,int w,int h,uint32_t color){ws_rect(x,y,w,h,rgb565((color>>16)&255,(color>>8)&255,color&255));}};
+static cJSON *ws_presentation(){return active?cJSON_GetObjectItem(active,"presentation"):nullptr;}
+static void ws_traffic_tick(int elapsed){
+  cJSON *p=ws_presentation();if(!p)return;
+  std::array<bool,4> green{{false,false,false,false}},assigned{{false,false,false,false}},enabled{{true,true,true,true}};
+  std::array<int,4> walk{{-1,-1,-1,-1}};cJSON *signal;
+  cJSON_ArrayForEach(signal,cJSON_GetObjectItem(p,"signals")){
+    const char *id=text(signal,"id");int lane=number(signal,"lane"),crossing=number(signal,"crossing");
+    green[lane]=component_get(id,"color").text=="GREEN";assigned[lane]=true;
+    cJSON *dev=device(id),*config=dev?cJSON_GetObjectItem(dev,"config"):nullptr;
+    if(config&&cJSON_IsTrue(cJSON_GetObjectItem(config,"pedestrianDisplay")))walk[crossing]=component_get(id,"pedestrianDisplay").text=="WALK"?1:0;
+  }
+  for(int lane=0;lane<4;++lane)if(!assigned[lane])green[lane]=green[lane^1];
+  cJSON *resources=cJSON_GetObjectItem(active,"resources"),*canvas=cJSON_GetObjectItem(resources,"canvas"),*directions=cJSON_GetObjectItem(canvas,"trafficDirections"),*direction;
+  if(cJSON_IsArray(directions)){enabled.fill(false);const char *names[]={"eastbound","westbound","southbound","northbound"};cJSON_ArrayForEach(direction,directions)for(int lane=0;lane<4;++lane)if(!strcmp(capi_traffic::str(direction),names[lane]))enabled[lane]=true;}
+  waveshare_traffic.tick(elapsed,green,enabled,walk);
+}
+static bool ws_traffic_scene(){
+  cJSON *p=ws_presentation();if(!p)return false;
+  WsTrafficPainter painter;capi_traffic::Canvas<WsTrafficPainter> canvas(painter,CAPI_FONT_5X7,number(p,"width",960),number(p,"height",540));
+  auto empty=[](const char*){return std::string("OFF");};auto glyph=[](const char *value){return traffic_glyph(value);};
+  capi_traffic::draw(canvas,cJSON_GetObjectItem(p,"background"),0,0,0,empty,glyph);
+  for(const auto &car:waveshare_traffic.cars){auto at=capi_traffic::car_position(car);const int quarters[]={0,2,1,3};capi_traffic::draw(canvas,cJSON_GetArrayItem(cJSON_GetObjectItem(p,"cars"),car.id%4),at.x,at.y,quarters[car.lane],empty,glyph);}
+  for(size_t index=0;index<waveshare_traffic.people.size();++index){const auto &person=waveshare_traffic.people[index];int queue=0;for(size_t before=0;before<index;++before){const auto &other=waveshare_traffic.people[before];if(!other.started&&other.crossing==person.crossing&&other.direction==person.direction)++queue;}auto at=capi_traffic::person_position(person,queue);capi_traffic::draw(canvas,cJSON_GetArrayItem(cJSON_GetObjectItem(p,"people"),person.direction==1?0:1),at.x,at.y,0,empty,glyph);}
+  cJSON *box;
+  cJSON_ArrayForEach(box,cJSON_GetObjectItem(p,"boxes")){
+    cJSON *dev=device(text(box,"id"));if(!dev||!strcmp(text(dev,"kind"),"trafficLight"))continue;
+    double width=number(box,"width",88),height=number(box,"height",88),x=number(box,"x"),y=number(box,"y");
+    auto view=canvas.view;ws_device_transform={true,view.scale*width/116,view.scale*height/112,view.x+x*view.scale,view.y+y*view.scale-view.scale*height/112,
+      (int)std::round(view.x+(x-width/2)*view.scale),(int)std::round(view.y+(y-height/2)*view.scale),(int)std::round(view.x+(x+width/2)*view.scale),(int)std::round(view.y+(y+height/2)*view.scale)};
+    ws_device(dev,0,0,0,false);ws_device_transform=WsDeviceTransform{};
+  }
+  cJSON *signal;
+  cJSON_ArrayForEach(signal,cJSON_GetObjectItem(p,"signals")){
+    std::string id=text(signal,"id");auto state=[&](const char *key){return value_text(component_get(id.c_str(),key));};
+    capi_traffic::draw(canvas,cJSON_GetObjectItem(signal,"primitives"),number(signal,"x"),number(signal,"y"),0,state,glyph);
+  }
+  cJSON *label;
+  cJSON_ArrayForEach(label,cJSON_GetObjectItem(p,"labels")){
+    int x=number(label,"x"),y=number(label,"y");canvas.rect(x,y,number(label,"width"),number(label,"height"),0xffffff);
+    cJSON *line;int row=0;cJSON_ArrayForEach(line,cJSON_GetObjectItem(label,"lines")){canvas.text(x+6,y+6+row*number(label,"lineHeight",26),capi_traffic::str(line),0x31395e,number(label,"fontScale",3));++row;}
+  }
+  if(waveshare_traffic.collision||waveshare_traffic.ped_collision)capi_traffic::draw(canvas,cJSON_GetObjectItem(p,"conflict"),0,0,0,empty,glyph);
+  return true;
 }
 static int ws_x(int value,int width){return 70+value*660/std::max(1,width);}
 static int ws_y(int value,int height){return 115+value*300/std::max(1,height);}
@@ -645,7 +702,7 @@ static void waveshare_render(){
   const uint16_t background=rgb565(236,241,255),bar=rgb565(91,75,219),white=rgb565(255,255,255),ink=rgb565(30,38,69);ws_rect(0,0,WAVESHARE_WIDTH,WAVESHARE_HEIGHT,background);ws_rect(0,0,WAVESHARE_WIDTH,55,bar);ws_text(22,17,"CapiBloques",white,3,20);
   ws_rect(650,7,140,41,rgb565(73,82,112));ws_text(671,20,waveshare_page?"ESCENA":"DATOS",white,2,8);
   if(waveshare_page&&active){waveshare_inspector();}
-  else if(!active){ws_text(220,220,"Lista para recibir una escena",ink,2,30);}else{
+  else if(!active){ws_text(220,220,"Lista para recibir una escena",ink,2,30);}else if(ws_traffic_scene()){}else{
     cJSON *resources=cJSON_GetObjectItem(active,"resources"),*canvas=resources?cJSON_GetObjectItem(resources,"canvas"):nullptr,*devices=resources?cJSON_GetObjectItem(resources,"devices"):nullptr,*dev,*order_item;
     int cw=std::max(1,number(canvas,"width",960)),ch=std::max(1,number(canvas,"height",540)),shown=0;std::vector<std::string> rendered;ws_background(canvas);
     auto draw=[&](cJSON *candidate){
@@ -672,12 +729,18 @@ static void ws_virtual_input(uint16_t x,uint16_t y,bool first){
   int width=std::max(1,number(canvas,"width",960)),height=std::max(1,number(canvas,"height",540));
   cJSON_ArrayForEach(dev,devices){
     cJSON *position=cJSON_GetObjectItem(dev,"position");int cx=ws_x(number(position,"x",width/2),width),cy=ws_y(number(position,"y",height/2),height);
-    if(abs((int)x-cx)>58||abs((int)y-cy)>55){continue;}
+    int half_width=58,half_height=55;
+    if(cJSON *p=ws_presentation()){
+      auto view=capi_traffic::View::fit(width,height);cx=(int)std::round(view.x+number(position,"x")*view.scale);cy=(int)std::round(view.y+number(position,"y")*view.scale);
+      cJSON *box;cJSON_ArrayForEach(box,cJSON_GetObjectItem(p,"boxes"))if(!strcmp(text(box,"id"),text(dev,"id"))){half_width=std::max(1,(int)std::round(number(box,"width",88)*view.scale/2));half_height=std::max(1,(int)std::round(number(box,"height",88)*view.scale/2));break;}
+    }
+    if(abs((int)x-cx)>half_width||abs((int)y-cy)>half_height){continue;}
     const char *id=text(dev,"id"),*kind=text(dev,"kind");RuntimeValue value;
+    int span=ws_presentation()?std::max(1,half_width*192/116):100;
     if(!strcmp(kind,"button")){value.kind=RuntimeValue::BOOLEAN;value.boolean=true;component_set(id,"pressed",value);}
     else if(!strcmp(kind,"infraredBarrier")&&first){value=component_get(id,"interrupted");value.kind=RuntimeValue::BOOLEAN;value.boolean=!value.boolean;component_set(id,"interrupted",value);}
-    else if(!strcmp(kind,"lightSensor")||!strcmp(kind,"potentiometer")){value.number=std::clamp(((int)x-(cx-50))*4095/100,0,4095);component_set(id,"value",value);}
-    else if(!strcmp(kind,"joystick")){value.number=std::clamp(((int)x-(cx-50))*4095/100,0,4095);component_set(id,"x",value);value.number=std::clamp(((int)y-(cy-50))*4095/100,0,4095);component_set(id,"y",value);}
+    else if(!strcmp(kind,"lightSensor")||!strcmp(kind,"potentiometer")){value.number=std::clamp(((int)x-(cx-span/2))*4095/span,0,4095);component_set(id,"value",value);}
+    else if(!strcmp(kind,"joystick")){value.number=std::clamp(((int)x-(cx-span/2))*4095/span,0,4095);component_set(id,"x",value);int vertical_span=ws_presentation()?std::max(1,half_height*140/112):100;value.number=std::clamp(((int)y-(cy-vertical_span/2))*4095/vertical_span,0,4095);component_set(id,"y",value);}
     else if(first&&(!strcmp(kind,"pirSensor"))){value=component_get(id,"motion");value.kind=RuntimeValue::BOOLEAN;value.boolean=!value.boolean;component_set(id,"motion",value);}
     else{return;}
     if(first){telemetry_state("touch-input",nullptr,id,!strcmp(kind,"button")?"presionado":!strcmp(kind,"infraredBarrier")?(component_get(id,"interrupted").boolean?"interrumpida":"libre"):"valor cambiado");}
@@ -695,7 +758,22 @@ static void waveshare_touch_service(){
   was_down=down;
   ws_touch_write(0x814e,0);
 }
-static void waveshare_service(void*){TickType_t inspector_refresh=0;for(;;){waveshare_touch_service();TickType_t now=xTaskGetTickCount();if(waveshare_page&&now-inspector_refresh>=pdMS_TO_TICKS(200)){waveshare_dirty=true;inspector_refresh=now;}if(waveshare_dirty.exchange(false)){if(waveshare_mutex)xSemaphoreTake(waveshare_mutex,portMAX_DELAY);waveshare_render();if(waveshare_mutex)xSemaphoreGive(waveshare_mutex);}cooperative_delay_ms(16);}}
+static void waveshare_service(void*){
+  TickType_t previous=xTaskGetTickCount(),inspector_refresh=0;int pending=0;
+  for(;;){
+    waveshare_touch_service();TickType_t now=xTaskGetTickCount();
+    if(waveshare_mutex)xSemaphoreTake(waveshare_mutex,portMAX_DELAY);
+    if(waveshare_traffic_reset.exchange(false)){waveshare_traffic=capi_traffic::World{};pending=0;previous=now;waveshare_dirty=true;}
+    int elapsed=std::min(200,(int)((now-previous)*portTICK_PERIOD_MS));previous=now;
+    if(ws_presentation()&&running&&!paused&&!waveshare_traffic.collision&&!waveshare_traffic.ped_collision){
+      pending+=elapsed;while(pending>=20){ws_traffic_tick(20);pending-=20;waveshare_dirty=true;}
+    }else pending=0;
+    if(waveshare_page&&now-inspector_refresh>=pdMS_TO_TICKS(200)){waveshare_dirty=true;inspector_refresh=now;}
+    if(waveshare_dirty.exchange(false))waveshare_render();
+    if(waveshare_mutex)xSemaphoreGive(waveshare_mutex);
+    cooperative_delay_ms(16);
+  }
+}
 #endif
 static RuntimeValue evaluate(cJSON *expression){
   RuntimeValue out;const char *kind=text(expression,"kind");
@@ -734,7 +812,12 @@ static RuntimeValue evaluate(cJSON *expression){
   return out;
 }
 static void initialize_variables(){variables.clear();cJSON *items=cJSON_GetObjectItem(active,"variables"),*item;cJSON_ArrayForEach(item,items){RuntimeVariable variable;variable.id=text(item,"id");const char *type=text(item,"type");if(!strcmp(type,"text"))variable.value.kind=RuntimeValue::TEXT;else if(!strcmp(type,"boolean"))variable.value.kind=RuntimeValue::BOOLEAN;variables.push_back(std::move(variable));}}
-static void initialize_component_states(){if(variables_mutex)xSemaphoreTake(variables_mutex,portMAX_DELAY);component_states.clear();cJSON *resources=cJSON_GetObjectItem(active,"resources"),*devices=resources?cJSON_GetObjectItem(resources,"devices"):nullptr,*item;cJSON_ArrayForEach(item,devices){const char *id=text(item,"id"),*kind=text(item,"kind");cJSON *config=cJSON_GetObjectItem(item,"config");RuntimeValue value;if(!strcmp(kind,"trafficLight")){value.kind=RuntimeValue::TEXT;value.text="OFF";component_states.push_back({id,"color",value});component_states.push_back({id,"vehicleDisplay",value});component_states.push_back({id,"pedestrianDisplay",value});}else if(!strcmp(kind,"led")){component_states.push_back({id,"brightness",value});}else if(!strcmp(kind,"smartLights")){value.number=number(config,"brightness",40);component_states.push_back({id,"brightness",value});}else if(!strcmp(kind,"ledMatrix")){value.number=number(config,"brightness",5)*100/15;component_states.push_back({id,"brightness",value});}else if(!strcmp(kind,"robot")){value.kind=RuntimeValue::TEXT;value.text="STOP";component_states.push_back({id,"motion",value});}else if(!strcmp(kind,"motor")){component_states.push_back({id,"power",value});}else if(!strcmp(kind,"servo")){value.number=number(config,"angle",90);component_states.push_back({id,"angle",value});}else if(!strcmp(kind,"otto")){value.kind=RuntimeValue::TEXT;value.text="HOME";component_states.push_back({id,"motion",value});value.text="SMILE";component_states.push_back({id,"expression",value});}else if(!strcmp(kind,"button")){value.kind=RuntimeValue::BOOLEAN;value.boolean=cJSON_IsTrue(cJSON_GetObjectItem(config,"pressed"));component_states.push_back({id,"pressed",value});}else if(!strcmp(kind,"infraredBarrier")){value.kind=RuntimeValue::BOOLEAN;value.boolean=cJSON_IsTrue(cJSON_GetObjectItem(config,"interrupted"));component_states.push_back({id,"interrupted",value});}else if(!strcmp(kind,"lightSensor")||!strcmp(kind,"potentiometer")){value.number=number(config,"value",2048);component_states.push_back({id,"value",value});}else{cJSON *values=config?cJSON_GetObjectItem(config,"values"):nullptr,*entry;cJSON_ArrayForEach(entry,values){RuntimeValue initial;if(cJSON_IsBool(entry)){initial.kind=RuntimeValue::BOOLEAN;initial.boolean=cJSON_IsTrue(entry);}else if(cJSON_IsString(entry)){initial.kind=RuntimeValue::TEXT;initial.text=entry->valuestring;}else if(cJSON_IsNumber(entry)){initial.number=entry->valueint;}else{continue;}component_states.push_back({id,entry->string,initial});}}}if(variables_mutex)xSemaphoreGive(variables_mutex);
+static void initialize_component_states(){
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+waveshare_traffic_reset=true;
+#endif
+if(variables_mutex){xSemaphoreTake(variables_mutex,portMAX_DELAY);}
+component_states.clear();cJSON *resources=cJSON_GetObjectItem(active,"resources"),*devices=resources?cJSON_GetObjectItem(resources,"devices"):nullptr,*item;cJSON_ArrayForEach(item,devices){const char *id=text(item,"id"),*kind=text(item,"kind");cJSON *config=cJSON_GetObjectItem(item,"config");RuntimeValue value;if(!strcmp(kind,"trafficLight")){value.kind=RuntimeValue::TEXT;value.text="OFF";component_states.push_back({id,"color",value});component_states.push_back({id,"vehicleDisplay",value});component_states.push_back({id,"pedestrianDisplay",value});}else if(!strcmp(kind,"led")){component_states.push_back({id,"brightness",value});}else if(!strcmp(kind,"smartLights")){value.number=number(config,"brightness",40);component_states.push_back({id,"brightness",value});}else if(!strcmp(kind,"ledMatrix")){value.number=number(config,"brightness",5)*100/15;component_states.push_back({id,"brightness",value});}else if(!strcmp(kind,"robot")){value.kind=RuntimeValue::TEXT;value.text="STOP";component_states.push_back({id,"motion",value});}else if(!strcmp(kind,"motor")){component_states.push_back({id,"power",value});}else if(!strcmp(kind,"servo")){value.number=number(config,"angle",90);component_states.push_back({id,"angle",value});}else if(!strcmp(kind,"otto")){value.kind=RuntimeValue::TEXT;value.text="HOME";component_states.push_back({id,"motion",value});value.text="SMILE";component_states.push_back({id,"expression",value});}else if(!strcmp(kind,"button")){value.kind=RuntimeValue::BOOLEAN;value.boolean=cJSON_IsTrue(cJSON_GetObjectItem(config,"pressed"));component_states.push_back({id,"pressed",value});}else if(!strcmp(kind,"infraredBarrier")){value.kind=RuntimeValue::BOOLEAN;value.boolean=cJSON_IsTrue(cJSON_GetObjectItem(config,"interrupted"));component_states.push_back({id,"interrupted",value});}else if(!strcmp(kind,"lightSensor")||!strcmp(kind,"potentiometer")){value.number=number(config,"value",2048);component_states.push_back({id,"value",value});}else{cJSON *values=config?cJSON_GetObjectItem(config,"values"):nullptr,*entry;cJSON_ArrayForEach(entry,values){RuntimeValue initial;if(cJSON_IsBool(entry)){initial.kind=RuntimeValue::BOOLEAN;initial.boolean=cJSON_IsTrue(entry);}else if(cJSON_IsString(entry)){initial.kind=RuntimeValue::TEXT;initial.text=entry->valuestring;}else if(cJSON_IsNumber(entry)){initial.number=entry->valueint;}else{continue;}component_states.push_back({id,entry->string,initial});}}}if(variables_mutex)xSemaphoreGive(variables_mutex);
 #ifdef CONFIG_IDF_TARGET_ESP32S3
 waveshare_dirty=true;
 #endif
@@ -760,6 +843,9 @@ static bool load_rules() {
   if(waveshare_mutex)xSemaphoreTake(waveshare_mutex,portMAX_DELAY);
 #endif
   cJSON_Delete(active); active=parsed;
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+  waveshare_traffic_reset=true;
+#endif
 #ifdef CONFIG_IDF_TARGET_ESP32S3
   waveshare_dirty=true;if(waveshare_mutex)xSemaphoreGive(waveshare_mutex);
 #endif
@@ -1058,6 +1144,7 @@ static void command(cJSON *request) {
     if(is_waveshare()){
       cJSON_AddItemToArray(caps,cJSON_CreateString("touch-inputs"));
       cJSON_AddItemToArray(caps,cJSON_CreateString("autonomous-controls"));
+      cJSON_AddItemToArray(caps,cJSON_CreateString("traffic-scene-v1"));
     }
     cJSON *resources=cJSON_AddObjectToObject(out,"resources");
     cJSON_AddNumberToObject(resources,"pwmChannels",8);
@@ -1106,6 +1193,9 @@ static void command(cJSON *request) {
   if(waveshare_mutex)xSemaphoreTake(waveshare_mutex,portMAX_DELAY);
 #endif
   cJSON_Delete(active); active=parsed;
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+  waveshare_traffic_reset=true;
+#endif
 #ifdef CONFIG_IDF_TARGET_ESP32S3
   waveshare_dirty=true;if(waveshare_mutex)xSemaphoreGive(waveshare_mutex);
 #endif

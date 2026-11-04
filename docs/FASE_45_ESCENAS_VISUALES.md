@@ -1,5 +1,82 @@
 # Fase 45 — Escenas atractivas y fidelidad visual completa
 
+## 04/11/2026 — Fase 45: tráfico con composición compartida
+
+Entrega en `codex/dev3-fase45-trafico`, creada desde `origin/dev3` (`ec7d277`)
+e incorporando por avance rápido la optimización ya autorizada (`51415e7`).
+No se promueven `dev3`, `dev1`, `main` ni `dev2`. La vista de trabajo DEV3
+usa esta rama; no se actualizan los servicios ni los datos del servidor original.
+
+### Qué cambia
+
+- Un plano lógico de 960 × 540 define fondo, calles, pasos peatonales, escuela,
+  árboles, flechas, semáforos, matrices opcionales y nombres. Editor y simulador
+  escalan juntos geometría y tipografía; Waveshare consume ese mismo plano con
+  escala uniforme y márgenes, conservando sus barras de control.
+- El cuerpo del semáforo permanece vertical; su flecha indica el carril. Los
+  cuatro anclajes mantienen sus coordenadas, sin mover objetos del proyecto.
+- Los rótulos buscan espacio libre determinísticamente, fuera de componentes,
+  calles y otros rótulos. Se probaron los cuatro semáforos con nombres largos y
+  ambas matrices. Dos líneas, tamaño fijo legible y `...` explícito; el nombre
+  completo se conserva en el proyecto, inspector y descripción accesible web.
+  Fuente 5 × 7 común con acentos españoles, ñ y ü; otros caracteres tienen
+  sustitución visual, sin modificar el nombre original.
+- Autos y peatones usan dibujos vectoriales comunes. Se elimina la representación
+  nativa antigua de autos estáticos ficticios: Waveshare tiene ahora población,
+  colas, despeje, choques, pausa y reinicio con el mismo modelo de tráfico.
+  Ambos motores avanzan en pasos de 20 ms. La velocidad seleccionada en web
+  se aplica al reloj de los actores; esto no convierte dos relojes físicos
+  independientes en un sistema sincronizado a nivel de frame.
+- El indicador de ejecución queda dentro del semáforo, sin una burbuja extensa
+  que tape los nombres. Se corrigió también el recorte de rectángulos fuera de
+  pantalla y se ajustaron las zonas táctiles a la nueva transformación.
+
+### Archivos y compatibilidad
+
+`lib/traffic-presentation.ts` produce la descripción compacta; los componentes
+React la dibujan y `interpreter/main/traffic_document.h` la valida/dibuja mediante
+`traffic_canvas.h`. `traffic_world.h` contiene el modelo nativo contrastado con
+TypeScript. Se conserva el renderer anterior para paquetes antiguos sin plano.
+
+Intérprete **1.16.0**, ABI 1, capacidad **traffic-scene-v1** sólo en Waveshare.
+El nuevo plano se añade a CapiRules sólo para el cruce en Waveshare; no cambia
+el JSON portable, no agrega imágenes descargadas y conserva el límite de 32 KiB.
+La escena de prueba de cuatro semáforos, nombres largos y matrices produce
+8.625 bytes con un programa mínimo; programas más grandes siguen sujetos al
+límite global. Waveshare requiere actualizar firmware antes de enviar reglas
+nuevas. Wemos/DevKit conservan mínimo 1.15.0 y no reciben metadatos de pantalla.
+
+No se certifica aquí la fidelidad de todos los componentes genéricos ni de las
+otras escenas: conservan sus dibujos anteriores. Una escena arbitrariamente
+saturada puede agotar espacio para rótulos; la cobertura de esta entrega es el
+cruce con sus cuatro semáforos y carteles, no una promesa de espacio ilimitado.
+
+### Verificación y pendientes
+
+- Typecheck, lint, smoke completo, USB y empaquetado: aprobados en DEV3.
+- `npm run test:traffic-presentation`: cuatro nombres sin colisiones, geometría,
+  orden determinista, tamaño de reglas, fuente común, recorte y **6.000 pasos
+  diferenciales C++/TS**, incluidos autos/peatones, choques, permisos y reinicio.
+- `tests/traffic-presentation.spec.ts`: **4/4 en Chrome y Edge**, con ventana
+  angosta, zoom, guardar, cambiar nombre, deshacer, rehacer y cancelar. Captura
+  revisada; los artefactos generados quedan fuera de Git.
+- ESP-IDF 5.5.5: intérprete 1.16.0 compilado y empaquetado para Wemos, DevKit S3
+  y Waveshare, conservando objetos/SDK/cachés. La última reconstrucción S3
+  reutilizó objetos y sólo necesitó nueve pasos, no una compilación de todo IDF.
+- Para las pruebas Node de DEV3 se usó el ejecutable 22.23.2 del contenedor
+  oficial ya fijado por el proyecto, en `work/tools/node` (ignorado), porque el
+  Node de Ubuntu no ejecuta el runner TS. No se cambió el Node del sistema.
+
+**Pendiente físico:** comprobar composición, lectura, touch, memoria y fluidez
+con una Waveshare real. No se grabó ninguna placa ni se declaró una aceptación
+física por pruebas de navegador. Las restantes escenas y herramientas de esta
+fase conservan sus pendientes: fase 45 sigue en curso, tráfico entregado en software.
+
+Para continuar localmente en DEV3, consultar [DEV3_VM_LOCAL.md](DEV3_VM_LOCAL.md).
+La web de prueba está en http://localhost:3003/ mediante el túnel habitual.
+No usar el actualizador del servidor original para instalar esta rama. Integrar
+o actualizar otros ambientes requiere pedido explícito del propietario.
+
 Ampliación del 17 de octubre: las mecánicas de mundos interactivos se planifican
 en [PLAN_MUNDOS_INTERACTIVOS.md](PLAN_MUNDOS_INTERACTIVOS.md), fases 46–55.
 Peatones corresponde a fase 46, no a un cierre de esta fase. La paridad visual

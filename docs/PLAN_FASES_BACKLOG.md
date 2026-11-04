@@ -1,5 +1,12 @@
 # Nuevas fases de CapiBloques
 
+**04/11 — Fase45, tráfico entregado en software en rama desde DEV3.**
+[Detalle, pruebas y pendientes](FASE_45_ESCENAS_VISUALES.md): plano lógico común,
+cuatro semáforos sin nombres superpuestos, fondo/carteles/autos/peatones comunes,
+renderer Waveshare1.16.0 y reloj fijo20ms contrastado C++/TS. 4/4 Chrome/Edge,
+smoke/USB y SDK3perfiles aprobados. Física, mediciones y demás escenas pendientes;
+45 sigue en curso. Sin promoción de main/dev1/dev2 ni cambios de sus datos.
+
 **Actualización30/10 — fase20, fiabilidad de placa:** [CARGA_PLACA_ROBUSTA.md](CARGA_PLACA_ROBUSTA.md). Entrega en rama desde dev1, firmware1.14.1; grabación→conexión y veinte ciclos reales Wemos aprobados, con transferencia correlacionada/idempotente y recuperación. Pendientes: instalación en dev1 por propietario, USB nativo Chrome/Edge y placas S3/Waveshare. No abre ni renumera otra fase ni promueve main/dev2.
 
 **Fase60 — marcha y pista GorillaBot, software en rama desde dev1 (19/10).** [Reglas y entrega](FASE_60_GORILLABOT_MARCHA_PISTA.md): cuatro tiempos coordinados, avanzar/retroceder/giro experimental, ritmo y amplitud, referencia de apoyo, pista nueva con estaciones/obstáculos/contactos recuperables y dos ejemplos completos (directo y tres procedimientos/dos pestañas). Runtime1.14.0/ABI1/cap gorilla-gait; guardas de calibración y giro físico, no odometría ni equilibrio certificado. Fase59 confirmada instalada en dev1. Actualización dev1, SDK completo, aceptación física y renderer Waveshare pendientes; main/dev2 no operados. Estados inferiores previos a60 son históricos; 61–64 siguen pendientes, sin autorización.

@@ -1,6 +1,6 @@
 /// <reference types="w3c-web-serial" />
 // @ts-expect-error Node strip-types runner.
-import { CAPI_INTERPRETER_ABI, CAPI_INTERPRETER_VERSION, type CapiRulesBundle } from './capi-rules.ts';
+import { CAPI_INTERPRETER_ABI, CAPI_INTERPRETER_VERSION, CAPI_INTERPRETER_BASE_MIN_VERSION, type CapiRulesBundle } from './capi-rules.ts';
 // @ts-expect-error Node strip-types runner.
 import { acquireUsbLease, usbDeadline } from './usb-lease.ts';
 import type { BoardProfileId } from './board-profiles.ts';
@@ -165,7 +165,8 @@ export class InterpreterSession {
         const hello = response as unknown as InterpreterHello;
         if (!hello || hello.protocol !== 'CapiLink' || typeof hello.firmware !== 'string' || !Array.isArray(hello.capabilities) || !hello.capabilities.every(cap => typeof cap === 'string') || !Number.isSafeInteger(hello.maxRulesBytes) || hello.maxRulesBytes <= 0 || typeof hello.resources?.pwmChannels !== 'number') throw new InterpreterProtocolError('La placa no tiene un intérprete CapiBloques reconocible.');
         this.tagged = hello.capabilities.includes('reliable-transfer');
-        if (hello.board !== expectedBoard || hello.abi !== CAPI_INTERPRETER_ABI || !versionAtLeast(hello.firmware, CAPI_INTERPRETER_VERSION) || !this.tagged) {
+        const minimum=expectedBoard==='waveshare-esp32-s3-touch-lcd-5-28117'?CAPI_INTERPRETER_VERSION:CAPI_INTERPRETER_BASE_MIN_VERSION;
+        if (hello.board !== expectedBoard || hello.abi !== CAPI_INTERPRETER_ABI || !versionAtLeast(hello.firmware, minimum) || !this.tagged) {
           this.update({ stage: 'incompatible', hello, message: hello.board !== expectedBoard ? 'El intérprete pertenece a otra placa. Instalá el firmware correcto.' : 'Actualizá el intérprete para enviar reglas con confirmaciones seguras.' });
           return;
         }

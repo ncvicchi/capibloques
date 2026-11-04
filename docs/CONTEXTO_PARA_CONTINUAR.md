@@ -1,5 +1,19 @@
 # CapiBloques — contexto para continuar
 
+## 04/11/2026 — Fase 45, tráfico en rama desde DEV3
+
+Rama `codex/dev3-fase45-trafico`: composición lógica común para editor/simulador/
+Waveshare, cuatro semáforos con rótulos medidos sin solaparse, carteles, fondo y
+actores comunes. Intérprete1.16.0/ABI1/cap `traffic-scene-v1`; mínimo Wemos/S3
+sigue1.15.0. [Entrega, evidencia y límites](FASE_45_ESCENAS_VISUALES.md).
+Typecheck/lint/smoke/USB, 6.000 pasos C++/TS, 4 pruebas Chrome/Edge y SDK completo
+3 perfiles aprobados. Prueba física y restantes escenas pendientes; no cerrar45.
+La rama parte de dev3 ec7d277 e incorpora sólo en ella el avance51415e7 de la
+optimización. DEV3 sirve esta rama como vista de trabajo. No se promueven ramas
+estables ni se operan datos/servicios main/dev1/dev2. Conservar caches/objetos.
+La optimización anterior ya fue autorizada e integrada en main/dev1 por pedido
+del propietario; el encabezado03/11 inferior documenta su entrega inicial.
+
 ## 03/11/2026 — Actualizaciones incrementales, sólo rama
 
 Pedido vigente: optimizar desde dev3, documentar/commit/push sin tocar main ni

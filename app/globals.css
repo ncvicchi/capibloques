@@ -2526,6 +2526,14 @@ select:focus-visible {
   top: 50%; left: calc(100% + 6px); bottom: auto;
   transform: translateY(-50%);
 }
+.traffic-label-layer { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 180; pointer-events: none; }
+.traffic-signal-canonical { display: block; width: 100%; height: 100%; overflow: visible; }
+.traffic-canonical-actors { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.traffic-world .pedestrian-world { z-index: 2; }
+.traffic-world.conflict .traffic-canonical-actors:last-of-type { z-index: 3; }
+.traffic-device-now { position: absolute; top: 0; left: 0; color: #594000; background: #fff2a2; font-size: 13px; line-height: 16px; width: 16px; text-align: center; }
+.scene-background-crossroads .scene-device-trafficLight { border: 0; background: transparent; box-shadow: none; min-width: 0; min-height: 0; }
+.scene-background-crossroads .scene-device-trafficLight.selected { outline: 3px solid var(--purple); outline-offset: 3px; }
 .stage-traffic {
   width: 31px;
   padding: 4px;

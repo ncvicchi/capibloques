@@ -148,7 +148,7 @@ for profile in profiles:
     try:
         info = json.loads((root / f"{profile}.json").read_text(encoding="utf-8"))
         bundle = root / info["bundle"]
-        assert info["sourceRevision"] == revision and info["version"] == "1.15.0" and bundle.is_file()
+        assert info["sourceRevision"] == revision and info["version"] == "1.16.0" and bundle.is_file()
     except Exception:
         raise SystemExit(1)
 PY
@@ -384,7 +384,7 @@ if ((BUILD_INTERPRETER)); then
   interpreter_builder_image=capibloques-compiler-dev:phase9
   interpreter_toolchain_key=$(docker image inspect "$interpreter_builder_image" --format '{{.Id}}' 2>/dev/null) || \
     fail "falta la imagen local $interpreter_builder_image para construir el intérprete"
-  artifact_args=(--root "$REPOSITORY" --version 1.15.0 --revision "$INTERPRETER_SOURCE" --toolchain "$interpreter_toolchain_key" --destination "$REPOSITORY/public/interpreter")
+  artifact_args=(--root "$REPOSITORY" --version 1.16.0 --revision "$INTERPRETER_SOURCE" --toolchain "$interpreter_toolchain_key" --destination "$REPOSITORY/public/interpreter")
   if python3 scripts/interpreter-artifact-cache.py restore "${artifact_args[@]}"; then
     BUILD_INTERPRETER=0
   else
@@ -401,14 +401,14 @@ if ((BUILD_INTERPRETER)); then
     -e CAPI_INTERPRETER_TOOLCHAIN_KEY="$interpreter_toolchain_key" \
     -v "$REPOSITORY:/project" -w /project \
     "$interpreter_builder_image" \
-    -lc '. "$IDF_PATH/export.sh" >/dev/null && bash ./scripts/build-interpreter-firmware.sh 1.15.0 /project/public/interpreter '"$INTERPRETER_SOURCE"
+    -lc '. "$IDF_PATH/export.sh" >/dev/null && bash ./scripts/build-interpreter-firmware.sh 1.16.0 /project/public/interpreter '"$INTERPRETER_SOURCE"
   python3 - "$REPOSITORY/public/interpreter" "$INTERPRETER_SOURCE" <<'PY'
 import hashlib, json, pathlib, sys
 root, revision = pathlib.Path(sys.argv[1]), sys.argv[2]
 for profile in ("wemos-d1-r32", "diymall-esp32-s3-devkitc-v1-n16r8", "waveshare-esp32-s3-touch-lcd-5-28117"):
     info = json.loads((root / f"{profile}.json").read_text(encoding="utf-8"))
     bundle = root / info["bundle"]
-    assert info["sourceRevision"] == revision and info["version"] == "1.15.0"
+    assert info["sourceRevision"] == revision and info["version"] == "1.16.0"
     assert bundle.stat().st_size == info["bytes"]
     assert hashlib.sha256(bundle.read_bytes()).hexdigest() == info["sha256"]
 print("Firmware intérprete empaquetado y verificado para las tres placas.")

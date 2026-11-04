@@ -1,12 +1,15 @@
 // @ts-expect-error Node strip-types runner.
 import { compileTaskGraph, normalizeCompiledProgram, validateProgramForScene, type CompiledProgram, type ExecutableTask } from './capiblocks.ts';
 import type { SceneDefinition } from './scene-model.ts';
+// @ts-expect-error Node source runner.
+import { createTrafficPresentation, type TrafficPresentation } from './traffic-presentation.ts';
 // @ts-expect-error Node strip-types runner.
 import { isBoardProfileId, type BoardProfileId } from './board-profiles.ts';
 
 export const CAPI_RULES_FORMAT = 1;
 export const CAPI_INTERPRETER_ABI = 1;
-export const CAPI_INTERPRETER_VERSION = '1.15.0';
+export const CAPI_INTERPRETER_VERSION = '1.16.0';
+export const CAPI_INTERPRETER_BASE_MIN_VERSION = '1.15.0';
 export const CAPI_RULES_MAX_BYTES = 32 * 1024;
 export const CAPI_RULES_MAX_INSTRUCTIONS = 2048;
 const HEADER_BYTES = 32;
@@ -18,6 +21,7 @@ export interface CapiRulesDocument {
   abi: typeof CAPI_INTERPRETER_ABI;
   board: BoardProfileId;
   resources: SceneDefinition;
+  presentation?: TrafficPresentation;
   variables: CompiledProgram['variables'];
   timers: CompiledProgram['timers'];
   tasks: ExecutableTask[];
@@ -150,6 +154,7 @@ export function createCapiRules(programInput: CompiledProgram, scene: SceneDefin
   const document: CapiRulesDocument = {
     format: 'CapiRules', version: CAPI_RULES_FORMAT, abi: CAPI_INTERPRETER_ABI, board,
     resources, variables: program.variables ?? [], timers: program.timers ?? [], tasks,
+    ...(virtualBoard&&scene.canvas.background==='crossroads'?{presentation:createTrafficPresentation(scene)}:{}),
     initial: { taskIds: tasks.filter(task => task.initial).map(task => task.id) },
     debug: { blockIds },
   };
@@ -169,6 +174,7 @@ export function createCapiRules(programInput: CompiledProgram, scene: SceneDefin
   bytes.set(payload, HEADER_BYTES);
   const capabilities = tasks.flatMap(task => task.output.flatMap(instructionCapabilities));
   if (scene.devices.some(device => device.kind === 'trafficLight')) capabilities.push('traffic-digital');
+  if(virtualBoard&&scene.canvas.background==='crossroads')capabilities.push('traffic-scene-v1');
   if (!virtualBoard && scene.devices.some(device => device.kind === 'trafficLight' && device.pins.common != null)) capabilities.push('traffic-direct');
   const usedDeviceIds = new Set(tasks.flatMap(task => task.output.flatMap(instruction => 'deviceId' in instruction ? [instruction.deviceId] : [])));
   for (const device of scene.devices) if (device.kind === 'display' && usedDeviceIds.has(device.id)) {
@@ -195,6 +201,6 @@ export function parseCapiRules(bytes: Uint8Array, expectedBoard?: BoardProfileId
   if (!Array.isArray(document.tasks) || !Array.isArray(document.variables) || !Array.isArray(document.timers) || document.tasks.length !== view.getUint32(28, true) || !Array.isArray(document.resources?.devices) || document.resources.devices.length !== view.getUint32(24, true)) throw new CapiRulesError('Las reglas tienen una tabla incompleta.');
   const instructionCount = document.tasks.reduce((total, task) => total + (Array.isArray(task.output) ? task.output.length : CAPI_RULES_MAX_INSTRUCTIONS + 1), 0);
   if (instructionCount !== view.getUint32(20, true) || instructionCount > CAPI_RULES_MAX_INSTRUCTIONS) throw new CapiRulesError('Las reglas exceden los límites del intérprete.');
-  const requiredCapabilities = [...new Set([...document.tasks.flatMap(task => task.output.flatMap(instructionCapabilities)), ...(document.resources.devices.some(d=>d.kind==='lineSensors')?['line-sensors']:[]),...(document.resources.devices.some(d=>d.kind==='gorilla')?['gorilla-bench']:[])])].sort();
+  const requiredCapabilities = [...new Set([...document.tasks.flatMap(task => task.output.flatMap(instructionCapabilities)), ...(document.resources.devices.some(d=>d.kind==='lineSensors')?['line-sensors']:[]),...(document.resources.devices.some(d=>d.kind==='gorilla')?['gorilla-bench']:[]),...(document.presentation?['traffic-scene-v1']:[])])].sort();
   return { bytes, document, checksum: checksumHex(expectedCrc), instructionCount, requiredCapabilities, resourceRequirements: resourceRequirements(document) };
 }

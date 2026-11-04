@@ -1,5 +1,12 @@
 # DEV3 local — operación y contexto
 
+04/11: vista de trabajo en `codex/dev3-fase45-trafico`, desde dev3 e incorporando
+51415e7 de la optimización autorizada. [Entrega](FASE_45_ESCENAS_VISUALES.md).
+Firmware1.16.0 ya generado para tres perfiles conservando objetos/cachés; no se
+grabó hardware. Sin promoción de ramas estables ni cambios de main/dev1/dev2.
+Las pruebas fuente TS usan temporalmente `export PATH="$PWD/work/tools:$PATH"`:
+Node22.23.2 oficial extraído del contenedor ya fijado, sin modificar Ubuntu.
+
 03/11: optimización de actualizaciones preparada **sólo en rama** desde dev3.
 Ver [ACTUALIZACIONES_INCREMENTALES.md](ACTUALIZACIONES_INCREMENTALES.md).
 Pruebas aisladas en DEV3; no implica instalar ni integrar en los otros ambientes.

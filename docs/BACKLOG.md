@@ -1,5 +1,12 @@
 # Backlog de CapiBloques
 
+**04/11 — Fase45, tráfico en rama desde DEV3:**
+[Entrega y aceptación pendiente](FASE_45_ESCENAS_VISUALES.md). Plano común de
+fondo, semáforos, carteles y rótulos; autos/peatones nativos con el mismo modelo
+que web. Intérprete1.16.0, ABI1; 4/4 Chrome/Edge, 6.000 pasos C++/TS, suites y
+SDK3perfiles aprobados. Pendientes física/memoria/fluidez y demás escenas.
+No se promueven main/dev1/dev2 ni se copian sus datos; fase45 sigue en curso.
+
 **01/11 — Simulador/Placa y PC y reenvío sin reconectar:** [entrega](MODOS_SIMULAR_EJECUTAR.md). Ejecución explícita con reglas y compilación actuales, snapshot común PC/placa, cambios pendientes y STOP al editar/cambiar a PC. Regresiones de campo Blockly/GPIO y puerto elegido una vez. Wemos1.15.0: propietario confirmó ambos módulos tanto en prueba temporal como en programa original restaurado. Sin firmware nuevo; quedan otras placas/orientaciones físicas.
 
 **01/11 — Semáforos directos/agrupados e inversión:** [entrega y restricciones](SEMAFOROS_MONTAJE_DIRECTO.md). Asignación automática por cantidad para Wemos/S3, grupos Wemos confirmados por aletas, `pins.common` opcional, inversión conjunta con guardado, guía coherente y firmware1.15.0 digital. SDK y pruebas software aprobados; pendientes prueba física de enchufe/arranque/reinicio en ambas orientaciones y revisión del espacio S3. Sólo DEV3; sin modificar main/dev1/dev2.
