@@ -211,8 +211,13 @@ def deploy(values, with_api):
         # La VM tiene 2 GiB: ningún editor, ni siquiera el estático anterior,
         # se solapa con el builder Node de esta imagen.
         if not candidate_exists:
-            compose(checkout, temporary, "build", "editor")
+            subprocess.run(["python3", str(checkout / "scripts/dev-build-cache.py"),
+                            "--root", str(checkout), "--kind", "editor", "--image", f"{IMAGE}:{candidate}",
+                            "--revision", revision], check=True)
         if with_api:
+            subprocess.run(["python3", str(checkout / "scripts/dev-build-cache.py"),
+                            "--root", str(checkout), "--kind", "api", "--image", "capibloques-api-dev:local",
+                            "--revision", revision], check=True)
             # Recrear la API cambia su frontera de confianza; la admisión de
             # compilaciones debe estar pausada antes de elegir esta opción.
             compose(

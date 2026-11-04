@@ -28,6 +28,9 @@ class UpdateDevTests(unittest.TestCase):
         self.git(self.root, "init", "-q", "-b", "main", str(self.seed))
         self.identity(self.seed)
         (self.seed / "scripts").mkdir()
+        (self.seed / "ops/environments").mkdir(parents=True)
+        (self.seed / "ops/environments/manage.py").write_text("# manager mocked by sudo below\n")
+        (self.seed / "scripts/update-dev.sh").write_text("#!/usr/bin/env bash\nexit 0\n")
         (self.seed / "scripts/deploy-dev-remote.sh").write_text(
             '#!/usr/bin/env bash\nset -eu\n'
             'git -C "$TEST_REPO" rev-parse HEAD >"$TEST_MARKER"\n'
@@ -53,6 +56,7 @@ class UpdateDevTests(unittest.TestCase):
         source = (ROOT / "scripts/update-dev.sh").read_text(encoding="utf-8")
         source = source.replace("REPOSITORY=/home/capi/capibloques", f"REPOSITORY='{self.repo.as_posix()}'")
         source = source.replace("LOCK_DIRECTORY=/home/capi/.local/state/capibloques", f"LOCK_DIRECTORY='{self.lock.as_posix()}'")
+        source = source.replace("launcher_directory=/home/capi/.local/bin", f"launcher_directory='{self.root.as_posix()}/bin'")
         source = source.replace("/home/capi/capibloques-integracion-XXXXXX", f"{self.root.as_posix()}/integration-XXXXXX")
         self.script.write_text(source, encoding="utf-8")
         self.bootstrap = self.root / "test-env.sh"

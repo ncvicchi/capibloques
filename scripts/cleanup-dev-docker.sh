@@ -5,6 +5,8 @@ set -Eeuo pipefail
 [[ $(hostname) == capi-dev ]] || { echo "ERROR: esta limpieza sólo puede ejecutarse en capi-dev." >&2; exit 1; }
 
 COMPILER_IMAGE=capibloques-compiler-dev:phase9
+CACHE_BUDGET=${CAPI_DOCKER_CACHE_BUDGET:-4GB}
+[[ $CACHE_BUDGET =~ ^[1-9][0-9]*(MB|GB)$ ]] || { echo 'ERROR: presupuesto de caché inválido (ejemplo 4GB).'; exit 1; }
 declare -A keep=()
 
 remember_image() {
@@ -35,6 +37,25 @@ done < <(docker ps -q)
 remember_image "$COMPILER_IMAGE"
 remember_image node:22.23.2-bookworm-slim
 remember_image python:3.12-slim-bookworm
+# Digest-pinned bases may not have a short tag. Preserve the exact references.
+while IFS= read -r reference; do
+  [[ -z $reference || $reference == *'$'* ]] || remember_image "$reference"
+done < <(sed -n -E 's/^FROM ([^ ]+).*/\1/p' ops/public-dev/Dockerfile backend/Dockerfile ops/compiler/Dockerfile | sort -u)
+# Preserve two most recently used content recipes per kind across environments.
+while IFS= read -r reference; do
+  [[ -z $reference ]] || remember_image "$reference"
+done < <(python3 - <<'PY'
+from pathlib import Path
+import re
+root = Path('/var/cache/capibloques-builds')
+for kind in ('editor', 'api', 'compiler'):
+    records = sorted(root.glob(kind+'-*.used'), key=lambda p: p.stat().st_mtime, reverse=True)
+    for record in records[:2]:
+        key = record.stem[len(kind)+1:]
+        if re.fullmatch('[0-9a-f]{64}', key):
+            print('capibloques-cache-'+kind+':'+key)
+PY
+)
 # Idle sibling queues still require their immutable recipes and recovery images.
 for environment in dev1 dev2; do
   while IFS= read -r reference; do
@@ -72,9 +93,15 @@ while IFS= read -r image_id; do
   fi
 done < <(docker image ls -aq --no-trunc | sort -u)
 
-# La caché de construcción es regenerable y llegó a ocupar más de 8 GB en la
-# VM de 31 GB. Se retira completa después de validar el nuevo runtime.
-docker builder prune --all --force >/dev/null
+# Retire old unused layers normally; under disk pressure evict LRU entries
+# down to the configured budget. Never empty all warm build dependencies.
+available_before=$(df -B1 --output=avail / | tail -n 1 | tr -d ' ')
+if ((available_before < 4 * 1024 * 1024 * 1024)); then
+  echo "Poco espacio: caché Docker limitada a $CACHE_BUDGET; SDK/objetos se conservan."
+  docker builder prune --all --force --keep-storage "$CACHE_BUDGET" >/dev/null
+else
+  docker builder prune --all --force --filter until=168h --keep-storage "$CACHE_BUDGET" >/dev/null
+fi
 
 available=$(df -B1 --output=avail / | tail -n 1 | tr -d ' ')
 [[ $available =~ ^[0-9]+$ ]] || {
@@ -86,5 +113,5 @@ available=$(df -B1 --output=avail / | tail -n 1 | tr -d ' ')
   exit 1
 }
 
-printf 'Limpieza Docker DEV: %s imágenes antiguas retiradas; caché de build vacía; libres %s.\n' \
-  "$removed" "$(df -h --output=avail / | tail -n 1 | tr -d ' ')"
+printf 'Limpieza Docker DEV: %s imágenes antiguas retiradas; caché conservada (presupuesto %s); libres %s.\n' \
+  "$removed" "$CACHE_BUDGET" "$(df -h --output=avail / | tail -n 1 | tr -d ' ')"

@@ -111,7 +111,7 @@ class PublicRuntimeContracts(unittest.TestCase):
         self.assertIn('"--force-recreate"', runtime)
         self.assertIn('org.opencontainers.image.revision', runtime)
         self.assertIn('ensure_build_window()', runtime)
-        self.assertLess(runtime.index("stop_web()", runtime.index("def deploy")), runtime.index('"build", "editor"'))
+        self.assertLess(runtime.index("stop_web()", runtime.index("def deploy")), runtime.index('"--kind", "editor"'))
         self.assertIn("CAPIBLOQUES_API_RECREATE_REQUIRED", runtime)
         self.assertIn("if not candidate_exists:", runtime)
 
@@ -158,6 +158,8 @@ class PublicRuntimeContracts(unittest.TestCase):
         self.assertIn("capibloques-compiler-dev:phase9", cleanup)
         self.assertIn("return 0", cleanup)
         self.assertIn("docker builder prune --all --force", cleanup)
+        self.assertIn('--filter until=168h --keep-storage "$CACHE_BUDGET"', cleanup)
+        self.assertNotIn('docker builder prune --all --force >/dev/null', cleanup)
         self.assertNotIn("docker system prune", cleanup)
         self.assertNotIn("docker volume", cleanup)
         self.assertNotIn("--volumes", cleanup)

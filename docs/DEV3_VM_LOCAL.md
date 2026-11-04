@@ -1,5 +1,9 @@
 # DEV3 local — operación y contexto
 
+03/11: optimización de actualizaciones preparada **sólo en rama** desde dev3.
+Ver [ACTUALIZACIONES_INCREMENTALES.md](ACTUALIZACIONES_INCREMENTALES.md).
+Pruebas aisladas en DEV3; no implica instalar ni integrar en los otros ambientes.
+
 Promoción autorizada 01/11: el propietario pidió pasar todo lo de DEV3 a
 DEV1 y al DEV original (`main`). Ambas ramas recibieron los cambios hasta
 `31fc979` por avance rápido, sin copiar bases de datos ni tocar DEV2.

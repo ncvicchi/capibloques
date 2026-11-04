@@ -5,6 +5,7 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 VERSION=${1:-1.15.0}
 DEST=${2:-$ROOT/public/interpreter}
 REVISION=${3:-unknown}
+RECIPE_KEY=$(python3 "$ROOT/scripts/interpreter-artifact-cache.py" key --root "$ROOT" --version "$VERSION" --revision "$REVISION")
 if command -v ccache >/dev/null 2>&1; then
   export IDF_CCACHE_ENABLE=1
   export CCACHE_DIR="$ROOT/outputs/interpreter-ccache"
@@ -16,17 +17,18 @@ else
 fi
 profile_is_current() {
   local profile=$1 identity=$2
-  python3 - "$DEST" "$profile" "$VERSION" "$REVISION" "$identity" <<'PY'
+  python3 - "$DEST" "$profile" "$VERSION" "$REVISION" "$identity" "$RECIPE_KEY" <<'PY'
 import hashlib, json, pathlib, sys
 
 root = pathlib.Path(sys.argv[1])
-profile, version, revision, identity = sys.argv[2:]
+profile, version, revision, identity, recipe_key = sys.argv[2:]
 try:
     info = json.loads((root / f"{profile}.json").read_text(encoding="utf-8"))
     bundle = root / info["bundle"]
     assert info["version"] == version
     assert info["sourceRevision"] == revision
     assert info.get("buildIdentity") == identity
+    assert info.get("recipeKey") == recipe_key
     assert bundle.is_file() and bundle.stat().st_size == info["bytes"]
     assert hashlib.sha256(bundle.read_bytes()).hexdigest() == info["sha256"]
 except Exception:
@@ -43,7 +45,7 @@ build_profile() {
   local defaults="$ROOT/interpreter/sdkconfig.defaults"
   if [[ $target == esp32s3 ]]; then defaults="$defaults;$ROOT/interpreter/sdkconfig.defaults.esp32s3"; fi
   IDF_TARGET="$target" idf.py -C "$ROOT/interpreter" -B "$build" -DIDF_TARGET="$target" -DSDKCONFIG="$build/sdkconfig" -DSDKCONFIG_DEFAULTS="$defaults" -DCAPI_BOARD_ID="$board_define" build
-  python3 "$ROOT/scripts/package-interpreter-firmware.py" --profile "$profile" --build "$build" --output "$DEST" --version "$VERSION" --revision "$REVISION" --build-identity "$identity"
+  python3 "$ROOT/scripts/package-interpreter-firmware.py" --profile "$profile" --build "$build" --output "$DEST" --version "$VERSION" --revision "$REVISION" --build-identity "$identity" --recipe-key "$RECIPE_KEY"
 }
 build_profile wemos-d1-r32 esp32 wemos-d1-r32
 # DIYmall y Waveshare usan el mismo target/toolchain. La segunda configuración

@@ -1,5 +1,16 @@
 # CapiBloques — contexto para continuar
 
+## 03/11/2026 — Actualizaciones incrementales, sólo rama
+
+Pedido vigente: optimizar desde dev3, documentar/commit/push sin tocar main ni
+DEV1. Rama `codex/dev3-actualizaciones-incrementales`, base `ec7d277`.
+[Operación, límites y pruebas](ACTUALIZACIONES_INCREMENTALES.md): conservar capas
+calientes, reutilizar imágenes por entradas reales y firmware por receta/SHA,
+con capas de metadatos que conservan la revisión publicada. Pruebas aisladas en
+DEV3; sin reinstalar/actualizar servicios ni bases, sin integrar ramas estables.
+La promoción 01/11 dejó main/DEV1 saludables en ec7d277 con intérprete1.15.0;
+esa publicación anterior no incorpora esta optimización nueva.
+
 **01/11 — Modos y reenvío actual:** [guía](MODOS_SIMULAR_EJECUTAR.md), rama `codex/dev3-modos-ejecucion-reglas-actuales` desde dev3. Selector Simulador/Placa y PC; Simular sólo worker, Ejecutar compila al clic y reenvía snapshot actual completo antes de RUN; mismo snapshot para espejo. STEP/RESUME reenvían si cambió checksum, ediciones solicitan STOP y marcan cambios pendientes, exclusión durante controles/transmisión. Se conserva USB entre modos. Sin firmware nuevo:1.15.0. Wemos realCOM34 y ambos bancos respaldados CRC; prueba sincronizada temporal y programa original restaurado, propietario confirmó ambos módulos en los dos casos. Original queda activo, puerto libre, respaldo privado fueraGit. Typecheck/lint y regresiones de edición real Blockly/GPIO/cambio de modo/una selección USB en navegadores. No atribuir a GPIO una causa no demostrada ni declarar UI física por mocks.
 
 **01/11 — Auto conectar mixto corregido:** el botón no pasaba `reassignTraffic: true` y mantenía montajes antiguos aunque el modelo ya soportaba la política nueva. Rama `codex/dev3-autoconectar-escena-completa`, desde dev3. Botón global normaliza ambos semáforos con un clic y conserva otros componentes; tooltip/mensaje explican alcance global. Regresión Chrome/Edge con escena legacy+directo, selección alternada, repetición y JSON guardado. Sin cambios ni compilación de firmware; sigue1.15.0.

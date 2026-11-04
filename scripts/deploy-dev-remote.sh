@@ -115,7 +115,7 @@ while IFS= read -r file; do
       ;;
     ops/public-dev/runtime.py)
       runtime_object=$(repo_git rev-parse "$TARGET_COMMIT:$file" 2>/dev/null || true)
-      [[ $runtime_object == 31596bd23eaba09b876a15d61b86ac438a37eca4 ]] || \
+      [[ $runtime_object == b14c178ef6dbb7198c84897e21aafb36d7671f28 ]] || \
         fail "runtime.py no coincide con la corrección de ownership auditada; DEV no fue modificado"
       REINSTALL_RUNTIME=1
       ;;
@@ -137,6 +137,9 @@ if ((${#unknown_maintenance[@]})); then
   fail "hay migraciones, dependencias o infraestructura no reconocidas; DEV no fue modificado"
 fi
 INTERPRETER_SOURCE=$(repo_git rev-parse "$TARGET_COMMIT:interpreter")
+if grep -Eq '^scripts/(build-interpreter-firmware.sh|prepare-interpreter-cache.py|package-interpreter-firmware.py|interpreter-artifact-cache.py)$' <<<"$changed_files"; then
+  BUILD_INTERPRETER=1
+fi
 if ! python3 - "$REPOSITORY/public/interpreter" "$INTERPRETER_SOURCE" <<'PY'
 import json, pathlib, sys
 root, revision = pathlib.Path(sys.argv[1]), sys.argv[2]
@@ -381,6 +384,16 @@ if ((BUILD_INTERPRETER)); then
   interpreter_builder_image=capibloques-compiler-dev:phase9
   interpreter_toolchain_key=$(docker image inspect "$interpreter_builder_image" --format '{{.Id}}' 2>/dev/null) || \
     fail "falta la imagen local $interpreter_builder_image para construir el intérprete"
+  artifact_args=(--root "$REPOSITORY" --version 1.15.0 --revision "$INTERPRETER_SOURCE" --toolchain "$interpreter_toolchain_key" --destination "$REPOSITORY/public/interpreter")
+  if python3 scripts/interpreter-artifact-cache.py restore "${artifact_args[@]}"; then
+    BUILD_INTERPRETER=0
+  else
+    artifact_status=$?
+    ((artifact_status == 3)) || fail "no se pudo leer la caché de paquetes del intérprete"
+  fi
+fi
+
+if ((BUILD_INTERPRETER)); then
   echo "Construyendo intérpretes de forma incremental; los objetos ESP-IDF se conservan en outputs."
   docker run --rm --cpus 1 --memory 1200m --memory-swap 1500m \
     --entrypoint /bin/bash \
@@ -400,6 +413,7 @@ for profile in ("wemos-d1-r32", "diymall-esp32-s3-devkitc-v1-n16r8", "waveshare-
     assert hashlib.sha256(bundle.read_bytes()).hexdigest() == info["sha256"]
 print("Firmware intérprete empaquetado y verificado para las tres placas.")
 PY
+  python3 scripts/interpreter-artifact-cache.py store "${artifact_args[@]}"
 fi
 
 if ((WITH_API)); then

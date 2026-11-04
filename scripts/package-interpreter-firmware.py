@@ -18,6 +18,7 @@ def main():
     parser.add_argument("--version", default="1.15.0")
     parser.add_argument("--revision", default="unknown")
     parser.add_argument("--build-identity", default="")
+    parser.add_argument("--recipe-key", default="")
     args = parser.parse_args()
     metadata = json.loads((args.build / "flasher_args.json").read_text(encoding="utf-8"))
     flash_files = metadata.get("flash_files", {})
@@ -42,6 +43,8 @@ def main():
     info = {"board":args.profile,"version":args.version,"abi":1,"bundle":bundle.name,"bytes":bundle.stat().st_size,"sha256":digest(bundle.read_bytes()),"sourceRevision":args.revision}
     if args.build_identity:
         info["buildIdentity"] = args.build_identity
+    if args.recipe_key:
+        info["recipeKey"] = args.recipe_key
     (args.output / f"{args.profile}.json").write_text(json.dumps(info, separators=(",",":"), sort_keys=True), encoding="utf-8")
     print(json.dumps(info))
 

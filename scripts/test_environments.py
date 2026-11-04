@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
@@ -190,11 +191,17 @@ class EnvironmentTests(unittest.TestCase):
                 raw = profile.encode()
                 (source/(profile+'.zip')).write_bytes(raw)
                 (source/(profile+'.json')).write_text(json.dumps(dict(bundle=profile+'.zip', bytes=len(raw),
-                    sha256=hashlib.sha256(raw).hexdigest(), sourceRevision='tree-id', version='1.9.1')))
+                    sha256=hashlib.sha256(raw).hexdigest(), sourceRevision='tree-id', version='1.9.1', recipeKey='fixture-key')))
+            def cached(*args, **kwargs):
+                if args[0:2] == ('docker', 'run'):
+                    raise AssertionError('No debe compilar firmware vigente.')
+                if 'restore' in args:
+                    raise subprocess.CalledProcessError(3, args)
+                return 'fixture-key'
             with patch.object(manager, 'REPO', main), patch.object(manager, 'git', return_value='tree-id'), \
-                 patch.object(manager.os, 'chown', create=True), patch.object(manager, 'run') as run:
+                 patch.object(manager.os, 'chown', create=True), patch.object(manager, 'run', side_effect=cached) as run:
                 manager.firmware(directory/'release', 'a'*40)
-            run.assert_not_called()
+            self.assertTrue(any('store' in call.args for call in run.call_args_list))
             self.assertEqual(len(list((directory/'release/public/interpreter').glob('*.json'))), 3)
 
     def test_old_release_keeps_its_own_firmware_version(self):
@@ -208,10 +215,10 @@ class EnvironmentTests(unittest.TestCase):
                 raw = profile.encode()
                 (bundles/(profile+'.zip')).write_bytes(raw)
                 (bundles/(profile+'.json')).write_text(json.dumps(dict(bundle=profile+'.zip', bytes=len(raw),
-                    sha256=hashlib.sha256(raw).hexdigest(), sourceRevision='old-tree', version='1.9.0')))
-            with patch.object(manager, 'git', return_value='old-tree'), patch.object(manager.os, 'chown', create=True), patch.object(manager, 'run') as run:
+                    sha256=hashlib.sha256(raw).hexdigest(), sourceRevision='old-tree', version='1.9.0', recipeKey='fixture-key')))
+            with patch.object(manager, 'git', return_value='old-tree'), patch.object(manager.os, 'chown', create=True), patch.object(manager, 'run', return_value='fixture-key') as run:
                 manager.firmware(release, 'b'*40)
-            run.assert_not_called()
+            self.assertFalse(any(call.args[:2] == ('docker', 'run') for call in run.call_args_list))
             self.assertEqual(json.loads((bundles/(manager.PROFILES[0]+'.json')).read_text())['version'], '1.9.0')
 
     def test_update_uses_exact_release_manager_without_installing_shared_tools(self):

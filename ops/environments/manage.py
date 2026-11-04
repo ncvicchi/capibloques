@@ -227,6 +227,10 @@ def firmware(release, commit):
         raise RuntimeError('No se pudo determinar la versión del intérprete de la release.')
     version = versions[0]
     revision = git('rev-parse', commit+':interpreter')
+    image = run('docker', 'image', 'inspect', 'capibloques-compiler-dev:phase9', '--format', '{{.Id}}', capture=True).strip()
+    artifact_args = ('--root', release, '--version', version, '--revision', revision, '--toolchain', image)
+    artifact_script = release/'scripts/interpreter-artifact-cache.py'
+    recipe_key = run('python3', artifact_script, 'key', *artifact_args, capture=True).strip()
     destination = release/'public/interpreter'
     destination.mkdir(parents=True, exist_ok=True)
     os.chown(destination, 1000, 1000)
@@ -235,24 +239,31 @@ def firmware(release, commit):
             for profile in PROFILES:
                 info = json.loads((root/(profile+'.json')).read_text())
                 bundle = root/info['bundle']
-                assert bundle.parent == root and info['sourceRevision'] == revision and info['version'] == version
+                assert bundle.parent == root and info['sourceRevision'] == revision and info['version'] == version and info.get('recipeKey') == recipe_key
                 assert bundle.stat().st_size == info['bytes']
                 assert hashlib.sha256(bundle.read_bytes()).hexdigest() == info['sha256']
             return True
         except (OSError, ValueError, KeyError, AssertionError):
             return False
     if valid(destination):
+        print('Intérprete: paquetes de esta release ya verificados; sin compilar.', flush=True)
         return
+    try:
+        run('python3', artifact_script, 'restore', *artifact_args, '--destination', destination)
+        return
+    except subprocess.CalledProcessError as error:
+        if error.returncode != 3:
+            raise
     if valid(REPO/'public/interpreter'):
         for profile in PROFILES:
             info = json.loads((REPO/'public/interpreter'/(profile+'.json')).read_text())
             for filename in (profile+'.json', info['bundle']):
                 shutil.copy2(REPO/'public/interpreter'/filename, destination/filename)
+        run('python3', artifact_script, 'store', *artifact_args, '--destination', destination)
         return
     cache = RELEASES/'interpreter-cache'
     cache.mkdir(parents=True, exist_ok=True)
     os.chown(cache, 1000, 1000)
-    image = run('docker', 'image', 'inspect', 'capibloques-compiler-dev:phase9', '--format', '{{.Id}}', capture=True).strip()
     run('docker', 'run', '--rm', '--cpus', '1', '--memory', '1200m', '--memory-swap', '1500m',
         '--entrypoint', '/bin/bash', '--user', '1000:1000', '-e', 'HOME=/tmp/capi-idf', '-e', 'IDF_PY_BUILD_JOBS=2',
         '-e', 'CAPI_INTERPRETER_TOOLCHAIN_KEY='+image, '-v', str(release)+':/project',
@@ -260,6 +271,7 @@ def firmware(release, commit):
         '-lc', '. "$IDF_PATH/export.sh" >/dev/null && bash scripts/build-interpreter-firmware.sh '+version+' /project/public/interpreter '+revision)
     if not valid(destination):
         raise RuntimeError('Firmware incompleto o de otra revisión; no se publicará.')
+    run('python3', artifact_script, 'store', *artifact_args, '--destination', destination)
 
 
 def verify_published_firmware(spec, release, commit):
@@ -346,7 +358,9 @@ def deploy(spec, commit):
     with resource_lock():
         firmware(release, commit)
         candidate = create_config(spec, release, commit)
-        compose(spec, 'build', 'api', 'editor', config=candidate)
+        for kind in ('api', 'editor'):
+            run('python3', release/'scripts/dev-build-cache.py', '--root', release,
+                '--kind', kind, '--image', f'capibloques-{kind}-{spec["env"]}:{commit[:12]}', '--revision', commit)
         # The large SDK image is shared; only branch generator sources overlay it.
         for path in ('ops/compiler/Dockerfile', 'ops/compiler/generator/package-lock.json', 'ops/compiler/generator/package.json', 'ops/compiler/arduino-cli.yaml'):
             if git('rev-parse', commit+':'+path) != git('rev-parse', 'HEAD:'+path):
@@ -360,7 +374,8 @@ def deploy(spec, commit):
             'compiler-image': dict(image=image_tag, build=dict(context=str(release),
                 dockerfile='/opt/capibloques-environments/compiler.Dockerfile',
                 args=dict(CAPI_COMPILER_BASE='capibloques-compiler-dev:phase9')))})))
-        compose(spec, 'build', 'compiler-image', config=compiler_config)
+        run('python3', release/'scripts/dev-build-cache.py', '--root', release,
+            '--kind', 'compiler', '--image', image_tag, '--revision', commit)
         image = run('docker', 'image', 'inspect', image_tag, '--format', '{{.Id}}', capture=True).strip()
         # The CURRENT main cleanup predates environments. A stopped, scoped pin
         # protects this idle recipe even before the new cleanup reaches main;

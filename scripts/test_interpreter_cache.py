@@ -122,7 +122,7 @@ class BuilderIntegrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             (root / "scripts").mkdir()
-            for name in ("build-interpreter-firmware.sh", "prepare-interpreter-cache.py", "package-interpreter-firmware.py"):
+            for name in ("build-interpreter-firmware.sh", "prepare-interpreter-cache.py", "package-interpreter-firmware.py", "interpreter-artifact-cache.py"):
                 shutil.copyfile(ROOT / "scripts" / name, root / "scripts" / name)
             (root / "interpreter").mkdir()
             for name in ("sdkconfig.defaults", "sdkconfig.defaults.esp32s3"):
